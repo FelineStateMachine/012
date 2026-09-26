@@ -2,7 +2,18 @@
 
 Principles: keyboard first, 1-2-3 muscle memory stays the default, the main
 binary stays pure Go (`CGO_ENABLED=0`), and every feature ships with unit
-tests plus a libghostty e2e test.
+tests, a libghostty e2e test and reviewed golden screens. Visual and UX
+quality keep pace with features: see [docs/UX.md](docs/UX.md).
+
+## Goals
+
+| Phase | Goal | Done when |
+|---|---|---|
+| 1 | The engine can do everything 1-2-3 R2 users reach for daily, and every change can be undone | Undo/redo covers every mutation; /Copy, /Move, /Worksheet Insert and Delete adjust relative and absolute references; /Range Format and range names work and persist; date and finance functions match excelize on a differential test suite |
+| 2 | Finding and using features is faster than in any terminal spreadsheet | Ctrl+P palette reaches every command with its key shown; formulas autocomplete with signature hints; the status line shows live stats of the pointed range; precedents and dependents are visible and jumpable; titles freeze; search and filter work; fill down and series work; a vim keymap is available |
+| 3 | one23 uses the terminal it's running in to the fullest, and degrades gracefully | Copy and paste ranges through the system clipboard; charts render as images in Ghostty/kitty and as text elsewhere; URLs are clickable; error cells are marked beyond color; cursor shape reflects the mode; the theme follows light and dark |
+| 4 | Data moves in and out of one23 without friction or cgo | CSV/TSV, XLSX, SQLite, Parquet and Lotus .wk1 import, with export where it makes sense; large imports show progress; the binary still builds with `CGO_ENABLED=0` |
+| 5 | one23 goes where 1-2-3 couldn't | Multiple sheets with cross-sheet references; derived frequency and pivot sheets; recorded and Starlark macros; an SSH server mode; opt-in decimal arithmetic; VHS demo tapes in CI |
 
 ## Phase 1: engine foundations (unblocks everything else)
 
