@@ -1,0 +1,65 @@
+- generic [active] [ref=e1]:
+  - heading "one23 screens" [level=1] [ref=e2]
+  - generic [ref=e3]:
+    - heading "ready-empty" [level=2] [ref=e4]
+    - generic [ref=e5]:
+      - generic [ref=e6]: "A1: READY A B C D E F G H I J 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled F1 Help / Menu"
+      - generic [ref=e8]: "A1: READY A B C D E F G H I J 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled F1 Help / Menu"
+  - generic [ref=e10]:
+    - heading "budget" [level=2] [ref=e11]
+    - generic [ref=e12]:
+      - generic [ref=e13]: "B7: @SUM(B3..B5) READY A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+      - generic [ref=e15]: "B7: @SUM(B3..B5) READY A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+  - generic [ref=e17]:
+    - heading "budget-light" [level=2] [ref=e18]
+    - generic [ref=e19]: "B7: @SUM(B3..B5) READY A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+  - generic [ref=e22]:
+    - heading "entry-formula" [level=2] [ref=e23]
+    - generic [ref=e24]:
+      - generic [ref=e25]: "B8: VALUE +B7*12 A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+      - generic [ref=e27]: "B8: VALUE +B7*12 A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+  - generic [ref=e29]:
+    - heading "point-range" [level=2] [ref=e30]
+    - generic [ref=e31]:
+      - generic [ref=e32]: "C7: POINT @AVG(B3..B5 Arrows move, . anchors a range, Esc unanchors, Enter accepts A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+      - generic [ref=e34]: "C7: POINT @AVG(B3..B5 Arrows move, . anchors a range, Esc unanchors, Enter accepts A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+  - generic [ref=e36]:
+    - heading "edit-error" [level=2] [ref=e37]
+    - generic [ref=e38]:
+      - generic [ref=e39]: "A1: EDIT @SUM(A1 expected , or ) at position 8 A B C D E F G H I J 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled F1 Help / Menu"
+      - generic [ref=e41]: "A1: EDIT @SUM(A1 expected , or ) at position 8 A B C D E F G H I J 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled F1 Help / Menu"
+  - generic [ref=e43]:
+    - heading "menu-top" [level=2] [ref=e44]
+    - generic [ref=e45]:
+      - generic [ref=e46]: "B7: @SUM(B3..B5) MENU Worksheet Range File Quit Column Erase A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+      - generic [ref=e48]: "B7: @SUM(B3..B5) MENU Worksheet Range File Quit Column Erase A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+  - generic [ref=e50]:
+    - heading "menu-quit-unsaved" [level=2] [ref=e51]
+    - generic [ref=e52]:
+      - generic [ref=e53]: "B7: @SUM(B3..B5) MENU No Yes WORKSHEET CHANGES NOT SAVED! End the session anyway? A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+      - generic [ref=e55]: "B7: @SUM(B3..B5) MENU No Yes WORKSHEET CHANGES NOT SAVED! End the session anyway? A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+  - generic [ref=e57]:
+    - heading "prompt-width" [level=2] [ref=e58]
+    - generic [ref=e59]:
+      - generic [ref=e60]: "A1: [W12] 'Household budget 2026 POINT Enter column width (1..240): 12 Type a width or use the left and right arrows A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings rate ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+      - generic [ref=e62]: "A1: [W12] 'Household budget 2026 POINT Enter column width (1..240): 12 Type a width or use the left and right arrows A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings rate ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+  - generic [ref=e64]:
+    - heading "range-erase" [level=2] [ref=e65]
+    - generic [ref=e66]:
+      - generic [ref=e67]: "A3: 'Rent POINT Enter range to erase: A3..B5 Arrows move, . anchors a range, Esc unanchors, Enter accepts A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+      - generic [ref=e69]: "A3: 'Rent POINT Enter range to erase: A3..B5 Arrows move, . anchors a range, Esc unanchors, Enter accepts A B C D E F G H I J 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 untitled [modified] F1 Help / Menu"
+  - generic [ref=e71]:
+    - heading "error-goto" [level=2] [ref=e72]
+    - generic [ref=e73]:
+      - generic [ref=e74]: "A1: ERROR A B C D E F G H I J 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 Invalid cell address: nope (press any key)"
+      - generic [ref=e76]: "A1: ERROR A B C D E F G H I J 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 Invalid cell address: nope (press any key)"
+  - generic [ref=e78]:
+    - heading "help" [level=2] [ref=e79]
+    - generic [ref=e80]:
+      - generic [ref=e81]: "HELP one23 (press any key to return) Arrows Move the cell pointer PgUp / PgDn Move one screen up or down Tab / Shift+Tab Move one screen right or left Home Go to A1 Ctrl+C Quit immediately F2 Edit the current cell's contents DELETE Erase the current cell F5 Move the cell pointer to an address F1 Show keys and functions / OR < Open the slash menu Entries Text Label (prefix ' left, \" right, ^ center) 0-9 + - . ( @ # $ Value or formula, e.g. +A1*2, @SUM(A1..A5) Arrows after an operator enter POINT mode; . anchors a range Functions: @SUM @AVG @COUNT @MIN @MAX @ABS @INT @SQRT @ROUND @MOD @IF @PI @TRUE @FALSE @ERR @NA Operators: + - * / ^ & = <> < > <= >= #AND# #OR# #NOT#"
+      - generic [ref=e83]: "HELP one23 (press any key to return) Arrows Move the cell pointer PgUp / PgDn Move one screen up or down Tab / Shift+Tab Move one screen right or left Home Go to A1 Ctrl+C Quit immediately F2 Edit the current cell's contents DELETE Erase the current cell F5 Move the cell pointer to an address F1 Show keys and functions / OR < Open the slash menu Entries Text Label (prefix ' left, \" right, ^ center) 0-9 + - . ( @ # $ Value or formula, e.g. +A1*2, @SUM(A1..A5) Arrows after an operator enter POINT mode; . anchors a range Functions: @SUM @AVG @COUNT @MIN @MAX @ABS @INT @SQRT @ROUND @MOD @IF @PI @TRUE @FALSE @ERR @NA Operators: + - * / ^ & = <> < > <= >= #AND# #OR# #NOT#"
+  - generic [ref=e85]:
+    - heading "narrow" [level=2] [ref=e86]
+    - generic [ref=e87]:
+      - generic [ref=e88]: "B7: @SUM(B3..B5) READY A B C D E F 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 untitled [modified] F1 Help / Menu"
+      - generic [ref=e90]: "B7: @SUM(B3..B5) READY A B C D E F 1 Household budget 2026 2 3 Rent 1450 4 Groceries 612.4 5 Transit 96 6 Savings r ERR 7 Total 2158.4 8 9 10 11 untitled [modified] F1 Help / Menu"

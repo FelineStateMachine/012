@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: build run test fuzz e2e libghostty clean
+.PHONY: build run test fuzz e2e screens libghostty clean
 
 build:
 	CGO_ENABLED=0 go build -o bin/one23 ./cmd/one23
@@ -23,6 +23,11 @@ fuzz:
 
 e2e: $(GHOSTTY_STAMP)
 	cd e2e && PKG_CONFIG_PATH=$(GHOSTTY_OUT)/share/pkgconfig go test -count=1 ./...
+
+# Rewrite golden screens and build e2e/testdata/screens/gallery.html for
+# visual review. Review the diff and the gallery before committing.
+screens: $(GHOSTTY_STAMP)
+	cd e2e && PKG_CONFIG_PATH=$(GHOSTTY_OUT)/share/pkgconfig go test -count=1 -run TestScreens ./... -update
 
 libghostty: $(GHOSTTY_STAMP)
 

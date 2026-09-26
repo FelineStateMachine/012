@@ -58,18 +58,34 @@ type session struct {
 	exited chan struct{} // closed when the pty reader stops
 }
 
+// options configures a session.
+type options struct {
+	dir        string // working directory; a fresh temp dir if empty
+	cols, rows uint16 // defaults to 100x30
+	light      bool   // use the light reference palette
+}
+
 // start launches one23 in dir (a fresh temp dir if empty) with args.
 func start(t *testing.T, dir string, args ...string) *session {
 	t.Helper()
-	if dir == "" {
-		dir = t.TempDir()
+	return startWith(t, options{dir: dir}, args...)
+}
+
+func startWith(t *testing.T, o options, args ...string) *session {
+	t.Helper()
+	if o.dir == "" {
+		o.dir = t.TempDir()
 	}
-	s := &session{t: t, dir: dir, cols: 100, rows: 30, exited: make(chan struct{})}
+	if o.cols == 0 {
+		o.cols, o.rows = 100, 30
+	}
+	s := &session{t: t, dir: o.dir, cols: o.cols, rows: o.rows, exited: make(chan struct{})}
 
 	var err error
 	if s.vt, err = ghostty.NewTerminal(ghostty.WithSize(s.cols, s.rows)); err != nil {
 		t.Fatal(err)
 	}
+	applyPalette(t, s.vt, o.light)
 	if s.enc, err = ghostty.NewKeyEncoder(); err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +94,7 @@ func start(t *testing.T, dir string, args ...string) *session {
 	}
 
 	s.cmd = exec.Command(binPath, args...)
-	s.cmd.Dir = dir
+	s.cmd.Dir = o.dir
 	s.cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
 	s.pty, err = pty.StartWithSize(s.cmd, &pty.Winsize{Cols: s.cols, Rows: s.rows})
 	if err != nil {
@@ -125,10 +141,20 @@ func start(t *testing.T, dir string, args ...string) *session {
 
 // screen returns the visible screen as plain text.
 func (s *session) screen() string {
+	return s.format(ghostty.FormatterFormatPlain)
+}
+
+// html returns the visible screen as HTML with inline styles, colored by
+// the session's reference palette.
+func (s *session) html() string {
+	return s.format(ghostty.FormatterFormatHTML)
+}
+
+func (s *session) format(format ghostty.FormatterFormat) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	f, err := ghostty.NewFormatter(s.vt,
-		ghostty.WithFormatterFormat(ghostty.FormatterFormatPlain),
+		ghostty.WithFormatterFormat(format),
 		ghostty.WithFormatterTrim(true))
 	if err != nil {
 		s.t.Fatal(err)
