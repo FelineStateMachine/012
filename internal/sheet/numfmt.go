@@ -62,7 +62,7 @@ func splitSections(pat string) []string {
 func lexPattern(sec string) []ptok {
 	var toks []ptok
 	lit := func(s string) { toks = append(toks, ptok{kind: ptLit, s: s}) }
-	lower := strings.ToLower(sec)
+	lower := asciiLower(sec) // same byte offsets as sec
 	for i := 0; i < len(sec); {
 		c := sec[i]
 		lc := lower[i]
@@ -146,6 +146,17 @@ func lexPattern(sec string) []ptok {
 		}
 	}
 	return toks
+}
+
+// asciiLower lower-cases ASCII letters only, keeping byte offsets.
+func asciiLower(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			b[i] = c + 'a' - 'A'
+		}
+	}
+	return string(b)
 }
 
 // isDatePattern reports whether a section formats dates and times.

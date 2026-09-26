@@ -27,6 +27,22 @@ func TestFormattingReplacesCells(t *testing.T) {
 	}
 }
 
+// FuzzFormatPattern checks that any pattern and value render without
+// panicking, as TEXT() passes user patterns straight through.
+func FuzzFormatPattern(f *testing.F) {
+	for _, p := range []string{"#,##0.00", "0.0%", "0.00E+00", `"$"#,##0;(#,##0)`, "m/d/yyyy h:mm am/pm", "[h]:mm:ss.00", `\`, `"`, "[", "*", "_"} {
+		f.Add(1234.5, p)
+		f.Add(-1e300, p)
+	}
+	f.Fuzz(func(t *testing.T, v float64, pat string) {
+		if len(pat) > 200 {
+			return
+		}
+		FormatPattern(v, pat)
+		Display(Value{Kind: Number, Num: v}, Format{Kind: FmtCustom, Pattern: pat}, 12)
+	})
+}
+
 func TestBatchJoinsFormattingSteps(t *testing.T) {
 	s := New()
 	r := NewRect(at("A1"), at("B2"))
