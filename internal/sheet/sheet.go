@@ -42,6 +42,8 @@ type Sheet struct {
 
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
+
+	hist history // undo and redo, see history.go
 }
 
 // New returns an empty worksheet.
@@ -93,6 +95,11 @@ func (s *Sheet) ColWidth(c int) int {
 
 // SetColWidth sets column c's width; w <= 0 resets it to the default.
 func (s *Sheet) SetColWidth(c, w int) {
+	s.change(colRect(c, c), func() { s.setWidth(c, w) })
+}
+
+func (s *Sheet) setWidth(c, w int) {
+	s.recordWidth(c)
 	if w <= 0 {
 		delete(s.widths, c)
 		return
@@ -147,11 +154,9 @@ func classify(input string) (Node, error) {
 // erases the cell. A formula that fails to parse is rejected with a
 // *ParseError and the sheet is left unchanged.
 func (s *Sheet) Set(a Addr, input string) error {
-	if err := s.put(a, input); err != nil {
-		return err
-	}
-	s.recalc([]Addr{a})
-	return nil
+	var err error
+	s.change(Rect{a, a}, func() { err = s.put(a, input) })
+	return err
 }
 
 // put stores an entry without recalculating. Control characters are
@@ -164,20 +169,38 @@ func (s *Sheet) put(a Addr, input string) error {
 		return r
 	}, input)
 	if input == "" {
-		s.erase(a)
+		s.place(a, nil)
 		return nil
 	}
 	n, err := classify(input)
 	if err != nil {
 		return err
 	}
-	c := &Cell{Input: input, expr: n}
+	c := &Cell{Input: input}
+	c.setExpr(n)
+	s.place(a, c)
+	return nil
+}
+
+// setExpr sets c's expression and the references indexed from it.
+func (c *Cell) setExpr(n Node) {
+	c.expr, c.refs, c.ranges = n, nil, nil
 	if n != nil {
 		walkRefs(n,
 			func(r Addr) { c.refs = append(c.refs, r) },
 			func(r Rect) { c.ranges = append(c.ranges, r) })
 	}
-	s.erase(a)
+}
+
+// place stores c at a (nil blanks it), recording the old cell for undo and
+// keeping the dependency indexes current. Every cell mutation goes through
+// here.
+func (s *Sheet) place(a Addr, c *Cell) {
+	s.record(a)
+	s.unlink(a)
+	if c == nil {
+		return
+	}
 	s.cells[a] = c
 	for _, r := range c.refs {
 		if s.dependents[r] == nil {
@@ -188,24 +211,30 @@ func (s *Sheet) put(a Addr, input string) error {
 	if len(c.ranges) > 0 {
 		s.rangeUsers[a] = struct{}{}
 	}
-	return nil
 }
 
 // EraseRange blanks every cell in r.
 func (s *Sheet) EraseRange(r Rect) {
-	var changed []Addr
-	for a := range s.cells {
-		if r.Contains(a) {
-			changed = append(changed, a)
+	s.change(r, func() {
+		for _, a := range s.cellsIn(r) {
+			s.place(a, nil)
 		}
-	}
-	for _, a := range changed {
-		s.erase(a)
-	}
-	s.recalc(changed)
+	})
 }
 
-func (s *Sheet) erase(a Addr) {
+// cellsIn returns the non-blank cells in r.
+func (s *Sheet) cellsIn(r Rect) []Addr {
+	var out []Addr
+	for a := range s.cells {
+		if r.Contains(a) {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// unlink removes the cell at a and its dependency edges.
+func (s *Sheet) unlink(a Addr) {
 	old := s.cells[a]
 	if old == nil {
 		return
@@ -220,9 +249,11 @@ func (s *Sheet) erase(a Addr) {
 	delete(s.cells, a)
 }
 
-// RecalcAll recomputes every formula, e.g. after loading a file.
+// RecalcAll recomputes every formula. Loaders call it once the sheet is
+// built, so it also starts a fresh undo history: loading isn't undoable.
 func (s *Sheet) RecalcAll() {
 	s.recalc(s.Addrs())
+	s.ClearHistory()
 }
 
 // recalc recomputes the changed cells and everything that transitively
