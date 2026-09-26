@@ -25,8 +25,8 @@ const (
 func (s *session) waitForBar(name, text string) {
 	s.t.Helper()
 	s.eventually(fmt.Sprintf("formula bar %s %q", name, text), func() bool {
-		l := s.line(barLine)
-		return len(l) >= barX && strings.TrimSpace(l[:barX]) == name && l[barX:] == text
+		l := s.line(barLine) + strings.Repeat(" ", barX)
+		return strings.TrimSpace(l[:barX]) == name && strings.TrimRight(l[barX:], " ") == text
 	})
 }
 

@@ -34,6 +34,18 @@ func TestMenuSetsColumnWidth(t *testing.T) {
 	s.eventually("wider column A", func() bool { return strings.HasPrefix(s.line(3), strings.Repeat(" ", 6)+strings.Repeat(" ", 9)+"A") })
 }
 
+func TestPaletteSearchAndRun(t *testing.T) {
+	s := start(t, "")
+	s.keys("<ctrl+k>")
+	s.waitFor("Search the menus")
+	s.keys("goto")
+	s.waitFor("│ › goto")
+	s.keys("<enter>")
+	s.waitFor("Go to: A1")
+	s.keys("C5", "<enter>")
+	s.waitForBar("C5", "")
+}
+
 func TestQuitAsksAboutUnsavedChanges(t *testing.T) {
 	s := start(t, "")
 	s.keys("1", "<enter>", "<ctrl+q>")

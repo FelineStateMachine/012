@@ -69,6 +69,21 @@ var screens = []screen{
 		s.keys("<alt+f>", "<down>", "<down>")
 		s.waitFor("Save the sheet")
 	}},
+	{name: "palette", setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+k>")
+		s.waitFor("Search the menus")
+	}},
+	{name: "palette-search", setup: func(s *session) {
+		budget(s)
+		s.keys("<alt+/>", "col")
+		s.waitFor("│ › col")
+	}},
+	{name: "palette-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+k>", "sa")
+		s.waitFor("│ › sa")
+	}},
 	{name: "quit-confirm", setup: func(s *session) {
 		budget(s)
 		s.keys("<ctrl+q>")
@@ -124,7 +139,7 @@ var screens = []screen{
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"

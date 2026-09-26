@@ -64,7 +64,7 @@ func renderHTML(vt *ghostty.Terminal) (string, error) {
 			}
 			css := ""
 			if st, err := ref.Style(); err == nil && !st.IsDefault() {
-				css = styleCSS(st)
+				css = styleCSS(st, strings.TrimSpace(text) == "")
 			}
 			// Cells erased with a background color hold just that color.
 			switch tag, _ := cell.ContentTag(); tag {
@@ -88,25 +88,28 @@ func renderHTML(vt *ghostty.Terminal) (string, error) {
 	return `<pre class="screen">` + strings.TrimRight(b.String(), "\n") + "</pre>", nil
 }
 
-func styleCSS(st *ghostty.Style) string {
+// styleCSS converts a cell style to CSS. For blank cells only what shows
+// is kept (background, lines), so snapshots don't depend on whether the
+// renderer wrote spaces or erased cells.
+func styleCSS(st *ghostty.Style, blank bool) string {
 	fg, bg := cssColor(st.FgColor(), ""), cssColor(st.BgColor(), "")
 	if st.Inverse() {
 		fg, bg = cmp.Or(bg, "var(--bg)"), cmp.Or(fg, "var(--fg)")
 	}
 	var parts []string
-	if fg != "" {
+	if fg != "" && !blank {
 		parts = append(parts, "color:"+fg)
 	}
 	if bg != "" {
 		parts = append(parts, "background:"+bg)
 	}
-	if st.Bold() {
+	if st.Bold() && !blank {
 		parts = append(parts, "font-weight:bold")
 	}
-	if st.Italic() {
+	if st.Italic() && !blank {
 		parts = append(parts, "font-style:italic")
 	}
-	if st.Faint() {
+	if st.Faint() && !blank {
 		parts = append(parts, "opacity:.6")
 	}
 	if u := st.Underline(); u != ghostty.UnderlineNone {

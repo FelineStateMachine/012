@@ -8,14 +8,21 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// fakeCommand registers a command for the length of a test, standing in
-// for commands other tracks register. It returns a run counter.
+// fakeCommand replaces (or adds) a command for the length of a test and
+// returns a run counter. The real command, if any, is restored afterwards.
 func fakeCommand(t *testing.T, id, title string, enabled func(*Model) bool) *int {
 	t.Helper()
 	runs := new(int)
-	register(&command{id: id, title: title, desc: title + " (test)", enabled: enabled,
-		run: func(*Model) tea.Cmd { *runs++; return nil }})
-	t.Cleanup(func() { delete(commands, id) })
+	prev, had := commands[id]
+	commands[id] = &command{id: id, title: title, desc: title + " (test)", enabled: enabled,
+		run: func(*Model) tea.Cmd { *runs++; return nil }}
+	t.Cleanup(func() {
+		if had {
+			commands[id] = prev
+		} else {
+			delete(commands, id)
+		}
+	})
 	return runs
 }
 
