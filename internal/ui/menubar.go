@@ -460,8 +460,14 @@ func (o *menuOverlay) layout(m *Model) []box {
 		case i > 0:
 			p := boxes[i-1]
 			x, y = p.x+p.width(), p.y+o.levels[i-1].sel-o.levels[i-1].top
+			// Open to the right; else to the left; and if neither fits,
+			// against the screen's right edge, where it covers the parent's
+			// shortcuts rather than its labels.
 			if x+w > m.width {
 				x = p.x - w
+				if x < 0 {
+					x = m.width - w
+				}
 			}
 		case o.bar >= 0:
 			x, y = barMenus()[o.bar].x, menuLine+1

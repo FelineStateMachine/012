@@ -3,6 +3,7 @@ package ui
 import (
 	"math"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -211,14 +212,20 @@ func (m *Model) statusLine() string {
 	if m.hasRange() && m.mode == modeReady {
 		r := m.selection()
 		st := m.sheet.RangeStats(r)
-		parts := []string{m.th.key.Render(r.String())}
+		rng := m.th.key.Render(r.String())
+		sum, avg := "", ""
 		if st.Nums > 0 {
-			parts = append(parts,
-				m.th.muted.Render("Sum ")+fmtStat(st.Sum),
-				m.th.muted.Render("Avg ")+fmtStat(st.Sum/float64(st.Nums)))
+			sum = m.th.muted.Render("Sum ") + fmtStat(st.Sum)
+			avg = m.th.muted.Render("Avg ") + fmtStat(st.Sum/float64(st.Nums))
 		}
-		parts = append(parts, m.th.muted.Render("Count ")+strconv.Itoa(st.Count))
-		right = strings.Join(parts, "   ")
+		count := m.th.muted.Render("Count ") + strconv.Itoa(st.Count)
+		// As many stats as fit: Avg goes first, then Sum, then Count.
+		for _, parts := range [][]string{{rng, sum, avg, count}, {rng, sum, count}, {rng, count}, {rng}} {
+			right = strings.Join(slices.DeleteFunc(parts, func(p string) bool { return p == "" }), "   ")
+			if ansi.StringWidth(left)+3+ansi.StringWidth(right) <= m.width {
+				break
+			}
+		}
 	} else {
 		// The ways in to everything else, as many as fit.
 		pairs := []string{shortcut("palette"), "search", shortcut("help"), "shortcuts", shortcut("menu"), "menu"}
