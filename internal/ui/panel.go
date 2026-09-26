@@ -18,16 +18,11 @@ import (
 
 // View implements tea.Model.
 func (m *Model) View() tea.View {
-	var lines []string
-	if m.mode == modeHelp {
-		lines = m.helpLines()
-	} else {
-		lines = append(lines, m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.headerRow())
-		for i := range m.visibleRows() {
-			lines = append(lines, m.gridRow(m.top+i))
-		}
-		lines = append(lines, m.statusLine())
+	lines := []string{m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.headerRow()}
+	for i := range m.visibleRows() {
+		lines = append(lines, m.gridRow(m.top+i))
 	}
+	lines = append(lines, m.statusLine())
 	for i, l := range lines {
 		lines[i] = ansi.Truncate(l, m.width, "")
 	}
@@ -199,6 +194,9 @@ func (m *Model) statusLine() string {
 	if m.overlay != nil {
 		// What the highlighted item does and the keys that apply.
 		if desc, keys := m.overlay.status(m); desc != "" || keys != "" {
+			if room := m.width - ansi.StringWidth(keys) - 3; room >= 12 {
+				desc = ansi.Truncate(desc, room, "…")
+			}
 			return m.spread(desc, keys)
 		}
 	}

@@ -15,7 +15,7 @@ import (
 
 var named = map[string]tea.Key{
 	"enter": {Code: tea.KeyEnter}, "esc": {Code: tea.KeyEscape}, "backspace": {Code: tea.KeyBackspace},
-	"tab": {Code: tea.KeyTab}, "delete": {Code: tea.KeyDelete}, "home": {Code: tea.KeyHome},
+	"tab": {Code: tea.KeyTab}, "delete": {Code: tea.KeyDelete}, "home": {Code: tea.KeyHome}, "end": {Code: tea.KeyEnd},
 	"up": {Code: tea.KeyUp}, "down": {Code: tea.KeyDown}, "left": {Code: tea.KeyLeft}, "right": {Code: tea.KeyRight},
 	"pgdown": {Code: tea.KeyPgDown}, "f1": {Code: tea.KeyF1}, "f2": {Code: tea.KeyF2}, "f5": {Code: tea.KeyF5},
 	"f10": {Code: tea.KeyF10}, "space": {Code: tea.KeySpace},
@@ -405,16 +405,5 @@ func TestScrollFollowsCursor(t *testing.T) {
 	press(t, m, "<ctrl+home>")
 	if m.top != 0 || m.cur != (sheet.Addr{}) {
 		t.Errorf("ctrl+home: top %d cur %v", m.top, m.cur)
-	}
-}
-
-func TestHelpListsShortcuts(t *testing.T) {
-	m := newModel()
-	press(t, m, "<f1>")
-	s := screen(m)
-	for _, want := range []string{"Ctrl+S", "Save", "Backspace", "Del", "Ctrl+Shift+V", "Paste values only", "SUM"} {
-		if !strings.Contains(s, want) {
-			t.Errorf("help missing %q", want)
-		}
 	}
 }

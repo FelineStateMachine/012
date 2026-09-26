@@ -160,7 +160,7 @@ func (m *Model) handlePress(mouse tea.Mouse) tea.Cmd {
 
 func (m *Model) leftPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 	switch m.mode {
-	case modeHelp, modeError:
+	case modeError:
 		m.errMsg, m.mode = "", modeReady
 		return nil
 	case modeMenu:

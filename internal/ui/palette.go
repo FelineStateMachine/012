@@ -96,6 +96,7 @@ type picker struct {
 	title       string
 	placeholder string
 	maxW        int
+	action      string // what Enter does, for the key hints
 	items       []pickItem
 	shown       []pickMatch
 	list
@@ -208,7 +209,7 @@ func (p *picker) mouse(m *Model, e mouseEvent) tea.Cmd {
 }
 
 func (p *picker) status(m *Model) (string, string) {
-	keys := m.keyHints("Up/Down", "move", "Enter", "run", "Esc", "close")
+	keys := m.keyHints("Up/Down", "move", "Enter", cmp.Or(p.action, "run"), "Esc", "close")
 	if p.sel >= len(p.shown) {
 		return "", keys
 	}

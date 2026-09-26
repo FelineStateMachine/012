@@ -110,10 +110,6 @@ func (m *Model) runCommand(id string) tea.Cmd {
 
 func init() {
 	register(
-		&command{id: "help", title: "Keyboard shortcuts", desc: "Show keys and functions", run: func(m *Model) tea.Cmd {
-			m.mode = modeHelp
-			return nil
-		}},
 		&command{id: "edit", title: "Edit cell", desc: "Edit the active cell's contents", run: (*Model).startEdit},
 		&command{id: "goto", title: "Go to", desc: "Move to a cell address", run: func(m *Model) tea.Cmd {
 			m.openGoto()

@@ -140,8 +140,8 @@ func TestPointerShapes(t *testing.T) {
 func TestClickDismissesHelp(t *testing.T) {
 	m := newModel()
 	press(t, m, "<f1>")
-	click(m, cellX(1), gridTop, 0)
-	if m.mode != modeReady {
-		t.Errorf("mode %v", m.mode)
+	click(m, 1, m.height-1, 0) // outside the shortcuts overlay
+	if m.mode != modeReady || m.overlay != nil {
+		t.Errorf("mode %v overlay %T", m.mode, m.overlay)
 	}
 }

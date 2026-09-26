@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -169,91 +167,6 @@ func (m *Model) rowText(row int) []string {
 		}
 	}
 	return out
-}
-
-func (m *Model) helpLines() []string {
-	lines := []string{
-		m.th.indicator.Render(" HELP ") + "  Keyboard shortcuts " + m.th.muted.Render("(press any key to return)"),
-		"",
-		"  Arrows              Move            Shift+arrows      Select",
-		"  Ctrl+arrows         Jump to the edge of the data (add Shift to select)",
-		"  Tab / Shift+Tab     Right / left    PgUp / PgDn       Screen up / down",
-		"  Home / Ctrl+Home    Column A / A1   Ctrl+End          Last used cell",
-		"  Mouse               Click, drag or Shift+click to select; click headers",
-		"                      for whole columns or rows; double-click to edit",
-		"",
-	}
-	// Shortcuts come from the keymap so help can't drift from behavior.
-	var ids []string
-	for id := range commands {
-		if len(keysFor(id)) > 0 && id != "help" {
-			ids = append(ids, id)
-		}
-	}
-	slices.SortFunc(ids, func(a, b string) int { return strings.Compare(commands[a].title, commands[b].title) })
-	entries := make([]string, len(ids))
-	width := 0
-	for i, id := range ids {
-		keys := keysFor(id)
-		for j, k := range keys {
-			keys[j] = keyLabel(k)
-		}
-		entries[i] = fmt.Sprintf("%-22s%s", strings.Join(keys, " / "), commands[id].title)
-		width = max(width, len(entries[i])+4)
-	}
-	lines = append(lines, columns(entries, width, m.width)...)
-	names := make([]string, 0, len(sheet.Funcs()))
-	for _, f := range sheet.Funcs() {
-		names = append(names, f.Name)
-	}
-	lines = append(lines,
-		"",
-		"  Typing replaces the cell. Start with = for a formula, ' to force text.",
-		"  While typing a formula, arrows after an operator pick cells.",
-		"",
-	)
-	return append(lines, wrapWords("  Functions: ", names, m.width)...)
-}
-
-// columns lays out entries in two columns, top to bottom, when two of the
-// given width fit on the screen, and in one column otherwise.
-func columns(entries []string, width, screen int) []string {
-	if 2+2*width > screen {
-		out := make([]string, len(entries))
-		for i, e := range entries {
-			out[i] = "  " + e
-		}
-		return out
-	}
-	half := (len(entries) + 1) / 2
-	out := make([]string, half)
-	for i := range half {
-		out[i] = "  " + entries[i]
-		if j := i + half; j < len(entries) {
-			out[i] = padRight(out[i], 2+width) + entries[j]
-		}
-	}
-	return out
-}
-
-// wrapWords lays out words after prefix, wrapping to width and indenting
-// continuation lines under the first word.
-func wrapWords(prefix string, words []string, width int) []string {
-	var lines []string
-	cur := prefix
-	indent := strings.Repeat(" ", len(prefix))
-	for i, w := range words {
-		if i > 0 && len(cur)+1+len(w) > width {
-			lines = append(lines, cur)
-			cur = indent + w
-			continue
-		}
-		if i > 0 {
-			cur += " "
-		}
-		cur += w
-	}
-	return append(lines, cur)
 }
 
 // keyLabel formats a key binding for display, e.g. "ctrl+s" -> "Ctrl+S".

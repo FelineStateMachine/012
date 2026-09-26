@@ -13,6 +13,7 @@ import (
 // It takes the keyboard like an overlay but draws no box.
 type choiceBar struct {
 	msg     string
+	warn    bool // the message is a warning, e.g. about losing work
 	choices []choice
 }
 
@@ -64,7 +65,10 @@ func (c *choiceBar) mouse(m *Model, e mouseEvent) tea.Cmd {
 const choiceGap = "   "
 
 func (c *choiceBar) prefix(m *Model) string {
-	return m.th.warning.Render(c.msg) + choiceGap
+	if c.warn {
+		return m.th.warning.Render(c.msg) + choiceGap
+	}
+	return c.msg + choiceGap
 }
 
 func (c *choiceBar) item(m *Model, ch choice) string {
@@ -87,7 +91,8 @@ func (m *Model) quit() tea.Cmd {
 		return exit()
 	}
 	m.openOverlay(&choiceBar{
-		msg: "You have unsaved changes.",
+		msg:  "You have unsaved changes.",
+		warn: true,
 		choices: []choice{
 			{key: "enter", label: "Save and quit", run: func(m *Model) tea.Cmd {
 				m.quitAfterSave = true

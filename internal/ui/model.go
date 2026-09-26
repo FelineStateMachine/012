@@ -19,14 +19,13 @@ const (
 	modeEnter      // typing a new entry, which replaces the cell
 	modeEdit       // editing existing contents with a movable caret
 	modePoint      // arrowing to a cell or range to insert into a formula
-	modeMenu
+	modeMenu       // a menu, the palette or another overlay is open
 	modePrompt
-	modeHelp
 	modeError
 )
 
 func (m mode) String() string {
-	return [...]string{"READY", "ENTER", "EDIT", "POINT", "MENU", "", "HELP", "ERROR"}[m]
+	return [...]string{"READY", "ENTER", "EDIT", "POINT", "MENU", "", "ERROR"}[m]
 }
 
 // Layout: three control panel lines (menu bar, formula bar, context
@@ -202,7 +201,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 		return m.overlay.key(m, k)
 	case modePrompt:
 		return m.promptKey(k)
-	case modeHelp, modeError:
+	case modeError:
 		m.errMsg = ""
 		m.mode = modeReady
 	}

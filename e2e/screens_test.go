@@ -94,6 +94,24 @@ var screens = []screen{
 		s.click(ghostty.MouseButtonRight, 6+10+4, 3)
 		s.waitFor("│ Resize column")
 	}},
+	{name: "menu-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		budget(s)
+		s.keys("<alt+h>")
+		s.waitFor("│ About one23")
+	}},
+	{name: "functions", setup: func(s *session) {
+		budget(s)
+		s.keys("<alt+h>", "f", "if")
+		s.waitFor("│ › if")
+	}},
+	{name: "about", setup: func(s *session) {
+		s.keys("<alt+h>", "a")
+		s.waitFor("Google Sheets keys")
+	}},
+	{name: "help-wide", opts: options{cols: 200, rows: 45}, setup: func(s *session) {
+		s.keys("<f1>")
+		s.waitFor("Keyboard shortcuts")
+	}},
 	{name: "quit-confirm", setup: func(s *session) {
 		budget(s)
 		s.keys("<ctrl+q>")
@@ -149,7 +167,7 @@ var screens = []screen{
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
@@ -225,6 +243,7 @@ h2{font:500 13px ui-monospace,monospace;color:#aaa;margin:0 0 8px}
 .term{display:inline-block;padding:14px 16px;border-radius:10px;box-shadow:0 8px 30px #0008}
 .screen{margin:0;font:13px/1.3 "JetBrains Mono","SF Mono",Menlo,monospace;color:var(--fg)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(820px,1fr));gap:8px 24px}
+.wide{grid-column:1/-1}
 `)
 	for _, p := range []struct {
 		class  string
@@ -243,7 +262,11 @@ h2{font:500 13px ui-monospace,monospace;color:#aaa;margin:0 0 8px}
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(&b, "<section id=%q><h2>%s</h2><div>", sc.name, html.EscapeString(sc.name))
+		wide := ""
+		if sc.opts.cols > 120 {
+			wide = " class=wide" // spans the whole gallery row
+		}
+		fmt.Fprintf(&b, "<section id=%q%s><h2>%s</h2><div>", sc.name, wide, html.EscapeString(sc.name))
 		th := "dark"
 		if sc.opts.light {
 			th = "light"
