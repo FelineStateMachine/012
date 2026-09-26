@@ -35,6 +35,32 @@ func budget(s *session) {
 	s.waitFor("B7   =SUM(B3:B5)")
 }
 
+// formatted types a bill schedule with dates, currency and percentages,
+// then styles it with Sheets' shortcuts: bold title and totals, headers
+// aligned over their numbers, a struck-out cancelled bill and an italic
+// note. It ends by bolding the totals, so line 3 shows the feedback.
+func formatted(s *session) {
+	s.keys("Bills for October", "<enter>")
+	s.keys("Item", "<tab>", "Due", "<tab>", "Amount", "<tab>", "Share", "<enter>")
+	s.keys("Rent", "<tab>", "10/1/2026", "<tab>", "$1,450.00", "<tab>", "=C3/C$7", "<enter>")
+	s.keys("Food", "<tab>", "9/28/2026", "<tab>", "612.4", "<tab>", "=C4/C$7", "<enter>")
+	s.keys("Transit", "<tab>", "9/30/2026", "<tab>", "96", "<tab>", "=C5/C$7", "<enter>")
+	s.keys("Gym", "<tab>", "10/5/2026", "<tab>", "40", "<tab>", "=C6/C$7", "<enter>")
+	s.keys("Total", "<tab>", "<tab>", "=SUM(C3:C6)", "<tab>", "=SUM(D3:D6)", "<enter>")
+	s.keys("<down>", "<left>", "<left>", "Gym cancelled from November", "<enter>")
+	// Currency for the amounts, percent for the shares.
+	s.keys("<ctrl+home>", "<down>", "<down>", "<down>", "<right>", "<right>", "<shift+down>", "<shift+down>", "<ctrl+shift+4>")
+	s.keys("<right>", "<up>", "<shift+down>", "<shift+down>", "<shift+down>", "<shift+down>", "<ctrl+shift+5>")
+	// Bold title, bold headers with the number headers on the right.
+	s.keys("<ctrl+home>", "<ctrl+b>", "<down>", "<shift+right>", "<shift+right>", "<shift+right>", "<ctrl+b>")
+	s.keys("<right>", "<shift+right>", "<shift+right>", "<ctrl+shift+r>")
+	// The cancelled bill is struck out; the note is italic.
+	s.keys("<ctrl+home>", "<down>", "<down>", "<down>", "<down>", "<down>", "<shift+right>", "<shift+right>", "<shift+right>", "<alt+shift+5>")
+	s.keys("<down>", "<down>", "<down>", "<ctrl+i>")
+	s.keys("<up>", "<up>", "<shift+right>", "<shift+right>", "<shift+right>", "<ctrl+b>")
+	s.waitFor("Bold on for A7:D7")
+}
+
 var screens = []screen{
 	{name: "ready-empty", setup: func(s *session) {}},
 	{name: "budget", setup: budget},
@@ -86,12 +112,14 @@ var screens = []screen{
 		s.waitFor("HELP")
 	}},
 	{name: "narrow", opts: options{cols: 60, rows: 16}, setup: budget},
+	{name: "formats", setup: formatted},
+	{name: "formats-narrow", opts: options{cols: 60, rows: 16}, setup: formatted},
 }
 
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "quit-confirm", "help"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "quit-confirm", "help", "formats"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
