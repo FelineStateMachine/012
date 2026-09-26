@@ -30,34 +30,40 @@ type menuLevel struct {
 	sel   int
 }
 
+// rootMenu is interim: the Sheets-style menu bar replaces it.
 var rootMenu = []menuItem{
-	{name: "Worksheet", items: []menuItem{
-		{name: "Column", items: []menuItem{
-			{name: "Set-Width", cmd: "column.width"},
-			{name: "Reset-Width", cmd: "column.reset"},
-		}},
-		{name: "Erase", items: []menuItem{
-			{name: "No", desc: "Do not erase the worksheet; return to READY mode"},
-			{name: "Yes", descFn: unsavedWarning("Erase the entire worksheet from memory"), cmd: "worksheet.erase"},
-		}},
-	}},
-	{name: "Range", items: []menuItem{
-		{name: "Erase", cmd: "range.erase"},
-	}},
 	{name: "File", items: []menuItem{
+		{name: "New", descFn: unsavedWarning("Start a new, empty sheet"), cmd: "file.new"},
+		{name: "Open", cmd: "file.open"},
 		{name: "Save", cmd: "file.save"},
-		{name: "Retrieve", cmd: "file.retrieve"},
+		{name: "As", desc: "Save the sheet under a new name", cmd: "file.saveas"},
+		{name: "Quit", cmd: "quit"},
 	}},
-	{name: "Quit", items: []menuItem{
-		{name: "No", desc: "Do not end the session; return to READY mode"},
-		{name: "Yes", descFn: unsavedWarning("End the session"), cmd: "quit"},
+	{name: "Edit", items: []menuItem{
+		{name: "Clear", cmd: "clear"},
+		{name: "Go to", cmd: "goto"},
+		{name: "Select all", cmd: "select.all"},
 	}},
+	{name: "Format", items: []menuItem{
+		{name: "Column width", cmd: "column.width"},
+		{name: "Reset column width", cmd: "column.reset"},
+	}},
+}
+
+// quitConfirm is shown by Quit when there are unsaved changes.
+var quitConfirm = []menuItem{
+	{name: "Cancel", desc: "Keep working"},
+	{name: "Quit without saving", descFn: unsavedWarning("Close one23"), cmd: "quit.force"},
+}
+
+func init() {
+	register(&command{id: "quit.force", title: "Quit without saving", desc: "Close one23, discarding changes", run: func(*Model) tea.Cmd { return tea.Quit }})
 }
 
 func unsavedWarning(desc string) func(m *Model) string {
 	return func(m *Model) string {
 		if m.changed {
-			return "WORKSHEET CHANGES NOT SAVED! " + desc + " anyway?"
+			return "You have unsaved changes. " + desc + " anyway?"
 		}
 		return desc
 	}
@@ -108,12 +114,32 @@ func (m *Model) menuKey(k tea.KeyPressMsg) tea.Cmd {
 			m.mode = modeReady
 		}
 	default:
+		// A letter opens the only item starting with it, or cycles through
+		// the items when several do.
 		text := strings.ToUpper(typed(k))
+		if text == "" {
+			return nil
+		}
+		var matches []int
 		for i, it := range lvl.items {
-			if text != "" && strings.HasPrefix(strings.ToUpper(it.name), text) {
-				lvl.sel = i
-				return m.choose(it)
+			if strings.HasPrefix(strings.ToUpper(it.name), text) {
+				matches = append(matches, i)
 			}
+		}
+		switch len(matches) {
+		case 0:
+		case 1:
+			lvl.sel = matches[0]
+			return m.choose(lvl.items[lvl.sel])
+		default:
+			next := matches[0]
+			for _, i := range matches {
+				if i > lvl.sel {
+					next = i
+					break
+				}
+			}
+			lvl.sel = next
 		}
 	}
 	return nil
@@ -169,17 +195,18 @@ func (m *Model) openText(label, initial string, onText func(*Model, string) tea.
 	m.openPrompt(&prompt{kind: promptText, label: label, indicator: "EDIT", fresh: true, onText: onText}, initial)
 }
 
-// openRange asks for a range, pre-anchored on the current cell as in 1-2-3.
+// openRange asks for a range, starting from the current selection.
 func (m *Model) openRange(label string, onRange func(*Model, sheet.Rect) tea.Cmd) {
+	r := m.selection()
 	m.openPrompt(&prompt{kind: promptRange, label: label, indicator: "POINT", onRange: onRange}, "")
-	m.point = pointer{at: m.cur, anchor: m.cur, anchored: true}
+	m.point = pointer{anchor: r.From, at: r.To, anchored: r.From != r.To}
 }
 
 func (m *Model) openGoto() {
-	m.openText("Enter address to go to:", m.cur.String(), func(m *Model, text string) tea.Cmd {
+	m.openText("Go to:", m.cur.String(), func(m *Model, text string) tea.Cmd {
 		a, ok := sheet.ParseAddr(strings.TrimSpace(text))
 		if !ok {
-			m.fail("Invalid cell address: " + text)
+			m.fail("Not a cell address: " + text)
 			return nil
 		}
 		m.cur = a
@@ -188,27 +215,46 @@ func (m *Model) openGoto() {
 	m.prompt.indicator = "POINT"
 }
 
+// openWidth asks for the width of the selected columns, previewing it
+// live as the arrows change it. Esc restores the original widths.
 func (m *Model) openWidth() tea.Cmd {
-	col, orig := m.cur.Col, m.sheet.ColWidth(m.cur.Col)
+	r := m.selection()
+	orig := map[int]int{}
+	for c := r.From.Col; c <= r.To.Col; c++ {
+		orig[c] = m.sheet.ColWidth(c)
+	}
+	restore := func(m *Model) {
+		for c, w := range orig {
+			m.sheet.SetColWidth(c, w)
+		}
+	}
 	m.openPrompt(&prompt{
 		kind:      promptWidth,
-		label:     "Enter column width (1..240):",
-		indicator: "POINT",
+		label:     "Column width (1-240):",
+		indicator: "WIDTH",
 		fresh:     true,
 		onText: func(m *Model, text string) tea.Cmd {
 			w, err := strconv.Atoi(text)
 			if err != nil || w < 1 || w > 240 {
-				m.sheet.SetColWidth(col, orig)
+				restore(m)
 				m.fail("Column width must be between 1 and 240")
 				return nil
 			}
-			m.sheet.SetColWidth(col, w)
+			m.setWidths(w)
 			m.changed = true
 			return nil
 		},
-		onCancel: func(m *Model) { m.sheet.SetColWidth(col, orig) },
-	}, strconv.Itoa(orig))
+		onCancel: restore,
+	}, strconv.Itoa(m.sheet.ColWidth(m.cur.Col)))
 	return nil
+}
+
+// setWidths sets the width of every selected column.
+func (m *Model) setWidths(w int) {
+	r := m.selection()
+	for c := r.From.Col; c <= r.To.Col; c++ {
+		m.sheet.SetColWidth(c, w)
+	}
 }
 
 func (m *Model) openSave() tea.Cmd {
@@ -216,7 +262,7 @@ func (m *Model) openSave() tea.Cmd {
 	if name == "" {
 		name = "SHEET1" + sheet.FileExt
 	}
-	m.openText("Enter save file name:", name, func(m *Model, text string) tea.Cmd {
+	m.openText("Save as:", name, func(m *Model, text string) tea.Cmd {
 		return saveCmd(m.sheet, withExt(text))
 	})
 	return nil
@@ -224,7 +270,7 @@ func (m *Model) openSave() tea.Cmd {
 
 func (m *Model) openRetrieve() tea.Cmd {
 	m.files = nil
-	m.openText("Name of file to retrieve:", "", func(m *Model, text string) tea.Cmd {
+	m.openText("Open file:", "", func(m *Model, text string) tea.Cmd {
 		return loadCmd(withExt(text))
 	})
 	return listFilesCmd
@@ -264,10 +310,10 @@ func (m *Model) promptKey(k tea.KeyPressMsg) tea.Cmd {
 
 	switch {
 	case m.pointing():
-		if m.navigate(key, &m.point.at) {
+		if m.pointMoveKey(key) {
 			return nil
 		}
-		if key == "." {
+		if key == ":" {
 			m.point.anchor, m.point.anchored = m.point.at, true
 			return nil
 		}
@@ -285,7 +331,7 @@ func (m *Model) promptKey(k tea.KeyPressMsg) tea.Cmd {
 		w = clamp(w, 1, 240)
 		m.buf, m.bufPos, p.fresh = nil, 0, false
 		m.insert(strconv.Itoa(w))
-		m.sheet.SetColWidth(m.cur.Col, w) // live preview
+		m.setWidths(w) // live preview
 	default:
 		if p.fresh && typed(k) != "" {
 			m.buf, m.bufPos = nil, 0
@@ -383,7 +429,7 @@ func listFilesCmd() tea.Msg {
 
 func (m *Model) handleSaved(msg savedMsg) {
 	if msg.err != nil {
-		m.fail(fmt.Sprintf("Cannot save %s: %v", msg.name, msg.err))
+		m.fail(fmt.Sprintf("Couldn't save %s: %v", msg.name, msg.err))
 		return
 	}
 	m.filename = msg.name
@@ -392,7 +438,7 @@ func (m *Model) handleSaved(msg savedMsg) {
 
 func (m *Model) handleLoaded(msg loadedMsg) {
 	if msg.err != nil {
-		m.fail(fmt.Sprintf("Cannot retrieve %s: %v", msg.name, msg.err))
+		m.fail(fmt.Sprintf("Couldn't open %s: %v", msg.name, msg.err))
 		return
 	}
 	m.reset(msg.sheet, msg.name)

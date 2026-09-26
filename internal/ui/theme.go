@@ -15,6 +15,7 @@ type theme struct {
 	indicator    lipgloss.Style // mode indicator, top right
 	header       lipgloss.Style // column letters and row numbers
 	headerActive lipgloss.Style // header of the focused row and column
+	headerSel    lipgloss.Style // headers of selected rows and columns
 	pointer      lipgloss.Style // the cell pointer
 	selection    lipgloss.Style // a range being pointed at
 	menuSelected lipgloss.Style // highlighted menu item
@@ -22,6 +23,7 @@ type theme struct {
 	warning      lipgloss.Style // recoverable problems, e.g. a formula error
 	error        lipgloss.Style // ERROR mode message
 	muted        lipgloss.Style // secondary text: key hints, file lists
+	key          lipgloss.Style // a key name inside a hint, e.g. "Enter"
 	errorCell    lipgloss.Style // cells whose value is ERR or NA
 }
 
@@ -39,6 +41,7 @@ func newTheme(dark bool) theme {
 		indicator:    accent.Bold(true),
 		header:       lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
 		headerActive: accent.Bold(true),
+		headerSel:    lipgloss.NewStyle().Background(lipgloss.Blue).Foreground(selFg),
 		pointer:      accent,
 		selection:    lipgloss.NewStyle().Background(lipgloss.Blue).Foreground(selFg),
 		menuSelected: accent.Bold(true),
@@ -46,6 +49,7 @@ func newTheme(dark bool) theme {
 		warning:      lipgloss.NewStyle().Foreground(lipgloss.Yellow),
 		error:        lipgloss.NewStyle().Foreground(lipgloss.BrightRed).Bold(true),
 		muted:        lipgloss.NewStyle().Foreground(muted),
+		key:          lipgloss.NewStyle().Bold(true),
 		errorCell:    lipgloss.NewStyle().Foreground(lipgloss.Red),
 	}
 }
