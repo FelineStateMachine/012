@@ -57,7 +57,7 @@ var quitConfirm = []menuItem{
 }
 
 func init() {
-	register(&command{id: "quit.force", title: "Quit without saving", desc: "Close one23, discarding changes", run: func(*Model) tea.Cmd { return tea.Quit }})
+	register(&command{id: "quit.force", title: "Quit without saving", desc: "Close one23, discarding changes", run: func(*Model) tea.Cmd { return exit() }})
 }
 
 func unsavedWarning(desc string) func(m *Model) string {

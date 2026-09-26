@@ -129,7 +129,7 @@ func (m *Model) save() tea.Cmd {
 // quit exits, confirming first when there are unsaved changes.
 func (m *Model) quit() tea.Cmd {
 	if !m.changed {
-		return tea.Quit
+		return exit()
 	}
 	m.openMenu()
 	m.menu = append(m.menu, menuLevel{items: quitConfirm})

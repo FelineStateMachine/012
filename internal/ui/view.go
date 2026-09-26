@@ -32,13 +32,14 @@ func (m *Model) View() tea.View {
 
 	v := tea.NewView(strings.Join(lines, "\n"))
 	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
+	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go
 	v.WindowTitle = "one23 - " + m.displayName()
 	if m.changed {
 		v.WindowTitle += " (modified)"
 	}
 	if x, ok := m.cursorX(); ok {
-		v.Cursor = tea.NewCursor(x, 1)
+		line, lx := m.editLineAt()
+		v.Cursor = tea.NewCursor(lx+x, line)
 		v.Cursor.Shape = tea.CursorBar
 	}
 	return v
@@ -105,6 +106,9 @@ func (m *Model) promptPrefix() string {
 // formula error, or which keys do what.
 func (m *Model) panelLine3() string {
 	switch {
+	case m.drag == dragResize:
+		return m.th.key.Render("Column "+sheet.ColName(m.resizeCol)) + m.th.muted.Render(" width ") +
+			strconv.Itoa(m.sheet.ColWidth(m.resizeCol)) + m.th.muted.Render("   double-click the border to fit")
 	case m.hint != "":
 		return m.th.warning.Render(m.hint)
 	case m.mode == modeMenu:
@@ -176,16 +180,34 @@ func (m *Model) headerRow() string {
 	sel, selecting := m.highlight()
 	for i := range m.visibleCols(m.left) {
 		c := m.left + i
+		w := m.sheet.ColWidth(c)
 		style := m.th.header
 		switch {
 		case c == focus.Col:
 			style = m.th.headerActive
 		case selecting && c >= sel.From.Col && c <= sel.To.Col:
 			style = m.th.headerSel
+		case m.hover.addr.Col == c && (m.hover.kind == hitColHeader || m.hover.kind == hitColBorder):
+			style = m.th.headerHover
 		}
-		b.WriteString(style.Render(center(sheet.ColName(c), m.sheet.ColWidth(c))))
+		label := center(sheet.ColName(c), w)
+		if m.showHandle(c) && w > 1 {
+			// Draw the resize handle in the header's last cell.
+			b.WriteString(style.Render(label[:len(label)-1]) + m.th.handle.Render("▐"))
+			continue
+		}
+		b.WriteString(style.Render(label))
 	}
 	return b.String()
+}
+
+// showHandle reports whether column c's resize handle is visible: while
+// hovering it or dragging it.
+func (m *Model) showHandle(c int) bool {
+	if m.drag == dragResize {
+		return m.resizeCol == c
+	}
+	return m.hover.kind == hitColBorder && m.hover.addr.Col == c
 }
 
 func (m *Model) gridRow(row int) string {
@@ -200,6 +222,8 @@ func (m *Model) gridRow(row int) string {
 		hdr = m.th.headerActive
 	case selecting && row >= sel.From.Row && row <= sel.To.Row:
 		hdr = m.th.headerSel
+	case m.hover.kind == hitRowHeader && m.hover.addr.Row == row:
+		hdr = m.th.headerHover
 	}
 	var b strings.Builder
 	b.WriteString(hdr.Render(padLeft(strconv.Itoa(row+1), rowHdrW-1) + " "))

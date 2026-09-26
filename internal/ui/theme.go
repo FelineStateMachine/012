@@ -16,6 +16,8 @@ type theme struct {
 	header       lipgloss.Style // column letters and row numbers
 	headerActive lipgloss.Style // header of the focused row and column
 	headerSel    lipgloss.Style // headers of selected rows and columns
+	headerHover  lipgloss.Style // a header under the mouse
+	handle       lipgloss.Style // a column resize handle being hovered or dragged
 	pointer      lipgloss.Style // the cell pointer
 	selection    lipgloss.Style // a range being pointed at
 	menuSelected lipgloss.Style // highlighted menu item
@@ -42,6 +44,8 @@ func newTheme(dark bool) theme {
 		header:       lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
 		headerActive: accent.Bold(true),
 		headerSel:    lipgloss.NewStyle().Background(lipgloss.Blue).Foreground(selFg),
+		headerHover:  lipgloss.NewStyle().Background(headerBg).Foreground(lipgloss.Cyan).Bold(true),
+		handle:       lipgloss.NewStyle().Background(headerBg).Foreground(lipgloss.Cyan).Bold(true),
 		pointer:      accent,
 		selection:    lipgloss.NewStyle().Background(lipgloss.Blue).Foreground(selFg),
 		menuSelected: accent.Bold(true),

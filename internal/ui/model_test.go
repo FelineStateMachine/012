@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -65,18 +66,39 @@ func press(t *testing.T, m *Model, keys ...string) tea.Msg {
 	return last
 }
 
-// send delivers msg and runs resulting commands, returning a QuitMsg if
-// one is produced.
+// send delivers msg and runs resulting commands (including batches and
+// sequences), returning a QuitMsg if one is produced. Timer commands such
+// as autoscroll ticks are not run; tests send those messages directly.
 func send(m *Model, msg tea.Msg) tea.Msg {
 	_, cmd := m.Update(msg)
-	for cmd != nil {
-		out := cmd()
-		if _, ok := out.(tea.QuitMsg); ok {
-			return out
-		}
-		_, cmd = m.Update(out)
+	return run(m, cmd)
+}
+
+func run(m *Model, cmd tea.Cmd) tea.Msg {
+	if cmd == nil {
+		return nil
 	}
-	return nil
+	out := cmd()
+	if _, ok := out.(tea.QuitMsg); ok {
+		return out
+	}
+	if _, ok := out.(autoscrollMsg); ok {
+		return nil
+	}
+	// Batches and sequences are slices of commands.
+	cmdType := reflect.TypeFor[tea.Cmd]()
+	if v := reflect.ValueOf(out); v.Kind() == reflect.Slice && v.Type().Elem() == cmdType {
+		for i := range v.Len() {
+			if c, ok := v.Index(i).Interface().(tea.Cmd); ok {
+				if q := run(m, c); q != nil {
+					return q
+				}
+			}
+		}
+		return nil
+	}
+	_, next := m.Update(out)
+	return run(m, next)
 }
 
 func newModel() *Model {

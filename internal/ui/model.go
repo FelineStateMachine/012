@@ -55,9 +55,16 @@ type Model struct {
 	selecting bool
 	ext       sheet.Addr // the moving corner of the selection
 	whole     wholeKind
-	drag      dragKind
-	lastClick time.Time
-	lastAddr  sheet.Addr
+
+	// Mouse: see mouse.go.
+	drag           dragKind
+	lastClick      time.Time
+	lastHit        hit
+	hover          hit    // what's under the mouse, for hover styling
+	mouseX, mouseY int    // last mouse position, for autoscroll
+	autoscrolling  bool   // an autoscroll tick is pending
+	resizeCol      int    // column being resized by its header border
+	shape          string // pointer shape last sent to the terminal
 
 	// tabStart remembers where a run of Tab-committed entries began, so
 	// Enter returns to that column on the next row, as in Sheets.
@@ -90,7 +97,9 @@ func New(s *sheet.Sheet, filename string) *Model {
 
 // Init implements tea.Model. It asks the terminal for its background color
 // so the theme can adapt to light terminals.
-func (m *Model) Init() tea.Cmd { return tea.RequestBackgroundColor }
+func (m *Model) Init() tea.Cmd {
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn))
+}
 
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -107,11 +116,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.PasteMsg:
 		m.handlePaste(msg.Content)
 	case tea.MouseClickMsg:
-		m.handleClick(msg.Mouse())
+		cmd = m.handlePress(msg.Mouse())
 	case tea.MouseMotionMsg:
-		m.handleMotion(msg.Mouse())
+		cmd = m.handleMotion(msg.Mouse())
 	case tea.MouseReleaseMsg:
-		m.handleRelease()
+		cmd = m.handleRelease()
+	case autoscrollMsg:
+		cmd = m.handleAutoscroll()
 	case tea.MouseWheelMsg:
 		m.handleWheel(msg.Mouse())
 	case savedMsg:
