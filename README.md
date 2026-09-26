@@ -1,6 +1,7 @@
 # one23
 
-A Lotus 1-2-3 style spreadsheet for the terminal, built on Bubble Tea v2.
+A spreadsheet for the terminal with a Lotus 1-2-3 look and Google Sheets
+behavior, built on Bubble Tea v2.
 
 ```sh
 make run            # build (pure Go, CGO_ENABLED=0) and start
@@ -9,17 +10,23 @@ make run            # build (pure Go, CGO_ENABLED=0) and start
 
 ## Keys
 
+Inside the grid, one23 works like Google Sheets.
+
 | Key | Action |
 |---|---|
-| Arrows, PgUp/PgDn, Tab/Shift+Tab, Home | Move the cell pointer |
-| Type text | Label (`'` left, `"` right, `^` center) |
-| Type `0-9 + - . ( @ # $ =` | Value or formula, e.g. `+A1*2`, `@SUM(A1..A5)` |
-| Arrow after an operator | POINT mode: arrow to a cell, `.` anchors a range |
-| F2 | Edit the current cell |
-| F5 | Go to an address |
-| Del | Erase the current cell |
-| `/` or `<` | Menu: Worksheet, Range, File, Quit (type first letters, e.g. `/fs`) |
-| F1 | Help |
+| Type | Replace the cell. `=` starts a formula, `'` forces text; `$1,200` and `12%` are numbers |
+| Enter / Tab | Accept and move down / right (Enter returns to where a run of Tabs began) |
+| Enter or F2, double-click | Edit the cell |
+| Arrows while typing a formula | After an operator, pick a cell; Shift+arrows pick a range |
+| Shift+arrows, drag, Shift+click | Select; the status line shows Sum, Avg and Count |
+| Ctrl+arrows | Jump to the edge of the data (add Shift to select) |
+| Click a header, Ctrl+Space, Shift+Space | Select whole columns or rows |
+| Ctrl+A | Select the data, then everything |
+| Del / Backspace | Clear the selection |
+| Ctrl+S, Ctrl+O, Ctrl+Q | Save, open, quit |
+| Ctrl+G or F5 | Go to a cell |
+| F10 | Menu |
+| F1 or Ctrl+/ | Keyboard shortcuts |
 
 ## Layout
 

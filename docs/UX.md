@@ -5,14 +5,19 @@ follow-up task.
 
 ## Principles
 
-1. **1-2-3 muscle memory is the default.** `/` menus with first-letter
-   selection, POINT mode, F2/F5, label prefixes. New power is added
-   alongside, never by breaking these.
+1. **Inside the grid, behave like Google Sheets.** Assume users know
+   Sheets, not 1-2-3. Typing replaces a cell, `=` starts a formula, Enter
+   commits and moves down (back to the starting column after Tabs), Tab
+   moves right, Shift+arrows and the mouse select, Ctrl+arrows jump to the
+   data edge, and Sheets shortcuts do what Sheets does. When Sheets and
+   1-2-3 disagree, Sheets wins. 1-2-3 lives on as the visual identity:
+   the control panel doubling as the formula bar, the mode indicator, the
+   crisp character grid.
 2. **Everything is discoverable.** Every action is a registered command
    (`internal/ui/commands.go`) with a title and one-line description. It is
-   reachable from the slash menu where 1-2-3 would put it, from key bindings
-   in `keymap`, and from help (generated from the registry). When the
-   command palette lands, it lists every registered command with its keys.
+   reachable from the menu where Sheets would put it, from key bindings in
+   `keymap`, and from help (generated from the registry). When the command
+   palette lands, it lists every registered command with its keys.
 3. **The screen always says what's going on.** The mode indicator is always
    correct. The third panel line tells the user what keys do in any
    non-READY state. Prompts live on the second panel line.
@@ -31,10 +36,13 @@ follow-up task.
 - Text on a colored background needs about 4.5:1 contrast against both
   reference palettes (`e2e/palette_test.go`). Check it in the gallery.
 - Never rely on color alone: state also shows as text (mode indicator,
-  `[modified]`, `ERR`, `CIRC`).
-- Numbers right-aligned, labels left unless prefixed, headers centered.
-  Menu items separated by two spaces. Keys shown as `F2`, `Ctrl+Z`, `Del`
-  (see `keyLabel`).
+  `modified`, `#DIV/0!`, `Circular reference`).
+- Numbers right-aligned, text left, booleans and errors centered, one
+  column of padding, text overflowing into empty neighbors: as Sheets.
+  Headers centered. Menu items separated by two spaces. Keys shown as
+  `F2`, `Ctrl+Z`, `Del` (see `keyLabel`).
+- The active cell is always distinct from the rest of a selection, and
+  the headers of selected rows and columns are highlighted.
 - Layout works from 60x16 up to very wide terminals. Nothing jumps
   position between frames; overlays don't shift the grid.
 - Render only what's visible. A keystroke on a 10,000-cell sheet must feel
@@ -43,7 +51,7 @@ follow-up task.
 ## Required with every user-facing change
 
 - [ ] Registered command(s) with title and description; key binding in
-      `keymap` if it has one; menu entry where 1-2-3 would have it.
+      `keymap` if Sheets has one; menu entry where Sheets would have it.
 - [ ] Unit tests in `internal/ui` driving `Update`, plus engine tests.
 - [ ] An e2e test in `e2e/` for the main flow.
 - [ ] Golden screen(s) in `e2e/screens_test.go` for every new visual state,
@@ -51,7 +59,8 @@ follow-up task.
 - [ ] `make screens`, then look at `e2e/testdata/screens/gallery.html`
       (serve it over HTTP and screenshot it, or open it in a browser).
       Fix anything misaligned, low-contrast, cramped or clipped before
-      committing.
+      committing. Screens are drawn from libghostty's cell grid, so they
+      match what a terminal shows.
 - [ ] README keys table updated if keys changed.
 
 ## Review checklist for screenshots

@@ -1,7 +1,7 @@
 # Roadmap: past 1-2-3
 
-Principles: keyboard first, 1-2-3 muscle memory stays the default, the main
-binary stays pure Go (`CGO_ENABLED=0`), and every feature ships with unit
+Principles: inside the grid one23 behaves like Google Sheets; 1-2-3 is the
+visual identity around it. The main binary stays pure Go (`CGO_ENABLED=0`), and every feature ships with unit
 tests, a libghostty e2e test and reviewed golden screens. Visual and UX
 quality keep pace with features: see [docs/UX.md](docs/UX.md).
 
@@ -9,8 +9,8 @@ quality keep pace with features: see [docs/UX.md](docs/UX.md).
 
 | Phase | Goal | Done when |
 |---|---|---|
-| 1 | The engine can do everything 1-2-3 R2 users reach for daily, and every change can be undone | Undo/redo covers every mutation; /Copy, /Move, /Worksheet Insert and Delete adjust relative and absolute references; /Range Format and range names work and persist; date and finance functions match excelize on a differential test suite |
-| 2 | Finding and using features is faster than in any terminal spreadsheet | Ctrl+P palette reaches every command with its key shown; formulas autocomplete with signature hints; the status line shows live stats of the pointed range; precedents and dependents are visible and jumpable; titles freeze; search and filter work; fill down and series work; a vim keymap is available |
+| 1 | The engine does what Sheets users reach for daily, and every change can be undone | Undo/redo (Ctrl+Z/Ctrl+Y) covers every mutation; copy, cut and paste (Ctrl+C/X/V, paste values) and insert/delete rows and columns adjust relative and `$absolute` references; number formats (Format menu, auto-detected `$` and `%` on entry) and named ranges work and persist; Sheets' everyday functions, dates and finance functions match excelize on a differential test suite |
+| 2 | Finding and using features is faster than in any terminal spreadsheet | A Sheets-structured menu bar (File Edit View Insert Format Data Help) and a searchable command palette reach every command with its key shown; formulas autocomplete with signature hints; precedents and dependents are visible and jumpable; rows and columns freeze; find/replace and filter work; fill down (Ctrl+D) and series fill work; an optional vim keymap exists |
 | 3 | one23 uses the terminal it's running in to the fullest, and degrades gracefully | Copy and paste ranges through the system clipboard; charts render as images in Ghostty/kitty and as text elsewhere; URLs are clickable; error cells are marked beyond color; cursor shape reflects the mode; the theme follows light and dark |
 | 4 | Data moves in and out of one23 without friction or cgo | CSV/TSV, XLSX, SQLite, Parquet and Lotus .wk1 import, with export where it makes sense; large imports show progress; the binary still builds with `CGO_ENABLED=0` |
 | 5 | one23 goes where 1-2-3 couldn't | Multiple sheets with cross-sheet references; derived frequency and pivot sheets; recorded and Starlark macros; an SSH server mode; opt-in decimal arithmetic; VHS demo tapes in CI |
