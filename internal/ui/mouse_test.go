@@ -9,7 +9,6 @@ import (
 	"one23/internal/sheet"
 )
 
-
 func mouseAt(x, y int) tea.Mouse { return tea.Mouse{X: x, Y: y, Button: tea.MouseLeft} }
 
 func TestClickWhileTypingAccepts(t *testing.T) {
