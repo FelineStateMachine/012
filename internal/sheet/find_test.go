@@ -109,3 +109,18 @@ func TestReplace(t *testing.T) {
 		t.Errorf("E1 changed to %q", got)
 	}
 }
+
+func TestReplaceAllIsOneUndoStep(t *testing.T) {
+	s := findSheet()
+	if n, err := s.ReplaceAll("rent", "Lease", FindOptions{}); n != 4 || err != nil {
+		t.Fatalf("ReplaceAll = %d, %v", n, err)
+	}
+	if _, ok := s.Undo(); !ok {
+		t.Fatal("nothing to undo")
+	}
+	for a, want := range map[string]string{"A1": "Rent", "A2": "rental car", "C1": "Rent", "C2": "Total rent: $5"} {
+		if got := s.Cell(at(a)).Input; got != want {
+			t.Errorf("%s = %q after undo, want %q", a, got, want)
+		}
+	}
+}

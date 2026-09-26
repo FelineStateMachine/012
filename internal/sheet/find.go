@@ -118,14 +118,22 @@ func (s *Sheet) ReplaceAll(query, repl string, o FindOptions) (int, error) {
 		return 0, err
 	}
 	n := 0
-	for _, a := range cells {
-		changed, err := s.replace(a, f, repl)
-		if err != nil {
-			return n, err
-		}
-		if changed {
-			n++
-		}
+	var focus Rect
+	if len(cells) > 0 {
+		focus = NewRect(cells[0], cells[len(cells)-1])
 	}
-	return n, nil
+	// One undo step for the whole replacement.
+	err = s.Batch(Change{Label: "replace all", Focus: focus}, func() error {
+		for _, a := range cells {
+			changed, err := s.replace(a, f, repl)
+			if err != nil {
+				return err
+			}
+			if changed {
+				n++
+			}
+		}
+		return nil
+	})
+	return n, err
 }
