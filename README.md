@@ -14,7 +14,7 @@ Inside the grid, one23 works like Google Sheets.
 
 | Key | Action |
 |---|---|
-| Type | Replace the cell. `=` starts a formula, `'` forces text; `$1,200` and `12%` are numbers |
+| Type | Replace the cell. `=` starts a formula, `'` forces text; `$1,200`, `12%`, `9/26/2026` and `14:30` are numbers that keep their format |
 | Enter / Tab | Accept and move down / right (Enter returns to where a run of Tabs began) |
 | Enter or F2, double-click | Edit the cell |
 | Arrows while typing a formula | After an operator, pick a cell; Shift+arrows pick a range |
@@ -22,7 +22,11 @@ Inside the grid, one23 works like Google Sheets.
 | Ctrl+arrows | Jump to the edge of the data (add Shift to select) |
 | Click a header, Ctrl+Space, Shift+Space | Select whole columns or rows |
 | Ctrl+A | Select the data, then everything |
-| Del / Backspace | Clear the selection |
+| Del / Backspace | Clear the selection (formatting stays) |
+| Ctrl+Shift+1 ... 6 | Number, time, date, currency, percent, scientific format |
+| Ctrl+B, Ctrl+I, Ctrl+U, Alt+Shift+5 | Bold, italic, underline, strikethrough |
+| Ctrl+Shift+L / E / R | Align left, center, right |
+| Ctrl+\ | Clear formatting |
 | Ctrl+S, Ctrl+O, Ctrl+Q | Save, open, quit |
 | Ctrl+G or F5 | Go to a cell |
 | F10 | Menu |

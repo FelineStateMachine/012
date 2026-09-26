@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"one23/internal/sheet"
@@ -107,6 +108,8 @@ func (m *Model) panelLine3() string {
 	switch {
 	case m.hint != "":
 		return m.th.warning.Render(m.hint)
+	case m.note != "" && m.mode == modeReady:
+		return m.th.hint.Render(m.note)
 	case m.mode == modeMenu:
 		lvl := m.menu[len(m.menu)-1]
 		return lvl.items[lvl.sel].description(m)
@@ -204,23 +207,53 @@ func (m *Model) gridRow(row int) string {
 	var b strings.Builder
 	b.WriteString(hdr.Render(padLeft(strconv.Itoa(row+1), rowHdrW-1) + " "))
 
-	for i, text := range m.rowText(row) {
+	for i, sp := range m.rowText(row) {
 		a := sheet.Addr{Col: m.left + i, Row: row}
-		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) {
-			text = m.inCellText(m.sheet.ColWidth(a.Col))
-		}
+		base, colored := m.th.cell, true
 		switch {
 		case a == focus:
-			b.WriteString(m.th.pointer.Render(text))
+			base = m.th.pointer
 		case selecting && sel.Contains(a):
-			b.WriteString(m.th.selection.Render(text))
+			base = m.th.selection
 		case m.sheet.Value(a).Kind == sheet.Error:
-			b.WriteString(m.th.errorCell.Render(text))
+			base = m.th.errorCell
 		default:
-			b.WriteString(text)
+			colored = false
 		}
+		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) {
+			sp = span{text: m.inCellText(m.sheet.ColWidth(a.Col))}
+		}
+		b.WriteString(m.renderSpan(sp, base, colored))
 	}
 	return b.String()
+}
+
+// span is what one grid column shows in a row: blank columns, the text,
+// blank columns. Only the text takes the owning cell's text style, so an
+// underline doesn't run into the padding.
+type span struct {
+	lead  int
+	text  string
+	trail int
+	style sheet.Style
+	owner int // column of the cell the text belongs to
+}
+
+// renderSpan draws a span on base, one of the cell roles. Plain cells
+// with no text style are written without escape codes.
+func (m *Model) renderSpan(sp span, base lipgloss.Style, colored bool) string {
+	lead, trail := strings.Repeat(" ", sp.lead), strings.Repeat(" ", sp.trail)
+	st := sp.style
+	st.Align = sheet.AlignAuto
+	switch {
+	case st.IsZero() && !colored:
+		return lead + sp.text + trail
+	case st.IsZero():
+		return base.Render(lead + sp.text + trail)
+	case !colored:
+		return lead + m.th.text(base, st).Render(sp.text) + trail
+	}
+	return base.Render(lead) + m.th.text(base, st).Render(sp.text) + base.Render(trail)
 }
 
 // inCellText shows the entry being typed inside the cell, keeping the end
@@ -233,47 +266,112 @@ func (m *Model) inCellText(w int) string {
 	return padRight(text, w)
 }
 
-// rowText returns the visible text of each column in row, each exactly the
-// column's width. Text starts after one column of padding and overflows
-// into blank cells to the right, including text that starts left of the
-// viewport, as in Sheets.
-func (m *Model) rowText(row int) []string {
+// rowText lays out the visible columns of row, each span exactly its
+// column's width. Values are formatted with their cell's number format
+// and aligned as Sheets does: numbers right, text left, booleans and
+// errors centered, unless the cell sets an alignment. Text runs on into
+// blank neighbors: to the right when left-aligned, to the left when
+// right-aligned, both ways when centered. It can come from cells outside
+// the viewport, so the scan starts at the nearest filled cell on each
+// side.
+func (m *Model) rowText(row int) []span {
 	ncols := m.visibleCols(m.left)
-	out := make([]string, ncols)
+	lo, hi := m.left, m.left+ncols-1
+	out := make([]span, ncols)
+	for i := range out {
+		out[i] = span{trail: m.sheet.ColWidth(lo + i)}
+	}
+	content := func(c int) *sheet.Cell {
+		if c := m.sheet.Cell(sheet.Addr{Col: c, Row: row}); !c.Blank() {
+			return c
+		}
+		return nil
+	}
+	first, last := lo, hi
+	for c := lo - 1; c >= 0; c-- {
+		if content(c) != nil {
+			first = c
+			break
+		}
+	}
+	for c := hi + 1; c < sheet.MaxCols; c++ {
+		if content(c) != nil {
+			last = c
+			break
+		}
+	}
+	// x[k] is where column first+k starts, relative to column first.
+	x := make([]int, last-first+2)
+	for c := first; c <= last; c++ {
+		x[c-first+1] = x[c-first] + m.sheet.ColWidth(c)
+	}
+	col := func(c int) (int, int) { return x[c-first], x[c-first+1] }
 
-	var spill string
-	for c := m.left - 1; c >= 0; c-- {
-		cell := m.sheet.Cell(sheet.Addr{Col: c, Row: row})
+	claimed := 0 // text of earlier cells reaches up to here
+	for c := first; c <= last; c++ {
+		cell := content(c)
 		if cell == nil {
 			continue
 		}
-		if cell.Value.Kind == sheet.Text {
-			spill = " " + cell.Value.Str
-			for k := c; k < m.left && spill != ""; k++ {
-				_, spill = cut(spill, m.sheet.ColWidth(k))
+		x0, x1 := col(c)
+		f := m.sheet.DisplayFormat(sheet.Addr{Col: c, Row: row})
+		text, align := sheet.Display(cell.Value, f, x1-x0)
+		pad := 1
+		// A number one character too wide (12/31/2026 in a default
+		// column) may use the padding when nothing is to its right,
+		// rather than turning into #s.
+		if cell.Value.Kind == sheet.Number && strings.Trim(text, "#") == "" && content(c+1) == nil {
+			if wider, _ := sheet.Display(cell.Value, f, x1-x0+1); strings.Trim(wider, "#") != "" {
+				text, pad = wider, 0
 			}
 		}
-		break
+		if a := cell.Style.Align; a != sheet.AlignAuto && align != sheet.AlignFill {
+			align = a
+		}
+		tw := ansi.StringWidth(text)
+		start := x0 + pad
+		switch align {
+		case sheet.AlignFill:
+			start = x0
+		case sheet.AlignRight:
+			start = x1 - pad - tw
+		case sheet.AlignCenter:
+			start = x0 + (x1-x0-tw)/2
+		}
+		from, to := max(x0, claimed), x1 // where this cell's text may go
+		if cell.Value.Kind == sheet.Text {
+			for k := c + 1; k <= last && start+tw > to && content(k) == nil; k++ {
+				_, to = col(k)
+			}
+			for k := c - 1; k >= first && start < from && content(k) == nil; k-- {
+				if kx0, _ := col(k); kx0 >= claimed {
+					from = kx0
+				} else {
+					from = claimed
+					break
+				}
+			}
+		}
+		claimed = to
+		for k := max(first, lo); k <= min(last, hi); k++ {
+			kx0, kx1 := col(k)
+			if kx1 <= from || kx0 >= to {
+				continue
+			}
+			sp := span{trail: kx1 - kx0, style: cell.Style, owner: c}
+			if seg0, seg1 := max(start, kx0, from), min(start+tw, kx1, to); seg1 > seg0 {
+				sp.lead, sp.text, sp.trail = seg0-kx0, ansi.Cut(text, seg0-start, seg1-start), kx1-seg1
+			}
+			out[k-lo] = sp
+		}
 	}
-
-	for i := range ncols {
-		c := m.left + i
-		w := m.sheet.ColWidth(c)
-		cell := m.sheet.Cell(sheet.Addr{Col: c, Row: row})
-		switch {
-		case cell != nil && cell.Value.Kind == sheet.Text:
-			var head string
-			head, spill = cut(" "+cell.Value.Str, w)
-			out[i] = padRight(head, w)
-		case cell != nil:
-			spill = ""
-			out[i] = padRight(sheet.FormatValue(cell.Value, w), w)
-		case spill != "":
-			var head string
-			head, spill = cut(spill, w)
-			out[i] = padRight(head, w)
-		default:
-			out[i] = strings.Repeat(" ", w)
+	// Text that runs to the edge of its column would touch a neighbor
+	// that starts at its own edge ("Groceries9/28/2026"); keep a gap.
+	for i := 0; i+1 < len(out); i++ {
+		l, r := &out[i], &out[i+1]
+		if l.text != "" && l.trail == 0 && r.text != "" && r.lead == 0 && l.owner != r.owner {
+			l.text = ansi.Truncate(l.text, ansi.StringWidth(l.text)-1, "")
+			l.trail = 1
 		}
 	}
 	return out
@@ -397,12 +495,6 @@ func keyLabel(k string) string {
 		}
 	}
 	return strings.Join(parts, "+")
-}
-
-// cut splits s after w display columns.
-func cut(s string, w int) (head, tail string) {
-	head = ansi.Truncate(s, w, "")
-	return head, s[len(head):]
 }
 
 func padRight(s string, w int) string {

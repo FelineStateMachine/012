@@ -70,6 +70,7 @@ type Model struct {
 	buf    []rune
 	bufPos int
 	hint   string // shown on the third panel line, e.g. a formula error
+	note   string // what the last command did, until the next key
 
 	point       pointer // POINT mode and range prompts
 	pointPrefix string  // entry text before the reference being pointed at
@@ -103,6 +104,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg:
 		m.th = newTheme(msg.IsDark())
 	case tea.KeyPressMsg:
+		m.note = ""
 		cmd = m.handleKey(msg)
 	case tea.PasteMsg:
 		m.handlePaste(msg.Content)
@@ -156,7 +158,7 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 		m.tabbing = false
 		return nil
 	}
-	if id, ok := keymap[key]; ok {
+	if id, ok := keymap[canonicalKey(key)]; ok {
 		return m.runCommand(id)
 	}
 	if text := typed(k); text != "" {

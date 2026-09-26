@@ -2,6 +2,8 @@ package ui
 
 import (
 	"charm.land/lipgloss/v2"
+
+	"one23/internal/sheet"
 )
 
 // theme holds every style the UI draws with. Views must use these roles
@@ -25,6 +27,26 @@ type theme struct {
 	muted        lipgloss.Style // secondary text: key hints, file lists
 	key          lipgloss.Style // a key name inside a hint, e.g. "Enter"
 	errorCell    lipgloss.Style // cells whose value is ERR or NA
+	cell         lipgloss.Style // an ordinary cell: the base for bold, italic and underline
+}
+
+// text adds a cell's bold, italic, underline and strikethrough to base,
+// one of the cell roles (cell, pointer, selection, errorCell), so text
+// styles show through the pointer and selection colors.
+func (t theme) text(base lipgloss.Style, st sheet.Style) lipgloss.Style {
+	if st.Bold {
+		base = base.Bold(true)
+	}
+	if st.Italic {
+		base = base.Italic(true)
+	}
+	if st.Underline {
+		base = base.Underline(true)
+	}
+	if st.Strikethrough {
+		base = base.Strikethrough(true)
+	}
+	return base
 }
 
 func newTheme(dark bool) theme {
@@ -51,5 +73,6 @@ func newTheme(dark bool) theme {
 		muted:        lipgloss.NewStyle().Foreground(muted),
 		key:          lipgloss.NewStyle().Bold(true),
 		errorCell:    lipgloss.NewStyle().Foreground(lipgloss.Red),
+		cell:         lipgloss.NewStyle(),
 	}
 }

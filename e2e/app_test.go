@@ -64,7 +64,7 @@ func TestTextOverflow(t *testing.T) {
 	s := start(t, "")
 	s.keys("Quarterly revenue", "<enter>", "$1,200", "<enter>", "TRUE", "<enter>")
 	s.waitForLine(gridRow1, "    1  Quarterly revenue")
-	s.waitForLine(gridRow1+1, numRow(2, "1200"))
+	s.waitForLine(gridRow1+1, numRow(2, "$1,200"))
 	s.waitForLine(gridRow1+2, "    3    TRUE")
 }
 
