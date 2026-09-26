@@ -94,6 +94,8 @@ func eval(n Node, get lookup) Value {
 		return get(n.a)
 	case nameNode:
 		return ErrName
+	case refErrNode:
+		return ErrRef
 	case rangeNode:
 		// A range outside a function: Sheets uses the top-left cell here
 		// for single-cell ranges and #VALUE! otherwise.
@@ -119,6 +121,12 @@ func eval(n Node, get lookup) Value {
 				return *err
 			}
 			return boolean(f == 0)
+		case "%":
+			f, err := toNum(x)
+			if err != nil {
+				return *err
+			}
+			return num(f / 100)
 		}
 		return x // unary + is identity
 	case binaryNode:

@@ -53,21 +53,57 @@ func ParseCol(s string) (int, bool) {
 // ParseAddr parses an A1-style reference. Absolute markers ($A$1) are
 // accepted and ignored.
 func ParseAddr(s string) (Addr, bool) {
-	s = strings.ReplaceAll(s, "$", "")
+	a, _, ok := parseRef(s)
+	return a, ok
+}
+
+// absFlags records which parts of a reference are absolute ($A$1). Copying
+// a formula shifts only the relative parts.
+type absFlags uint8
+
+const (
+	absCol absFlags = 1 << iota
+	absRow
+)
+
+// parseRef parses a reference written as A1, $A1, A$1 or $A$1.
+func parseRef(s string) (Addr, absFlags, bool) {
+	var abs absFlags
+	if rest, ok := strings.CutPrefix(s, "$"); ok {
+		s, abs = rest, absCol
+	}
 	i := 0
 	for i < len(s) && isLetter(s[i]) {
 		i++
 	}
 	col, ok := ParseCol(s[:i])
-	if !ok || i == len(s) {
-		return Addr{}, false
+	if !ok {
+		return Addr{}, 0, false
 	}
-	row, err := strconv.Atoi(s[i:])
-	if err != nil || s[i] == '+' || s[i] == '-' {
-		return Addr{}, false
+	digits := s[i:]
+	if rest, ok := strings.CutPrefix(digits, "$"); ok {
+		digits, abs = rest, abs|absRow
 	}
+	if digits == "" || strings.ContainsFunc(digits, func(r rune) bool { return r < '0' || r > '9' }) {
+		return Addr{}, 0, false
+	}
+	row, err := strconv.Atoi(digits)
 	a := Addr{Col: col, Row: row - 1}
-	return a, a.Valid()
+	return a, abs, err == nil && a.Valid()
+}
+
+// refString writes a with its absolute markers, e.g. $A1.
+func refString(a Addr, abs absFlags) string {
+	var b strings.Builder
+	if abs&absCol != 0 {
+		b.WriteByte('$')
+	}
+	b.WriteString(ColName(a.Col))
+	if abs&absRow != 0 {
+		b.WriteByte('$')
+	}
+	b.WriteString(strconv.Itoa(a.Row + 1))
+	return b.String()
 }
 
 // Rect is an inclusive rectangular range of cells.
