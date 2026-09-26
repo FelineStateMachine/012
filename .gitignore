@@ -4,3 +4,5 @@ bin/
 e2e/testdata/screens/gallery.html
 .playwright-cli/
 .claude/
+.env
+.env.*
