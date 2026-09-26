@@ -100,7 +100,7 @@ func (s *Sheet) SetColWidth(c, w int) {
 
 func (s *Sheet) setWidth(c, w int) {
 	s.recordWidth(c)
-	if w <= 0 {
+	if w <= 0 || w == DefaultWidth { // keep the map to non-default widths
 		delete(s.widths, c)
 		return
 	}

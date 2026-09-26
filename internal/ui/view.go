@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"one23/internal/sheet"
@@ -130,6 +131,8 @@ func (m *Model) panelLine3() string {
 		return m.keyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "accept and move", "Esc", "cancel")
 	case m.mode == modeEdit:
 		return m.keyHints("Enter", "accept", "Left/Right", "move the caret", "Esc", "cancel")
+	case m.mode == modeReady:
+		return m.readyLine()
 	}
 	return ""
 }
@@ -233,16 +236,26 @@ func (m *Model) gridRow(row int) string {
 		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) {
 			text = m.inCellText(m.sheet.ColWidth(a.Col))
 		}
+		var style lipgloss.Style
+		styled := true
 		switch {
 		case a == focus:
-			b.WriteString(m.th.pointer.Render(text))
+			style = m.th.pointer
 		case selecting && sel.Contains(a):
-			b.WriteString(m.th.selection.Render(text))
+			style = m.th.selection
 		case m.sheet.Value(a).Kind == sheet.Error:
-			b.WriteString(m.th.errorCell.Render(text))
+			style = m.th.errorCell
 		default:
-			b.WriteString(text)
+			styled = false
 		}
+		// The copy marker is layered on the cell's own colors.
+		if m.copyMarked(a) {
+			style, styled = style.Inherit(m.th.copied), true
+		}
+		if styled {
+			text = style.Render(text)
+		}
+		b.WriteString(text)
 	}
 	return b.String()
 }
@@ -359,13 +372,17 @@ func (m *Model) helpLines() []string {
 		}
 	}
 	slices.SortFunc(ids, func(a, b string) int { return strings.Compare(commands[a].title, commands[b].title) })
-	for _, id := range ids {
+	entries := make([]string, len(ids))
+	width := 0
+	for i, id := range ids {
 		keys := keysFor(id)
-		for i, k := range keys {
-			keys[i] = keyLabel(k)
+		for j, k := range keys {
+			keys[j] = keyLabel(k)
 		}
-		lines = append(lines, fmt.Sprintf("  %-20s%s", strings.Join(keys, " / "), commands[id].desc))
+		entries[i] = fmt.Sprintf("%-22s%s", strings.Join(keys, " / "), commands[id].title)
+		width = max(width, len(entries[i])+4)
 	}
+	lines = append(lines, columns(entries, width, m.width)...)
 	names := make([]string, 0, len(sheet.Funcs()))
 	for _, f := range sheet.Funcs() {
 		names = append(names, f.Name)
@@ -377,6 +394,27 @@ func (m *Model) helpLines() []string {
 		"",
 	)
 	return append(lines, wrapWords("  Functions: ", names, m.width)...)
+}
+
+// columns lays out entries in two columns, top to bottom, when two of the
+// given width fit on the screen, and in one column otherwise.
+func columns(entries []string, width, screen int) []string {
+	if 2+2*width > screen {
+		out := make([]string, len(entries))
+		for i, e := range entries {
+			out[i] = "  " + e
+		}
+		return out
+	}
+	half := (len(entries) + 1) / 2
+	out := make([]string, half)
+	for i := range half {
+		out[i] = "  " + entries[i]
+		if j := i + half; j < len(entries) {
+			out[i] = padRight(out[i], 2+width) + entries[j]
+		}
+	}
+	return out
 }
 
 // wrapWords lays out words after prefix, wrapping to width and indenting

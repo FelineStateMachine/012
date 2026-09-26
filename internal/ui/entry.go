@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"errors"
 	"slices"
 	"strings"
 	"unicode"
@@ -15,12 +14,12 @@ import (
 // Entry follows Google Sheets: typing replaces the cell (ENTER), Enter or
 // F2 edits it in place (EDIT). Enter commits and moves down, Tab commits
 // and moves right, Esc cancels. While typing a formula, arrow keys after an
-// operator point at cells (POINT) and insert their references.
+// operator point at cells (POINT) and insert their references. The
+// selection stays while typing, so Ctrl+Enter can fill it.
 
 func (m *Model) startEntry(md mode, text string) {
 	m.mode = md
 	m.buf, m.bufPos, m.hint = nil, 0, ""
-	m.clearSelection()
 	m.insert(text)
 }
 
@@ -50,6 +49,10 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 		m.mode = modeEdit
 		return nil
 	}
+	if key == "f4" {
+		m.toggleAbsolute()
+		return nil
+	}
 	if m.isFormula() && m.canPoint() && m.startPoint(key) {
 		return nil
 	}
@@ -77,6 +80,8 @@ func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	switch key {
+	case "f4":
+		m.toggleAbsolute()
 	case "up", "down", "pgup", "pgdown":
 		if m.commit() {
 			m.navigate(key, &m.cur)
@@ -94,6 +99,10 @@ func (m *Model) commitKey(key string) bool {
 	case "enter", "shift+enter", "tab", "shift+tab", "ctrl+enter":
 	default:
 		return false
+	}
+	if key == "ctrl+enter" && m.hasRange() {
+		m.fillEntry()
+		return true
 	}
 	if !m.commit() {
 		return true
@@ -191,6 +200,10 @@ func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 	case "esc", "backspace":
 		m.resumeEntry("")
 		return nil
+	case "f4":
+		m.resumeEntry(m.point.text())
+		m.toggleAbsolute()
+		return nil
 	case "enter", "shift+enter", "tab", "shift+tab", "ctrl+enter":
 		m.resumeEntry(m.point.text())
 		m.commitKey(key)
@@ -220,15 +233,11 @@ func (m *Model) resumeEntry(ref string) {
 func (m *Model) commit() bool {
 	input := string(m.buf)
 	if err := m.set(m.cur, input); err != nil {
-		var pe *sheet.ParseError
-		m.mode = modeEdit
-		m.hint = err.Error()
-		if errors.As(err, &pe) {
-			m.bufPos = utf8.RuneCountInString(input[:min(pe.Pos, len(input))])
-		}
+		m.entryError(err, input)
 		return false
 	}
 	m.cancelEntry()
+	m.clearSelection()
 	return true
 }
 
@@ -261,6 +270,9 @@ func (m *Model) insert(text string) {
 func (m *Model) handlePaste(content string) {
 	switch m.mode {
 	case modeReady:
+		if m.pasteText(content) {
+			return
+		}
 		if content = strings.TrimSpace(content); content != "" {
 			m.startEntry(modeEnter, content)
 		}

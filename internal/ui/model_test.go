@@ -448,7 +448,7 @@ func TestHelpListsShortcuts(t *testing.T) {
 	m := newModel()
 	press(t, m, "<f1>")
 	s := screen(m)
-	for _, want := range []string{"Ctrl+S", "Save the sheet", "Backspace / Del", "SUM"} {
+	for _, want := range []string{"Ctrl+S", "Save", "Backspace / Del", "Ctrl+Shift+V", "Paste values only", "SUM"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("help missing %q", want)
 		}

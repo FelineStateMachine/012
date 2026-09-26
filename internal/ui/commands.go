@@ -91,8 +91,9 @@ func init() {
 			m.changed = true
 			return nil
 		}},
-		&command{id: "select.none", title: "Deselect", desc: "Collapse the selection to the active cell", run: func(m *Model) tea.Cmd {
+		&command{id: "select.none", title: "Deselect", desc: "Collapse the selection and clear the copy marker", run: func(m *Model) tea.Cmd {
 			m.clearSelection()
+			m.clearCopyMark()
 			return nil
 		}},
 		&command{id: "select.all", title: "Select all", desc: "Select the data, then the whole sheet", run: (*Model).selectAll},

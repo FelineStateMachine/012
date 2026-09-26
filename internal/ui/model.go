@@ -46,6 +46,10 @@ type Model struct {
 	sheet    *sheet.Sheet
 	filename string
 	changed  bool
+	saved    int // the sheet's StateID when last saved or loaded
+
+	copied clipboard // see clipboard.go
+	note   string    // feedback on the last action, e.g. "Undid: clear B3"
 
 	cur           sheet.Addr // the active cell
 	top, left     int        // first visible row and column
@@ -104,6 +108,7 @@ func (m *Model) Init() tea.Cmd {
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	before, beforeMode := *m.focus(), m.mode
+	state := m.beginUpdate(msg)
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -127,6 +132,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.handleWheel(msg.Mouse())
 	case savedMsg:
 		m.handleSaved(msg)
+		if msg.err == nil {
+			m.saved = m.sheet.StateID()
+		}
 	case loadedMsg:
 		m.handleLoaded(msg)
 	case filesMsg:
@@ -134,10 +142,38 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	// Scroll only when the focus moves, so the mouse wheel can look around
 	// without the view snapping back, as in Sheets.
+	m.endUpdate(state)
 	if f := *m.focus(); f != before || m.mode != beforeMode {
 		m.scrollTo(f)
 	}
 	return m, cmd
+}
+
+// beginUpdate prepares for an input event and returns the sheet's state
+// before it. Each user action outside a prompt ends any run of column
+// width changes in the undo history, and clears the last action's note.
+func (m *Model) beginUpdate(msg tea.Msg) int {
+	switch msg.(type) {
+	case tea.KeyPressMsg, tea.MouseClickMsg, tea.PasteMsg:
+		m.note = ""
+		if m.mode != modePrompt {
+			m.sheet.Seal()
+		}
+	}
+	return m.sheet.StateID()
+}
+
+// endUpdate reacts to edits made while handling an event: the modified
+// flag follows the undo history, and any edit but a paste clears the copy
+// marker, as in Sheets.
+func (m *Model) endUpdate(state int) {
+	if m.sheet.StateID() != state {
+		m.changed = m.sheet.StateID() != m.saved
+		if !m.copied.keep {
+			m.clearCopyMark()
+		}
+	}
+	m.copied.keep = false
 }
 
 func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {

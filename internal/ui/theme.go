@@ -27,6 +27,10 @@ type theme struct {
 	muted        lipgloss.Style // secondary text: key hints, file lists
 	key          lipgloss.Style // a key name inside a hint, e.g. "Enter"
 	errorCell    lipgloss.Style // cells whose value is ERR or NA
+	// copied marks the range on the clipboard, like Sheets' dashed border:
+	// a dashed underline across every cell, layered on the cell's own
+	// style, with its own text color where the cell has none.
+	copied lipgloss.Style
 }
 
 func newTheme(dark bool) theme {
@@ -55,5 +59,7 @@ func newTheme(dark bool) theme {
 		muted:        lipgloss.NewStyle().Foreground(muted),
 		key:          lipgloss.NewStyle().Bold(true),
 		errorCell:    lipgloss.NewStyle().Foreground(lipgloss.Red),
+		copied: lipgloss.NewStyle().Foreground(lipgloss.Magenta).
+			UnderlineStyle(lipgloss.UnderlineDashed).UnderlineSpaces(true),
 	}
 }

@@ -23,6 +23,14 @@ Inside the grid, one23 works like Google Sheets.
 | Click a header, Ctrl+Space, Shift+Space | Select whole columns or rows |
 | Ctrl+A | Select the data, then everything |
 | Del / Backspace | Clear the selection |
+| Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z | Undo, redo |
+| Ctrl+C, Ctrl+X, Ctrl+V | Copy, cut, paste; references adjust as in Sheets, and copies also go to the system clipboard |
+| Ctrl+Shift+V | Paste values only |
+| Paste from the terminal | Tab-separated or multi-line text fills a block of cells |
+| Ctrl+D, Ctrl+R | Fill down, fill right |
+| Ctrl+Alt+= / Ctrl+Alt+- | Insert rows above / delete the selected rows (columns when whole columns are selected) |
+| Ctrl+Enter while typing | Enter the same entry in every selected cell |
+| F4 while typing a formula | Cycle the reference at the caret through A1, $A$1, A$1, $A1 |
 | Ctrl+S, Ctrl+O, Ctrl+Q | Save, open, quit |
 | Ctrl+G or F5 | Go to a cell |
 | F10 | Menu |
