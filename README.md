@@ -39,6 +39,7 @@ cmd/one23        entry point
 internal/sheet   engine: addresses, Pratt parser, evaluator, recalc, file format
 internal/ui      Bubble Tea model: modes, menu, prompts, rendering
 e2e/             end-to-end tests: real binary on a pty, rendered by libghostty-vt
+oracle/          differential tests of formulas and formats against excelize
 ```
 
 ## Tests
@@ -47,7 +48,10 @@ e2e/             end-to-end tests: real binary on a pty, rendered by libghostty-
 make test     # engine and UI unit tests
 make fuzz     # fuzz the formula parser
 make e2e      # builds libghostty-vt from source with Zig, then runs e2e tests
+make oracle   # compare formulas and number formats with excelize
 ```
 
 `make e2e` needs Zig 0.16+ and `pkg-config`. It is a separate Go module so the
-cgo dependency never reaches the main binary.
+cgo dependency never reaches the main binary; so is `oracle`, which keeps
+excelize out of it. `oracle/oracle_test.go` lists the formulas skipped
+because Sheets and Excel disagree or excelize departs from Excel.

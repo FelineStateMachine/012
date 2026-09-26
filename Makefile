@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: build run test fuzz e2e screens libghostty clean
+.PHONY: build run test fuzz e2e screens oracle libghostty clean
 
 build:
 	CGO_ENABLED=0 go build -o bin/one23 ./cmd/one23
@@ -28,6 +28,11 @@ e2e: $(GHOSTTY_STAMP)
 # visual review. Review the diff and the gallery before committing.
 screens: $(GHOSTTY_STAMP)
 	cd e2e && PKG_CONFIG_PATH=$(GHOSTTY_OUT)/share/pkgconfig go test -count=1 -run TestScreens ./... -update
+
+# Differential tests: formulas and number formats against excelize's
+# calculation engine. A separate module, so the binary never depends on it.
+oracle:
+	cd oracle && go test -count=1 ./...
 
 libghostty: $(GHOSTTY_STAMP)
 
