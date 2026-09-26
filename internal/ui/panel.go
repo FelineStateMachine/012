@@ -220,7 +220,15 @@ func (m *Model) statusLine() string {
 		parts = append(parts, m.th.muted.Render("Count ")+strconv.Itoa(st.Count))
 		right = strings.Join(parts, "   ")
 	} else {
-		right = m.keyHints(shortcut("help"), "shortcuts", shortcut("menu"), "menu", shortcut("quit"), "quit")
+		// The ways in to everything else, as many as fit.
+		pairs := []string{shortcut("palette"), "search", shortcut("help"), "shortcuts", shortcut("menu"), "menu"}
+		for len(pairs) > 0 {
+			right = m.keyHints(pairs...)
+			if ansi.StringWidth(left)+3+ansi.StringWidth(right) <= m.width {
+				break
+			}
+			pairs, right = pairs[:len(pairs)-2], ""
+		}
 	}
 	gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
 	return left + strings.Repeat(" ", gap) + right

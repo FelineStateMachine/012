@@ -82,6 +82,23 @@ func TestPaletteMatchesMenuPath(t *testing.T) {
 	}
 }
 
+func TestPaletteTitleMatchesFirst(t *testing.T) {
+	m := newModel()
+	// "sel" also matches "Save" through the l of its File path, but
+	// titles that match on their own rank first.
+	press(t, m, "<ctrl+k>", "sel")
+	shown := openPicker(t, m).shown
+	seenPathOnly := false
+	for _, pm := range shown {
+		inTitle := strings.Contains(strings.ToLower(pm.item.title), "sel")
+		if !inTitle && pm.item.title != "Select all" {
+			seenPathOnly = true
+		} else if seenPathOnly && inTitle {
+			t.Errorf("%q ranked after a path-only match", pm.item.title)
+		}
+	}
+}
+
 func TestPaletteNoMatchAndEsc(t *testing.T) {
 	m := newModel()
 	press(t, m, "<ctrl+k>", "zzqx")

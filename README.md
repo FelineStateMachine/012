@@ -33,8 +33,14 @@ Inside the grid, one23 works like Google Sheets.
 | F4 while typing a formula | Cycle the reference at the caret through A1, $A$1, A$1, $A1 |
 | Ctrl+S, Ctrl+O, Ctrl+Q | Save, open, quit |
 | Ctrl+G or F5 | Go to a cell |
-| F10 | Menu |
+| Alt+F, Alt+E, Alt+V, Alt+I, Alt+O, Alt+H, F10, click a title | Open a menu (arrows move, Enter runs, Esc closes) |
+| Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
+| Right-click, Shift+F10 | Cell, column or row menu |
 | F1 or Ctrl+/ | Keyboard shortcuts |
+
+The top three lines are the menu bar and mode indicator, the formula bar
+(name box, then the cell's contents or the entry being typed) and the
+context line (prompts, key hints, formula errors).
 
 ## Layout
 

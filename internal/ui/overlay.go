@@ -161,6 +161,7 @@ const sepRow = "\x00"
 // frame draws a border around rows. A title sits in the top border and a
 // footer at the right of the bottom border.
 func (m *Model) frame(inner int, title, footer string, rows []string) []string {
+	inner = max(inner, 2) // screens smaller than the box get a clipped box
 	b := m.th.border
 	top := "┌" + strings.Repeat("─", inner) + "┐"
 	if title != "" {

@@ -26,11 +26,14 @@ follow-up task.
 3. **Everything is discoverable.** Every action is a registered command
    (`internal/ui/commands.go`) with a title and one-line description. It is
    reachable from the menu where Sheets would put it, from key bindings in
-   `keymap`, and from help (generated from the registry). When the command
-   palette lands, it lists every registered command with its keys.
+   `keymap`, and from help (generated from the registry). The command
+   palette lists every registered command with its keys.
 4. **The screen always says what's going on.** The mode indicator is always
-   correct. The third panel line tells the user what keys do in any
-   non-READY state. Prompts live on the second panel line.
+   correct. The control panel is the menu bar (with the mode indicator),
+   the formula bar, and the context line, which holds prompts, small
+   confirmations and the keys that apply in any non-READY state. While a
+   menu, the palette or the shortcuts are open, the status line says what
+   the highlighted item does and which keys apply.
 5. **Never lose work.** Destructive actions warn when there are unsaved
    changes and are undoable once undo exists. Errors are specific
    ("expected , or )" with the cursor on the spot), never generic.
@@ -49,8 +52,14 @@ follow-up task.
   `modified`, `#DIV/0!`, `Circular reference`).
 - Numbers right-aligned, text left, booleans and errors centered, one
   column of padding, text overflowing into empty neighbors: as Sheets.
-  Headers centered. Menu items separated by two spaces. Keys shown as
-  `F2`, `Ctrl+Z`, `Del` (see `keyLabel`).
+  Headers centered. Menu bar titles separated by two spaces. Keys shown
+  as `F2`, `Ctrl+Z`, `Del` (see `keyLabel`), drawn as key chips
+  (`chip`) in hints, menus, the palette and the shortcuts.
+- Menus, the palette and the shortcuts are overlays: boxes framed with
+  light box-drawing lines (`frame`), composited over the grid without
+  moving it, with a title in the top border and a position or count in
+  the bottom one. Small questions (quit with unsaved changes) go on the
+  context line as a choice bar, not in a box.
 - The active cell is always distinct from the rest of a selection, and
   the headers of selected rows and columns are highlighted.
 - Layout works from 60x16 up to very wide terminals. Nothing jumps

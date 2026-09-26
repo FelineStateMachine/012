@@ -128,13 +128,22 @@ func (p *picker) changed(m *Model) {
 		}
 		return
 	}
-	hay := make([]string, len(p.items))
+	// Items whose name matches come first; items that only match with the
+	// help of their detail (e.g. the File in a menu path) follow.
+	names, hay := make([]string, len(p.items)), make([]string, len(p.items))
 	for i, it := range p.items {
-		hay[i] = it.haystack()
+		names[i], hay[i] = it.title[:it.name], it.haystack()
 	}
-	matches := fuzzy.FindNoSort(q, hay)
-	slices.SortStableFunc(matches, func(a, b fuzzy.Match) int { return cmp.Compare(b.Score, a.Score) })
+	byScore := func(a, b fuzzy.Match) int { return cmp.Compare(b.Score, a.Score) }
+	matches := fuzzy.FindNoSort(q, names)
+	slices.SortStableFunc(matches, byScore)
+	inName := map[int]bool{}
 	for _, mt := range matches {
+		inName[mt.Index] = true
+	}
+	rest := slices.DeleteFunc(fuzzy.FindNoSort(q, hay), func(mt fuzzy.Match) bool { return inName[mt.Index] })
+	slices.SortStableFunc(rest, byScore)
+	for _, mt := range append(matches, rest...) {
 		it := &p.items[mt.Index]
 		pm := pickMatch{item: it}
 		for _, i := range mt.MatchedIndexes {

@@ -108,6 +108,15 @@ var screens = []screen{
 		s.keys("<alt+h>", "a")
 		s.waitFor("Google Sheets keys")
 	}},
+	{name: "help-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		s.keys("<f1>")
+		s.waitFor("Keyboard shortcuts")
+	}},
+	{name: "palette-wide", opts: options{cols: 200, rows: 30}, setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+k>", "sel")
+		s.waitFor("│ › sel")
+	}},
 	{name: "help-wide", opts: options{cols: 200, rows: 45}, setup: func(s *session) {
 		s.keys("<f1>")
 		s.waitFor("Keyboard shortcuts")

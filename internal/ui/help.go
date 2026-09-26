@@ -171,6 +171,11 @@ func (s *shortcuts) lines(m *Model) ([]string, int) {
 		keyW = max(keyW, ansi.StringWidth(m.chips(r.keys)))
 		actW = max(actW, ansi.StringWidth(r.action))
 	}
+	// On narrow screens actions give way (truncated) so the keys fit.
+	room := min(m.width-4, 160)
+	if 1+keyW+2+actW > room {
+		actW = max(room-3-keyW, 16)
+	}
 	colW := 1 + keyW + 2 + actW
 	render := func(rows []helpRow) []string {
 		var out []string
@@ -181,12 +186,11 @@ func (s *shortcuts) lines(m *Model) ([]string, int) {
 			case r.heading != "":
 				out = append(out, m.th.title.Render(" "+r.heading))
 			default:
-				out = append(out, " "+padRight(r.action, actW)+"  "+m.chips(r.keys))
+				out = append(out, " "+padRight(ansi.Truncate(r.action, actW, "…"), actW)+"  "+m.chips(r.keys))
 			}
 		}
 		return out
 	}
-	room := min(m.width-4, 160)
 	if 2*colW+3 > room {
 		return render(rows), min(colW, room)
 	}
