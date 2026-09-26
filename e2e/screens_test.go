@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	ghostty "go.mitchellh.com/libghostty"
 )
 
 var update = flag.Bool("update", false, "rewrite golden screens in testdata/screens")
@@ -32,7 +34,7 @@ func budget(s *session) {
 	s.keys("Savings rate", "<tab>", "=B3/0", "<enter>")
 	s.keys("Total", "<tab>", "=SUM(B3:B5)", "<enter>")
 	s.keys("<up>", "<right>")
-	s.waitFor("B7   =SUM(B3:B5)")
+	s.waitForBar("B7", "=SUM(B3:B5)")
 }
 
 // formatted types a bill schedule with dates, currency and percentages,
@@ -90,17 +92,69 @@ var screens = []screen{
 	}},
 	{name: "menu", setup: func(s *session) {
 		budget(s)
-		s.keys("<f10>")
-		s.waitFor("File  Edit  Format")
+		s.keys("<alt+f>", "<down>", "<down>")
+		s.waitFor("Save the sheet")
+	}},
+	{name: "palette", setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+k>")
+		s.waitFor("Search the menus")
+	}},
+	{name: "palette-search", setup: func(s *session) {
+		budget(s)
+		s.keys("<alt+/>", "col")
+		s.waitFor("│ › col")
+	}},
+	{name: "palette-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+k>", "sa")
+		s.waitFor("│ › sa")
+	}},
+	{name: "context-menu", setup: func(s *session) {
+		budget(s)
+		s.click(ghostty.MouseButtonRight, 6+10+4, 4+3)
+		s.waitFor("│ Clear")
+	}},
+	{name: "context-menu-column", setup: func(s *session) {
+		budget(s)
+		s.click(ghostty.MouseButtonRight, 6+10+4, 3)
+		s.waitFor("│ Resize column")
+	}},
+	{name: "menu-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		budget(s)
+		s.keys("<alt+h>")
+		s.waitFor("│ About one23")
+	}},
+	{name: "functions", setup: func(s *session) {
+		budget(s)
+		s.keys("<alt+h>", "f", "if")
+		s.waitFor("│ › if")
+	}},
+	{name: "about", setup: func(s *session) {
+		s.keys("<alt+h>", "a")
+		s.waitFor("Google Sheets keys")
+	}},
+	{name: "help-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		s.keys("<f1>")
+		s.waitFor("Keyboard shortcuts")
+	}},
+	{name: "palette-wide", opts: options{cols: 200, rows: 30}, setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+k>", "sel")
+		s.waitFor("│ › sel")
+	}},
+	{name: "help-wide", opts: options{cols: 200, rows: 45}, setup: func(s *session) {
+		s.keys("<f1>")
+		s.waitFor("Keyboard shortcuts")
 	}},
 	{name: "quit-confirm", setup: func(s *session) {
 		budget(s)
-		s.keys("<ctrl+q>", "<right>")
+		s.keys("<ctrl+q>")
 		s.waitFor("unsaved changes")
 	}},
 	{name: "prompt-width", setup: func(s *session) {
 		budget(s)
-		s.keys("<ctrl+home>", "<f10>", "f", "<enter>", "c", "<right>", "<right>", "<right>")
+		s.keys("<ctrl+home>", "<alt+o>", "c", "<enter>", "<right>", "<right>", "<right>")
 		s.waitFor("Column width (1-240): 13")
 	}},
 	{name: "error-goto", setup: func(s *session) {
@@ -112,14 +166,50 @@ var screens = []screen{
 		s.waitFor("HELP")
 	}},
 	{name: "narrow", opts: options{cols: 60, rows: 16}, setup: budget},
+	{name: "hover-resize-handle", setup: func(s *session) {
+		budget(s)
+		s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonUnknown, 6+10-1, 3, 0)
+		s.waitFor("▐")
+	}},
+	{name: "resizing-column", setup: func(s *session) {
+		budget(s)
+		s.mouse(ghostty.MouseActionPress, ghostty.MouseButtonLeft, 6+10-1, 3, 0)
+		s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonLeft, 6+10+5, 3, 0)
+		s.waitFor("Column A width 16")
+	}},
+	{name: "copy-marker", setup: func(s *session) {
+		budget(s)
+		s.keys("<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>", "<ctrl+c>", "<right>", "<up>")
+		s.waitFor("Copied B3:B5")
+	}},
+	{name: "copy-marker-selected", setup: func(s *session) {
+		budget(s)
+		s.keys("<left>", "<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>", "<shift+right>", "<ctrl+x>")
+		s.waitFor("Cut A3:B5")
+	}},
+	{name: "undo-note", setup: func(s *session) {
+		budget(s)
+		s.keys("<up>", "<shift+up>", "<delete>", "<ctrl+z>")
+		s.waitFor("Undid: clear B5:B6")
+	}},
+	{name: "narrow-copy", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+c>", "<down>")
+		s.waitFor("Copied B7")
+	}},
 	{name: "formats", setup: formatted},
+	{name: "menu-format-number", setup: func(s *session) {
+		formatted(s)
+		s.keys("<alt+o>", "<right>")
+		s.waitFor("Currency rounded")
+	}},
 	{name: "formats-narrow", opts: options{cols: 60, rows: 16}, setup: formatted},
 }
 
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "quit-confirm", "help", "formats"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
@@ -195,6 +285,7 @@ h2{font:500 13px ui-monospace,monospace;color:#aaa;margin:0 0 8px}
 .term{display:inline-block;padding:14px 16px;border-radius:10px;box-shadow:0 8px 30px #0008}
 .screen{margin:0;font:13px/1.3 "JetBrains Mono","SF Mono",Menlo,monospace;color:var(--fg)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(820px,1fr));gap:8px 24px}
+.wide{grid-column:1/-1}
 `)
 	for _, p := range []struct {
 		class  string
@@ -213,7 +304,11 @@ h2{font:500 13px ui-monospace,monospace;color:#aaa;margin:0 0 8px}
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(&b, "<section id=%q><h2>%s</h2><div>", sc.name, html.EscapeString(sc.name))
+		wide := ""
+		if sc.opts.cols > 120 {
+			wide = " class=wide" // spans the whole gallery row
+		}
+		fmt.Fprintf(&b, "<section id=%q%s><h2>%s</h2><div>", sc.name, wide, html.EscapeString(sc.name))
 		th := "dark"
 		if sc.opts.light {
 			th = "light"

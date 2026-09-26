@@ -94,6 +94,8 @@ func eval(n Node, get lookup) Value {
 		return get(n.a)
 	case nameNode:
 		return ErrName
+	case refErrNode:
+		return ErrRef
 	case emptyArg:
 		return Value{}
 	case rangeNode:
@@ -121,6 +123,12 @@ func eval(n Node, get lookup) Value {
 				return *err
 			}
 			return boolean(f == 0)
+		case "%":
+			f, err := toNum(x)
+			if err != nil {
+				return *err
+			}
+			return num(f / 100)
 		}
 		return x // unary + is identity
 	case binaryNode:

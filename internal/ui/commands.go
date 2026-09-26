@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"cmp"
 	"slices"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -16,6 +18,15 @@ type command struct {
 	title string // shown in menus, the palette and help, e.g. "Save"
 	desc  string // one line, shown on the third panel line
 	run   func(m *Model) tea.Cmd
+
+	// enabled, when set, reports whether the command can run right now.
+	// Menus and the palette show unavailable commands dimmed.
+	enabled func(m *Model) bool
+}
+
+// available reports whether the command can run in m's current state.
+func (c *command) available(m *Model) bool {
+	return c.enabled == nil || c.enabled(m)
 }
 
 var commands = map[string]*command{}
@@ -32,7 +43,6 @@ func register(cmds ...*command) {
 // keymap binds READY-mode keys to command IDs, following Google Sheets
 // where it has a shortcut. Movement and typing are handled separately.
 var keymap = map[string]string{
-	"f10":         "menu",
 	"f1":          "help",
 	"ctrl+/":      "help",
 	"enter":       "edit",
@@ -50,7 +60,9 @@ var keymap = map[string]string{
 	"ctrl+q":      "quit",
 }
 
-// keysFor returns the shortcuts bound to a command, sorted.
+// keysFor returns the shortcuts bound to a command, the one to show first
+// leading: Ctrl combinations (what Sheets shows), then function keys, then
+// Alt combinations and named keys.
 func keysFor(id string) []string {
 	var keys []string
 	for k, c := range keymap {
@@ -58,8 +70,33 @@ func keysFor(id string) []string {
 			keys = append(keys, k)
 		}
 	}
-	slices.Sort(keys)
+	slices.SortFunc(keys, func(a, b string) int {
+		return cmp.Or(cmp.Compare(keyRank(a), keyRank(b)), cmp.Compare(a, b))
+	})
 	return keys
+}
+
+func keyRank(k string) int {
+	switch {
+	case strings.HasPrefix(k, "ctrl+"):
+		return 0
+	case len(k) >= 2 && k[0] == 'f' && k[1] >= '0' && k[1] <= '9':
+		return 1
+	case strings.HasPrefix(k, "alt+"):
+		return 2
+	case k == "delete":
+		return 3
+	}
+	return 4
+}
+
+// shortcut is the key shown next to a command in menus and the palette,
+// e.g. "Ctrl+S", or "" if it has none.
+func shortcut(id string) string {
+	if keys := keysFor(id); len(keys) > 0 {
+		return keyLabel(keys[0])
+	}
+	return ""
 }
 
 // runCommand runs a registered command by ID.
@@ -73,14 +110,6 @@ func (m *Model) runCommand(id string) tea.Cmd {
 
 func init() {
 	register(
-		&command{id: "menu", title: "Menu", desc: "Open the menu", run: func(m *Model) tea.Cmd {
-			m.openMenu()
-			return nil
-		}},
-		&command{id: "help", title: "Keyboard shortcuts", desc: "Show keys and functions", run: func(m *Model) tea.Cmd {
-			m.mode = modeHelp
-			return nil
-		}},
 		&command{id: "edit", title: "Edit cell", desc: "Edit the active cell's contents", run: (*Model).startEdit},
 		&command{id: "goto", title: "Go to", desc: "Move to a cell address", run: func(m *Model) tea.Cmd {
 			m.openGoto()
@@ -91,8 +120,9 @@ func init() {
 			m.changed = true
 			return nil
 		}},
-		&command{id: "select.none", title: "Deselect", desc: "Collapse the selection to the active cell", run: func(m *Model) tea.Cmd {
+		&command{id: "select.none", title: "Deselect", desc: "Collapse the selection and clear the copy marker", run: func(m *Model) tea.Cmd {
 			m.clearSelection()
+			m.clearCopyMark()
 			return nil
 		}},
 		&command{id: "select.all", title: "Select all", desc: "Select the data, then the whole sheet", run: (*Model).selectAll},
@@ -124,14 +154,4 @@ func (m *Model) save() tea.Cmd {
 		return m.openSave()
 	}
 	return saveCmd(m.sheet, m.filename)
-}
-
-// quit exits, confirming first when there are unsaved changes.
-func (m *Model) quit() tea.Cmd {
-	if !m.changed {
-		return tea.Quit
-	}
-	m.openMenu()
-	m.menu = append(m.menu, menuLevel{items: quitConfirm})
-	return nil
 }

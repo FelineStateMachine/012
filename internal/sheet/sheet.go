@@ -127,7 +127,12 @@ func (s *Sheet) ColWidth(c int) int {
 
 // SetColWidth sets column c's width; w <= 0 resets it to the default.
 func (s *Sheet) SetColWidth(c, w int) {
-	if w <= 0 {
+	s.change("column width", colRect(c, c), func() { s.setWidth(c, w) })
+}
+
+func (s *Sheet) setWidth(c, w int) {
+	s.recordWidth(c)
+	if w <= 0 || w == DefaultWidth { // keep the map to non-default widths
 		delete(s.widths, c)
 		return
 	}

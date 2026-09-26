@@ -10,8 +10,44 @@ import (
 	ghostty "go.mitchellh.com/libghostty"
 )
 
-// Screen layout: panel lines 0-2, column header 3, grid row 1 on line 4.
-const gridRow1 = 4
+// Screen layout: menu bar 0, formula bar 1 (an 11-wide name box and a
+// space, then the contents), context line 2, column header 3, grid row 1
+// on line 4.
+const (
+	barLine     = 1
+	barX        = 12
+	contextLine = 2
+	gridRow1    = 4
+)
+
+// waitForBar waits for the formula bar to show name in the name box and
+// text after it.
+func (s *session) waitForBar(name, text string) {
+	s.t.Helper()
+	s.eventually(fmt.Sprintf("formula bar %s %q", name, text), func() bool {
+		l := s.line(barLine) + strings.Repeat(" ", barX)
+		return strings.TrimSpace(l[:barX]) == name && strings.TrimRight(l[barX:], " ") == text
+	})
+}
+
+// waitForName waits for the name box to show name.
+func (s *session) waitForName(name string) {
+	s.t.Helper()
+	s.eventually(fmt.Sprintf("name box %s", name), func() bool {
+		l := s.line(barLine)
+		return strings.TrimSpace(l[:min(barX, len(l))]) == name
+	})
+}
+
+// waitForEntry waits for the formula bar to show text, whatever the name
+// box says; used while typing.
+func (s *session) waitForEntry(text string) {
+	s.t.Helper()
+	s.eventually(fmt.Sprintf("formula bar %q", text), func() bool {
+		l := s.line(barLine)
+		return len(l) >= barX && l[barX:] == text
+	})
+}
 
 // numRow is how a grid row of numbers in default-width (10) columns looks:
 // a 6-wide row header, then each number right-aligned with one column of
@@ -28,7 +64,7 @@ func TestFormulaRecalc(t *testing.T) {
 	s := start(t, "")
 	s.keys("10", "<enter>", "20", "<enter>", "=SUM(A1:A2)", "<enter>")
 	s.keys("<up>")
-	s.waitFor("A3   =SUM(A1:A2)")
+	s.waitForBar("A3", "=SUM(A1:A2)")
 	s.waitForLine(gridRow1+2, numRow(3, "30"))
 
 	// Changing a precedent recalculates the total on screen.
@@ -40,11 +76,11 @@ func TestPointModeBuildsFormula(t *testing.T) {
 	s := start(t, "")
 	s.keys("4", "<tab>", "6", "<tab>", "=", "<left>", "<left>")
 	s.waitFor("POINT")
-	s.waitForLine(1, "=A1")
+	s.waitForBar("C1", "=A1")
 	s.keys("*", "<left>", "<enter>")
 	// Enter after a run of Tabs returns to the starting column, as in Sheets.
 	s.keys("<up>", "<right>", "<right>")
-	s.waitFor("C1   =A1*B1")
+	s.waitForBar("C1", "=A1*B1")
 	s.waitForLine(gridRow1, numRow(1, "4", "6", "24"))
 }
 
@@ -76,17 +112,8 @@ func TestInvalidFormulaCursor(t *testing.T) {
 	// The real terminal cursor sits on the edit line at the error.
 	s.eventually("cursor at end of edit line", func() bool {
 		x, y := s.cursor()
-		return x == len("=SUM(A1") && y == 1
+		return x == barX+len("=SUM(A1") && y == barLine
 	})
-}
-
-func TestMenuSetsColumnWidth(t *testing.T) {
-	s := start(t, "")
-	s.keys("<f10>")
-	s.waitFor("File  Edit  Format")
-	s.keys("f", "<enter>", "c", "20", "<enter>")
-	s.waitFor("READY")
-	s.eventually("wider column A", func() bool { return strings.HasPrefix(s.line(3), strings.Repeat(" ", 6)+strings.Repeat(" ", 9)+"A") })
 }
 
 func TestSaveQuitReopen(t *testing.T) {
@@ -113,14 +140,6 @@ func TestSaveQuitReopen(t *testing.T) {
 	}
 }
 
-func TestQuitAsksAboutUnsavedChanges(t *testing.T) {
-	s := start(t, "")
-	s.keys("1", "<enter>", "<ctrl+q>")
-	s.waitFor("Cancel  Quit without saving")
-	s.keys("<esc>", "<esc>")
-	s.waitFor("READY")
-}
-
 func TestResizeShowsMoreColumns(t *testing.T) {
 	s := start(t, "")
 	s.waitFor(" I")
@@ -129,6 +148,75 @@ func TestResizeShowsMoreColumns(t *testing.T) {
 	}
 	s.resize(160, 30)
 	s.eventually("column N after resize", func() bool { return strings.Contains(s.line(3), " N") })
+}
+
+func TestCopyPasteAdjustsReferences(t *testing.T) {
+	s := start(t, "")
+	clip := s.watchClipboard()
+	s.keys("2", "<tab>", "=A1*10", "<enter>", "3", "<enter>", "<ctrl+home>", "<right>", "<ctrl+c>")
+	s.waitFor("Copied B1")
+	s.eventually("system clipboard", func() bool { return clip.get() == "20" })
+	s.keys("<down>", "<ctrl+v>")
+	s.waitFor("Pasted 1 cell at B2")
+	s.waitForBar("B2", "=A2*10")
+	s.waitForLine(gridRow1+1, numRow(2, "3", "30"))
+
+	// Esc clears the marker; the paste stays.
+	s.keys("<esc>")
+	s.eventually("marker cleared", func() bool { return !strings.Contains(s.line(2), "Copied") })
+
+	// Cut and paste moves the cell and the formula that uses it follows.
+	s.keys("<ctrl+home>", "<ctrl+x>", "<down>", "<down>", "<down>", "<ctrl+v>")
+	s.waitFor("Moved A1 to A4")
+	s.keys("<ctrl+home>", "<right>")
+	s.waitForBar("B1", "=A4*10")
+	s.waitForLine(gridRow1+3, numRow(4, "2"))
+}
+
+func TestUndoRedo(t *testing.T) {
+	s := start(t, "")
+	s.keys("10", "<enter>", "=A1+1", "<enter>", "<up>", "<up>", "<shift+down>", "<delete>")
+	s.waitForLine(gridRow1, "    1")
+	s.keys("<ctrl+z>")
+	s.waitFor("Undid: clear A1:A2")
+	s.waitForLine(gridRow1+1, numRow(2, "11"))
+	s.keys("<ctrl+y>")
+	s.waitFor("Redid: clear A1:A2")
+	s.waitForLine(gridRow1+1, "    2")
+	s.keys("<ctrl+shift+z>")
+	s.waitFor("Nothing to redo")
+}
+
+func TestInsertRowRewritesFormulas(t *testing.T) {
+	s := start(t, "")
+	s.keys("1", "<enter>", "2", "<enter>", "=SUM(A1:A2)", "<enter>")
+	s.keys("<up>", "<up>", "<shift+space>", "<ctrl+alt+=>")
+	s.waitForLine(gridRow1+3, numRow(4, "3"))
+	s.keys("<down>", "<down>")
+	s.waitForBar("A4", "=SUM(A1:A3)")
+	s.keys("<up>", "<up>", "5", "<enter>")
+	s.waitForLine(gridRow1+3, numRow(4, "8"))
+	s.keys("<ctrl+z>", "<ctrl+z>")
+	s.waitFor("Undid: insert 1 row")
+	s.waitForLine(gridRow1+2, numRow(3, "3"))
+}
+
+func TestPasteTSVFillsCells(t *testing.T) {
+	s := start(t, "")
+	s.paste("Item\tCost\nRent\t1450\nFood\t=B2/2\n")
+	s.waitFor("Pasted 6 cells at A1:B3")
+	s.waitForLine(gridRow1+2, "    3  Food           725")
+}
+
+func TestFillAndAbsoluteReferences(t *testing.T) {
+	s := start(t, "")
+	s.keys("2", "<enter>", "3", "<enter>", "4", "<enter>", "<ctrl+home>", "<right>")
+	s.keys("=A1*A1", "<left>", "<left>", "<f4>")
+	s.waitForEntry("=A1*$A$1")
+	s.keys("<enter>", "<up>", "<shift+down>", "<shift+down>", "<ctrl+d>")
+	s.waitForLine(gridRow1+2, numRow(3, "4", "8"))
+	s.keys("<right>", "<shift+down>", "=B1+1", "<ctrl+enter>")
+	s.waitForLine(gridRow1+1, numRow(2, "3", "6", "7"))
 }
 
 // Click handling is covered by the unit tests; this checks the program

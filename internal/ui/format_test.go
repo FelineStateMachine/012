@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 
 // cells returns the text of the first n columns of grid row r (1-based),
 // each trimmed.
-func cells(m *Model, r, n int) []string {
+func rowCells(m *Model, r, n int) []string {
 	l := line(m, gridTop+r-1)
 	out := make([]string, n)
 	x := rowHdrW
@@ -61,7 +62,7 @@ func TestFormatShortcutsApplyToSelection(t *testing.T) {
 		m.sheet.SetColWidth(1, 12)
 		press(t, m, "1234.5", "<tab>", "0.25", "<enter>", "<up>", "<shift+right>")
 		press(t, m, tt.keys...)
-		if got := cells(m, 1, 2); got[0] != tt.a || got[1] != tt.b {
+		if got := rowCells(m, 1, 2); got[0] != tt.a || got[1] != tt.b {
 			t.Errorf("%v: row 1 = %q, want %q %q", tt.keys, got, tt.a, tt.b)
 		}
 	}
@@ -92,13 +93,13 @@ func TestDecimalPlaces(t *testing.T) {
 	press(t, m, "1.5", "<enter>", "<up>")
 	m.runCommand("format.decimals_more")
 	m.runCommand("format.decimals_more")
-	if got := cells(m, 1, 1)[0]; got != "1.500" {
+	if got := rowCells(m, 1, 1)[0]; got != "1.500" {
 		t.Errorf("after two more: %q", got)
 	}
 	m.runCommand("format.decimals_less")
 	m.runCommand("format.decimals_less")
 	m.runCommand("format.decimals_less")
-	if got := cells(m, 1, 1)[0]; got != "2" {
+	if got := rowCells(m, 1, 1)[0]; got != "2" {
 		t.Errorf("after three less: %q", got)
 	}
 }
@@ -213,14 +214,14 @@ func TestTypedDatesAndCurrencyShowFormatted(t *testing.T) {
 	m := newModel()
 	press(t, m, "9/26/2026", "<enter>", "$1,200", "<enter>", "12.5%", "<enter>", "14:30", "<enter>")
 	for i, want := range []string{"9/26/2026", "$1,200", "12.50%", "14:30:00"} {
-		if got := cells(m, i+1, 1)[0]; got != want {
+		if got := rowCells(m, i+1, 1)[0]; got != want {
 			t.Errorf("row %d = %q, want %q", i+1, got, want)
 		}
 	}
 	// The formula bar keeps what was typed.
 	press(t, m, "<ctrl+home>")
-	if !strings.HasPrefix(line(m, 0), " A1   9/26/2026") {
-		t.Errorf("formula bar %q", line(m, 0))
+	if l := line(m, formulaLine); !strings.HasPrefix(l, " A1") || !strings.HasSuffix(l, " 9/26/2026") {
+		t.Errorf("formula bar %q", l)
 	}
 }
 
@@ -228,7 +229,9 @@ func TestFormatHelpListsShortcuts(t *testing.T) {
 	m := newModel()
 	m.Update(teaSize(120, 60))
 	press(t, m, "<f1>")
-	s := screen(m)
+	// Check every row of the shortcuts overlay, not just the visible ones.
+	rows, _ := m.overlay.(*shortcuts).lines(m)
+	s := ansi.Strip(strings.Join(rows, "\n"))
 	for _, want := range []string{"Ctrl+Shift+4", "Ctrl+B", "Alt+Shift+5", "Ctrl+\\"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("help lacks %s", want)

@@ -19,23 +19,26 @@ const (
 	modeEnter      // typing a new entry, which replaces the cell
 	modeEdit       // editing existing contents with a movable caret
 	modePoint      // arrowing to a cell or range to insert into a formula
-	modeMenu
+	modeMenu       // a menu, the palette or another overlay is open
 	modePrompt
-	modeHelp
 	modeError
 )
 
 func (m mode) String() string {
-	return [...]string{"READY", "ENTER", "EDIT", "POINT", "MENU", "", "HELP", "ERROR"}[m]
+	return [...]string{"READY", "ENTER", "EDIT", "POINT", "MENU", "", "ERROR"}[m]
 }
 
-// Layout: three control panel lines, the column header, the grid, and a
-// status line.
+// Layout: three control panel lines (menu bar, formula bar, context
+// line), the column header, the grid, and a status line.
 const (
-	panelLines = 3
-	headerLine = panelLines
-	gridTop    = panelLines + 1
-	rowHdrW    = 6
+	menuLine    = 0 // menu bar on the left, mode indicator on the right
+	formulaLine = 1 // name box, then the cell's contents or the entry
+	contextLine = 2 // prompts, key hints and formula errors
+	panelLines  = 3
+	headerLine  = panelLines
+	gridTop     = panelLines + 1
+	rowHdrW     = 6
+	nameBoxW    = 11 // fits most ranges, e.g. "AA100:AB200", without jumping
 )
 
 // doubleClick is the longest gap between two clicks that edits a cell.
@@ -46,6 +49,12 @@ type Model struct {
 	sheet    *sheet.Sheet
 	filename string
 	changed  bool
+	saved    int // the sheet's StateID when last saved or loaded
+
+	copied clipboard // see clipboard.go
+	note   string    // feedback on the last action, e.g. "Undid: clear B3"
+
+	quitAfterSave bool // "Save and quit" is waiting for the save to finish
 
 	cur           sheet.Addr // the active cell
 	top, left     int        // first visible row and column
@@ -55,9 +64,16 @@ type Model struct {
 	selecting bool
 	ext       sheet.Addr // the moving corner of the selection
 	whole     wholeKind
-	drag      dragKind
-	lastClick time.Time
-	lastAddr  sheet.Addr
+
+	// Mouse: see mouse.go.
+	drag           dragKind
+	lastClick      time.Time
+	lastHit        hit
+	hover          hit    // what's under the mouse, for hover styling
+	mouseX, mouseY int    // last mouse position, for autoscroll
+	autoscrolling  bool   // an autoscroll tick is pending
+	resizeCol      int    // column being resized by its header border
+	shape          string // pointer shape last sent to the terminal
 
 	// tabStart remembers where a run of Tab-committed entries began, so
 	// Enter returns to that column on the next row, as in Sheets.
@@ -70,16 +86,15 @@ type Model struct {
 	buf    []rune
 	bufPos int
 	hint   string // shown on the third panel line, e.g. a formula error
-	note   string // what the last command did, until the next key
 
 	point       pointer // POINT mode and range prompts
 	pointPrefix string  // entry text before the reference being pointed at
 	pointSuffix string  // entry text after the caret while pointing
 
-	menu   []menuLevel
-	prompt *prompt
-	files  []string // file list shown by File Open
-	errMsg string
+	overlay overlay // open menu, palette or dialog, if any (modeMenu)
+	prompt  *prompt
+	files   []string // file list shown by File Open
+	errMsg  string
 
 	th theme
 }
@@ -91,12 +106,21 @@ func New(s *sheet.Sheet, filename string) *Model {
 
 // Init implements tea.Model. It asks the terminal for its background color
 // so the theme can adapt to light terminals.
-func (m *Model) Init() tea.Cmd { return tea.RequestBackgroundColor }
+func (m *Model) Init() tea.Cmd {
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn))
+}
 
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	before, beforeMode := *m.focus(), m.mode
+	state := m.beginUpdate(msg)
 	var cmd tea.Cmd
+	if mouse, ok := msg.(tea.MouseMsg); ok {
+		var handled bool
+		if cmd, handled = m.shellMouse(mouse); handled {
+			msg = nil // taken by the menu bar or an overlay, not the grid
+		}
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -104,20 +128,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg:
 		m.th = newTheme(msg.IsDark())
 	case tea.KeyPressMsg:
-		m.note = ""
 		cmd = m.handleKey(msg)
 	case tea.PasteMsg:
 		m.handlePaste(msg.Content)
 	case tea.MouseClickMsg:
-		m.handleClick(msg.Mouse())
+		cmd = m.handlePress(msg.Mouse())
 	case tea.MouseMotionMsg:
-		m.handleMotion(msg.Mouse())
+		cmd = m.handleMotion(msg.Mouse())
 	case tea.MouseReleaseMsg:
-		m.handleRelease()
+		cmd = m.handleRelease()
+	case autoscrollMsg:
+		cmd = m.handleAutoscroll()
 	case tea.MouseWheelMsg:
 		m.handleWheel(msg.Mouse())
 	case savedMsg:
-		m.handleSaved(msg)
+		cmd = m.handleSaved(msg)
+		if msg.err == nil {
+			m.saved = m.sheet.StateID()
+		}
 	case loadedMsg:
 		m.handleLoaded(msg)
 	case filesMsg:
@@ -125,10 +153,38 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	// Scroll only when the focus moves, so the mouse wheel can look around
 	// without the view snapping back, as in Sheets.
+	m.endUpdate(state)
 	if f := *m.focus(); f != before || m.mode != beforeMode {
 		m.scrollTo(f)
 	}
 	return m, cmd
+}
+
+// beginUpdate prepares for an input event and returns the sheet's state
+// before it. Each user action outside a prompt ends any run of column
+// width changes in the undo history, and clears the last action's note.
+func (m *Model) beginUpdate(msg tea.Msg) int {
+	switch msg.(type) {
+	case tea.KeyPressMsg, tea.MouseClickMsg, tea.PasteMsg:
+		m.note = ""
+		if m.mode != modePrompt {
+			m.sheet.Seal()
+		}
+	}
+	return m.sheet.StateID()
+}
+
+// endUpdate reacts to edits made while handling an event: the modified
+// flag follows the undo history, and any edit but a paste clears the copy
+// marker, as in Sheets.
+func (m *Model) endUpdate(state int) {
+	if m.sheet.StateID() != state {
+		m.changed = m.sheet.StateID() != m.saved
+		if !m.copied.keep {
+			m.clearCopyMark()
+		}
+	}
+	m.copied.keep = false
 }
 
 func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
@@ -142,10 +198,10 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 	case modePoint:
 		return m.pointKey(k)
 	case modeMenu:
-		return m.menuKey(k)
+		return m.overlay.key(m, k)
 	case modePrompt:
 		return m.promptKey(k)
-	case modeHelp, modeError:
+	case modeError:
 		m.errMsg = ""
 		m.mode = modeReady
 	}
@@ -156,6 +212,10 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
 	if m.moveKey(key) {
 		m.tabbing = false
+		return nil
+	}
+	if i := barMenuFor(key); i >= 0 {
+		m.showBarMenu(i)
 		return nil
 	}
 	if id, ok := keymap[canonicalKey(key)]; ok {

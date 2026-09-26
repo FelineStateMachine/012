@@ -10,14 +10,23 @@ import (
 type Node any
 
 type (
-	numLit    struct{ v float64 }
-	strLit    struct{ v string }
-	boolLit   struct{ v bool }
-	refNode   struct{ a Addr }
-	rangeNode struct{ r Rect }
-	nameNode  struct{ name string } // an identifier that isn't a cell; #NAME? until names exist
-	emptyArg  struct{}              // an omitted argument, as in XLOOKUP(a, b, c, , 1)
-	unaryNode struct {
+	numLit  struct{ v float64 }
+	strLit  struct{ v string }
+	boolLit struct{ v bool }
+	refNode struct {
+		a   Addr
+		abs absFlags
+	}
+	// rangeNode is kept normalized (r.From is the top-left corner); abs
+	// holds the absolute markers of r.From and r.To.
+	rangeNode struct {
+		r   Rect
+		abs [2]absFlags
+	}
+	refErrNode struct{}              // a reference to deleted cells: #REF!
+	nameNode   struct{ name string } // an identifier that isn't a cell; #NAME? until names exist
+	emptyArg   struct{}              // an omitted argument, as in XLOOKUP(a, b, c, , 1)
+	unaryNode  struct {
 		op string
 		x  Node
 	}
@@ -37,9 +46,10 @@ const (
 	tokEOF tokKind = iota
 	tokNum
 	tokStr
-	tokIdent // cell reference, TRUE/FALSE or a name
-	tokFunc  // identifier directly followed by "("
-	tokOp
+	tokIdent  // cell reference, TRUE/FALSE or a name
+	tokFunc   // identifier directly followed by "("
+	tokOp     // operators and punctuation
+	tokRefErr // #REF!, left behind when a referenced cell is deleted
 )
 
 type token struct {
@@ -132,6 +142,9 @@ func lex(src string) ([]token, error) {
 				kind = tokFunc // @PI without parentheses
 			}
 			toks = append(toks, token{kind, name, start})
+		case c == '#' && strings.HasPrefix(strings.ToUpper(src[i:]), "#REF!"):
+			i += len("#REF!")
+			toks = append(toks, token{tokRefErr, "#REF!", start})
 		case c == '#':
 			end := strings.IndexByte(src[i+1:], '#')
 			if end < 0 {
@@ -229,7 +242,7 @@ func (p *parser) expr(minPower int) (Node, error) {
 	for {
 		if p.isOp("%") && percentPower > minPower {
 			p.next()
-			left = binaryNode{op: "/", l: left, r: numLit{100}}
+			left = unaryNode{op: "%", x: left}
 			continue
 		}
 		t := p.peek()
@@ -261,6 +274,8 @@ func (p *parser) prefix() (Node, error) {
 		return p.ident(t)
 	case tokFunc:
 		return p.call(t)
+	case tokRefErr:
+		return refErrNode{}, nil
 	case tokOp:
 		switch t.text {
 		case "(":
@@ -293,7 +308,7 @@ func (p *parser) prefix() (Node, error) {
 }
 
 func (p *parser) ident(t token) (Node, error) {
-	a, isRef := ParseAddr(t.text)
+	a, abs, isRef := parseRef(t.text)
 	if !isRef {
 		switch t.text {
 		case "TRUE":
@@ -306,13 +321,30 @@ func (p *parser) ident(t token) (Node, error) {
 	if p.isOp(":") || p.isOp("..") {
 		sep := p.next()
 		end := p.next()
-		b, ok := ParseAddr(end.text)
+		b, bAbs, ok := parseRef(end.text)
 		if end.kind != tokIdent || !ok {
 			return nil, &ParseError{end.pos, "Expected a cell after " + sep.text}
 		}
-		return rangeNode{NewRect(a, b)}, nil
+		return newRange(a, b, abs, bAbs), nil
 	}
-	return refNode{a}, nil
+	return refNode{a, abs}, nil
+}
+
+// newRange builds a normalized range from two corners as written. Each
+// absolute marker stays with its column or row, so $B1:A$2 becomes A1:$B$2.
+func newRange(a, b Addr, aAbs, bAbs absFlags) rangeNode {
+	swap := func(bit absFlags) {
+		aAbs, bAbs = aAbs&^bit|bAbs&bit, bAbs&^bit|aAbs&bit
+	}
+	if a.Col > b.Col {
+		a.Col, b.Col = b.Col, a.Col
+		swap(absCol)
+	}
+	if a.Row > b.Row {
+		a.Row, b.Row = b.Row, a.Row
+		swap(absRow)
+	}
+	return rangeNode{Rect{a, b}, [2]absFlags{aAbs, bAbs}}
 }
 
 func (p *parser) call(t token) (Node, error) {

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ import (
 
 var named = map[string]tea.Key{
 	"enter": {Code: tea.KeyEnter}, "esc": {Code: tea.KeyEscape}, "backspace": {Code: tea.KeyBackspace},
-	"tab": {Code: tea.KeyTab}, "delete": {Code: tea.KeyDelete}, "home": {Code: tea.KeyHome},
+	"tab": {Code: tea.KeyTab}, "delete": {Code: tea.KeyDelete}, "home": {Code: tea.KeyHome}, "end": {Code: tea.KeyEnd},
 	"up": {Code: tea.KeyUp}, "down": {Code: tea.KeyDown}, "left": {Code: tea.KeyLeft}, "right": {Code: tea.KeyRight},
 	"pgdown": {Code: tea.KeyPgDown}, "f1": {Code: tea.KeyF1}, "f2": {Code: tea.KeyF2}, "f5": {Code: tea.KeyF5},
 	"f10": {Code: tea.KeyF10}, "space": {Code: tea.KeySpace},
@@ -65,18 +66,39 @@ func press(t *testing.T, m *Model, keys ...string) tea.Msg {
 	return last
 }
 
-// send delivers msg and runs resulting commands, returning a QuitMsg if
-// one is produced.
+// send delivers msg and runs resulting commands (including batches and
+// sequences), returning a QuitMsg if one is produced. Timer commands such
+// as autoscroll ticks are not run; tests send those messages directly.
 func send(m *Model, msg tea.Msg) tea.Msg {
 	_, cmd := m.Update(msg)
-	for cmd != nil {
-		out := cmd()
-		if _, ok := out.(tea.QuitMsg); ok {
-			return out
-		}
-		_, cmd = m.Update(out)
+	return run(m, cmd)
+}
+
+func run(m *Model, cmd tea.Cmd) tea.Msg {
+	if cmd == nil {
+		return nil
 	}
-	return nil
+	out := cmd()
+	if _, ok := out.(tea.QuitMsg); ok {
+		return out
+	}
+	if _, ok := out.(autoscrollMsg); ok {
+		return nil
+	}
+	// Batches and sequences are slices of commands.
+	cmdType := reflect.TypeFor[tea.Cmd]()
+	if v := reflect.ValueOf(out); v.Kind() == reflect.Slice && v.Type().Elem() == cmdType {
+		for i := range v.Len() {
+			if c, ok := v.Index(i).Interface().(tea.Cmd); ok {
+				if q := run(m, c); q != nil {
+					return q
+				}
+			}
+		}
+		return nil
+	}
+	_, next := m.Update(out)
+	return run(m, next)
 }
 
 func newModel() *Model {
@@ -91,6 +113,11 @@ func screen(m *Model) string {
 
 func line(m *Model, i int) string {
 	return strings.TrimRight(strings.Split(screen(m), "\n")[i], " ")
+}
+
+// bar is the formula bar's text after the name box.
+func bar(m *Model) string {
+	return strings.TrimSpace(ansi.Cut(line(m, formulaLine), formulaBarTextX(), m.width))
 }
 
 func addr(s string) sheet.Addr {
@@ -115,8 +142,8 @@ func TestEnterCommitsAndMovesDown(t *testing.T) {
 		t.Errorf("A3 = %v", got)
 	}
 	press(t, m, "<up>")
-	if !strings.HasPrefix(line(m, 0), " A3   =SUM(A1:A2)") {
-		t.Errorf("formula bar %q", line(m, 0))
+	if l := line(m, formulaLine); !strings.HasPrefix(l, " A3 ") || bar(m) != "=SUM(A1:A2)" {
+		t.Errorf("formula bar %q", l)
 	}
 }
 
@@ -159,12 +186,12 @@ func TestPointMode(t *testing.T) {
 	m := newModel()
 	press(t, m, "1", "<enter>", "2", "<enter>")
 	press(t, m, "=SUM(", "<up>", "<up>")
-	if m.mode != modePoint || line(m, 1) != "=SUM(A1" {
-		t.Fatalf("mode %v, edit line %q", m.mode, line(m, 1))
+	if m.mode != modePoint || bar(m) != "=SUM(A1" {
+		t.Fatalf("mode %v, edit line %q", m.mode, bar(m))
 	}
 	press(t, m, "<shift+down>")
-	if line(m, 1) != "=SUM(A1:A2" {
-		t.Fatalf("edit line %q", line(m, 1))
+	if bar(m) != "=SUM(A1:A2" {
+		t.Fatalf("edit line %q", bar(m))
 	}
 	press(t, m, ")", "<enter>")
 	if input(m, "A3") != "=SUM(A1:A2)" || m.sheet.Value(addr("A3")).Num != 3 || m.cur != addr("A4") {
@@ -319,28 +346,6 @@ func TestWheelDoesNotSnapBack(t *testing.T) {
 	}
 }
 
-func TestMenuColumnWidthOnSelection(t *testing.T) {
-	m := newModel()
-	press(t, m, "<shift+right>", "<f10>")
-	if line(m, 1) != "File  Edit  Format" {
-		t.Fatalf("menu line %q", line(m, 1))
-	}
-	press(t, m, "f") // two items start with F: cycles to Format
-	press(t, m, "<enter>", "c", "15", "<enter>")
-	if m.mode != modeReady || m.sheet.ColWidth(0) != 15 || m.sheet.ColWidth(1) != 15 {
-		t.Errorf("mode %v widths %d %d", m.mode, m.sheet.ColWidth(0), m.sheet.ColWidth(1))
-	}
-	// Arrows preview live; Esc restores.
-	press(t, m, "<f10>", "<left>", "<enter>", "c", "<right>", "<right>")
-	if m.sheet.ColWidth(0) != 17 {
-		t.Errorf("preview width %d", m.sheet.ColWidth(0))
-	}
-	press(t, m, "<esc>")
-	if m.sheet.ColWidth(0) != 15 {
-		t.Errorf("width after esc %d", m.sheet.ColWidth(0))
-	}
-}
-
 func TestGoto(t *testing.T) {
 	m := newModel()
 	press(t, m, "<ctrl+g>", "Z100", "<enter>")
@@ -389,25 +394,6 @@ func TestSaveAndOpen(t *testing.T) {
 	}
 }
 
-func TestQuitConfirmsUnsavedChanges(t *testing.T) {
-	m := newModel()
-	if _, ok := press(t, m, "<ctrl+q>").(tea.QuitMsg); !ok {
-		t.Fatal("Ctrl+Q with no changes did not quit")
-	}
-	m = newModel()
-	press(t, m, "1", "<enter>")
-	if msg := press(t, m, "<ctrl+q>"); msg != nil || m.mode != modeMenu {
-		t.Fatalf("Ctrl+Q with changes: %v mode %v", msg, m.mode)
-	}
-	press(t, m, "<right>")
-	if !strings.Contains(line(m, 2), "unsaved changes") {
-		t.Errorf("no unsaved warning: %q", line(m, 2))
-	}
-	if _, ok := press(t, m, "<enter>").(tea.QuitMsg); !ok {
-		t.Error("Quit without saving did not quit")
-	}
-}
-
 func TestScrollFollowsCursor(t *testing.T) {
 	m := newModel()
 	for range 40 {
@@ -419,16 +405,5 @@ func TestScrollFollowsCursor(t *testing.T) {
 	press(t, m, "<ctrl+home>")
 	if m.top != 0 || m.cur != (sheet.Addr{}) {
 		t.Errorf("ctrl+home: top %d cur %v", m.top, m.cur)
-	}
-}
-
-func TestHelpListsShortcuts(t *testing.T) {
-	m := newModel()
-	press(t, m, "<f1>")
-	s := screen(m)
-	for _, want := range []string{"Ctrl+S", "Save the sheet", "Backspace / Del", "SUM"} {
-		if !strings.Contains(s, want) {
-			t.Errorf("help missing %q", want)
-		}
 	}
 }
