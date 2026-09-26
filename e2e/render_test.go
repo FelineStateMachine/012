@@ -109,8 +109,15 @@ func styleCSS(st *ghostty.Style) string {
 	if st.Faint() {
 		parts = append(parts, "opacity:.6")
 	}
-	if st.Underline() != 0 {
-		parts = append(parts, "text-decoration:underline")
+	if u := st.Underline(); u != ghostty.UnderlineNone {
+		line := map[ghostty.SGRUnderline]string{
+			ghostty.UnderlineDouble: " double", ghostty.UnderlineCurly: " wavy",
+			ghostty.UnderlineDotted: " dotted", ghostty.UnderlineDashed: " dashed",
+		}[u]
+		if c := cssColor(st.UnderlineColor(), ""); c != "" {
+			line += " " + c
+		}
+		parts = append(parts, "text-decoration:underline"+line)
 	}
 	if st.Strikethrough() {
 		parts = append(parts, "text-decoration:line-through")

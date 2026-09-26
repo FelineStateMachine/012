@@ -99,12 +99,32 @@ var screens = []screen{
 		s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonLeft, 6+10+5, 3, 0)
 		s.waitFor("Column A width 16")
 	}},
+	{name: "copy-marker", setup: func(s *session) {
+		budget(s)
+		s.keys("<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>", "<ctrl+c>", "<right>", "<up>")
+		s.waitFor("Copied B3:B5")
+	}},
+	{name: "copy-marker-selected", setup: func(s *session) {
+		budget(s)
+		s.keys("<left>", "<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>", "<shift+right>", "<ctrl+x>")
+		s.waitFor("Cut A3:B5")
+	}},
+	{name: "undo-note", setup: func(s *session) {
+		budget(s)
+		s.keys("<up>", "<shift+up>", "<delete>", "<ctrl+z>")
+		s.waitFor("Undid: clear B5:B6")
+	}},
+	{name: "narrow-copy", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+c>", "<down>")
+		s.waitFor("Copied B7")
+	}},
 }
 
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "quit-confirm", "help", "resizing-column"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
