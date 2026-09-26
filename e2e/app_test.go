@@ -13,77 +13,93 @@ import (
 // Screen layout: panel lines 0-2, column header 3, grid row 1 on line 4.
 const gridRow1 = 4
 
-// numRow is how a grid row of numbers in default-width (9) columns looks:
-// a 6-wide row header, then each number right-aligned with one trailing
-// space, as 1-2-3's General format shows them.
+// numRow is how a grid row of numbers in default-width (10) columns looks:
+// a 6-wide row header, then each number right-aligned with one column of
+// padding.
 func numRow(row int, nums ...string) string {
-	line := fmt.Sprintf("%-6d", row)
+	line := fmt.Sprintf("%5d ", row)
 	for _, n := range nums {
-		line += fmt.Sprintf("%8s ", n)
+		line += fmt.Sprintf("%9s ", n)
 	}
 	return strings.TrimRight(line, " ")
 }
 
 func TestFormulaRecalc(t *testing.T) {
 	s := start(t, "")
-	s.keys("10", "<down>", "20", "<down>", "@SUM(A1..A2)", "<enter>")
-	s.waitFor("A3: @SUM(A1..A2)")
+	s.keys("10", "<enter>", "20", "<enter>", "=SUM(A1:A2)", "<enter>")
+	s.keys("<up>")
+	s.waitFor("A3   =SUM(A1:A2)")
 	s.waitForLine(gridRow1+2, numRow(3, "30"))
 
 	// Changing a precedent recalculates the total on screen.
-	s.keys("<home>", "5", "<enter>")
+	s.keys("<ctrl+home>", "5", "<enter>")
 	s.waitForLine(gridRow1+2, numRow(3, "25"))
 }
 
 func TestPointModeBuildsFormula(t *testing.T) {
 	s := start(t, "")
-	s.keys("4", "<right>", "6", "<right>", "+", "<left>", "<left>")
+	s.keys("4", "<tab>", "6", "<tab>", "=", "<left>", "<left>")
 	s.waitFor("POINT")
-	s.waitForLine(1, "+A1")
+	s.waitForLine(1, "=A1")
 	s.keys("*", "<left>", "<enter>")
-	s.waitFor("C1: +A1*B1")
+	// Enter after a run of Tabs returns to the starting column, as in Sheets.
+	s.keys("<up>", "<right>", "<right>")
+	s.waitFor("C1   =A1*B1")
 	s.waitForLine(gridRow1, numRow(1, "4", "6", "24"))
 }
 
-func TestLabelsSpillAndAlign(t *testing.T) {
+func TestShiftSelectionShowsStats(t *testing.T) {
 	s := start(t, "")
-	s.keys("Quarterly revenue", "<down>", `"right`, "<down>", "^mid", "<enter>")
-	s.waitForLine(gridRow1, "1     Quarterly revenue")
-	s.waitForLine(gridRow1+1, "2         right")
-	s.waitForLine(gridRow1+2, "3        mid")
+	s.keys("1", "<enter>", "2", "<enter>", "3", "<enter>", "<ctrl+home>")
+	s.keys("<shift+down>", "<shift+down>")
+	s.eventually("selection stats", func() bool {
+		l := s.line(29)
+		return strings.Contains(l, "A1:A3") && strings.Contains(l, "Sum 6") && strings.Contains(l, "Count 3")
+	})
+	s.keys("<delete>")
+	s.waitForLine(gridRow1, "    1")
+}
+
+func TestTextOverflow(t *testing.T) {
+	s := start(t, "")
+	s.keys("Quarterly revenue", "<enter>", "$1,200", "<enter>", "TRUE", "<enter>")
+	s.waitForLine(gridRow1, "    1  Quarterly revenue")
+	s.waitForLine(gridRow1+1, numRow(2, "1200"))
+	s.waitForLine(gridRow1+2, "    3    TRUE")
 }
 
 func TestInvalidFormulaCursor(t *testing.T) {
 	s := start(t, "")
-	s.keys("@SUM(A1", "<enter>")
+	s.keys("=SUM(A1", "<enter>")
 	s.waitFor("EDIT")
-	s.waitFor("expected , or )")
+	s.waitFor("Expected , or ) in SUM")
 	// The real terminal cursor sits on the edit line at the error.
 	s.eventually("cursor at end of edit line", func() bool {
 		x, y := s.cursor()
-		return x == len("@SUM(A1") && y == 1
+		return x == len("=SUM(A1") && y == 1
 	})
 }
 
-func TestMenuFirstLetterSetsWidth(t *testing.T) {
+func TestMenuSetsColumnWidth(t *testing.T) {
 	s := start(t, "")
-	s.keys("/")
-	s.waitFor("Worksheet  Range  File  Quit")
-	s.keys("wcs", "20", "<enter>")
-	s.waitFor("A1: [W20]")
+	s.keys("<f10>")
+	s.waitFor("File  Edit  Format")
+	s.keys("f", "<enter>", "c", "20", "<enter>")
+	s.waitFor("READY")
+	s.eventually("wider column A", func() bool { return strings.HasPrefix(s.line(3), strings.Repeat(" ", 6)+strings.Repeat(" ", 9)+"A") })
 }
 
 func TestSaveQuitReopen(t *testing.T) {
 	dir := t.TempDir()
 	s := start(t, dir)
-	s.keys("Budget", "<down>", "1200", "<down>", "+A2*12", "<enter>")
-	s.keys("/fs", "budget", "<enter>")
+	s.keys("Budget", "<enter>", "1200", "<enter>", "=A2*12", "<enter>")
+	s.keys("<ctrl+s>", "budget", "<enter>")
 	s.eventually("title update", func() bool { return s.title() == "one23 - budget.o23" })
 	if _, err := os.Stat(filepath.Join(dir, "budget.o23")); err != nil {
 		t.Fatal(err)
 	}
 
-	s.keys("/qy")
+	s.keys("<ctrl+q>")
 	s.waitExit()
 	// Leaving the alternate screen restores the user's shell screen.
 	if scr := s.activeScreen(); scr != ghostty.ScreenPrimary {
@@ -97,14 +113,22 @@ func TestSaveQuitReopen(t *testing.T) {
 	}
 }
 
+func TestQuitAsksAboutUnsavedChanges(t *testing.T) {
+	s := start(t, "")
+	s.keys("1", "<enter>", "<ctrl+q>")
+	s.waitFor("Cancel  Quit without saving")
+	s.keys("<esc>", "<esc>")
+	s.waitFor("READY")
+}
+
 func TestResizeShowsMoreColumns(t *testing.T) {
 	s := start(t, "")
-	s.waitFor(" J")
-	if strings.Contains(s.line(3), " P") {
-		t.Fatalf("column P visible at 100 columns: %q", s.line(3))
+	s.waitFor(" I")
+	if strings.Contains(s.line(3), " N") {
+		t.Fatalf("column N visible at 100 columns: %q", s.line(3))
 	}
 	s.resize(160, 30)
-	s.eventually("column P after resize", func() bool { return strings.Contains(s.line(3), " P") })
+	s.eventually("column N after resize", func() bool { return strings.Contains(s.line(3), " N") })
 }
 
 // Click handling is covered by the unit tests; this checks the program

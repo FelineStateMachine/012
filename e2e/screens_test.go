@@ -22,59 +22,64 @@ type screen struct {
 	setup func(s *session)
 }
 
-// budget types a small worksheet with labels, numbers, formulas and an
-// error, used by several screens.
+// budget types a small sheet with text, numbers, formulas and an error the
+// way a Sheets user would (Tab across, Enter back), then selects the total.
 func budget(s *session) {
-	s.keys("Household budget 2026", "<down>", "<down>")
-	s.keys("Rent", "<right>", "1450", "<down>", "<left>")
-	s.keys("Groceries", "<right>", "612.4", "<down>", "<left>")
-	s.keys("Transit", "<right>", "96", "<down>", "<left>")
-	s.keys("Savings rate", "<right>", "+B3/0", "<down>", "<left>")
-	s.keys(`"Total`, "<right>", "@SUM(B3..B5)", "<enter>")
-	s.waitFor("B7: @SUM(B3..B5)")
+	s.keys("Household budget 2026", "<enter>", "<down>")
+	s.keys("Rent", "<tab>", "1450", "<enter>")
+	s.keys("Groceries", "<tab>", "612.4", "<enter>")
+	s.keys("Transit", "<tab>", "96", "<enter>")
+	s.keys("Savings rate", "<tab>", "=B3/0", "<enter>")
+	s.keys("Total", "<tab>", "=SUM(B3:B5)", "<enter>")
+	s.keys("<up>", "<right>")
+	s.waitFor("B7   =SUM(B3:B5)")
 }
 
 var screens = []screen{
 	{name: "ready-empty", setup: func(s *session) {}},
 	{name: "budget", setup: budget},
-	{name: "budget-light", opts: options{light: true}, setup: budget},
 	{name: "entry-formula", setup: func(s *session) {
 		budget(s)
-		s.keys("<down>", "+B7*12")
-		s.waitFor("VALUE")
+		s.keys("<down>", "=B7*12")
+		s.waitFor("ENTER")
 	}},
 	{name: "point-range", setup: func(s *session) {
 		budget(s)
-		s.keys("<right>", "@AVG(", "<left>", "<up>", "<up>", "<up>", "<up>", ".", "<down>", "<down>")
-		s.waitFor("@AVG(B3..B5")
+		s.keys("<right>", "=AVERAGE(", "<left>", "<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>")
+		s.waitFor("=AVERAGE(B3:B5")
+	}},
+	{name: "selection-stats", setup: func(s *session) {
+		budget(s)
+		s.keys("<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>")
+		s.waitFor("Sum 2158.4")
+	}},
+	{name: "column-select", setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+space>")
+		s.waitFor("B1:B8192")
 	}},
 	{name: "edit-error", setup: func(s *session) {
-		s.keys("@SUM(A1", "<enter>")
-		s.waitFor("expected , or )")
+		s.keys("=SUM(A1", "<enter>")
+		s.waitFor("Expected , or ) in SUM")
 	}},
-	{name: "menu-top", setup: func(s *session) {
+	{name: "menu", setup: func(s *session) {
 		budget(s)
-		s.keys("/")
-		s.waitFor("Worksheet  Range  File  Quit")
+		s.keys("<f10>")
+		s.waitFor("File  Edit  Format")
 	}},
-	{name: "menu-quit-unsaved", setup: func(s *session) {
+	{name: "quit-confirm", setup: func(s *session) {
 		budget(s)
-		s.keys("/q", "<right>")
-		s.waitFor("NOT SAVED")
+		s.keys("<ctrl+q>", "<right>")
+		s.waitFor("unsaved changes")
 	}},
 	{name: "prompt-width", setup: func(s *session) {
 		budget(s)
-		s.keys("<home>", "/wcs", "<right>", "<right>", "<right>")
-		s.waitFor("Enter column width (1..240): 12")
-	}},
-	{name: "range-erase", setup: func(s *session) {
-		budget(s)
-		s.keys("<home>", "<down>", "<down>", "/re", "<right>", "<down>", "<down>")
-		s.waitFor("Enter range to erase: A3..B5")
+		s.keys("<ctrl+home>", "<f10>", "f", "<enter>", "c", "<right>", "<right>", "<right>")
+		s.waitFor("Column width (1-240): 13")
 	}},
 	{name: "error-goto", setup: func(s *session) {
 		s.keys("<f5>", "nope", "<enter>")
-		s.waitFor("Invalid cell address")
+		s.waitFor("Not a cell address")
 	}},
 	{name: "help", setup: func(s *session) {
 		s.keys("<f1>")
@@ -86,7 +91,7 @@ var screens = []screen{
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"point-range", "menu-quit-unsaved", "help"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "quit-confirm", "help"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
@@ -159,8 +164,8 @@ body{margin:0;padding:32px;background:#0f1012;color:#ddd;font:14px system-ui,san
 h1{font-weight:600;margin:0 0 24px}
 section{margin:0 0 40px}
 h2{font:500 13px ui-monospace,monospace;color:#aaa;margin:0 0 8px}
-.term{display:inline-block;padding:14px 16px;border-radius:10px;box-shadow:0 8px 30px #0008;font:13px/1.25 "JetBrains Mono","SF Mono",Menlo,monospace}
-.term div{font-family:inherit !important}
+.term{display:inline-block;padding:14px 16px;border-radius:10px;box-shadow:0 8px 30px #0008}
+.screen{margin:0;font:13px/1.3 "JetBrains Mono","SF Mono",Menlo,monospace;color:var(--fg)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(820px,1fr));gap:8px 24px}
 `)
 	for _, p := range []struct {
@@ -168,7 +173,7 @@ h2{font:500 13px ui-monospace,monospace;color:#aaa;margin:0 0 8px}
 		ansi   [16]uint32
 		bg, fg string
 	}{{"dark", darkANSI, "#1d1f21", "#c5c8c6"}, {"light", lightANSI, "#fafafa", "#1d1f21"}} {
-		fmt.Fprintf(&b, ".%s{background:%s;color:%s}.%s{", p.class, p.bg, p.fg, p.class)
+		fmt.Fprintf(&b, ".%s{background:%s;color:%s;--bg:%s;--fg:%s}.%s{", p.class, p.bg, p.fg, p.bg, p.fg, p.class)
 		for i, c := range p.ansi {
 			fmt.Fprintf(&b, "--vt-palette-%d:#%06x;", i, c)
 		}

@@ -1,22 +1,26 @@
-<div style="font-family: monospace; white-space: pre;"><div style="display: inline;color: var(--vt-palette-0);background-color: var(--vt-palette-6);font-weight: bold;"> HELP </div>  one23 (press any key to return)
+<pre class="screen"><span style="color:var(--vt-palette-0);background:var(--vt-palette-6);font-weight:bold"> HELP </span>  Keyboard shortcuts <span style="color:var(--vt-palette-8)">(press any key to return)</span>
 
-  Arrows              Move the cell pointer
-  PgUp / PgDn         Move one screen up or down
-  Tab / Shift+Tab     Move one screen right or left
-  Home                Go to A1
-  Ctrl+C              Quit immediately
+  Arrows              Move            Shift+arrows      Select
+  Ctrl+arrows         Jump to the edge of the data (add Shift to select)
+  Tab / Shift+Tab     Right / left    PgUp / PgDn       Screen up / down
+  Home / Ctrl+Home    Column A / A1   Ctrl+End          Last used cell
+  Mouse               Click, drag or Shift+click to select; click headers
+                      for whole columns or rows; double-click to edit
 
-  F2                  Edit the current cell&#39;s contents
-  Del                 Erase the current cell
-  F5                  Move the cell pointer to an address
-  F1                  Show keys and functions
-  / or &lt;              Open the slash menu
+  Backspace / Del     Clear the contents of the selected cells
+  Esc                 Collapse the selection to the active cell
+  Enter / F2          Edit the active cell&#39;s contents
+  Ctrl+G / F5         Move to a cell address
+  F10                 Open the menu
+  Ctrl+O              Open a sheet, replacing this one
+  Ctrl+Q              Close one23
+  Ctrl+S              Save the sheet
+  Ctrl+A              Select the data, then the whole sheet
+  Ctrl+Space          Select the whole columns of the selection
+  Shift+Space         Select the whole rows of the selection
 
-  Entries
-  Text                Label (prefix &#39; left, &quot; right, ^ center)
-  0-9 + - . ( @ # $   Value or formula, e.g. +A1*2, @SUM(A1..A5)
-  Arrow after + ( ,   POINT mode: arrow to a cell, . anchors a range
+  Typing replaces the cell. Start with = for a formula, &#39; to force text.
+  While typing a formula, arrows after an operator pick cells.
 
-  Functions: @SUM @AVG @COUNT @MIN @MAX @ABS @INT @SQRT @ROUND @MOD
-             @IF @PI @TRUE @FALSE @ERR @NA
-  Operators: + - * / ^ &amp; = &lt;&gt; &lt; &gt; &lt;= &gt;= #AND# #OR# #NOT#</div>
+  Functions: ABS AND AVERAGE COUNT COUNTA FALSE IF IFERROR INT MAX MIN MOD NA NOT OR PI ROUND SQRT
+             SUM TRUE</pre>

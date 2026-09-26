@@ -48,7 +48,8 @@ type session struct {
 	cmd *exec.Cmd
 	pty *os.File
 
-	mu   sync.Mutex // guards vt, enc and ev
+	mu   sync.Mutex // guards vt, enc, ev and raw
+	raw  []byte     // everything the program wrote, for debugging
 	vt   *ghostty.Terminal
 	enc  *ghostty.KeyEncoder
 	ev   *ghostty.KeyEvent
@@ -118,6 +119,7 @@ func startWith(t *testing.T, o options, args ...string) *session {
 			if n > 0 {
 				s.mu.Lock()
 				s.vt.Write(buf[:n])
+				s.raw = append(s.raw, buf[:n]...)
 				s.mu.Unlock()
 			}
 			if err != nil {
@@ -144,10 +146,15 @@ func (s *session) screen() string {
 	return s.format(ghostty.FormatterFormatPlain)
 }
 
-// html returns the visible screen as HTML with inline styles, colored by
-// the session's reference palette.
+// html returns the visible screen as HTML (see renderHTML).
 func (s *session) html() string {
-	return s.format(ghostty.FormatterFormatHTML)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out, err := renderHTML(s.vt)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	return out
 }
 
 func (s *session) format(format ghostty.FormatterFormat) string {
@@ -214,12 +221,32 @@ func (s *session) keys(keys ...string) {
 	s.t.Helper()
 	for _, k := range keys {
 		if name, ok := strings.CutPrefix(k, "<"); ok {
-			key, ok := namedKeys[strings.TrimSuffix(name, ">")]
-			if !ok {
-				s.t.Fatalf("unknown key %s", k)
+			parts := strings.Split(strings.TrimSuffix(name, ">"), "+")
+			var mods ghostty.Mods
+			for _, p := range parts[:len(parts)-1] {
+				switch p {
+				case "shift":
+					mods |= ghostty.ModShift
+				case "ctrl":
+					mods |= ghostty.ModCtrl
+				case "alt":
+					mods |= ghostty.ModAlt
+				}
 			}
-			s.press(key, 0, "", 0)
-			continue
+			base := parts[len(parts)-1]
+			if key, ok := namedKeys[base]; ok {
+				var cp rune
+				if base == "space" {
+					cp = ' ' // the encoder needs the key's codepoint
+				}
+				s.press(key, mods, "", cp)
+				continue
+			}
+			if ck, ok := charKeys[rune(base[0])]; ok && len(base) == 1 {
+				s.press(ck.key, mods|ck.mods, "", rune(base[0]))
+				continue
+			}
+			s.t.Fatalf("unknown key %s", k)
 		}
 		for _, r := range k {
 			key, ok := charKeys[r]
@@ -306,7 +333,8 @@ var namedKeys = map[string]ghostty.Key{
 	"up": ghostty.KeyArrowUp, "down": ghostty.KeyArrowDown,
 	"left": ghostty.KeyArrowLeft, "right": ghostty.KeyArrowRight,
 	"pgup": ghostty.KeyPageUp, "pgdown": ghostty.KeyPageDown,
-	"f1": ghostty.KeyF1, "f2": ghostty.KeyF2, "f5": ghostty.KeyF5,
+	"f1": ghostty.KeyF1, "f2": ghostty.KeyF2, "f5": ghostty.KeyF5, "f10": ghostty.KeyF10,
+	"space": ghostty.KeySpace,
 }
 
 type physKey struct {
