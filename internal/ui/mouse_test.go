@@ -11,6 +11,15 @@ import (
 
 func mouseAt(x, y int) tea.Mouse { return tea.Mouse{X: x, Y: y, Button: tea.MouseLeft} }
 
+// barText is the text in the formula bar after the name box.
+func barText(m *Model) string {
+	l := line(m, formulaLine)
+	if len(l) <= formulaBarTextX() {
+		return ""
+	}
+	return strings.TrimSpace(l[formulaBarTextX():])
+}
+
 func TestClickWhileTypingAccepts(t *testing.T) {
 	m := newModel()
 	press(t, m, "hello")
@@ -24,15 +33,15 @@ func TestClickInsertsReferenceIntoFormula(t *testing.T) {
 	m := newModel()
 	press(t, m, "5", "<enter>", "7", "<enter>", "=")
 	click(m, cellX(0), gridTop, 0)
-	if m.mode != modePoint || line(m, 1) != "=A1" {
-		t.Fatalf("mode %v line %q", m.mode, line(m, 1))
+	if m.mode != modePoint || barText(m) != "=A1" {
+		t.Fatalf("mode %v formula bar %q", m.mode, barText(m))
 	}
 	// Dragging makes it a range.
 	send(m, tea.MouseClickMsg(mouseAt(cellX(0), gridTop)))
 	send(m, tea.MouseMotionMsg(mouseAt(cellX(0), gridTop+1)))
 	send(m, tea.MouseReleaseMsg(mouseAt(cellX(0), gridTop+1)))
-	if line(m, 1) != "=A1:A2" {
-		t.Fatalf("line %q", line(m, 1))
+	if barText(m) != "=A1:A2" {
+		t.Fatalf("formula bar %q", barText(m))
 	}
 	press(t, m, "*2", "<enter>")
 	if got := m.sheet.Cell(addr("A3")); got == nil || got.Input != "=A1:A2*2" {
@@ -118,7 +127,7 @@ func TestPointerShapes(t *testing.T) {
 		{cellX(1), gridTop + 1, "cell"},
 		{rowHdrW + sheet.DefaultWidth - 1, headerLine, "col-resize"},
 		{cellX(1), headerLine, "pointer"},
-		{rowHdrW + 1, 0, "text"},
+		{formulaBarTextX() + 1, formulaLine, "text"},
 		{1, m.height - 1, "default"},
 	} {
 		send(m, tea.MouseMotionMsg{X: tt.x, Y: tt.y})

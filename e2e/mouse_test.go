@@ -89,7 +89,7 @@ func colX(c int) int { return 6 + c*10 + 2 }
 func TestMouseClickDragAndShiftClick(t *testing.T) {
 	s := start(t, "")
 	s.click(colX(1), gridRow1+2, 0)
-	s.waitFor(" B3 ")
+	s.waitForName("B3")
 	s.drag([2]int{colX(0), gridRow1}, [2]int{colX(1), gridRow1 + 1}, [2]int{colX(2), gridRow1 + 2})
 	s.eventually("drag selection", func() bool { return strings.Contains(s.line(29), "A1:C3") })
 	s.click(colX(3), gridRow1+4, ghostty.ModShift)
@@ -108,17 +108,17 @@ func TestMouseClickWhileTypingAndFormulaReference(t *testing.T) {
 	s := start(t, "")
 	s.keys("40", "<enter>", "2", "<enter>", "=")
 	s.click(colX(0), gridRow1, 0)
-	s.waitForLine(1, "=A1")
+	s.waitForEntry("=A1")
 	s.keys("+")
 	s.click(colX(0), gridRow1+1, 0)
-	s.waitForLine(1, "=A1+A2")
+	s.waitForEntry("=A1+A2")
 	s.keys("<enter>")
 	s.waitForLine(gridRow1+2, numRow(3, "42"))
 
 	// Clicking another cell while typing plain text accepts it there.
 	s.keys("note")
 	s.click(colX(2), gridRow1, 0)
-	s.waitFor(" C1 ")
+	s.waitForName("C1")
 	s.waitForLine(gridRow1+3, "    4  note")
 }
 
@@ -143,5 +143,5 @@ func TestMouseDoubleClickEdits(t *testing.T) {
 	s.click(colX(0), gridRow1, 0)
 	s.click(colX(0), gridRow1, 0)
 	s.waitFor("EDIT")
-	s.waitForLine(1, "hello")
+	s.waitForEntry("hello")
 }

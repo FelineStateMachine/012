@@ -34,7 +34,7 @@ func budget(s *session) {
 	s.keys("Savings rate", "<tab>", "=B3/0", "<enter>")
 	s.keys("Total", "<tab>", "=SUM(B3:B5)", "<enter>")
 	s.keys("<up>", "<right>")
-	s.waitFor("B7   =SUM(B3:B5)")
+	s.waitForBar("B7", "=SUM(B3:B5)")
 }
 
 var screens = []screen{

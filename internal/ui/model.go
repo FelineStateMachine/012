@@ -29,13 +29,17 @@ func (m mode) String() string {
 	return [...]string{"READY", "ENTER", "EDIT", "POINT", "MENU", "", "HELP", "ERROR"}[m]
 }
 
-// Layout: three control panel lines, the column header, the grid, and a
-// status line.
+// Layout: three control panel lines (menu bar, formula bar, context
+// line), the column header, the grid, and a status line.
 const (
-	panelLines = 3
-	headerLine = panelLines
-	gridTop    = panelLines + 1
-	rowHdrW    = 6
+	menuLine    = 0 // menu bar on the left, mode indicator on the right
+	formulaLine = 1 // name box, then the cell's contents or the entry
+	contextLine = 2 // prompts, key hints and formula errors
+	panelLines  = 3
+	headerLine  = panelLines
+	gridTop     = panelLines + 1
+	rowHdrW     = 6
+	nameBoxW    = 11 // fits most ranges, e.g. "AA100:AB200", without jumping
 )
 
 // doubleClick is the longest gap between two clicks that edits a cell.

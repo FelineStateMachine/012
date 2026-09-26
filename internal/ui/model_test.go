@@ -115,6 +115,11 @@ func line(m *Model, i int) string {
 	return strings.TrimRight(strings.Split(screen(m), "\n")[i], " ")
 }
 
+// bar is the formula bar's text after the name box.
+func bar(m *Model) string {
+	return strings.TrimSpace(ansi.Cut(line(m, formulaLine), formulaBarTextX(), m.width))
+}
+
 func addr(s string) sheet.Addr {
 	a, _ := sheet.ParseAddr(s)
 	return a
@@ -137,8 +142,8 @@ func TestEnterCommitsAndMovesDown(t *testing.T) {
 		t.Errorf("A3 = %v", got)
 	}
 	press(t, m, "<up>")
-	if !strings.HasPrefix(line(m, 0), " A3   =SUM(A1:A2)") {
-		t.Errorf("formula bar %q", line(m, 0))
+	if l := line(m, formulaLine); !strings.HasPrefix(l, " A3 ") || bar(m) != "=SUM(A1:A2)" {
+		t.Errorf("formula bar %q", l)
 	}
 }
 
@@ -181,12 +186,12 @@ func TestPointMode(t *testing.T) {
 	m := newModel()
 	press(t, m, "1", "<enter>", "2", "<enter>")
 	press(t, m, "=SUM(", "<up>", "<up>")
-	if m.mode != modePoint || line(m, 1) != "=SUM(A1" {
-		t.Fatalf("mode %v, edit line %q", m.mode, line(m, 1))
+	if m.mode != modePoint || bar(m) != "=SUM(A1" {
+		t.Fatalf("mode %v, edit line %q", m.mode, bar(m))
 	}
 	press(t, m, "<shift+down>")
-	if line(m, 1) != "=SUM(A1:A2" {
-		t.Fatalf("edit line %q", line(m, 1))
+	if bar(m) != "=SUM(A1:A2" {
+		t.Fatalf("edit line %q", bar(m))
 	}
 	press(t, m, ")", "<enter>")
 	if input(m, "A3") != "=SUM(A1:A2)" || m.sheet.Value(addr("A3")).Num != 3 || m.cur != addr("A4") {
@@ -344,8 +349,8 @@ func TestWheelDoesNotSnapBack(t *testing.T) {
 func TestMenuColumnWidthOnSelection(t *testing.T) {
 	m := newModel()
 	press(t, m, "<shift+right>", "<f10>")
-	if line(m, 1) != "File  Edit  Format" {
-		t.Fatalf("menu line %q", line(m, 1))
+	if l := line(m, contextLine); !strings.HasPrefix(l, "File  Edit  Format") {
+		t.Fatalf("menu line %q", l)
 	}
 	press(t, m, "f") // two items start with F: cycles to Format
 	press(t, m, "<enter>", "c", "15", "<enter>")
@@ -448,7 +453,7 @@ func TestHelpListsShortcuts(t *testing.T) {
 	m := newModel()
 	press(t, m, "<f1>")
 	s := screen(m)
-	for _, want := range []string{"Ctrl+S", "Save", "Backspace / Del", "Ctrl+Shift+V", "Paste values only", "SUM"} {
+	for _, want := range []string{"Ctrl+S", "Save", "Backspace", "Del", "Ctrl+Shift+V", "Paste values only", "SUM"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("help missing %q", want)
 		}

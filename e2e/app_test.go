@@ -10,8 +10,44 @@ import (
 	ghostty "go.mitchellh.com/libghostty"
 )
 
-// Screen layout: panel lines 0-2, column header 3, grid row 1 on line 4.
-const gridRow1 = 4
+// Screen layout: menu bar 0, formula bar 1 (an 11-wide name box and a
+// space, then the contents), context line 2, column header 3, grid row 1
+// on line 4.
+const (
+	barLine     = 1
+	barX        = 12
+	contextLine = 2
+	gridRow1    = 4
+)
+
+// waitForBar waits for the formula bar to show name in the name box and
+// text after it.
+func (s *session) waitForBar(name, text string) {
+	s.t.Helper()
+	s.eventually(fmt.Sprintf("formula bar %s %q", name, text), func() bool {
+		l := s.line(barLine)
+		return len(l) >= barX && strings.TrimSpace(l[:barX]) == name && l[barX:] == text
+	})
+}
+
+// waitForName waits for the name box to show name.
+func (s *session) waitForName(name string) {
+	s.t.Helper()
+	s.eventually(fmt.Sprintf("name box %s", name), func() bool {
+		l := s.line(barLine)
+		return strings.TrimSpace(l[:min(barX, len(l))]) == name
+	})
+}
+
+// waitForEntry waits for the formula bar to show text, whatever the name
+// box says; used while typing.
+func (s *session) waitForEntry(text string) {
+	s.t.Helper()
+	s.eventually(fmt.Sprintf("formula bar %q", text), func() bool {
+		l := s.line(barLine)
+		return len(l) >= barX && l[barX:] == text
+	})
+}
 
 // numRow is how a grid row of numbers in default-width (10) columns looks:
 // a 6-wide row header, then each number right-aligned with one column of
@@ -28,7 +64,7 @@ func TestFormulaRecalc(t *testing.T) {
 	s := start(t, "")
 	s.keys("10", "<enter>", "20", "<enter>", "=SUM(A1:A2)", "<enter>")
 	s.keys("<up>")
-	s.waitFor("A3   =SUM(A1:A2)")
+	s.waitForBar("A3", "=SUM(A1:A2)")
 	s.waitForLine(gridRow1+2, numRow(3, "30"))
 
 	// Changing a precedent recalculates the total on screen.
@@ -40,11 +76,11 @@ func TestPointModeBuildsFormula(t *testing.T) {
 	s := start(t, "")
 	s.keys("4", "<tab>", "6", "<tab>", "=", "<left>", "<left>")
 	s.waitFor("POINT")
-	s.waitForLine(1, "=A1")
+	s.waitForBar("C1", "=A1")
 	s.keys("*", "<left>", "<enter>")
 	// Enter after a run of Tabs returns to the starting column, as in Sheets.
 	s.keys("<up>", "<right>", "<right>")
-	s.waitFor("C1   =A1*B1")
+	s.waitForBar("C1", "=A1*B1")
 	s.waitForLine(gridRow1, numRow(1, "4", "6", "24"))
 }
 
@@ -76,7 +112,7 @@ func TestInvalidFormulaCursor(t *testing.T) {
 	// The real terminal cursor sits on the edit line at the error.
 	s.eventually("cursor at end of edit line", func() bool {
 		x, y := s.cursor()
-		return x == len("=SUM(A1") && y == 1
+		return x == barX+len("=SUM(A1") && y == barLine
 	})
 }
 
@@ -139,7 +175,7 @@ func TestCopyPasteAdjustsReferences(t *testing.T) {
 	s.eventually("system clipboard", func() bool { return clip.get() == "20" })
 	s.keys("<down>", "<ctrl+v>")
 	s.waitFor("Pasted 1 cell at B2")
-	s.waitFor("B2   =A2*10")
+	s.waitForBar("B2", "=A2*10")
 	s.waitForLine(gridRow1+1, numRow(2, "3", "30"))
 
 	// Esc clears the marker; the paste stays.
@@ -150,7 +186,7 @@ func TestCopyPasteAdjustsReferences(t *testing.T) {
 	s.keys("<ctrl+home>", "<ctrl+x>", "<down>", "<down>", "<down>", "<ctrl+v>")
 	s.waitFor("Moved A1 to A4")
 	s.keys("<ctrl+home>", "<right>")
-	s.waitFor("B1   =A4*10")
+	s.waitForBar("B1", "=A4*10")
 	s.waitForLine(gridRow1+3, numRow(4, "2"))
 }
 
@@ -174,7 +210,7 @@ func TestInsertRowRewritesFormulas(t *testing.T) {
 	s.keys("<up>", "<up>", "<shift+space>", "<ctrl+alt+=>")
 	s.waitForLine(gridRow1+3, numRow(4, "3"))
 	s.keys("<down>", "<down>")
-	s.waitFor("A4   =SUM(A1:A3)")
+	s.waitForBar("A4", "=SUM(A1:A3)")
 	s.keys("<up>", "<up>", "5", "<enter>")
 	s.waitForLine(gridRow1+3, numRow(4, "8"))
 	s.keys("<ctrl+z>", "<ctrl+z>")
@@ -193,7 +229,7 @@ func TestFillAndAbsoluteReferences(t *testing.T) {
 	s := start(t, "")
 	s.keys("2", "<enter>", "3", "<enter>", "4", "<enter>", "<ctrl+home>", "<right>")
 	s.keys("=A1*A1", "<left>", "<left>", "<f4>")
-	s.waitForLine(1, "=A1*$A$1")
+	s.waitForEntry("=A1*$A$1")
 	s.keys("<enter>", "<up>", "<shift+down>", "<shift+down>", "<ctrl+d>")
 	s.waitForLine(gridRow1+2, numRow(3, "4", "8"))
 	s.keys("<right>", "<shift+down>", "=B1+1", "<ctrl+enter>")

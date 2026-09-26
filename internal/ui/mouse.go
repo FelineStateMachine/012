@@ -39,10 +39,11 @@ type hit struct {
 
 // formulaBarAt returns where the active cell's contents are drawn in READY
 // mode: the screen line and the x of the first character.
-func (m *Model) formulaBarAt() (line, x int) { return 0, rowHdrW }
+func (m *Model) formulaBarAt() (line, x int) { return formulaLine, formulaBarTextX() }
 
-// editLineAt returns where the entry being typed is drawn.
-func (m *Model) editLineAt() (line, x int) { return 1, 0 }
+// editLineAt returns where the entry being typed is drawn: in place, in the
+// formula bar.
+func (m *Model) editLineAt() (line, x int) { return formulaLine, formulaBarTextX() }
 
 // hitTest maps a screen position to what's there.
 func (m *Model) hitTest(x, y int) hit {

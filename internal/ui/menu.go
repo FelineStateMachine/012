@@ -17,41 +17,41 @@ import (
 // menuItem is one entry in the slash menu. An item either opens a submenu
 // (items) or runs a registered command (cmd). Descriptions come from the
 // command unless the item overrides them.
-type menuItem struct {
+type slashItem struct {
 	name   string
 	desc   string
 	descFn func(m *Model) string // overrides desc when set
-	items  []menuItem
+	items  []slashItem
 	cmd    string
 }
 
 type menuLevel struct {
-	items []menuItem
+	items []slashItem
 	sel   int
 }
 
 // rootMenu is interim: the Sheets-style menu bar replaces it.
-var rootMenu = []menuItem{
-	{name: "File", items: []menuItem{
+var rootMenu = []slashItem{
+	{name: "File", items: []slashItem{
 		{name: "New", descFn: unsavedWarning("Start a new, empty sheet"), cmd: "file.new"},
 		{name: "Open", cmd: "file.open"},
 		{name: "Save", cmd: "file.save"},
 		{name: "As", desc: "Save the sheet under a new name", cmd: "file.saveas"},
 		{name: "Quit", cmd: "quit"},
 	}},
-	{name: "Edit", items: []menuItem{
+	{name: "Edit", items: []slashItem{
 		{name: "Clear", cmd: "clear"},
 		{name: "Go to", cmd: "goto"},
 		{name: "Select all", cmd: "select.all"},
 	}},
-	{name: "Format", items: []menuItem{
+	{name: "Format", items: []slashItem{
 		{name: "Column width", cmd: "column.width"},
 		{name: "Reset column width", cmd: "column.reset"},
 	}},
 }
 
 // quitConfirm is shown by Quit when there are unsaved changes.
-var quitConfirm = []menuItem{
+var quitConfirm = []slashItem{
 	{name: "Cancel", desc: "Keep working"},
 	{name: "Quit without saving", descFn: unsavedWarning("Close one23"), cmd: "quit.force"},
 }
@@ -69,7 +69,7 @@ func unsavedWarning(desc string) func(m *Model) string {
 	}
 }
 
-func (it menuItem) description(m *Model) string {
+func (it slashItem) description(m *Model) string {
 	switch {
 	case it.descFn != nil:
 		return it.descFn(m)
@@ -85,6 +85,20 @@ func (it menuItem) description(m *Model) string {
 		return commands[it.cmd].desc
 	}
 	return ""
+}
+
+// slashMenuLine shows the open menu level and the highlighted item's
+// description.
+func (m *Model) slashMenuLine() string {
+	lvl := m.menu[len(m.menu)-1]
+	parts := make([]string, len(lvl.items))
+	for i, it := range lvl.items {
+		parts[i] = it.name
+		if i == lvl.sel {
+			parts[i] = m.th.menuSelected.Render(it.name)
+		}
+	}
+	return strings.Join(parts, "  ") + "   " + m.th.muted.Render(lvl.items[lvl.sel].description(m))
 }
 
 func (m *Model) openMenu() {
@@ -145,7 +159,7 @@ func (m *Model) menuKey(k tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) choose(it menuItem) tea.Cmd {
+func (m *Model) choose(it slashItem) tea.Cmd {
 	if it.items != nil {
 		m.menu = append(m.menu, menuLevel{items: it.items})
 		return nil
