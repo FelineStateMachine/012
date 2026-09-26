@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 var named = map[string]tea.Key{
@@ -367,10 +367,10 @@ func TestSaveAndOpen(t *testing.T) {
 	m := newModel()
 	press(t, m, "Hello", "<enter>", "42", "<enter>")
 	press(t, m, "<ctrl+s>", "budget", "<enter>")
-	if m.filename != "budget.o23" || m.changed {
+	if m.filename != "budget.012" || m.changed {
 		t.Fatalf("filename %q changed %v err %q", m.filename, m.changed, m.errMsg)
 	}
-	if _, err := os.Stat("budget.o23"); err != nil {
+	if _, err := os.Stat("budget.012"); err != nil {
 		t.Fatal(err)
 	}
 	// Ctrl+S again saves without asking.
@@ -381,11 +381,11 @@ func TestSaveAndOpen(t *testing.T) {
 
 	m2 := newModel()
 	press(t, m2, "<ctrl+o>")
-	if !strings.Contains(line(m2, 2), "budget.o23") {
+	if !strings.Contains(line(m2, 2), "budget.012") {
 		t.Errorf("file list %q", line(m2, 2))
 	}
 	press(t, m2, "budget", "<enter>")
-	if m2.sheet.Value(addr("A2")).Num != 42 || m2.filename != "budget.o23" {
+	if m2.sheet.Value(addr("A2")).Num != 42 || m2.filename != "budget.012" {
 		t.Errorf("opened A2 %+v file %q", m2.sheet.Value(addr("A2")), m2.filename)
 	}
 	press(t, m2, "<ctrl+o>", "missing", "<enter>")

@@ -10,7 +10,7 @@ import (
 )
 
 // FileExt is the extension of the native worksheet format.
-const FileExt = ".o23"
+const FileExt = ".012"
 
 // fileVersion is the version Write produces. Version 1 files (cells as
 // plain strings, no formatting) still load.

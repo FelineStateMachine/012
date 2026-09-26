@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // command is a user-facing action. Every action is registered once here
@@ -144,7 +144,7 @@ func init() {
 		&command{id: "file.save", title: "Save", desc: "Save the sheet", run: (*Model).save},
 		&command{id: "file.saveas", title: "Save as", desc: "Save the sheet under a new name", run: (*Model).openSave},
 		&command{id: "file.open", title: "Open", desc: "Open a sheet, replacing this one", run: (*Model).openRetrieve},
-		&command{id: "quit", title: "Quit", desc: "Close one23", run: (*Model).quit},
+		&command{id: "quit", title: "Quit", desc: "Close 012", run: (*Model).quit},
 	)
 }
 

@@ -1,4 +1,4 @@
-module one23/e2e
+module 012/e2e
 
 go 1.27.1
 

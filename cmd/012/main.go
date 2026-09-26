@@ -1,4 +1,4 @@
-// Command one23 is a Lotus 1-2-3 style spreadsheet for the terminal.
+// Command 012 is a Lotus 1-2-3 style spreadsheet for the terminal.
 package main
 
 import (
@@ -9,20 +9,20 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"one23/internal/sheet"
-	"one23/internal/ui"
+	"012/internal/sheet"
+	"012/internal/ui"
 )
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "one23:", err)
+		fmt.Fprintln(os.Stderr, "012:", err)
 		os.Exit(1)
 	}
 }
 
 func run(args []string) error {
 	if len(args) > 1 {
-		return errors.New("usage: one23 [file" + sheet.FileExt + "]")
+		return errors.New("usage: 012 [file" + sheet.FileExt + "]")
 	}
 	s, name := sheet.New(), ""
 	if len(args) == 1 {

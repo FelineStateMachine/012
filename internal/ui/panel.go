@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // The control panel is three lines: the menu bar with the mode indicator,
@@ -35,7 +35,7 @@ func (m *Model) View() tea.View {
 	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go
-	v.WindowTitle = "one23 - " + m.displayName()
+	v.WindowTitle = "012 - " + m.displayName()
 	if m.changed {
 		v.WindowTitle += " (modified)"
 	}
@@ -137,7 +137,7 @@ func (m *Model) spread(left, right string) string {
 	return left + strings.Repeat(" ", gap) + right
 }
 
-// promptLine is an open prompt, e.g. "Save as: budget.o23", and the keys
+// promptLine is an open prompt, e.g. "Save as: budget.012", and the keys
 // or choices that go with it.
 func (m *Model) promptLine() (left, right string) {
 	switch {

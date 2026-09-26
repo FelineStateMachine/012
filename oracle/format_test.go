@@ -7,7 +7,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // patterns are number formats: Sheets' Format > Number presets and
@@ -21,10 +21,10 @@ var patterns = []string{
 
 var values = []float64{0, 1, -1, 0.5, 1234.5678, -1234.5678, 0.125, 1e6, 46291, 46291.6041666667, 1.0423611111}
 
-// skippedFormats are pattern and value pairs where one23 deliberately
+// skippedFormats are pattern and value pairs where 012 deliberately
 // differs, or excelize departs from Excel.
 var skippedFormats = map[string]string{
-	"#,##0, -1":             "one23 drops the sign of a number that rounds to zero; excelize shows -0",
+	"#,##0, -1":             "012 drops the sign of a number that rounds to zero; excelize shows -0",
 	"0.0# 46291.6041666667": "excelize keeps a trailing zero under #",
 	"[h]:mm:ss 1e+06":       "excelize overflows",
 }
@@ -35,7 +35,7 @@ func skipReason(pat string, v float64) string {
 	case isDateOrTime(pat) && v < 0:
 		return "dates before 1899-12-30 are negative serials in Sheets; Excel has none"
 	case isDate(pat) && v < 61:
-		return "Excel counts a fictitious 1900-02-29, so its dates before March 1900 are a day off; Sheets and one23 don't"
+		return "Excel counts a fictitious 1900-02-29, so its dates before March 1900 are a day off; Sheets and 012 don't"
 	}
 	return skippedFormats[fmt.Sprintf("%s %v", pat, v)]
 }
@@ -62,10 +62,10 @@ func TestFormatsAgainstExcelize(t *testing.T) {
 				t.Fatal(err)
 			}
 			ours := sheet.FormatPattern(v, pat)
-			// one23 shows AM and PM in capitals, as Sheets' Time format does;
+			// 012 shows AM and PM in capitals, as Sheets' Time format does;
 			// excelize copies the case of the pattern's am/pm.
 			if ours != theirs && !(strings.Contains(pat, "am/pm") && strings.EqualFold(ours, theirs)) {
-				t.Errorf("%q of %v: one23 %q, excelize %q", pat, v, ours, theirs)
+				t.Errorf("%q of %v: 012 %q, excelize %q", pat, v, ours, theirs)
 				continue
 			}
 			matched++

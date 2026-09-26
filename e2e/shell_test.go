@@ -20,10 +20,10 @@ func TestAltFOpensFileMenuAndSaves(t *testing.T) {
 	s.waitFor("MENU")
 	// "s" highlights Save (Save as also starts with s); Enter runs it.
 	s.keys("s", "<enter>")
-	s.waitFor("Save as: SHEET1.o23")
+	s.waitFor("Save as: SHEET1.012")
 	s.keys("<enter>")
 	s.eventually("saved file", func() bool {
-		_, err := os.Stat(filepath.Join(dir, "SHEET1.o23"))
+		_, err := os.Stat(filepath.Join(dir, "SHEET1.012"))
 		return err == nil
 	})
 	s.waitFor("READY")

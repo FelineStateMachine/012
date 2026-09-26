@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 func init() {
@@ -25,9 +25,9 @@ func init() {
 			m.openOverlay(p)
 			return nil
 		}},
-		&command{id: "help.about", title: "About one23", desc: "Show the version", run: func(m *Model) tea.Cmd {
+		&command{id: "help.about", title: "About 012", desc: "Show the version", run: func(m *Model) tea.Cmd {
 			m.openOverlay(&choiceBar{
-				msg: "one23 " + version() + ": Lotus 1-2-3 looks, Google Sheets keys.",
+				msg: "012 " + version() + ": Lotus 1-2-3 looks, Google Sheets keys.",
 				choices: []choice{
 					{key: "esc", label: "Close", run: func(*Model) tea.Cmd { return nil }},
 				},
@@ -39,7 +39,7 @@ func init() {
 	keymap["ctrl+/"] = "help"
 }
 
-// version is the release one23 was built from, or "devel" for a source
+// version is the release 012 was built from, or "devel" for a source
 // build (including Go's pseudo-versions such as v0.0.0-2026...+dirty).
 func version() string {
 	if bi, ok := debug.ReadBuildInfo(); ok && strings.HasPrefix(bi.Main.Version, "v") && !strings.ContainsAny(bi.Main.Version, "-+") {

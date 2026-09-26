@@ -116,7 +116,7 @@ func TestMenuBarKeyboard(t *testing.T) {
 	if highlighted(t, m) != "Quit" {
 		t.Errorf("up highlighted %q", highlighted(t, m))
 	}
-	if !strings.Contains(line(m, m.height-1), "Close one23") {
+	if !strings.Contains(line(m, m.height-1), "Close 012") {
 		t.Errorf("status line should describe the item: %q", line(m, m.height-1))
 	}
 	press(t, m, "<right>")

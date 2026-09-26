@@ -3,7 +3,7 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // Right-click menus follow Sheets: the cell menu offers clipboard, insert

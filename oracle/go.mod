@@ -1,10 +1,10 @@
-module one23/oracle
+module 012/oracle
 
 go 1.27.1
 
 require (
 	github.com/xuri/excelize/v2 v2.11.0
-	one23 v0.0.0
+	012 v0.0.0
 )
 
 require (
@@ -18,4 +18,4 @@ require (
 	golang.org/x/text v0.38.0 // indirect
 )
 
-replace one23 => ../
+replace 012 => ../

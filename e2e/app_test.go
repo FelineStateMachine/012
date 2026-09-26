@@ -121,8 +121,8 @@ func TestSaveQuitReopen(t *testing.T) {
 	s := start(t, dir)
 	s.keys("Budget", "<enter>", "1200", "<enter>", "=A2*12", "<enter>")
 	s.keys("<ctrl+s>", "budget", "<enter>")
-	s.eventually("title update", func() bool { return s.title() == "one23 - budget.o23" })
-	if _, err := os.Stat(filepath.Join(dir, "budget.o23")); err != nil {
+	s.eventually("title update", func() bool { return s.title() == "012 - budget.012" })
+	if _, err := os.Stat(filepath.Join(dir, "budget.012")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -133,9 +133,9 @@ func TestSaveQuitReopen(t *testing.T) {
 		t.Errorf("active screen after exit = %v, want primary", scr)
 	}
 
-	r := start(t, dir, "budget.o23")
+	r := start(t, dir, "budget.012")
 	r.waitForLine(gridRow1+2, numRow(3, "14400"))
-	if !strings.Contains(r.screen(), "budget.o23") {
+	if !strings.Contains(r.screen(), "budget.012") {
 		t.Errorf("status line missing file name:\n%s", r.screen())
 	}
 }

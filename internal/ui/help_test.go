@@ -114,7 +114,7 @@ func TestOverlaysOnTinyScreens(t *testing.T) {
 func TestAbout(t *testing.T) {
 	m := newModel()
 	m.runCommand("help.about")
-	if l := line(m, contextLine); !strings.HasPrefix(l, "one23 devel") || !strings.Contains(l, "Esc  Close") {
+	if l := line(m, contextLine); !strings.HasPrefix(l, "012 devel") || !strings.Contains(l, "Esc  Close") {
 		t.Errorf("about %q", l)
 	}
 	press(t, m, "<esc>")

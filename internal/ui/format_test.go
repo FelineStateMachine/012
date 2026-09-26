@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // cells returns the text of the first n columns of grid row r (1-based),

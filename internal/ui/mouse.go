@@ -6,7 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // Mouse handling follows Google Sheets. The view asks Bubble Tea for every

@@ -1,4 +1,4 @@
-// Package oracle checks one23's formula engine against excelize's
+// Package oracle checks 012's formula engine against excelize's
 // calculation engine: the same data and formulas go into both, and the
 // results must agree. It is a separate module so the main binary never
 // depends on excelize. Run it with make oracle.
@@ -12,7 +12,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // fixture is the data both engines read, typed as a user would.
@@ -107,10 +107,10 @@ var formulas = []string{
 	`=RATE(48, -200, 8000)`, `=NPV(0.1, H1:H4)`, `=IRR(H1:H4)`, `=IRR(C1:C5)`,
 }
 
-// skipped are formulas where Google Sheets, which one23 follows, and
+// skipped are formulas where Google Sheets, which 012 follows, and
 // Excel disagree, or where excelize departs from Excel. Each says why.
 var skipped = map[string]string{
-	// Sheets and Excel disagree; one23 follows Sheets.
+	// Sheets and Excel disagree; 012 follows Sheets.
 	`=ROUND(-2.5)`: "Sheets makes ROUND's places optional; Excel requires them",
 
 	// excelize departs from Excel (and Sheets) here.
@@ -140,7 +140,7 @@ var skipped = map[string]string{
 	`=NPV(0.1, H1:H4)`:                         "excelize reads only the first cell of a range",
 }
 
-// toExcel translates a one23 formula to Excel syntax: 1-2-3 style @SUM
+// toExcel translates a 012 formula to Excel syntax: 1-2-3 style @SUM
 // and A1..B2 ranges become SUM and A1:B2, and the leading = goes.
 func toExcel(f string) string {
 	f = strings.TrimPrefix(f, "=")
@@ -177,7 +177,7 @@ func TestToExcel(t *testing.T) {
 	}
 }
 
-// build loads the fixture into one23, then copies the values one23
+// build loads the fixture into 012, then copies the values 012
 // computed into an excelize workbook, so both start from the same data.
 func build(t *testing.T) (*sheet.Sheet, *excelize.File) {
 	t.Helper()
@@ -225,7 +225,7 @@ func TestAgainstExcelize(t *testing.T) {
 			continue
 		}
 		if err := s.Set(addr(cell), f); err != nil {
-			t.Errorf("one23 rejects %s: %v", f, err)
+			t.Errorf("012 rejects %s: %v", f, err)
 			continue
 		}
 		ours := s.Value(addr(cell))
@@ -240,12 +240,12 @@ func TestAgainstExcelize(t *testing.T) {
 			matched++
 			continue
 		}
-		t.Errorf("%s: one23 %s, excelize %q", f, show(ours), theirs)
+		t.Errorf("%s: 012 %s, excelize %q", f, show(ours), theirs)
 	}
 	t.Logf("%d of %d formulas match excelize, %d skipped", matched, len(formulas)-len(skipped), len(skipped))
 }
 
-// agree compares a one23 value with excelize's text result: numbers to
+// agree compares a 012 value with excelize's text result: numbers to
 // about 12 significant digits, booleans as TRUE/FALSE, errors by code.
 func agree(v sheet.Value, x string) bool {
 	switch v.Kind {

@@ -35,11 +35,11 @@ func TestFormatsSurviveSaveAndReopen(t *testing.T) {
 	s.keys("1450", "<enter>", "<up>", "<ctrl+shift+1>", "<ctrl+i>")
 	s.waitForLine(gridRow1, numRow(1, "1,450.00"))
 	s.keys("<ctrl+s>", "formats", "<enter>")
-	s.eventually("saved", func() bool { return s.title() == "one23 - formats.o23" })
+	s.eventually("saved", func() bool { return s.title() == "012 - formats.012" })
 	s.keys("<ctrl+q>")
 	s.waitExit()
 
-	r := start(t, dir, "formats.o23")
+	r := start(t, dir, "formats.012")
 	r.waitForLine(gridRow1, numRow(1, "1,450.00"))
 	if !strings.Contains(r.html(), "font-style:italic") {
 		t.Errorf("italic lost after reopening:\n%s", r.html())

@@ -8,7 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // mode is the state shown in the mode indicator.

@@ -7,7 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // active is the cell drawn as the cell pointer: the pointer while

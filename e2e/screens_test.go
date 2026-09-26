@@ -123,7 +123,7 @@ var screens = []screen{
 	{name: "menu-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
 		budget(s)
 		s.keys("<alt+h>")
-		s.waitFor("│ About one23")
+		s.waitFor("│ About 012")
 	}},
 	{name: "functions", setup: func(s *session) {
 		budget(s)
@@ -276,7 +276,7 @@ func (s *session) stableHTML() string {
 // with each reference palette.
 func writeGallery(dir string) error {
 	var b strings.Builder
-	b.WriteString(`<!doctype html><meta charset="utf-8"><title>one23 screens</title>
+	b.WriteString(`<!doctype html><meta charset="utf-8"><title>012 screens</title>
 <style>
 body{margin:0;padding:32px;background:#0f1012;color:#ddd;font:14px system-ui,sans-serif}
 h1{font-weight:600;margin:0 0 24px}
@@ -298,7 +298,7 @@ h2{font:500 13px ui-monospace,monospace;color:#aaa;margin:0 0 8px}
 		}
 		b.WriteString("}\n")
 	}
-	b.WriteString("</style><h1>one23 screens</h1><div class=grid>\n")
+	b.WriteString("</style><h1>012 screens</h1><div class=grid>\n")
 	for _, sc := range screens {
 		body, err := os.ReadFile(filepath.Join(dir, sc.name+".html"))
 		if err != nil {

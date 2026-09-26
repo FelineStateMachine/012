@@ -1,4 +1,4 @@
-// Package e2e runs the real one23 binary on a pseudo-terminal and renders
+// Package e2e runs the real 012 binary on a pseudo-terminal and renders
 // its output with libghostty-vt, Ghostty's terminal emulator core. Tests
 // assert on what a user would actually see: screen text, cursor position,
 // window title and screen mode. Keystrokes are encoded by libghostty from
@@ -22,16 +22,16 @@ import (
 var binPath string
 
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "one23-e2e")
+	dir, err := os.MkdirTemp("", "012-e2e")
 	if err != nil {
 		panic(err)
 	}
-	binPath = filepath.Join(dir, "one23")
-	build := exec.Command("go", "build", "-o", binPath, "./cmd/one23")
+	binPath = filepath.Join(dir, "012")
+	build := exec.Command("go", "build", "-o", binPath, "./cmd/012")
 	build.Dir = ".."
 	build.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := build.CombinedOutput(); err != nil {
-		fmt.Fprintf(os.Stderr, "building one23: %v\n%s", err, out)
+		fmt.Fprintf(os.Stderr, "building 012: %v\n%s", err, out)
 		os.Exit(1)
 	}
 	code := m.Run()
@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 
 const waitTimeout = 5 * time.Second
 
-// session is one running instance of one23 attached to a virtual terminal.
+// session is one running instance of 012 attached to a virtual terminal.
 type session struct {
 	t   *testing.T
 	dir string
@@ -68,7 +68,7 @@ type options struct {
 	light      bool   // use the light reference palette
 }
 
-// start launches one23 in dir (a fresh temp dir if empty) with args.
+// start launches 012 in dir (a fresh temp dir if empty) with args.
 func start(t *testing.T, dir string, args ...string) *session {
 	t.Helper()
 	return startWith(t, options{dir: dir}, args...)

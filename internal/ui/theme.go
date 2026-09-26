@@ -3,7 +3,7 @@ package ui
 import (
 	"charm.land/lipgloss/v2"
 
-	"one23/internal/sheet"
+	"012/internal/sheet"
 )
 
 // theme holds every style the UI draws with. Views must use these roles

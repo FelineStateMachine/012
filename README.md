@@ -1,16 +1,16 @@
-# one23
+# 012
 
 A spreadsheet for the terminal with a Lotus 1-2-3 look and Google Sheets
 behavior, built on Bubble Tea v2.
 
 ```sh
 make run            # build (pure Go, CGO_ENABLED=0) and start
-./bin/one23 budget.o23
+./bin/012 budget.012
 ```
 
 ## Keys
 
-Inside the grid, one23 works like Google Sheets.
+Inside the grid, 012 works like Google Sheets.
 
 | Key | Action |
 |---|---|
@@ -49,7 +49,7 @@ context line (prompts, key hints, formula errors).
 ## Layout
 
 ```
-cmd/one23        entry point
+cmd/012        entry point
 internal/sheet   engine: addresses, Pratt parser, evaluator, recalc, file format
 internal/ui      Bubble Tea model: modes, menu, prompts, rendering
 e2e/             end-to-end tests: real binary on a pty, rendered by libghostty-vt
