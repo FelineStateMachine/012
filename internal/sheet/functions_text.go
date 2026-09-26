@@ -117,9 +117,9 @@ func init() {
 				return capText(string(r[:from]) + repl + string(r[to:]))
 			}},
 		&FuncDef{Name: "FIND", Args: "search_for, text_to_search, [starting_at]", Desc: "Position of text, case-sensitive", Min: 2, Max: 3,
-			eval: finder(false)},
+			eval: textFinder(false)},
 		&FuncDef{Name: "SEARCH", Args: "search_for, text_to_search, [starting_at]", Desc: "Position of text, ignoring case, with * and ? wildcards", Min: 2, Max: 3,
-			eval: finder(true)},
+			eval: textFinder(true)},
 		&FuncDef{Name: "TEXT", Args: "number, format", Desc: `A number as text in a format, e.g. "$#,##0.00" or "yyyy-mm-dd"`, Min: 2, Max: 2,
 			eval: func(args []Node, get lookup) Value {
 				v := eval(args[0], get)
@@ -291,9 +291,9 @@ func substitute(args []Node, get lookup) Value {
 	}
 }
 
-// finder builds FIND (exact) and SEARCH (case-insensitive, wildcards).
+// textFinder builds FIND (exact) and SEARCH (case-insensitive, wildcards).
 // Positions count characters from 1; not found is #VALUE!.
-func finder(search bool) func([]Node, lookup) Value {
+func textFinder(search bool) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
 		needle, err := textArg(args[0], get)
 		if err != nil {

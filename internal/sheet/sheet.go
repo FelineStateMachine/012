@@ -58,6 +58,8 @@ type Sheet struct {
 
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
+
+	hist history // undo and redo, see history.go
 }
 
 // New returns an empty worksheet.
@@ -182,58 +184,88 @@ func classify(input string) (Node, Format, error) {
 // fails to parse is rejected with a *ParseError and the sheet is left
 // unchanged.
 func (s *Sheet) Set(a Addr, input string) error {
-	if err := s.put(a, input); err != nil {
-		return err
-	}
-	s.recalc([]Addr{a})
-	return nil
+	var err error
+	s.change("edit "+a.String(), Rect{a, a}, func() { err = s.put(a, input) })
+	return err
 }
 
 // put stores an entry without recalculating, keeping the cell's
-// formatting. An entry that implies a format, such as "$5" or a date,
-// sets it, as in Sheets. In a Plain text cell every entry is text.
-// Control characters are dropped so a worksheet file can't smuggle escape
-// sequences to the terminal.
+// formatting.
 func (s *Sheet) put(a Addr, input string) error {
+	var f Format
+	var st Style
+	if old := s.cells[a]; old != nil {
+		f, st = old.Format, old.Style
+	}
+	c, err := newCell(input, f, st, true)
+	if err != nil {
+		return err
+	}
+	s.place(a, c)
+	return nil
+}
+
+// newCell builds a cell for an entry with formatting, or returns nil when
+// there is neither. With implied, an entry that implies a format, such as
+// "$5" or a date, sets it, as in Sheets. In a Plain text cell every entry
+// is text. Control characters are dropped so a worksheet file can't
+// smuggle escape sequences to the terminal.
+func newCell(input string, f Format, st Style, implied bool) (*Cell, error) {
 	input = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
 			return -1
 		}
 		return r
 	}, input)
-	var f Format
-	var st Style
-	if old := s.cells[a]; old != nil {
-		f, st = old.Format, old.Style
-	}
 	if input == "" {
-		s.erase(a)
-		s.restoreFormatting(a, f, st)
-		return nil
+		return formattingOnly(f, st), nil
 	}
 	var n Node
 	if f.Kind != FmtText {
-		var implied Format
+		var fi Format
 		var err error
-		if n, implied, err = classify(input); err != nil {
-			return err
+		if n, fi, err = classify(input); err != nil {
+			return nil, err
 		}
-		if !implied.IsZero() {
-			f = implied
+		if implied && !fi.IsZero() {
+			f = fi
 		}
 	}
-	c := &Cell{Input: input, expr: n, Format: f, Style: st}
+	c := &Cell{Input: input, Format: f, Style: st}
+	c.setExpr(n)
+	return c, nil
+}
+
+// formattingOnly is a blank cell holding formatting, or nil when there is
+// none.
+func formattingOnly(f Format, st Style) *Cell {
+	if f.IsZero() && st.IsZero() {
+		return nil
+	}
+	return &Cell{Format: f, Style: st}
+}
+
+// setExpr sets c's expression and the references indexed from it.
+func (c *Cell) setExpr(n Node) {
+	c.expr, c.refs, c.ranges, c.volatile = n, nil, nil, false
 	if n != nil {
 		walkRefs(n,
 			func(r Addr) { c.refs = append(c.refs, r) },
 			func(r Rect) { c.ranges = append(c.ranges, r) })
 		c.volatile = isVolatile(n)
 	}
-	s.erase(a)
-	s.cells[a] = c
-	if c.volatile {
-		s.volatile[a] = struct{}{}
+}
+
+// place stores c at a (nil blanks it), recording the old cell for undo and
+// keeping the dependency indexes current. Every cell mutation goes through
+// here.
+func (s *Sheet) place(a Addr, c *Cell) {
+	s.record(a)
+	s.unlink(a)
+	if c == nil {
+		return
 	}
+	s.cells[a] = c
 	for _, r := range c.refs {
 		if s.dependents[r] == nil {
 			s.dependents[r] = make(map[Addr]struct{})
@@ -243,36 +275,36 @@ func (s *Sheet) put(a Addr, input string) error {
 	if len(c.ranges) > 0 {
 		s.rangeUsers[a] = struct{}{}
 	}
-	return nil
+	if c.volatile {
+		s.volatile[a] = struct{}{}
+	}
 }
 
 // EraseRange clears the contents of every cell in r, keeping their
 // formatting as Sheets' Delete does.
 func (s *Sheet) EraseRange(r Rect) {
-	var changed []Addr
-	for a, c := range s.cells {
-		if r.Contains(a) && !c.Blank() {
-			changed = append(changed, a)
+	s.change("clear "+r.String(), r, func() {
+		for _, a := range s.cellsIn(r) {
+			if c := s.cells[a]; !c.Blank() {
+				s.place(a, formattingOnly(c.Format, c.Style))
+			}
+		}
+	})
+}
+
+// cellsIn returns the cells in r that have contents or formatting.
+func (s *Sheet) cellsIn(r Rect) []Addr {
+	var out []Addr
+	for a := range s.cells {
+		if r.Contains(a) {
+			out = append(out, a)
 		}
 	}
-	for _, a := range changed {
-		c := s.cells[a]
-		s.erase(a)
-		s.restoreFormatting(a, c.Format, c.Style)
-	}
-	s.recalc(changed)
+	return out
 }
 
-// restoreFormatting leaves a blank cell holding just formatting, or no
-// cell at all when there is none.
-func (s *Sheet) restoreFormatting(a Addr, f Format, st Style) {
-	if f.IsZero() && st.IsZero() {
-		return
-	}
-	s.cells[a] = &Cell{Format: f, Style: st}
-}
-
-func (s *Sheet) erase(a Addr) {
+// unlink removes the cell at a and its dependency edges.
+func (s *Sheet) unlink(a Addr) {
 	old := s.cells[a]
 	if old == nil {
 		return
@@ -288,9 +320,11 @@ func (s *Sheet) erase(a Addr) {
 	delete(s.cells, a)
 }
 
-// RecalcAll recomputes every formula, e.g. after loading a file.
+// RecalcAll recomputes every formula. Loaders call it once the sheet is
+// built, so it also starts a fresh undo history: loading isn't undoable.
 func (s *Sheet) RecalcAll() {
 	s.recalc(s.Addrs())
+	s.ClearHistory()
 }
 
 // recalc recomputes the changed cells, volatile formulas, and everything

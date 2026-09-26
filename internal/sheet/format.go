@@ -45,6 +45,21 @@ func ParseFormatKind(s string) (FormatKind, bool) {
 	return FmtAuto, false
 }
 
+// label names the kind in undo labels: "format B3 as date time".
+func (k FormatKind) label() string {
+	switch k {
+	case FmtAuto:
+		return "automatic"
+	case FmtText:
+		return "plain text"
+	case FmtDateTime:
+		return "date time"
+	case FmtCustom:
+		return "custom"
+	}
+	return k.String()
+}
+
 // hasDecimals reports whether the kind takes a number of decimal places.
 func (k FormatKind) hasDecimals() bool {
 	switch k {

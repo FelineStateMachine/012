@@ -157,16 +157,13 @@ func Read(r io.Reader) (*Sheet, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", name, err)
 		}
-		// The format goes in first so Plain text cells load as text, and
-		// again after, since an entry like "$5" implies its own format.
-		// Version 1 had no formats, so there entries imply them.
-		s.restoreFormatting(a, fm, st)
-		if err := s.put(a, input); err != nil {
+		// Version 1 had no formats, so there entries imply them, as if
+		// typed again; in version 2 the stored format wins.
+		c, err := newCell(input, fm, st, f.Version < 2)
+		if err != nil {
 			return nil, fmt.Errorf("%s: %w", name, err)
 		}
-		if c := s.cells[a]; c != nil && f.Version >= 2 {
-			c.Format = fm
-		}
+		s.place(a, c)
 	}
 	s.RecalcAll()
 	return s, nil

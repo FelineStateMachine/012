@@ -276,7 +276,8 @@ func math1(f func(float64) float64) func([]Node, lookup) Value {
 func constant(v Value) func([]Node, lookup) Value {
 	return func([]Node, lookup) Value { return v }
 }
-// rounder builds ROUNDUP, ROUNDDOWN and TRUNC: round on the 15 digits a
+
+// rounder builds ROUND, ROUNDUP, ROUNDDOWN and TRUNC: round on the 15 digits a
 // spreadsheet shows, so ROUNDUP(2.3, 1) stays 2.3.
 func rounder(mode roundMode) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {

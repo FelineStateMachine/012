@@ -25,38 +25,49 @@ func (s *Sheet) DisplayFormat(a Addr) Format {
 // SetFormat gives every cell in r the number format f, including blank
 // cells, which keep it for when something is typed.
 func (s *Sheet) SetFormat(r Rect, f Format) {
-	s.eachCell(r, !f.IsZero(), func(_ Addr, c *Cell) { c.Format = f })
+	s.change("format "+r.String()+" as "+f.Kind.label(), r, func() {
+		s.eachCell(r, !f.IsZero(), func(_ Addr, c *Cell) { c.Format = f })
+	})
 }
 
 // SetStyle changes the text style of every cell in r with fn, e.g. to
-// turn on bold while keeping italics.
+// turn on bold while keeping italics. Callers wanting a specific undo
+// label ("bold B2:B5") wrap it in Batch.
 func (s *Sheet) SetStyle(r Rect, fn func(*Style)) {
-	s.eachCell(r, true, func(_ Addr, c *Cell) { fn(&c.Style) })
+	s.change("style "+r.String(), r, func() {
+		s.eachCell(r, true, func(_ Addr, c *Cell) { fn(&c.Style) })
+	})
 }
 
 // ClearFormatting resets the format and style of every cell in r, as
 // Sheets' Format > Clear formatting.
 func (s *Sheet) ClearFormatting(r Rect) {
-	s.eachCell(r, false, func(_ Addr, c *Cell) {
-		c.Format, c.Style = Format{}, Style{}
+	s.change("clear formatting "+r.String(), r, func() {
+		s.eachCell(r, false, func(_ Addr, c *Cell) { c.Format, c.Style = Format{}, Style{} })
 	})
 }
 
 // AdjustDecimals shows delta more (or fewer) decimal places in every
 // non-blank number cell of r, starting from what each cell shows now.
 func (s *Sheet) AdjustDecimals(r Rect, delta int) {
-	s.eachCell(r, false, func(a Addr, c *Cell) {
-		if c.Blank() {
-			return
-		}
-		c.Format = s.DisplayFormat(a).WithDecimals(delta, c.Value.Num)
+	label := "more decimals in "
+	if delta < 0 {
+		label = "fewer decimals in "
+	}
+	s.change(label+r.String(), r, func() {
+		s.eachCell(r, false, func(a Addr, c *Cell) {
+			if !c.Blank() {
+				c.Format = s.DisplayFormat(a).WithDecimals(delta, c.Value.Num)
+			}
+		})
 	})
 }
 
-// eachCell applies fn to the cells in r, then recalculates them so
-// formulas that infer their format from them follow. With create, blank
-// cells get a cell to hold the formatting (up to materializeLimit);
-// cells left with neither contents nor formatting are dropped.
+// eachCell applies fn to a copy of each cell in r and places the copy,
+// so the change can be undone. With create, blank cells get a cell to
+// hold the formatting (up to materializeLimit cells); cells left with
+// neither contents nor formatting are removed. Cells that fn leaves
+// unchanged are not touched.
 func (s *Sheet) eachCell(r Rect, create bool, fn func(Addr, *Cell)) {
 	area := (r.To.Col - r.From.Col + 1) * (r.To.Row - r.From.Row + 1)
 	var addrs []Addr
@@ -67,24 +78,24 @@ func (s *Sheet) eachCell(r Rect, create bool, fn func(Addr, *Cell)) {
 			}
 		}
 	} else {
-		for a := range s.cells {
-			if r.Contains(a) {
-				addrs = append(addrs, a)
-			}
-		}
+		addrs = s.cellsIn(r)
 	}
 	for _, a := range addrs {
-		c := s.cells[a]
+		old := s.cells[a]
+		c := old.clone()
 		if c == nil {
 			c = &Cell{}
-			s.cells[a] = c
 		}
 		fn(a, c)
-		if c.Blank() && c.Format.IsZero() && c.Style.IsZero() {
-			delete(s.cells, a)
+		switch {
+		case c.Blank() && c.Format.IsZero() && c.Style.IsZero():
+			if old != nil {
+				s.place(a, nil)
+			}
+		case old == nil || c.Format != old.Format || c.Style != old.Style:
+			s.place(a, c)
 		}
 	}
-	s.recalc(addrs)
 }
 
 // isVolatile reports whether n calls a function whose result changes

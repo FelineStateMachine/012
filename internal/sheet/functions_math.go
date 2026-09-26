@@ -21,7 +21,7 @@ func init() {
 				return num(s.prod)
 			})},
 		&FuncDef{Name: "POWER", Args: "base, exponent", Desc: "A number raised to a power", Min: 2, Max: 2,
-			eval: numeric(func(x []float64) Value { return power(x[0], x[1]) })},
+			eval: numeric(func(x []float64) Value { return powerOf(x[0], x[1]) })},
 		&FuncDef{Name: "ROUNDUP", Args: "value, [places]", Desc: "Round away from zero", Min: 1, Max: 2,
 			eval: rounder(roundUp), format: inheritFrom(0)},
 		&FuncDef{Name: "ROUNDDOWN", Args: "value, [places]", Desc: "Round toward zero", Min: 1, Max: 2,
@@ -95,7 +95,7 @@ func init() {
 	)
 }
 
-func power(b, e float64) Value {
+func powerOf(b, e float64) Value {
 	if b == 0 && e < 0 {
 		return ErrDiv0
 	}
