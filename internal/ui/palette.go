@@ -2,6 +2,7 @@ package ui
 
 import (
 	"cmp"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -128,22 +129,27 @@ func (p *picker) changed(m *Model) {
 		}
 		return
 	}
-	// Items whose name matches come first; items that only match with the
-	// help of their detail (e.g. the File in a menu path) follow.
+	// Rank title and path matches together by fuzzy score, so a tight
+	// match like "file" on the File menu beats letters scattered across a
+	// title. Title matches get a small bonus and win ties.
 	names, hay := make([]string, len(p.items)), make([]string, len(p.items))
 	for i, it := range p.items {
 		names[i], hay[i] = it.title[:it.name], it.haystack()
 	}
-	byScore := func(a, b fuzzy.Match) int { return cmp.Compare(b.Score, a.Score) }
-	matches := fuzzy.FindNoSort(q, names)
-	slices.SortStableFunc(matches, byScore)
-	inName := map[int]bool{}
-	for _, mt := range matches {
-		inName[mt.Index] = true
+	const titleBonus = 10
+	type ranked struct {
+		pm    pickMatch
+		score int
+		order int
 	}
-	rest := slices.DeleteFunc(fuzzy.FindNoSort(q, hay), func(mt fuzzy.Match) bool { return inName[mt.Index] })
-	slices.SortStableFunc(rest, byScore)
-	for _, mt := range append(matches, rest...) {
+	best := map[int]*ranked{}
+	for _, mt := range fuzzy.FindNoSort(q, names) {
+		best[mt.Index] = &ranked{pickMatch{item: &p.items[mt.Index], inTitle: mt.MatchedIndexes}, mt.Score + titleBonus, mt.Index}
+	}
+	for _, mt := range fuzzy.FindNoSort(q, hay) {
+		if r, ok := best[mt.Index]; ok && r.score >= mt.Score {
+			continue
+		}
 		it := &p.items[mt.Index]
 		pm := pickMatch{item: it}
 		for _, i := range mt.MatchedIndexes {
@@ -154,7 +160,17 @@ func (p *picker) changed(m *Model) {
 				pm.inDesc = append(pm.inDesc, i-it.name-2)
 			}
 		}
-		p.shown = append(p.shown, pm)
+		best[mt.Index] = &ranked{pm, mt.Score, mt.Index}
+	}
+	all := slices.Collect(maps.Values(best))
+	slices.SortFunc(all, func(a, b *ranked) int {
+		if c := cmp.Compare(b.score, a.score); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.order, b.order)
+	})
+	for _, r := range all {
+		p.shown = append(p.shown, r.pm)
 	}
 }
 
