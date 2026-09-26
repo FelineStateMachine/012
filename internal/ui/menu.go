@@ -15,13 +15,14 @@ import (
 )
 
 // menuItem is one entry in the slash menu. An item either opens a submenu
-// (items) or runs an action.
+// (items) or runs a registered command (cmd). Descriptions come from the
+// command unless the item overrides them.
 type menuItem struct {
 	name   string
 	desc   string
 	descFn func(m *Model) string // overrides desc when set
 	items  []menuItem
-	action func(m *Model) tea.Cmd
+	cmd    string
 }
 
 type menuLevel struct {
@@ -32,42 +33,26 @@ type menuLevel struct {
 var rootMenu = []menuItem{
 	{name: "Worksheet", items: []menuItem{
 		{name: "Column", items: []menuItem{
-			{name: "Set-Width", desc: "Specify a width for the current column", action: (*Model).openWidth},
-			{name: "Reset-Width", desc: "Return the current column to the default width", action: func(m *Model) tea.Cmd {
-				m.sheet.SetColWidth(m.cur.Col, 0)
-				m.changed = true
-				return nil
-			}},
+			{name: "Set-Width", cmd: "column.width"},
+			{name: "Reset-Width", cmd: "column.reset"},
 		}},
 		{name: "Erase", items: []menuItem{
-			{name: "No", desc: "Do not erase the worksheet; return to READY mode", action: noop},
-			{name: "Yes", descFn: unsavedWarning("Erase the entire worksheet from memory"), action: func(m *Model) tea.Cmd {
-				m.reset(sheet.New(), "")
-				return nil
-			}},
+			{name: "No", desc: "Do not erase the worksheet; return to READY mode"},
+			{name: "Yes", descFn: unsavedWarning("Erase the entire worksheet from memory"), cmd: "worksheet.erase"},
 		}},
 	}},
 	{name: "Range", items: []menuItem{
-		{name: "Erase", desc: "Erase the cell or range", action: func(m *Model) tea.Cmd {
-			m.openRange("Enter range to erase:", func(m *Model, r sheet.Rect) tea.Cmd {
-				m.sheet.EraseRange(r)
-				m.changed = true
-				return nil
-			})
-			return nil
-		}},
+		{name: "Erase", cmd: "range.erase"},
 	}},
 	{name: "File", items: []menuItem{
-		{name: "Save", desc: "Store the entire worksheet in a file", action: (*Model).openSave},
-		{name: "Retrieve", desc: "Erase the current worksheet and display the selected file", action: (*Model).openRetrieve},
+		{name: "Save", cmd: "file.save"},
+		{name: "Retrieve", cmd: "file.retrieve"},
 	}},
 	{name: "Quit", items: []menuItem{
-		{name: "No", desc: "Do not end the session; return to READY mode", action: noop},
-		{name: "Yes", descFn: unsavedWarning("End the session"), action: func(*Model) tea.Cmd { return tea.Quit }},
+		{name: "No", desc: "Do not end the session; return to READY mode"},
+		{name: "Yes", descFn: unsavedWarning("End the session"), cmd: "quit"},
 	}},
 }
-
-func noop(*Model) tea.Cmd { return nil }
 
 func unsavedWarning(desc string) func(m *Model) string {
 	return func(m *Model) string {
@@ -88,8 +73,12 @@ func (it menuItem) description(m *Model) string {
 			names[i] = sub.name
 		}
 		return strings.Join(names, "  ")
+	case it.desc != "":
+		return it.desc
+	case it.cmd != "":
+		return commands[it.cmd].desc
 	}
-	return it.desc
+	return ""
 }
 
 func (m *Model) openMenu() {
@@ -137,7 +126,10 @@ func (m *Model) choose(it menuItem) tea.Cmd {
 	}
 	m.menu = nil
 	m.mode = modeReady
-	return it.action(m)
+	if it.cmd == "" {
+		return nil
+	}
+	return m.runCommand(it.cmd)
 }
 
 type promptKind int
@@ -327,7 +319,7 @@ func (m *Model) fail(msg string) {
 }
 
 func (m *Model) reset(s *sheet.Sheet, filename string) {
-	*m = Model{sheet: s, filename: filename, width: m.width, height: m.height}
+	*m = Model{sheet: s, filename: filename, width: m.width, height: m.height, th: m.th}
 }
 
 func isDigits(s string) bool {

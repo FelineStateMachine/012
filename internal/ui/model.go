@@ -66,15 +66,18 @@ type Model struct {
 	prompt *prompt
 	files  []string // file list shown by File Retrieve
 	errMsg string
+
+	th theme
 }
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	return &Model{sheet: s, filename: filename, width: 80, height: 24}
+	return &Model{sheet: s, filename: filename, width: 80, height: 24, th: newTheme(true)}
 }
 
-// Init implements tea.Model.
-func (m *Model) Init() tea.Cmd { return nil }
+// Init implements tea.Model. It asks the terminal for its background color
+// so the theme can adapt to light terminals.
+func (m *Model) Init() tea.Cmd { return tea.RequestBackgroundColor }
 
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -82,6 +85,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+	case tea.BackgroundColorMsg:
+		m.th = newTheme(msg.IsDark())
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
@@ -129,25 +134,21 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 	if m.navigate(k.String(), &m.cur) {
 		return nil
 	}
-	switch k.String() {
-	case "/", "<":
-		m.openMenu()
-	case "f1":
-		m.mode = modeHelp
-	case "f2":
-		m.startEntry(modeEdit, "")
-		if c := m.sheet.Cell(m.cur); c != nil {
-			m.buf = []rune(c.Input)
-			m.bufPos = len(m.buf)
-		}
-	case "f5":
-		m.openGoto()
-	case "delete":
-		m.set(m.cur, "")
-	default:
-		if text := typed(k); text != "" {
-			m.startEntry(entryMode(text), text)
-		}
+	if id, ok := keymap[k.String()]; ok {
+		return m.runCommand(id)
+	}
+	if text := typed(k); text != "" {
+		m.startEntry(entryMode(text), text)
+	}
+	return nil
+}
+
+// startEdit enters EDIT mode on the current cell's contents.
+func (m *Model) startEdit() tea.Cmd {
+	m.startEntry(modeEdit, "")
+	if c := m.sheet.Cell(m.cur); c != nil {
+		m.buf = []rune(c.Input)
+		m.bufPos = len(m.buf)
 	}
 	return nil
 }
