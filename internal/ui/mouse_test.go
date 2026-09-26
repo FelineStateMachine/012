@@ -9,7 +9,7 @@ import (
 	"one23/internal/sheet"
 )
 
-func mouseAt(x, y int) tea.Mouse { return tea.Mouse{X: x, Y: y, Button: tea.MouseLeft} }
+func leftAt(x, y int) tea.Mouse { return tea.Mouse{X: x, Y: y, Button: tea.MouseLeft} }
 
 // barText is the text in the formula bar after the name box.
 func barText(m *Model) string {
@@ -37,9 +37,9 @@ func TestClickInsertsReferenceIntoFormula(t *testing.T) {
 		t.Fatalf("mode %v formula bar %q", m.mode, barText(m))
 	}
 	// Dragging makes it a range.
-	send(m, tea.MouseClickMsg(mouseAt(cellX(0), gridTop)))
-	send(m, tea.MouseMotionMsg(mouseAt(cellX(0), gridTop+1)))
-	send(m, tea.MouseReleaseMsg(mouseAt(cellX(0), gridTop+1)))
+	send(m, tea.MouseClickMsg(leftAt(cellX(0), gridTop)))
+	send(m, tea.MouseMotionMsg(leftAt(cellX(0), gridTop+1)))
+	send(m, tea.MouseReleaseMsg(leftAt(cellX(0), gridTop+1)))
 	if barText(m) != "=A1:A2" {
 		t.Fatalf("formula bar %q", barText(m))
 	}
@@ -72,15 +72,15 @@ func TestResizeColumnByDragging(t *testing.T) {
 	if m.hover.kind != hitColBorder || !strings.Contains(line(m, headerLine), "▐") {
 		t.Fatalf("hover %v header %q", m.hover.kind, line(m, headerLine))
 	}
-	send(m, tea.MouseClickMsg(mouseAt(border, headerLine)))
-	send(m, tea.MouseMotionMsg(mouseAt(border+5, headerLine)))
+	send(m, tea.MouseClickMsg(leftAt(border, headerLine)))
+	send(m, tea.MouseMotionMsg(leftAt(border+5, headerLine)))
 	if w := m.sheet.ColWidth(0); w != sheet.DefaultWidth+5 {
 		t.Errorf("width while dragging %d", w)
 	}
 	if !strings.Contains(line(m, 2), "Column A width 15") {
 		t.Errorf("context line %q", line(m, 2))
 	}
-	send(m, tea.MouseReleaseMsg(mouseAt(border+5, headerLine)))
+	send(m, tea.MouseReleaseMsg(leftAt(border+5, headerLine)))
 	if m.drag != dragNone || !m.changed {
 		t.Error("resize did not finish")
 	}
@@ -99,8 +99,8 @@ func TestDoubleClickBorderAutofits(t *testing.T) {
 
 func TestDragAutoscrolls(t *testing.T) {
 	m := newModel()
-	send(m, tea.MouseClickMsg(mouseAt(cellX(0), gridTop)))
-	_, cmd := m.Update(tea.MouseMotionMsg(mouseAt(cellX(0), m.height-1)))
+	send(m, tea.MouseClickMsg(leftAt(cellX(0), gridTop)))
+	_, cmd := m.Update(tea.MouseMotionMsg(leftAt(cellX(0), m.height-1)))
 	if cmd == nil || !m.autoscrolling {
 		t.Fatal("dragging below the grid did not start autoscroll")
 	}
@@ -111,7 +111,7 @@ func TestDragAutoscrolls(t *testing.T) {
 	if m.ext.Row != bottom+5 || m.top == 0 {
 		t.Errorf("ext %v top %d", m.ext, m.top)
 	}
-	send(m, tea.MouseReleaseMsg(mouseAt(cellX(0), m.height-1)))
+	send(m, tea.MouseReleaseMsg(leftAt(cellX(0), m.height-1)))
 	send(m, autoscrollMsg{})
 	if m.autoscrolling {
 		t.Error("autoscroll kept going after release")

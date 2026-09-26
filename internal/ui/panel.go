@@ -32,7 +32,11 @@ func (m *Model) View() tea.View {
 		lines[i] = ansi.Truncate(l, m.width, "")
 	}
 
-	v := tea.NewView(strings.Join(lines, "\n"))
+	content := strings.Join(lines, "\n")
+	if m.overlay != nil {
+		content = m.compose(content)
+	}
+	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go
 	v.WindowTitle = "one23 - " + m.displayName()
@@ -55,7 +59,10 @@ func (m *Model) displayName() string {
 
 // indicator is the mode shown at the top right.
 func (m *Model) indicator() string {
-	if m.mode == modePrompt {
+	switch {
+	case m.overlay != nil:
+		return m.overlay.indicator()
+	case m.mode == modePrompt:
 		return m.prompt.indicator
 	}
 	return m.mode.String()
@@ -107,13 +114,15 @@ func (m *Model) contextLineText() string {
 	case m.mode == modeReady:
 		left = m.readyLine()
 	case m.mode == modeMenu:
-		left = m.slashMenuLine()
+		if c, ok := m.overlay.(*choiceBar); ok {
+			left = c.line(m)
+		}
 	case m.mode == modePrompt:
 		left, right = m.promptLine()
 	case m.mode == modePoint:
 		left = m.keyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
 	case m.mode == modeEnter && m.isFormula():
-		left = m.keyHints("Enter", "accept", "Tab", "accept and go right", "Arrows after an operator", "pick cells", "Esc", "cancel")
+		left = m.keyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
 	case m.mode == modeEnter:
 		left = m.keyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "accept and move", "Esc", "cancel")
 	case m.mode == modeEdit:
@@ -151,18 +160,29 @@ func (m *Model) promptPrefix() string {
 	return m.prompt.label + " "
 }
 
-// keyHints renders key and description pairs, e.g. "Enter accept".
+// keyHints renders key and description pairs, e.g. "Enter accept", each
+// key as a chip.
 func (m *Model) keyHints(pairs ...string) string {
 	parts := make([]string, 0, len(pairs)/2)
 	for i := 0; i+1 < len(pairs); i += 2 {
-		parts = append(parts, m.th.key.Render(pairs[i])+" "+m.th.muted.Render(pairs[i+1]))
+		parts = append(parts, m.chip(pairs[i])+" "+m.th.muted.Render(pairs[i+1]))
 	}
-	return strings.Join(parts, m.th.muted.Render("   "))
+	return strings.Join(parts, "  ")
+}
+
+// chip draws a key name as a key cap, e.g. "Ctrl+S".
+func (m *Model) chip(label string) string {
+	return m.th.keyChip.Render(" " + label + " ")
 }
 
 // cursorPos returns where the terminal cursor goes: in the formula bar
-// while typing an entry, on the context line in a text prompt.
+// while typing an entry, on the context line in a text prompt, or in an
+// overlay's search field.
 func (m *Model) cursorPos() (x, y int, ok bool) {
+	if o, isText := m.overlay.(textOverlay); isText {
+		x, y = o.cursor(m)
+		return x, y, true
+	}
 	switch {
 	case m.mode == modeEnter, m.mode == modeEdit:
 		return formulaBarTextX() + ansi.StringWidth(string(m.buf[:m.bufPos])), formulaLine, true
@@ -175,6 +195,12 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 func (m *Model) statusLine() string {
 	if m.mode == modeError {
 		return m.th.error.Render(m.errMsg) + m.th.muted.Render("   press any key")
+	}
+	if m.overlay != nil {
+		// What the highlighted item does and the keys that apply.
+		if desc, keys := m.overlay.status(m); desc != "" || keys != "" {
+			return m.spread(desc, keys)
+		}
 	}
 	left := m.displayName()
 	if m.changed {

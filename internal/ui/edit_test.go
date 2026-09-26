@@ -52,7 +52,8 @@ func TestUndoRedoKeys(t *testing.T) {
 
 func TestUndoColumnWidthPrompt(t *testing.T) {
 	m := newModel()
-	press(t, m, "<f10>", "f", "<enter>", "c", "<right>", "<right>", "<enter>")
+	run(m, m.runCommand("column.width"))
+	press(t, m, "<right>", "<right>", "<enter>")
 	if m.sheet.ColWidth(0) != 12 {
 		t.Fatalf("width %d", m.sheet.ColWidth(0))
 	}
@@ -60,7 +61,8 @@ func TestUndoColumnWidthPrompt(t *testing.T) {
 	if m.sheet.ColWidth(0) != 10 || m.sheet.CanUndo() {
 		t.Errorf("width preview and result should be one step: width %d", m.sheet.ColWidth(0))
 	}
-	press(t, m, "<f10>", "f", "<enter>", "c", "<right>", "<esc>")
+	run(m, m.runCommand("column.width"))
+	press(t, m, "<right>", "<esc>")
 	if m.sheet.CanUndo() || m.changed {
 		t.Errorf("cancelled width prompt left an undo step: %v %v %d %v", m.sheet.CanUndo(), m.changed, m.sheet.ColWidth(0), m.mode)
 	}
@@ -83,7 +85,7 @@ func TestCopyPaste(t *testing.T) {
 	if got := clipboardText(t, m, "edit.copy"); got != "1\t2" {
 		t.Errorf("system clipboard %q", got)
 	}
-	if !m.copyMarked(addr("B1")) || !strings.HasPrefix(line(m, 2), "Copied A1:B1   Ctrl+V paste") {
+	if l := line(m, 2); !m.copyMarked(addr("B1")) || !strings.HasPrefix(l, "Copied A1:B1") || !strings.Contains(l, "Ctrl+V") {
 		t.Fatalf("marker %v, line %q", m.copyMarked(addr("B1")), line(m, 2))
 	}
 	press(t, m, "<down>", "<ctrl+v>")
@@ -124,7 +126,7 @@ func TestEditClearsCopyMarker(t *testing.T) {
 func TestCutPasteMoves(t *testing.T) {
 	m := newModel()
 	press(t, m, "5", "<enter>", "=A1+1", "<enter>", "<ctrl+home>", "<ctrl+x>")
-	if !strings.HasPrefix(line(m, 2), "Cut A1   Ctrl+V move here") {
+	if l := line(m, 2); !strings.HasPrefix(l, "Cut A1") || !strings.Contains(l, "move here") {
 		t.Errorf("context line %q", line(m, 2))
 	}
 	press(t, m, "<right>", "<right>", "<ctrl+v>")

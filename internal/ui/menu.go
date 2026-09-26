@@ -14,164 +14,6 @@ import (
 	"one23/internal/sheet"
 )
 
-// menuItem is one entry in the slash menu. An item either opens a submenu
-// (items) or runs a registered command (cmd). Descriptions come from the
-// command unless the item overrides them.
-type slashItem struct {
-	name   string
-	desc   string
-	descFn func(m *Model) string // overrides desc when set
-	items  []slashItem
-	cmd    string
-}
-
-type menuLevel struct {
-	items []slashItem
-	sel   int
-}
-
-// rootMenu is interim: the Sheets-style menu bar replaces it.
-var rootMenu = []slashItem{
-	{name: "File", items: []slashItem{
-		{name: "New", descFn: unsavedWarning("Start a new, empty sheet"), cmd: "file.new"},
-		{name: "Open", cmd: "file.open"},
-		{name: "Save", cmd: "file.save"},
-		{name: "As", desc: "Save the sheet under a new name", cmd: "file.saveas"},
-		{name: "Quit", cmd: "quit"},
-	}},
-	{name: "Edit", items: []slashItem{
-		{name: "Clear", cmd: "clear"},
-		{name: "Go to", cmd: "goto"},
-		{name: "Select all", cmd: "select.all"},
-	}},
-	{name: "Format", items: []slashItem{
-		{name: "Column width", cmd: "column.width"},
-		{name: "Reset column width", cmd: "column.reset"},
-	}},
-}
-
-// quitConfirm is shown by Quit when there are unsaved changes.
-var quitConfirm = []slashItem{
-	{name: "Cancel", desc: "Keep working"},
-	{name: "Quit without saving", descFn: unsavedWarning("Close one23"), cmd: "quit.force"},
-}
-
-func init() {
-	register(&command{id: "quit.force", title: "Quit without saving", desc: "Close one23, discarding changes", run: func(*Model) tea.Cmd { return exit() }})
-}
-
-func unsavedWarning(desc string) func(m *Model) string {
-	return func(m *Model) string {
-		if m.changed {
-			return "You have unsaved changes. " + desc + " anyway?"
-		}
-		return desc
-	}
-}
-
-func (it slashItem) description(m *Model) string {
-	switch {
-	case it.descFn != nil:
-		return it.descFn(m)
-	case it.items != nil:
-		names := make([]string, len(it.items))
-		for i, sub := range it.items {
-			names[i] = sub.name
-		}
-		return strings.Join(names, "  ")
-	case it.desc != "":
-		return it.desc
-	case it.cmd != "":
-		return commands[it.cmd].desc
-	}
-	return ""
-}
-
-// slashMenuLine shows the open menu level and the highlighted item's
-// description.
-func (m *Model) slashMenuLine() string {
-	lvl := m.menu[len(m.menu)-1]
-	parts := make([]string, len(lvl.items))
-	for i, it := range lvl.items {
-		parts[i] = it.name
-		if i == lvl.sel {
-			parts[i] = m.th.menuSelected.Render(it.name)
-		}
-	}
-	return strings.Join(parts, "  ") + "   " + m.th.muted.Render(lvl.items[lvl.sel].description(m))
-}
-
-func (m *Model) openMenu() {
-	m.mode = modeMenu
-	m.menu = []menuLevel{{items: rootMenu}}
-}
-
-// menuKey handles MENU mode: arrows highlight, Enter or an item's first
-// letter selects, Esc backs out one level.
-func (m *Model) menuKey(k tea.KeyPressMsg) tea.Cmd {
-	lvl := &m.menu[len(m.menu)-1]
-	n := len(lvl.items)
-	switch k.String() {
-	case "left", "shift+tab":
-		lvl.sel = (lvl.sel + n - 1) % n
-	case "right", "tab", "space":
-		lvl.sel = (lvl.sel + 1) % n
-	case "home":
-		lvl.sel = 0
-	case "end":
-		lvl.sel = n - 1
-	case "enter":
-		return m.choose(lvl.items[lvl.sel])
-	case "esc":
-		m.menu = m.menu[:len(m.menu)-1]
-		if len(m.menu) == 0 {
-			m.mode = modeReady
-		}
-	default:
-		// A letter opens the only item starting with it, or cycles through
-		// the items when several do.
-		text := strings.ToUpper(typed(k))
-		if text == "" {
-			return nil
-		}
-		var matches []int
-		for i, it := range lvl.items {
-			if strings.HasPrefix(strings.ToUpper(it.name), text) {
-				matches = append(matches, i)
-			}
-		}
-		switch len(matches) {
-		case 0:
-		case 1:
-			lvl.sel = matches[0]
-			return m.choose(lvl.items[lvl.sel])
-		default:
-			next := matches[0]
-			for _, i := range matches {
-				if i > lvl.sel {
-					next = i
-					break
-				}
-			}
-			lvl.sel = next
-		}
-	}
-	return nil
-}
-
-func (m *Model) choose(it slashItem) tea.Cmd {
-	if it.items != nil {
-		m.menu = append(m.menu, menuLevel{items: it.items})
-		return nil
-	}
-	m.menu = nil
-	m.mode = modeReady
-	if it.cmd == "" {
-		return nil
-	}
-	return m.runCommand(it.cmd)
-}
-
 type promptKind int
 
 const (
@@ -180,8 +22,8 @@ const (
 	promptWidth
 )
 
-// prompt is a question on the second control panel line, such as a file
-// name or a range to act on.
+// prompt is a question on the context line, such as a file name or a
+// range to act on.
 type prompt struct {
 	kind      promptKind
 	label     string
@@ -303,6 +145,7 @@ func (m *Model) promptKey(k tea.KeyPressMsg) tea.Cmd {
 		if p.onCancel != nil {
 			p.onCancel(m)
 		}
+		m.quitAfterSave = false // cancelling Save as cancels Save and quit
 		m.closePrompt()
 		return nil
 	case "enter":
@@ -441,13 +284,19 @@ func listFilesCmd() tea.Msg {
 	return filesMsg(files)
 }
 
-func (m *Model) handleSaved(msg savedMsg) {
+func (m *Model) handleSaved(msg savedMsg) tea.Cmd {
+	quit := m.quitAfterSave
+	m.quitAfterSave = false
 	if msg.err != nil {
 		m.fail(fmt.Sprintf("Couldn't save %s: %v", msg.name, msg.err))
-		return
+		return nil
 	}
 	m.filename = msg.name
 	m.changed = false
+	if quit {
+		return exit()
+	}
+	return nil
 }
 
 func (m *Model) handleLoaded(msg loadedMsg) {

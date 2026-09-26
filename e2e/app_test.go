@@ -116,15 +116,6 @@ func TestInvalidFormulaCursor(t *testing.T) {
 	})
 }
 
-func TestMenuSetsColumnWidth(t *testing.T) {
-	s := start(t, "")
-	s.keys("<f10>")
-	s.waitFor("File  Edit  Format")
-	s.keys("f", "<enter>", "c", "20", "<enter>")
-	s.waitFor("READY")
-	s.eventually("wider column A", func() bool { return strings.HasPrefix(s.line(3), strings.Repeat(" ", 6)+strings.Repeat(" ", 9)+"A") })
-}
-
 func TestSaveQuitReopen(t *testing.T) {
 	dir := t.TempDir()
 	s := start(t, dir)
@@ -147,14 +138,6 @@ func TestSaveQuitReopen(t *testing.T) {
 	if !strings.Contains(r.screen(), "budget.o23") {
 		t.Errorf("status line missing file name:\n%s", r.screen())
 	}
-}
-
-func TestQuitAsksAboutUnsavedChanges(t *testing.T) {
-	s := start(t, "")
-	s.keys("1", "<enter>", "<ctrl+q>")
-	s.waitFor("Cancel  Quit without saving")
-	s.keys("<esc>", "<esc>")
-	s.waitFor("READY")
 }
 
 func TestResizeShowsMoreColumns(t *testing.T) {

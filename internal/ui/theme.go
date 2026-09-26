@@ -24,7 +24,8 @@ type theme struct {
 	warning      lipgloss.Style // recoverable problems, e.g. a formula error
 	error        lipgloss.Style // ERROR mode message
 	muted        lipgloss.Style // secondary text: key hints, file lists
-	key          lipgloss.Style // a key name inside a hint, e.g. "Enter"
+	key          lipgloss.Style // emphasized text in the status line, e.g. a range
+	keyChip      lipgloss.Style // a key cap in hints, menus and the palette, e.g. " Enter "
 	errorCell    lipgloss.Style // cells whose value is ERR or NA
 	// copied marks the range on the clipboard, like Sheets' dashed border:
 	// a dashed underline across every cell, layered on the cell's own
@@ -34,14 +35,13 @@ type theme struct {
 	// Chrome: the menu bar, dropdowns, the palette and dialogs.
 	menuBar           lipgloss.Style // menu bar titles
 	menuAccel         lipgloss.Style // a title's accelerator letter
-	menuSelected      lipgloss.Style // open title, highlighted item or button
+	menuSelected      lipgloss.Style // open title, highlighted item
 	menuAccelSelected lipgloss.Style // accelerator letter of the open title
 	border            lipgloss.Style // box borders and separators
 	title             lipgloss.Style // box titles and group headings
 	disabled          lipgloss.Style // items that can't run right now
 	match             lipgloss.Style // characters matched by a search
 	matchSelected     lipgloss.Style // matched characters in the highlighted row
-	button            lipgloss.Style // dialog buttons without focus
 }
 
 func newTheme(dark bool) theme {
@@ -68,6 +68,7 @@ func newTheme(dark bool) theme {
 		error:        lipgloss.NewStyle().Foreground(lipgloss.BrightRed).Bold(true),
 		muted:        lipgloss.NewStyle().Foreground(muted),
 		key:          lipgloss.NewStyle().Bold(true),
+		keyChip:      lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
 		errorCell:    lipgloss.NewStyle().Foreground(lipgloss.Red),
 		copied: lipgloss.NewStyle().Foreground(lipgloss.Magenta).
 			UnderlineStyle(lipgloss.UnderlineDashed).UnderlineSpaces(true),
@@ -81,6 +82,5 @@ func newTheme(dark bool) theme {
 		disabled:          lipgloss.NewStyle().Foreground(lipgloss.BrightBlack), // exempt from contrast, like Sheets
 		match:             lipgloss.NewStyle().Foreground(match).Bold(true),
 		matchSelected:     accent.Bold(true).Underline(true),
-		button:            lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
 	}
 }

@@ -346,28 +346,6 @@ func TestWheelDoesNotSnapBack(t *testing.T) {
 	}
 }
 
-func TestMenuColumnWidthOnSelection(t *testing.T) {
-	m := newModel()
-	press(t, m, "<shift+right>", "<f10>")
-	if l := line(m, contextLine); !strings.HasPrefix(l, "File  Edit  Format") {
-		t.Fatalf("menu line %q", l)
-	}
-	press(t, m, "f") // two items start with F: cycles to Format
-	press(t, m, "<enter>", "c", "15", "<enter>")
-	if m.mode != modeReady || m.sheet.ColWidth(0) != 15 || m.sheet.ColWidth(1) != 15 {
-		t.Errorf("mode %v widths %d %d", m.mode, m.sheet.ColWidth(0), m.sheet.ColWidth(1))
-	}
-	// Arrows preview live; Esc restores.
-	press(t, m, "<f10>", "<left>", "<enter>", "c", "<right>", "<right>")
-	if m.sheet.ColWidth(0) != 17 {
-		t.Errorf("preview width %d", m.sheet.ColWidth(0))
-	}
-	press(t, m, "<esc>")
-	if m.sheet.ColWidth(0) != 15 {
-		t.Errorf("width after esc %d", m.sheet.ColWidth(0))
-	}
-}
-
 func TestGoto(t *testing.T) {
 	m := newModel()
 	press(t, m, "<ctrl+g>", "Z100", "<enter>")
@@ -413,25 +391,6 @@ func TestSaveAndOpen(t *testing.T) {
 	press(t, m2, "<ctrl+o>", "missing", "<enter>")
 	if m2.mode != modeError {
 		t.Errorf("mode %v", m2.mode)
-	}
-}
-
-func TestQuitConfirmsUnsavedChanges(t *testing.T) {
-	m := newModel()
-	if _, ok := press(t, m, "<ctrl+q>").(tea.QuitMsg); !ok {
-		t.Fatal("Ctrl+Q with no changes did not quit")
-	}
-	m = newModel()
-	press(t, m, "1", "<enter>")
-	if msg := press(t, m, "<ctrl+q>"); msg != nil || m.mode != modeMenu {
-		t.Fatalf("Ctrl+Q with changes: %v mode %v", msg, m.mode)
-	}
-	press(t, m, "<right>")
-	if !strings.Contains(line(m, 2), "unsaved changes") {
-		t.Errorf("no unsaved warning: %q", line(m, 2))
-	}
-	if _, ok := press(t, m, "<enter>").(tea.QuitMsg); !ok {
-		t.Error("Quit without saving did not quit")
 	}
 }
 

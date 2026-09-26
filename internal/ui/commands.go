@@ -43,7 +43,6 @@ func register(cmds ...*command) {
 // keymap binds READY-mode keys to command IDs, following Google Sheets
 // where it has a shortcut. Movement and typing are handled separately.
 var keymap = map[string]string{
-	"f10":         "menu",
 	"f1":          "help",
 	"ctrl+/":      "help",
 	"enter":       "edit",
@@ -111,10 +110,6 @@ func (m *Model) runCommand(id string) tea.Cmd {
 
 func init() {
 	register(
-		&command{id: "menu", title: "Menu", desc: "Open the menu", run: func(m *Model) tea.Cmd {
-			m.openMenu()
-			return nil
-		}},
 		&command{id: "help", title: "Keyboard shortcuts", desc: "Show keys and functions", run: func(m *Model) tea.Cmd {
 			m.mode = modeHelp
 			return nil
@@ -163,14 +158,4 @@ func (m *Model) save() tea.Cmd {
 		return m.openSave()
 	}
 	return saveCmd(m.sheet, m.filename)
-}
-
-// quit exits, confirming first when there are unsaved changes.
-func (m *Model) quit() tea.Cmd {
-	if !m.changed {
-		return exit()
-	}
-	m.openMenu()
-	m.menu = append(m.menu, menuLevel{items: quitConfirm})
-	return nil
 }

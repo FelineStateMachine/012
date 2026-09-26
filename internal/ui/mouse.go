@@ -171,10 +171,7 @@ func (m *Model) leftPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 		m.errMsg, m.mode = "", modeReady
 		return nil
 	case modeMenu:
-		if h.kind != hitPanel {
-			m.menu, m.mode = nil, modeReady
-		}
-		return nil
+		return nil // overlays take their clicks in shellMouse first
 	case modePrompt:
 		if m.pointing() && h.kind == hitCell {
 			m.point = pointer{at: h.addr, anchor: h.addr}

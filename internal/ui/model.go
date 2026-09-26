@@ -55,6 +55,8 @@ type Model struct {
 	copied clipboard // see clipboard.go
 	note   string    // feedback on the last action, e.g. "Undid: clear B3"
 
+	quitAfterSave bool // "Save and quit" is waiting for the save to finish
+
 	cur           sheet.Addr // the active cell
 	top, left     int        // first visible row and column
 	width, height int
@@ -90,10 +92,10 @@ type Model struct {
 	pointPrefix string  // entry text before the reference being pointed at
 	pointSuffix string  // entry text after the caret while pointing
 
-	menu   []menuLevel
-	prompt *prompt
-	files  []string // file list shown by File Open
-	errMsg string
+	overlay overlay // open menu, palette or dialog, if any (modeMenu)
+	prompt  *prompt
+	files   []string // file list shown by File Open
+	errMsg  string
 
 	th theme
 }
@@ -114,6 +116,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	before, beforeMode := *m.focus(), m.mode
 	state := m.beginUpdate(msg)
 	var cmd tea.Cmd
+	if mouse, ok := msg.(tea.MouseMsg); ok {
+		var handled bool
+		if cmd, handled = m.shellMouse(mouse); handled {
+			msg = nil // taken by the menu bar or an overlay, not the grid
+		}
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -135,7 +143,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		m.handleWheel(msg.Mouse())
 	case savedMsg:
-		m.handleSaved(msg)
+		cmd = m.handleSaved(msg)
 		if msg.err == nil {
 			m.saved = m.sheet.StateID()
 		}
@@ -191,7 +199,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 	case modePoint:
 		return m.pointKey(k)
 	case modeMenu:
-		return m.menuKey(k)
+		return m.overlay.key(m, k)
 	case modePrompt:
 		return m.promptKey(k)
 	case modeHelp, modeError:
@@ -205,6 +213,10 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
 	if m.moveKey(key) {
 		m.tabbing = false
+		return nil
+	}
+	if i := barMenuFor(key); i >= 0 {
+		m.showBarMenu(i)
 		return nil
 	}
 	if id, ok := keymap[key]; ok {

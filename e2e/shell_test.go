@@ -1,0 +1,45 @@
+package e2e
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// The app shell: menu bar, dropdowns, context menus, the command palette
+// and the context-line confirmations.
+
+func TestAltFOpensFileMenuAndSaves(t *testing.T) {
+	dir := t.TempDir()
+	s := start(t, dir)
+	s.keys("42", "<enter>", "<alt+f>")
+	s.waitFor("│ Save as")
+	s.waitFor("MENU")
+	// "s" highlights Save (Save as also starts with s); Enter runs it.
+	s.keys("s", "<enter>")
+	s.waitFor("Save as: SHEET1.o23")
+	s.keys("<enter>")
+	s.eventually("saved file", func() bool {
+		_, err := os.Stat(filepath.Join(dir, "SHEET1.o23"))
+		return err == nil
+	})
+	s.waitFor("READY")
+}
+
+func TestMenuSetsColumnWidth(t *testing.T) {
+	s := start(t, "")
+	s.keys("<alt+o>", "c", "20", "<enter>")
+	s.waitFor("READY")
+	s.eventually("wider column A", func() bool { return strings.HasPrefix(s.line(3), strings.Repeat(" ", 6)+strings.Repeat(" ", 9)+"A") })
+}
+
+func TestQuitAsksAboutUnsavedChanges(t *testing.T) {
+	s := start(t, "")
+	s.keys("1", "<enter>", "<ctrl+q>")
+	s.waitFor("You have unsaved changes.")
+	s.keys("<esc>")
+	s.waitFor("READY")
+	s.keys("<ctrl+q>", "d")
+	s.waitExit()
+}
