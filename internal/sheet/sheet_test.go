@@ -73,7 +73,9 @@ func TestFormulas(t *testing.T) {
 	}{
 		{"=A1+A2*2", num(50)},
 		{"=(A1+A2)*2", num(60)},
-		{"=-2^2", num(-4)},
+		{"=-2^2", num(4)}, // negation first, as in Sheets
+		{"=2^-1", num(0.5)},
+		{"=-A1^2", num(100)},
 		{"=A1/4", num(2.5)},
 		{"+A1*2", num(20)}, // Sheets accepts a leading +
 		{"=SUM(A1:A3)", num(60)},

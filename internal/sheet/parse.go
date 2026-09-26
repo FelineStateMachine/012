@@ -167,9 +167,10 @@ var infixPower = map[string]int{
 	"^": 70,
 }
 
+// Negation binds tighter than ^, so -2^2 is 4 as in Sheets and Excel.
 const (
 	notPower     = 20
-	unaryPower   = 60
+	unaryPower   = 75
 	percentPower = 80
 )
 
