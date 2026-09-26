@@ -3,28 +3,14 @@ package ui
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"one23/internal/sheet"
-)
-
-// Styles use the 16 ANSI colors so the sheet follows the user's terminal
-// theme.
-var (
-	indicatorStyle = lipgloss.NewStyle().Background(lipgloss.Cyan).Foreground(lipgloss.Black).Bold(true)
-	headerStyle    = lipgloss.NewStyle().Background(lipgloss.BrightBlack).Foreground(lipgloss.BrightWhite)
-	headerCurStyle = lipgloss.NewStyle().Background(lipgloss.Cyan).Foreground(lipgloss.Black).Bold(true)
-	pointerStyle   = lipgloss.NewStyle().Background(lipgloss.Cyan).Foreground(lipgloss.Black)
-	rangeStyle     = lipgloss.NewStyle().Background(lipgloss.Blue).Foreground(lipgloss.BrightWhite)
-	menuSelStyle   = lipgloss.NewStyle().Reverse(true)
-	hintStyle      = lipgloss.NewStyle().Foreground(lipgloss.Yellow)
-	errorStyle     = lipgloss.NewStyle().Foreground(lipgloss.BrightRed).Bold(true)
-	dimStyle       = lipgloss.NewStyle().Foreground(lipgloss.BrightBlack)
 )
 
 // View implements tea.Model.
@@ -74,7 +60,7 @@ func (m *Model) panelLine1() string {
 	if m.mode == modePrompt {
 		ind = m.prompt.indicator
 	}
-	ind = indicatorStyle.Render(" " + ind + " ")
+	ind = m.th.indicator.Render(" " + ind + " ")
 	gap := m.width - ansi.StringWidth(left) - ansi.StringWidth(ind)
 	if gap < 1 {
 		left = ansi.Truncate(left, m.width-ansi.StringWidth(ind)-1, "")
@@ -96,7 +82,7 @@ func (m *Model) panelLine2() string {
 		for i, it := range lvl.items {
 			parts[i] = it.name
 			if i == lvl.sel {
-				parts[i] = menuSelStyle.Render(it.name)
+				parts[i] = m.th.menuSelected.Render(it.name)
 			}
 		}
 		return strings.Join(parts, "  ")
@@ -121,13 +107,13 @@ func (m *Model) panelLine3() string {
 		lvl := m.menu[len(m.menu)-1]
 		return lvl.items[lvl.sel].description(m)
 	case m.mode == modePrompt && len(m.files) > 0:
-		return dimStyle.Render(strings.Join(m.files, "  "))
+		return m.th.muted.Render(strings.Join(m.files, "  "))
 	case m.mode == modePrompt && m.prompt.kind == promptWidth:
-		return dimStyle.Render("Type a width or use the left and right arrows")
+		return m.th.muted.Render("Type a width or use the left and right arrows")
 	case m.pointing() || m.mode == modePoint:
-		return dimStyle.Render("Arrows move, . anchors a range, Esc unanchors, Enter accepts")
+		return m.th.muted.Render("Arrows move, . anchors a range, Esc unanchors, Enter accepts")
 	case m.hint != "":
-		return hintStyle.Render(m.hint)
+		return m.th.warning.Render(m.hint)
 	}
 	return ""
 }
@@ -145,13 +131,13 @@ func (m *Model) cursorX() (int, bool) {
 
 func (m *Model) headerRow() string {
 	var b strings.Builder
-	b.WriteString(headerStyle.Render(strings.Repeat(" ", rowHdrW)))
+	b.WriteString(m.th.header.Render(strings.Repeat(" ", rowHdrW)))
 	focus := *m.focus()
 	for i := range m.visibleCols(m.left) {
 		c := m.left + i
-		style := headerStyle
+		style := m.th.header
 		if c == focus.Col {
-			style = headerCurStyle
+			style = m.th.headerActive
 		}
 		b.WriteString(style.Render(center(sheet.ColName(c), m.sheet.ColWidth(c))))
 	}
@@ -163,12 +149,12 @@ func (m *Model) gridRow(row int) string {
 		return ""
 	}
 	focus := *m.focus()
-	hdr := headerStyle
+	hdr := m.th.header
 	if row == focus.Row {
-		hdr = headerCurStyle
+		hdr = m.th.headerActive
 	}
 	var b strings.Builder
-	b.WriteString(hdr.Render(padRight(strconv.Itoa(row+1), rowHdrW)))
+	b.WriteString(hdr.Render(padLeft(strconv.Itoa(row+1), rowHdrW-1) + " "))
 
 	var sel sheet.Rect
 	selecting := m.mode == modePoint || m.pointing()
@@ -179,9 +165,11 @@ func (m *Model) gridRow(row int) string {
 		a := sheet.Addr{Col: m.left + i, Row: row}
 		switch {
 		case a == focus:
-			b.WriteString(pointerStyle.Render(text))
+			b.WriteString(m.th.pointer.Render(text))
 		case selecting && sel.Contains(a):
-			b.WriteString(rangeStyle.Render(text))
+			b.WriteString(m.th.selection.Render(text))
+		case m.sheet.Value(a).Kind == sheet.Error:
+			b.WriteString(m.th.errorCell.Render(text))
 		default:
 			b.WriteString(text)
 		}
@@ -252,7 +240,7 @@ func cellText(c *sheet.Cell, w int, spill *string) string {
 
 func (m *Model) statusLine() string {
 	if m.mode == modeError {
-		return errorStyle.Render(m.errMsg) + dimStyle.Render("  (press any key)")
+		return m.th.error.Render(m.errMsg) + m.th.muted.Render("  (press any key)")
 	}
 	left := m.displayName()
 	if m.changed {
@@ -263,34 +251,67 @@ func (m *Model) statusLine() string {
 		ind = append(ind, "CIRC")
 	}
 	ind = append(ind, "F1 Help  / Menu")
-	right := dimStyle.Render(strings.Join(ind, "  "))
+	right := m.th.muted.Render(strings.Join(ind, "  "))
 	gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
 	return left + strings.Repeat(" ", gap) + right
 }
 
 func (m *Model) helpLines() []string {
-	return []string{
-		indicatorStyle.Render(" HELP ") + "  one23 keys (press any key to return)",
+	lines := []string{
+		m.th.indicator.Render(" HELP ") + "  one23 (press any key to return)",
 		"",
-		"  Arrows            Move the cell pointer",
-		"  PgUp / PgDn       Move one screen up or down",
-		"  Tab / Shift+Tab   Move one screen right or left",
-		"  Home              Go to A1",
-		"  F5                Go to a cell address",
-		"  F2                Edit the current cell",
-		"  Del               Erase the current cell",
-		"  / or <            Open the menu (type an item's first letter)",
-		"  Ctrl+C            Quit immediately",
+		"  Arrows              Move the cell pointer",
+		"  PgUp / PgDn         Move one screen up or down",
+		"  Tab / Shift+Tab     Move one screen right or left",
+		"  Home                Go to A1",
+		"  Ctrl+C              Quit immediately",
+		"",
+	}
+	// Shortcuts come from the keymap so help can't drift from behavior.
+	var ids []string
+	for id := range commands {
+		if len(keysFor(id)) > 0 {
+			ids = append(ids, id)
+		}
+	}
+	slices.SortFunc(ids, func(a, b string) int { return strings.Compare(commands[a].title, commands[b].title) })
+	for _, id := range ids {
+		keys := keysFor(id)
+		for i, k := range keys {
+			keys[i] = keyLabel(k)
+		}
+		lines = append(lines, fmt.Sprintf("  %-20s%s", strings.Join(keys, " or "), commands[id].desc))
+	}
+	return append(lines,
 		"",
 		"  Entries",
-		"  Text              Label (prefix ' left, \" right, ^ center)",
-		"  0-9 + - . ( @ #   Value or formula, e.g. +A1*2, @SUM(A1..A5)",
-		"  Arrows after an operator enter POINT mode; . anchors a range",
+		"  Text                Label (prefix ' left, \" right, ^ center)",
+		"  0-9 + - . ( @ # $   Value or formula, e.g. +A1*2, @SUM(A1..A5)",
+		"  Arrow after + ( ,   POINT mode: arrow to a cell, . anchors a range",
 		"",
 		"  Functions: @SUM @AVG @COUNT @MIN @MAX @ABS @INT @SQRT @ROUND @MOD",
 		"             @IF @PI @TRUE @FALSE @ERR @NA",
 		"  Operators: + - * / ^ & = <> < > <= >= #AND# #OR# #NOT#",
+	)
+}
+
+// keyLabel formats a key binding for display, e.g. "delete" -> "Del".
+func keyLabel(k string) string {
+	switch k {
+	case "delete":
+		return "Del"
+	case "enter":
+		return "Enter"
+	case "esc":
+		return "Esc"
 	}
+	parts := strings.Split(k, "+")
+	for i, p := range parts {
+		if len(p) > 1 {
+			parts[i] = strings.ToUpper(p[:1]) + p[1:]
+		}
+	}
+	return strings.Join(parts, "+")
 }
 
 // cut splits s after w display columns.
