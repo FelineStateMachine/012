@@ -110,8 +110,11 @@ func (m *Model) contextLineText() string {
 	case m.mode == modeReady:
 		left = m.readyLine()
 	case m.mode == modeMenu:
-		if c, ok := m.overlay.(*choiceBar); ok {
-			left = c.line(m)
+		switch o := m.overlay.(type) {
+		case *choiceBar:
+			left = o.line(m)
+		case *findBar:
+			left, right = o.line(m)
 		}
 	case m.mode == modePrompt:
 		left, right = m.promptLine()

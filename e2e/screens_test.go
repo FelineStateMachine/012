@@ -198,6 +198,22 @@ var screens = []screen{
 		s.waitFor("Copied B7")
 	}},
 	{name: "formats", setup: formatted},
+	{name: "find", setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+f>", "r")
+		s.waitFor("1 of 4")
+	}},
+	{name: "replace", setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+home>", "<shift+down>", "<shift+down>", "<shift+down>", "<shift+down>", "<shift+down>", "<shift+down>")
+		s.keys("<ctrl+h>", "Rent", "<tab>", "Lease", "<alt+c>")
+		s.waitFor("in A1:A7")
+	}},
+	{name: "find-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		budget(s)
+		s.keys("<ctrl+h>", "tr", "<tab>", "x")
+		s.waitFor("Replace")
+	}},
 	{name: "menu-format-number", setup: func(s *session) {
 		formatted(s)
 		s.keys("<alt+o>", "<right>")
@@ -209,7 +225,7 @@ var screens = []screen{
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"

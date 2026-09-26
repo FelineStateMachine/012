@@ -29,6 +29,7 @@ type theme struct {
 	key          lipgloss.Style // emphasized text in the status line, e.g. a range
 	keyChip      lipgloss.Style // a key cap in hints, menus and the palette, e.g. " Enter "
 	errorCell    lipgloss.Style // cells whose value is ERR or NA
+	found        lipgloss.Style // cells matching an open search
 	// copied marks the range on the clipboard, like Sheets' dashed border:
 	// a dashed underline across every cell, layered on the cell's own
 	// style, with its own text color where the cell has none.
@@ -92,6 +93,7 @@ func newTheme(dark bool) theme {
 		key:          lipgloss.NewStyle().Bold(true),
 		keyChip:      lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
 		errorCell:    lipgloss.NewStyle().Foreground(lipgloss.Red),
+		found:        lipgloss.NewStyle().Background(lipgloss.Yellow).Foreground(lipgloss.Black),
 		copied: lipgloss.NewStyle().Foreground(lipgloss.Magenta).
 			UnderlineStyle(lipgloss.UnderlineDashed).UnderlineSpaces(true),
 

@@ -91,10 +91,11 @@ type Model struct {
 	pointPrefix string  // entry text before the reference being pointed at
 	pointSuffix string  // entry text after the caret while pointing
 
-	overlay overlay // open menu, palette or dialog, if any (modeMenu)
-	prompt  *prompt
-	files   []string // file list shown by File Open
-	errMsg  string
+	overlay  overlay  // open menu, palette or dialog, if any (modeMenu)
+	lastFind *findBar // the last search, reopened by Ctrl+F
+	prompt   *prompt
+	files    []string // file list shown by File Open
+	errMsg   string
 
 	th theme
 }

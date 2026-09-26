@@ -92,6 +92,8 @@ func (m *Model) gridRow(row int) string {
 			base = m.th.pointer
 		case selecting && sel.Contains(a):
 			base = m.th.selection
+		case m.found(a):
+			base = m.th.found
 		case m.sheet.Value(a).Kind == sheet.Error:
 			base = m.th.errorCell
 		default:

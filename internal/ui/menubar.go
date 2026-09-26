@@ -41,6 +41,7 @@ var menuBar = []menuDef{
 		{cmd: "edit.undo"}, {cmd: "edit.redo"}, sep,
 		{cmd: "edit.cut"}, {cmd: "edit.copy"}, {cmd: "edit.paste"}, {cmd: "edit.paste_values", title: "Paste values only"}, sep,
 		{cmd: "edit.fill_down", title: "Fill down"}, {cmd: "edit.fill_right", title: "Fill right"}, sep,
+		{cmd: "edit.find"}, {cmd: "edit.replace"}, sep,
 		{cmd: "clear"}, {cmd: "select.all"}, {cmd: "goto"}, sep,
 		{cmd: "delete.row", title: "Delete row"}, {cmd: "delete.col", title: "Delete column"}, {cmd: "delete.selection"},
 	}},
