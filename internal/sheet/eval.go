@@ -12,52 +12,71 @@ type Kind int
 const (
 	Empty Kind = iota
 	Number
-	Label
+	Text
+	Bool
 	Error
 )
 
 // Value is the computed contents of a cell.
 type Value struct {
 	Kind Kind
-	Num  float64
-	Str  string // label text or error name (ERR, NA)
+	Num  float64 // numbers, and booleans as 1 or 0
+	Str  string  // text, or the error code such as #DIV/0!
 }
 
+// String renders a value the way a cell shows it in General format.
+func (v Value) String() string {
+	switch v.Kind {
+	case Number:
+		return strconv.FormatFloat(v.Num, 'f', -1, 64)
+	case Bool:
+		if v.Num != 0 {
+			return "TRUE"
+		}
+		return "FALSE"
+	}
+	return v.Str
+}
+
+// Error values, using Google Sheets codes.
 var (
-	errValue = Value{Kind: Error, Str: "ERR"}
-	naValue  = Value{Kind: Error, Str: "NA"}
+	ErrDiv0  = Value{Kind: Error, Str: "#DIV/0!"}
+	ErrValue = Value{Kind: Error, Str: "#VALUE!"}
+	ErrName  = Value{Kind: Error, Str: "#NAME?"}
+	ErrNA    = Value{Kind: Error, Str: "#N/A"}
+	ErrNum   = Value{Kind: Error, Str: "#NUM!"}
+	ErrRef   = Value{Kind: Error, Str: "#REF!"} // also circular references
 )
 
 func num(v float64) Value {
 	if math.IsNaN(v) || math.IsInf(v, 0) {
-		return errValue
+		return ErrNum
 	}
 	return Value{Kind: Number, Num: v}
 }
 
-func boolNum(b bool) Value {
+func boolean(b bool) Value {
 	if b {
-		return num(1)
+		return Value{Kind: Bool, Num: 1}
 	}
-	return num(0)
+	return Value{Kind: Bool}
 }
 
-// asNum converts v for arithmetic. Like 1-2-3, labels and blanks count as 0.
-func asNum(v Value) float64 {
-	if v.Kind == Number {
-		return v.Num
-	}
-	return 0
-}
-
-func asStr(v Value) string {
+// toNum coerces v for arithmetic as Sheets does: blanks are 0, booleans
+// 1 or 0, numeric text is its number, other text is #VALUE!.
+func toNum(v Value) (float64, *Value) {
 	switch v.Kind {
-	case Label:
-		return v.Str
-	case Number:
-		return strconv.FormatFloat(v.Num, 'f', -1, 64)
+	case Empty:
+		return 0, nil
+	case Number, Bool:
+		return v.Num, nil
+	case Text:
+		if n, ok := ParseNumber(v.Str); ok {
+			return n, nil
+		}
+		return 0, &ErrValue
 	}
-	return ""
+	return 0, &v
 }
 
 // lookup resolves the current value of a referenced cell.
@@ -68,12 +87,20 @@ func eval(n Node, get lookup) Value {
 	case numLit:
 		return num(n.v)
 	case strLit:
-		return Value{Kind: Label, Str: n.v}
+		return Value{Kind: Text, Str: n.v}
+	case boolLit:
+		return boolean(n.v)
 	case refNode:
 		return get(n.a)
+	case nameNode:
+		return ErrName
 	case rangeNode:
-		// A bare range outside a function is an error in 1-2-3.
-		return errValue
+		// A range outside a function: Sheets uses the top-left cell here
+		// for single-cell ranges and #VALUE! otherwise.
+		if n.r.From == n.r.To {
+			return get(n.r.From)
+		}
+		return ErrValue
 	case unaryNode:
 		x := eval(n.x, get)
 		if x.Kind == Error {
@@ -81,18 +108,25 @@ func eval(n Node, get lookup) Value {
 		}
 		switch n.op {
 		case "-":
-			return num(-asNum(x))
+			f, err := toNum(x)
+			if err != nil {
+				return *err
+			}
+			return num(-f)
 		case "#NOT#":
-			return boolNum(asNum(x) == 0)
+			f, err := toNum(x)
+			if err != nil {
+				return *err
+			}
+			return boolean(f == 0)
 		}
-		// Unary + is identity, so string formulas like +B1&"x" work.
-		return x
+		return x // unary + is identity
 	case binaryNode:
 		return evalBinary(n, get)
 	case callNode:
-		return functions[n.name](n.args, get)
+		return n.fn.call(n.args, get)
 	}
-	return errValue
+	return ErrValue
 }
 
 func evalBinary(n binaryNode, get lookup) Value {
@@ -103,7 +137,33 @@ func evalBinary(n binaryNode, get lookup) Value {
 	if r.Kind == Error {
 		return r
 	}
-	a, b := asNum(l), asNum(r)
+	switch n.op {
+	case "&":
+		return Value{Kind: Text, Str: text(l) + text(r)}
+	case "=", "<>", "<", ">", "<=", ">=":
+		c := compare(l, r)
+		switch n.op {
+		case "=":
+			return boolean(c == 0)
+		case "<>":
+			return boolean(c != 0)
+		case "<":
+			return boolean(c < 0)
+		case ">":
+			return boolean(c > 0)
+		case "<=":
+			return boolean(c <= 0)
+		}
+		return boolean(c >= 0)
+	}
+	a, err := toNum(l)
+	if err != nil {
+		return *err
+	}
+	b, err := toNum(r)
+	if err != nil {
+		return *err
+	}
 	switch n.op {
 	case "+":
 		return num(a + b)
@@ -113,189 +173,56 @@ func evalBinary(n binaryNode, get lookup) Value {
 		return num(a * b)
 	case "/":
 		if b == 0 {
-			return errValue
+			return ErrDiv0
 		}
 		return num(a / b)
 	case "^":
 		return num(math.Pow(a, b))
-	case "&":
-		return Value{Kind: Label, Str: asStr(l) + asStr(r)}
 	case "#AND#":
-		return boolNum(a != 0 && b != 0)
+		return boolean(a != 0 && b != 0)
 	case "#OR#":
-		return boolNum(a != 0 || b != 0)
+		return boolean(a != 0 || b != 0)
 	}
-	cmp := compare(l, r)
-	switch n.op {
-	case "=":
-		return boolNum(cmp == 0)
-	case "<>":
-		return boolNum(cmp != 0)
-	case "<":
-		return boolNum(cmp < 0)
-	case ">":
-		return boolNum(cmp > 0)
-	case "<=":
-		return boolNum(cmp <= 0)
-	case ">=":
-		return boolNum(cmp >= 0)
-	}
-	return errValue
+	return ErrValue
 }
 
+// text converts a value for string concatenation.
+func text(v Value) string {
+	if v.Kind == Empty {
+		return ""
+	}
+	return v.String()
+}
+
+// compare orders values like Sheets: numbers < text < booleans, text is
+// case-insensitive, and a blank equals 0 or "".
 func compare(l, r Value) int {
-	if l.Kind == Label && r.Kind == Label {
+	rank := func(v Value) int {
+		switch v.Kind {
+		case Text:
+			return 1
+		case Bool:
+			return 2
+		}
+		return 0
+	}
+	if l.Kind == Empty && r.Kind == Text {
+		l = Value{Kind: Text}
+	}
+	if r.Kind == Empty && l.Kind == Text {
+		r = Value{Kind: Text}
+	}
+	if d := rank(l) - rank(r); d != 0 {
+		return d
+	}
+	if l.Kind == Text {
 		return strings.Compare(strings.ToUpper(l.Str), strings.ToUpper(r.Str))
 	}
-	a, b := asNum(l), asNum(r)
 	switch {
-	case a < b:
+	case l.Num < r.Num:
 		return -1
-	case a > b:
+	case l.Num > r.Num:
 		return 1
 	}
 	return 0
-}
-
-type function func(args []Node, get lookup) Value
-
-var functions map[string]function
-
-func init() {
-	functions = map[string]function{
-		"SUM":   aggregate(func(s stats) Value { return num(s.sum) }),
-		"COUNT": aggregate(func(s stats) Value { return num(float64(s.count)) }),
-		"AVG": aggregate(func(s stats) Value {
-			if s.count == 0 {
-				return errValue
-			}
-			return num(s.sum / float64(s.count))
-		}),
-		"MIN": aggregate(func(s stats) Value {
-			if s.nums == 0 {
-				return num(0)
-			}
-			return num(s.min)
-		}),
-		"MAX": aggregate(func(s stats) Value {
-			if s.nums == 0 {
-				return num(0)
-			}
-			return num(s.max)
-		}),
-		"ABS":  math1(math.Abs),
-		"INT":  math1(math.Trunc),
-		"SQRT": math1(math.Sqrt),
-		"ROUND": math2(func(x, places float64) float64 {
-			p := math.Pow(10, math.Trunc(places))
-			return math.Round(x*p) / p
-		}),
-		"MOD": math2(func(x, y float64) float64 {
-			if y == 0 {
-				return math.NaN()
-			}
-			return math.Mod(x, y)
-		}),
-		"PI":    constant(num(math.Pi)),
-		"TRUE":  constant(num(1)),
-		"FALSE": constant(num(0)),
-		"ERR":   constant(errValue),
-		"NA":    constant(naValue),
-		"IF": func(args []Node, get lookup) Value {
-			if len(args) != 3 {
-				return errValue
-			}
-			c := eval(args[0], get)
-			if c.Kind == Error {
-				return c
-			}
-			if asNum(c) != 0 {
-				return eval(args[1], get)
-			}
-			return eval(args[2], get)
-		},
-	}
-}
-
-type stats struct {
-	sum      float64
-	count    int // non-blank cells, as 1-2-3's @COUNT
-	nums     int
-	min, max float64
-}
-
-// aggregate builds a list function such as @SUM. Ranges contribute every
-// non-blank cell; labels count toward @COUNT but add 0, as in 1-2-3.
-func aggregate(done func(stats) Value) function {
-	return func(args []Node, get lookup) Value {
-		s := stats{min: math.Inf(1), max: math.Inf(-1)}
-		add := func(v Value) *Value {
-			switch v.Kind {
-			case Error:
-				return &v
-			case Empty:
-				return nil
-			case Number:
-				s.nums++
-				s.min, s.max = math.Min(s.min, v.Num), math.Max(s.max, v.Num)
-			}
-			s.count++
-			s.sum += asNum(v)
-			return nil
-		}
-		for _, arg := range args {
-			if rn, ok := arg.(rangeNode); ok {
-				for r := rn.r.From.Row; r <= rn.r.To.Row; r++ {
-					for c := rn.r.From.Col; c <= rn.r.To.Col; c++ {
-						if e := add(get(Addr{Col: c, Row: r})); e != nil {
-							return *e
-						}
-					}
-				}
-				continue
-			}
-			if e := add(eval(arg, get)); e != nil {
-				return *e
-			}
-		}
-		return done(s)
-	}
-}
-
-func math1(f func(float64) float64) function {
-	return func(args []Node, get lookup) Value {
-		if len(args) != 1 {
-			return errValue
-		}
-		x := eval(args[0], get)
-		if x.Kind == Error {
-			return x
-		}
-		return num(f(asNum(x)))
-	}
-}
-
-func math2(f func(float64, float64) float64) function {
-	return func(args []Node, get lookup) Value {
-		if len(args) != 2 {
-			return errValue
-		}
-		x, y := eval(args[0], get), eval(args[1], get)
-		if x.Kind == Error {
-			return x
-		}
-		if y.Kind == Error {
-			return y
-		}
-		return num(f(asNum(x), asNum(y)))
-	}
-}
-
-func constant(v Value) function {
-	return func(args []Node, _ lookup) Value {
-		if len(args) != 0 {
-			return errValue
-		}
-		return v
-	}
 }

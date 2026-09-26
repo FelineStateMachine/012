@@ -89,12 +89,15 @@ func (r Rect) Contains(a Addr) bool {
 		a.Row >= r.From.Row && a.Row <= r.To.Row
 }
 
-// String returns the range in 1-2-3 notation, e.g. A1..B3.
+// String returns the range as A1:B3, or A1 for a single cell.
 func (r Rect) String() string {
-	return r.From.String() + ".." + r.To.String()
+	if r.From == r.To {
+		return r.From.String()
+	}
+	return r.From.String() + ":" + r.To.String()
 }
 
-// ParseRange parses "A1", "A1..B3" or "A1:B3".
+// ParseRange parses "A1", "A1:B3" or 1-2-3 style "A1..B3".
 func ParseRange(s string) (Rect, bool) {
 	s = strings.TrimSpace(s)
 	sep := strings.Index(s, "..")

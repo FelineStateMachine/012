@@ -5,35 +5,28 @@ package sheet
 import (
 	"maps"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode"
 )
 
-// DefaultWidth is the initial column width, as in 1-2-3.
-const DefaultWidth = 9
+// DefaultWidth is the initial column width: nine characters plus padding.
+const DefaultWidth = 10
 
 // Cell holds what the user typed and what it evaluates to.
 type Cell struct {
-	// Input is the entry as typed. Labels always carry an alignment
-	// prefix: ' (left), " (right) or ^ (center).
+	// Input is the entry exactly as typed: text, a number such as "$1,200"
+	// or "12%", or a formula starting with "=".
 	Input string
 	Value Value
 
-	expr   Node   // nil for labels
+	expr   Node   // nil for text
 	refs   []Addr // single-cell references in expr
 	ranges []Rect // range references in expr
 }
 
-// IsLabel reports whether the cell holds a label rather than a value.
-func (c *Cell) IsLabel() bool { return c.expr == nil }
-
-// Align returns the label prefix character, or 0 for values.
-func (c *Cell) Align() byte {
-	if c.IsLabel() {
-		return c.Input[0]
-	}
-	return 0
+// IsFormula reports whether the cell holds a formula.
+func (c *Cell) IsFormula() bool {
+	return c.expr != nil && IsFormulaEntry(c.Input)
 }
 
 // Sheet is a sparse worksheet.
@@ -112,19 +105,47 @@ func (s *Sheet) Widths() map[int]int {
 	return maps.Clone(s.widths)
 }
 
-// IsValueEntry reports whether 1-2-3 would treat input as a value (number or
-// formula) rather than a label, based on its first character.
-func IsValueEntry(input string) bool {
-	if input == "" {
+// IsFormulaEntry reports whether input is written as a formula: it starts
+// with "=", or with "+" or "-" followed by something that isn't a plain
+// number (as Sheets accepts "+A1").
+func IsFormulaEntry(input string) bool {
+	if strings.HasPrefix(input, "=") {
+		return true
+	}
+	if !strings.HasPrefix(input, "+") && !strings.HasPrefix(input, "-") {
 		return false
 	}
-	return strings.IndexByte("0123456789+-.(@#$=", input[0]) >= 0
+	if _, isNum := ParseNumber(input); isNum {
+		return false
+	}
+	_, err := Parse(input)
+	return err == nil
+}
+
+// classify turns an entry into an expression, or nil for text. Entries
+// starting with ' are always text.
+func classify(input string) (Node, error) {
+	if strings.HasPrefix(input, "'") {
+		return nil, nil
+	}
+	if v, ok := ParseNumber(input); ok {
+		return numLit{v}, nil
+	}
+	switch strings.ToUpper(input) {
+	case "TRUE":
+		return boolLit{true}, nil
+	case "FALSE":
+		return boolLit{false}, nil
+	}
+	if IsFormulaEntry(input) {
+		return Parse(input)
+	}
+	return nil, nil
 }
 
 // Set stores an entry at a and recalculates affected cells. An empty input
-// erases the cell. Labels without a prefix get the default ' prefix. A
-// value entry that fails to parse is rejected with a *ParseError and the
-// sheet is left unchanged.
+// erases the cell. A formula that fails to parse is rejected with a
+// *ParseError and the sheet is left unchanged.
 func (s *Sheet) Set(a Addr, input string) error {
 	if err := s.put(a, input); err != nil {
 		return err
@@ -146,18 +167,15 @@ func (s *Sheet) put(a Addr, input string) error {
 		s.erase(a)
 		return nil
 	}
-	c := &Cell{Input: input}
-	if IsValueEntry(input) {
-		n, err := Parse(input)
-		if err != nil {
-			return err
-		}
-		c.expr = n
+	n, err := classify(input)
+	if err != nil {
+		return err
+	}
+	c := &Cell{Input: input, expr: n}
+	if n != nil {
 		walkRefs(n,
 			func(r Addr) { c.refs = append(c.refs, r) },
 			func(r Rect) { c.ranges = append(c.ranges, r) })
-	} else if strings.IndexByte(`'"^`, input[0]) < 0 {
-		c.Input = "'" + input
 	}
 	s.erase(a)
 	s.cells[a] = c
@@ -248,13 +266,13 @@ func (s *Sheet) recalc(changed []Addr) {
 			return Value{}
 		case state[a] == visiting:
 			s.Circular = true
-			return errValue
+			return ErrRef
 		case state[a] != dirty:
 			return c.Value
 		}
 		state[a] = visiting
-		if c.IsLabel() {
-			c.Value = Value{Kind: Label, Str: c.Input[1:]}
+		if c.expr == nil {
+			c.Value = Value{Kind: Text, Str: strings.TrimPrefix(c.Input, "'")}
 		} else {
 			c.Value = eval(c.expr, compute)
 		}
@@ -264,54 +282,4 @@ func (s *Sheet) recalc(changed []Addr) {
 	for a := range state {
 		compute(a)
 	}
-}
-
-// FormatValue renders v to fit in width columns using 1-2-3's General
-// format: numbers are right-aligned with a trailing space, and a number
-// that cannot fit is shown as asterisks.
-func FormatValue(v Value, width int) string {
-	switch v.Kind {
-	case Number:
-		return padLeft(formatGeneral(v.Num, width-1), width-1) + " "
-	case Error:
-		return padLeft(v.Str, width-1) + " "
-	}
-	return ""
-}
-
-func formatGeneral(v float64, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	s := strconv.FormatFloat(v, 'f', -1, 64)
-	if len(s) <= width {
-		return s
-	}
-	// Try fewer decimals before falling back to scientific notation, but
-	// never round a non-zero number down to zero.
-	if dot := strings.IndexByte(s, '.'); dot >= 0 && dot <= width {
-		for prec := max(width-dot-1, 0); prec >= 0; prec-- {
-			f := strconv.FormatFloat(v, 'f', prec, 64)
-			if len(f) > width {
-				continue
-			}
-			if r, _ := strconv.ParseFloat(f, 64); r != 0 || v == 0 {
-				return f
-			}
-			break
-		}
-	}
-	for prec := width; prec >= 0; prec-- {
-		if e := strconv.FormatFloat(v, 'E', prec, 64); len(e) <= width {
-			return e
-		}
-	}
-	return strings.Repeat("*", width)
-}
-
-func padLeft(s string, width int) string {
-	if len(s) >= width {
-		return s
-	}
-	return strings.Repeat(" ", width-len(s)) + s
 }

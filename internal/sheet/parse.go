@@ -12,8 +12,10 @@ type Node any
 type (
 	numLit    struct{ v float64 }
 	strLit    struct{ v string }
+	boolLit   struct{ v bool }
 	refNode   struct{ a Addr }
 	rangeNode struct{ r Rect }
+	nameNode  struct{ name string } // an identifier that isn't a cell; #NAME? until names exist
 	unaryNode struct {
 		op string
 		x  Node
@@ -23,7 +25,7 @@ type (
 		l, r Node
 	}
 	callNode struct {
-		name string
+		fn   *FuncDef
 		args []Node
 	}
 )
@@ -34,8 +36,8 @@ const (
 	tokEOF tokKind = iota
 	tokNum
 	tokStr
-	tokRef
-	tokFunc
+	tokIdent // cell reference, TRUE/FALSE or a name
+	tokFunc  // identifier directly followed by "("
 	tokOp
 )
 
@@ -46,15 +48,18 @@ type token struct {
 }
 
 // ParseError describes a formula that could not be parsed. Pos is the byte
-// offset where the problem was found, used to place the EDIT cursor.
+// offset in the entry where the problem was found, used to place the edit
+// cursor.
 type ParseError struct {
 	Pos int
 	Msg string
 }
 
-func (e *ParseError) Error() string {
-	return fmt.Sprintf("%s at position %d", e.Msg, e.Pos+1)
-}
+func (e *ParseError) Error() string { return e.Msg }
+
+func isIdentStart(c byte) bool { return isLetter(c) || c == '_' || c == '$' }
+
+func isIdentPart(c byte) bool { return isIdentStart(c) || isDigit(c) || c == '.' }
 
 func lex(src string) ([]token, error) {
 	var toks []token
@@ -67,7 +72,7 @@ func lex(src string) ([]token, error) {
 			i++
 			continue
 		case isDigit(c) || (c == '.' && i+1 < len(src) && isDigit(src[i+1])):
-			for i < len(src) && (isDigit(src[i]) || src[i] == '.') {
+			for i < len(src) && (isDigit(src[i]) || src[i] == '.' && !strings.HasPrefix(src[i:], "..")) {
 				i++
 			}
 			if i < len(src) && (src[i] == 'e' || src[i] == 'E') {
@@ -84,40 +89,56 @@ func lex(src string) ([]token, error) {
 			}
 			toks = append(toks, token{tokNum, src[start:i], start})
 		case c == '"':
+			// Strings use "" to escape a quote, as in Sheets.
+			var sb strings.Builder
 			i++
-			for i < len(src) && src[i] != '"' {
+			for {
+				if i >= len(src) {
+					return nil, &ParseError{start, "Missing closing quote"}
+				}
+				if src[i] == '"' {
+					if i+1 < len(src) && src[i+1] == '"' {
+						sb.WriteByte('"')
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				sb.WriteByte(src[i])
 				i++
 			}
-			if i == len(src) {
-				return nil, &ParseError{start, "unterminated string"}
-			}
-			i++
-			toks = append(toks, token{tokStr, src[start+1 : i-1], start})
-		case c == '@':
-			i++
-			for i < len(src) && isLetter(src[i]) {
+			toks = append(toks, token{tokStr, sb.String(), start})
+		case c == '@' || isIdentStart(c):
+			if c == '@' { // 1-2-3 style @SUM
 				i++
 			}
-			if i == start+1 {
-				return nil, &ParseError{start, "missing function name"}
-			}
-			toks = append(toks, token{tokFunc, strings.ToUpper(src[start+1 : i]), start})
-		case c == '$' || isLetter(c):
-			for i < len(src) && (src[i] == '$' || isLetter(src[i]) || isDigit(src[i])) {
+			for i < len(src) && isIdentPart(src[i]) && !strings.HasPrefix(src[i:], "..") {
 				i++
 			}
-			if _, ok := ParseAddr(src[start:i]); !ok {
-				return nil, &ParseError{start, fmt.Sprintf("invalid cell reference %q", src[start:i])}
+			name := strings.ToUpper(strings.TrimPrefix(src[start:i], "@"))
+			if name == "" {
+				return nil, &ParseError{start, "Missing function name after @"}
 			}
-			toks = append(toks, token{tokRef, strings.ToUpper(src[start:i]), start})
+			j := i
+			for j < len(src) && src[j] == ' ' {
+				j++
+			}
+			kind := tokIdent
+			if j < len(src) && src[j] == '(' {
+				kind = tokFunc
+			} else if c == '@' {
+				kind = tokFunc // @PI without parentheses
+			}
+			toks = append(toks, token{kind, name, start})
 		case c == '#':
 			end := strings.IndexByte(src[i+1:], '#')
 			if end < 0 {
-				return nil, &ParseError{start, "unterminated logical operator"}
+				return nil, &ParseError{start, "Unexpected #"}
 			}
 			op := strings.ToUpper(src[i : i+end+2])
 			if op != "#AND#" && op != "#OR#" && op != "#NOT#" {
-				return nil, &ParseError{start, "unknown operator " + op}
+				return nil, &ParseError{start, "Unknown operator " + op}
 			}
 			i += end + 2
 			toks = append(toks, token{tokOp, op, start})
@@ -125,17 +146,17 @@ func lex(src string) ([]token, error) {
 			strings.HasPrefix(src[i:], ">="), strings.HasPrefix(src[i:], "<>"):
 			i += 2
 			toks = append(toks, token{tokOp, src[start:i], start})
-		case strings.IndexByte("+-*/^=<>&(),;:", c) >= 0:
+		case strings.IndexByte("+-*/^=<>&(),;:%", c) >= 0:
 			i++
 			toks = append(toks, token{tokOp, string(c), start})
 		default:
-			return nil, &ParseError{start, fmt.Sprintf("unexpected %q", c)}
+			return nil, &ParseError{start, fmt.Sprintf("Unexpected %q", c)}
 		}
 	}
 	return append(toks, token{tokEOF, "", len(src)}), nil
 }
 
-// Binding powers, lowest to highest, following 1-2-3's precedence table.
+// Binding powers, lowest to highest, following Sheets' precedence.
 var infixPower = map[string]int{
 	"#OR#": 10, "#AND#": 10,
 	"=": 30, "<>": 30, "<": 30, ">": 30, "<=": 30, ">=": 30,
@@ -146,8 +167,9 @@ var infixPower = map[string]int{
 }
 
 const (
-	notPower   = 20
-	unaryPower = 60
+	notPower     = 20
+	unaryPower   = 60
+	percentPower = 80
 )
 
 type parser struct {
@@ -155,8 +177,8 @@ type parser struct {
 	pos  int
 }
 
-// Parse parses a value entry. A leading '=' is accepted for users coming
-// from modern spreadsheets; 1-2-3 itself starts formulas with '+'.
+// Parse parses a formula. src may start with "=", as typed in a cell;
+// error positions are relative to src.
 func Parse(src string) (Node, error) {
 	body := strings.TrimPrefix(src, "=")
 	offset := len(src) - len(body)
@@ -167,7 +189,7 @@ func Parse(src string) (Node, error) {
 	p := &parser{toks: toks}
 	n, err := p.expr(0)
 	if err == nil && p.peek().kind != tokEOF {
-		err = &ParseError{p.peek().pos, "unexpected " + p.peek().text}
+		err = &ParseError{p.peek().pos, "Unexpected " + p.peek().text}
 	}
 	if err != nil {
 		return nil, shift(err, offset)
@@ -192,11 +214,9 @@ func (p *parser) next() token {
 	return t
 }
 
-func (p *parser) expect(op string) error {
-	if t := p.next(); t.kind != tokOp || t.text != op {
-		return &ParseError{t.pos, "expected " + op}
-	}
-	return nil
+func (p *parser) isOp(op string) bool {
+	t := p.peek()
+	return t.kind == tokOp && t.text == op
 }
 
 func (p *parser) expr(minPower int) (Node, error) {
@@ -205,6 +225,11 @@ func (p *parser) expr(minPower int) (Node, error) {
 		return nil, err
 	}
 	for {
+		if p.isOp("%") && percentPower > minPower {
+			p.next()
+			left = binaryNode{op: "/", l: left, r: numLit{100}}
+			continue
+		}
 		t := p.peek()
 		power, ok := infixPower[t.text]
 		if t.kind != tokOp || !ok || power <= minPower {
@@ -225,23 +250,13 @@ func (p *parser) prefix() (Node, error) {
 	case tokNum:
 		v, err := strconv.ParseFloat(t.text, 64)
 		if err != nil {
-			return nil, &ParseError{t.pos, "invalid number " + t.text}
+			return nil, &ParseError{t.pos, "Invalid number " + t.text}
 		}
 		return numLit{v}, nil
 	case tokStr:
 		return strLit{t.text}, nil
-	case tokRef:
-		a, _ := ParseAddr(t.text)
-		if n := p.peek(); n.kind == tokOp && (n.text == ".." || n.text == ":") {
-			p.next()
-			end := p.next()
-			if end.kind != tokRef {
-				return nil, &ParseError{end.pos, "expected cell reference after " + n.text}
-			}
-			b, _ := ParseAddr(end.text)
-			return rangeNode{NewRect(a, b)}, nil
-		}
-		return refNode{a}, nil
+	case tokIdent:
+		return p.ident(t)
 	case tokFunc:
 		return p.call(t)
 	case tokOp:
@@ -251,7 +266,11 @@ func (p *parser) prefix() (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			return n, p.expect(")")
+			if !p.isOp(")") {
+				return nil, &ParseError{p.peek().pos, "Missing )"}
+			}
+			p.next()
+			return n, nil
 		case "+", "-":
 			x, err := p.expr(unaryPower)
 			if err != nil {
@@ -266,38 +285,65 @@ func (p *parser) prefix() (Node, error) {
 			return unaryNode{op: t.text, x: x}, nil
 		}
 	case tokEOF:
-		return nil, &ParseError{t.pos, "incomplete formula"}
+		return nil, &ParseError{t.pos, "Formula is incomplete"}
 	}
-	return nil, &ParseError{t.pos, "unexpected " + t.text}
+	return nil, &ParseError{t.pos, "Unexpected " + t.text}
 }
 
-func (p *parser) call(fn token) (Node, error) {
-	if _, ok := functions[fn.text]; !ok {
-		return nil, &ParseError{fn.pos, "unknown function @" + fn.text}
+func (p *parser) ident(t token) (Node, error) {
+	a, isRef := ParseAddr(t.text)
+	if !isRef {
+		switch t.text {
+		case "TRUE":
+			return boolLit{true}, nil
+		case "FALSE":
+			return boolLit{false}, nil
+		}
+		return nameNode{t.text}, nil
 	}
-	n := callNode{name: fn.text}
-	if t := p.peek(); t.kind != tokOp || t.text != "(" {
-		return n, nil
+	if p.isOp(":") || p.isOp("..") {
+		sep := p.next()
+		end := p.next()
+		b, ok := ParseAddr(end.text)
+		if end.kind != tokIdent || !ok {
+			return nil, &ParseError{end.pos, "Expected a cell after " + sep.text}
+		}
+		return rangeNode{NewRect(a, b)}, nil
 	}
-	p.next()
-	if t := p.peek(); t.kind == tokOp && t.text == ")" {
+	return refNode{a}, nil
+}
+
+func (p *parser) call(t token) (Node, error) {
+	fn, ok := LookupFunc(t.text)
+	if !ok {
+		return nil, &ParseError{t.pos, "Unknown function " + t.text}
+	}
+	n := callNode{fn: fn}
+	if p.isOp("(") {
 		p.next()
-		return n, nil
+		if p.isOp(")") {
+			p.next()
+		} else {
+			for {
+				arg, err := p.expr(0)
+				if err != nil {
+					return nil, err
+				}
+				n.args = append(n.args, arg)
+				sep := p.next()
+				if sep.kind == tokOp && sep.text == ")" {
+					break
+				}
+				if sep.kind != tokOp || (sep.text != "," && sep.text != ";") {
+					return nil, &ParseError{sep.pos, "Expected , or ) in " + fn.Name}
+				}
+			}
+		}
 	}
-	for {
-		arg, err := p.expr(0)
-		if err != nil {
-			return nil, err
-		}
-		n.args = append(n.args, arg)
-		t := p.next()
-		if t.kind == tokOp && t.text == ")" {
-			return n, nil
-		}
-		if t.kind != tokOp || (t.text != "," && t.text != ";") {
-			return nil, &ParseError{t.pos, "expected , or )"}
-		}
+	if len(n.args) < fn.Min || (fn.Max >= 0 && len(n.args) > fn.Max) {
+		return nil, &ParseError{t.pos, fmt.Sprintf("Wrong number of arguments to %s(%s)", fn.Name, fn.Args)}
 	}
+	return n, nil
 }
 
 // walkRefs calls fn for every single-cell reference and range in n.
