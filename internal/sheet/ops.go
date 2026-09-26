@@ -2,6 +2,7 @@ package sheet
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 )
 
@@ -18,14 +19,14 @@ const maxFill = 1 << 20
 
 // remap moves every stored cell with cell (dropping those it rejects) and
 // rewrites every formula with rw, as one undo step.
-func (s *Sheet) remap(focus Rect, cell func(Addr) (Addr, bool), rw refRewrite) {
+func (s *Sheet) remap(label string, focus Rect, cell func(Addr) (Addr, bool), rw refRewrite) {
 	next := make(map[Addr]*Cell, len(s.cells))
 	for a, c := range s.cells {
 		if to, ok := cell(a); ok {
 			next[to] = c.rewritten(rw)
 		}
 	}
-	s.change(focus, func() {
+	s.change(label, focus, func() {
 		for a, c := range s.cells {
 			if next[a] != c {
 				s.place(a, next[a])
@@ -81,13 +82,24 @@ func (s *Sheet) insert(rows bool, at, n int) error {
 
 func (s *Sheet) restructure(rows bool, sp span) {
 	cell, rng := axisRewrite(rows, sp)
-	last := sp.at + max(sp.n, -sp.n) - 1
+	last := sp.at + abs(sp.n) - 1
 	focus := colRect(sp.at, min(last, MaxCols-1))
 	if rows {
 		focus = rowRect(sp.at, min(last, MaxRows-1))
 	}
-	s.change(focus, func() {
-		s.remap(focus, cell, relocate(cell, rng))
+	verb, noun := "insert", "column"
+	if sp.n < 0 {
+		verb = "delete"
+	}
+	if rows {
+		noun = "row"
+	}
+	label := fmt.Sprintf("%s %d %s", verb, abs(sp.n), noun)
+	if abs(sp.n) > 1 {
+		label += "s"
+	}
+	s.change(label, focus, func() {
+		s.remap(label, focus, cell, relocate(cell, rng))
 		if !rows {
 			s.shiftWidths(sp)
 		}
@@ -140,7 +152,7 @@ func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
 		}
 		return r, true
 	}
-	s.remap(dst, cell, relocate(cell, rng))
+	s.remap("move "+src.String()+" to "+dst.String(), dst, cell, relocate(cell, rng))
 	return dst, nil
 }
 
@@ -198,7 +210,11 @@ func (s *Sheet) Paste(c *Clip, dst Rect, values bool) (Rect, error) {
 	if w*h > maxFill {
 		return Rect{}, ErrFillTooBig
 	}
-	s.change(dst, func() {
+	label := "paste into " + dst.String()
+	if values {
+		label = "paste values into " + dst.String()
+	}
+	s.change(label, dst, func() {
 		for r := range h {
 			for col := range w {
 				off := Addr{Col: col % cols, Row: r % rows}
@@ -250,7 +266,9 @@ func (s *Sheet) FillDown(r Rect) (Rect, error) {
 	} else {
 		r.From.Row++
 	}
-	return s.Paste(s.Copy(src), r, false)
+	var err error
+	s.change("fill down "+r.String(), r, func() { r, err = s.Paste(s.Copy(src), r, false) })
+	return r, err
 }
 
 // FillRight copies the left column of r into the rest of it (Ctrl+R). A
@@ -265,7 +283,9 @@ func (s *Sheet) FillRight(r Rect) (Rect, error) {
 	} else {
 		r.From.Col++
 	}
-	return s.Paste(s.Copy(src), r, false)
+	var err error
+	s.change("fill right "+r.String(), r, func() { r, err = s.Paste(s.Copy(src), r, false) })
+	return r, err
 }
 
 // FillEntry stores input in every cell of r as if it had been typed at
@@ -278,7 +298,7 @@ func (s *Sheet) FillEntry(r Rect, origin Addr, input string) error {
 	if _, err := classify(input); err != nil {
 		return err
 	}
-	return s.Batch(r, func() error {
+	return s.Batch(Change{"fill " + r.String(), r}, func() error {
 		if err := s.put(origin, input); err != nil {
 			return err
 		}
@@ -293,3 +313,5 @@ func (s *Sheet) FillEntry(r Rect, origin Addr, input string) error {
 		return nil
 	})
 }
+
+func abs(n int) int { return max(n, -n) }

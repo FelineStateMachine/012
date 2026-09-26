@@ -95,7 +95,7 @@ func (s *Sheet) ColWidth(c int) int {
 
 // SetColWidth sets column c's width; w <= 0 resets it to the default.
 func (s *Sheet) SetColWidth(c, w int) {
-	s.change(colRect(c, c), func() { s.setWidth(c, w) })
+	s.change("column width", colRect(c, c), func() { s.setWidth(c, w) })
 }
 
 func (s *Sheet) setWidth(c, w int) {
@@ -155,7 +155,7 @@ func classify(input string) (Node, error) {
 // *ParseError and the sheet is left unchanged.
 func (s *Sheet) Set(a Addr, input string) error {
 	var err error
-	s.change(Rect{a, a}, func() { err = s.put(a, input) })
+	s.change("edit "+a.String(), Rect{a, a}, func() { err = s.put(a, input) })
 	return err
 }
 
@@ -215,7 +215,7 @@ func (s *Sheet) place(a Addr, c *Cell) {
 
 // EraseRange blanks every cell in r.
 func (s *Sheet) EraseRange(r Rect) {
-	s.change(r, func() {
+	s.change("clear "+r.String(), r, func() {
 		for _, a := range s.cellsIn(r) {
 			s.place(a, nil)
 		}

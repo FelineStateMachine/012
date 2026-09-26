@@ -26,6 +26,7 @@ type history struct {
 
 type step struct {
 	id     int
+	label  string         // what the step did, e.g. "clear B3:B5"
 	focus  Rect           // what the UI selects when the step is undone or redone
 	cells  map[Addr]*Cell // before the step; nil for blank
 	widths map[int]int    // before the step; 0 for the default width
@@ -41,22 +42,28 @@ func (c *Cell) clone() *Cell {
 	return &cp
 }
 
+// Change describes an undo step: what it did, in lower case for use in a
+// sentence ("clear B3:B5"), and the range it affected.
+type Change struct {
+	Label string
+	Focus Rect
+}
+
 // Batch runs fn as a single undo step: everything it changes is undone
-// together, and formulas are recalculated once at the end. focus is the
-// range to select when the step is undone or redone. Batches nest; inner
-// ones join the outermost.
-func (s *Sheet) Batch(focus Rect, fn func() error) error {
+// together, and formulas are recalculated once at the end. Batches nest;
+// inner ones join the outermost.
+func (s *Sheet) Batch(c Change, fn func() error) error {
 	var err error
-	s.change(focus, func() { err = fn() })
+	s.change(c.Label, c.Focus, func() { err = fn() })
 	return err
 }
 
 // change opens a step (unless one is open), runs fn, and on the way out
 // of the outermost call recalculates what changed and pushes the step.
-func (s *Sheet) change(focus Rect, fn func()) {
+func (s *Sheet) change(label string, focus Rect, fn func()) {
 	h := &s.hist
 	if h.depth == 0 {
-		h.open = &step{focus: focus, cells: map[Addr]*Cell{}, widths: map[int]int{}}
+		h.open = &step{label: label, focus: focus, cells: map[Addr]*Cell{}, widths: map[int]int{}}
 	}
 	h.depth++
 	defer func() {
@@ -152,13 +159,13 @@ func (h *history) top() *step {
 // undo step. The UI calls it between user actions.
 func (s *Sheet) Seal() { s.hist.mergeWidths = false }
 
-// Undo reverts the last step and returns the range it affected.
-func (s *Sheet) Undo() (Rect, bool) {
+// Undo reverts the last step and describes it.
+func (s *Sheet) Undo() (Change, bool) {
 	return s.swap(&s.hist.undo, &s.hist.redo)
 }
 
-// Redo reapplies the last undone step and returns the range it affected.
-func (s *Sheet) Redo() (Rect, bool) {
+// Redo reapplies the last undone step and describes it.
+func (s *Sheet) Redo() (Change, bool) {
 	return s.swap(&s.hist.redo, &s.hist.undo)
 }
 
@@ -178,15 +185,15 @@ func (s *Sheet) StateID() int {
 
 // swap pops a step from one stack, restores its before-image, and pushes
 // the state it replaced onto the other stack.
-func (s *Sheet) swap(from, to *[]*step) (Rect, bool) {
+func (s *Sheet) swap(from, to *[]*step) (Change, bool) {
 	if len(*from) == 0 || s.hist.open != nil {
-		return Rect{}, false
+		return Change{}, false
 	}
 	st := (*from)[len(*from)-1]
 	*from = (*from)[:len(*from)-1]
 	// The inverse keeps the step's ID: on the redo stack, an ID names the
 	// state the step leads back to.
-	inv := &step{id: st.id, focus: st.focus, cells: make(map[Addr]*Cell, len(st.cells)), widths: map[int]int{}}
+	inv := &step{id: st.id, label: st.label, focus: st.focus, cells: make(map[Addr]*Cell, len(st.cells)), widths: map[int]int{}}
 	changed := make([]Addr, 0, len(st.cells))
 	for a, c := range st.cells {
 		inv.cells[a] = s.cells[a].clone()
@@ -200,7 +207,7 @@ func (s *Sheet) swap(from, to *[]*step) (Rect, bool) {
 	s.recalc(changed)
 	*to = append(*to, inv)
 	s.hist.mergeWidths = false
-	return st.focus, true
+	return Change{st.label, st.focus}, true
 }
 
 // ClearHistory forgets all undo and redo steps.

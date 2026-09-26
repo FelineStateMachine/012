@@ -188,8 +188,11 @@ func TestInsertDeleteColsShiftWidths(t *testing.T) {
 	if got := inputs(s)["D1"]; got != "=#REF!+C1" || s.ColWidth(2) != 15 {
 		t.Errorf("after delete: D1 %q, width C %d", got, s.ColWidth(2))
 	}
-	s.Undo()
-	s.Undo()
+	c1, _ := s.Undo()
+	c2, _ := s.Undo()
+	if c1.Label != "delete 1 column" || c2.Label != "insert 2 columns" || c2.Focus != colRect(1, 2) {
+		t.Errorf("undid %+v then %+v", c1, c2)
+	}
 	if got := inputs(s)["C1"]; got != "=A1+B1" || s.ColWidth(1) != 15 {
 		t.Errorf("after undo: C1 %q width B %d", got, s.ColWidth(1))
 	}

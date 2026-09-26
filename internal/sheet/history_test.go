@@ -37,9 +37,9 @@ func TestUndoRedo(t *testing.T) {
 	if s.Len() != 0 || s.StateID() != 4 {
 		t.Fatalf("len %d state %d", s.Len(), s.StateID())
 	}
-	r, ok := s.Undo()
-	if !ok || r.String() != "A1:A2" || s.Value(at("A2")).Num != 20 {
-		t.Fatalf("undo erase: %v %v A2=%+v", r, ok, s.Value(at("A2")))
+	c, ok := s.Undo()
+	if !ok || c != (Change{"clear A1:A2", NewRect(at("A1"), at("A2"))}) || s.Value(at("A2")).Num != 20 {
+		t.Fatalf("undo erase: %v %v A2=%+v", c, ok, s.Value(at("A2")))
 	}
 	s.Undo()
 	if s.Value(at("A2")).Num != 10 || s.StateID() != 2 {
@@ -81,7 +81,7 @@ func TestUndoKeepsWholeCells(t *testing.T) {
 
 func TestBatchGroupsAndHistoryCap(t *testing.T) {
 	s := New()
-	s.Batch(NewRect(at("A1"), at("A3")), func() error {
+	s.Batch(Change{"type", NewRect(at("A1"), at("A3"))}, func() error {
 		for i := range 3 {
 			s.Set(Addr{Row: i}, "1")
 		}
