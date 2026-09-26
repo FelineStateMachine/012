@@ -2,7 +2,6 @@ package sheet
 
 import (
 	"math"
-	"strconv"
 	"strings"
 )
 
@@ -28,7 +27,7 @@ type Value struct {
 func (v Value) String() string {
 	switch v.Kind {
 	case Number:
-		return strconv.FormatFloat(v.Num, 'f', -1, 64)
+		return numString(v.Num)
 	case Bool:
 		if v.Num != 0 {
 			return "TRUE"
@@ -63,7 +62,8 @@ func boolean(b bool) Value {
 }
 
 // toNum coerces v for arithmetic as Sheets does: blanks are 0, booleans
-// 1 or 0, numeric text is its number, other text is #VALUE!.
+// 1 or 0, numeric text (including dates such as "2026-09-26") is its
+// number, other text is #VALUE!.
 func toNum(v Value) (float64, *Value) {
 	switch v.Kind {
 	case Empty:
@@ -71,7 +71,7 @@ func toNum(v Value) (float64, *Value) {
 	case Number, Bool:
 		return v.Num, nil
 	case Text:
-		if n, ok := ParseNumber(v.Str); ok {
+		if n, _, ok := ParseValue(v.Str); ok {
 			return n, nil
 		}
 		return 0, &ErrValue
@@ -94,6 +94,8 @@ func eval(n Node, get lookup) Value {
 		return get(n.a)
 	case nameNode:
 		return ErrName
+	case emptyArg:
+		return Value{}
 	case rangeNode:
 		// A range outside a function: Sheets uses the top-left cell here
 		// for single-cell ranges and #VALUE! otherwise.

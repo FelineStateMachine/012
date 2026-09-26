@@ -12,22 +12,37 @@ import (
 // DefaultWidth is the initial column width: nine characters plus padding.
 const DefaultWidth = 10
 
-// Cell holds what the user typed and what it evaluates to.
+// Cell holds what the user typed, what it evaluates to, and how it is
+// formatted. A cell may have formatting but no contents (Sheets lets you
+// format blank cells before typing); such a cell counts as blank
+// everywhere contents matter.
 type Cell struct {
 	// Input is the entry exactly as typed: text, a number such as "$1,200"
-	// or "12%", or a formula starting with "=".
+	// or "12%", or a formula starting with "=". Empty for a blank cell
+	// that only has formatting.
 	Input string
 	Value Value
 
-	expr   Node   // nil for text
-	refs   []Addr // single-cell references in expr
-	ranges []Rect // range references in expr
+	// Format and Style are plain values, so copying a Cell copies its
+	// formatting. They survive clearing the contents, as in Sheets.
+	Format Format
+	Style  Style
+
+	auto     Format // format inferred from a formula, shown when Format is Automatic
+	expr     Node   // nil for text
+	refs     []Addr // single-cell references in expr
+	ranges   []Rect // range references in expr
+	volatile bool   // expr calls TODAY, NOW, RAND...
 }
 
 // IsFormula reports whether the cell holds a formula.
 func (c *Cell) IsFormula() bool {
 	return c.expr != nil && IsFormulaEntry(c.Input)
 }
+
+// Blank reports whether the cell has no contents (it may still have
+// formatting).
+func (c *Cell) Blank() bool { return c == nil || c.Input == "" }
 
 // Sheet is a sparse worksheet.
 type Sheet struct {
@@ -39,6 +54,7 @@ type Sheet struct {
 	// scanned separately, so a huge range doesn't create millions of edges.
 	dependents map[Addr]map[Addr]struct{}
 	rangeUsers map[Addr]struct{}
+	volatile   map[Addr]struct{} // formulas recalculated on every change
 
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
@@ -51,10 +67,12 @@ func New() *Sheet {
 		widths:     make(map[int]int),
 		dependents: make(map[Addr]map[Addr]struct{}),
 		rangeUsers: make(map[Addr]struct{}),
+		volatile:   make(map[Addr]struct{}),
 	}
 }
 
-// Cell returns the cell at a, or nil if it is blank.
+// Cell returns the cell at a, or nil if it has neither contents nor
+// formatting. Use Blank to test for contents.
 func (s *Sheet) Cell(a Addr) *Cell { return s.cells[a] }
 
 // Value returns the computed value at a.
@@ -66,21 +84,35 @@ func (s *Sheet) Value(a Addr) Value {
 }
 
 // Len returns the number of non-blank cells.
-func (s *Sheet) Len() int { return len(s.cells) }
+func (s *Sheet) Len() int {
+	n := 0
+	for _, c := range s.cells {
+		if !c.Blank() {
+			n++
+		}
+	}
+	return n
+}
 
 // Addrs returns every non-blank cell in row-major order.
 func (s *Sheet) Addrs() []Addr {
 	out := make([]Addr, 0, len(s.cells))
-	for a := range s.cells {
-		out = append(out, a)
+	for a, c := range s.cells {
+		if !c.Blank() {
+			out = append(out, a)
+		}
 	}
+	sortAddrs(out)
+	return out
+}
+
+func sortAddrs(out []Addr) {
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Row != out[j].Row {
 			return out[i].Row < out[j].Row
 		}
 		return out[i].Col < out[j].Col
 	})
-	return out
 }
 
 // ColWidth returns the display width of column c.
@@ -115,37 +147,40 @@ func IsFormulaEntry(input string) bool {
 	if !strings.HasPrefix(input, "+") && !strings.HasPrefix(input, "-") {
 		return false
 	}
-	if _, isNum := ParseNumber(input); isNum {
+	if _, _, isNum := ParseValue(input); isNum {
 		return false
 	}
 	_, err := Parse(input)
 	return err == nil
 }
 
-// classify turns an entry into an expression, or nil for text. Entries
-// starting with ' are always text.
-func classify(input string) (Node, error) {
+// classify turns an entry into an expression, or nil for text, and
+// returns the format the entry implies (Currency for "$5", Date for
+// "9/26/2026"). Entries starting with ' are always text.
+func classify(input string) (Node, Format, error) {
 	if strings.HasPrefix(input, "'") {
-		return nil, nil
+		return nil, Format{}, nil
 	}
-	if v, ok := ParseNumber(input); ok {
-		return numLit{v}, nil
+	if v, f, ok := ParseValue(input); ok {
+		return numLit{v}, f, nil
 	}
 	switch strings.ToUpper(input) {
 	case "TRUE":
-		return boolLit{true}, nil
+		return boolLit{true}, Format{}, nil
 	case "FALSE":
-		return boolLit{false}, nil
+		return boolLit{false}, Format{}, nil
 	}
 	if IsFormulaEntry(input) {
-		return Parse(input)
+		n, err := Parse(input)
+		return n, Format{}, err
 	}
-	return nil, nil
+	return nil, Format{}, nil
 }
 
 // Set stores an entry at a and recalculates affected cells. An empty input
-// erases the cell. A formula that fails to parse is rejected with a
-// *ParseError and the sheet is left unchanged.
+// erases the contents but keeps the cell's formatting. A formula that
+// fails to parse is rejected with a *ParseError and the sheet is left
+// unchanged.
 func (s *Sheet) Set(a Addr, input string) error {
 	if err := s.put(a, input); err != nil {
 		return err
@@ -154,8 +189,11 @@ func (s *Sheet) Set(a Addr, input string) error {
 	return nil
 }
 
-// put stores an entry without recalculating. Control characters are
-// dropped so a worksheet file can't smuggle escape sequences to the terminal.
+// put stores an entry without recalculating, keeping the cell's
+// formatting. An entry that implies a format, such as "$5" or a date,
+// sets it, as in Sheets. In a Plain text cell every entry is text.
+// Control characters are dropped so a worksheet file can't smuggle escape
+// sequences to the terminal.
 func (s *Sheet) put(a Addr, input string) error {
 	input = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
@@ -163,22 +201,39 @@ func (s *Sheet) put(a Addr, input string) error {
 		}
 		return r
 	}, input)
+	var f Format
+	var st Style
+	if old := s.cells[a]; old != nil {
+		f, st = old.Format, old.Style
+	}
 	if input == "" {
 		s.erase(a)
+		s.restoreFormatting(a, f, st)
 		return nil
 	}
-	n, err := classify(input)
-	if err != nil {
-		return err
+	var n Node
+	if f.Kind != FmtText {
+		var implied Format
+		var err error
+		if n, implied, err = classify(input); err != nil {
+			return err
+		}
+		if !implied.IsZero() {
+			f = implied
+		}
 	}
-	c := &Cell{Input: input, expr: n}
+	c := &Cell{Input: input, expr: n, Format: f, Style: st}
 	if n != nil {
 		walkRefs(n,
 			func(r Addr) { c.refs = append(c.refs, r) },
 			func(r Rect) { c.ranges = append(c.ranges, r) })
+		c.volatile = isVolatile(n)
 	}
 	s.erase(a)
 	s.cells[a] = c
+	if c.volatile {
+		s.volatile[a] = struct{}{}
+	}
 	for _, r := range c.refs {
 		if s.dependents[r] == nil {
 			s.dependents[r] = make(map[Addr]struct{})
@@ -191,18 +246,30 @@ func (s *Sheet) put(a Addr, input string) error {
 	return nil
 }
 
-// EraseRange blanks every cell in r.
+// EraseRange clears the contents of every cell in r, keeping their
+// formatting as Sheets' Delete does.
 func (s *Sheet) EraseRange(r Rect) {
 	var changed []Addr
-	for a := range s.cells {
-		if r.Contains(a) {
+	for a, c := range s.cells {
+		if r.Contains(a) && !c.Blank() {
 			changed = append(changed, a)
 		}
 	}
 	for _, a := range changed {
+		c := s.cells[a]
 		s.erase(a)
+		s.restoreFormatting(a, c.Format, c.Style)
 	}
 	s.recalc(changed)
+}
+
+// restoreFormatting leaves a blank cell holding just formatting, or no
+// cell at all when there is none.
+func (s *Sheet) restoreFormatting(a Addr, f Format, st Style) {
+	if f.IsZero() && st.IsZero() {
+		return
+	}
+	s.cells[a] = &Cell{Format: f, Style: st}
 }
 
 func (s *Sheet) erase(a Addr) {
@@ -217,6 +284,7 @@ func (s *Sheet) erase(a Addr) {
 		}
 	}
 	delete(s.rangeUsers, a)
+	delete(s.volatile, a)
 	delete(s.cells, a)
 }
 
@@ -225,10 +293,11 @@ func (s *Sheet) RecalcAll() {
 	s.recalc(s.Addrs())
 }
 
-// recalc recomputes the changed cells and everything that transitively
-// depends on them. Cells are evaluated lazily in dependency order: reading a
-// dirty cell evaluates it first. A cell that is reached again while it is
-// still being evaluated is part of a cycle and becomes ERR.
+// recalc recomputes the changed cells, volatile formulas, and everything
+// that transitively depends on them. Cells are evaluated lazily in
+// dependency order: reading a dirty cell evaluates it first. A cell that
+// is reached again while it is still being evaluated is part of a cycle
+// and becomes ERR.
 func (s *Sheet) recalc(changed []Addr) {
 	const (
 		dirty = iota + 1
@@ -237,6 +306,9 @@ func (s *Sheet) recalc(changed []Addr) {
 	)
 	state := make(map[Addr]int)
 	queue := append([]Addr(nil), changed...)
+	for a := range s.volatile {
+		queue = append(queue, a)
+	}
 	for len(queue) > 0 {
 		a := queue[0]
 		queue = queue[1:]
@@ -271,10 +343,19 @@ func (s *Sheet) recalc(changed []Addr) {
 			return c.Value
 		}
 		state[a] = visiting
-		if c.expr == nil {
+		c.auto = Format{}
+		switch {
+		case c.Input == "":
+			c.Value = Value{}
+		case c.expr == nil && c.Format.Kind == FmtText:
+			c.Value = Value{Kind: Text, Str: c.Input}
+		case c.expr == nil:
 			c.Value = Value{Kind: Text, Str: strings.TrimPrefix(c.Input, "'")}
-		} else {
+		default:
 			c.Value = eval(c.expr, compute)
+			if _, lit := c.expr.(numLit); !lit {
+				c.auto = inferFormat(c.expr, s.DisplayFormat)
+			}
 		}
 		state[a] = done
 		return c.Value

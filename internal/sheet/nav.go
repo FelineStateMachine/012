@@ -3,15 +3,17 @@ package sheet
 // UsedRange returns the smallest range from A1 covering every non-blank
 // cell, and false if the sheet is empty.
 func (s *Sheet) UsedRange() (Rect, bool) {
-	if len(s.cells) == 0 {
-		return Rect{}, false
-	}
 	var last Addr
-	for a := range s.cells {
+	found := false
+	for a, c := range s.cells {
+		if c.Blank() {
+			continue
+		}
+		found = true
 		last.Col = max(last.Col, a.Col)
 		last.Row = max(last.Row, a.Row)
 	}
-	return Rect{To: last}, true
+	return Rect{To: last}, found
 }
 
 // Edge returns where a data-edge jump (Ctrl+arrow in Excel, End+arrow in
@@ -20,7 +22,7 @@ func (s *Sheet) UsedRange() (Rect, bool) {
 // block, it goes to the next filled cell. With nothing filled ahead it
 // stops at the edge of the worksheet.
 func (s *Sheet) Edge(a Addr, dc, dr int) Addr {
-	filled := func(a Addr) bool { return s.cells[a] != nil }
+	filled := func(a Addr) bool { return !s.cells[a].Blank() }
 	next := Addr{Col: a.Col + dc, Row: a.Row + dr}
 	if !next.Valid() {
 		return a
@@ -68,7 +70,7 @@ func (s *Sheet) RangeStats(r Rect) Stats {
 	if area <= len(s.cells) {
 		for row := r.From.Row; row <= r.To.Row; row++ {
 			for col := r.From.Col; col <= r.To.Col; col++ {
-				if c := s.cells[Addr{Col: col, Row: row}]; c != nil {
+				if c := s.cells[Addr{Col: col, Row: row}]; !c.Blank() {
 					add(c)
 				}
 			}
@@ -76,7 +78,7 @@ func (s *Sheet) RangeStats(r Rect) Stats {
 		return st
 	}
 	for a, c := range s.cells {
-		if r.Contains(a) {
+		if r.Contains(a) && !c.Blank() {
 			add(c)
 		}
 	}

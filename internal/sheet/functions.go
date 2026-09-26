@@ -13,7 +13,16 @@ type FuncDef struct {
 	Desc string
 	Min  int
 	Max  int // -1 for variadic
-	eval func(args []Node, get lookup) Value
+	// step > 0 means arguments after Min come in groups of step, like
+	// SUMIFS' (range, criterion) pairs.
+	step int
+	// Volatile functions (TODAY, NOW, RAND) change without their inputs
+	// changing, so every recalculation recomputes them.
+	Volatile bool
+	eval     func(args []Node, get lookup) Value
+	// format infers the result's display format for Automatic cells; nil
+	// means none.
+	format func(args []Node, infer func(Node) Format) Format
 }
 
 func (f *FuncDef) call(args []Node, get lookup) Value { return f.eval(args, get) }
@@ -57,14 +66,14 @@ func Funcs() []*FuncDef {
 func init() {
 	define(
 		&FuncDef{Name: "SUM", Args: "value1, [value2, ...]", Desc: "Sum of numbers", Min: 1, Max: -1,
-			eval: aggregate(func(s agg) Value { return num(s.sum) })},
+			eval: aggregate(func(s agg) Value { return num(s.sum) }), format: inherit},
 		&FuncDef{Name: "AVERAGE", Args: "value1, [value2, ...]", Desc: "Average of numbers, ignoring text", Min: 1, Max: -1,
 			eval: aggregate(func(s agg) Value {
 				if s.nums == 0 {
 					return ErrDiv0
 				}
 				return num(s.sum / float64(s.nums))
-			})},
+			}), format: inherit},
 		&FuncDef{Name: "COUNT", Args: "value1, [value2, ...]", Desc: "Count of numeric values", Min: 1, Max: -1,
 			eval: aggregate(func(s agg) Value { return num(float64(s.nums)) })},
 		&FuncDef{Name: "COUNTA", Args: "value1, [value2, ...]", Desc: "Count of non-empty values", Min: 1, Max: -1,
@@ -75,26 +84,19 @@ func init() {
 					return num(0)
 				}
 				return num(s.min)
-			})},
+			}), format: inherit},
 		&FuncDef{Name: "MAX", Args: "value1, [value2, ...]", Desc: "Largest number", Min: 1, Max: -1,
 			eval: aggregate(func(s agg) Value {
 				if s.nums == 0 {
 					return num(0)
 				}
 				return num(s.max)
-			})},
-		&FuncDef{Name: "ABS", Args: "value", Desc: "Absolute value", Min: 1, Max: 1, eval: math1(math.Abs)},
-		&FuncDef{Name: "INT", Args: "value", Desc: "Round down to the nearest integer", Min: 1, Max: 1, eval: math1(math.Floor)},
+			}), format: inherit},
+		&FuncDef{Name: "ABS", Args: "value", Desc: "Absolute value", Min: 1, Max: 1, eval: math1(math.Abs), format: inherit},
+		&FuncDef{Name: "INT", Args: "value", Desc: "Round down to the nearest integer", Min: 1, Max: 1, eval: math1(math.Floor), format: inherit},
 		&FuncDef{Name: "SQRT", Args: "value", Desc: "Square root", Min: 1, Max: 1, eval: math1(math.Sqrt)},
-		&FuncDef{Name: "ROUND", Args: "value, [places]", Desc: "Round to a number of decimal places", Min: 1, Max: 2,
-			eval: numeric(func(x []float64) Value {
-				places := 0.0
-				if len(x) > 1 {
-					places = math.Trunc(x[1])
-				}
-				p := math.Pow(10, places)
-				return num(math.Round(x[0]*p) / p)
-			})},
+		&FuncDef{Name: "ROUND", Args: "value, [places]", Desc: "Round to a number of decimal places, halves away from zero", Min: 1, Max: 2,
+			eval: rounder(roundHalfUp), format: inheritFrom(0)},
 		&FuncDef{Name: "MOD", Args: "dividend, divisor", Desc: "Remainder, with the sign of the divisor", Min: 2, Max: 2,
 			eval: numeric(func(x []float64) Value {
 				if x[1] == 0 {
@@ -123,7 +125,7 @@ func init() {
 					return boolean(false)
 				}
 				return eval(args[2], get)
-			}},
+			}, format: func(args []Node, infer func(Node) Format) Format { return inherit(args[1:], infer) }},
 		&FuncDef{Name: "IFERROR", Args: "value, [value_if_error]", Desc: "A fallback when a value is an error", Min: 1, Max: 2,
 			eval: func(args []Node, get lookup) Value {
 				v := eval(args[0], get)
@@ -146,15 +148,27 @@ func init() {
 
 type agg struct {
 	sum      float64
+	prod     float64
 	count    int // non-empty values
 	nums     int
 	min, max float64
 }
 
 // each calls fn for every value in args: every cell of a range, or the
-// value of any other argument. direct is false for range cells.
+// value of any other argument. direct is false for cells of a range or a
+// reference: as in Sheets, SUM(A1) ignores text in A1 but SUM("a") is
+// #VALUE!.
 func each(args []Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
 	for _, arg := range args {
+		if ref, ok := arg.(refNode); ok {
+			if e := fn(get(ref.a), false); e != nil {
+				return e
+			}
+			continue
+		}
+		if _, ok := arg.(emptyArg); ok {
+			continue
+		}
 		if rn, ok := arg.(rangeNode); ok {
 			for r := rn.r.From.Row; r <= rn.r.To.Row; r++ {
 				for c := rn.r.From.Col; c <= rn.r.To.Col; c++ {
@@ -177,7 +191,7 @@ func each(args []Node, get lookup, fn func(v Value, direct bool) *Value) *Value 
 // SUM("a") is #VALUE!.
 func aggregate(done func(agg) Value) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
-		s := agg{min: math.Inf(1), max: math.Inf(-1)}
+		s := agg{prod: 1, min: math.Inf(1), max: math.Inf(-1)}
 		e := each(args, get, func(v Value, direct bool) *Value {
 			switch v.Kind {
 			case Error:
@@ -195,6 +209,7 @@ func aggregate(done func(agg) Value) func([]Node, lookup) Value {
 			}
 			s.nums++
 			s.sum += f
+			s.prod *= f
 			s.min, s.max = math.Min(s.min, f), math.Max(s.max, f)
 			return nil
 		})
@@ -260,4 +275,19 @@ func math1(f func(float64) float64) func([]Node, lookup) Value {
 
 func constant(v Value) func([]Node, lookup) Value {
 	return func([]Node, lookup) Value { return v }
+}
+// rounder builds ROUNDUP, ROUNDDOWN and TRUNC: round on the 15 digits a
+// spreadsheet shows, so ROUNDUP(2.3, 1) stays 2.3.
+func rounder(mode roundMode) func([]Node, lookup) Value {
+	return func(args []Node, get lookup) Value {
+		x, err := numArg(args[0], get)
+		if err != nil {
+			return *err
+		}
+		places, err := intArg(args, 1, 0, get)
+		if err != nil {
+			return *err
+		}
+		return num(roundTo(x, clampInt(places, -308, 308), mode))
+	}
 }

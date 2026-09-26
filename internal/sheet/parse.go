@@ -16,6 +16,7 @@ type (
 	refNode   struct{ a Addr }
 	rangeNode struct{ r Rect }
 	nameNode  struct{ name string } // an identifier that isn't a cell; #NAME? until names exist
+	emptyArg  struct{}              // an omitted argument, as in XLOOKUP(a, b, c, , 1)
 	unaryNode struct {
 		op string
 		x  Node
@@ -325,11 +326,16 @@ func (p *parser) call(t token) (Node, error) {
 			p.next()
 		} else {
 			for {
-				arg, err := p.expr(0)
-				if err != nil {
-					return nil, err
+				// An argument may be left out: F(a, , c) or F(a, ).
+				if p.isOp(",") || p.isOp(";") || p.isOp(")") {
+					n.args = append(n.args, emptyArg{})
+				} else {
+					arg, err := p.expr(0)
+					if err != nil {
+						return nil, err
+					}
+					n.args = append(n.args, arg)
 				}
-				n.args = append(n.args, arg)
 				sep := p.next()
 				if sep.kind == tokOp && sep.text == ")" {
 					break
@@ -340,7 +346,8 @@ func (p *parser) call(t token) (Node, error) {
 			}
 		}
 	}
-	if len(n.args) < fn.Min || (fn.Max >= 0 && len(n.args) > fn.Max) {
+	if len(n.args) < fn.Min || (fn.Max >= 0 && len(n.args) > fn.Max) ||
+		(fn.step > 0 && (len(n.args)-fn.Min)%fn.step != 0) {
 		return nil, &ParseError{t.pos, fmt.Sprintf("Wrong number of arguments to %s(%s)", fn.Name, fn.Args)}
 	}
 	return n, nil

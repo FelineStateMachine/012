@@ -95,10 +95,11 @@ func TestFormulas(t *testing.T) {
 		{"=AND(A1>5, A2<10)", boolean(false)},
 		{"=OR(B3, FALSE)", boolean(true)},
 		{"=NOT(A1=10)", boolean(false)},
-		{"=B2*2", num(84)},     // numeric text coerces
-		{"=B1+1", ErrValue},    // other text doesn't
-		{"=SUM(B1)", ErrValue}, // nor as a direct argument
-		{"=B3+1", num(2)},      // TRUE is 1
+		{"=B2*2", num(84)},      // numeric text coerces
+		{"=B1+1", ErrValue},     // other text doesn't
+		{"=SUM(B1)", num(0)},    // text in a referenced cell is ignored
+		{`=SUM("a")`, ErrValue}, // but not as a direct argument
+		{"=B3+1", num(2)},       // TRUE is 1
 		{`=B1&" X"`, txt("Name X")},
 		{`="say ""hi"""`, txt(`say "hi"`)},
 		{"=A1&B3", txt("10TRUE")},
