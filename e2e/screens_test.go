@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	ghostty "go.mitchellh.com/libghostty"
 )
 
 var update = flag.Bool("update", false, "rewrite golden screens in testdata/screens")
@@ -86,12 +88,23 @@ var screens = []screen{
 		s.waitFor("HELP")
 	}},
 	{name: "narrow", opts: options{cols: 60, rows: 16}, setup: budget},
+	{name: "hover-resize-handle", setup: func(s *session) {
+		budget(s)
+		s.mouse(ghostty.MouseActionMotion, 0, 6+10-1, 3, 0)
+		s.waitFor("▐")
+	}},
+	{name: "resizing-column", setup: func(s *session) {
+		budget(s)
+		s.mouse(ghostty.MouseActionPress, ghostty.MouseButtonLeft, 6+10-1, 3, 0)
+		s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonLeft, 6+10+5, 3, 0)
+		s.waitFor("Column A width 16")
+	}},
 }
 
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "quit-confirm", "help"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "quit-confirm", "help", "resizing-column"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
