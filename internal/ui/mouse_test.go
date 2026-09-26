@@ -137,19 +137,6 @@ func TestPointerShapes(t *testing.T) {
 	}
 }
 
-func TestRightClickMovesOutsideSelection(t *testing.T) {
-	m := newModel()
-	press(t, m, "<shift+down>")
-	send(m, tea.MouseClickMsg{X: cellX(0), Y: gridTop + 1, Button: tea.MouseRight})
-	if !m.hasRange() {
-		t.Error("right-click inside the selection dropped it")
-	}
-	send(m, tea.MouseClickMsg{X: cellX(3), Y: gridTop + 5, Button: tea.MouseRight})
-	if m.cur != addr("D6") || m.hasRange() {
-		t.Errorf("cur %v", m.cur)
-	}
-}
-
 func TestClickDismissesHelp(t *testing.T) {
 	m := newModel()
 	press(t, m, "<f1>")

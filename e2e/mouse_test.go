@@ -3,61 +3,13 @@ package e2e
 import (
 	"strings"
 	"testing"
-	"time"
 
 	ghostty "go.mitchellh.com/libghostty"
 )
 
-const cellW, cellH = 8, 16
-
-// mouse sends one mouse event at a cell, encoded by libghostty from the
-// terminal's current tracking mode, as Ghostty would send it. A zero
-// button means no button (plain motion).
-func (s *session) mouse(action ghostty.MouseAction, button ghostty.MouseButton, col, row int, mods ghostty.Mods) {
-	s.t.Helper()
-	s.mu.Lock()
-	enc, err := ghostty.NewMouseEncoder()
-	if err != nil {
-		s.mu.Unlock()
-		s.t.Fatal(err)
-	}
-	defer enc.Close()
-	ev, err := ghostty.NewMouseEvent()
-	if err != nil {
-		s.mu.Unlock()
-		s.t.Fatal(err)
-	}
-	defer ev.Close()
-	enc.SetOptSize(ghostty.MouseEncoderSize{
-		ScreenWidth: uint32(s.cols) * cellW, ScreenHeight: uint32(s.rows) * cellH,
-		CellWidth: cellW, CellHeight: cellH,
-	})
-	enc.SetOptFromTerminal(s.vt)
-	enc.SetOptAnyButtonPressed(button != 0 && action == ghostty.MouseActionMotion)
-	ev.SetAction(action)
-	if button != 0 {
-		ev.SetButton(button)
-	} else {
-		ev.ClearButton()
-	}
-	ev.SetMods(mods)
-	ev.SetPosition(ghostty.MousePosition{X: float32(col*cellW + cellW/2), Y: float32(row*cellH + cellH/2)})
-	data, err := enc.Encode(ev)
-	s.mu.Unlock()
-	if err != nil {
-		s.t.Fatal(err)
-	}
-	if len(data) == 0 {
-		return
-	}
-	if _, err := s.pty.Write(data); err != nil {
-		s.t.Fatal(err)
-	}
-	time.Sleep(5 * time.Millisecond)
-}
-
-// click presses and releases the left button at a screen cell.
-func (s *session) click(col, row int, mods ghostty.Mods) {
+// leftClick presses and releases the left button at a screen cell, with
+// modifiers.
+func (s *session) leftClick(col, row int, mods ghostty.Mods) {
 	s.mouse(ghostty.MouseActionPress, ghostty.MouseButtonLeft, col, row, mods)
 	s.mouse(ghostty.MouseActionRelease, ghostty.MouseButtonLeft, col, row, mods)
 }
@@ -88,11 +40,11 @@ func colX(c int) int { return 6 + c*10 + 2 }
 
 func TestMouseClickDragAndShiftClick(t *testing.T) {
 	s := start(t, "")
-	s.click(colX(1), gridRow1+2, 0)
+	s.leftClick(colX(1), gridRow1+2, 0)
 	s.waitForName("B3")
 	s.drag([2]int{colX(0), gridRow1}, [2]int{colX(1), gridRow1 + 1}, [2]int{colX(2), gridRow1 + 2})
 	s.eventually("drag selection", func() bool { return strings.Contains(s.line(29), "A1:C3") })
-	s.click(colX(3), gridRow1+4, ghostty.ModShift)
+	s.leftClick(colX(3), gridRow1+4, ghostty.ModShift)
 	s.eventually("shift+click extends", func() bool { return strings.Contains(s.line(29), "A1:D5") })
 
 	// The app asked the terminal to pass Shift+click through.
@@ -107,17 +59,17 @@ func TestMouseClickDragAndShiftClick(t *testing.T) {
 func TestMouseClickWhileTypingAndFormulaReference(t *testing.T) {
 	s := start(t, "")
 	s.keys("40", "<enter>", "2", "<enter>", "=")
-	s.click(colX(0), gridRow1, 0)
+	s.leftClick(colX(0), gridRow1, 0)
 	s.waitForEntry("=A1")
 	s.keys("+")
-	s.click(colX(0), gridRow1+1, 0)
+	s.leftClick(colX(0), gridRow1+1, 0)
 	s.waitForEntry("=A1+A2")
 	s.keys("<enter>")
 	s.waitForLine(gridRow1+2, numRow(3, "42"))
 
 	// Clicking another cell while typing plain text accepts it there.
 	s.keys("note")
-	s.click(colX(2), gridRow1, 0)
+	s.leftClick(colX(2), gridRow1, 0)
 	s.waitForName("C1")
 	s.waitForLine(gridRow1+3, "    4  note")
 }
@@ -140,8 +92,8 @@ func TestMouseResizeAndWheel(t *testing.T) {
 func TestMouseDoubleClickEdits(t *testing.T) {
 	s := start(t, "")
 	s.keys("hello", "<enter>")
-	s.click(colX(0), gridRow1, 0)
-	s.click(colX(0), gridRow1, 0)
+	s.leftClick(colX(0), gridRow1, 0)
+	s.leftClick(colX(0), gridRow1, 0)
 	s.waitFor("EDIT")
 	s.waitForEntry("hello")
 }

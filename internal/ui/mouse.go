@@ -151,16 +151,9 @@ func (m *Model) handlePress(mouse tea.Mouse) tea.Cmd {
 	h := m.hitTest(mouse.X, mouse.Y)
 	double := h.kind == m.lastHit.kind && h.addr == m.lastHit.addr && time.Since(m.lastClick) < doubleClick
 	m.lastClick, m.lastHit = time.Now(), h
-	switch mouse.Button {
-	case tea.MouseLeft:
+	// Right clicks open context menus (context.go) before reaching here.
+	if mouse.Button == tea.MouseLeft {
 		return m.leftPress(h, mouse, double)
-	case tea.MouseRight:
-		// Right-clicking outside the selection moves there first, as in
-		// Sheets, so a context menu acts on what was clicked.
-		if h.kind == hitCell && m.mode == modeReady && !m.selection().Contains(h.addr) {
-			m.cur = h.addr
-			m.clearSelection()
-		}
 	}
 	return nil
 }

@@ -53,6 +53,8 @@ type session struct {
 	vt   *ghostty.Terminal
 	enc  *ghostty.KeyEncoder
 	ev   *ghostty.KeyEvent
+	menc *ghostty.MouseEncoder
+	mev  *ghostty.MouseEvent
 	cols uint16
 	rows uint16
 
@@ -90,6 +92,12 @@ func startWith(t *testing.T, o options, args ...string) *session {
 	if s.enc, err = ghostty.NewKeyEncoder(); err != nil {
 		t.Fatal(err)
 	}
+	if s.menc, err = ghostty.NewMouseEncoder(); err != nil {
+		t.Fatal(err)
+	}
+	if s.mev, err = ghostty.NewMouseEvent(); err != nil {
+		t.Fatal(err)
+	}
 	if s.ev, err = ghostty.NewKeyEvent(); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +116,7 @@ func startWith(t *testing.T, o options, args ...string) *session {
 		s.pty.Write(append([]byte(nil), data...))
 	})
 	s.vt.SetEffectSize(func(*ghostty.Terminal) (ghostty.SizeReportSize, bool) {
-		return ghostty.SizeReportSize{Columns: s.cols, Rows: s.rows, CellWidth: 8, CellHeight: 16}, true
+		return ghostty.SizeReportSize{Columns: s.cols, Rows: s.rows, CellWidth: cellW, CellHeight: cellH}, true
 	})
 
 	go func() {
@@ -134,6 +142,8 @@ func startWith(t *testing.T, o options, args ...string) *session {
 		s.pty.Close()
 		<-s.exited
 		s.ev.Close()
+		s.mev.Close()
+		s.menc.Close()
 		s.enc.Close()
 		s.vt.Close()
 	})
@@ -288,6 +298,52 @@ func (s *session) press(key ghostty.Key, mods ghostty.Mods, text string, unshift
 	// Give the program a moment so rapid keys aren't coalesced into one
 	// read that it could misparse as a paste or an escape sequence.
 	time.Sleep(5 * time.Millisecond)
+}
+
+// Cell size in pixels, as reported to the program and used to place mouse
+// events.
+const cellW, cellH = 8, 16
+
+// mouse sends a mouse event at cell x, y, encoded by libghostty for the
+// tracking mode and format the program turned on. MouseButtonUnknown means
+// no button, e.g. plain motion.
+func (s *session) mouse(action ghostty.MouseAction, button ghostty.MouseButton, x, y int, mods ghostty.Mods) {
+	s.t.Helper()
+	s.mu.Lock()
+	s.menc.SetOptFromTerminal(s.vt)
+	s.menc.SetOptSize(ghostty.MouseEncoderSize{
+		ScreenWidth: uint32(s.cols) * cellW, ScreenHeight: uint32(s.rows) * cellH,
+		CellWidth: cellW, CellHeight: cellH,
+	})
+	s.mev.SetAction(action)
+	if button == ghostty.MouseButtonUnknown {
+		s.mev.ClearButton()
+	} else {
+		s.mev.SetButton(button)
+	}
+	s.mev.SetMods(mods)
+	// Motion with a button held is a drag.
+	s.menc.SetOptAnyButtonPressed(action == ghostty.MouseActionMotion && button != ghostty.MouseButtonUnknown)
+	s.mev.SetPosition(ghostty.MousePosition{X: float32(x*cellW + cellW/2), Y: float32(y*cellH + cellH/2)})
+	data, err := s.menc.Encode(s.mev)
+	s.mu.Unlock()
+	if err != nil {
+		s.t.Fatalf("encoding mouse event: %v", err)
+	}
+	if len(data) == 0 {
+		s.t.Fatalf("mouse event at %d,%d not reported; is mouse tracking on?", x, y)
+	}
+	if _, err := s.pty.Write(data); err != nil {
+		s.t.Fatal(err)
+	}
+	time.Sleep(5 * time.Millisecond)
+}
+
+// click presses and releases a mouse button over cell x, y.
+func (s *session) click(button ghostty.MouseButton, x, y int) {
+	s.t.Helper()
+	s.mouse(ghostty.MouseActionPress, button, x, y, 0)
+	s.mouse(ghostty.MouseActionRelease, button, x, y, 0)
 }
 
 // resize changes both the virtual terminal and the pty, which sends the

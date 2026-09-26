@@ -115,7 +115,12 @@ func (m *Model) shellMouse(msg tea.MouseMsg) (tea.Cmd, bool) {
 	if !ok || m.mode != modeReady {
 		return nil, false
 	}
-	if mouse := click.Mouse(); mouse.Y == menuLine && mouse.Button == tea.MouseLeft {
+	mouse := click.Mouse()
+	switch {
+	case mouse.Button == tea.MouseRight:
+		m.rightClick(mouse.X, mouse.Y)
+		return nil, true
+	case mouse.Y == menuLine && mouse.Button == tea.MouseLeft:
 		if i := barMenuAt(mouse.X); i >= 0 {
 			m.showBarMenu(i)
 			return nil, true

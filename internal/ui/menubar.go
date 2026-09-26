@@ -42,14 +42,15 @@ var menuBar = []menuDef{
 		{cmd: "edit.cut"}, {cmd: "edit.copy"}, {cmd: "edit.paste"}, {cmd: "edit.paste_values", title: "Paste values only"}, sep,
 		{cmd: "edit.fill_down", title: "Fill down"}, {cmd: "edit.fill_right", title: "Fill right"}, sep,
 		{cmd: "clear"}, {cmd: "select.all"}, {cmd: "goto"}, sep,
-		{cmd: "delete.row", title: "Delete row"}, {cmd: "delete.col", title: "Delete column"},
+		{cmd: "delete.row", title: "Delete row"}, {cmd: "delete.col", title: "Delete column"}, {cmd: "delete.selection"},
 	}},
 	{title: "View", accel: 'v', items: []menuItem{
 		{cmd: "palette", title: "Command palette"}, {cmd: "help"},
 	}},
 	{title: "Insert", accel: 'i', items: []menuItem{
 		{cmd: "insert.row_above", title: "Row above"}, {cmd: "insert.row_below", title: "Row below"}, sep,
-		{cmd: "insert.col_left", title: "Column left"}, {cmd: "insert.col_right", title: "Column right"},
+		{cmd: "insert.col_left", title: "Column left"}, {cmd: "insert.col_right", title: "Column right"}, sep,
+		{cmd: "insert.selection"},
 	}},
 	{title: "Format", accel: 'o', items: []menuItem{
 		{title: "Number", items: []menuItem{
@@ -401,6 +402,9 @@ func (o *menuOverlay) mouse(m *Model, e mouseEvent) tea.Cmd {
 	}
 	if e.kind == mousePress {
 		m.closeOverlay()
+		if e.button == tea.MouseRight {
+			m.rightClick(e.x, e.y) // right-clicking elsewhere opens a menu there
+		}
 	}
 	return nil
 }

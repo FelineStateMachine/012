@@ -84,6 +84,16 @@ var screens = []screen{
 		s.keys("<ctrl+k>", "sa")
 		s.waitFor("│ › sa")
 	}},
+	{name: "context-menu", setup: func(s *session) {
+		budget(s)
+		s.click(ghostty.MouseButtonRight, 6+10+4, 4+3)
+		s.waitFor("│ Clear")
+	}},
+	{name: "context-menu-column", setup: func(s *session) {
+		budget(s)
+		s.click(ghostty.MouseButtonRight, 6+10+4, 3)
+		s.waitFor("│ Resize column")
+	}},
 	{name: "quit-confirm", setup: func(s *session) {
 		budget(s)
 		s.keys("<ctrl+q>")
@@ -105,7 +115,7 @@ var screens = []screen{
 	{name: "narrow", opts: options{cols: 60, rows: 16}, setup: budget},
 	{name: "hover-resize-handle", setup: func(s *session) {
 		budget(s)
-		s.mouse(ghostty.MouseActionMotion, 0, 6+10-1, 3, 0)
+		s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonUnknown, 6+10-1, 3, 0)
 		s.waitFor("▐")
 	}},
 	{name: "resizing-column", setup: func(s *session) {
@@ -139,7 +149,7 @@ var screens = []screen{
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"

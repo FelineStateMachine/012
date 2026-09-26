@@ -85,7 +85,7 @@ func formulaBarTextX() int { return nameBoxW + 1 }
 // edited here with the terminal cursor, and shown in the cell too.
 func (m *Model) formulaBar() string {
 	name := m.cur.String()
-	if m.hasRange() && m.mode == modeReady {
+	if m.hasRange() && (m.mode == modeReady || m.mode == modeMenu) {
 		name = m.selection().String()
 	}
 	box := m.th.header.Render(padRight(" "+name, nameBoxW)) + " "
