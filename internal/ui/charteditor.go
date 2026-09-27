@@ -169,16 +169,24 @@ func (e *chartEditor) chip(on bool, name, key string) editorPart {
 }
 
 // parts returns the bar's parts, and how many of them lead it: the
-// types, which are never dropped and have a wider gap after them.
-func (e *chartEditor) parts(m *Model) ([]editorPart, int) {
+// types, which are never dropped and have a wider gap after them. Compact,
+// the types are one chip of the current type, which a click moves on.
+func (e *chartEditor) parts(m *Model, compact bool) ([]editorPart, int) {
 	if e.axes {
 		return e.axisParts(m), 0
 	}
 	c := e.chart(m)
 	var parts []editorPart
 	for i, t := range sheet.ChartTypes {
-		parts = append(parts, e.chip(t == c.Type, t.Title(), strconv.Itoa(i+1)))
+		switch {
+		case !compact:
+			parts = append(parts, e.chip(t == c.Type, t.Title(), strconv.Itoa(i+1)))
+		case t == c.Type:
+			next := (i+1)%len(sheet.ChartTypes) + 1
+			parts = append(parts, e.chip(true, "◂ "+t.Title()+" ▸", strconv.Itoa(next)))
+		}
 	}
+	lead := len(parts)
 	parts = append(parts, editorPart{text: m.th.Key.Render(c.Data.String()), key: editorRange})
 	switch {
 	case c.Type.Stackable():
@@ -197,13 +205,26 @@ func (e *chartEditor) parts(m *Model) ([]editorPart, int) {
 	return append(parts,
 		e.chip(true, series, editorSwitch),
 		e.chip(c.Header, header, editorHeader),
-		e.chip(c.Labels, labels, editorLabels)), len(sheet.ChartTypes)
+		e.chip(c.Labels, labels, editorLabels)), lead
 }
 
-// spans lays the parts out on the context line, dropping options from the
-// right on narrow screens, and returns each part's x.
+// spans lays the parts out on the context line and returns each part's
+// x. On narrow screens the types become one chip when that leaves room
+// for more options, and options that still don't fit are dropped from the
+// right.
 func (e *chartEditor) spans(m *Model) ([]editorPart, []int) {
-	parts, lead := e.parts(m)
+	parts, xs := e.fit(m, false)
+	if all, _ := e.parts(m, false); len(parts) < len(all) && !e.axes {
+		if cp, cxs := e.fit(m, true); len(cp)+len(sheet.ChartTypes)-1 > len(parts) {
+			return cp, cxs
+		}
+	}
+	return parts, xs
+}
+
+// fit lays out the parts, dropping options from the right until they fit.
+func (e *chartEditor) fit(m *Model, compact bool) ([]editorPart, []int) {
+	parts, lead := e.parts(m, compact)
 	for {
 		xs := make([]int, len(parts))
 		x := 0

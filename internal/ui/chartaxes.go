@@ -93,5 +93,5 @@ func (e *chartEditor) askAxisEnd(m *Model, label, question, initial string, end 
 }
 
 func (e *chartEditor) axisStatus(m *Model) string {
-	return fitHints(m, []string{"N", "minimum", "X", "maximum", "L", "log scale", "G", "gridlines", "P", "legend", "Enter", "back", "Esc", "back"})
+	return fitHints(m, []string{"N", "min", "X", "max", "L", "log", "G", "grid", "P", "legend", "Esc", "back"})
 }

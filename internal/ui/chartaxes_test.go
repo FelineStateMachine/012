@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -114,10 +116,18 @@ func TestChartEditorFitsNarrow(t *testing.T) {
 	if ctx := line(m, contextLine); !strings.Contains(ctx, "Legend bottom") {
 		t.Errorf("axis bar clipped at 60 columns: %q", ctx)
 	}
+	if _, keys := m.overlay.Status(); !strings.Contains(keys, "grid") || !strings.Contains(keys, "legend") || ansi.StringWidth(keys) > 60 {
+		t.Errorf("axis keys at 60 columns: %q", ansi.Strip(keys))
+	}
 	press(t, m, "<esc>")
-	for _, want := range []string{"Column", "Scatter"} {
+	for _, want := range []string{"◂ Column ▸", "Series in columns"} {
 		if ctx := line(m, contextLine); !strings.Contains(ctx, want) {
 			t.Errorf("main bar lacks %q at 60 columns: %q", want, ctx)
 		}
+	}
+	// Clicking the one type chip moves on to the next type.
+	leftClick(m, 3, contextLine)
+	if c := m.sheet.Charts()[0]; c.Type != sheet.ChartBar || !strings.Contains(line(m, contextLine), "◂ Bar ▸") {
+		t.Errorf("after a click: %v %q", c.Type, line(m, contextLine))
 	}
 }
