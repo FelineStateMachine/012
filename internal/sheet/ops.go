@@ -140,7 +140,9 @@ func (s *Sheet) restructure(rows bool, sp formula.Span) {
 		s.remap(label, focus, cell, rng)
 		s.remapNames(rng)
 		s.shiftCharts(cell, rng)
-		if !rows {
+		if rows {
+			s.shiftHeights(sp)
+		} else {
 			s.shiftWidths(sp)
 		}
 		s.shiftLines(rows, sp)
@@ -177,13 +179,14 @@ type Clip struct {
 	Src     Rect           // Range trimmed to its cells when whole lines
 	cells   map[Addr]*Cell // by offset from Src.From
 	formats clipFormats
+	merges  []Rect // the merges wholly inside Range, by offset
 }
 
 // Copy snapshots the cells in r, and what formatting they show, for
 // pasting. Whole columns or rows are trimmed to the cells they hold,
 // keeping their line formats.
 func (s *Sheet) Copy(r Rect) *Clip {
-	c := &Clip{Range: r, Src: s.trimLines(r), cells: map[Addr]*Cell{}, formats: s.copyFormats(r)}
+	c := &Clip{Range: r, Src: s.trimLines(r), cells: map[Addr]*Cell{}, formats: s.copyFormats(r), merges: s.mergesWithin(r)}
 	for _, a := range s.cellsIn(r) {
 		c.cells[Addr{Col: a.Col - r.From.Col, Row: a.Row - r.From.Row}] = s.cells.get(a).plain()
 	}
@@ -282,6 +285,7 @@ func (s *Sheet) Paste(c *Clip, dst Rect, values bool) (Rect, error) {
 		}
 		if !values {
 			s.pasteFormats(&c.formats, p)
+			s.pasteMerges(c.merges, p)
 		}
 	})
 	return dst, nil

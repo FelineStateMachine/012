@@ -18,6 +18,10 @@ type fileCell struct {
 	Strikethrough bool   `json:"strikethrough,omitempty"`
 	Align         string `json:"align,omitempty"`
 	Own           bool   `json:"own,omitempty"` // not taking its column's or row's formatting
+	// Wrap and Borders need no version bump: earlier builds ignore them
+	// and show the text overflowing, without lines.
+	Wrap    string       `json:"wrap,omitempty"` // "wrap" or "clip"
+	Borders *fileBorders `json:"borders,omitempty"`
 	// Note needs no version bump: earlier builds ignore it and drop the
 	// note.
 	Note string `json:"note,omitempty"`
@@ -36,6 +40,8 @@ func encodeCell(c *Cell) (json.RawMessage, error) {
 		Strikethrough: c.Style.Strikethrough,
 		Align:         c.Style.Align.String(),
 		Own:           c.Style.own,
+		Wrap:          c.Style.Wrap.String(),
+		Borders:       encodeBorders(c.Style.Borders),
 		Note:          c.Note,
 	}
 	if !c.Format.IsZero() {
@@ -87,6 +93,48 @@ func decodeFormatted(fc fileCell) (string, Format, Style, error) {
 	if !ok {
 		return "", Format{}, Style{}, fmt.Errorf("unknown alignment %q", fc.Align)
 	}
-	st := Style{Bold: fc.Bold, Italic: fc.Italic, Underline: fc.Underline, Strikethrough: fc.Strikethrough, Align: al, own: fc.Own}
+	wr, ok := ParseWrap(fc.Wrap)
+	if !ok {
+		return "", Format{}, Style{}, fmt.Errorf("unknown wrapping %q", fc.Wrap)
+	}
+	b, err := decodeBorders(fc.Borders)
+	if err != nil {
+		return "", Format{}, Style{}, err
+	}
+	st := Style{Bold: fc.Bold, Italic: fc.Italic, Underline: fc.Underline, Strikethrough: fc.Strikethrough, Align: al, Wrap: wr, Borders: b, own: fc.Own}
 	return fc.Input, f, st, nil
+}
+
+// fileBorders are a cell's borders in the file, each edge's line by name:
+// {"top": "thin", "left": "double"}.
+type fileBorders struct {
+	Top    string `json:"top,omitempty"`
+	Bottom string `json:"bottom,omitempty"`
+	Left   string `json:"left,omitempty"`
+	Right  string `json:"right,omitempty"`
+}
+
+func encodeBorders(b Borders) *fileBorders {
+	if b.IsZero() {
+		return nil
+	}
+	return &fileBorders{Top: b.Top.String(), Bottom: b.Bottom.String(), Left: b.Left.String(), Right: b.Right.String()}
+}
+
+func decodeBorders(fb *fileBorders) (Borders, error) {
+	var b Borders
+	if fb == nil {
+		return b, nil
+	}
+	for _, e := range [...]struct {
+		name string
+		to   *Line
+	}{{fb.Top, &b.Top}, {fb.Bottom, &b.Bottom}, {fb.Left, &b.Left}, {fb.Right, &b.Right}} {
+		l, ok := ParseLine(e.name)
+		if !ok {
+			return Borders{}, fmt.Errorf("unknown border line %q", e.name)
+		}
+		*e.to = l
+	}
+	return b, nil
 }

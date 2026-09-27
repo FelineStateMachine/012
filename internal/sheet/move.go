@@ -38,6 +38,7 @@ func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
 		s.remap(label, dst, cell, rng)
 		s.remapNames(rng) // a name for exactly the moved cells follows them
 		s.moveFormats(s, &f, src, dst)
+		s.moveMerges(s, src, dst)
 	})
 	return dst, nil
 }
@@ -64,6 +65,7 @@ func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
 	dst.change(label, d, func() {
 		mv.apply(moved, readers)
 		dst.moveFormats(s, &f, src, d)
+		dst.moveMerges(s, src, d)
 	})
 	return d, nil
 }

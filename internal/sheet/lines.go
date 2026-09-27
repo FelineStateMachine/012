@@ -243,8 +243,9 @@ func (s *Sheet) lineCells(row bool, n int) []loc {
 
 // formatLines applies fn to the formatting of r, which is whole columns
 // or rows: to their line formats and to the cells in r that show
-// something else. It reports false, doing nothing, for any other range.
-func (s *Sheet) formatLines(r Rect, fn func(*lineFmt)) bool {
+// something else, with where each is (see lineAddr). It reports false,
+// doing nothing, for any other range.
+func (s *Sheet) formatLines(r Rect, fn func(Addr, *lineFmt)) bool {
 	cols, rows := r.AllRows(), r.AllCols()
 	if !cols && !rows {
 		return false
@@ -275,7 +276,7 @@ func (s *Sheet) formatLines(r Rect, fn func(*lineFmt)) bool {
 	want := make([]lineFmt, len(targets))
 	for i, a := range targets {
 		want[i] = s.effective(a)
-		fn(&want[i])
+		fn(a, &want[i])
 	}
 	s.eachLine(r, fn)
 	for i, a := range targets {
@@ -284,12 +285,25 @@ func (s *Sheet) formatLines(r Rect, fn func(*lineFmt)) bool {
 	return true
 }
 
+// lineAddr is where a line format applies, for functions given the
+// address of what they format: a column's has Row -1, a row's Col -1,
+// and the whole sheet's both.
+func lineAddr(row bool, n int) Addr {
+	switch {
+	case row:
+		return Addr{Col: -1, Row: n}
+	case n == wholeSheet:
+		return Addr{Col: -1, Row: -1}
+	}
+	return Addr{Col: n, Row: -1}
+}
+
 // eachLine applies fn to the line formats of r's whole columns, or rows;
 // for the whole sheet, to its own format and to the columns and rows
 // that have one, so they show the change too.
-func (s *Sheet) eachLine(r Rect, fn func(*lineFmt)) {
+func (s *Sheet) eachLine(r Rect, fn func(Addr, *lineFmt)) {
 	apply := func(row bool, n int, l lineFmt) {
-		fn(&l)
+		fn(lineAddr(row, n), &l)
 		s.setLine(row, n, l)
 	}
 	if r.AllRows() && r.AllCols() {

@@ -11,9 +11,11 @@ import (
 // its source showed, storing only what the destination's own lines don't
 // already show. Copying whole columns or rows and pasting them as whole
 // lines (at the top of a column, the start of a row, or A1 for the whole
-// sheet) carries the line formats themselves, and cutting them moves the
-// line formats, leaving the source lines plain. Cutting a block leaves
-// its cells plain, over whatever lines cross it.
+// sheet) carries the line formats themselves, and rows their heights,
+// and cutting them moves the line formats and heights, leaving the
+// source lines plain. Cutting a block leaves its cells plain, over
+// whatever lines cross it. Merged cells wholly inside a copy are merged
+// where it lands (merge.go).
 
 // clipFormats is the formatting of a copied range, taken at copy time.
 type clipFormats struct {
@@ -21,6 +23,7 @@ type clipFormats struct {
 	cells          map[Addr]lineFmt // what each stored cell showed, by offset
 	colFmt, rowFmt map[int]lineFmt  // formatted columns and rows crossing the range, by offset
 	sheet          lineFmt
+	heights        map[int]int // whole rows' heights, by offset
 }
 
 // copyFormats takes the formatting of r.
@@ -31,6 +34,9 @@ func (s *Sheet) copyFormats(r Rect) clipFormats {
 	}
 	f.colFmt = linesIn(s.lines.cols, r.From.Col, r.To.Col)
 	f.rowFmt = linesIn(s.lines.rows, r.From.Row, r.To.Row)
+	if f.rows {
+		f.heights = s.heightsIn(r.From.Row, r.To.Row)
+	}
 	return f
 }
 
@@ -177,6 +183,12 @@ func (s *Sheet) pasteLines(f *clipFormats, p pasteLayout) {
 		for _, n := range unionKeys(s.lines.rows, f.rowFmt) {
 			s.setLine(true, n, f.rowFmt[n])
 		}
+		for _, n := range slices.Collect(maps.Keys(s.heights)) {
+			s.setHeight(n, 0)
+		}
+		for n, h := range f.heights {
+			s.setHeight(n, h)
+		}
 	case lineCols:
 		for i := range p.across * p.tw {
 			s.setLine(false, p.dst.From.Col+i, f.carry(f.colFmt[i%p.tw], s.lines.sheet))
@@ -184,6 +196,11 @@ func (s *Sheet) pasteLines(f *clipFormats, p pasteLayout) {
 	case lineRows:
 		for i := range p.down * p.th {
 			s.setLine(true, p.dst.From.Row+i, f.carry(f.rowFmt[i%p.th], s.lines.sheet))
+		}
+		if len(f.heights) > 0 || len(s.heights) > 0 {
+			for i := range p.down * p.th {
+				s.setHeight(p.dst.From.Row+i, f.heights[i%p.th])
+			}
 		}
 	}
 }
@@ -249,6 +266,9 @@ func (s *Sheet) moveFormats(from *Sheet, f *clipFormats, src, dst Rect) {
 		for _, n := range slices.Sorted(maps.Keys(from.lines.rows)) {
 			from.setLine(true, n, lineFmt{})
 		}
+		for n := range from.heights {
+			from.setHeight(n, 0)
+		}
 	case lineCols:
 		for n := range f.colFmt {
 			from.setLine(false, src.From.Col+n, lineFmt{})
@@ -256,6 +276,9 @@ func (s *Sheet) moveFormats(from *Sheet, f *clipFormats, src, dst Rect) {
 	case lineRows:
 		for n := range f.rowFmt {
 			from.setLine(true, src.From.Row+n, lineFmt{})
+		}
+		for n := range f.heights {
+			from.setHeight(src.From.Row+n, 0)
 		}
 	case lineBlock:
 		from.plainSource(src, dst, from == s)

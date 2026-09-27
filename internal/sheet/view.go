@@ -11,12 +11,14 @@ import (
 )
 
 // View state that belongs to the worksheet rather than to a cell: frozen
-// rows and columns, the filter and the protected ranges. It is saved in
-// the file and every change to it is an undo step, as in Sheets.
+// rows and columns, the filter, the protected ranges and the merged
+// cells. It is saved in the file and every change to it is an undo step,
+// as in Sheets.
 type viewState struct {
 	frozenRows, frozenCols int
 	filter                 *Filter      // never modified in place; replaced whole
 	protected              []Protection // see protect.go; replaced whole too
+	merges                 []Rect       // see merge.go; replaced whole too
 }
 
 // Frozen returns how many rows and columns are frozen at the top and left.
@@ -78,7 +80,7 @@ func (s *Sheet) recordView() {
 func (v viewState) equal(w viewState) bool {
 	return v.frozenRows == w.frozenRows && v.frozenCols == w.frozenCols &&
 		(v.filter == w.filter || reflect.DeepEqual(v.filter, w.filter)) &&
-		slices.Equal(v.protected, w.protected)
+		slices.Equal(v.protected, w.protected) && slices.Equal(v.merges, w.merges)
 }
 
 // shiftView keeps frozen lines, the filter and protected ranges in step
@@ -89,6 +91,7 @@ func (v viewState) equal(w viewState) bool {
 func (s *Sheet) shiftView(rows bool, sp formula.Span) {
 	v := s.view
 	v.protected = shiftProtected(v.protected, rows, sp)
+	v.merges = shiftMerges(v.merges, rows, sp)
 	frozen := &v.frozenCols
 	if rows {
 		frozen = &v.frozenRows
@@ -133,6 +136,9 @@ type fileView struct {
 	Freeze    *fileFreeze      `json:"freeze,omitempty"`
 	Filter    *fileFilter      `json:"filter,omitempty"`
 	Protected []fileProtection `json:"protected,omitempty"`
+	// Merges need no version: earlier builds ignore them and show the
+	// cells unmerged.
+	Merges []string `json:"merges,omitempty"`
 }
 
 type fileFreeze struct {
@@ -169,6 +175,13 @@ func (s *Sheet) writeView(b *bytes.Buffer, indent string) error {
 	if ps := s.view.protected; len(ps) > 0 {
 		keys, parts = append(keys, "protected"), append(parts, encodeProtections(ps))
 	}
+	if ms := s.view.merges; len(ms) > 0 {
+		names := make([]string, len(ms))
+		for i, m := range ms {
+			names[i] = m.String()
+		}
+		keys, parts = append(keys, "merges"), append(parts, names)
+	}
 	for i, p := range parts {
 		raw, err := json.Marshal(p)
 		if err != nil {
@@ -187,6 +200,13 @@ func (s *Sheet) readView(fv fileView) error {
 		return err
 	}
 	s.view.protected = ps
+	for _, name := range fv.Merges {
+		r, ok := ParseRange(name)
+		if !ok {
+			return fmt.Errorf("invalid merged range %q", name)
+		}
+		s.LoadMerge(r)
+	}
 	if fz := fv.Freeze; fz != nil {
 		s.view.frozenRows, s.view.frozenCols = clampInt(fz.Rows, 0, MaxFrozen), clampInt(fz.Cols, 0, MaxFrozen)
 	}

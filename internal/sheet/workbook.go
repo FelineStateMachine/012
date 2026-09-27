@@ -210,8 +210,8 @@ func (w *Workbook) AddSheet(name string, at int) (*Sheet, error) {
 	return s, nil
 }
 
-// DuplicateSheet copies s, cells, widths, frozen panes, filter and
-// charts, to a new sheet right after it named "Copy of ...", as Sheets'
+// DuplicateSheet copies s, cells, widths, heights, frozen panes, filter,
+// merges and charts, to a new sheet right after it named "Copy of ...", as Sheets'
 // Duplicate. Formulas are copied as written, so references without a
 // sheet name read the copy's own cells.
 func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
@@ -227,6 +227,7 @@ func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
 	for c, width := range s.widths {
 		cp.widths[c] = width
 	}
+	cp.heights = maps.Clone(s.heights)
 	cp.lines = lineFormats{cols: maps.Clone(s.lines.cols), rows: maps.Clone(s.lines.rows), sheet: s.lines.sheet}
 	cp.view = s.view
 	cp.view.filter = s.view.filter.clone()

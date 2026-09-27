@@ -26,8 +26,11 @@ object:
 A formatted cell has its `input` and the formatting that isn't the
 default: `format` (as `number_format` in
 [macros](../reference/macro-api.md#cells) names it: `currency`, `percent`, `date`, ...), `decimals`, `pattern` for a
-custom format, `bold`, `italic`, `underline`, `strikethrough` and
-`align` (`left`, `center`, `right`).
+custom format, `bold`, `italic`, `underline`, `strikethrough`,
+`align` (`left`, `center`, `right`), `wrap` (`wrap` or `clip`) and
+`borders`, each edge's line by name:
+`"borders":{"top":"thin","bottom":"double","left":"thick","right":"thin"}`
+([formatting](../sheets/formatting.md#borders)).
 
 Only what's typed is saved. What 012 computes is computed again when the
 file opens: formula results, [pivot tables](#pivot-tables)' results, and
@@ -57,7 +60,10 @@ save), so they raise no version:
 |---|---|---|
 | `note` | a cell | Its [note](../sheets/notes-protection.md#notes) |
 | `own` | a cell | `true` when its formatting is its own, not its column's or row's (Automatic in a currency column) |
+| `wrap`, `borders` | a cell or a line | How its text [wraps](../sheets/formatting.md#wrapping) and its [borders](../sheets/formatting.md#borders); older builds show the text overflowing, without lines |
 | `lines` | a sheet | [Column and row formats](#column-and-row-formats) |
+| `heights` | a sheet | [Row heights](../sheets/formatting.md#row-heights) set by hand, in lines, by row number: `"heights": {"3": 2, "7": 4}` |
+| `merges` | a sheet | [Merged cells](../sheets/formatting.md#merged-cells), by range: `"merges": ["A1:C1", "D2:D5"]` |
 | `name`, `hidden` | a sheet | Its name when renamed; `true` when hidden (a file whose sheets are all hidden opens with the first one shown) |
 | `charts` | a sheet | One chart per line: `type` (`column`, `bar`, `line`, `pie`, `area`, `scatter`), `data`, `at`, `width`, `height`, `byRow`, `header`, `labels`, `title`, and options left out at their defaults: `stack` (`stacked`, `percent`), `trend`, `min`, `max`, `log`, `gridlines` (only when off), `legend` (`right`, `none`). A build that charts but lacks a chart's type refuses the file |
 | `protected` | a sheet | [Protected ranges](../sheets/notes-protection.md#protected-sheets-and-ranges): `{"range":"B2:C9","description":"Totals"}`, or `{"sheet":true}` |

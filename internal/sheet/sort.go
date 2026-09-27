@@ -86,7 +86,7 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 	if used, ok := s.UsedRange(); ok {
 		r.To.Row, r.To.Col = min(r.To.Row, used.To.Row), min(r.To.Col, used.To.Col)
 	}
-	if len(keys) == 0 || r.To.Row <= r.From.Row || r.To.Col < r.From.Col {
+	if len(keys) == 0 || r.To.Row <= r.From.Row || r.To.Col < r.From.Col || len(s.MergesIn(r)) > 0 {
 		return
 	}
 	old := map[Addr]*Cell{}

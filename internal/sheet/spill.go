@@ -172,6 +172,9 @@ func (s *Sheet) spillArea(a Addr, arr *functions.Array) (Rect, string) {
 	case rows*cols > MaxCells():
 		return area, fmt.Sprintf("Array result was not expanded because it would write more cells than max-cells allows (%d)", MaxCells())
 	}
+	if ms := s.MergesIn(area); len(ms) > 0 {
+		return area, "Array result was not expanded because it would overwrite merged cells in " + ms[0].String()
+	}
 	old := s.spills[a]
 	for at, c := range s.cells.anyInRange(area) {
 		if at == a || c.Blank() || c.spilled && old != nil && old.why == "" && old.area.Contains(at) {

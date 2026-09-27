@@ -67,9 +67,11 @@ type Sheet struct {
 	live      bool // in the workbook's list; false once deleted
 	tabHidden bool // left out of the tabs; see hidden.go
 
-	cells  cellStore // see store.go
-	widths map[int]int
-	lines  lineFormats // column and row formats, see lines.go
+	cells   cellStore // see store.go
+	widths  map[int]int
+	heights map[int]int // rows' heights set by hand, in lines; see rowlayout.go
+	lines   lineFormats // column and row formats, see lines.go
+	shapers shaperIndex // the cells that wrap or draw borders, see rowlayout.go
 
 	// dependents maps a cell to the formula cells that reference it
 	// directly. Range references are kept on the formula cell itself and
@@ -102,8 +104,9 @@ type Sheet struct {
 	spills  map[Addr]*spill
 	spillAt rangeIndex
 
-	view   viewState   // frozen panes and the filter, see view.go
-	hidden hiddenCache // rows the filter hides, see filter.go
+	view     viewState   // frozen panes, the filter and merges, see view.go
+	mergeIdx mergeIndex  // the merges by the cells they cover, see merge.go
+	hidden   hiddenCache // rows the filter hides, see filter.go
 
 	rules rulesState // conditional formats and data validation, see rules.go
 	looks looksCache // how the rules draw cells, see looks.go
@@ -174,6 +177,7 @@ func (s *Sheet) SetColWidth(c, w int) {
 
 func (s *Sheet) setWidth(c, w int) {
 	s.recordWidth(c)
+	s.version++                      // wrapped text may take other lines
 	if w <= 0 || w == DefaultWidth { // keep the map to non-default widths
 		delete(s.widths, c)
 		return
@@ -361,6 +365,7 @@ func (s *Sheet) place(a Addr, c *Cell) {
 	if c.Spilled() {
 		c = c.leftover()
 	}
+	s.trackShape(a, c)
 	s.spillTouched(a, c)
 	if c == nil {
 		s.unlink(a)

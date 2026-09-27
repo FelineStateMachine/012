@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -59,10 +60,13 @@ type fileFormat struct {
 
 // fileSheet is one sheet of a file.
 type fileSheet struct {
-	Name   string                     `json:"name,omitempty"`
-	Hidden bool                       `json:"hidden,omitempty"` // version 4, ignored by older builds
-	Widths map[string]int             `json:"widths,omitempty"`
-	Lines  map[string]json.RawMessage `json:"lines,omitempty"` // column and row formats, see linefile.go
+	Name   string         `json:"name,omitempty"`
+	Hidden bool           `json:"hidden,omitempty"` // version 4, ignored by older builds
+	Widths map[string]int `json:"widths,omitempty"`
+	// Heights need no version: earlier builds ignore them and show each
+	// row one line tall.
+	Heights map[string]int             `json:"heights,omitempty"`
+	Lines   map[string]json.RawMessage `json:"lines,omitempty"` // column and row formats, see linefile.go
 	fileView
 	Cells  map[string]json.RawMessage `json:"cells"`
 	Charts []fileChart                `json:"charts,omitempty"`
@@ -188,6 +192,7 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 		}
 		b.WriteString("},\n")
 	}
+	s.writeHeights(b, indent)
 	if err := s.writeLines(b, indent); err != nil {
 		return err
 	}
@@ -356,6 +361,13 @@ func (s *Sheet) read(f fileSheet, version int) error {
 			return fmt.Errorf("invalid column %q", name)
 		}
 		s.setWidth(c, width)
+	}
+	for name, h := range f.Heights {
+		row, err := strconv.Atoi(name)
+		if err != nil || row < 1 || row > MaxRows {
+			return fmt.Errorf("invalid row %q", name)
+		}
+		s.setHeight(row-1, h)
 	}
 	if err := s.readLines(f.Lines); err != nil {
 		return err

@@ -409,6 +409,7 @@ func (s *Sheet) writeDerived(want []pivotCell) []loc {
 // index.
 func (s *Sheet) setDerived(a Addr, c *Cell) {
 	s.version++
+	s.trackShape(a, c)
 	s.unlink(a)
 	if c != nil {
 		s.cells.set(a, c)

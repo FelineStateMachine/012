@@ -37,7 +37,7 @@ func (st *step) keep(l loc, c *Cell) {
 // they were recorded, and the rest, which is small.
 func (st *step) size() int64 {
 	n := stepBytes + st.cellBytes
-	n += int64(len(st.widths)+len(st.lines)+len(st.names)+len(st.views)) * entryBytes
+	n += int64(len(st.widths)+len(st.heights)+len(st.lines)+len(st.names)+len(st.views)) * entryBytes
 	for _, charts := range st.charts {
 		n += entryBytes + int64(len(charts))*chartBytes
 	}

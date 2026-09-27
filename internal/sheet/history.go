@@ -25,8 +25,8 @@ type history struct {
 	lastID     int
 	bytes      int64 // estimated heap held by the undo steps; see historysize.go
 	// mergeWidths lets the next width-only step join the top one, so a
-	// live preview of a column width and its final value (or its
-	// cancellation) are one step. Seal ends the run.
+	// live preview of a column width or row height and its final value
+	// (or its cancellation) are one step. Seal ends the run.
 	mergeWidths bool
 }
 
@@ -41,6 +41,7 @@ type step struct {
 	focus     Rect                // what the UI selects there
 	cells     map[loc]*Cell       // before the step; nil for blank
 	widths    map[colKey]int      // before the step; 0 for the default width
+	heights   map[rowKey]int      // rows' heights before the step; 0 for none
 	lines     map[lineKey]lineFmt // column and row formats before the step
 	names     map[string]*Name    // before the step, by key; nil for undefined
 	views     map[*Sheet]*viewState
@@ -66,15 +67,16 @@ type colKey struct {
 }
 
 func newStep(label string, s *Sheet, focus Rect) *step {
-	return &step{label: label, sheet: s, focus: focus, cells: map[loc]*Cell{}, widths: map[colKey]int{}, lines: map[lineKey]lineFmt{},
+	return &step{label: label, sheet: s, focus: focus, cells: map[loc]*Cell{}, widths: map[colKey]int{}, heights: map[rowKey]int{}, lines: map[lineKey]lineFmt{},
 		names: map[string]*Name{}, views: map[*Sheet]*viewState{}, charts: map[*Sheet][]Chart{}, pivots: map[*Sheet]*Pivot{}, rules: map[*Sheet]rulesState{}}
 }
 
 func (st *step) empty() bool {
-	return len(st.cells) == 0 && len(st.widths) == 0 && st.widthOnly()
+	return len(st.cells) == 0 && len(st.widths) == 0 && len(st.heights) == 0 && st.widthOnly()
 }
 
-// widthOnly reports whether the step changed nothing but column widths.
+// widthOnly reports whether the step changed nothing but column widths
+// and row heights.
 func (st *step) widthOnly() bool {
 	return len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil && st.decimal == nil &&
 		st.macros == nil
@@ -167,59 +169,6 @@ func (s *Sheet) record(a Addr) {
 	s.wb.hist.dirty = append(s.wb.hist.dirty, l)
 }
 
-// recordWidth saves column c's width before its first change in the open
-// step.
-func (s *Sheet) recordWidth(c int) {
-	st := s.wb.hist.open
-	if st == nil {
-		return
-	}
-	k := colKey{s, c}
-	if _, seen := st.widths[k]; !seen {
-		st.widths[k] = s.widths[c]
-	}
-}
-
-// recordName saves the named range with key k before its first change in
-// the open step.
-func (w *Workbook) recordName(k string) {
-	st := w.hist.open
-	if st == nil {
-		return
-	}
-	if _, seen := st.names[k]; !seen {
-		st.names[k] = w.namePtr(k)
-	}
-}
-
-// recordCharts saves the sheet's charts before their first change in the
-// open step. Charts are few, so the step keeps them all.
-func (s *Sheet) recordCharts() {
-	if st := s.wb.hist.open; st != nil {
-		if _, seen := st.charts[s]; !seen {
-			st.charts[s] = slices.Clone(s.charts)
-		}
-	}
-}
-
-// recordSheets saves the sheet list before its first change in the open
-// step, and has the step recalculate everything when it ends.
-func (w *Workbook) recordSheets() {
-	w.structural = true
-	if st := w.hist.open; st != nil && st.sheets == nil {
-		st.sheets = w.sheetList()
-	}
-}
-
-// recordDecimal saves the arithmetic setting before its first change in
-// the open step.
-func (w *Workbook) recordDecimal() {
-	if st := w.hist.open; st != nil && st.decimal == nil {
-		d := w.decimal
-		st.decimal = &d
-	}
-}
-
 // push adds a finished step to the undo stack and clears redo, dropping
 // no-op changes.
 func (w *Workbook) push(st *step) {
@@ -281,12 +230,17 @@ func (w *Workbook) dropUnchanged(st *step) {
 	}
 }
 
-// dropUnchangedLines removes the column widths and line formats that
-// ended the step as they began.
+// dropUnchangedLines removes the column widths, row heights and line
+// formats that ended the step as they began.
 func (st *step) dropUnchangedLines() {
 	for k, width := range st.widths {
 		if k.s.widths[k.col] == width {
 			delete(st.widths, k)
+		}
+	}
+	for k, h := range st.heights {
+		if k.s.heights[k.row] == h {
+			delete(st.heights, k)
 		}
 	}
 	for k, l := range st.lines {
@@ -316,19 +270,20 @@ func sameName(a, b *Name) bool {
 }
 
 // joinWidths folds the width-only step st into the width-only step on
-// top, so a live preview of a column width and its final value (or its
-// cancellation) are one step.
+// top, so a live preview of a column width or row height and its final
+// value (or its cancellation) are one step.
 func (h *history) joinWidths(top, st *step) {
 	for k, width := range st.widths {
 		if _, ok := top.widths[k]; !ok {
 			top.widths[k] = width
 		}
 	}
-	for k, width := range top.widths {
-		if k.s.widths[k.col] == width {
-			delete(top.widths, k)
+	for k, h := range st.heights {
+		if _, ok := top.heights[k]; !ok {
+			top.heights[k] = h
 		}
 	}
+	top.dropUnchangedLines()
 	top.id, top.focus = h.lastID, union(top.focus, st.focus)
 	h.bytes -= top.bytes
 	top.bytes = top.size()
@@ -429,6 +384,10 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		inv.widths[k] = k.s.widths[k.col]
 		k.s.setWidth(k.col, width)
 	}
+	for k, h := range st.heights {
+		inv.heights[k] = k.s.heights[k.row]
+		k.s.setHeight(k.row, h)
+	}
 	for k, l := range st.lines {
 		inv.lines[k] = k.s.line(k.row, k.n)
 		k.s.setLine(k.row, k.n, l)
@@ -465,6 +424,10 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		inv.views[s] = &cur
 		s.view = *v
 		s.hidden.valid = false
+		if !slices.Equal(cur.merges, v.merges) {
+			s.version++
+			s.respill(Rect{To: Addr{Col: MaxCols - 1, Row: MaxRows - 1}})
+		}
 	}
 	w.recalcSwapped(changed)
 	if undo {

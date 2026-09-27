@@ -75,7 +75,7 @@ func (s *Sheet) AdjustDecimals(r Rect, delta int) {
 // eachFormat applies fn to the formatting of r: to its lines' formats
 // when r is whole columns or rows, and to each of its cells otherwise.
 func (s *Sheet) eachFormat(r Rect, create bool, fn func(Addr, *lineFmt)) {
-	if !s.formatLines(r, func(l *lineFmt) { fn(Addr{}, l) }) {
+	if !s.formatLines(r, fn) {
 		s.eachCell(r, create, fn)
 	}
 }

@@ -48,11 +48,43 @@ func ParseAlign(s string) (Align, bool) {
 	return AlignAuto, false
 }
 
-// Style is a cell's text style. It is a plain value so cells can be
-// copied freely.
+// Wrap is what a cell's text does when it is wider than its column, as
+// Sheets' Format > Wrapping.
+type Wrap uint8
+
+const (
+	WrapOverflow Wrap = iota // run on into blank neighbors, Sheets' default
+	WrapOn                   // break into lines; the row grows to fit them
+	WrapClip                 // cut at the cell's edge
+)
+
+var wrapNames = [...]string{"", "wrap", "clip"}
+
+// String returns the wrapping's name as stored in files.
+func (w Wrap) String() string {
+	if int(w) < len(wrapNames) {
+		return wrapNames[w]
+	}
+	return ""
+}
+
+// ParseWrap is the inverse of Wrap.String.
+func ParseWrap(s string) (Wrap, bool) {
+	for i, n := range wrapNames {
+		if n == s {
+			return Wrap(i), true
+		}
+	}
+	return WrapOverflow, false
+}
+
+// Style is a cell's text style, with its wrapping and borders. It is a
+// plain value so cells can be copied freely.
 type Style struct {
 	Bold, Italic, Underline, Strikethrough bool
 	Align                                  Align
+	Wrap                                   Wrap
+	Borders                                Borders // see borders.go
 
 	// own marks a cell's format and style as wholly its own, not falling
 	// back on its row's or column's even where they are Automatic or
