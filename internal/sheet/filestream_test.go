@@ -223,6 +223,15 @@ func streamSeeds(t testing.TB) [][]byte {
 		[]byte(`{"version": 2, "cells": {"A1": {"input": "x", "wrap": "sideways"}, "B1": {"borders": {"left": "dotted"}}}}`),
 		[]byte(`{"version": 2, "cells": {"A1": {"input": "5", "valign": "top", "borders": {"top": "thick", "topColor": "red", "left": "thin", "leftColor": "blue"}}, "B1": {"borders": {"rightColor": "green"}}}}`),
 		[]byte(`{"version": 2, "cells": {"A1": {"input": "x", "valign": "sideways"}, "B1": {"borders": {"left": "thin", "leftColor": "mauve"}}}}`),
+		[]byte(`{"version": 2, "cells": {"A1": "5"}, "conditionalFormats": [
+			{"ranges":"A1:A9","dataBar":{"color":"blue","min":{"type":"min"},"max":{"type":"percentile","value":"90"},"barOnly":true}},
+			{"ranges":"B1:B9","iconSet":{"icons":"circles","points":[{"type":"percent","value":"20"},{"type":"percent","value":"40"},{"type":"num","value":"6"},{"type":"percent","value":"80"}],"reverse":true}},
+			{"ranges":"C1:C9","condition":"top_percent","values":["10"],"fill":"green"},
+			{"ranges":"D1:D9","condition":"date_is","values":["next month"],"bold":true}],
+			"validations": [{"ranges":"E1:E9","criteria":"checkbox","items":["Yes","No"]}, {"ranges":"F1:F9","criteria":"list","items":["a"],"display":"chip"}]}`),
+		[]byte(`{"version": 2, "conditionalFormats": [{"ranges":"A1","dataBar":{"color":"none","min":{"type":"min"},"max":{"type":"max"}}}]}`),
+		[]byte(`{"version": 2, "conditionalFormats": [{"ranges":"A1","iconSet":{"icons":"symbols","points":[{"type":"percent","value":"50"}]}}]}`),
+		[]byte(`{"version": 2, "validations": [{"ranges":"A1","criteria":"list","items":["a"],"display":"bubbles"}]}`),
 		[]byte(`{"version": 2, "heights": {"0": 2}, "merges": ["A1:"], "cells": {}}`),
 		[]byte(`null`), []byte(`[]`), []byte(`{"version": 2, "cells": {"A1": "1",}}`), []byte(`{"version": 2, "cells": {"A1"`),
 	}

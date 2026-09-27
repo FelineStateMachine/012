@@ -77,3 +77,15 @@ func TestLocaleFromLANG(t *testing.T) {
 	r := start(t, dir, "half.012")
 	r.waitForBar("A1", "1.5")
 }
+
+// In German, a date typed with a German month name is a date, shown
+// with German names, and a formula that doesn't parse names German's
+// separator.
+func TestLocaleNamesAndErrors(t *testing.T) {
+	s := start(t, t.TempDir())
+	germanBudget(s)
+	s.keys("<ctrl+g>", "D1", "<enter>", "3. Okt. 2026", "<enter>")
+	s.waitFor("3 Okt 2026")
+	s.keys("=SUM(1;2 3)", "<enter>")
+	s.waitFor("Expected ; or ) in SUM")
+}
