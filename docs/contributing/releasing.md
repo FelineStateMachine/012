@@ -23,7 +23,7 @@ publishes there, and `make dist` uploads nothing.
    against it.
 3. **XLSX in spreadsheet apps.** Export a workbook that uses what the
    release touches (formats, notes, frozen panes, filters, validation,
-   conditional formats, charts' data) with File > Export, and open it in
+   conditional formats, charts' data) with File > Download, and open it in
    Excel, LibreOffice Calc and Google Sheets: it opens without a repair
    prompt, and values, formulas and formats read as they did in 012. The
    automated checks read XLSX with excelize and 012's own reader only.
