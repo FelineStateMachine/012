@@ -46,17 +46,25 @@ What gets recorded:
 - pasted text (`paste_text(...)`), the fill handle (`fill(...)`), column
   borders dragged or fitted (`set_width(...)`) and tabs dragged
   (`move_sheet(...)`);
-- rules added in the conditional formatting and data validation panels,
-  as the commands that add a rule from a line of the file
-  (`run("format.conditional_add", answer='{"ranges":"B2:B9",...}')`), and
-  items picked from a dropdown, as entries. Editing, removing or moving a
-  rule in the panel is noted as a comment, as the dialogs below are.
+- what you choose in dialogs, as the command that opens the dialog with
+  your choices as its answer: the sort bar
+  (`run("data.sort_range", answer={"by": [{"column": "B"}], "header": True})`),
+  the filter picker's values and condition, find and replace, the chart
+  editor, and the pivot editor, each as the dialog left things when you
+  pressed Enter;
+- charts moved or resized, by keys or by dragging, as
+  `run("chart.edit", answer={"chart": 1, "at": "F3"})`, one call for a
+  move made in steps;
+- rules added, edited, removed or moved in the conditional formatting and
+  data validation panels, as the commands that do it from a line of the
+  file (`run("format.conditional_add", answer={"ranges": "B2:B9", ...})`,
+  `run("format.conditional_remove", answer=2)`), and items picked from a
+  dropdown, as entries.
 
-What doesn't: dialogs such as sorting by several columns, the filter
-picker, find and replace, the chart editor, dragging a chart, and undo.
-Anything like that which changes the workbook is noted in the script as a
-comment, `# Not recorded: sort A2:C9`, so the script never silently does
-less than you did. Files, menus, help and other macros are never part of a
+What doesn't: undo, and changes made in the named ranges picker. Anything
+like that which changes the workbook is noted in the script as a comment,
+`# Not recorded: undid: sort A2:C9`, so the script never silently does less
+than you did. Files, menus, help and other macros are never part of a
 macro.
 
 ## Running

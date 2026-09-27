@@ -85,9 +85,10 @@ id, on the selection, as if picked. A command that asks something (a
 width, a name, a confirmation) needs `answer`: the text you'd type, a range
 for a range question, the key of a choice (`"enter"`, `"d"`) or its
 label, or the item picked from a list (View > Hidden sheets takes the
-sheet's name). Commands that open a dialog or another picker (Sort
-range, Insert chart, Named ranges) can't run in a script; nor can files,
-menus, help, undo or macros. The ids are those in the recorded scripts; a few:
+sheet's name). A command that opens a dialog takes what you'd choose in
+it as a dict (see [Dialogs](#dialogs)). Other pickers (Named ranges) can't
+run in a script; nor can files, menus, help, undo or macros. The ids are
+those in the recorded scripts; a few:
 
 | Id | Command |
 |---|---|
@@ -101,10 +102,38 @@ menus, help, undo or macros. The ids are those in the recorded scripts; a few:
 | `data.sort_sheet_az`, `data.sort_range_az`, `data.sort_range_za`, `data.filter`, `data.filter_remove` | Sorting and filters |
 | `data.define_name` (answer: the name) | Name the selection |
 | `format.conditional_add`, `data.validation_add` (answer: the rule as a line of the file, see [The .012 format](../files/format.md#conditional-formats-and-data-validation)), `insert.checkbox`, `format.conditional_clear`, `data.validation_clear`, `data.checkbox_toggle` | Conditional formats, data validation and checkboxes |
+| `format.conditional_set`, `data.validation_set` (answer: `{"rule": 2, ...}`, the rule's number and its new line), `format.conditional_remove`, `data.validation_remove` (answer: the rule's number), `format.conditional_move` (answer: `{"rule": 2, "to": 1}`) | Change the rules of the sheet shown, numbered from 1 as the panel lists them |
 | `sheet.new`, `sheet.duplicate`, `sheet.rename` (answer: the name), `sheet.delete` (answer: `"enter"` when it asks), `sheet.hide`, `sheet.unhide` (answer: the sheet's name) | Sheets |
 | `view.freeze_rows1`, `view.freeze_cols1`, `view.freeze_rows0`, ... | Frozen panes |
 
 Record a macro that uses a command to see its id.
+
+## Dialogs
+
+A command that opens a dialog runs in a script with `answer` set to what
+you'd choose in it, as a dict: the dialog doesn't open, and what it would
+do is done. A recording writes dialogs this way, so recording one is the
+quickest way to get its answer right. Fields left out keep what the
+dialog would start with.
+
+```python
+run("data.sort_range", answer={"by": [{"column": "B", "order": "desc"}, {"column": "A"}], "header": True})
+run("data.filter_column", answer={"column": "A", "hidden": ["North"]})
+run("chart.edit", answer={"chart": 1, "at": "F3", "width": 30})
+```
+
+| Id | Answer |
+|---|---|
+| `data.sort_range` | `by`: the columns to sort by, in order, each `{"column": "B"}`, with `"order": "desc"` for Z to A; `header`: whether the range's first row is a header that stays in place (left out: as the bar guesses). The range is the selection, or the data around the active cell |
+| `data.filter_column` | `column`: the column of the filter (left out: the active one); `hidden`: the values it hides; `condition` and `value`: the condition rows must meet, as a filter column is written in [the .012 format](../files/format.md) (`gt`, `contains`, ...), the value in en-US's form |
+| `edit.replace` | `find` and `replace`; `matchCase`, `wholeCell`, `regex`, `inFormulas` set to `True` to turn them on; `within`: `"all"` for every sheet or a range of the sheet shown (left out: the sheet shown); `cell`: replace only the match in that cell (left out: replace all) |
+| `insert.chart` | The chart as a line of the file: `type`, `data`, `at`, `width`, `height`, `header`, `labels`, `title` and the options, see [The .012 format](../files/format.md); what's left out is the chart Insert > Chart makes of the selection |
+| `chart.edit` | `chart`: the chart's number on the sheet shown, counting from 1 (left out: the chart the command would edit), and the fields of its line to change, as for `insert.chart`; `None` puts a field back to its default |
+| `data.pivot`, `data.pivot_edit` | The pivot table as a line of the file: `source`, `rows`, `columns`, `values`, `filters`, `rowTotals`, `columnTotals`, see [The .012 format](../files/format.md). `data.pivot` makes it on a new sheet, as Data > Pivot table does; `data.pivot_edit` changes the pivot of the sheet shown |
+
+A dict's keys are strings, and its values `None`, `True`, `False`,
+numbers, strings, lists and dicts; `run` hands it on as JSON with the
+keys in the order written.
 
 ## Output and errors
 

@@ -21,6 +21,10 @@ import (
 //     them, with the answer to the question they ask (a width, a name, a
 //     confirmation) once it's given;
 //   - entries, when they're stored (enter), and pastes of text;
+//   - dialogs (the sort bar, the filter picker, find and replace, the
+//     chart and pivot editors, the rules panel) once they've acted, as
+//     the command that opens them answered with the choices made
+//     (recordDialog), and charts moved or resized;
 //   - the fill handle, column borders dragged or fitted, and tabs dragged;
 //   - the selection, not the keys or clicks that made it: just before
 //     something is recorded, the selection it acts on is, as select() with
@@ -30,10 +34,9 @@ import (
 //
 // With relative references, Ctrl+arrows, Home, Ctrl+Home and Ctrl+End are
 // recorded as jump(), since where they land depends on the data. Anything
-// else that changes the workbook (a dialog such as sorting by several
-// columns, the filter picker, dragging a chart, undo) becomes a comment
-// saying it wasn't recorded, so the script never silently differs from
-// what was done.
+// else that changes the workbook (undo, the named ranges picker) becomes
+// a comment saying it wasn't recorded, so the script never silently
+// differs from what was done.
 
 // recorder is a recording in progress.
 type recorder struct {
@@ -146,7 +149,7 @@ func (m *Model) recordingCommand(c *command) tea.Cmd {
 	case m.mode == modePrompt || choosing:
 		r.pending = c.id // recorded once answered
 	case m.overlay != nil:
-		// A dialog or Picker: what it does isn't recorded (see observe).
+		// A dialog records what it does when it's done (recordDialog).
 	case m.mode != modeError:
 		r.add(m, macro.Call("run", c.id))
 	}
