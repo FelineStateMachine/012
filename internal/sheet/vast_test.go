@@ -1,6 +1,13 @@
 package sheet
 
-import "testing"
+import (
+	"fmt"
+	"math/rand/v2"
+	"slices"
+	"testing"
+
+	"github.com/FelineStateMachine/012/internal/formula"
+)
 
 // A filter over whole columns tests the rows with data and treats the
 // blank rows past them as one: hiding them, counting them and stepping
@@ -40,4 +47,59 @@ func TestFilterWholeColumns(t *testing.T) {
 	if vals := s.FilterValues(0); vals[len(vals)-1].Text != "" || vals[len(vals)-1].Count != MaxRows-4 {
 		t.Errorf("blanks in FilterValues(A) = %+v", vals[len(vals)-1])
 	}
+}
+
+// Sorting moves only the rows with cells, and lands every row where a
+// stable sort of all the range's rows (blank rows included) would.
+func TestSortMatchesDenseSort(t *testing.T) {
+	for seed := range 20 {
+		rng := rand.New(rand.NewPCG(uint64(seed), 3))
+		s := New()
+		fill := []string{"", "", "", "3", "1", "b", "A", "TRUE", "=1/0", "=A1+1", `=""`}
+		for row := range 30 {
+			if rng.IntN(4) == 0 {
+				continue // a blank row
+			}
+			for col := range 3 {
+				if in := fill[rng.IntN(len(fill))]; in != "" {
+					s.Set(Addr{Col: col, Row: row}, in)
+				}
+			}
+		}
+		r := Rect{From: Addr{Row: 2}, To: Addr{Col: 2, Row: MaxRows - 1}}
+		keys := []SortKey{{Col: rng.IntN(3), Desc: seed%2 == 1}, {Col: rng.IntN(3)}}
+		want := denseSort(s, r, keys)
+		s.SortRange(r, keys)
+		if got := inputs(s); fmt.Sprint(got) != fmt.Sprint(want) {
+			t.Errorf("seed %d, keys %v:\n got %v\nwant %v", seed, keys, got, want)
+		}
+	}
+}
+
+// denseSort is what sorting did before it went by rows with data: a
+// stable sort of every row of r (clipped to the used range), returning
+// the inputs it leaves.
+func denseSort(s *Sheet, r Rect, keys []SortKey) map[string]string {
+	used, _ := s.UsedRange()
+	r.To.Row, r.To.Col = min(r.To.Row, used.To.Row), min(r.To.Col, used.To.Col)
+	order := make([]int, r.To.Row-r.From.Row+1)
+	for i := range order {
+		order[i] = r.From.Row + i
+	}
+	slices.SortStableFunc(order, func(i, j int) int { return s.compareRows(keys, i, j) })
+	out := map[string]string{}
+	for a, c := range s.cells.all() {
+		if !r.Contains(a) {
+			out[a.String()] = c.Input
+		}
+	}
+	for k, src := range order {
+		for col := r.From.Col; col <= r.To.Col; col++ {
+			if c := s.cells.get(Addr{Col: col, Row: src}); c != nil {
+				to := Addr{Col: col, Row: r.From.Row + k}
+				out[to.String()] = c.rewritten(formula.Shift(0, to.Row-src)).Input
+			}
+		}
+	}
+	return out
 }

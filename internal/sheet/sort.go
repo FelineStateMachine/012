@@ -78,6 +78,10 @@ func (s *Sheet) compareRows(keys []SortKey, i, j int) int {
 // move with their rows and their relative references shift by the
 // distance moved, as if copied there; references to the sorted cells
 // from elsewhere are left alone. The whole sort is one undo step.
+//
+// Only rows holding cells are sorted: rows whose keys are all blank go
+// last in their order, as blank rows do, so the cost is the rows with
+// data, however tall r is.
 func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 	if used, ok := s.UsedRange(); ok {
 		r.To.Row, r.To.Col = min(r.To.Row, used.To.Row), min(r.To.Col, used.To.Col)
@@ -85,30 +89,67 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 	if len(keys) == 0 || r.To.Row <= r.From.Row || r.To.Col < r.From.Col {
 		return
 	}
-	order := make([]int, r.To.Row-r.From.Row+1)
-	for i := range order {
-		order[i] = r.From.Row + i
-	}
-	slices.SortStableFunc(order, func(i, j int) int { return s.compareRows(keys, i, j) })
 	old := map[Addr]*Cell{}
-	for _, a := range s.cellsIn(r) {
-		old[a] = s.cells.get(a)
+	var rows []int // rows of r with cells, in order
+	for a, c := range s.cells.inRange(r) {
+		old[a] = c
+		if len(rows) == 0 || rows[len(rows)-1] != a.Row {
+			rows = append(rows, a.Row)
+		}
+	}
+	// Rows with a key sort to the top; the others (blank keys, and blank
+	// rows) keep their order below them.
+	var keyed, rest []int
+	for _, row := range rows {
+		if s.keysBlank(keys, row) {
+			rest = append(rest, row)
+		} else {
+			keyed = append(keyed, row)
+		}
+	}
+	before := slices.Clone(keyed) // in their original order
+	slices.SortStableFunc(keyed, func(i, j int) int { return s.compareRows(keys, i, j) })
+	dst := make(map[int]int, len(rows))
+	for i, row := range keyed {
+		dst[row] = r.From.Row + i
+	}
+	// The other rows close up below: each moves down past the keyed rows
+	// that were below it and up past those that were above it.
+	n := 0
+	for _, row := range rest {
+		for n < len(before) && before[n] < row {
+			n++
+		}
+		dst[row] = row + len(keyed) - n
+	}
+	next := make(map[Addr]*Cell, len(old))
+	for a, c := range old {
+		to := Addr{Col: a.Col, Row: dst[a.Row]}
+		if to.Row != a.Row {
+			c = c.rewritten(formula.Shift(0, to.Row-a.Row))
+		}
+		next[to] = c
 	}
 	s.change("sort "+r.String(), r, func() {
-		for k, src := range order {
-			dst := r.From.Row + k
-			if dst == src {
-				continue
+		for a := range old {
+			if next[a] == nil {
+				s.place(a, nil)
 			}
-			for col := r.From.Col; col <= r.To.Col; col++ {
-				to := Addr{Col: col, Row: dst}
-				switch c := old[Addr{Col: col, Row: src}]; {
-				case c != nil:
-					s.place(to, c.rewritten(formula.Shift(0, dst-src)))
-				case s.cells.get(to) != nil:
-					s.place(to, nil)
-				}
+		}
+		for a, c := range next {
+			if old[a] != c {
+				s.place(a, c)
 			}
 		}
 	})
+}
+
+// keysBlank reports whether every key of row is blank.
+func (s *Sheet) keysBlank(keys []SortKey, row int) bool {
+	for _, k := range keys {
+		if s.Value(Addr{Col: k.Col, Row: row}).Kind != Empty {
+			return false
+		}
+	}
+	return true
 }
