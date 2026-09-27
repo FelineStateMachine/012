@@ -16,28 +16,9 @@ var (
 func init() {
 	define(
 		&FuncDef{Name: "DATE", Args: "year, month, day", Desc: "A date from its parts; months and days past the end roll over", Min: 3, Max: 3,
-			eval: numeric(func(x []float64) Value {
-				y, m, d := math.Trunc(x[0]), math.Trunc(x[1]), math.Trunc(x[2])
-				if y >= 0 && y < 1900 {
-					y += 1900 // DATE(26, 1, 1) is 1926, as in Sheets
-				}
-				if y < 0 || y >= 10000 || math.Abs(m) > 1e6 || math.Abs(d) > 1e8 {
-					return ErrNum
-				}
-				v := numfmt.DateSerial(int(y), int(m), int(d))
-				if v < 0 {
-					return ErrNum
-				}
-				return num(v)
-			}), format: dateFormat},
+			eval: numeric(date), format: dateFormat},
 		&FuncDef{Name: "TIME", Args: "hour, minute, second", Desc: "A time of day from its parts", Min: 3, Max: 3,
-			eval: numeric(func(x []float64) Value {
-				secs := math.Trunc(x[0])*3600 + math.Trunc(x[1])*60 + math.Trunc(x[2])
-				if secs < 0 {
-					return ErrNum
-				}
-				return num(math.Mod(secs, 86400) / 86400)
-			}), format: timeFormat},
+			eval: numeric(timeOfDay), format: timeFormat},
 		&FuncDef{Name: "TODAY", Desc: "Today's date, updated on every change", Max: 0, Volatile: true,
 			eval: func([]Node, lookup) Value { return num(math.Floor(numfmt.SerialOf(Now()))) }, format: dateFormat},
 		&FuncDef{Name: "NOW", Desc: "The current date and time, updated on every change", Max: 0, Volatile: true,
@@ -49,27 +30,7 @@ func init() {
 		&FuncDef{Name: "DAY", Args: "date", Desc: "Day of the month of a date", Min: 1, Max: 1,
 			eval: datePart(func(_, _, d int) int { return d })},
 		&FuncDef{Name: "WEEKDAY", Args: "date, [type]", Desc: "Day of the week: 1 is Sunday, or Monday with type 2", Min: 1, Max: 2,
-			eval: func(args []Node, get lookup) Value {
-				d, err := dateArg(args[0], get)
-				if err != nil {
-					return *err
-				}
-				typ, err := intArg(args, 1, 1, get)
-				if err != nil {
-					return *err
-				}
-				days, _ := numfmt.SplitSerial(d)
-				wd := numfmt.Weekday(days) // 0 = Sunday
-				switch typ {
-				case 1:
-					return num(float64(wd + 1))
-				case 2:
-					return num(float64((wd+6)%7 + 1))
-				case 3:
-					return num(float64((wd + 6) % 7))
-				}
-				return ErrNum
-			}},
+			eval: weekday},
 		&FuncDef{Name: "HOUR", Args: "time", Desc: "Hour of a time, 0 to 23", Min: 1, Max: 1,
 			eval: timePart(func(s int) int { return s / 3600 })},
 		&FuncDef{Name: "MINUTE", Args: "time", Desc: "Minute of a time, 0 to 59", Min: 1, Max: 1,
@@ -83,43 +44,96 @@ func init() {
 		&FuncDef{Name: "DATEDIF", Args: `start_date, end_date, unit`, Desc: `Time between dates in "Y", "M", "D", "MD", "YM" or "YD"`, Min: 3, Max: 3,
 			eval: datedif},
 		&FuncDef{Name: "DAYS", Args: "end_date, start_date", Desc: "Number of days between two dates", Min: 2, Max: 2,
-			eval: func(args []Node, get lookup) Value {
-				end, err := dateArg(args[0], get)
-				if err != nil {
-					return *err
-				}
-				start, err := dateArg(args[1], get)
-				if err != nil {
-					return *err
-				}
-				return num(math.Floor(end) - math.Floor(start))
-			}},
+			eval: days},
 		&FuncDef{Name: "NETWORKDAYS", Args: "start_date, end_date, [holidays]", Desc: "Number of weekdays between two dates, counting both", Min: 2, Max: 3,
 			eval: networkdays},
 		&FuncDef{Name: "DATEVALUE", Args: "date_string", Desc: "The date a text such as \"2026-09-26\" stands for", Min: 1, Max: 1,
-			eval: func(args []Node, get lookup) Value {
-				v, ok := parsedText(args[0], get)
-				if ok != nil {
-					return *ok
-				}
-				d, f, parsed := parseDateTime(v)
-				if !parsed || f.Kind == FmtTime || f.Kind == FmtDuration {
-					return ErrValue
-				}
-				return num(math.Floor(d))
-			}, format: dateFormat},
+			eval: dateValue, format: dateFormat},
 		&FuncDef{Name: "TIMEVALUE", Args: "time_string", Desc: "The time of day a text such as \"2:30 PM\" stands for", Min: 1, Max: 1,
-			eval: func(args []Node, get lookup) Value {
-				v, ok := parsedText(args[0], get)
-				if ok != nil {
-					return *ok
-				}
-				if d, _, parsed := parseDateTime(v); parsed {
-					return num(d - math.Floor(d))
-				}
-				return ErrValue
-			}, format: timeFormat},
+			eval: timeValue, format: timeFormat},
 	)
+}
+
+// Evaluators for the table above, in its order.
+
+func date(x []float64) Value {
+	y, m, d := math.Trunc(x[0]), math.Trunc(x[1]), math.Trunc(x[2])
+	if y >= 0 && y < 1900 {
+		y += 1900 // DATE(26, 1, 1) is 1926, as in Sheets
+	}
+	if y < 0 || y >= 10000 || math.Abs(m) > 1e6 || math.Abs(d) > 1e8 {
+		return ErrNum
+	}
+	v := numfmt.DateSerial(int(y), int(m), int(d))
+	if v < 0 {
+		return ErrNum
+	}
+	return num(v)
+}
+
+func timeOfDay(x []float64) Value {
+	secs := math.Trunc(x[0])*3600 + math.Trunc(x[1])*60 + math.Trunc(x[2])
+	if secs < 0 {
+		return ErrNum
+	}
+	return num(math.Mod(secs, 86400) / 86400)
+}
+
+func weekday(args []Node, get lookup) Value {
+	d, err := dateArg(args[0], get)
+	if err != nil {
+		return *err
+	}
+	typ, err := intArg(args, 1, 1, get)
+	if err != nil {
+		return *err
+	}
+	days, _ := numfmt.SplitSerial(d)
+	wd := numfmt.Weekday(days) // 0 = Sunday
+	switch typ {
+	case 1:
+		return num(float64(wd + 1))
+	case 2:
+		return num(float64((wd+6)%7 + 1))
+	case 3:
+		return num(float64((wd + 6) % 7))
+	}
+	return ErrNum
+}
+
+func days(args []Node, get lookup) Value {
+	end, err := dateArg(args[0], get)
+	if err != nil {
+		return *err
+	}
+	start, err := dateArg(args[1], get)
+	if err != nil {
+		return *err
+	}
+	return num(math.Floor(end) - math.Floor(start))
+}
+
+func dateValue(args []Node, get lookup) Value {
+	v, ok := parsedText(args[0], get)
+	if ok != nil {
+		return *ok
+	}
+	d, f, parsed := parseDateTime(v)
+	if !parsed || f.Kind == FmtTime || f.Kind == FmtDuration {
+		return ErrValue
+	}
+	return num(math.Floor(d))
+}
+
+func timeValue(args []Node, get lookup) Value {
+	v, ok := parsedText(args[0], get)
+	if ok != nil {
+		return *ok
+	}
+	if d, _, parsed := parseDateTime(v); parsed {
+		return num(d - math.Floor(d))
+	}
+	return ErrValue
 }
 
 // parsedText requires a text argument, as DATEVALUE and TIMEVALUE do.
