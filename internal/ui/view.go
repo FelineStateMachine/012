@@ -205,14 +205,13 @@ func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
 // data bar or icon, as a dropdown's chip (taking the look's ▾, which the
 // chip holds), or plainly.
 func (m *Model) cellText(lc *lineCtx, a sheet.Addr, sp rowtext.Span, look *sheet.Look, base *lipgloss.Style, colored bool, shade theme.Shade, shaded bool) string {
-	w := m.sheet.ColWidth(a.Col)
 	switch {
 	case look.Bar || look.Icon != "" || look.ValueHidden:
-		return m.barText(sp, w, look, base, colored, m.valueLine(lc, a))
+		return m.barText(sp, m.sheet.ColWidth(a.Col), look, base, colored, m.valueLine(lc, a))
 	case look.Dropdown && look.Display != sheet.DropArrow:
 		chip, ok := "", false
 		if look.Display == sheet.DropChip && !colored && sp.Owner == a.Col && m.valueLine(lc, a) {
-			chip, ok = m.chipText(sp, w)
+			chip, ok = m.chipText(sp, m.sheet.ColWidth(a.Col))
 		}
 		if ok || look.Display == sheet.DropPlain {
 			look.Dropdown = false // no ▾ at the right

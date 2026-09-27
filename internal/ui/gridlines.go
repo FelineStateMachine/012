@@ -60,7 +60,7 @@ func (m *Model) valueLine(lc *lineCtx, a sheet.Addr) bool {
 // that falls in a's, on the line that shows the merge's value, so the
 // entry is as wide as the merge.
 func (m *Model) entryPiece(lc *lineCtx, a sheet.Addr) (string, bool) {
-	if m.mode != modeEnter && m.mode != modeEdit || m.away() {
+	if m.mode != modeEnter && m.mode != modeEdit || a.Row != m.cur.Row && lc.merges == nil || m.away() {
 		return "", false
 	}
 	if mg, ok := lc.mergeOf(a.Col); ok && mg.From == m.cur {

@@ -49,7 +49,30 @@ func uiShapes() []uiShape {
 		{"sparse-1M", func() *sheet.Sheet { return stress.Sparse(10000, 100, 1000) }},
 		{"scale-8192x26", scaled},
 		{"laidout-8192x26", func() *sheet.Sheet { return stress.Laidout(stress.Rows, 26) }},
+		{"bars-8192x26", barred},
 	}
+}
+
+// barred is dense-8192x26 with data bars over half its columns and
+// arrows over the rest, every visible cell drawn with one: what bars
+// and icons cost a frame.
+func barred() *sheet.Sheet {
+	s := stress.Dense(stress.Rows, 26)
+	var fs []sheet.CondFormat
+	for _, line := range []string{
+		`{"ranges":"A1:M8192","dataBar":{"color":"blue","min":{"type":"min"},"max":{"type":"max"}}}`,
+		`{"ranges":"N1:Z8192","iconSet":{"icons":"arrows","points":[{"type":"percent","value":"33"},{"type":"percent","value":"67"}]}}`,
+	} {
+		f, err := sheet.ParseCondFormat(line)
+		if err != nil {
+			panic(err)
+		}
+		fs = append(fs, f)
+	}
+	if s.LoadCondFormats(fs) > 0 {
+		panic("rules left out")
+	}
+	return s
 }
 
 // scaled is dense-8192x26 under a 3-point color scale over all of it,
