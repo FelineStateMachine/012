@@ -41,6 +41,7 @@ var menuBar = []menuDef{
 			{cmd: "file.download.xlsx", title: "Microsoft Excel (.xlsx)"},
 			{cmd: "file.download.sqlite", title: "SQLite database (.sqlite)"},
 		}}, sep,
+		{title: "Settings", items: []menuItem{{cmd: "settings.decimal"}}}, sep,
 		{cmd: "quit"},
 	}},
 	{title: "Edit", accel: 'e', items: []menuItem{
@@ -550,13 +551,22 @@ func (m *Model) dropdown(l *menuLevel, rows int) []string {
 	return m.frame(inner, up, down, out)
 }
 
+// isChecked reports whether the command is a setting that is on.
+func (m *Model) isChecked(id string) bool {
+	c := commands[id]
+	return c != nil && c.checked != nil && c.checked(m)
+}
+
 // itemKey is what an item shows on the right: its shortcut as a key chip
-// (plain when the item is unavailable), or › for a submenu.
+// (plain when the item is unavailable), › for a submenu, or ✓ for a
+// setting that is on.
 func (m *Model) itemKey(it menuItem, disabled bool) string {
 	k := shortcut(it.cmd)
 	switch {
 	case it.items != nil:
 		return "›"
+	case k == "" && m.isChecked(it.cmd):
+		return "✓"
 	case k == "":
 		return ""
 	case disabled:

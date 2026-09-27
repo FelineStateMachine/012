@@ -24,6 +24,10 @@ type command struct {
 	// enabled, when set, reports whether the command can run right now.
 	// Menus and the palette show unavailable commands dimmed.
 	enabled func(m *Model) bool
+
+	// checked, when set, makes the command a setting: menus show a ✓
+	// while it is on.
+	checked func(m *Model) bool
 }
 
 // available reports whether the command can run in m's current state.

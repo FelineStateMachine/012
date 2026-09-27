@@ -273,6 +273,9 @@ func (m *Model) statusLine() string {
 	if m.changed {
 		left += m.th.muted.Render("  modified")
 	}
+	if m.sheet.Decimal() {
+		left += m.th.muted.Render("  decimal")
+	}
 	if m.sheet.Circular {
 		left += "  " + m.th.warning.Render("Circular reference")
 	}

@@ -77,7 +77,7 @@ Avoid in the main binary: DuckDB and automerge (both need cgo).
 - Pivot tables as derived sheets. L.
 - Macros: replay the command log; Starlark (`go.starlark.net`) for scripts, with step limits.
 - Serve over SSH with `charm.land/wish/v2`.
-- Decimal mode for currency (`cockroachdb/apd/v3`), opt-in.
+- Decimal mode for currency (`cockroachdb/apd/v3`), opt-in. Done: File > Settings > Decimal arithmetic, boundary in the README.
 - Demos in CI with VHS tapes; screenshots with freeze.
 
 ## Suggested order

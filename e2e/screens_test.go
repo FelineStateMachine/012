@@ -317,6 +317,18 @@ var screens = []screen{
 		s.keys("<up>", "<right>")
 		s.waitFor("From B3: division by zero in B5/0")
 	}},
+	{name: "decimal", setup: func(s *session) {
+		money(s)
+		s.keys("<ctrl+k>", "decimal", "<enter>")
+		s.waitFor("Decimal arithmetic on")
+	}},
+	{name: "menu-settings", setup: func(s *session) {
+		money(s)
+		s.keys("<ctrl+k>", "decimal", "<enter>")
+		s.waitFor("Decimal arithmetic on")
+		s.keys("<alt+f>", "<up>", "<up>", "<right>")
+		s.waitFor("Compute money exactly")
+	}},
 	{name: "menu-freeze", setup: func(s *session) {
 		inventory(s)
 		s.keys("<alt+v>", "<right>", "<down>")
