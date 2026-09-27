@@ -27,28 +27,16 @@ func TestFillHandleDrag(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := newModel()
-			for i, in := range tt.cells {
-				m.sheet.Set(sheet.Addr{Row: i}, in)
-			}
-			m.sheet.ClearHistory()
-			m.cur, m.ext = addr("A1"), sheet.Addr{Row: len(tt.cells) - 1}
-			m.selecting = len(tt.cells) > 1
+			m := fillModel(tt.cells)
 			y := gridTop + len(tt.cells) - 1
-			// Hovering the corner cell shows the handle.
-			send(m, tea.MouseMotionMsg{X: cellX(0), Y: y})
-			if !strings.Contains(line(m, y), "▟") {
-				t.Fatalf("no handle: %q", line(m, y))
-			}
-			if h := m.hitTest(handleX(0), y); h.kind != hitFillHandle {
-				t.Fatalf("hit %+v", h)
-			}
+			hoverFillHandle(t, m, y)
 			send(m, tea.MouseClickMsg(leftAt(handleX(0), y)))
-			send(m, tea.MouseMotionMsg(leftAt(cellX(tt.to.Col), gridTop+tt.to.Row)))
+			to := leftAt(cellX(tt.to.Col), gridTop+tt.to.Row)
+			send(m, tea.MouseMotionMsg(to))
 			if tt.sel != "A1" && !strings.Contains(line(m, contextLine), "Fill "+tt.sel) {
 				t.Errorf("context line %q", line(m, contextLine))
 			}
-			send(m, tea.MouseReleaseMsg(leftAt(cellX(tt.to.Col), gridTop+tt.to.Row)))
+			send(m, tea.MouseReleaseMsg(to))
 			for a, in := range tt.want {
 				if got := input(m, a); got != in {
 					t.Errorf("%s = %q, want %q", a, got, in)
@@ -64,6 +52,31 @@ func TestFillHandleDrag(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// fillModel has cells entered from A1 down and selected.
+func fillModel(cells []string) *Model {
+	m := newModel()
+	for i, in := range cells {
+		m.sheet.Set(sheet.Addr{Row: i}, in)
+	}
+	m.sheet.ClearHistory()
+	m.cur, m.ext = addr("A1"), sheet.Addr{Row: len(cells) - 1}
+	m.selecting = len(cells) > 1
+	return m
+}
+
+// hoverFillHandle hovers the corner cell on line y and checks that the
+// fill handle shows there.
+func hoverFillHandle(t *testing.T, m *Model, y int) {
+	t.Helper()
+	send(m, tea.MouseMotionMsg{X: cellX(0), Y: y})
+	if !strings.Contains(line(m, y), "▟") {
+		t.Fatalf("no handle: %q", line(m, y))
+	}
+	if h := m.hitTest(handleX(0), y); h.kind != hitFillHandle {
+		t.Fatalf("hit %+v", h)
 	}
 }
 
