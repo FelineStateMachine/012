@@ -11,7 +11,10 @@ import (
 
 // Copy, cut and paste follow Sheets: Ctrl+C copies the selection and
 // marks it until Esc or the next edit, Ctrl+V pastes with references
-// adjusted, Ctrl+X then Ctrl+V moves. The copied values also go to the
+// adjusted and the formatting the cells showed, Ctrl+X then Ctrl+V
+// moves. Whole columns or rows (trimmed to their cells by the copy)
+// pasted at the top of a column or start of a row carry, or move, their
+// column and row formats. The copied values also go to the
 // system clipboard as TSV (OSC 52), and a multi-cell paste from the
 // terminal fills a block of cells.
 
@@ -39,7 +42,7 @@ func init() {
 
 // copy puts the selection on the clipboard and the system clipboard.
 func (m *Model) copy(cut bool) tea.Cmd {
-	clip := m.sheet.Copy(m.copyRange())
+	clip := m.sheet.Copy(m.selection())
 	m.copied = clipboard{clip: clip, sheet: m.sheet, cut: cut, marked: true}
 	text := clip.Text()
 	if text == nil {
@@ -47,21 +50,6 @@ func (m *Model) copy(cut bool) tea.Cmd {
 		return nil
 	}
 	return tea.SetClipboard(formatTSV(text))
-}
-
-// copyRange is the selection, trimmed to the data when whole rows or
-// columns are selected, as there's no point copying thousands of blanks.
-func (g *grid) copyRange() sheet.Rect {
-	r := g.selection()
-	if g.whole == wholeNone {
-		return r
-	}
-	used, ok := g.sheet.UsedRange()
-	r.To = sheet.Addr{Col: min(r.To.Col, used.To.Col), Row: min(r.To.Row, used.To.Row)}
-	if !ok || r.To.Col < r.From.Col || r.To.Row < r.From.Row {
-		r.To = r.From
-	}
-	return r
 }
 
 // paste pastes the clipboard into the selection and selects what it
@@ -72,7 +60,7 @@ func (m *Model) paste(values bool) tea.Cmd {
 		m.note = "Nothing to paste: copy with Ctrl+C first"
 		return nil
 	}
-	var r sheet.Rect
+	var r, moved sheet.Rect
 	var err error
 	if c.cut && !values {
 		if !c.sheet.Live() {
@@ -80,7 +68,8 @@ func (m *Model) paste(values bool) tea.Cmd {
 			m.note = "Nothing to move: the cut cells' sheet was deleted"
 			return nil
 		}
-		r, err = c.sheet.MoveTo(m.sheet, c.clip.Src, m.cur)
+		moved = c.clip.MoveRange(m.cur)
+		r, err = c.sheet.MoveTo(m.sheet, moved, m.cur)
 		m.copied = clipboard{}
 	} else {
 		r, err = m.sheet.Paste(c.clip, m.selection(), values)
@@ -93,7 +82,7 @@ func (m *Model) paste(values bool) tea.Cmd {
 	m.selectRect(r)
 	switch {
 	case c.cut && !values:
-		m.note = "Moved " + c.label(m.sheet) + " to " + r.String()
+		m.note = "Moved " + c.labelOf(m.sheet, moved) + " to " + r.String()
 	case values:
 		m.note = "Pasted values into " + countCells(r) + " at " + r.String()
 	default:
@@ -104,16 +93,19 @@ func (m *Model) paste(values bool) tea.Cmd {
 
 // marks reports whether a, on the sheet shown, shows the copy marker.
 func (c *clipboard) marks(shown *sheet.Sheet, a sheet.Addr) bool {
-	return c.marked && c.sheet == shown && c.clip.Src.Contains(a)
+	return c.marked && c.sheet == shown && c.clip.Range.Contains(a)
 }
 
 // label names the copied range, with its sheet when that isn't the
 // one shown: A1:B3, or Sheet1!A1:B3.
-func (c *clipboard) label(shown *sheet.Sheet) string {
+func (c *clipboard) label(shown *sheet.Sheet) string { return c.labelOf(shown, c.clip.Range) }
+
+// labelOf names r on the copied range's sheet.
+func (c *clipboard) labelOf(shown *sheet.Sheet, r sheet.Rect) string {
 	if c.sheet != shown {
-		return sheet.Qualified(c.sheet.Name(), c.clip.Src)
+		return sheet.Qualified(c.sheet.Name(), r)
 	}
-	return c.clip.Src.String()
+	return r.String()
 }
 
 // clearMark hides the copy marker; a pending cut is cancelled, as in

@@ -6,7 +6,8 @@ import "github.com/FelineStateMachine/012/internal/formula"
 // follow them.
 
 // Move moves the cells in src so its top-left corner lands on to, as
-// cut and paste does in Sheets. Formulas anywhere that referred to the
+// cut and paste does in Sheets, with the formatting they show; whole
+// columns or rows take their line formats along. Formulas anywhere that referred to the
 // moved cells follow them; references to cells the move overwrote become
 // #REF!. It returns the destination range.
 func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
@@ -32,9 +33,11 @@ func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
 		return r, true
 	}
 	label := "move " + src.String() + " to " + dst.String()
+	f := s.copyFormats(src)
 	s.change(label, dst, func() {
 		s.remap(label, dst, cell, rng)
 		s.remapNames(rng) // a name for exactly the moved cells follows them
+		s.moveFormats(s, &f, src, dst)
 	})
 	return dst, nil
 }
@@ -56,8 +59,12 @@ func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
 	}
 	mv := sheetMove{from: s, to: dst, src: src, d: d}
 	moved, readers := mv.movedCells(), mv.readers()
+	f := s.copyFormats(src)
 	label := "move " + src.String() + " to " + formula.QuoteSheet(dst.name) + "!" + d.String()
-	dst.change(label, d, func() { mv.apply(moved, readers) })
+	dst.change(label, d, func() {
+		mv.apply(moved, readers)
+		dst.moveFormats(s, &f, src, d)
+	})
 	return d, nil
 }
 

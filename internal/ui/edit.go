@@ -182,7 +182,18 @@ func (m *Model) toggleAbsolute() {
 
 // countCells describes a paste for the context line.
 func countCells(r sheet.Rect) string {
-	n := (r.To.Col - r.From.Col + 1) * (r.To.Row - r.From.Row + 1)
+	cols, rows := r.To.Col-r.From.Col+1, r.To.Row-r.From.Row+1
+	switch {
+	case r.AllRows() && r.AllCols():
+		return "the whole sheet"
+	case r.AllRows() && cols == 1:
+		return "1 column"
+	case r.AllRows():
+		return fmt.Sprintf("%d columns", cols)
+	case r.AllCols():
+		return rowCount(rows)
+	}
+	n := cols * rows
 	if n == 1 {
 		return "1 cell"
 	}

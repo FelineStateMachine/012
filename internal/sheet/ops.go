@@ -169,19 +169,44 @@ func (s *Sheet) shiftWidths(sp formula.Span) {
 	}
 }
 
-// Clip is a copied range: snapshots of its cells taken at copy time.
+// Clip is a copied range: snapshots of its cells, and of the formatting
+// they show, taken at copy time.
 type Clip struct {
-	Src   Rect
-	cells map[Addr]*Cell // by offset from Src.From
+	Range   Rect           // the range copied
+	Src     Rect           // Range trimmed to its cells when whole lines
+	cells   map[Addr]*Cell // by offset from Src.From
+	formats clipFormats
 }
 
-// Copy snapshots the cells in r for pasting.
+// Copy snapshots the cells in r, and what formatting they show, for
+// pasting. Whole columns or rows are trimmed to the cells they hold,
+// keeping their line formats.
 func (s *Sheet) Copy(r Rect) *Clip {
-	c := &Clip{Src: r, cells: map[Addr]*Cell{}}
+	c := &Clip{Range: r, Src: s.trimLines(r), cells: map[Addr]*Cell{}, formats: s.copyFormats(r)}
 	for _, a := range s.cellsIn(r) {
 		c.cells[Addr{Col: a.Col - r.From.Col, Row: a.Row - r.From.Row}] = s.cells.get(a).plain()
 	}
 	return c
+}
+
+// trimLines trims whole columns of r to the rows holding cells, and
+// whole rows to the columns holding cells: no point copying a million
+// blanks.
+func (s *Sheet) trimLines(r Rect) Rect {
+	if !r.AllRows() && !r.AllCols() {
+		return r
+	}
+	held, ok := s.cells.bounds(r)
+	if !ok {
+		held.To = r.From
+	}
+	if r.AllRows() {
+		r.To.Row = max(held.To.Row, r.From.Row)
+	}
+	if r.AllCols() {
+		r.To.Col = max(held.To.Col, r.From.Col)
+	}
+	return r
 }
 
 // Size returns the clip's width and height in cells.
@@ -218,23 +243,20 @@ func (c *Clip) Text() [][]string {
 
 // Paste writes the clip into dst and returns the range written. Formulas
 // shift their relative references by the distance pasted, as in Sheets;
-// with values set, only the computed values are pasted. Like Sheets, a
-// destination that is an exact multiple of the clip's size is tiled;
-// otherwise the clip is pasted once at dst's top-left corner.
+// with values set, only the computed values are pasted, keeping the
+// destination's formatting. Otherwise each cell shows the formatting its
+// source showed (see clipfmt.go). Like Sheets, a destination that is an
+// exact multiple of the clip's size is tiled; otherwise the clip is
+// pasted once at dst's top-left corner.
 func (s *Sheet) Paste(c *Clip, dst Rect, values bool) (Rect, error) {
-	cols, rows := c.Size()
-	w, h := dst.To.Col-dst.From.Col+1, dst.To.Row-dst.From.Row+1
-	if w%cols != 0 || h%rows != 0 {
-		dst.To = Addr{Col: dst.From.Col + cols - 1, Row: dst.From.Row + rows - 1}
-		w, h = cols, rows
+	p, err := c.layout(dst)
+	if err != nil {
+		return Rect{}, err
 	}
-	if !dst.To.Valid() {
-		return Rect{}, ErrPasteEdge
-	}
-	tilesAcross, tilesDown := w/cols, h/rows
-	if len(c.cells)*tilesAcross*tilesDown > MaxCells() {
+	if len(c.cells)*p.across*p.down > MaxCells() {
 		return Rect{}, ErrFillTooBig
 	}
+	dst = p.dst
 	label := "paste into " + dst.String()
 	if values {
 		label = "paste values into " + dst.String()
@@ -242,23 +264,23 @@ func (s *Sheet) Paste(c *Clip, dst Rect, values bool) (Rect, error) {
 	// Blank parts of the clip clear what they land on, and each of its
 	// cells is placed in every tile: the cost is the cells written and
 	// cleared, not dst's area.
-	offset := func(a Addr) Addr {
-		return Addr{Col: (a.Col - dst.From.Col) % cols, Row: (a.Row - dst.From.Row) % rows}
-	}
 	s.change(label, dst, func() {
 		for _, a := range s.cellsIn(dst) {
-			if c.cells[offset(a)] == nil {
+			if c.cells[p.off(a)] == nil {
 				s.place(a, nil)
 			}
 		}
 		for off, cell := range c.cells {
 			from := Addr{Col: c.Src.From.Col + off.Col, Row: c.Src.From.Row + off.Row}
-			for tr := range tilesDown {
-				for tc := range tilesAcross {
-					to := Addr{Col: dst.From.Col + tc*cols + off.Col, Row: dst.From.Row + tr*rows + off.Row}
+			for tr := range p.down {
+				for tc := range p.across {
+					to := Addr{Col: dst.From.Col + tc*p.tw + off.Col, Row: dst.From.Row + tr*p.th + off.Row}
 					s.pasteCell(to, cell, to.Col-from.Col, to.Row-from.Row, values)
 				}
 			}
+		}
+		if !values {
+			s.pasteFormats(&c.formats, p)
 		}
 	})
 	return dst, nil

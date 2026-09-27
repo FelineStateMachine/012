@@ -45,3 +45,18 @@ func TestFormatsSurviveSaveAndReopen(t *testing.T) {
 		t.Errorf("italic lost after reopening:\n%s", r.html())
 	}
 }
+
+// A column's format travels when the column is copied, and formulas
+// reading its blanks take it at once.
+func TestColumnFormatTravelsWithCopy(t *testing.T) {
+	s := start(t, "")
+	s.keys("5", "<enter>", "7", "<enter>", "<ctrl+home>", "<right>", "=C9*2", "<enter>")
+	s.waitForLine(gridRow1, numRow(1, "5", "0"))
+	s.keys("<ctrl+home>", "<ctrl+space>", "<ctrl+shift+4>", "<ctrl+c>")
+	s.waitFor("Copied A:A")
+	s.keys("<esc>", "<right>", "<right>", "<ctrl+v>")
+	s.waitFor("Pasted 1 column at C:C")
+	s.waitForLine(gridRow1, numRow(1, "$5.00", "$0.00", "$5.00"))
+	s.keys("<esc>", "<down>", "<down>", "<down>", "<down>", "3", "<enter>")
+	s.waitForLine(gridRow1+4, numRow(5, "", "", "$3.00"))
+}

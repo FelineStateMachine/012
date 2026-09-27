@@ -65,8 +65,15 @@ func (s *Sheet) inherited(a Addr) lineFmt {
 	if s.lines.none() {
 		return lineFmt{}
 	}
-	l := s.lines.rows[a.Row]
-	for _, next := range [2]lineFmt{s.lines.cols[a.Col], s.lines.sheet} {
+	return fallback(s.lines.rows[a.Row], s.lines.cols[a.Col], s.lines.sheet)
+}
+
+// fallback is what a cell without formatting shows in a row, column and
+// sheet with these formats: each part from the row, else the column,
+// else the sheet.
+func fallback(row, col, sheet lineFmt) lineFmt {
+	l := row
+	for _, next := range [2]lineFmt{col, sheet} {
 		if l.Format.IsZero() {
 			l.Format = next.Format
 		}
