@@ -57,7 +57,24 @@ type Reader struct {
 	// (array.go), emptied when the outermost is done; nest counts them.
 	arena []any
 	nest  int
+	// ranges are the ranges read whole as arrays since Forget, shared by
+	// the formulas reading them: a thousand FILTERs of one column read it
+	// once. See Forget.
+	ranges map[rangeKey]*Array
 }
+
+// rangeKey is a range as a formula names it.
+type rangeKey struct {
+	sheet string
+	r     Rect
+}
+
+// Forget drops the ranges read as arrays. The engine calls it as each
+// recalculation starts and ends: within one, a range's values don't
+// change once read, since reading it evaluates its dirty cells first (a
+// range holding a cell being evaluated is a cycle, an error either way),
+// and spilled cells are written between passes.
+func (rd *Reader) Forget() { clear(rd.ranges) }
 
 // evalState is where a formula's evaluation is: saved while a cell it
 // reads is evaluated through the same Reader, and given back after.

@@ -34,24 +34,34 @@ func EvalCell(n Node, get *Reader, at Addr) (Value, *Array) {
 // saving the state of the formula it nests in (a cell read while another
 // is evaluated).
 func evalTop(n Node, get *Reader, at Addr, arrays bool) (Value, *Array) {
-	saved := get.evalState
+	nested := get.nest > 0
+	var saved evalState
+	if nested {
+		saved = get.evalState
+	}
 	get.evalState = evalState{here: at, wantArr: arrays}
 	get.nest++
-	// Deferred, so an evaluation the engine abandons part way (its
-	// evaluate.go) leaves the Reader as it found it.
-	defer get.leave(saved)
 	v := eval(n, get)
-	return get.first(v), get.arrayOf(v)
+	var a *Array
+	if v.Kind == value.Array {
+		v, a = get.first(v), get.arrayOf(v)
+	}
+	if get.nest--; get.nest == 0 && len(get.arena) > 0 {
+		clear(get.arena)
+		get.arena = get.arena[:0]
+	}
+	if nested {
+		get.evalState = saved
+	}
+	return v, a
 }
 
-// leave gives back the evaluation state saved, emptying the arena when
-// the outermost formula is done.
-func (rd *Reader) leave(saved evalState) {
-	if rd.nest--; rd.nest == 0 {
-		clear(rd.arena)
-		rd.arena = rd.arena[:0]
-	}
-	rd.evalState = saved
+// Reset forgets the evaluations in progress, which the engine abandoned
+// part way (its evaluate.go), so the next starts afresh.
+func (rd *Reader) Reset() {
+	rd.evalState, rd.nest = evalState{}, 0
+	clear(rd.arena)
+	rd.arena = rd.arena[:0]
 }
 
 func eval(n Node, get lookup) Value {
@@ -87,29 +97,28 @@ func eval(n Node, get lookup) Value {
 	case decBinary:
 		return evalBinary(formula.Binary(n), get, true)
 	case formula.Call:
-		return evalCall(n, get)
+		// In an array context a function of one value is mapped over the
+		// arrays it's given (lift.go); otherwise its arguments are read as
+		// it reads them, and what it returns is one value unless the
+		// caller asked for an array.
+		*get.depth++ // see the engine's evaluate.go; operators count in theirs
+		f := funcOf(n)
+		var v Value
+		if get.lift > 0 && f.arrays != takesArrays {
+			v = liftCall(f, n.Args, get)
+		} else {
+			want := get.wantArr
+			get.wantArr = f.arrays != liftScalar
+			v = f.call(n.Args, get)
+			get.wantArr = want
+		}
+		*get.depth--
+		if v.Kind == value.Array {
+			return get.reduce(v)
+		}
+		return v
 	}
 	return get.reduce(evalOther(n, get))
-}
-
-// evalCall calls a function. In an array context a function of one
-// value is mapped over the arrays it's given (lift.go); otherwise its
-// arguments are read as it reads them, and what it returns is one value
-// unless the caller asked for an array.
-func evalCall(n formula.Call, get lookup) Value {
-	*get.depth++ // see the engine's evaluate.go; operators count in theirs
-	f := funcOf(n)
-	var v Value
-	if get.lift > 0 && f.arrays != takesArrays {
-		v = liftCall(f, n.Args, get)
-	} else {
-		want := get.wantArr
-		get.wantArr = f.arrays != liftScalar
-		v = f.call(n.Args, get)
-		get.wantArr = want
-	}
-	*get.depth--
-	return get.reduce(v)
 }
 
 // evalOther evaluates what formulas rarely hold: array literals, names
@@ -179,8 +188,23 @@ func evalBinary(n formula.Binary, get lookup, dec bool) Value {
 	*get.depth++
 	l, r := eval(n.L, get), eval(n.R, get)
 	*get.depth--
-	if l.Kind == value.Array || r.Kind == value.Array {
+	switch {
+	case l.Kind == value.Array || r.Kind == value.Array:
 		return get.reduce(get.elementwise(l, r, func(l, r Value) Value { return binaryOp(n.Op, l, r, dec) }))
+	case l.Kind == value.Error:
+		return l
+	case r.Kind == value.Error:
+		return r
+	case !dec && l.Kind == value.Number && r.Kind == value.Number:
+		// Arithmetic on numbers, the commonest case, at once.
+		switch n.Op {
+		case "+":
+			return num(l.Num + r.Num)
+		case "-":
+			return num(l.Num - r.Num)
+		case "*":
+			return num(l.Num * r.Num)
+		}
 	}
 	return binaryOp(n.Op, l, r, dec)
 }

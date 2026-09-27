@@ -121,13 +121,24 @@ func EachChild(n Node, fn func(Node)) {
 	}
 }
 
-// WalkNames calls fn for every name in n.
+// WalkNames calls fn for every name in n. It walks the tree itself
+// rather than through EachChild, as every formula entered is walked.
 func WalkNames(n Node, fn func(Name)) {
-	if nn, ok := n.(Name); ok {
-		fn(nn)
-		return
+	switch n := n.(type) {
+	case Name:
+		fn(n)
+	case Unary:
+		WalkNames(n.X, fn)
+	case Binary:
+		WalkNames(n.L, fn)
+		WalkNames(n.R, fn)
+	case Call:
+		for _, a := range n.Args {
+			WalkNames(a, fn)
+		}
+	case Array, Invoke:
+		EachChild(n, func(k Node) { WalkNames(k, fn) })
 	}
-	EachChild(n, func(k Node) { WalkNames(k, fn) })
 }
 
 // WalkRefs calls fn for every single-cell reference and range in n, with
@@ -138,7 +149,16 @@ func WalkRefs(n Node, ref func(string, Addr), rng func(string, Rect)) {
 		ref(n.Sheet, n.Addr)
 	case Range:
 		rng(n.Sheet, n.Rect)
-	default:
+	case Unary:
+		WalkRefs(n.X, ref, rng)
+	case Binary:
+		WalkRefs(n.L, ref, rng)
+		WalkRefs(n.R, ref, rng)
+	case Call:
+		for _, a := range n.Args {
+			WalkRefs(a, ref, rng)
+		}
+	case Array, Invoke:
 		EachChild(n, func(k Node) { WalkRefs(k, ref, rng) })
 	}
 }

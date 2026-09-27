@@ -188,11 +188,28 @@ func arrayArg(n Node, get lookup) (*Array, *Value) {
 }
 
 // rangeArray reads the range r on sheet as an array: its cells up to
-// the last one holding something, blank past them.
+// the last one holding something, blank past them. Arrays are never
+// changed once made, so a range read before (see Forget) is shared.
 func (rd *Reader) rangeArray(sheet string, r Rect) Value {
 	if r.From == r.To {
 		return rd.cell(sheet, r.From)
 	}
+	k := rangeKey{sheet, r}
+	if a, ok := rd.ranges[k]; ok {
+		return rd.arrayValue(a)
+	}
+	v := rd.readRange(sheet, r)
+	if a := rd.arrayOf(v); a != nil {
+		if rd.ranges == nil {
+			rd.ranges = map[rangeKey]*Array{}
+		}
+		rd.ranges[k] = a
+	}
+	return v
+}
+
+// readRange reads a range as an array.
+func (rd *Reader) readRange(sheet string, r Rect) Value {
 	a := &Array{Rows: r.To.Row - r.From.Row + 1, Cols: r.To.Col - r.From.Col + 1}
 	b, any, exists := rd.book.Bounds(sheet, r)
 	switch {

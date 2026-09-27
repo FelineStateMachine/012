@@ -8,12 +8,26 @@ import (
 // IsVolatile reports whether n calls a function whose result changes
 // without its inputs changing (TODAY, NOW, RAND).
 func IsVolatile(n Node) bool {
-	if c, ok := n.(formula.Call); ok && funcOf(c).Volatile {
-		return true
+	switch n := n.(type) {
+	case formula.Unary:
+		return IsVolatile(n.X)
+	case formula.Binary:
+		return IsVolatile(n.L) || IsVolatile(n.R)
+	case formula.Call:
+		if funcOf(n).Volatile {
+			return true
+		}
+		for _, a := range n.Args {
+			if IsVolatile(a) {
+				return true
+			}
+		}
+	case formula.Array, formula.Invoke:
+		volatile := false
+		formula.EachChild(n, func(k Node) { volatile = volatile || IsVolatile(k) })
+		return volatile
 	}
-	volatile := false
-	formula.EachChild(n, func(k Node) { volatile = volatile || IsVolatile(k) })
-	return volatile
+	return false
 }
 
 // InferFormat picks the format Sheets shows a formula's result in when

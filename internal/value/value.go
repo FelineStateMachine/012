@@ -7,6 +7,7 @@
 package value
 
 import (
+	"cmp"
 	"math"
 	"strings"
 
@@ -111,6 +112,31 @@ func AsText(v Value) string {
 	return v.String()
 }
 
+// compareText orders text ignoring case, as upper case: byte by byte
+// while both are ASCII, which most text is, so comparing a column of it
+// allocates nothing.
+func compareText(a, b string) int {
+	for i := 0; i < len(a) && i < len(b); i++ {
+		x, y := a[i], b[i]
+		if x >= utf8RuneSelf || y >= utf8RuneSelf {
+			return strings.Compare(strings.ToUpper(a[i:]), strings.ToUpper(b[i:]))
+		}
+		if x >= 'a' && x <= 'z' {
+			x -= 'a' - 'A'
+		}
+		if y >= 'a' && y <= 'z' {
+			y -= 'a' - 'A'
+		}
+		if x != y {
+			return cmp.Compare(x, y)
+		}
+	}
+	return cmp.Compare(len(a), len(b))
+}
+
+// utf8RuneSelf is where multi-byte UTF-8 starts.
+const utf8RuneSelf = 0x80
+
 // Compare orders values like Sheets: numbers < text < booleans, text is
 // case-insensitive, and a blank equals 0 or "".
 func Compare(l, r Value) int {
@@ -133,7 +159,7 @@ func Compare(l, r Value) int {
 		return d
 	}
 	if l.Kind == Text {
-		return strings.Compare(strings.ToUpper(l.Str), strings.ToUpper(r.Str))
+		return compareText(l.Str, r.Str)
 	}
 	switch {
 	case l.Num < r.Num:

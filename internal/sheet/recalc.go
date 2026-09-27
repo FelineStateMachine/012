@@ -212,6 +212,7 @@ func (w *Workbook) recalcReader(s *Sheet, e *evaluator, memo *aggMemo) *reader {
 		s.recalcs = rd
 	}
 	rd.read, rd.memo, rd.lastName, rd.last = e.compute, memo, "", nil
+	rd.lib.Forget()
 	return rd
 }
 

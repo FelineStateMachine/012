@@ -208,19 +208,8 @@ func unique(args []Node, get lookup) Value {
 	if byCol {
 		a = a.transposed()
 	}
-	n := min(a.DRows+1, a.Rows) // the data rows, and one blank row past them
-	groups := map[string][]int{}
-	var order []string
-	for r := range n {
-		k := rowKey(a, r)
-		if _, seen := groups[k]; !seen {
-			order = append(order, k)
-		}
-		groups[k] = append(groups[k], r)
-	}
 	var keep []int
-	for _, k := range order {
-		g := groups[k]
+	for _, g := range groupRows(a, min(a.DRows+1, a.Rows)) { // the data rows, and one blank row past them
 		if once && (len(g) > 1 || g[0] == a.DRows && a.Rows > a.DRows+1) {
 			continue // repeated, or the blank row, which repeats past the data
 		}
@@ -236,14 +225,45 @@ func unique(args []Node, get lookup) Value {
 	return get.arrayValue(out)
 }
 
+// groupRows groups the first n rows of a that UNIQUE takes to be the
+// same, in the order each first comes: the rows of each group.
+func groupRows(a *Array, n int) [][]int {
+	if a.Cols == 1 { // a column's values are their own keys
+		return groupBy(n, func(r int) Value { return uniqueValue(a.At(r, 0)) })
+	}
+	return groupBy(n, func(r int) string { return rowKey(a, r) })
+}
+
+// groupBy groups rows 0..n-1 by key, in the order each key first comes.
+func groupBy[K comparable](n int, key func(int) K) [][]int {
+	var groups [][]int
+	index := map[K]int{}
+	for r := range n {
+		k := key(r)
+		i, found := index[k]
+		if !found {
+			i = len(groups)
+			index[k] = i
+			groups = append(groups, nil)
+		}
+		groups[i] = append(groups[i], r)
+	}
+	return groups
+}
+
+// uniqueValue is v as UNIQUE compares it: empty text is a blank.
+func uniqueValue(v Value) Value {
+	if v.Kind == value.Text && v.Str == "" {
+		return Value{}
+	}
+	return v
+}
+
 // rowKey is a key equal for rows UNIQUE takes to be the same.
 func rowKey(a *Array, r int) string {
 	var b []byte
 	for c := range a.Cols {
-		v := a.At(r, c)
-		if v.Kind == value.Text && v.Str == "" {
-			v = Value{} // empty text and a blank are the same
-		}
+		v := uniqueValue(a.At(r, c))
 		b = append(b, byte(v.Kind))
 		if v.Kind == value.Text || v.Kind == value.Error {
 			b = append(b, v.Str...)

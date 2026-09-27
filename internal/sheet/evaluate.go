@@ -62,6 +62,7 @@ func (w *Workbook) evaluate() {
 	}
 	for _, s := range w.sheets {
 		s.calcGet.read, s.calcGet.memo = nil, nil
+		s.calcGet.lib.Forget()
 		s.calc, s.calcGet, s.calcFmt = nil, nil, nil
 	}
 }
@@ -119,7 +120,9 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 	w.evaluating = loc{s, a}
 	v, arr := functions.EvalCell(w.arith(expr), s.calcGet.lib, a)
 	c.Value = v
-	w.noteSpill(loc{s, a}, arr, v)
+	if arr != nil || s.spills != nil {
+		w.noteSpill(loc{s, a}, arr, v)
+	}
 	w.evaluating = outer
 	c.auto = functions.InferFormat(expr, s.calcFmt)
 	w.depth--
@@ -176,6 +179,7 @@ func (e *evaluator) abandon(finished *bool) {
 				s.calc[a] = dirty
 			}
 		}
+		s.calcGet.lib.Reset()
 	}
 	for _, p := range e.pending {
 		p.s.calc[p.a] = deferred

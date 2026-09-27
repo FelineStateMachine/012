@@ -29,6 +29,12 @@ import (
 type spill struct {
 	area Rect   // the cells it covers, the anchor first; when blocked, those it needs
 	why  string // why the anchor shows #REF! instead, or ""
+	// arr and auto are the array written and its format, so the same
+	// array computed again isn't written again, unless stale says a cell
+	// of area changed since.
+	arr   *functions.Array
+	auto  Format
+	stale bool
 }
 
 // ErrSpillEdit is what typing into a spilled cell says: its value
@@ -112,6 +118,10 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 	if c == nil || !c.IsFormula() || p.arr == nil {
 		return s.dropSpill(a), false
 	}
+	old := s.spills[a]
+	if old != nil && old.why == "" && !old.stale && old.auto == c.auto && sameArray(old.arr, p.arr) {
+		return nil, false // written already, and nothing has changed in its way
+	}
 	area, why := s.spillArea(a, p.arr)
 	if why != "" {
 		changed := s.dropSpill(a)
@@ -120,10 +130,10 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 		return changed, p.v != ErrRef
 	}
 	var changed []loc
-	if old := s.spills[a]; old != nil && old.why == "" {
+	if old != nil && old.why == "" {
 		changed = s.clearSpilled(old.area, area)
 	}
-	s.setSpill(a, &spill{area: area})
+	s.setSpill(a, &spill{area: area, arr: p.arr, auto: c.auto})
 	for r := range area.To.Row - a.Row + 1 {
 		for col := range area.To.Col - a.Col + 1 {
 			if r == 0 && col == 0 {
@@ -181,11 +191,10 @@ func (s *Sheet) writeSpilled(a Addr, v Value, auto Format) bool {
 		s.setDerived(a, formattingOnly(f, st))
 		return true
 	}
-	c := &Cell{Input: derivedInput(v), Value: v, Format: f, Style: st, auto: auto, spilled: true}
-	if old != nil && old.spilled && old.Value == c.Value && old.Input == c.Input && old.auto == c.auto {
-		return false
+	if old != nil && old.spilled && old.Value == v && old.auto == auto {
+		return false // its input is its value's
 	}
-	s.setDerived(a, c)
+	s.setDerived(a, &Cell{Input: derivedInput(v), Value: v, Format: f, Style: st, auto: auto, spilled: true})
 	return true
 }
 
@@ -252,9 +261,26 @@ func (s *Sheet) spillTouched(a Addr, c *Cell) {
 	}
 	s.spillAt.readers(a, func(anchor Addr) {
 		if anchor != a {
+			s.spills[anchor].stale = true
 			s.wb.markDirty(loc{s, anchor})
 		}
 	})
+}
+
+// sameArray reports whether two arrays hold the same values.
+func sameArray(x, y *functions.Array) bool {
+	if x == y {
+		return true
+	}
+	if x == nil || y == nil || x.Rows != y.Rows || x.Cols != y.Cols || x.DRows != y.DRows || x.DCols != y.DCols || x.Fill != y.Fill {
+		return false
+	}
+	for i, v := range x.V {
+		if y.V[i] != v {
+			return false
+		}
+	}
+	return true
 }
 
 // markDirty has the step being made or undone recalculate the cell at
