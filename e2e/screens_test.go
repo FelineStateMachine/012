@@ -175,7 +175,7 @@ var screens = []screen{
 	}},
 	{name: "error-goto", setup: func(s *session) {
 		s.keys("<f5>", "nope", "<enter>")
-		s.waitFor("Not a cell address")
+		s.waitFor("Not a cell, range or named range")
 	}},
 	{name: "help", setup: func(s *session) {
 		s.keys("<f1>")
@@ -237,12 +237,50 @@ var screens = []screen{
 		s.waitFor("Currency rounded")
 	}},
 	{name: "formats-narrow", opts: options{cols: 60, rows: 16}, setup: formatted},
+	{name: "autocomplete", setup: func(s *session) {
+		budget(s)
+		s.keys("<down>", "=B7/su")
+		s.waitFor("│ SUM ")
+	}},
+	{name: "autocomplete-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		budget(s)
+		s.keys("<down>", "=MAX(B7,co")
+		s.waitFor("│ COUNT ")
+	}},
+	{name: "signature", setup: func(s *session) {
+		budget(s)
+		s.keys("<down>", `=SUMIF(A3:A5, "R*", `)
+		s.waitFor("criterion, [sum_range])")
+	}},
+	{name: "named-ranges", setup: func(s *session) {
+		named(s)
+		s.keys("<alt+d>", "n")
+		s.waitFor("│ › Type a name")
+	}},
+	{name: "trace-precedents", setup: func(s *session) {
+		named(s)
+		s.keys("<alt+,>")
+		s.waitFor("precedents of B8")
+	}},
+}
+
+// named is the budget with its expenses named and a formula using the
+// name, ending on the total.
+func named(s *session) {
+	budget(s)
+	s.keys("<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>", "<alt+d>", "d", "Expenses", "<enter>")
+	s.waitForName("Expenses")
+	s.keys("<esc>", "<ctrl+home>", "<down>", "<right>", "<right>", "4", "<enter>")
+	s.keys("<ctrl+home>", "<down>", "<down>", "<down>", "<down>", "<down>", "<down>", "<down>", "<right>")
+	s.keys("=AVERAGE(Expenses)*C2", "<enter>")
+	s.keys("<up>")
+	s.waitForBar("B8", "=AVERAGE(Expenses)*C2")
 }
 
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "autocomplete", "signature", "named-ranges", "trace-precedents"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
