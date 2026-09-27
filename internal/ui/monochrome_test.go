@@ -144,129 +144,127 @@ func every(cs []monoCell, text bool, f func(monoCell) bool) bool {
 	return true
 }
 
-func TestMonochromeSheetStates(t *testing.T) {
-	isReverse := func(c monoCell) bool { return c.reverse }
-	plain := func(c monoCell) bool { return c.attrs == attrs{} }
+func isReverse(c monoCell) bool { return c.reverse }
+func plain(c monoCell) bool     { return c.attrs == attrs{} }
 
-	t.Run("pointer and plain cell", func(t *testing.T) {
-		m := newModel()
-		m.sheet.Set(addr("B1"), "text")
-		if p := cellAt(m, addr("A1")); !every(p, false, isReverse) {
-			t.Errorf("the pointer isn't in reverse video: %+v", p)
-		}
-		if c := cellAt(m, addr("B1")); !every(c, false, plain) {
-			t.Errorf("a plain cell has attributes: %+v", c)
-		}
-	})
+func TestMonochromePointer(t *testing.T) {
+	m := newModel()
+	m.sheet.Set(addr("B1"), "text")
+	if p := cellAt(m, addr("A1")); !every(p, false, isReverse) {
+		t.Errorf("the pointer isn't in reverse video: %+v", p)
+	}
+	if c := cellAt(m, addr("B1")); !every(c, false, plain) {
+		t.Errorf("a plain cell has attributes: %+v", c)
+	}
+}
 
-	t.Run("selection and headers", func(t *testing.T) {
-		m := newModel()
-		press(t, m, "<shift+right>", "<shift+down>")
-		for _, a := range []string{"A1", "B1", "A2", "B2"} {
-			if c := cellAt(m, addr(a)); !every(c, false, isReverse) {
-				t.Errorf("%s in the selection isn't in reverse video", a)
-			}
+func TestMonochromeSelection(t *testing.T) {
+	m := newModel()
+	press(t, m, "<shift+right>", "<shift+down>")
+	for _, a := range []string{"A1", "B1", "A2", "B2"} {
+		if c := cellAt(m, addr(a)); !every(c, false, isReverse) {
+			t.Errorf("%s in the selection isn't in reverse video", a)
 		}
-		if c := cellAt(m, addr("C3")); !every(c, false, plain) {
-			t.Error("a cell outside the selection has attributes")
-		}
-		// Column headers: the active cell's (the selection's anchor, A1)
-		// bold and reversed, another selected one reversed, the rest plain.
-		hdr := monoLine(m, headerLine)
-		x := m.hdrW()
-		col := func(c int) []monoCell { return hdr[x+c*sheet.DefaultWidth : x+(c+1)*sheet.DefaultWidth] }
-		if !every(col(0), true, func(c monoCell) bool { return c.reverse && c.bold }) {
-			t.Errorf("the active column's header: %+v", col(0))
-		}
-		if !every(col(1), true, func(c monoCell) bool { return c.reverse && !c.bold }) {
-			t.Errorf("a selected column's header: %+v", col(1))
-		}
-		if every(col(2), true, isReverse) {
-			t.Error("an unselected column's header is reversed")
-		}
-		if !strings.Contains(cellText(monoLine(m, formulaLine)), "A1:B2") {
-			t.Error("the name box doesn't name the selection")
-		}
-	})
+	}
+	if c := cellAt(m, addr("C3")); !every(c, false, plain) {
+		t.Error("a cell outside the selection has attributes")
+	}
+	// Column headers: the active cell's (the selection's anchor, A1)
+	// bold and reversed, another selected one reversed, the rest plain.
+	hdr := monoLine(m, headerLine)
+	x := m.hdrW()
+	col := func(c int) []monoCell { return hdr[x+c*sheet.DefaultWidth : x+(c+1)*sheet.DefaultWidth] }
+	if !every(col(0), true, func(c monoCell) bool { return c.reverse && c.bold }) {
+		t.Errorf("the active column's header: %+v", col(0))
+	}
+	if !every(col(1), true, func(c monoCell) bool { return c.reverse && !c.bold }) {
+		t.Errorf("a selected column's header: %+v", col(1))
+	}
+	if every(col(2), true, isReverse) {
+		t.Error("an unselected column's header is reversed")
+	}
+	if !strings.Contains(cellText(monoLine(m, formulaLine)), "A1:B2") {
+		t.Error("the name box doesn't name the selection")
+	}
+}
 
-	t.Run("error", func(t *testing.T) {
-		m := newModel()
-		m.sheet.Set(addr("B1"), "=1/0")
-		c := cellAt(m, addr("B1"))
-		if !strings.Contains(cellText(c), "#DIV/0!") || !every(c, true, func(c monoCell) bool { return c.underline == "3" }) {
-			t.Errorf("an error cell: %q %+v", cellText(c), c)
-		}
-	})
+func TestMonochromeError(t *testing.T) {
+	m := newModel()
+	m.sheet.Set(addr("B1"), "=1/0")
+	c := cellAt(m, addr("B1"))
+	if !strings.Contains(cellText(c), "#DIV/0!") || !every(c, true, func(c monoCell) bool { return c.underline == "3" }) {
+		t.Errorf("an error cell: %q %+v", cellText(c), c)
+	}
+}
 
-	t.Run("invalid entry and its warning", func(t *testing.T) {
-		m := newModel()
-		mustValidate(t, m, `{"ranges":"B1:B9","criteria":"number","condition":"between","values":["1","10"]}`)
-		m.sheet.Set(addr("B1"), "42")
-		c := cellAt(m, addr("B1"))
-		if !every(c, true, func(c monoCell) bool { return c.underline == "4" }) {
-			t.Errorf("an invalid cell isn't dotted: %+v", c)
-		}
-		m.cur = addr("B1")
-		if l := cellText(monoLine(m, contextLine)); !strings.Contains(l, "Invalid:") {
-			t.Errorf("no warning in words: %q", l)
-		}
-	})
+func TestMonochromeInvalid(t *testing.T) {
+	m := newModel()
+	mustValidate(t, m, `{"ranges":"B1:B9","criteria":"number","condition":"between","values":["1","10"]}`)
+	m.sheet.Set(addr("B1"), "42")
+	c := cellAt(m, addr("B1"))
+	if !every(c, true, func(c monoCell) bool { return c.underline == "4" }) {
+		t.Errorf("an invalid cell isn't dotted: %+v", c)
+	}
+	m.cur = addr("B1")
+	if l := cellText(monoLine(m, contextLine)); !strings.Contains(l, "Invalid:") {
+		t.Errorf("no warning in words: %q", l)
+	}
+}
 
-	t.Run("circular reference", func(t *testing.T) {
-		m := newModel()
-		m.sheet.Set(addr("A1"), "=A1+1")
-		if l := cellText(monoLine(m, m.height-1)); !strings.Contains(l, "Circular reference") {
-			t.Errorf("status line: %q", l)
-		}
-	})
+func TestMonochromeCircular(t *testing.T) {
+	m := newModel()
+	m.sheet.Set(addr("A1"), "=A1+1")
+	if l := cellText(monoLine(m, m.height-1)); !strings.Contains(l, "Circular reference") {
+		t.Errorf("status line: %q", l)
+	}
+}
 
-	t.Run("spill", func(t *testing.T) {
-		m := newModel()
-		m.sheet.Set(addr("B1"), "=SEQUENCE(3)")
-		m.cur = addr("D1")
-		c := cellAt(m, addr("B2"))
-		if strings.TrimSpace(cellText(c)) != "2" || !every(c, true, func(c monoCell) bool { return c.italic }) {
-			t.Errorf("a spilled value isn't italic: %+v", c)
-		}
-		m.cur = addr("B2")
-		if l := cellText(monoLine(m, contextLine)); !strings.Contains(l, "Spilled from B1") {
-			t.Errorf("context line: %q", l)
-		}
-	})
+func TestMonochromeSpill(t *testing.T) {
+	m := newModel()
+	m.sheet.Set(addr("B1"), "=SEQUENCE(3)")
+	m.cur = addr("D1")
+	c := cellAt(m, addr("B2"))
+	if strings.TrimSpace(cellText(c)) != "2" || !every(c, true, func(c monoCell) bool { return c.italic }) {
+		t.Errorf("a spilled value isn't italic: %+v", c)
+	}
+	m.cur = addr("B2")
+	if l := cellText(monoLine(m, contextLine)); !strings.Contains(l, "Spilled from B1") {
+		t.Errorf("context line: %q", l)
+	}
+}
 
-	t.Run("note", func(t *testing.T) {
-		m := newModel()
-		m.sheet.Set(addr("B1"), "x")
-		m.sheet.SetNote(addr("B1"), "Checked")
-		if c := cellAt(m, addr("B1")); c[len(c)-1].text != "▝" {
-			t.Errorf("no note mark: %q", cellText(c))
-		}
-	})
+func TestMonochromeNote(t *testing.T) {
+	m := newModel()
+	m.sheet.Set(addr("B1"), "x")
+	m.sheet.SetNote(addr("B1"), "Checked")
+	if c := cellAt(m, addr("B1")); c[len(c)-1].text != "▝" {
+		t.Errorf("no note mark: %q", cellText(c))
+	}
+}
 
-	t.Run("found and traced", func(t *testing.T) {
-		m := traceModel(t)
-		m.cur = addr("B1")
-		press(t, m, "<alt+,>")
-		if c := cellAt(m, addr("A2")); !every(c, false, isReverse) {
-			t.Errorf("a traced cell isn't reversed: %+v", c)
-		}
-		m = newModel()
-		m.sheet.Set(addr("B2"), "Rent")
-		press(t, m, "<ctrl+f>", "Rent")
-		if c := cellAt(m, addr("B2")); !every(c, false, isReverse) {
-			t.Errorf("a match isn't reversed: %+v", c)
-		}
-	})
+func TestMonochromeFoundTraced(t *testing.T) {
+	m := traceModel(t)
+	m.cur = addr("B1")
+	press(t, m, "<alt+,>")
+	if c := cellAt(m, addr("A2")); !every(c, false, isReverse) {
+		t.Errorf("a traced cell isn't reversed: %+v", c)
+	}
+	m = newModel()
+	m.sheet.Set(addr("B2"), "Rent")
+	press(t, m, "<ctrl+f>", "Rent")
+	if c := cellAt(m, addr("B2")); !every(c, false, isReverse) {
+		t.Errorf("a match isn't reversed: %+v", c)
+	}
+}
 
-	t.Run("copied", func(t *testing.T) {
-		m := newModel()
-		m.sheet.Set(addr("A1"), "1")
-		press(t, m, "<ctrl+c>", "<right>")
-		c := cellAt(m, addr("A1"))
-		if !every(c, false, func(c monoCell) bool { return c.underline != "" }) || !every(c, true, func(c monoCell) bool { return c.underline == "5" }) {
-			t.Errorf("the copied range isn't underlined, dashed under its text: %+v", c)
-		}
-	})
+func TestMonochromeCopied(t *testing.T) {
+	m := newModel()
+	m.sheet.Set(addr("A1"), "1")
+	press(t, m, "<ctrl+c>", "<right>")
+	c := cellAt(m, addr("A1"))
+	if !every(c, false, func(c monoCell) bool { return c.underline != "" }) || !every(c, true, func(c monoCell) bool { return c.underline == "5" }) {
+		t.Errorf("the copied range isn't underlined, dashed under its text: %+v", c)
+	}
 }
 
 // States told in words: the mode indicator, recording, protected ranges

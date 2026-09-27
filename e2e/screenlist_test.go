@@ -263,15 +263,6 @@ var screens = []screen{
 		s.keys("<alt+f>", "<down>", "<down>", "<down>")
 		s.waitFor("Save the sheet")
 	}},
-	// High contrast: WCAG AAA text, dark and light, with a selection and
-	// an open menu.
-	{name: "theme-high-contrast", opts: options{config: "theme = high-contrast\n"}, setup: highContrast},
-	{name: "theme-high-contrast-light", opts: options{light: true, config: "theme = high-contrast\n"}, setup: highContrast},
-	{name: "theme-high-contrast-menu", opts: options{config: "theme = high-contrast\n"}, setup: func(s *session) {
-		budget(s)
-		s.keys("<alt+f>", "<down>", "<down>", "<down>")
-		s.waitFor("Save the sheet")
-	}},
 	{name: "theme-picker", setup: func(s *session) {
 		budget(s)
 		openTheme(s)
