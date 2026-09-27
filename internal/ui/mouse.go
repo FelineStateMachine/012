@@ -113,8 +113,8 @@ func (m *Model) hitTest(x, y int) hit {
 		}
 		return hit{kind: hitCell, addr: a}
 	case y == m.height-1:
-		if sp, ok := m.tabAt(x); ok {
-			return hit{kind: sp.kind, addr: sheet.Addr{Col: sp.index}}
+		if h, ok := m.tabAt(x); ok {
+			return h
 		}
 		return hit{kind: hitStatus}
 	}

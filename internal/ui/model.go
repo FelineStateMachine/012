@@ -15,6 +15,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -92,7 +93,7 @@ type Model struct {
 	prompt  *prompt         // a question on the context line: prompt.go
 	overlay overlay.Overlay // the open menu, picker or bar, if any (modeMenu): overlay.go
 	mouse   mouseState      // drags, hover and double clicks: mouse.go
-	tabs    tabStrip        // the sheet tabs and where each sheet was left: tabstrip.go
+	tabs    tabstrip.Strip  // the sheet tabs and where each sheet was left: tabstrip.go
 	find    *findbar.Bar    // the last search, reopened by Ctrl+F: find.go
 	charts  chartState      // chart commands' target: charts.go
 	copied  clipboard       // what Ctrl+V pastes: clipboard.go

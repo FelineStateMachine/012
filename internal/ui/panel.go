@@ -15,6 +15,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -281,7 +282,7 @@ func (m *Model) statusLine() string {
 // statistics or the ways in to everything else on the right. While a
 // menu, picker or suggestion list is open, it says what the highlighted
 // item does instead.
-func (m *Model) statusLayout() (string, []tabSpan) {
+func (m *Model) statusLayout() (string, []tabstrip.Span) {
 	if m.mode == modeError {
 		return m.th.Error.Render(m.errMsg) + m.th.Muted.Render("   press any key"), nil
 	}
@@ -315,12 +316,12 @@ func (m *Model) floatingStatus() (string, bool) {
 // out, the right side gives up detail first, then the file name, then
 // tabs scroll: first every tab is tried, then half the line of them, then
 // just the one shown.
-func (m *Model) fileStatus() (string, []tabSpan) {
+func (m *Model) fileStatus() (string, []tabstrip.Span) {
 	v := m.tabView()
 	state := m.statusState()
 	infos := []string{m.displayName() + state, strings.TrimPrefix(state, "  ")}
 	rights := m.statusRights()
-	for _, need := range []int{v.fullWidth(), min(v.fullWidth(), m.width/2), v.minWidth()} {
+	for _, need := range []int{v.FullWidth(), min(v.FullWidth(), m.width/2), v.MinWidth()} {
 		for _, info := range infos {
 			if info != "" {
 				info = m.th.FrozenLine.Render(" │ ") + info // like a tmux pane border
@@ -335,7 +336,7 @@ func (m *Model) fileStatus() (string, []tabSpan) {
 
 // statusFits lays out the status line with info after the tabs and the
 // most detailed of rights that leaves the tabs need columns.
-func (m *Model) statusFits(v tabView, need int, info string, rights []string) (string, []tabSpan, bool) {
+func (m *Model) statusFits(v tabstrip.View, need int, info string, rights []string) (string, []tabstrip.Span, bool) {
 	for _, right := range rights {
 		room := m.width - ansi.StringWidth(info)
 		if right != "" {
@@ -344,7 +345,7 @@ func (m *Model) statusFits(v tabView, need int, info string, rights []string) (s
 		if room < need && (right != "" || info != "") {
 			continue
 		}
-		tabs, spans := m.tabs.layout(&m.th, v, room)
+		tabs, spans := m.tabs.Layout(&m.th, v, room)
 		left := tabs + info
 		gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
 		return left + strings.Repeat(" ", gap) + right, spans, true

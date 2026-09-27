@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
 )
 
 // status is the status line, where the tabs are.
@@ -19,8 +20,8 @@ func tabX(t *testing.T, m *Model, name string) int {
 	t.Helper()
 	_, spans := m.statusLayout()
 	for _, sp := range spans {
-		if name == "+" && sp.kind == hitTabAdd || sp.kind == hitTab && m.tabSheet(sp.index).Name() == name {
-			return sp.x + sp.w/2
+		if name == "+" && sp.Kind == tabstrip.Add || sp.Kind == tabstrip.Tab && m.tabSheet(sp.Index).Name() == name {
+			return sp.X + sp.W/2
 		}
 	}
 	t.Fatalf("no tab %q in %q", name, status(m))
