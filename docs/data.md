@@ -250,7 +250,7 @@ changes it.
 Ctrl+F opens a find bar on the context line: matches highlight as you type,
 the active cell follows the current one, and Enter and Shift+Enter step
 through them. Ctrl+H adds a replacement field; Enter replaces and moves on,
-Ctrl+Enter replaces all as one undo step. Chips toggle match case (Alt+C),
+Ctrl+Enter or Alt+A replaces all as one undo step. Chips toggle match case (Alt+C),
 whole cell (Alt+W), regular expressions (Alt+R, with `$1` in replacements),
 searching formulas (Alt+=). The scope chip says where to search, as Sheets'
 "Search" choice: this sheet, all sheets, or the range selected when the bar
