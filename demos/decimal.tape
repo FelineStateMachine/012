@@ -22,11 +22,13 @@ Type@120ms "decimal"
 Sleep 1s
 Enter
 Sleep 2s
+Screenshot out/stills/decimal-on.png
 Alt+f
 Sleep 500ms
 Up@400ms 2
 Sleep 500ms
 Right
 Sleep 2s
+Screenshot out/stills/settings-menu.png
 Escape@300ms 2
 Sleep 1s

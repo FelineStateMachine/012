@@ -14,6 +14,7 @@ Ctrl+F
 Sleep 500ms
 Type@150ms "acme"
 Sleep 1.2s
+Screenshot out/stills/find-bar.png
 Enter
 Sleep 800ms
 Enter
@@ -29,3 +30,5 @@ Type@120ms "Acme Co."
 Sleep 1s
 Alt+a
 Sleep 3s
+Screenshot out/stills/replace-all.png
+Sleep 500ms

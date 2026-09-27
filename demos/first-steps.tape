@@ -25,3 +25,5 @@ Sleep 800ms
 Up@300ms 3 Left
 Type "6" Enter
 Sleep 3s
+Screenshot out/stills/first-steps-totals.png
+Sleep 500ms

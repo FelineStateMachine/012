@@ -17,6 +17,8 @@ Sleep 800ms
 Right@900ms 4
 Sleep 500ms
 Right
+Sleep 800ms
+Screenshot out/stills/menu-format.png
 Sleep 1.2s
 Escape@300ms 2
 Sleep 600ms
@@ -25,6 +27,8 @@ Sleep 1s
 Type@120ms "freeze"
 Sleep 1.2s
 Down@500ms 2
+Sleep 800ms
+Screenshot out/stills/palette-search.png
 Sleep 800ms
 Enter
 Sleep 1.5s

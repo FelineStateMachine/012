@@ -29,3 +29,5 @@ Sleep 1s
 Ctrl+Down Down
 Type "Total" Tab Type "=SUM(B2:B7)" Tab Type "=SUM(C2:C7)" Tab Type "=SUM(D2:D7)" Enter
 Sleep 3s
+Screenshot out/stills/formats-budget.png
+Sleep 500ms

@@ -16,6 +16,11 @@ Type "Review" Tab Type "Complaint?" Tab Type "Sentiment" Tab Type "Urgency" Ente
 Type "Box arrived crushed" Enter
 Type "Fast and friendly" Enter
 Type "Wrong size, no reply" Enter
+Ctrl+K
+Type "column width"
+Sleep 500ms
+Enter
+Type "22" Enter
 Ctrl+G
 Type "B2" Enter
 Type@25ms '=JEV.TEST(A2, "Is this a complaint?")' Tab
@@ -30,3 +35,5 @@ Sleep 2.5s
 Escape
 Right Down
 Sleep 2.5s
+Screenshot out/stills/jev-results.png
+Sleep 500ms

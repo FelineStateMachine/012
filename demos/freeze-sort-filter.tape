@@ -44,5 +44,9 @@ Sleep 800ms
 Down
 Space
 Sleep 800ms
+Screenshot out/stills/filter-picker.png
+Sleep 800ms
 Enter
 Sleep 3s
+Screenshot out/stills/filtered.png
+Sleep 500ms

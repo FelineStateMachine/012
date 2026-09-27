@@ -71,8 +71,9 @@ oracle:
 	cd oracle && go test -count=1 ./...
 
 # Demo GIFs from the VHS tapes in demos/ into demos/out/ (gitignored),
-# plus smaller copies for the README in demos/out/media/ (12 fps, a
-# 64-color palette, the last frame held). Needs vhs 0.12+ (go install
+# PNG stills of key moments in demos/out/stills/, and smaller GIFs for
+# the README in demos/out/media/ (12 fps, a 64-color palette, the last
+# frame held). Needs vhs 0.12+ (go install
 # github.com/charmbracelet/vhs@latest), ttyd and ffmpeg. The JEV demo
 # talks to demos/fakejev, started here, never the real service.
 # DEMOS=jev renders just one.
@@ -82,7 +83,7 @@ FAKEJEV_ADDR := 127.0.0.1:8799
 demos: build
 	@for t in vhs ttyd ffmpeg; do command -v $$t >/dev/null || { echo "demos need $$t (vhs: go install github.com/charmbracelet/vhs@latest; ttyd, ffmpeg: brew install ttyd ffmpeg)"; exit 1; }; done
 	CGO_ENABLED=0 go build -o bin/fakejev ./demos/fakejev
-	mkdir -p demos/out
+	mkdir -p demos/out/stills
 	bin/fakejev -addr $(FAKEJEV_ADDR) & pid=$$!; trap "kill $$pid" EXIT; \
 	export DEMOS_TTYD="$$(command -v ttyd)" PATH="$(CURDIR)/demos/lib:$$PATH"; \
 	cd demos && for d in $(DEMOS); do echo "vhs $$d.tape"; vhs -q $$d.tape || exit 1; done

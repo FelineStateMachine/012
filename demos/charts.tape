@@ -17,6 +17,7 @@ Up
 Sleep 500ms
 Enter
 Sleep 1.8s
+Screenshot out/stills/chart-editor.png
 Right
 Sleep 1.5s
 Right
@@ -32,3 +33,5 @@ Sleep 600ms
 Down@200ms 3 Right@200ms 2
 Type "1400" Enter
 Sleep 2.5s
+Screenshot out/stills/chart-column.png
+Sleep 500ms

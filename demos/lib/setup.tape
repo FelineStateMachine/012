@@ -2,10 +2,10 @@
 # palette the golden screens use (e2e/palette_test.go), and a pace that
 # reads well. Tapes run from demos/, so the binary is ../bin/012.
 Set Shell "bash"
-Set FontSize 18
-Set Width 1120
-Set Height 640
-Set Padding 16
+Set FontSize 16
+Set Width 1000
+Set Height 600
+Set Padding 20
 Set LineHeight 1.15
 Set TypingSpeed 55ms
 Set CursorBlink false

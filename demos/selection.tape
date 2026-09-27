@@ -15,6 +15,7 @@ Right@300ms 3 Down
 Sleep 600ms
 Ctrl+Shift+Down
 Sleep 2s
+Screenshot out/stills/selection-stats.png
 Ctrl+Shift+Right
 Sleep 2s
 Escape

@@ -17,6 +17,7 @@ Down@400ms 2
 Sleep 700ms
 Enter
 Sleep 1.5s
+Screenshot out/stills/import-picker.png
 Type@200ms "sal"
 Sleep 1s
 Enter
@@ -24,3 +25,5 @@ Sleep 2s
 Right@300ms 3 Down
 Ctrl+Shift+Down
 Sleep 3s
+Screenshot out/stills/import-sales.png
+Sleep 500ms
