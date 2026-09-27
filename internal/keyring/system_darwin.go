@@ -1,3 +1,5 @@
+//go:build !fakekeyring
+
 package keyring
 
 // System is the macOS Keychain.
