@@ -44,8 +44,6 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 | Item | Size |
 |---|---|
 | Record dialog choices (sort bar, filter picker, find and replace, chart editor) and chart drags; let scripts run commands that open dialogs, with answers | M |
-| Vim: `.` repeat, registers, marks, `cc`/`s`, command-line history, `:w!` | M |
-| Hold-to-preview and Shift+Enter on terminals with the kitty keyboard protocol (`View.KeyboardEnhancements`) | S |
 | Sixel chart images, redrawn on resize, for terminals without kitty graphics | M |
 
 ## Later: sharing a live sheet (shelved)
@@ -86,6 +84,7 @@ by a gateway dialing the iroh ticket.
 - Formula suggestions, argument hints and pointing at cells and sheets: [Building formulas](docs/formulas/building.md)
 - Tracing precedents and dependents, hidden sheets explained: [Building formulas](docs/formulas/building.md)
 - An optional vim keymap with a `:` command line: [Keys and mouse](docs/reference/keys.md#vim-keys)
+- Vim `.` repeat, registers, marks, `cc` and `s`, `:` line history and `:w!`: [Keys and mouse](docs/reference/keys.md#vim-keys)
 
 **Data tools**
 
@@ -105,6 +104,7 @@ by a gateway dialing the iroh ticket.
 - Color schemes and a config file: [Themes](docs/terminal/themes.md), [Configuration](docs/reference/config.md)
 - A high-contrast theme at WCAG AAA, and every state readable without color: [Themes](docs/terminal/themes.md#high-contrast), [UX](docs/contributing/ux.md#reading-without-color)
 - `012 serve` over SSH, with files on the ssh command line and recovery of unsaved work: [Serving over SSH](docs/terminal/ssh.md)
+- Shift+Enter, Ctrl+I and keys held to preview, with the kitty keyboard protocol: [Keys and mouse](docs/reference/keys.md#keys-the-terminal-has-to-tell-apart)
 
 **Files**
 

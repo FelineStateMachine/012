@@ -26,6 +26,32 @@ type vimBinding struct {
 	// do, when set, acts instead of running id: for keys that change
 	// mode or choose between commands.
 	do func(m *Model, n int) tea.Cmd
+	// change marks a change that . repeats; yank a copy that goes to
+	// the registers ("0), and cut a delete that does ("1 to "9 or "-).
+	change, yank, cut bool
+	jump              bool // a jump that '' comes back from (n, N, /)
+}
+
+// runBinding carries out b with the count typed, remembering a change
+// for . and what it copied in the registers.
+func (m *Model) runBinding(b vimBinding) tea.Cmd {
+	v := &m.vim
+	var c *vimChange
+	if b.change && !v.replaying {
+		c = &vimChange{keys: v.typed, count: v.count, reg: v.reg}
+	}
+	if b.jump {
+		m.jumped()
+	}
+	copied := m.copied.clip
+	cmd := b.run(m, v.n())
+	if (b.yank || b.cut) && m.copied.clip != copied {
+		m.storeRegister(b.cut)
+	}
+	if c != nil {
+		m.vimChanged(c)
+	}
+	return cmd
 }
 
 // run carries out the binding with count n.
@@ -62,27 +88,31 @@ func (b vimBinding) run(m *Model, n int) tea.Cmd {
 // vimNormal binds key sequences in NORMAL mode, in the order help lists
 // them.
 var vimNormal = map[string]vimBinding{
-	"i": {id: "edit", label: "Edit the cell, caret at the start", do: func(m *Model, _ int) tea.Cmd {
+	"i": {id: "edit", label: "Edit the cell, caret at the start", change: true, do: func(m *Model, _ int) tea.Cmd {
 		cmd := m.runCommand("edit")
 		m.line.Pos = 0
 		return cmd
 	}},
-	"a":      {id: "edit", span: spanOnce},
-	"=":      {label: "Start a formula", do: func(m *Model, _ int) tea.Cmd { m.startEntry(modeEnter, "="); return nil }},
-	"o":      {id: "row.open_below", span: spanOnce},
-	"O":      {id: "row.open_above", span: spanOnce},
-	"x":      {id: "clear", span: spanCols},
-	"dd":     {id: "row.cut", span: spanRows},
-	"yy":     {id: "row.yank", span: spanRows},
-	"p":      {id: "row.paste_below", label: "Paste rows below, or cells here", do: putAfter},
-	"P":      {id: "row.paste_above", label: "Paste rows above, or cells here", do: putBefore},
+	"a":      {id: "edit", span: spanOnce, change: true},
+	"=":      {label: "Start a formula", change: true, do: func(m *Model, _ int) tea.Cmd { m.startEntry(modeEnter, "="); return nil }},
+	"o":      {id: "row.open_below", span: spanOnce, change: true},
+	"O":      {id: "row.open_above", span: spanOnce, change: true},
+	"x":      {id: "clear", label: "Clear the cell, keeping a copy", change: true, cut: true, do: deleteCells},
+	"s":      {label: "Clear the cell and start typing", change: true, cut: true, do: substitute},
+	"dd":     {id: "row.cut", span: spanRows, change: true, cut: true},
+	"cc":     {label: "Clear the row and start typing", change: true, cut: true, do: changeRows},
+	"S":      {label: "Clear the row and start typing", change: true, cut: true, do: changeRows},
+	"yy":     {id: "row.yank", span: spanRows, yank: true},
+	"p":      {id: "row.paste_below", label: "Paste rows below, or cells here", change: true, do: putAfter},
+	"P":      {id: "row.paste_above", label: "Paste rows above, or cells here", change: true, do: putBefore},
+	".":      {label: "Repeat the last change"}, // do is repeatChange, set in vimrepeat.go
 	"u":      {id: "edit.undo"},
 	"ctrl+r": {id: "edit.redo"},
 	"v":      {label: "Select cells (VISUAL)", do: func(m *Model, _ int) tea.Cmd { m.startVisual(visualCells); return nil }},
 	"V":      {label: "Select rows (VISUAL)", do: func(m *Model, _ int) tea.Cmd { m.startVisual(visualRows); return nil }},
-	"/":      {id: "edit.find", span: spanOnce},
-	"n":      {id: "edit.find_next"},
-	"N":      {id: "edit.find_prev"},
+	"/":      {id: "edit.find", span: spanOnce, jump: true},
+	"n":      {id: "edit.find_next", jump: true},
+	"N":      {id: "edit.find_prev", jump: true},
 	":":      {id: "vim.command", span: spanOnce},
 	"gt":     {id: "sheet.next"},
 	"gT":     {id: "sheet.prev"},
@@ -90,9 +120,9 @@ var vimNormal = map[string]vimBinding{
 
 // vimVisual binds keys in VISUAL mode; motions extend the selection.
 var vimVisual = map[string]vimBinding{
-	"d": {label: "Delete the selection, keeping a copy", do: visualDelete},
-	"x": {label: "Delete the selection, keeping a copy", do: visualDelete},
-	"y": {label: "Copy the selection", do: func(m *Model, _ int) tea.Cmd {
+	"d": {label: "Delete the selection, keeping a copy", cut: true, do: visualDelete},
+	"x": {label: "Delete the selection, keeping a copy", cut: true, do: visualDelete},
+	"y": {label: "Copy the selection", yank: true, do: func(m *Model, _ int) tea.Cmd {
 		id := "edit.copy"
 		if m.vim.visual == visualRows {
 			id = "row.yank"
@@ -101,7 +131,7 @@ var vimVisual = map[string]vimBinding{
 	}},
 	"p": {id: "edit.paste", label: "Paste over the selection", do: func(m *Model, _ int) tea.Cmd {
 		m.vim.visual = visualNone
-		return m.runCommand("edit.paste")
+		return m.fromRegister(func() tea.Cmd { return m.runCommand("edit.paste") })
 	}},
 	"o": {label: "Go to the other corner", do: func(m *Model, _ int) tea.Cmd {
 		m.cur, m.ext = m.ext, m.cur
@@ -113,7 +143,7 @@ var vimVisual = map[string]vimBinding{
 }
 
 // vimHelpOrder lists the NORMAL and VISUAL bindings for help, grouped.
-var vimHelpOrder = []string{"i", "a", "=", "o", "O", "x", "dd", "yy", "p", "P", "u", "ctrl+r", "v", "V", "/", "n", "N", ":", "gt", "gT"}
+var vimHelpOrder = []string{"i", "a", "=", "o", "O", "x", "s", "dd", "cc", "S", "yy", "p", "P", ".", "u", "ctrl+r", "v", "V", "/", "n", "N", ":", "gt", "gT"}
 
 // visualDelete deletes the selection, keeping a copy to paste: whole
 // rows with V, the cells' contents with v.
@@ -124,6 +154,45 @@ func visualDelete(m *Model, _ int) tea.Cmd {
 	cmd := m.runCommand("edit.copy")
 	m.runCommand("clear")
 	return m.endVisual(cmd)
+}
+
+// deleteCells is x: clear n cells from the active one rightwards,
+// keeping a copy to paste, as vim's x keeps the characters it deletes.
+func deleteCells(m *Model, n int) tea.Cmd {
+	if c := commands["clear"]; !c.available(m) {
+		m.note = c.title + " isn't available now"
+		return nil
+	}
+	m.spanCols(n)
+	cmd := m.runCommand("edit.copy")
+	m.runCommand("clear")
+	if m.mode == modeReady {
+		m.clearSelection()
+	}
+	return cmd
+}
+
+// substitute is s: x, then an entry in the cleared cell.
+func substitute(m *Model, n int) tea.Cmd {
+	cmd := deleteCells(m, n)
+	if m.mode == modeReady {
+		m.startEntry(modeEnter, "")
+	}
+	return cmd
+}
+
+// changeRows is cc and S: clear the contents of n rows from the active
+// cell's, keeping a copy of them to paste as rows, and start an entry in
+// the active cell. The rows and their formats stay.
+func changeRows(m *Model, n int) tea.Cmd {
+	m.spanRows(n)
+	cmd := m.runCommand("row.yank")
+	m.runCommand("clear")
+	if m.mode == modeReady {
+		m.clearSelection()
+		m.startEntry(modeEnter, "")
+	}
+	return cmd
 }
 
 // endVisual goes back to NORMAL mode after an operator.
@@ -147,20 +216,24 @@ func (m *Model) switchVisual(kind visualKind) tea.Cmd {
 
 // putAfter is p: rows copied with yy or dd go in as new rows below the
 // active one; cells copied any other way are pasted at the active cell.
+// A register named with " is pasted rather than the clipboard.
 func putAfter(m *Model, _ int) tea.Cmd {
-	if !m.rowsCopied() {
-		return m.runCommand("edit.paste")
-	}
-	return m.runCommand("row.paste_below") // it reads the count, n
-
+	return m.fromRegister(func() tea.Cmd {
+		if !m.rowsCopied() {
+			return m.runCommand("edit.paste")
+		}
+		return m.runCommand("row.paste_below") // it reads the count, n
+	})
 }
 
 // putBefore is P: as p, but rows go in above the active one.
 func putBefore(m *Model, _ int) tea.Cmd {
-	if !m.rowsCopied() {
-		return m.runCommand("edit.paste")
-	}
-	return m.runCommand("row.paste_above")
+	return m.fromRegister(func() tea.Cmd {
+		if !m.rowsCopied() {
+			return m.runCommand("edit.paste")
+		}
+		return m.runCommand("row.paste_above")
+	})
 }
 
 // vimKeysFor returns the vim keys bound to a command, NORMAL mode first.
@@ -213,7 +286,11 @@ func vimHelpRows() []helpRow {
 		{keys: []string{"5j", "3dd"}, action: "A count repeats a move or sizes an operator"},
 	}
 	rows = append(rows, bindingRows(vimNormal, vimHelpOrder)...)
-	rows = append(rows, helpRow{heading: "Vim keys: VISUAL"},
+	rows = append(rows,
+		helpRow{keys: []string{`"a`, `"0`, `"+`}, action: "Name the register the next operator uses"},
+		helpRow{keys: []string{"ma", "`a", "'a"}, action: "Mark the cell; go to the mark, or its row"},
+		helpRow{keys: []string{"''"}, action: "Back to where the last jump left from"},
+		helpRow{heading: "Vim keys: VISUAL"},
 		helpRow{keys: []string{"Motions"}, action: "Extend the selection"})
 	rows = append(rows, bindingRows(vimVisual, vimVisualOrder)...)
 	return append(rows, helpRow{keys: []string{"Esc"}, action: "Back to NORMAL"})

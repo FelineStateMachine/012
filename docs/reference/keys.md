@@ -124,6 +124,20 @@ range, F2 renames or repoints it and Ctrl+D deletes it.
 | Ctrl+Alt+Shift+0 to 9 | Run the macro with that shortcut ([Macros](../sheets/macros.md#running)) |
 | Esc | Stop a macro while it runs (the mode indicator says CMD) |
 
+## Keys the terminal has to tell apart
+
+Terminals send some keys as they send others: Shift+Enter as Enter,
+Ctrl+I as Tab, Ctrl+M as Enter, and Alt and a letter as Esc typed just
+before the letter. A terminal with the kitty keyboard protocol
+([Terminal features](../terminal/README.md#terminal-features-012-uses))
+tells them apart and says when a key is let go, and there 012 also does:
+
+| Key | Action | Where the terminal can't tell |
+|---|---|---|
+| Shift+Enter | Accept an entry and move up, as in Sheets | As Enter: accept and move down |
+| Ctrl+I | Italic | As Tab: move right |
+| Space, held | On a selected chart, show it across the grid until Space is let go; in File > Settings > Theme with nothing typed, hide the list to see the whole sheet in the highlighted theme | Space does what it does there: deselects the chart and starts an entry, or types a space |
+
 ## Vim keys
 
 File > Settings > Vim keys (also `:settings.vim` or the palette) turns
@@ -153,9 +167,16 @@ show them where Sheets' keys are taken.
 | `i` `a`, Enter | Edit the cell, caret at the start or the end |
 | `=` | Start a formula |
 | `o` `O` | Insert a row below or above and start typing in it |
-| `x` | Clear the cell (with a count, that many to the right) |
+| `x` | Clear the cell, keeping a copy to paste (with a count, that many to the right) |
+| `s` | Clear the cell and start typing in it |
 | `dd` `yy` | Cut or copy the row (with a count, that many rows) |
+| `cc` `S` | Clear the row's cells, keeping the row and its formats and a copy to paste, and start typing in the active cell |
 | `p` `P` | Paste rows cut or copied with `dd` or `yy` as new rows below or above, with their row formats; other copied cells paste at the active cell |
+| `.` | Repeat the last change: `x`, `s`, `dd`, `cc`, `p`, `o`, or an edit begun with `i`, `a` or `=` with what was typed; a count replaces the change's own (`3.`) |
+| `"a` to `"z`, `"0` to `"9`, `"-`, `"+` | Name the register the next `yy`, `dd`, `x`, `p` or VISUAL `y`, `d`, `p` uses (see [Registers](#registers)) |
+| `ma` to `mz` | Mark the active cell |
+| `` `a `` to `` `z ``, `'a` to `'z` | Go to the mark, or to its row in column A (on the mark's sheet) |
+| `''` ``` `` ``` | Back to where the last jump (`gg`, `G`, `H`, `M`, `L`, `/`, `n`, `N`, a mark, a `:` cell or row) left from |
 | `u`, Ctrl+R | Undo, redo |
 | `v` `V` | Select cells or whole rows (VISUAL); motions stretch the selection |
 | `/`, `n` `N` | Find (Enter stays on the match), next and previous match |
@@ -172,6 +193,24 @@ show them where Sheets' keys are taken.
 | `:` | The command line, acting on the selection |
 | `v` `V`, Esc | Back to NORMAL |
 
+### Registers
+
+Copies and deletes go to the clipboard Ctrl+V pastes, which is vim's
+unnamed register (`""`), and also to a register of their own:
+
+| Register | Holds |
+|---|---|
+| `"a` to `"z` | What the operator after it copied or deleted (`"ayy`, `"bx`), until written again; `"ap` pastes it |
+| `"0` | The last copy made without naming a register |
+| `"1` to `"9` | The last rows deleted (`dd`, `cc`, VISUAL `V` `d`), the newest in `"1` |
+| `"-` | The last cells deleted (`x`, `s`, VISUAL `v` `d`) |
+| `"+` | The system clipboard: every copy goes there (OSC 52), and `"+p` pastes what the terminal reads back from it, where the terminal allows reading it |
+
+Rows in a register paste as new rows, as they do after `dd` and `yy`.
+Registers and marks belong to the workbook open, as the clipboard does.
+
+### The command line
+
 The `:` line takes:
 
 | Command | Action |
@@ -179,6 +218,7 @@ The `:` line takes:
 | `:B12`, `:Sheet2!A1`, `:C3:D9`, `:Sales` | Go to a cell, range or named range |
 | `:40` | Go to row 40 |
 | `:w`, `:w name`, `:w out.csv` | Save, Save as, or Download as another format, as the File menu does |
+| `:w!`, `:w! name`, `:wq!` | Save even if the file changed on disk since it was opened, and replace a file of the name given, without asking (as choosing Overwrite or Replace would) |
 | `:q`, `:q!` | Quit (asking about unsaved changes), quit discarding them |
 | `:wq`, `:x` | Save and quit; `:x` saves only if something changed |
 | `:e name`, `:e!` | Open a sheet or import a file; refused with unsaved changes unless `:e!` |
@@ -186,9 +226,13 @@ The `:` line takes:
 
 Completions for commands appear under the line as you type, drawn from
 the same registry as the menus and palette: Tab puts the highlighted
-one on the line (Tab again for the next, Shift+Tab back), Up and Down
-move, and Enter runs the line, or the highlighted completion when the
-line isn't a command itself (`:fill d` Enter fills down).
+one on the line (Tab again for the next, Shift+Tab back), Ctrl+N and
+Ctrl+P move, and Enter runs the line, or the highlighted completion when
+the line isn't a command itself (`:fill d` Enter fills down). Up and
+Down go back and forth through the lines run before, as in vim: only
+those starting with what's typed (`:w` Up finds the last `:w` line).
+The history lasts until 012 closes, each `012 serve` session keeping its
+own.
 
 ## Mouse
 

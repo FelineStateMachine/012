@@ -48,7 +48,7 @@ func (m *Model) runCmdLine(text string) (tea.Cmd, bool) {
 	bang := strings.HasSuffix(word, "!")
 	switch strings.TrimSuffix(word, "!") {
 	case "w":
-		return m.writeTo(arg), true
+		return m.writeTo(arg, bang), true
 	case "q":
 		if bang {
 			return m.exit(), true
@@ -59,10 +59,12 @@ func (m *Model) runCmdLine(text string) (tea.Cmd, bool) {
 			return m.exit(), true
 		}
 		m.quitAfterSave = true
-		return m.writeTo(arg), true
+		return m.writeTo(arg, bang), true
 	case "e":
 		return m.editFile(arg, bang), true
 	}
+	back := m.vim.back
+	m.jumped() // going to a cell or row is a jump '' comes back from
 	if n, err := strconv.Atoi(text); err == nil {
 		m.clearSelection()
 		m.cur.Row = m.visibleRow(clamp(n-1, 0, sheet.MaxRows-1))
@@ -71,6 +73,7 @@ func (m *Model) runCmdLine(text string) (tea.Cmd, bool) {
 	if m.gotoText(text) {
 		return nil, true
 	}
+	m.vim.back = back
 	id, ok := commandNamed(text)
 	if !ok {
 		return nil, false
@@ -101,13 +104,21 @@ func commandNamed(text string) (string, bool) {
 // writeTo is :w. Without a name it saves, as File > Save; with one it
 // saves as that name, as File > Save as, or downloads when the name is
 // another format's (:w out.csv), as File > Download. It goes the menus'
-// ways, so files are named, checked and replaced the same.
-func (m *Model) writeTo(name string) tea.Cmd {
+// ways, so files are named, checked and replaced the same. Forced (:w!),
+// it answers their questions as Overwrite and Replace would: it writes
+// over the open file even if it changed on disk since it was opened, and
+// over a file of the name given.
+func (m *Model) writeTo(name string, force bool) tea.Cmd {
 	if name == "" {
+		if force && m.filename != "" {
+			return m.saveAs(m.filename, false)
+		}
 		return m.runCommand("file.save")
 	}
 	k, ok := fileio.KindOf(name)
 	switch {
+	case !ok && force:
+		return m.saveAs(withExt(name), false)
 	case !ok:
 		return m.saveAsFile(name)
 	case !k.CanExport():
@@ -116,6 +127,12 @@ func (m *Model) writeTo(name string) tea.Cmd {
 		return nil
 	}
 	m.quitAfterSave = false // a download isn't the sheet's file
+	if force && !k.HasTables() {
+		if path, ok := m.path("download to", name); ok {
+			return m.download(name, path, k, sheet.Rect{}, "")
+		}
+		return nil
+	}
 	return m.downloadFile(k, sheet.Rect{}, name)
 }
 

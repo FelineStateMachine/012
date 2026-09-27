@@ -198,7 +198,9 @@ func (m *Model) chartBoxes() []overlay.Box {
 	var boxes []overlay.Box
 	sel := m.selectedChart()
 	top, bottom := gridTop, gridTop+m.visibleRows()
-	for i, c := range m.displayCharts() {
+	charts := m.displayCharts()
+	for _, i := range m.chartOrder(len(charts)) {
+		c := charts[i]
 		x, y := m.chartScreen(c)
 		if x >= m.width || y >= bottom || x+c.W <= m.hdrW() || y+c.H <= top {
 			continue

@@ -34,7 +34,10 @@ chart these options apply along the bottom; on a scatter, to Y.
 
 Click a chart to select it. Drag it to move it, drag its corner to resize it,
 or use the arrows and Shift+arrows; Enter edits it, Del deletes it, and
-right-click offers both. Charts follow inserted and deleted rows and
+right-click offers both. In terminals that say when a key is let go
+([Keys the terminal has to tell apart](../reference/keys.md#keys-the-terminal-has-to-tell-apart)),
+holding Space on a selected chart shows it across the grid until Space
+is let go. Charts follow inserted and deleted rows and
 columns, and save with the sheet.
 
 **Images or text.** At startup 012 asks the terminal whether it supports the

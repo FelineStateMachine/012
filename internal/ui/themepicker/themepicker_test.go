@@ -20,6 +20,7 @@ type fakeHost struct {
 	previews []string
 	kept     string
 	closed   int
+	releases bool
 }
 
 func (f *fakeHost) Theme() *theme.Theme       { return &f.th }
@@ -31,6 +32,7 @@ func (f *fakeHost) Current() string           { return f.current }
 func (f *fakeHost) ThemesDir() string         { return "" }
 func (f *fakeHost) Preview(name string)       { f.previews = append(f.previews, name) }
 func (f *fakeHost) Keep(name string)          { f.kept = name }
+func (f *fakeHost) KeyReleases() bool         { return f.releases }
 func (f *fakeHost) last() string              { return f.previews[len(f.previews)-1] }
 func newHost(current string) *fakeHost        { return &fakeHost{th: theme.New(true), current: current} }
 func down() tea.KeyPressMsg                   { return tea.KeyPressMsg{Code: tea.KeyDown} }

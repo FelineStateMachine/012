@@ -9,15 +9,17 @@ import (
 )
 
 // chartSel is a selected chart. Arrows move it a cell at a time, Shift
-// and arrows resize it, Enter edits it and Del deletes it; the mouse
-// drags it or its corner. Other keys deselect it and act as usual.
+// and arrows resize it, Enter edits it, Del deletes it, and Space held
+// shows it across the grid (keyboard.go); the mouse drags it or its
+// corner. Other keys deselect it and act as usual.
 type chartSel struct {
 	m       *Model // the model it acts on
 	i       int
 	drag    int // chartDragNone, chartDragMove or chartDragResize
 	grabX   int // where the chart was grabbed, relative to its corner
 	grabY   int
-	preview *sheet.Chart // the chart while being dragged
+	preview *sheet.Chart // the chart while being dragged, or held open
+	zoom    bool         // Space is held: preview is the chart across the grid
 }
 
 func (s *chartSel) Indicator() string { return "CHART" }
@@ -39,6 +41,9 @@ func (s *chartSel) Key(k tea.KeyPressMsg) tea.Cmd {
 	c, ok := s.chart(m)
 	if !ok {
 		m.closeOverlay()
+		return nil
+	}
+	if s.holdKey(m, c, k) {
 		return nil
 	}
 	moved := c
@@ -100,6 +105,9 @@ func (s *chartSel) press(m *Model, x, y int) {
 
 func (s *chartSel) Mouse(e overlay.MouseEvent) tea.Cmd {
 	m := s.m
+	if e.Kind != overlay.MouseMotion {
+		s.unzoom()
+	}
 	switch e.Kind {
 	case overlay.MousePress:
 		return s.pressAt(m, e)
@@ -211,6 +219,9 @@ func (s *chartSel) Status() (string, string) {
 		return "", ""
 	}
 	desc := m.th.Muted.Render("Chart of " + c.Data.String())
+	if s.zoom {
+		return desc, m.th.KeyHints("Space", "let go to go back")
+	}
 	pairs := []string{"Enter", "edit", "Del", "delete", "Arrows", "move", "Shift+arrows", "resize", "Esc", "done"}
 	for {
 		keys := m.th.KeyHints(pairs...)
@@ -234,8 +245,12 @@ func (s *chartSel) ContextLine() (string, string) {
 	if !ok {
 		return "", ""
 	}
+	how := "   drag to move, drag the corner to resize"
+	if m.session.releases { // Space held enlarges the chart: keyboard.go
+		how += ", hold Space to zoom"
+	}
 	return m.th.Key.Render(c.Type.Title()+" chart") + m.th.Muted.Render(" of ") + c.Data.String() +
-		m.th.Muted.Render("   drag to move, drag the corner to resize"), ""
+		m.th.Muted.Render(how), ""
 }
 
 const (

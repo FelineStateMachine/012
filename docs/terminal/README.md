@@ -18,7 +18,7 @@ colors that follow light and dark.
 
 | Feature | What for | Where it works |
 |---|---|---|
-| Kitty keyboard protocol | telling apart keys like Ctrl+I and Tab, Shift+Enter | kitty, Ghostty, WezTerm, foot, Alacritty, iTerm2 |
+| Kitty keyboard protocol | telling apart keys like Ctrl+I and Tab, Shift+Enter, and keys held to preview ([Keys](../reference/keys.md#keys-the-terminal-has-to-tell-apart)) | kitty, Ghostty, WezTerm, foot, Alacritty, iTerm2 |
 | Mouse, all motion | hover highlights, drag, resize | most terminals |
 | Pointer shape (OSC 22) | resize and text cursors over the grid | Ghostty, kitty, foot, xterm |
 | Kitty graphics | chart images | kitty, Ghostty, WezTerm |

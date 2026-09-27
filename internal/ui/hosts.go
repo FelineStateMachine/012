@@ -112,12 +112,14 @@ func (h host) Commands() []cmdline.Item {
 
 func (h host) Run(text string) (tea.Cmd, bool) { return h.m.runCmdLine(text) }
 func (h host) Fail(msg string)                 { h.m.fail(msg) }
+func (h host) History() *cmdline.History       { return &h.m.session.history }
 
 // The theme picker.
 
 func (h host) Current() string   { return h.m.prefs.Config.Theme().Pick(!h.m.prefs.light) }
 func (h host) ThemesDir() string { return h.m.prefs.ThemesDir }
 func (h host) Keep(name string)  { h.m.keepTheme(name) }
+func (h host) KeyReleases() bool { return h.m.session.releases }
 
 func (h host) Preview(name string) {
 	h.m.prefs.preview = name
