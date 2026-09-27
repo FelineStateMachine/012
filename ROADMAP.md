@@ -27,7 +27,7 @@ Sizes: S (a day or two), M (about a week), L (weeks).
 | Item | Notes | Size |
 |---|---|---|
 | Wrap text, row heights, borders, merged cells | Layout changes in the grid renderer | M to L |
-| Locale: decimal comma, date order, list separator in formulas | Sheets' File > Settings > Locale | M |
+| Locale, what's left: month and day names in the locale's language (`mmm`, `dddd`), Excel downloads with the locale's Currency and Date formats | The rest follows the locale: [Locale](docs/sheets/locale.md) | S |
 
 ### 3. Scale
 
@@ -86,6 +86,7 @@ by a gateway dialing the iroh ticket.
 - Sheets' everyday, math, text, lookup, date and finance functions, checked against excelize: [Functions](docs/reference/functions.md), [Testing](docs/contributing/testing.md#the-excelize-oracle)
 - Dynamic arrays that spill (FILTER, SORT, UNIQUE, SEQUENCE and more, ARRAYFORMULA), LET and LAMBDA, SPLIT and the REGEX functions: [Arrays and spills](docs/formulas/arrays.md)
 - Opt-in decimal arithmetic for money: [Decimal arithmetic](docs/formulas/decimal.md)
+- A locale per file, as Sheets' File > Settings > Locale: decimal commas, date order, currency and `;` in formulas, typed and shown while files store en-US's form: [Locale](docs/sheets/locale.md)
 - An Excel-sized grid with a `max-cells` budget; operations cost the data, not the grid: [Bounds of support](docs/contributing/limits.md#sheet-size)
 
 **Finding and using features**

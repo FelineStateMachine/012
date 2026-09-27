@@ -20,6 +20,11 @@ entry is the way Sheets does:
 | `=A1*2`, `+A1*2` | a formula |
 | `'42` | text, even though it looks like a number |
 
+That's in English (United States); in another [locale](../sheets/locale.md)
+numbers, currency and dates are typed its way (`1.234,5`, `12,50 €`,
+`26.09.2026` in German), and formulas with a decimal comma separate
+their arguments with `;`: `=ROUND(A1*1,19; 2)`.
+
 A formula that doesn't parse isn't accepted: 012 stays in EDIT mode with the
 caret on the problem and says what's wrong on the context line, e.g.
 `Expected , or ) in SUM`.
