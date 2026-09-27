@@ -93,6 +93,7 @@ type term struct {
 	mu    sync.Mutex
 	out   bytes.Buffer
 	done  chan error
+	wrote chan struct{} // signalled after output arrives
 }
 
 func openTerm(t testing.TB, c *gossh.Client, w, h int) *term {
@@ -104,7 +105,7 @@ func openTerm(t testing.TB, c *gossh.Client, w, h int) *term {
 	if err := sess.RequestPty("xterm-256color", h, w, gossh.TerminalModes{}); err != nil {
 		t.Fatal(err)
 	}
-	tm := &term{sess: sess, done: make(chan error, 1)}
+	tm := &term{sess: sess, done: make(chan error, 1), wrote: make(chan struct{}, 1)}
 	tm.stdin, _ = sess.StdinPipe()
 	sess.Stdout = tm
 	if err := sess.Shell(); err != nil {
@@ -116,8 +117,13 @@ func openTerm(t testing.TB, c *gossh.Client, w, h int) *term {
 
 func (tm *term) Write(p []byte) (int, error) {
 	tm.mu.Lock()
-	defer tm.mu.Unlock()
-	return tm.out.Write(p)
+	n, err := tm.out.Write(p)
+	tm.mu.Unlock()
+	select {
+	case tm.wrote <- struct{}{}:
+	default:
+	}
+	return n, err
 }
 
 func (tm *term) output() string {
