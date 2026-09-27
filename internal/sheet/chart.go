@@ -165,46 +165,48 @@ func (s *Sheet) clipToUsed(r Rect) Rect {
 	return r
 }
 
-// Region returns the block of data around a, as Sheets picks the data for
-// a chart inserted from a single cell: the smallest range around a whose
-// border touches no filled cell.
+// Region returns the block of data around a, as Sheets picks the range to
+// sort or filter when a single cell is selected: filled cells connected
+// to a (diagonals count), and anything touching their bounding box, until
+// nothing more touches it. A blank cell with no filled neighbors is a
+// region of its own.
 func (s *Sheet) Region(a Addr) Rect {
-	r := Rect{a, a}
 	filled := func(a Addr) bool { return a.Valid() && !s.cells[a].Blank() }
-	for grew := true; grew; {
-		grew = false
-		for _, side := range []struct{ dc0, dr0, dc1, dr1 int }{{-1, 0, 0, 0}, {0, 0, 1, 0}, {0, -1, 0, 0}, {0, 0, 0, 1}} {
-			next := Rect{
-				From: Addr{Col: r.From.Col + side.dc0, Row: r.From.Row + side.dr0},
-				To:   Addr{Col: r.To.Col + side.dc1, Row: r.To.Row + side.dr1},
+	seen := map[Addr]bool{}
+	var queue []Addr
+	visit := func(p Addr) {
+		if !seen[p] && filled(p) {
+			seen[p] = true
+			queue = append(queue, p)
+		}
+	}
+	around := func(p Addr) {
+		for dr := -1; dr <= 1; dr++ {
+			for dc := -1; dc <= 1; dc++ {
+				visit(Addr{Col: p.Col + dc, Row: p.Row + dr})
 			}
-			if !next.From.Valid() || !next.To.Valid() || next == r {
-				continue
-			}
-			// Only the new line of cells can add data.
-			line := next
-			switch {
-			case side.dc0 < 0:
-				line.To.Col = next.From.Col
-			case side.dc1 > 0:
-				line.From.Col = next.To.Col
-			case side.dr0 < 0:
-				line.To.Row = next.From.Row
-			default:
-				line.From.Row = next.To.Row
-			}
-			// Diagonal neighbors count, as in Sheets.
-			if side.dc0 != 0 || side.dc1 != 0 {
-				line.From.Row, line.To.Row = max(line.From.Row-1, 0), min(line.To.Row+1, MaxRows-1)
-			} else {
-				line.From.Col, line.To.Col = max(line.From.Col-1, 0), min(line.To.Col+1, MaxCols-1)
-			}
-			for _, b := range s.cellsIn(line) {
-				if filled(b) && !r.Contains(b) {
-					r, grew = union(r, Rect{b, b}), true
-					break
-				}
-			}
+		}
+	}
+	around(a)
+	if len(queue) == 0 {
+		return Rect{a, a}
+	}
+	r := Rect{queue[0], queue[0]}
+	for len(queue) > 0 {
+		for len(queue) > 0 {
+			p := queue[0]
+			queue = queue[1:]
+			r = union(r, Rect{p, p})
+			around(p)
+		}
+		// Cells touching the bounding box join too.
+		for row := r.From.Row - 1; row <= r.To.Row+1; row++ {
+			visit(Addr{Col: r.From.Col - 1, Row: row})
+			visit(Addr{Col: r.To.Col + 1, Row: row})
+		}
+		for col := r.From.Col; col <= r.To.Col; col++ {
+			visit(Addr{Col: col, Row: r.From.Row - 1})
+			visit(Addr{Col: col, Row: r.To.Row + 1})
 		}
 	}
 	return r

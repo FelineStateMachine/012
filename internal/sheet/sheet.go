@@ -69,6 +69,9 @@ type Sheet struct {
 	charts []Chart // floating charts, bottom first; see chart.go
 
 	hist history // undo and redo, see history.go
+
+	view   viewState   // frozen panes and the filter, see view.go
+	hidden hiddenCache // rows the filter hides, see filter.go
 }
 
 // New returns an empty worksheet.
@@ -400,6 +403,7 @@ func (s *Sheet) recalc(changed []Addr) {
 	}
 
 	s.Circular = false
+	s.hidden.valid = false // values may have changed what the filter hides
 	var compute func(Addr) Value
 	compute = func(a Addr) Value {
 		c := s.cells[a]

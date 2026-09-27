@@ -105,6 +105,7 @@ func (s *Sheet) restructure(rows bool, sp span) {
 		if !rows {
 			s.shiftWidths(sp)
 		}
+		s.shiftView(rows, sp)
 	})
 }
 
@@ -261,8 +262,14 @@ func valueInput(v Value) string {
 }
 
 // FillDown copies the top row of r into the rest of it, adjusting
-// references (Ctrl+D). A single-row range fills from the row above.
+// references (Ctrl+D). A single-row range fills from the row above. When
+// the top rows of r start a series and the rest is blank (1, 2 and then
+// empty cells), it continues the series instead, as dragging the fill
+// handle would.
 func (s *Sheet) FillDown(r Rect) (Rect, error) {
+	if src, ok := s.seriesStart(r, true); ok {
+		return s.FillSeries(src, r)
+	}
 	src := Rect{r.From, Addr{Col: r.To.Col, Row: r.From.Row}}
 	if r.From.Row == r.To.Row {
 		if r.From.Row == 0 {
@@ -278,8 +285,12 @@ func (s *Sheet) FillDown(r Rect) (Rect, error) {
 }
 
 // FillRight copies the left column of r into the rest of it (Ctrl+R). A
-// single-column range fills from the column to the left.
+// single-column range fills from the column to the left. Like FillDown,
+// it continues a series started in the leftmost columns.
 func (s *Sheet) FillRight(r Rect) (Rect, error) {
+	if src, ok := s.seriesStart(r, false); ok {
+		return s.FillSeries(src, r)
+	}
 	src := Rect{r.From, Addr{Col: r.From.Col, Row: r.To.Row}}
 	if r.From.Col == r.To.Col {
 		if r.From.Col == 0 {
@@ -318,6 +329,38 @@ func (s *Sheet) FillEntry(r Rect, origin Addr, input string) error {
 		}
 		return nil
 	})
+}
+
+// seriesStart finds the leading rows (down) or columns of r that hold
+// something, when there are at least two of them and everything after
+// them in r is blank: the start of a series to fill.
+func (s *Sheet) seriesStart(r Rect, down bool) (Rect, bool) {
+	line := func(a Addr) int {
+		if down {
+			return a.Row - r.From.Row
+		}
+		return a.Col - r.From.Col
+	}
+	used := map[int]bool{}
+	for _, a := range s.cellsIn(r) {
+		if !s.cells[a].Blank() {
+			used[line(a)] = true
+		}
+	}
+	n := 0
+	for used[n] {
+		n++
+	}
+	if n < 2 || len(used) != n {
+		return Rect{}, false
+	}
+	src := r
+	if down {
+		src.To.Row = r.From.Row + n - 1
+	} else {
+		src.To.Col = r.From.Col + n - 1
+	}
+	return src, src != r
 }
 
 func abs(n int) int { return max(n, -n) }

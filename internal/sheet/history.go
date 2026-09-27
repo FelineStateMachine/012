@@ -33,6 +33,7 @@ type step struct {
 	cells  map[Addr]*Cell   // before the step; nil for blank
 	widths map[int]int      // before the step; 0 for the default width
 	names  map[string]*Name // before the step, by key; nil for undefined
+	view   *viewState       // before the step; nil if the step didn't touch it
 	// charts is every chart before the step, when it changed any.
 	charts      []Chart
 	chartsSaved bool
@@ -43,7 +44,7 @@ func newStep(label string, focus Rect) *step {
 }
 
 func (st *step) empty() bool {
-	return len(st.cells) == 0 && len(st.widths) == 0 && len(st.names) == 0 && !st.chartsSaved
+	return len(st.cells) == 0 && len(st.widths) == 0 && len(st.names) == 0 && st.view == nil && !st.chartsSaved
 }
 
 func (c *Cell) clone() *Cell {
@@ -157,13 +158,16 @@ func (s *Sheet) push(st *step) {
 	if st.chartsSaved && slices.Equal(st.charts, s.charts) {
 		st.charts, st.chartsSaved = nil, false
 	}
+	if st.view != nil && st.view.equal(s.view) {
+		st.view = nil
+	}
 	if st.empty() {
 		return
 	}
 	h.redo = nil
 	h.lastID++
-	widthOnly := len(st.cells) == 0 && len(st.names) == 0 && !st.chartsSaved
-	if top := h.top(); widthOnly && h.mergeWidths && top != nil && len(top.cells) == 0 && len(top.names) == 0 && !top.chartsSaved {
+	widthOnly := len(st.cells) == 0 && len(st.names) == 0 && st.view == nil && !st.chartsSaved
+	if top := h.top(); widthOnly && h.mergeWidths && top != nil && len(top.cells) == 0 && len(top.names) == 0 && top.view == nil && !top.chartsSaved {
 		for c, w := range st.widths {
 			if _, ok := top.widths[c]; !ok {
 				top.widths[c] = w
@@ -252,6 +256,10 @@ func (s *Sheet) swap(from, to *[]*step) (Change, bool) {
 	if st.chartsSaved {
 		inv.charts, inv.chartsSaved = s.charts, true
 		s.charts = slices.Clone(st.charts)
+	}
+	if st.view != nil {
+		v := s.view
+		inv.view, s.view = &v, *st.view
 	}
 	s.recalc(changed)
 	*to = append(*to, inv)

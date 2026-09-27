@@ -20,16 +20,23 @@ func (s *Sheet) UsedRange() (Rect, bool) {
 // 1-2-3) from a in direction (dc, dr) lands. Inside a block of filled cells
 // it stops at the block's last cell; from a blank cell, or at the end of a
 // block, it goes to the next filled cell. With nothing filled ahead it
-// stops at the edge of the worksheet.
+// stops at the edge of the worksheet. Rows the filter hides are skipped.
 func (s *Sheet) Edge(a Addr, dc, dr int) Addr {
 	filled := func(a Addr) bool { return !s.cells[a].Blank() }
-	next := Addr{Col: a.Col + dc, Row: a.Row + dr}
+	step := func(a Addr) Addr {
+		n := Addr{Col: a.Col + dc, Row: a.Row + dr}
+		for dr != 0 && n.Valid() && s.RowHidden(n.Row) {
+			n.Row += dr
+		}
+		return n
+	}
+	next := step(a)
 	if !next.Valid() {
 		return a
 	}
 	if filled(a) && filled(next) {
 		for {
-			n := Addr{Col: next.Col + dc, Row: next.Row + dr}
+			n := step(next)
 			if !n.Valid() || !filled(n) {
 				return next
 			}
@@ -40,7 +47,7 @@ func (s *Sheet) Edge(a Addr, dc, dr int) Addr {
 		if filled(next) {
 			return next
 		}
-		n := Addr{Col: next.Col + dc, Row: next.Row + dr}
+		n := step(next)
 		if !n.Valid() {
 			return next
 		}

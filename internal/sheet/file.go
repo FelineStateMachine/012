@@ -14,8 +14,8 @@ const FileExt = ".012"
 
 // fileVersion is the newest version Write produces and Read accepts.
 // Version 1 files (cells as plain strings, no formatting) still load.
-// Version 3 adds named ranges; a sheet without them is written as version
-// 2, so earlier builds can still open it.
+// Version 3 adds named ranges, frozen panes and a filter; a sheet using
+// none of them is written as version 2, so earlier builds can open it.
 const fileVersion = 3
 
 // The file is JSON with one entry per cell, keyed by address. A cell
@@ -28,11 +28,12 @@ const fileVersion = 3
 // Named ranges map each name to its range, or to "#REF!" once its cells
 // were deleted: "names": {"Sales": "B2:B20"}.
 type fileFormat struct {
-	Version int                        `json:"version"`
-	Widths  map[string]int             `json:"widths,omitempty"`
-	Names   map[string]string          `json:"names,omitempty"`
-	Cells   map[string]json.RawMessage `json:"cells"`
-	Charts  []fileChart                `json:"charts,omitempty"`
+	Version int               `json:"version"`
+	Widths  map[string]int    `json:"widths,omitempty"`
+	Names   map[string]string `json:"names,omitempty"`
+	fileView
+	Cells  map[string]json.RawMessage `json:"cells"`
+	Charts []fileChart                `json:"charts,omitempty"`
 }
 
 // fileChart is a chart, one per line after the cells:
@@ -146,7 +147,7 @@ func decodeCell(raw json.RawMessage) (string, Format, Style, error) {
 func (s *Sheet) Write(w io.Writer) error {
 	var b bytes.Buffer
 	version := 2
-	if len(s.names) > 0 {
+	if v := s.view; len(s.names) > 0 || v.frozenRows > 0 || v.frozenCols > 0 || v.filter != nil {
 		version = 3
 	}
 	fmt.Fprintf(&b, "{\n  \"version\": %d,\n", version)
@@ -169,6 +170,9 @@ func (s *Sheet) Write(w io.Writer) error {
 			fmt.Fprintf(&b, "%q: %q", n.Name, n.Ref())
 		}
 		b.WriteString("},\n")
+	}
+	if err := s.writeView(&b); err != nil {
+		return err
 	}
 	addrs := make([]Addr, 0, len(s.cells))
 	for a := range s.cells {
@@ -266,6 +270,9 @@ func Read(r io.Reader) (*Sheet, error) {
 			return nil, fmt.Errorf("chart %d: %w", i+1, err)
 		}
 		s.charts = append(s.charts, c)
+	}
+	if err := s.readView(f.fileView); err != nil {
+		return nil, err
 	}
 	s.RecalcAll()
 	return s, nil
