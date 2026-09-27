@@ -12,7 +12,6 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -393,7 +392,7 @@ func (p *filterPicker) Cursor() (int, int) {
 	if p.field == 1 {
 		return x + 1 + len(" If ") + ansi.StringWidth(p.condChip()) + 2 + caret, y + 1
 	}
-	return x + 1 + ansi.StringWidth(picker.SearchPrompt) + caret, y + 3
+	return x + 1 + ansi.StringWidth(overlay.SearchPrompt) + caret, y + 3
 }
 
 // condChip is the condition's name between arrows that change it.
@@ -426,7 +425,7 @@ func (p *filterPicker) Layout() []overlay.Box {
 	if p.field == 0 {
 		search = m.line.Text()
 	}
-	input := m.th.Title.Render(picker.SearchPrompt) + search
+	input := m.th.Title.Render(overlay.SearchPrompt) + search
 	if search == "" {
 		input += m.th.Muted.Render("Search values")
 	}

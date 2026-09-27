@@ -1,43 +1,44 @@
-package ui
+package findbar
 
 import (
 	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 )
 
 // The find bar as the context line draws it, and its mouse targets: the
 // fields, then the option chips, with the match count on the right.
 
 // Pieces of the bar, left to right: each field, then the option chips.
-type findPart struct {
+type part struct {
 	text   string
 	field  int    // -1 for chips
 	toggle string // the Alt key a chip toggles
 }
 
-func (f *findBar) parts(m *Model) []findPart {
+func (f *Bar) parts() []part {
+	th := f.h.Theme()
 	label := func(name string, i int) string {
-		style := m.th.Muted
+		style := th.Muted
 		if f.field == i {
-			style = m.th.Key
+			style = th.Key
 		}
-		return style.Render(name) + m.th.Muted.Render(picker.SearchPrompt)
+		return style.Render(name) + th.Muted.Render(overlay.SearchPrompt)
 	}
-	parts := []findPart{{text: label("Find", 0) + f.fieldText(m, 0), field: 0}}
+	parts := []part{{text: label("Find", 0) + f.fieldText(0), field: 0}}
 	if f.replace {
-		parts = append(parts, findPart{text: label("Replace", 1) + f.fieldText(m, 1), field: 1})
+		parts = append(parts, part{text: label("Replace", 1) + f.fieldText(1), field: 1})
 	}
-	chip := func(on bool, name, key string) findPart {
-		style := m.th.Muted
+	chip := func(on bool, name, key string) part {
+		style := th.Muted
 		if on {
-			style = m.th.MenuSelected
+			style = th.MenuSelected
 		}
-		return findPart{text: style.Render(" " + name + " "), field: -1, toggle: key}
+		return part{text: style.Render(" " + name + " "), field: -1, toggle: key}
 	}
 	parts = append(parts,
 		chip(f.opts.MatchCase, "Aa", "alt+c"),
@@ -49,23 +50,24 @@ func (f *findBar) parts(m *Model) []findPart {
 		parts = append(parts, chip(true, "in "+f.scope.String(), "alt+s"))
 	case f.where == inAll:
 		parts = append(parts, chip(true, "in all sheets", "alt+s"))
-	case f.scope != nil || len(m.book().Visible()) > 1:
-		parts = append(parts, chip(false, "in "+m.sheet.Name(), "alt+s"))
+	case f.scope != nil || len(f.h.Book().Visible()) > 1:
+		s, _ := f.h.At()
+		parts = append(parts, chip(false, "in "+s.Name(), "alt+s"))
 	}
 	return parts
 }
 
 // fieldText is a field's text: the live edit buffer when focused.
-func (f *findBar) fieldText(m *Model, i int) string {
+func (f *Bar) fieldText(i int) string {
 	if f.field == i {
-		return m.line.Text()
+		return f.h.Line().Text()
 	}
 	return f.fields[i]
 }
 
 // gapAfter separates a part from the next: wider after a field, so the
 // query and the chips read as separate groups.
-func gapAfter(p findPart) string {
+func gapAfter(p part) string {
 	if p.field >= 0 {
 		return "   "
 	}
@@ -73,8 +75,8 @@ func gapAfter(p findPart) string {
 }
 
 // spans returns each part with the x where it starts on the context line.
-func (f *findBar) spans(m *Model) ([]findPart, []int) {
-	parts := f.parts(m)
+func (f *Bar) spans() ([]part, []int) {
+	parts := f.parts()
 	xs := make([]int, len(parts))
 	x := 0
 	for i, p := range parts {
@@ -84,12 +86,15 @@ func (f *findBar) spans(m *Model) ([]findPart, []int) {
 	return parts, xs
 }
 
+// Layout is empty: the bar is drawn on the context line.
+func (f *Bar) Layout() []overlay.Box { return nil }
+
 // ContextLine renders the bar for the context line, with the match count
 // on the right.
-func (f *findBar) ContextLine() (left, right string) {
-	m := f.m
+func (f *Bar) ContextLine() (left, right string) {
+	th := f.h.Theme()
 	var b strings.Builder
-	parts := f.parts(m)
+	parts := f.parts()
 	for i, p := range parts {
 		b.WriteString(p.text)
 		if i < len(parts)-1 {
@@ -98,88 +103,73 @@ func (f *findBar) ContextLine() (left, right string) {
 	}
 	switch {
 	case f.err != "":
-		right = m.th.Warning.Render(f.err)
+		right = th.Warning.Render(f.err)
 	case f.fields[0] == "":
 	case len(f.matches) == 0:
-		right = m.th.Warning.Render("No matches")
+		right = th.Warning.Render("No matches")
 	default:
 		where := ""
 		if f.where == inAll {
-			where = " on " + f.matches[f.cur].s.Name()
+			where = " on " + f.matches[f.cur].Sheet.Name()
 		}
-		right = m.th.Muted.Render(strconv.Itoa(f.cur+1) + " of " + strconv.Itoa(len(f.matches)) + where)
+		right = th.Muted.Render(strconv.Itoa(f.cur+1) + " of " + strconv.Itoa(len(f.matches)) + where)
 	}
 	return b.String(), right
 }
 
 // Cursor puts the terminal cursor in the focused field, whose text ends
 // its part.
-func (f *findBar) Cursor() (x, y int) {
-	m := f.m
-	parts, xs := f.spans(m)
+func (f *Bar) Cursor() (x, y int) {
+	parts, xs := f.spans()
 	for i, p := range parts {
 		if p.field == f.field {
-			return xs[i] + ansi.StringWidth(p.text) - ansi.StringWidth(m.line.Tail()), contextLine
+			return xs[i] + ansi.StringWidth(p.text) - ansi.StringWidth(f.h.Line().Tail()), overlay.ContextLine
 		}
 	}
-	return 0, contextLine
+	return 0, overlay.ContextLine
 }
 
 // Mouse focuses a field or flips a chip on the bar; a click anywhere
 // else closes the bar and lands where it was clicked.
-func (f *findBar) Mouse(e overlay.MouseEvent) tea.Cmd {
-	m := f.m
+func (f *Bar) Mouse(e overlay.MouseEvent) tea.Cmd {
 	if e.Kind != overlay.MousePress {
 		return nil
 	}
-	if e.Y != contextLine {
-		m.find = f
-		m.closeOverlay()
-		return m.handlePress(tea.Mouse{X: e.X, Y: e.Y, Button: e.Button})
+	if e.Y != overlay.ContextLine {
+		f.h.Leave()
+		return f.h.Press(e.X, e.Y, e.Button)
 	}
-	parts, xs := f.spans(m)
+	parts, xs := f.spans()
 	for i, p := range parts {
 		if e.X >= xs[i] && e.X < xs[i]+ansi.StringWidth(p.text) {
 			if p.field >= 0 {
-				f.focus(m, p.field)
+				f.focus(p.field)
 				return nil
 			}
-			return f.Key(keyFor(p.toggle))
+			return f.Key(overlay.KeyFor(p.toggle))
 		}
 	}
 	return nil
 }
 
-// keyFor makes a key press from a keystroke like "alt+c".
-func keyFor(s string) tea.KeyPressMsg {
-	k := tea.KeyPressMsg{}
-	parts := strings.Split(s, "+")
-	for _, p := range parts[:len(parts)-1] {
-		if p == "alt" {
-			k.Mod |= tea.ModAlt
-		}
-	}
-	k.Code = rune(parts[len(parts)-1][0])
-	return k
-}
-
 // Status shows the keys for moving and replacing, and a reminder of the
 // option keys when there's room. Narrow screens keep the most useful keys.
-func (f *findBar) Status() (string, string) {
-	m := f.m
+func (f *Bar) Status() (string, string) {
+	th := f.h.Theme()
+	width, _ := f.h.Size()
 	pairs := []string{"Enter", "next", "Shift+Enter", "previous", "Esc", "close"}
 	if f.replace {
 		pairs = []string{"Enter", "replace", "Ctrl+Enter", "all", "Tab", "field", "Esc", "close"}
 	}
 	desc := "Alt+C/W/R/= options"
-	if f.scope != nil || len(m.book().Visible()) > 1 {
+	if f.scope != nil || len(f.h.Book().Visible()) > 1 {
 		desc = "Alt+C/W/R/=/S options"
 	}
 	for {
-		keys := m.th.KeyHints(pairs...)
+		keys := th.KeyHints(pairs...)
 		switch {
-		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
-			return m.th.Muted.Render(desc), keys
+		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= width:
+			return th.Muted.Render(desc), keys
 		case desc != "":
 			desc = ""
 		case len(pairs) > 2:

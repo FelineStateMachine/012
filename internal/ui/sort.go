@@ -298,7 +298,7 @@ func (b *sortBar) Mouse(e overlay.MouseEvent) tea.Cmd {
 		if e.X >= x && e.X < x+w {
 			switch {
 			case p.toggle:
-				return b.Key(keyFor("alt+h"))
+				return b.Key(overlay.KeyFor("alt+h"))
 			case p.key == b.cur:
 				b.keys[b.cur].Desc = !b.keys[b.cur].Desc
 			case p.key >= 0:

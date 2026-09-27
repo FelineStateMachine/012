@@ -8,6 +8,8 @@
 package overlay
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -17,6 +19,23 @@ const (
 	MenuLine    = 0 // the menu bar; dropdowns and pickers open under it
 	ContextLine = 2 // prompts and bars; completions open under it
 )
+
+// SearchPrompt starts a search field, in pickers and bars.
+const SearchPrompt = " › "
+
+// KeyFor makes a key press from a keystroke like "alt+c", for chips that
+// stand for a key when clicked.
+func KeyFor(s string) tea.KeyPressMsg {
+	k := tea.KeyPressMsg{}
+	parts := strings.Split(s, "+")
+	for _, p := range parts[:len(parts)-1] {
+		if p == "alt" {
+			k.Mod |= tea.ModAlt
+		}
+	}
+	k.Code = rune(parts[len(parts)-1][0])
+	return k
+}
 
 // Overlay is a floating box drawn over the grid: a dropdown or context
 // menu, the command palette or a dialog. While one is open it takes every

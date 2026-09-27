@@ -81,12 +81,8 @@ type Picker struct {
 	Answers bool
 }
 
-const (
-	// ID identifies the picker's box in mouse events.
-	ID = "picker"
-	// SearchPrompt starts the search field.
-	SearchPrompt = " › "
-)
+// ID identifies the picker's box in mouse events.
+const ID = "picker"
 
 // New returns a picker of items titled title, at most maxW columns wide
 // inside its frame, with the edit line cleared for the search.
@@ -318,7 +314,7 @@ func (p *Picker) box() (x, y, inner int) {
 
 func (p *Picker) Cursor() (int, int) {
 	x, y, _ := p.box()
-	return x + 1 + ansi.StringWidth(SearchPrompt) + ansi.StringWidth(p.h.Line().Head()), y + 1
+	return x + 1 + ansi.StringWidth(overlay.SearchPrompt) + ansi.StringWidth(p.h.Line().Head()), y + 1
 }
 
 func (p *Picker) Layout() []overlay.Box {
@@ -328,7 +324,7 @@ func (p *Picker) Layout() []overlay.Box {
 	if len(p.shown) > 0 {
 		p.Show(rows)
 	}
-	input := th.Title.Render(SearchPrompt) + line.Text()
+	input := th.Title.Render(overlay.SearchPrompt) + line.Text()
 	if len(line.Buf) == 0 {
 		input += th.Muted.Render(p.placeholder)
 	}

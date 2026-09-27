@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -24,9 +25,9 @@ func col(l, sub string) int {
 	return ansi.StringWidth(l[:strings.Index(l, sub)])
 }
 
-func findBarOf(t *testing.T, m *Model) *findBar {
+func findBarOf(t *testing.T, m *Model) *findbar.Bar {
 	t.Helper()
-	f, ok := m.overlay.(*findBar)
+	f, ok := m.overlay.(*findbar.Bar)
 	if !ok {
 		t.Fatalf("no find bar (overlay %T)", m.overlay)
 	}
@@ -41,8 +42,8 @@ func TestFindAsYouType(t *testing.T) {
 	}
 	press(t, m, "ren")
 	f := findBarOf(t, m)
-	if len(f.matches) != 3 || m.cur != addr("A1") || !strings.Contains(line(m, contextLine), "1 of 3") {
-		t.Fatalf("matches %v cur %v line %q", f.matches, m.cur, line(m, contextLine))
+	if len(f.Matches()) != 3 || m.cur != addr("A1") || !strings.Contains(line(m, contextLine), "1 of 3") {
+		t.Fatalf("matches %v cur %v line %q", f.Matches(), m.cur, line(m, contextLine))
 	}
 	// The terminal cursor sits after the query.
 	if x, y, ok := m.cursorPos(); !ok || y != contextLine || x != col(line(m, contextLine), "ren")+3 {
@@ -70,7 +71,7 @@ func TestFindAsYouType(t *testing.T) {
 	}
 	// Ctrl+F again reopens the last search.
 	press(t, m, "<ctrl+f>")
-	if f := findBarOf(t, m); m.line.Text() != "ren" || len(f.matches) != 3 {
+	if f := findBarOf(t, m); m.line.Text() != "ren" || len(f.Matches()) != 3 {
 		t.Errorf("reopened with %q", m.line.Text())
 	}
 }
@@ -80,28 +81,28 @@ func TestFindOptions(t *testing.T) {
 	press(t, m, "<ctrl+f>", "Rent")
 	f := findBarOf(t, m)
 	press(t, m, "<alt+c>")
-	if len(f.matches) != 1 {
-		t.Errorf("match case: %v", f.matches)
+	if len(f.Matches()) != 1 {
+		t.Errorf("match case: %v", f.Matches())
 	}
 	press(t, m, "<alt+c>", "<alt+w>")
-	if len(f.matches) != 1 || f.matches[0].a != addr("A1") {
-		t.Errorf("whole cell: %v", f.matches)
+	if len(f.Matches()) != 1 || f.Matches()[0].At != addr("A1") {
+		t.Errorf("whole cell: %v", f.Matches())
 	}
 	press(t, m, "<alt+w>")
 	for range 4 {
 		press(t, m, "<backspace>")
 	}
 	press(t, m, "B1", "<alt+=>")
-	if len(f.matches) != 2 {
-		t.Errorf("in formulas: %v", f.matches)
+	if len(f.Matches()) != 2 {
+		t.Errorf("in formulas: %v", f.Matches())
 	}
 	press(t, m, "<alt+=>")
 	for range 2 {
 		press(t, m, "<backspace>")
 	}
 	press(t, m, "<alt+r>", "^r.n")
-	if len(f.matches) != 2 {
-		t.Errorf("regex: %v", f.matches)
+	if len(f.Matches()) != 2 {
+		t.Errorf("regex: %v", f.Matches())
 	}
 	press(t, m, "(")
 	if !strings.Contains(line(m, contextLine), "Invalid regular expression") {
@@ -118,12 +119,12 @@ func TestFindWithinSelection(t *testing.T) {
 	m := findModel(t)
 	press(t, m, "<shift+down>", "<ctrl+f>", "ren")
 	f := findBarOf(t, m)
-	if len(f.matches) != 2 || !strings.Contains(line(m, contextLine), "in A1:A2") {
-		t.Fatalf("scoped: %v line %q", f.matches, line(m, contextLine))
+	if len(f.Matches()) != 2 || !strings.Contains(line(m, contextLine), "in A1:A2") {
+		t.Fatalf("scoped: %v line %q", f.Matches(), line(m, contextLine))
 	}
 	press(t, m, "<alt+s>")
-	if len(f.matches) != 3 {
-		t.Errorf("unscoped: %v", f.matches)
+	if len(f.Matches()) != 3 {
+		t.Errorf("unscoped: %v", f.Matches())
 	}
 }
 
@@ -131,7 +132,7 @@ func TestReplace(t *testing.T) {
 	m := findModel(t)
 	press(t, m, "<ctrl+h>", "rent", "<tab>", "lease")
 	f := findBarOf(t, m)
-	if !f.replace || f.field != 1 || !strings.Contains(line(m, contextLine), "Replace › lease") {
+	if !f.Replacing() || f.Field() != 1 || !strings.Contains(line(m, contextLine), "Replace › lease") {
 		t.Fatalf("replace bar %q", line(m, contextLine))
 	}
 	press(t, m, "<enter>") // replace A1, move on
@@ -157,8 +158,8 @@ func TestFindMouse(t *testing.T) {
 	f := findBarOf(t, m)
 	l := line(m, contextLine)
 	send(m, tea.MouseClickMsg{X: col(l, "Aa"), Y: contextLine, Button: tea.MouseLeft})
-	if !f.opts.MatchCase || len(f.matches) != 2 {
-		t.Errorf("clicking Aa: case %v matches %v", f.opts.MatchCase, f.matches)
+	if !f.Options().MatchCase || len(f.Matches()) != 2 {
+		t.Errorf("clicking Aa: case %v matches %v", f.Options().MatchCase, f.Matches())
 	}
 	// Clicking the grid closes the bar and moves there.
 	click(m, cellX(1), gridTop+1, 0)

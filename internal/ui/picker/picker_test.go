@@ -137,7 +137,7 @@ func TestLayoutAndMouse(t *testing.T) {
 		}
 	}
 	x, y := p.Cursor()
-	if y != b.Y+1 || x != b.X+1+ansi.StringWidth(SearchPrompt) {
+	if y != b.Y+1 || x != b.X+1+ansi.StringWidth(overlay.SearchPrompt) {
 		t.Errorf("cursor at %d,%d", x, y)
 	}
 	p.Mouse(overlay.MouseEvent{Kind: overlay.MouseMotion, Box: ID, Row: FirstRow + 2})

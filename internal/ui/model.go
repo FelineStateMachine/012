@@ -12,6 +12,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
@@ -92,7 +93,7 @@ type Model struct {
 	overlay overlay.Overlay // the open menu, picker or bar, if any (modeMenu): overlay.go
 	mouse   mouseState      // drags, hover and double clicks: mouse.go
 	tabs    tabStrip        // the sheet tabs and where each sheet was left: tabstrip.go
-	find    *findBar        // the last search, reopened by Ctrl+F: find.go
+	find    *findbar.Bar    // the last search, reopened by Ctrl+F: find.go
 	charts  chartState      // chart commands' target: charts.go
 	copied  clipboard       // what Ctrl+V pastes: clipboard.go
 	trace   *trace          // precedents or dependents being shown: trace.go

@@ -299,12 +299,12 @@ func TestFindAllSheets(t *testing.T) {
 	press(t, m, "rent", "<enter>", "<shift+f11>", "<down>", "rental", "<enter>", "<ctrl+pgup>")
 	press(t, m, "<ctrl+f>", "rent")
 	f := findBarOf(t, m)
-	if len(f.matches) != 1 || !strings.Contains(line(m, contextLine), "in Sheet1") {
-		t.Fatalf("this sheet: %d matches, %q", len(f.matches), line(m, contextLine))
+	if len(f.Matches()) != 1 || !strings.Contains(line(m, contextLine), "in Sheet1") {
+		t.Fatalf("this sheet: %d matches, %q", len(f.Matches()), line(m, contextLine))
 	}
 	press(t, m, "<alt+s>")
-	if len(f.matches) != 2 || !strings.Contains(line(m, contextLine), "in all sheets") {
-		t.Fatalf("all sheets: %d matches, %q", len(f.matches), line(m, contextLine))
+	if len(f.Matches()) != 2 || !strings.Contains(line(m, contextLine), "in all sheets") {
+		t.Fatalf("all sheets: %d matches, %q", len(f.Matches()), line(m, contextLine))
 	}
 	press(t, m, "<enter>")
 	if m.sheet.Name() != "Sheet2" || m.cur != addr("A2") || !strings.Contains(line(m, contextLine), "2 of 2 on Sheet2") {
