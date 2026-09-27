@@ -1,6 +1,7 @@
 package sheet
 
 import (
+	"iter"
 	"slices"
 	"strings"
 )
@@ -41,7 +42,7 @@ func match(args []Node, get lookup) Value {
 	case !m.vector():
 		return ErrNA
 	}
-	q := seq{n: m.size(), data: min(m.dataLen(), m.size()), at: m.at, blank: m.blank}
+	q := lineSeq(m, get, m.cols == 1)
 	var i int
 	switch {
 	case kind == 0:
@@ -116,10 +117,9 @@ func tableLookup(args []Node, get lookup, vertical bool) Value {
 	if err != nil {
 		return *err
 	}
-	q := seq{n: m.rows, data: min(m.dataRows, m.rows), at: func(i int) Value { return m.cell(i, 0) }, blank: m.blank}
+	q := lineSeq(m, get, vertical)
 	across := m.cols
 	if !vertical {
-		q = seq{n: m.cols, data: min(m.dataCols, m.cols), at: func(i int) Value { return m.cell(0, i) }, blank: m.blank}
 		across = m.rows
 	}
 	switch {
@@ -159,15 +159,72 @@ func lookupEqual(key, v Value, wild bool) bool {
 }
 
 // seq is the entries of a row or column searched by a lookup: n of them,
-// of which only the first data may hold data; the rest are all blank.
+// of which only the first data may hold data. With sparse, only those in
+// stored hold anything; every other entry is blank.
 type seq struct {
 	n, data int
 	at      func(int) Value
 	blank   Value
+	stored  iter.Seq[int] // the entries holding cells, in order, when sparse
+	sparse  bool
+}
+
+// lineSeq is the first column (vertical) or row of m, as a lookup
+// searches it: through the cells it holds, when it is a range.
+func lineSeq(m matrix, get lookup, vertical bool) seq {
+	line := m
+	if m.ref {
+		to := Addr{Col: m.origin.Col, Row: m.origin.Row + m.rows - 1}
+		if !vertical {
+			to = Addr{Col: m.origin.Col + m.cols - 1, Row: m.origin.Row}
+		}
+		line = rectMatrix(m.sheet, Rect{From: m.origin, To: to}, get)
+	}
+	q := seq{n: line.size(), data: min(line.dataLen(), line.size()), at: line.at, blank: line.blank}
+	t := get.sheet(line.sheet)
+	switch {
+	case !line.ref:
+		q.sparse, q.stored = true, func(yield func(int) bool) { yield(0) }
+	case denseReads:
+	case t == nil:
+		q.sparse, q.stored = true, func(func(int) bool) {}
+	default:
+		q.sparse = true
+		r := Rect{From: line.origin, To: Addr{Col: line.origin.Col + line.cols - 1, Row: line.origin.Row + line.rows - 1}}
+		q.stored = func(yield func(int) bool) {
+			if vertical {
+				t.cells.colScan(r.From.Col, r.From.Row, r.To.Row, func(row int) bool { return yield(row - r.From.Row) })
+				return
+			}
+			for a := range t.cells.inRange(r) {
+				if !yield(a.Col - r.From.Col) {
+					return
+				}
+			}
+		}
+	}
+	return q
 }
 
 // findExact returns the first index whose value equals key, or -1.
 func (q seq) findExact(key Value, wild bool) int {
+	if q.sparse {
+		blank := lookupEqual(key, q.blank, wild)
+		next := 0 // the first entry not looked at
+		for i := range q.stored {
+			if i > next && blank {
+				return next // a blank before this cell
+			}
+			if lookupEqual(key, q.at(i), wild) {
+				return i
+			}
+			next = i + 1
+		}
+		if blank && next < q.n {
+			return next
+		}
+		return -1
+	}
 	for i := range q.data {
 		if lookupEqual(key, q.at(i), wild) {
 			return i
@@ -184,6 +241,19 @@ func (q seq) findExact(key Value, wild bool) int {
 // in descending data. Values of another kind are skipped.
 func (q seq) findSorted(key Value, dir int) int {
 	found := -1
+	if q.sparse && key.Kind != q.blank.Kind { // blanks are skipped: only the cells count
+		for i := range q.stored {
+			v := q.at(i)
+			if v.Kind != key.Kind {
+				continue
+			}
+			if compare(v, key)*dir > 0 {
+				return found
+			}
+			found = i
+		}
+		return found
+	}
 	for i := range q.data {
 		v := q.at(i)
 		if v.Kind != key.Kind {
@@ -198,6 +268,45 @@ func (q seq) findSorted(key Value, dir int) int {
 		found = q.n - 1 // the blanks past the data all match; the last wins
 	}
 	return found
+}
+
+// order is the entries a search visits, first to last (last to first
+// with reverse): those that hold cells, and of the blanks, which are all
+// the same, only the first met.
+func (q seq) order(reverse bool) []int {
+	var out []int
+	if !q.sparse {
+		for i := range q.data {
+			out = append(out, i)
+		}
+		if q.data < q.n {
+			out = append(out, q.data)
+		}
+		if reverse {
+			slices.Reverse(out)
+			if q.data < q.n {
+				out[0] = q.n - 1
+			}
+		}
+		return out
+	}
+	out = slices.Collect(q.stored)
+	gap := -1 // the first blank in search order
+	if !reverse {
+		for gap = 0; gap < len(out) && out[gap] == gap; gap++ {
+		}
+	} else {
+		for gap = q.n - 1; len(out) > 0 && q.n-1-gap < len(out) && out[len(out)-1-(q.n-1-gap)] == gap; gap-- {
+		}
+	}
+	if gap >= 0 && gap < q.n {
+		i, _ := slices.BinarySearch(out, gap)
+		out = slices.Insert(out, i, gap)
+	}
+	if reverse {
+		slices.Reverse(out)
+	}
+	return out
 }
 
 func xlookup(args []Node, get lookup) Value {
@@ -232,22 +341,7 @@ func xlookup(args []Node, get lookup) Value {
 	default:
 		return ErrValue
 	}
-	// The entries past the data are all blank, so only the first of them
-	// in search order can be the answer.
-	data := min(look.dataLen(), n)
-	order := make([]int, 0, data+1)
-	for i := range data {
-		order = append(order, i)
-	}
-	if data < n {
-		order = append(order, data)
-	}
-	if search < 0 {
-		slices.Reverse(order)
-		if data < n {
-			order[0] = n - 1
-		}
-	}
+	order := lineSeq(look, get, look.cols == 1).order(search < 0)
 	best := -1
 	for _, i := range order {
 		v := look.at(i)

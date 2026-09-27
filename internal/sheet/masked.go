@@ -1,60 +1,116 @@
 package sheet
 
-// Functions over aligned ranges (SUMIF, COUNTIFS, SUMPRODUCT...) walk
-// only the part of their ranges that may hold data, the union of the
-// ranges' data areas; the cells past it are all blank, so they are
-// accounted for at once. SUMIF(A:A, "", B:B) over ten filled rows looks at
-// ten rows, however tall the sheet.
+import (
+	"cmp"
+	"slices"
+)
 
-// dataArea is the union of the data areas of same-sized matrices.
-func dataArea(ms ...matrix) (rows, cols int) {
+// Functions over aligned ranges (SUMIF, COUNTIFS, SUMPRODUCT...) visit
+// only the cells their ranges hold; the rest are blank in all of them,
+// so they are accounted for at once. SUMIF(A:A, "", B:B) over ten filled
+// rows looks at ten cells, however tall the sheet, and ten cells spread
+// over a million rows are still ten.
+
+// pos is a cell of same-sized matrices, by row and column from their
+// top-left corner.
+type pos struct{ r, c int }
+
+// storedPos returns the cells of m that hold something, row by row, and
+// false when every cell of its data area must be read instead (as tests
+// ask with denseReads).
+func (m matrix) storedPos(get lookup) ([]pos, bool) {
+	if !m.ref {
+		return []pos{{}}, true
+	}
+	t := get.sheet(m.sheet)
+	switch {
+	case denseReads:
+		return nil, false
+	case t == nil:
+		return nil, true
+	}
+	r := Rect{From: m.origin, To: Addr{Col: m.origin.Col + m.cols - 1, Row: m.origin.Row + m.rows - 1}}
+	var out []pos
+	for a := range t.cells.inRange(r) {
+		out = append(out, pos{a.Row - r.From.Row, a.Col - r.From.Col})
+	}
+	return out, true
+}
+
+// cellsOf returns the cells to visit of same-sized matrices: those any of
+// them holds, in row-major order. Every other cell is blank in all of
+// them.
+func cellsOf(get lookup, ms ...matrix) []pos {
+	var all []pos
+	for _, m := range ms {
+		p, ok := m.storedPos(get)
+		if !ok {
+			return denseArea(ms...)
+		}
+		all = append(all, p...)
+	}
+	if len(ms) > 1 {
+		slices.SortFunc(all, func(a, b pos) int { return cmp.Or(cmp.Compare(a.r, b.r), cmp.Compare(a.c, b.c)) })
+		all = slices.Compact(all)
+	}
+	return all
+}
+
+// denseArea is every cell of the union of the matrices' data areas.
+func denseArea(ms ...matrix) []pos {
+	rows, cols := 0, 0
 	for _, m := range ms {
 		rows = max(rows, min(m.dataRows, m.rows))
 		cols = max(cols, min(m.dataCols, m.cols))
 	}
-	return rows, cols
-}
-
-// masked is which cells of aligned ranges meet criteria: over the data
-// area (rows x cols, row-major), and for the cells past it, which are
-// the same everywhere.
-type masked struct {
-	rows, cols int
-	pass       []bool
-	tail       int  // cells past the data area
-	tailPass   bool // whether they meet the criteria
-}
-
-// applyCriteria tests each criterion on its range, over the data area of
-// the ranges and of also, which is aligned with them.
-func applyCriteria(ms []matrix, cs []criterion, also ...matrix) masked {
-	rows, cols := dataArea(append(also, ms...)...)
-	k := masked{rows: rows, cols: cols, pass: make([]bool, rows*cols), tailPass: true}
-	for i := range k.pass {
-		k.pass[i] = true
+	out := make([]pos, 0, rows*cols)
+	for r := range rows {
+		for c := range cols {
+			out = append(out, pos{r, c})
+		}
 	}
-	if len(ms) > 0 {
-		k.tail = ms[0].size() - rows*cols
+	return out
+}
+
+// masked is which cells of aligned ranges meet criteria: those visited
+// that do, and whether the rest, all blank, do.
+type masked struct {
+	pass     []pos
+	tail     int  // cells not visited
+	tailPass bool // whether they meet the criteria
+}
+
+// applyCriteria tests each criterion on its range, over the cells the
+// ranges and also (aligned with them) hold.
+func applyCriteria(get lookup, ms []matrix, cs []criterion, also ...matrix) masked {
+	cells := cellsOf(get, append(also, ms...)...)
+	k := masked{tail: ms[0].size() - len(cells), tailPass: true}
+	for _, p := range cells {
+		if passes(ms, cs, p) {
+			k.pass = append(k.pass, p)
+		}
 	}
 	for j, m := range ms {
-		for i, ok := range k.pass {
-			if ok && !cs[j].test(m.cell(i/cols, i%cols)) {
-				k.pass[i] = false
-			}
-		}
 		k.tailPass = k.tailPass && cs[j].test(m.blank)
 	}
 	return k
 }
 
+// passes reports whether the cell at p meets every criterion.
+func passes(ms []matrix, cs []criterion, p pos) bool {
+	for j, m := range ms {
+		if !cs[j].test(m.cell(p.r, p.c)) {
+			return false
+		}
+	}
+	return true
+}
+
 // sumMasked adds the numbers of m where the criteria pass.
 func sumMasked(m matrix, k masked) Value {
 	total := 0.0
-	for i, ok := range k.pass {
-		if !ok {
-			continue
-		}
-		switch v := m.cell(i/k.cols, i%k.cols); v.Kind {
+	for _, p := range k.pass {
+		switch v := m.cell(p.r, p.c); v.Kind {
 		case Error:
 			return v
 		case Number:
@@ -70,11 +126,8 @@ func sumMasked(m matrix, k masked) Value {
 // averageMasked averages the numbers of m where the criteria pass.
 func averageMasked(m matrix, k masked) Value {
 	sum, n := 0.0, 0
-	for i, ok := range k.pass {
-		if !ok {
-			continue
-		}
-		switch v := m.cell(i/k.cols, i%k.cols); v.Kind {
+	for _, p := range k.pass {
+		switch v := m.cell(p.r, p.c); v.Kind {
 		case Error:
 			return v
 		case Number:
@@ -104,7 +157,7 @@ func sumIf(args []Node, get lookup) Value {
 			return ErrValue
 		}
 	}
-	return sumMasked(sum, applyCriteria([]matrix{rng}, []criterion{newCriterion(cv)}, sum))
+	return sumMasked(sum, applyCriteria(get, []matrix{rng}, []criterion{newCriterion(cv)}, sum))
 }
 
 func sumIfs(args []Node, get lookup) Value {
@@ -116,7 +169,7 @@ func sumIfs(args []Node, get lookup) Value {
 	case len(ms) == 0 || ms[0].rows != sum.rows || ms[0].cols != sum.cols:
 		return ErrValue
 	}
-	return sumMasked(sum, applyCriteria(ms, cs, sum))
+	return sumMasked(sum, applyCriteria(get, ms, cs, sum))
 }
 
 func averageIf(args []Node, get lookup) Value {
@@ -129,7 +182,7 @@ func averageIf(args []Node, get lookup) Value {
 	if len(args) > 2 {
 		avg = matrixArg(args[2], get).resized(rng.rows, rng.cols, get)
 	}
-	return averageMasked(avg, applyCriteria([]matrix{rng}, []criterion{newCriterion(cv)}, avg))
+	return averageMasked(avg, applyCriteria(get, []matrix{rng}, []criterion{newCriterion(cv)}, avg))
 }
 
 func averageIfs(args []Node, get lookup) Value {
@@ -141,7 +194,7 @@ func averageIfs(args []Node, get lookup) Value {
 	case len(ms) == 0 || ms[0].rows != avg.rows || ms[0].cols != avg.cols:
 		return ErrValue
 	}
-	return averageMasked(avg, applyCriteria(ms, cs, avg))
+	return averageMasked(avg, applyCriteria(get, ms, cs, avg))
 }
 
 func countIfs(args []Node, get lookup) Value {
@@ -149,13 +202,8 @@ func countIfs(args []Node, get lookup) Value {
 	if err != nil {
 		return *err
 	}
-	k := applyCriteria(ms, cs)
-	n := 0
-	for _, ok := range k.pass {
-		if ok {
-			n++
-		}
-	}
+	k := applyCriteria(get, ms, cs)
+	n := len(k.pass)
 	if k.tailPass {
 		n += k.tail
 	}
@@ -165,17 +213,15 @@ func countIfs(args []Node, get lookup) Value {
 func countBlank(args []Node, get lookup) Value {
 	m := matrixArg(args[0], get)
 	isBlank := func(v Value) bool { return v.Kind == Empty || v.Kind == Text && v.Str == "" }
-	rows, cols := dataArea(m)
+	cells := cellsOf(get, m)
 	n := 0
-	for r := range rows {
-		for c := range cols {
-			if isBlank(m.cell(r, c)) {
-				n++
-			}
+	for _, p := range cells {
+		if isBlank(m.cell(p.r, p.c)) {
+			n++
 		}
 	}
 	if isBlank(m.blank) {
-		n += m.size() - rows*cols
+		n += m.size() - len(cells)
 	}
 	return num(float64(n))
 }
@@ -190,12 +236,12 @@ func sumProduct(args []Node, get lookup) Value {
 			return ErrValue
 		}
 	}
-	rows, cols := dataArea(ms...)
+	cells := cellsOf(get, ms...)
 	total := 0.0
-	for k := range rows * cols {
+	for _, pc := range cells {
 		p := 1.0
 		for _, m := range ms {
-			switch v := m.cell(k/cols, k%cols); v.Kind {
+			switch v := m.cell(pc.r, pc.c); v.Kind {
 			case Error:
 				return v
 			case Number:
@@ -206,7 +252,7 @@ func sumProduct(args []Node, get lookup) Value {
 		}
 		total += p
 	}
-	if ms[0].size() > rows*cols {
+	if ms[0].size() > len(cells) {
 		for _, m := range ms {
 			if m.blank.Kind == Error {
 				return m.blank

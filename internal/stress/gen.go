@@ -77,6 +77,40 @@ func FanIn(n, k int) *sheet.Sheet {
 	return s
 }
 
+// FanInColumns is FanIn with whole-column ranges, =SUM(A:A): the same
+// data, read through a range of a million rows.
+func FanInColumns(n, k int) *sheet.Sheet {
+	s := sheet.New()
+	for row := range n {
+		load(s, at(0, row), fmt.Sprint(row%100))
+	}
+	for i := range k {
+		load(s, at(1+i/n, i%n), "=SUM(A:A)")
+	}
+	s.RecalcAll()
+	return s
+}
+
+// Sparse is a tall, sparse sheet: n numbers every stride rows down
+// column A, a label beside each, and k of each of three formulas over
+// whole columns: =SUM(A:A), running totals to every thousandth row, and
+// =VLOOKUP over A:B. Its cost should follow its n cells, not the million
+// rows they span.
+func Sparse(n, stride, k int) *sheet.Sheet {
+	s := sheet.New()
+	for i := range n {
+		load(s, at(0, i*stride), fmt.Sprint(i%100))
+		load(s, at(1, i*stride), fmt.Sprintf("item %d", i))
+	}
+	for i := range k {
+		load(s, at(2, i), "=SUM(A:A)")
+		load(s, at(3, i), fmt.Sprintf("=SUM($A$1:A%d)", (i+1)*1000))
+		load(s, at(4, i), fmt.Sprintf("=VLOOKUP(%d, A:B, 2, FALSE)", i%100))
+	}
+	s.RecalcAll()
+	return s
+}
+
 // FanOut is one cell, A1, read directly by k formulas.
 func FanOut(k int) *sheet.Sheet {
 	s := sheet.New()
@@ -220,5 +254,7 @@ func Shapes() []Shape {
 		{"running-8192", func() *sheet.Sheet { return RunningTotals(Rows) }, at(0, 0), "3"},
 		{"volatile-8192", func() *sheet.Sheet { return Volatile(Rows) }, at(200, 0), "1"},
 		{"names-1000", func() *sheet.Sheet { return Names(1000) }, at(0, 50), "9"},
+		{"fanin-1000xSUM(A:A)", func() *sheet.Sheet { return FanInColumns(Rows, 1000) }, at(0, 4000), "7"},
+		{"sparse-1M", func() *sheet.Sheet { return Sparse(10000, 100, 1000) }, at(0, 500000), "5"},
 	}
 }
