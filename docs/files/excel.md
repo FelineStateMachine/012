@@ -29,7 +29,7 @@ What changes on the way:
 | Excel pivot tables | Come in as the values they showed; 012's go out as their results, not a pivot |
 | Excel's sheet protection | Comes in unprotected, with a note saying so: Excel's protection locks cells where 012's only warns. Protected ranges aren't written |
 | Array formulas (Excel 365's dynamic arrays and older `{=...}` ones) | Come in as formulas that spill again, without the values Excel kept in the cells they spill into |
-| Functions only Sheets has (`SORTN`, `FLATTEN`, `SPLIT`, `REGEXMATCH`, `REGEXEXTRACT`) | Go out as values, counted with the others below |
+| Functions only Sheets has, and array literals holding references | Go out as values, counted in the download's note: see [Arrays in Excel](#arrays-in-excel) |
 | JEV functions, `#AND#`, formulas naming a sheet that doesn't exist | Go out as values (their `#REF!`, for a missing sheet: Excel would refuse the reference). The download's result counts the formulas saved as values, with an example |
 | A sheet name Excel can't take as is (spaces at its ends, or the same as another's but for them and case) | Written as one it can: without the spaces, with a number when two would clash (`Plan (2)`); formulas and named ranges naming it name that |
 | Files past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) | Refused, with a message saying which |

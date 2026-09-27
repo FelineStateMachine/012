@@ -127,7 +127,12 @@ own, so they ask once per session.
 
 Scripts can't read or write files, reach the network, start programs, or
 read the clock or random numbers: all they can reach is the functions
-below. What a macro can do is what you could do with the keyboard in that
-workbook, which is why it asks before running someone else's.
+of the [scripting API](../reference/macro-api.md). What a macro can do is
+what you could do with the keyboard in that workbook, which is why it
+asks before running someone else's.
 
-Macros are Starlark scripts you can read and write: the [scripting API](../reference/macro-api.md) lists what they can do.
+## Writing your own
+
+**+ Write a macro** in Manage macros opens a new script in your editor.
+The [scripting API](../reference/macro-api.md) lists the functions
+scripts call and the command ids they run.
