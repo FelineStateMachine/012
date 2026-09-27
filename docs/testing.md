@@ -2,7 +2,7 @@
 
 ```sh
 make check    # all of the below that must pass before a push: gofmt, vet, lint, test, oracle, e2e
-make lint     # go vet, cognitive complexity at most 25, Go files at most 500 lines
+make lint     # go vet, staticcheck, cognitive complexity at most 25, Go files at most 500 lines, doclint (docs describe the code, not its history)
 make test     # engine, file formats and UI unit tests
 make fuzz     # fuzz the formula parser and the CSV, .wk1 and XLSX readers
 make oracle   # compare formulas and number formats with excelize
@@ -93,3 +93,9 @@ It needs vhs 0.12+, ttyd and ffmpeg. The JEV tape talks to `demos/fakejev`, a
 local stand-in the target starts on 127.0.0.1, never the real service. On
 macOS, `demos/lib/ttyd` wraps ttyd so Alt+letter reaches the app. VHS has no
 mouse commands, so the tapes use the keyboard.
+
+## No broken windows
+
+`make check` must pass before a push, and warnings are fixed or turned
+off with a written reason rather than left standing. The rules are in
+[CLAUDE.md](../CLAUDE.md).

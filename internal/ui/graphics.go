@@ -72,7 +72,7 @@ func (t *terminal) handle(msg tea.Msg) tea.Cmd {
 			// Ask for the cell size (for image proportions) and the
 			// palette colors charts draw with.
 			var q strings.Builder
-			q.WriteString(ansi.WindowOp(ansi.RequestCellSizeWinOp))
+			q.WriteString(ansi.WindowOp(16)) // 16: report the cell size in pixels
 			for i := range 16 {
 				fmt.Fprintf(&q, "\x1b]4;%d;?\x07", i)
 			}

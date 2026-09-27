@@ -73,7 +73,6 @@ type wk1Reader struct {
 	// record with its text result.
 	pending   sheet.Addr
 	hasString bool
-	style     map[sheet.Addr]sheet.Style
 	names     int
 	maxRow    int
 	buf       []byte // the payload of the record being read

@@ -198,7 +198,7 @@ and returns plain values instead:
 The engine fills a chunk from the occupancy index without a call per cell
 (`colFill`, `rangeFill`), and keeps each sheet's reader between
 recalculations, so the buffers are made once. See
-[limits.md](limits.md#the-function-library) for before and after.
+[limits.md](limits.md#the-function-library) for its costs.
 
 What stays in the engine is what needs cells or the workbook: the
 running aggregates' storage and extension (`rangememo.go`), the links a
