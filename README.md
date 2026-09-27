@@ -32,7 +32,9 @@ rest: building from a clone, importing files, `012 serve` and settings.
   ([formulas](docs/formulas/README.md)).
 - **Data tools**: freeze, sort, filter, find and replace, conditional
   formatting, dropdowns and checkboxes, notes, protected ranges, and live
-  pivot tables ([working with data](docs/sheets/README.md)).
+  pivot tables ([working with data](docs/sheets/README.md)); wrapped
+  text, borders and merged cells drawn with the terminal's box-drawing
+  lines ([formatting](docs/sheets/formatting.md#wrapping)).
 - **Charts** that float over the grid and follow their data, drawn as real
   images in kitty, Ghostty and WezTerm and as text elsewhere
   ([charts](docs/sheets/charts.md)).
@@ -60,6 +62,8 @@ rest: building from a clone, importing files, `012 serve` and settings.
 | JEV functions in formulas | Formats detected as you type |
 | ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![Recording a macro and replaying it](docs/media/macros.gif) |
 | Arrays that spill | Macros |
+| ![A trip plan with a merged title, borders and wrapped notes](docs/media/layout.gif) | ![A budget in German: decimal commas and euros](docs/media/locale-de.png) |
+| Wrapped text, borders and merged cells | A locale per file |
 
 The recordings are [VHS](https://github.com/charmbracelet/vhs) tapes in
 [`demos/`](demos), rendered by `make demos` in the Catppuccin Mocha

@@ -26,7 +26,6 @@ Sizes: S (a day or two), M (about a week), L (weeks).
 
 | Item | Notes | Size |
 |---|---|---|
-| Wrap text, row heights, borders, merged cells | Layout changes in the grid renderer | M to L |
 | Locale, what's left: month and day names in the locale's language (`mmm`, `dddd`), Excel downloads with the locale's Currency and Date formats | The rest follows the locale: [Locale](docs/sheets/locale.md) | S |
 
 ### 3. Scale
@@ -73,6 +72,7 @@ by a gateway dialing the iroh ticket.
 - Undo and redo for every change, across sheets: [Editing](docs/sheets/editing.md#undo)
 - Copy, cut, paste and fill with relative and `$absolute` references; insert and delete rows and columns: [Editing](docs/sheets/editing.md#copy-paste-and-fill)
 - Entries detected as typed (currency, percent, dates, times) and number formats: [Formulas](docs/formulas/README.md#what-you-type)
+- Wrapped and clipped text, row heights, borders and merged cells, in `.012` files and XLSX both ways: [Formatting](docs/sheets/formatting.md#wrapping)
 - Named ranges; several sheets with references between them, hidden sheets: [References](docs/formulas/references.md)
 - Sheets' everyday, math, text, lookup, date and finance functions, checked against excelize: [Functions](docs/reference/functions.md), [Testing](docs/contributing/testing.md#the-excelize-oracle)
 - Dynamic arrays that spill (FILTER, SORT, UNIQUE, SEQUENCE and more, ARRAYFORMULA), LET and LAMBDA, SPLIT and the REGEX functions: [Arrays and spills](docs/formulas/arrays.md)

@@ -130,6 +130,15 @@ style.
   changing recalculates the formulas reading any cell of it, found through
   the dependency indexes (`linereaders.go`), so they infer their format
   from blank cells too.
+- **Layout.** A cell's style holds how its text wraps and the lines on
+  its edges (`borders.go`), so both fall back on lines and travel with
+  copies. Rows' heights set by hand are kept per sheet as column widths
+  are, and merged ranges in the view state, replaced whole, so undo, the
+  file and inserted lines follow them (`rowlayout.go`, `merge.go`, which
+  finds a cell's merge through an interval index). Cells whose own style
+  wraps or draws borders are indexed by row, so the grid measures the
+  rows it shows at their cost, and a sheet with none of these (not
+  `Shaped`) is drawn a line per row without asking.
 - **Parsing.** `internal/formula`'s hand-written Pratt parser turns
   formulas into an AST, keeping absolute markers so references can be
   rewritten when cells move. Its printer turns ASTs back into text in
@@ -342,7 +351,7 @@ draw. The components:
 
 | Component | Type | Owns |
 |---|---|---|
-| grid (embedded) | `grid` | the sheet shown, active cell, scroll, window size, selection; mapping rows and columns to the screen, frozen panes, moving and selecting (`grid.go`, `panes.go`, `selection.go`) |
+| grid (embedded) | `grid` | the sheet shown, active cell, scroll, window size, selection; mapping rows and columns to the screen (rows as bands of lines, `bands.go`), frozen panes, moving and selecting (`grid.go`, `panes.go`, `selection.go`) |
 | edit line | `lineedit.Line` | the one-line editor shared by cell entries, prompts and search fields (package `lineedit`) |
 | cell entry | `entry`, `assist` | typing into a cell, pointing at references, other sheets while pointing, formula suggestions and signatures (`entry.go`, `assist.go`) |
 | prompt | `prompt` | a question on the context line, typed or pointed at (`prompt.go`) |
@@ -393,8 +402,14 @@ goes through `runCommand`, so macros record them and pivots guard them.
 the grid rows and the status line, then composites the floating layers
 with Lip Gloss: charts over the grid, then the open overlay's boxes or the
 formula suggestions, so the grid never shifts under them. Only the visible
-cells are rendered; `rowtext` lays out each row's text in one pass over
-the cells that can reach the screen. Styles come from `theme`, a small set
+cells are rendered; `rowtext` lays out each line of a row's text in one
+pass over the cells that can reach the screen. A row is a band of lines
+(`bands.go`): a rule line when a border lies along its top, then as many
+lines as its height or the text it wraps takes (`rowtext.Shapes`, kept
+until the sheet changes); navigation, the mouse and charts map rows to
+lines through the bands. Borders, merged cells and the rule lines are
+drawn over the laid-out text (`gridlines.go`), with what a frame has
+drawn in each role kept for the rest of it. Styles come from `theme`, a small set
 of roles with dark and light variants on the terminal's 16 ANSI colors,
 so the user's palette applies; its widgets (framed boxes, key chips, key
 hints) are what every overlay is drawn with.

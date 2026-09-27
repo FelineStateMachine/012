@@ -45,6 +45,8 @@ number formats and text styles and keeps the contents.
 
 ## Wrapping
 
+![A trip plan getting a merged title, borders with a thick outline and a double line under the headers, and notes that wrap](../media/layout.gif)
+
 Format > Wrapping says what text wider than its column does, as in
 Sheets:
 

@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "widths": {"C": 16},
+  "cells": {
+    "A1": "Trip to Lisbon",
+    "A2": "Day",
+    "B2": "Cost",
+    "C2": "Notes",
+    "A3": "Fri",
+    "B3": "120",
+    "C3": "Train, book the early fare",
+    "A4": "Sat",
+    "B4": "45",
+    "C4": "Tram 28 and the castle, before the crowds",
+    "A5": "Sun",
+    "B5": "60",
+    "C5": "Fly home",
+    "A6": "Total",
+    "B6": "=SUM(B3:B5)"
+  }
+}

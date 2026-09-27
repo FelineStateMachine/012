@@ -100,6 +100,7 @@ there.
 | Search matches, traced cells | Reverse video, with a count or the list on the context line |
 | The copied range | A dashed underline |
 | Dropdowns, checkboxes, active filters | `▾`; `[ ]` and `[✓]`; `▼` instead of `▾` |
+| Borders, wrapped text, merged cells, tall rows | Characters: box-drawing lines, the text's own lines, one value across the merge, the row's number on its last line; the pointer on a merged cell reverses all of it |
 
 The reverse-video roles (`Theme.standouts`) keep their look in color:
 their colors are stored swapped, so SGR 7 swaps them back. Conditional
