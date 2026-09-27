@@ -8,7 +8,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi/kitty"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // chartTable types a small table and leaves A1 active.

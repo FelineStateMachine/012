@@ -7,7 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // handleX is the screen x of the fill handle in column c (scrolled to A).

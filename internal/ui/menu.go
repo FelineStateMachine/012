@@ -11,8 +11,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"012/internal/fileio"
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/fileio"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 type promptKind int

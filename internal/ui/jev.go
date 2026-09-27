@@ -7,8 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"012/internal/jev"
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/jev"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // JEV functions are answered in the background: the engine queues

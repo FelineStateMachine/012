@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Format commands follow Sheets' Format menu and shortcuts. They apply to

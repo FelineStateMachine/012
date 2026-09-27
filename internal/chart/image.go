@@ -5,7 +5,7 @@ import (
 	"image/color"
 	"math"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Palette holds the colors an image draws with: the terminal's colors for

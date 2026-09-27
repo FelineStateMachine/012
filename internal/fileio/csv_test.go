@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 func addr(t testing.TB, s string) sheet.Addr {

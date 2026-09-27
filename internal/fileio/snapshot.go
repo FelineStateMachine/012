@@ -1,7 +1,7 @@
 package fileio
 
 import (
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Snapshot is a copy of the part of a sheet being exported, taken on the

@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Lotus 1-2-3 worksheets (.wks from Release 1A, .wk1 from Release 2) are

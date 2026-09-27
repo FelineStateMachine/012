@@ -10,10 +10,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"012/internal/fileio"
-	"012/internal/jev"
-	"012/internal/sheet"
-	"012/internal/ui"
+	"github.com/FelineStateMachine/012/internal/fileio"
+	"github.com/FelineStateMachine/012/internal/jev"
+	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui"
 )
 
 func main() {

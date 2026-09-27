@@ -4,8 +4,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"012/internal/chart"
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/chart"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // theme holds every style the UI draws with. Views must use these roles

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // builder fills a new sheet for an importer. It keeps text as text (an

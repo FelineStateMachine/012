@@ -8,8 +8,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"012/internal/chart"
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/chart"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Charts follow Sheets: Insert > Chart charts the selection (or the block

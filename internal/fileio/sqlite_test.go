@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // sqliteFixture makes a database with two tables and a view.

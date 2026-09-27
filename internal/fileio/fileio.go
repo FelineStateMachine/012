@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Kind is an external file format.

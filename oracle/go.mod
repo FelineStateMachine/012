@@ -1,10 +1,10 @@
-module 012/oracle
+module github.com/FelineStateMachine/012/oracle
 
 go 1.27.1
 
 require (
+	github.com/FelineStateMachine/012 v0.0.0-00010101000000-000000000000
 	github.com/xuri/excelize/v2 v2.11.0
-	012 v0.0.0
 )
 
 require (
@@ -18,4 +18,4 @@ require (
 	golang.org/x/text v0.38.0 // indirect
 )
 
-replace 012 => ../
+replace github.com/FelineStateMachine/012 => ../

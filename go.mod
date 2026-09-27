@@ -1,4 +1,4 @@
-module 012
+module github.com/FelineStateMachine/012
 
 go 1.27.1
 

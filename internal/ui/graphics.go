@@ -11,7 +11,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
-	"012/internal/chart"
+	"github.com/FelineStateMachine/012/internal/chart"
 )
 
 // terminal is what 012 knows about the terminal it runs in, learned from

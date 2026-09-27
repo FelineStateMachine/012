@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Number formats in files are Excel format codes. 012's formats map to

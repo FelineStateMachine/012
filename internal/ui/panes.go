@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // The viewport: frozen rows and columns stay on screen at the top and

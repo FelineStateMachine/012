@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // The fill handle, as in Sheets: the bottom-right corner of the selection

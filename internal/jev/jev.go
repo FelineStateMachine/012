@@ -16,7 +16,7 @@ import (
 
 	typesafe "github.com/FelineStateMachine/typesafe-go"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Config is how to reach the service.

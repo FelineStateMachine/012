@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 var update = flag.Bool("update", false, "rewrite text chart goldens in testdata")
