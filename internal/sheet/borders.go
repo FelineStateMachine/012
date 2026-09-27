@@ -155,7 +155,10 @@ func (e edgeSet) apply(b *Borders, l Line) {
 // line of r for BorderNone, as one undo step. Neighbors outside r lose
 // the lines on the edges they share with the ones set.
 func (s *Sheet) SetBorders(r Rect, k BorderKind, l Line) {
-	label := "borders " + k.String() + " " + r.String()
+	label := k.String() + " border " + r.String() // "top border B2:C4"
+	if k <= BorderInner {
+		label = k.String() + " borders " + r.String()
+	}
 	if k == BorderNone {
 		l, label = LineNone, "remove borders from "+r.String()
 	}
