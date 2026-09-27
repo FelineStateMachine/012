@@ -62,10 +62,8 @@ func TestXLSXRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := got.Sheet
+	sameShown(t, src, s)
 	for _, a := range src.Addrs() {
-		if want, g := shown(src, a), shown(s, a); g != want {
-			t.Errorf("%s shows %q after the round trip, want %q", a, g, want)
-		}
 		if want, g := src.Cell(a).Style, s.Cell(a).Style; g != want {
 			t.Errorf("%s style %+v, want %+v", a, g, want)
 		}

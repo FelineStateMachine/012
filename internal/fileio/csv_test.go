@@ -36,6 +36,16 @@ func shown(s *sheet.Sheet, a sheet.Addr) string {
 	return sheet.FormatText(s.Value(a), s.DisplayFormat(a))
 }
 
+// sameShown checks that every cell of src shows the same in got.
+func sameShown(t *testing.T, src, got *sheet.Sheet) {
+	t.Helper()
+	for _, a := range src.Addrs() {
+		if want, g := shown(src, a), shown(got, a); g != want {
+			t.Errorf("%s shows %q after the round trip, want %q", a, g, want)
+		}
+	}
+}
+
 func input(s *sheet.Sheet, a sheet.Addr) string {
 	if c := s.Cell(a); c != nil {
 		return c.Input
@@ -189,35 +199,34 @@ func TestDelimitedRoundTrip(t *testing.T) {
 	})
 	src.SetFormat(sheet.NewRect(addr(t, "D2"), addr(t, "D3")), sheet.Preset(sheet.FmtPercent))
 	for _, k := range []Kind{CSV, TSV} {
-		t.Run(k.String(), func(t *testing.T) {
-			name := filepath.Join(t.TempDir(), "out"+k.Ext())
-			res, err := Export(context.Background(), name, k, Snap(src, sheet.Rect{}, "out"), ExportOptions{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if res.Rows != 4 || len(res.Notes) != 1 || res.Notes[0] != "3 formulas saved as values" {
-				t.Errorf("result %+v", res)
-			}
-			got, err := Import(context.Background(), name, Options{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if n := got.Sheet.Name(); n != "out" || got.Sheet.CanUndo() {
-				t.Errorf("imported sheet named %q, undoable %v", n, got.Sheet.CanUndo())
-			}
-			for _, a := range src.Addrs() {
-				if want, g := shown(src, a), shown(got.Sheet, a); g != want {
-					t.Errorf("%s shows %q after the round trip, want %q", a, g, want)
-				}
-			}
-			// Values come back as numbers with their formats, not text.
-			if v := got.Sheet.Value(addr(t, "C4")); v.Kind != sheet.Number || v.Num != 2062.4 {
-				t.Errorf("C4 = %+v", v)
-			}
-			if f := got.Sheet.DisplayFormat(addr(t, "D2")); f.Kind != sheet.FmtPercent {
-				t.Errorf("D2 format = %+v", f)
-			}
-		})
+		t.Run(k.String(), func(t *testing.T) { roundTripDelimited(t, src, k) })
+	}
+}
+
+// roundTripDelimited exports src as k, imports it back and compares.
+func roundTripDelimited(t *testing.T, src *sheet.Sheet, k Kind) {
+	name := filepath.Join(t.TempDir(), "out"+k.Ext())
+	res, err := Export(context.Background(), name, k, Snap(src, sheet.Rect{}, "out"), ExportOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Rows != 4 || len(res.Notes) != 1 || res.Notes[0] != "3 formulas saved as values" {
+		t.Errorf("result %+v", res)
+	}
+	got, err := Import(context.Background(), name, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := got.Sheet.Name(); n != "out" || got.Sheet.CanUndo() {
+		t.Errorf("imported sheet named %q, undoable %v", n, got.Sheet.CanUndo())
+	}
+	sameShown(t, src, got.Sheet)
+	// Values come back as numbers with their formats, not text.
+	if v := got.Sheet.Value(addr(t, "C4")); v.Kind != sheet.Number || v.Num != 2062.4 {
+		t.Errorf("C4 = %+v", v)
+	}
+	if f := got.Sheet.DisplayFormat(addr(t, "D2")); f.Kind != sheet.FmtPercent {
+		t.Errorf("D2 format = %+v", f)
 	}
 }
 

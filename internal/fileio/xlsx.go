@@ -314,39 +314,16 @@ func (w *xlsxWriter) sheet(ws string, snap *Snapshot) (int, error) {
 		}
 	}
 	r := snap.Range
+	line := make([]any, r.To.Col-r.From.Col+1)
 	for row := r.From.Row; row <= r.To.Row; row++ {
-		var line []any
 		for col := r.From.Col; col <= r.To.Col; col++ {
 			a := sheet.Addr{Col: col, Row: row}
-			c, ok := snap.Cells[a]
-			if !ok {
-				line = append(line, nil)
-				continue
-			}
-			// A formula's inferred format is written too, so its result
-			// shows the same in Excel.
-			f := c.Format
-			id := 0
-			if !f.IsZero() || !c.Style.IsZero() {
-				if id, err = w.styleFor(f, c.Style); err != nil {
+			line[col-r.From.Col] = nil
+			if c, ok := snap.Cells[a]; ok {
+				if line[col-r.From.Col], err = w.cell(ws, a, c); err != nil {
 					return 0, err
 				}
 			}
-			xc := excelize.Cell{StyleID: id, Value: xlsxValue(c.Value, f)}
-			if c.Formula {
-				if fx, ok := toExcelFormula(c.Input); ok {
-					xc.Formula = fx
-				} else {
-					w.values++
-					if w.example == "" {
-						w.example = a.String()
-						if w.multi {
-							w.example = sheet.QuoteSheet(ws) + "!" + a.String()
-						}
-					}
-				}
-			}
-			line = append(line, xc)
 		}
 		cell, _ := excelize.CoordinatesToCellName(r.From.Col+1, row+1)
 		if err := sw.SetRow(cell, line); err != nil {
@@ -357,6 +334,36 @@ func (w *xlsxWriter) sheet(ws string, snap *Snapshot) (int, error) {
 		return 0, err
 	}
 	return r.To.Row - r.From.Row + 1, nil
+}
+
+// cell is the snapshot cell c at a as excelize writes it. A formula with
+// no Excel equivalent is written as its value, and counted.
+func (w *xlsxWriter) cell(ws string, a sheet.Addr, c SnapCell) (excelize.Cell, error) {
+	// A formula's inferred format is written too, so its result shows
+	// the same in Excel.
+	id := 0
+	if !c.Format.IsZero() || !c.Style.IsZero() {
+		var err error
+		if id, err = w.styleFor(c.Format, c.Style); err != nil {
+			return excelize.Cell{}, err
+		}
+	}
+	xc := excelize.Cell{StyleID: id, Value: xlsxValue(c.Value, c.Format)}
+	if !c.Formula {
+		return xc, nil
+	}
+	if fx, ok := toExcelFormula(c.Input); ok {
+		xc.Formula = fx
+		return xc, nil
+	}
+	w.values++
+	if w.example == "" {
+		w.example = a.String()
+		if w.multi {
+			w.example = sheet.QuoteSheet(ws) + "!" + a.String()
+		}
+	}
+	return xc, nil
 }
 
 // xlsxValue is a computed value as excelize writes it.

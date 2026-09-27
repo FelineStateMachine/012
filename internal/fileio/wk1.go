@@ -75,32 +75,18 @@ type wk1Reader struct {
 	style     map[sheet.Addr]sheet.Style
 	names     int
 	maxRow    int
+	buf       []byte // the payload of the record being read
 }
 
 // readWK1 reads a worksheet record by record. progress gets the number
 // of cells read so far.
 func readWK1(ctx context.Context, r io.Reader, progress func(cells int)) (*sheet.Sheet, []string, int, error) {
 	w := &wk1Reader{b: newBuilder(), version: wk1File}
-	var head [4]byte
 	cells := 0
 	for i := 0; ; i++ {
-		if _, err := io.ReadFull(r, head[:]); err != nil {
-			if i == 0 {
-				return nil, nil, 0, errors.New("not a Lotus 1-2-3 worksheet: the file is empty")
-			}
-			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-				break // no EOF record; keep what was read, as 1-2-3 does
-			}
+		op, data, err := w.next(r, i)
+		if err != nil {
 			return nil, nil, 0, err
-		}
-		op := binary.LittleEndian.Uint16(head[0:])
-		n := binary.LittleEndian.Uint16(head[2:])
-		if i == 0 && (op != wkBOF || n != 2) {
-			return nil, nil, 0, errors.New("not a Lotus 1-2-3 worksheet: it doesn't start with a BOF record")
-		}
-		data := make([]byte, n)
-		if _, err := io.ReadFull(r, data); err != nil {
-			return nil, nil, 0, fmt.Errorf("record %d (opcode 0x%02X) is cut off", i+1, op)
 		}
 		if op == wkEOF {
 			break
@@ -122,6 +108,35 @@ func readWK1(ctx context.Context, r io.Reader, progress func(cells int)) (*sheet
 	}
 	s, notes := w.b.finish(notes)
 	return s, notes, w.maxRow + 1, nil
+}
+
+// next reads record i, returning its opcode and payload, which is only
+// valid until the next call. The end of the file reads as an EOF record:
+// a worksheet may lack one, and 1-2-3 keeps what was read.
+func (w *wk1Reader) next(r io.Reader, i int) (uint16, []byte, error) {
+	var head [4]byte
+	if _, err := io.ReadFull(r, head[:]); err != nil {
+		switch {
+		case i == 0:
+			return 0, nil, errors.New("not a Lotus 1-2-3 worksheet: the file is empty")
+		case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
+			return wkEOF, nil, nil
+		}
+		return 0, nil, err
+	}
+	op := binary.LittleEndian.Uint16(head[0:])
+	n := int(binary.LittleEndian.Uint16(head[2:]))
+	if i == 0 && (op != wkBOF || n != 2) {
+		return 0, nil, errors.New("not a Lotus 1-2-3 worksheet: it doesn't start with a BOF record")
+	}
+	if cap(w.buf) < n {
+		w.buf = make([]byte, n)
+	}
+	data := w.buf[:n]
+	if _, err := io.ReadFull(r, data); err != nil {
+		return 0, nil, fmt.Errorf("record %d (opcode 0x%02X) is cut off", i+1, op)
+	}
+	return op, data, nil
 }
 
 // record handles one record, reporting whether it was a cell.
@@ -172,26 +187,7 @@ func (w *wk1Reader) record(op uint16, d []byte) bool {
 	case wkLabel:
 		w.label(a, body)
 	case wkFormula:
-		if len(body) < 10 {
-			return false
-		}
-		v := math.Float64frombits(binary.LittleEndian.Uint64(body))
-		size := int(binary.LittleEndian.Uint16(body[8:]))
-		code := body[10:]
-		if size < len(code) {
-			code = code[:size]
-		}
-		w.hasString = false
-		text, ok := lotusFormula(code, a, w.version)
-		keep := func() {
-			w.b.number(a, fromExcelSerial(v, f), f, sheet.Style{})
-			w.pending, w.hasString = a, true
-		}
-		if !ok {
-			w.b.kept(a, text, keep)
-			return true
-		}
-		w.b.formula(a, "="+text, f, sheet.Style{}, keep)
+		return w.formula(a, f, body)
 	case wkString:
 		if w.hasString && w.pending == a {
 			w.b.text(a, lics(cstring(body)), sheet.Format{}, sheet.Style{})
@@ -199,6 +195,33 @@ func (w *wk1Reader) record(op uint16, d []byte) bool {
 		w.hasString = false
 		return false
 	}
+	return true
+}
+
+// formula stores a formula: its cached value, the bytecode's size and
+// the bytecode. A formula that can't be translated keeps its value, or
+// the text in the STRING record that may follow.
+func (w *wk1Reader) formula(a sheet.Addr, f sheet.Format, body []byte) bool {
+	if len(body) < 10 {
+		return false
+	}
+	v := math.Float64frombits(binary.LittleEndian.Uint64(body))
+	size := int(binary.LittleEndian.Uint16(body[8:]))
+	code := body[10:]
+	if size < len(code) {
+		code = code[:size]
+	}
+	w.hasString = false
+	text, ok := lotusFormula(code, a, w.version)
+	keep := func() {
+		w.b.number(a, fromExcelSerial(v, f), f, sheet.Style{})
+		w.pending, w.hasString = a, true
+	}
+	if !ok {
+		w.b.kept(a, text, keep)
+		return true
+	}
+	w.b.formula(a, "="+text, f, sheet.Style{}, keep)
 	return true
 }
 
