@@ -39,9 +39,10 @@ type Workbook struct {
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
 
-	hist    history // undo and redo, see history.go
-	active  int     // the sheet last shown, saved in the file
-	decimal bool    // decimal arithmetic, see decimal.go
+	remote  RemoteSource // answers JEV functions, see remote.go
+	hist    history      // undo and redo, see history.go
+	active  int          // the sheet last shown, saved in the file
+	decimal bool         // decimal arithmetic, see decimal.go
 
 	// structural is set when sheets were added, deleted or renamed during
 	// the open change, which then recalculates everything: references by
@@ -71,6 +72,7 @@ func emptyBook() *Workbook {
 		nameUsers:  map[string]map[loc]struct{}{},
 		crossUsers: map[loc]struct{}{},
 		crossKeys:  map[string]int{},
+		remote:     Remote,
 	}
 }
 

@@ -4,7 +4,7 @@ import "github.com/FelineStateMachine/012/internal/formula"
 
 // Some functions (JEV.*) are answered by a hosted model. The engine never
 // talks to the network: it describes each question as a RemoteCall and
-// asks Remote for the answer. Until the answer arrives the cell shows
+// asks the workbook's RemoteSource for the answer. Until the answer arrives the cell shows
 // Loading…, and the source queues the call; when answers arrive the UI
 // calls RecalcVolatile, and the functions, being volatile, look again.
 
@@ -36,9 +36,21 @@ type RemoteSource interface {
 	Lookup(RemoteCall) (RemoteAnswer, bool)
 }
 
-// Remote answers JEV functions. It is nil when no API key is configured,
-// and the functions then evaluate to ErrNoRemote.
+// Remote is the source new workbooks start with.
+//
+// Deprecated: set each workbook's source with SetRemote.
 var Remote RemoteSource
+
+// SetRemote sets what answers the workbook's JEV functions: nil when no
+// API key is configured, and the functions then evaluate to ErrNoRemote.
+// It recomputes them, so a loaded file's questions are asked.
+func (w *Workbook) SetRemote(r RemoteSource) {
+	w.remote = r
+	w.recalc(nil)
+}
+
+// SetRemote on a sheet is its workbook's.
+func (s *Sheet) SetRemote(r RemoteSource) { s.wb.SetRemote(r) }
 
 var (
 	// Pending is shown while an answer is on its way.

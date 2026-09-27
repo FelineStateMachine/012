@@ -47,7 +47,8 @@ const (
 // failure; the context line says why.
 var ErrRemote = Value{Kind: Error, Str: "#ERROR!"}
 
-// remoteEval evaluates a JEV function through Remote, converting the
+// remoteEval evaluates a JEV function through the workbook's
+// RemoteSource, converting the
 // answer with result. Errors in the inputs come back as-is so they can be
 // fixed; they're never sent.
 func remoteEval(build func([]Node, lookup) (RemoteCall, error), result func(RemoteAnswer) Value) func([]Node, lookup) Value {
@@ -56,10 +57,11 @@ func remoteEval(build func([]Node, lookup) (RemoteCall, error), result func(Remo
 		if err != nil {
 			return err.(inputError).v
 		}
-		if Remote == nil {
+		remote := get.w.remote
+		if remote == nil {
 			return ErrNoRemote
 		}
-		ans, ok := Remote.Lookup(call)
+		ans, ok := remote.Lookup(call)
 		switch {
 		case !ok:
 			return Pending

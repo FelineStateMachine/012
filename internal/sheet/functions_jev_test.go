@@ -17,13 +17,6 @@ func (f *fakeRemote) Lookup(c RemoteCall) (RemoteAnswer, bool) {
 	return a, ok
 }
 
-func useRemote(t *testing.T, r RemoteSource) {
-	t.Helper()
-	prev := Remote
-	Remote = r
-	t.Cleanup(func() { Remote = prev })
-}
-
 func TestJEVFunctions(t *testing.T) {
 	f := &fakeRemote{answers: map[string]RemoteAnswer{
 		"Is this a complaint?": {Noul: 0.83},
@@ -31,8 +24,8 @@ func TestJEVFunctions(t *testing.T) {
 		"Urgency":              {Score: 1.6, Confidence: 0.7},
 		"Broken":               {Failed: "HTTP 500"},
 	}}
-	useRemote(t, f)
 	s := New()
+	s.SetRemote(f)
 	s.Set(at("A1"), "The package arrived crushed and support never replied.")
 	s.Set(at("B1"), "positive")
 	s.Set(at("B2"), "negative")
@@ -70,8 +63,8 @@ func TestJEVFunctions(t *testing.T) {
 
 func TestJEVCalls(t *testing.T) {
 	f := &fakeRemote{}
-	useRemote(t, f)
 	s := New()
+	s.SetRemote(f)
 	s.Set(at("A1"), "text")
 	s.Set(at("A2"), "42")
 	s.Set(at("B1"), "good")
@@ -110,7 +103,6 @@ func TestJEVCalls(t *testing.T) {
 }
 
 func TestJEVWithoutKey(t *testing.T) {
-	useRemote(t, nil)
 	s := New()
 	s.Set(at("A1"), `=JEV.TEST("x", "Q")`)
 	if s.Value(at("A1")) != ErrNoRemote {
