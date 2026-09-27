@@ -67,6 +67,7 @@ func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
 		mv.apply(moved, readers)
 		dst.moveFormats(s, &f, src, d)
 		dst.moveMerges(s, src, d)
+		mv.moveRules() // rulemove.go
 	})
 	return d, nil
 }

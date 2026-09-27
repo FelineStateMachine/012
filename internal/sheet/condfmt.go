@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/value"
 )
 
 // Conditional formats follow Sheets' Format > Conditional formatting: a
@@ -28,8 +25,20 @@ type CondFormat struct {
 	Args  [2]string
 	Style RuleStyle
 	// Scale, when set, makes the rule a color scale of 2 or 3 points,
-	// lowest first, and Op, Args and Style mean nothing.
+	// lowest first, and Op, Args and Style mean nothing. A data bar's
+	// and an icon set's points are kept here too (condbars.go).
 	Scale []ScalePoint
+	// Bar, when set, makes the rule a data bar in that color, from its
+	// first point to its second.
+	Bar Color
+	// Icons, when set, makes the rule an icon set, one icon more than
+	// its points, which are the thresholds of the icons after the first.
+	Icons IconSet
+	// Reverse gives the icons the other way round, the lowest icon to
+	// the highest values.
+	Reverse bool
+	// BarOnly shows a data bar or icon without the cell's value.
+	BarOnly bool
 }
 
 // ScalePoint is a point of a color scale: where it is among the values,
@@ -85,12 +94,20 @@ func PointKinds() []PointKind {
 }
 
 // IsScale reports whether the rule is a color scale.
-func (f CondFormat) IsScale() bool { return len(f.Scale) > 0 }
+func (f CondFormat) IsScale() bool { return len(f.Scale) > 0 && !f.IsBar() && !f.IsIcons() }
+
 
 // Summary describes the rule in a few words, e.g. "Greater than 100".
 func (f CondFormat) Summary() string {
-	if f.IsScale() {
+	switch {
+	case f.IsBar():
+		return "Data bar"
+	case f.IsIcons():
+		return "Icon set: " + strings.ToLower(f.Icons.Title())
+	case f.IsScale():
 		return "Color scale"
+	case f.Op.Ranks():
+		return rankSummary(f.Op, f.Args[0])
 	}
 	switch f.Op.Args() {
 	case 1:
@@ -112,7 +129,12 @@ func (f CondFormat) Check() error {
 	if len(f.Ranges) == 0 {
 		return errors.New("Enter the range the rule applies to, e.g. A2:A100")
 	}
-	if f.IsScale() {
+	switch {
+	case f.IsBar():
+		return checkBar(f)
+	case f.IsIcons():
+		return checkIcons(f)
+	case f.IsScale():
 		return checkScale(f.Scale)
 	}
 	if !slices.Contains(CondFormatOps(), f.Op) {
@@ -141,9 +163,11 @@ func checkArg(op RuleOp, arg string) error {
 			return fmt.Errorf("Formula: %w", err)
 		}
 	case op == RuleDateIs || op == RuleDateBefore || op == RuleDateAfter:
-		if _, ok := dateArg(arg); !ok {
-			return errors.New("Enter a date, e.g. 2026-09-30, or today, tomorrow or yesterday")
+		if _, _, ok := datePeriod(arg); !ok {
+			return errors.New("Enter a date, e.g. 2026-09-30, or a period: today, past week, this month, last year ...")
 		}
+	case op.Ranks():
+		return checkRank(op, arg)
 	case op == RuleBetween || op == RuleNotBetween:
 		if _, _, ok := ParseValue(arg); !ok {
 			return errors.New("Enter a number")
@@ -177,22 +201,6 @@ func checkScale(ps []ScalePoint) error {
 		}
 	}
 	return nil
-}
-
-// dateArg reads a date condition's value: a date as typed, a number of
-// days, or today, tomorrow or yesterday, as Sheets offers them.
-func dateArg(arg string) (float64, bool) {
-	today := float64(int64(numfmt.SerialOf(value.Now())))
-	switch strings.ToLower(strings.TrimSpace(arg)) {
-	case "today":
-		return today, true
-	case "tomorrow":
-		return today + 1, true
-	case "yesterday":
-		return today - 1, true
-	}
-	n, _, ok := ParseValue(strings.TrimSpace(arg))
-	return float64(int64(n)), ok
 }
 
 // CondFormats returns the sheet's conditional format rules, in the order

@@ -23,11 +23,24 @@ type Look struct {
 	Scaled   bool
 	From, To Color
 	Pos      float64
+	// Bar is set when a data bar draws across the cell, BarLen of the
+	// way (0 to 1), in BarColor.
+	Bar      bool
+	BarColor Color
+	BarLen   float64
+	// Icon, when set, is the icon an icon set draws at the cell's left,
+	// in IconColor.
+	Icon      string
+	IconColor Color
+	// ValueHidden is set when a data bar or icon shows without the
+	// cell's value.
+	ValueHidden bool
 
 	Checkbox bool // a checkbox, checked when Checked
 	Checked  bool
-	Dropdown bool // offers a list to pick from
-	Invalid  bool // holds what its validation rule doesn't accept
+	Dropdown bool        // offers a list to pick from
+	Display  DropDisplay // how it shows that it does
+	Invalid  bool        // holds what its validation rule doesn't accept
 }
 
 // Looks are worked out per cell as the screen asks for them, and kept
@@ -42,6 +55,8 @@ type looksCache struct {
 	cells  map[Addr]Look
 	tests  map[int]*ruleTest       // compiled conditional formats by index
 	scales map[int]*scaleStats     // color scales' points by index
+	bars   map[int]*barStats       // data bars' and icon sets' points by index
+	ranks  map[int]*rankStats      // what ranking rules compare with, by index
 	lists  map[int]map[string]bool // dropdown sources' values by validation index
 	rd     *reader
 }
@@ -57,7 +72,7 @@ func (c *looksCache) fresh(s *Sheet) {
 		return
 	}
 	*c = looksCache{wb: s.wb, gen: s.wb.gen, valid: true, cells: map[Addr]Look{}, tests: map[int]*ruleTest{},
-		scales: map[int]*scaleStats{}, lists: map[int]map[string]bool{}}
+		scales: map[int]*scaleStats{}, lists: map[int]map[string]bool{}, bars: map[int]*barStats{}, ranks: map[int]*rankStats{}}
 }
 
 // HasRules reports whether the sheet has conditional formats or data
@@ -86,28 +101,51 @@ func (c *looksCache) look(s *Sheet, a Addr) Look {
 	var l Look
 	v := s.Value(a)
 	for i, f := range s.rules.formats {
-		if !inRanges(f.Ranges, a) {
-			continue
-		}
-		if f.IsScale() {
-			if pos, from, to, ok := c.scale(s, i).place(v); ok {
-				l.Scaled, l.Pos, l.From, l.To = true, pos, from, to
-				break
-			}
-			continue
-		}
-		if c.test(s, i).match(c, s, a, v) {
-			l.Styled, l.Style = true, f.Style
+		if inRanges(f.Ranges, a) && c.apply(s, i, f, a, v, &l) {
 			break
 		}
 	}
 	if i := s.validationIndex(a); i >= 0 {
-		k := s.rules.validations[i].Kind
-		l.Checkbox, l.Dropdown = k == ValidCheckbox, k.Dropdown()
-		l.Checked = l.Checkbox && v.Kind == Bool && v.Num != 0
+		r := s.rules.validations[i]
+		l.Checkbox, l.Dropdown, l.Display = r.Kind == ValidCheckbox, r.Kind.Dropdown(), r.Display
+		l.Checked = l.Checkbox && r.isChecked(v, s.ShownText(a))
 		l.Invalid = s.cells.filledAt(a) && !c.check(s, i, a, v, s.DisplayFormat(a))
 	}
 	return l
+}
+
+// apply sets what rule i (f) draws on the cell at a, of value v, on l,
+// reporting whether it applies there.
+func (c *looksCache) apply(s *Sheet, i int, f CondFormat, a Addr, v Value, l *Look) bool {
+	switch {
+	case f.IsBar():
+		n, ok := c.bar(s, i).barLook(v)
+		if ok {
+			l.Bar, l.BarLen, l.BarColor, l.ValueHidden = true, n, f.Bar, f.BarOnly
+		}
+		return ok
+	case f.IsIcons():
+		k, ok := c.bar(s, i).icon(v, f.Reverse)
+		if ok {
+			n := len(f.Scale) + 1
+			l.Icon, l.IconColor, l.ValueHidden = f.Icons.Glyphs(n)[k], f.Icons.IconColor(k, n), f.BarOnly
+		}
+		return ok
+	case f.IsScale():
+		pos, from, to, ok := c.scale(s, i).place(v)
+		if ok {
+			l.Scaled, l.Pos, l.From, l.To = true, pos, from, to
+		}
+		return ok
+	case f.Op.Ranks():
+		if !c.rank(s, i).match(f.Op, v) {
+			return false
+		}
+	case !c.test(s, i).match(c, s, a, v):
+		return false
+	}
+	l.Styled, l.Style = true, f.Style
+	return true
 }
 
 // reader reads current values for rules' formulas.
@@ -175,7 +213,8 @@ func (t *ruleTest) parse(op RuleOp, args [2]string) {
 		case IsFormulaEntry(arg):
 			t.args[k], _ = Parse(arg)
 		case op == RuleDateIs || op == RuleDateBefore || op == RuleDateAfter:
-			t.nums[k], t.isNum[k] = dateArg(arg)
+			t.nums[0], t.nums[1], t.isNum[0] = datePeriod(arg)
+			t.isNum[1] = t.isNum[0]
 		default:
 			n, _, ok := ParseValue(arg)
 			t.nums[k], t.isNum[k] = n, ok
@@ -216,12 +255,18 @@ func (t *ruleTest) match(c *looksCache, s *Sheet, a Addr, v Value) bool {
 		return false
 	}
 	switch t.op {
-	case RuleDateIs:
-		return float64(int64(x)) == float64(int64(lo.Num))
-	case RuleDateBefore:
-		return float64(int64(x)) < float64(int64(lo.Num))
-	case RuleDateAfter:
-		return float64(int64(x)) > float64(int64(lo.Num))
+	case RuleDateIs, RuleDateBefore, RuleDateAfter:
+		first, last, day := float64(int64(lo.Num)), float64(int64(lo.Num)), float64(int64(x))
+		if t.args[0] == nil && t.isNum[1] {
+			last = t.nums[1] // a period's last day
+		}
+		switch t.op {
+		case RuleDateIs:
+			return day >= first && day <= last
+		case RuleDateBefore:
+			return day < first
+		}
+		return day > last
 	}
 	hi := t.arg(c, s, 1, a)
 	return hi.Kind == Number && compareNum(t.op, x, lo.Num, hi.Num)
@@ -326,7 +371,7 @@ func (c *looksCache) check(s *Sheet, i int, a Addr, v Value, f Format) bool {
 	case ValidRange:
 		return v.Kind == Empty || c.list(s, i)[strings.ToLower(strings.TrimSpace(FormatText(v, f)))]
 	case ValidCheckbox:
-		return v.Kind == Bool || v.Kind == Empty
+		return r.checkboxValid(v, FormatText(v, f))
 	case ValidFormula:
 		n, err := Parse(strings.TrimSpace(r.Args[0]))
 		return err == nil && truthy(c.evalFrom(s, n, anchor(r.Ranges), a))

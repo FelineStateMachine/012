@@ -182,10 +182,6 @@ func (m *Model) pickItem(a sheet.Addr, item string) {
 func (m *Model) toggleCheckboxes() tea.Cmd {
 	s := m.sheet
 	on := !s.Look(m.cur).Checked
-	input := "FALSE"
-	if on {
-		input = "TRUE"
-	}
 	targets := []sheet.Addr{m.cur}
 	r := m.selection()
 	if used, ok := s.UsedRange(); r.AllRows() || r.AllCols() {
@@ -210,7 +206,7 @@ func (m *Model) toggleCheckboxes() tea.Cmd {
 	}
 	err := s.Batch(sheet.Change{Label: label, Focus: r, Sheet: s}, func() error {
 		for _, a := range targets {
-			if err := s.Set(a, input); err != nil {
+			if err := s.Set(a, s.CheckboxInput(a, on)); err != nil {
 				return err
 			}
 		}
@@ -259,27 +255,47 @@ func (m *Model) checkEntry(input string) (warn string, ok bool) {
 	return bad.Error(), true
 }
 
-// checkWritten checks what a paste or fill (what) wrote into r against
-// the cells' validation, as Sheets does: when a rule that rejects fails,
-// the whole change is taken back and ERROR mode says why; when only
-// rules that warn fail, it stays, the cells are marked, and the context
-// line says how many. It reports whether the change stayed.
-func (m *Model) checkWritten(r sheet.Rect, what string) bool {
-	if !m.sheet.HasRules() {
-		return true
-	}
-	bad := m.sheet.InvalidIn(r)
-	for _, b := range bad {
-		if b.Reject {
-			m.sheet.Discard()
-			m.fail(what + " undone: " + b.Error())
+// writeChecked runs a paste or fill (what), which returns the range it
+// wrote, and checks what it wrote against the cells' validation, as
+// Sheets does: when a rule that rejects fails, the whole change is
+// taken back and ERROR mode says why; when only rules that warn fail,
+// it stays, the cells are marked, and the context line says how many.
+// Inside a macro's run, taking it back leaves the rest of the run as it
+// is (sheet.Workbook.Try). It reports the range and whether the change
+// stayed.
+func (m *Model) writeChecked(what string, write func() (sheet.Rect, error)) (sheet.Rect, bool) {
+	s := m.sheet
+	var r sheet.Rect
+	var bad []*sheet.InvalidEntry
+	var refused *sheet.InvalidEntry
+	kept, err := m.book().Try(func() error {
+		var err error
+		r, err = write()
+		return err
+	}, func() bool {
+		if !s.HasRules() {
 			return false
 		}
-	}
-	if len(bad) > 0 {
+		bad = s.InvalidIn(r)
+		for _, b := range bad {
+			if b.Reject {
+				refused = b
+				return true
+			}
+		}
+		return false
+	})
+	switch {
+	case err != nil:
+		m.fail(err.Error())
+		return r, false
+	case !kept:
+		m.fail(what + " undone: " + refused.Error())
+		return r, false
+	case len(bad) > 0:
 		m.warn = invalidNote(bad)
 	}
-	return true
+	return r, true
 }
 
 // checkEntryFill handles the cells an entry filled (Ctrl+Enter) that fail

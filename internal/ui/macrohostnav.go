@@ -121,7 +121,9 @@ func (h scriptHost) Enter(text string, fill bool, origin string) error {
 		}
 	}
 	if fill {
-		return m.sheet.FillEntry(m.selection(), m.cur, text)
+		r := m.selection()
+		m.writeChecked("Fill", func() (sheet.Rect, error) { return r, m.sheet.FillEntry(r, m.cur, text) })
+		return h.failed()
 	}
 	if bad := m.sheet.CheckEntry(m.cur, text); bad != nil && bad.Reject {
 		return bad
@@ -136,11 +138,21 @@ func (h scriptHost) Enter(text string, fill bool, origin string) error {
 func (h scriptHost) PasteText(text string) error {
 	m := h.m
 	if !m.pasteText(text) {
-		if err := m.sheet.Set(m.cur, strings.TrimSpace(text)); err != nil {
+		entry := strings.TrimSpace(text)
+		if bad := m.sheet.CheckEntry(m.cur, entry); bad != nil && bad.Reject {
+			return fmt.Errorf("Paste undone: %w", bad)
+		}
+		if err := m.sheet.Set(m.cur, entry); err != nil {
 			return err
 		}
 	}
-	if m.mode == modeError {
+	return h.failed()
+}
+
+// failed is the script's error for what a command just reported to the
+// user in ERROR mode, if it did.
+func (h scriptHost) failed() error {
+	if h.m.mode == modeError {
 		return h.failure()
 	}
 	return nil
@@ -258,9 +270,9 @@ func (h scriptHost) Fill(to string, rows, cols int) error {
 	if !dst.From.Valid() || !dst.To.Valid() {
 		return errors.New("the fill goes off the sheet")
 	}
-	got, err := m.sheet.FillSeries(src, dst)
-	if err != nil {
-		return err
+	got, ok := m.writeChecked("Fill", func() (sheet.Rect, error) { return m.sheet.FillSeries(src, dst) })
+	if !ok {
+		return h.failed()
 	}
 	m.selectRect(got)
 	return nil

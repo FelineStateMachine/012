@@ -87,6 +87,10 @@ type Validation struct {
 	Reject bool
 	// Help replaces the rule's own help text, shown on the context line.
 	Help string
+	// Display is how a dropdown's cells show it (validstyle.go). A
+	// checkbox's Items, when it has any, are its checked and unchecked
+	// values.
+	Display DropDisplay
 }
 
 func (v Validation) clone() Validation {
@@ -103,6 +107,8 @@ func (v Validation) Check() error {
 		return errors.New("Choose the criteria")
 	case v.Kind == ValidList && len(v.Items) == 0:
 		return errors.New("Enter the items, separated by commas")
+	case v.Kind == ValidCheckbox:
+		return v.checkCheckbox()
 	case v.Kind == ValidRange:
 		if _, _, ok := v.SourceRange(); !ok {
 			return errors.New("Enter the range the items are in, e.g. Lists!A1:A20")
@@ -160,8 +166,18 @@ func (v Validation) Summary() string {
 		return "Custom formula " + v.Args[0]
 	case v.Kind.Compares():
 		return v.Kind.Title() + " " + compareText(v.Kind, v.Op, v.Args)
+	case v.Kind == ValidCheckbox && len(v.Items) > 0:
+		on, off, _ := v.CheckboxValues()
+		return "Checkbox: " + on + " or " + cmpOr(off, "blank")
 	}
 	return v.Kind.Title()
+}
+
+func cmpOr(s, alt string) string {
+	if s == "" {
+		return alt
+	}
+	return s
 }
 
 // compareText is a comparison in words: "between 1 and 10", "after 1/1/2026".
@@ -196,7 +212,11 @@ func (v Validation) HelpText() string {
 	case ValidRange:
 		return "Input must fall within specified range"
 	case ValidCheckbox:
-		return "Input must be TRUE or FALSE"
+		on, off, _ := v.CheckboxValues()
+		if off == "" {
+			return "Input must be " + on + " or blank"
+		}
+		return "Input must be " + on + " or " + off
 	case ValidNumber:
 		return "Input must be a number " + compareText(v.Kind, v.Op, v.Args)
 	case ValidDate:

@@ -86,3 +86,35 @@ func TestRulesMoveWithCutAndPaste(t *testing.T) {
 		t.Errorf("a move was refused: %s", screen(m))
 	}
 }
+
+// A macro's pastes and fills meet validation as the keys' do: a rule
+// that rejects takes that paste or fill back and fails the script with
+// the reason, leaving what the script did before it; a rule that warns
+// keeps it.
+func TestValidationOnMacroPastesAndFills(t *testing.T) {
+	m := newModel()
+	mustValidate(t, m, `{"ranges":"B1:B9","criteria":"number","condition":"between","values":["1","10"],"reject":true}`)
+	script(t, m, `set("A1", 5)
+select("B1:B3")
+enter("=A1*2", fill=True)`)
+	if !strings.Contains(m.warn, "Fill undone: Invalid entry in B2") || input(m, "B1") != "" || m.sheet.Value(addr("A1")).Num != 5 {
+		t.Errorf("fill: warn %q, B1 %q, A1 %v", m.warn, input(m, "B1"), m.sheet.Value(addr("A1")))
+	}
+	m = newModel()
+	mustValidate(t, m, `{"ranges":"B1:B9","criteria":"number","condition":"between","values":["1","10"],"reject":true}`)
+	script(t, m, `set("A1", 5)
+set("A2", 50)
+set_formula("B1", "A1*2")
+select("B1")
+fill(rows=2)`)
+	if !strings.Contains(m.warn, "Fill undone: Invalid entry in B2") || input(m, "B2") != "" || input(m, "B1") != "=A1*2" {
+		t.Errorf("series: warn %q, B2 %q", m.warn, input(m, "B2"))
+	}
+	m = newModel()
+	mustValidate(t, m, `{"ranges":"B1:B9","criteria":"number","condition":"between","values":["1","10"],"reject":true}`)
+	script(t, m, `select("B1")
+paste_text("3\n30")`)
+	if !strings.Contains(m.warn, "Paste undone") || input(m, "B1") != "" {
+		t.Errorf("paste: warn %q, B1 %q", m.warn, input(m, "B1"))
+	}
+}

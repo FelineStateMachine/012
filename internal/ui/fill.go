@@ -87,13 +87,12 @@ func (m *Model) finishFill() {
 	}
 	m.recordFlush()
 	span := m.spans.Start("fill", slog.Int("cells", (dst.To.Row-dst.From.Row+1)*(dst.To.Col-dst.From.Col+1)))
-	got, err := m.sheet.FillSeries(src, dst)
-	span.Fail(err)
-	if err != nil {
-		m.fail(err.Error())
-		return
-	}
-	if !m.checkWritten(got, "Fill") {
+	got, ok := m.writeChecked("Fill", func() (sheet.Rect, error) {
+		got, err := m.sheet.FillSeries(src, dst)
+		span.Fail(err)
+		return got, err
+	})
+	if !ok {
 		return
 	}
 	m.changed = true

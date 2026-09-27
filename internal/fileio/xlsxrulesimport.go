@@ -82,7 +82,7 @@ func (bk *xlsxBook) loadRules(s *sheet.Sheet, r *xlsxSheetReader) {
 		bk.skips.skip(false, "that 012 can't check")
 	}
 	for range r.extRules {
-		bk.skips.skip(true, "in Excel 2010's extension (data bars, icon sets)")
+		bk.skips.skip(true, "in Excel 2010's extension (its own icon sets and the like)")
 	}
 }
 
@@ -109,9 +109,7 @@ var cfOps = func() map[string]sheet.RuleOp {
 }()
 
 // unsupported names the conditional formats 012 has no rule for.
-var unsupported = map[string]string{"dataBar": "data bars", "iconSet": "icon sets", "top10": "top or bottom values",
-	"aboveAverage": "above or below average", "duplicateValues": "duplicate values", "uniqueValues": "unique values",
-	"containsErrors": "errors", "notContainsErrors": "errors"}
+var unsupported = map[string]string{"containsErrors": "errors", "notContainsErrors": "errors"}
 
 // condFormat is an Excel rule as 012's, or why it was left out.
 func (bk *xlsxBook) condFormat(c xlsxCF) (sheet.CondFormat, string) {
@@ -141,10 +139,17 @@ func (bk *xlsxBook) condFormat(c xlsxCF) (sheet.CondFormat, string) {
 	case "notContainsBlanks":
 		f.Op = sheet.RuleNotEmpty
 	case "timePeriod":
-		if c.period != "today" && c.period != "tomorrow" && c.period != "yesterday" {
-			return f, "dates in periods other than today, tomorrow and yesterday"
+		word, ok := periodWord(c.period)
+		if !ok {
+			return f, "dates in periods 012 doesn't know"
 		}
-		f.Op, f.Args[0] = sheet.RuleDateIs, c.period
+		f.Op, f.Args[0] = sheet.RuleDateIs, word
+	case "top10", "aboveAverage", "duplicateValues", "uniqueValues":
+		return rankRuleOf(f, c)
+	case "dataBar":
+		return barRule(f, c)
+	case "iconSet":
+		return iconRule(f, c)
 	case "expression":
 		if op, day, ok := dateExpression(first()); ok {
 			f.Op, f.Args[0] = op, day
@@ -254,6 +259,9 @@ func validationOf(d xlsxDV) (sheet.Validation, string) {
 	v := sheet.Validation{Ranges: rs, Reject: d.showErr && d.style == "stop", Help: cmp.Or(d.prompt, d.err)}
 	switch k, ok := validKinds[d.typ]; {
 	case d.typ == "list":
+		if d.hideArrow {
+			v.Display = sheet.DropPlain
+		}
 		return listRule(v, d.formulas[0])
 	case d.typ == "none" || d.typ == "":
 		return v, "any"

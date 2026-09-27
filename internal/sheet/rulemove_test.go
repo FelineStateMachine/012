@@ -73,3 +73,55 @@ func TestInvalidInAndDiscard(t *testing.T) {
 		t.Error("still invalid after discarding")
 	}
 }
+
+// Cut on one sheet and pasted on another, the cells take their rules
+// along: they leave the source's rules, the cells they land on lose
+// theirs, and a moved formula reads the cells it read, naming the sheet
+// it came from.
+func TestRulesMoveToAnotherSheet(t *testing.T) {
+	s := New()
+	for r := range 4 {
+		s.Set(Addr{Row: r}, "5")
+	}
+	mustAdd(t, s, CondFormat{Ranges: ranges("A1:A4"), Op: RuleGreater, Args: [2]string{"2"}, Style: green})
+	mustAdd(t, s, CondFormat{Ranges: ranges("A1:A4"), Op: RuleFormula, Args: [2]string{"=$B1>0"}, Style: green})
+	if err := s.AddValidation(Validation{Ranges: ranges("A2:A3"), Kind: ValidList, Items: []string{"5"}}); err != nil {
+		t.Fatal(err)
+	}
+	other, err := s.Book().AddSheet("Other", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdd(t, other, CondFormat{Ranges: ranges("C1:C2"), Op: RuleEmpty, Style: green})
+	mustAdd(t, other, CondFormat{Ranges: ranges("D1"), Op: RuleEqual, Args: [2]string{"=C1"}, Style: green})
+	if _, err := s.MoveTo(other, rect("A2:A3"), at("C1")); err != nil {
+		t.Fatal(err)
+	}
+	fs := s.CondFormats()
+	if len(fs) != 2 || RangesText(fs[0].Ranges) != "A1,A4" || RangesText(fs[1].Ranges) != "A1,A4" || fs[1].Args[0] != "=$B1>0" {
+		t.Errorf("source formats %+v", fs)
+	}
+	if len(s.Validations()) != 0 {
+		t.Errorf("source validations %+v", s.Validations())
+	}
+	ofs := other.CondFormats()
+	if len(ofs) != 3 {
+		t.Fatalf("destination formats %+v", ofs)
+	}
+	if RangesText(ofs[0].Ranges) != "D1" || RangesText(ofs[1].Ranges) != "C1:C2" || ofs[1].Op != RuleGreater {
+		t.Errorf("destination %s %s", RangesText(ofs[0].Ranges), RangesText(ofs[1].Ranges))
+	}
+	if ofs[2].Args[0] != "=Sheet1!$B2>0" {
+		t.Errorf("moved formula %q", ofs[2].Args[0])
+	}
+	if vs := other.Validations(); len(vs) != 1 || RangesText(vs[0].Ranges) != "C1:C2" {
+		t.Errorf("destination validations %+v", vs)
+	}
+	if !other.Look(at("C1")).Styled {
+		t.Error("the moved rule doesn't draw")
+	}
+	s.Book().Undo()
+	if len(s.CondFormats()) != 2 || RangesText(s.CondFormats()[0].Ranges) != "A1:A4" || len(other.CondFormats()) != 2 || len(s.Validations()) != 1 {
+		t.Errorf("undo: %+v %+v", s.CondFormats(), other.CondFormats())
+	}
+}

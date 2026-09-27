@@ -373,73 +373,7 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		st = h.redo[len(h.redo)-1]
 		h.redo = h.redo[:len(h.redo)-1]
 	}
-	// The inverse keeps the step's ID: on the redo stack, an ID names the
-	// state the step leads back to.
-	inv := newStep(st.label, st.sheet, st.focus)
-	inv.id = st.id
-	// The sheet list goes first, so cells land on attached sheets.
-	if st.sheets != nil {
-		inv.sheets = w.sheetList()
-		w.setSheets(st.sheets)
-	}
-	var changed []loc
-	for s, img := range st.cells {
-		img.each(func(a Addr, c *Cell) {
-			inv.keep(s, a)
-			s.place(a, c)
-			changed = append(changed, loc{s, a})
-		})
-	}
-	for k, width := range st.widths {
-		inv.widths[k] = k.s.widths[k.col]
-		k.s.setWidth(k.col, width)
-	}
-	for k, h := range st.heights {
-		inv.keepHeight(k, k.s.heights[k.row])
-		k.s.setHeight(k.row, h)
-	}
-	for k, l := range st.lines {
-		inv.lines[k] = k.s.line(k.row, k.n)
-		k.s.setLine(k.row, k.n, l)
-		changed = append(changed, k.s.lineChanged(k.row, k.n)...)
-	}
-	for k, n := range st.names {
-		inv.names[k] = w.namePtr(k)
-		changed = append(changed, w.putName(k, n)...)
-	}
-	for s, charts := range st.charts {
-		inv.charts[s] = s.charts
-		s.charts = slices.Clone(charts)
-	}
-	for s, p := range st.pivots {
-		inv.pivots[s] = s.pivot.def
-		s.pivot.def, s.pivot.stale = p, true
-	}
-	for s, r := range st.rules {
-		inv.rules[s] = s.rules
-		s.rules = r
-		s.looks.reset()
-	}
-	if st.settings != nil {
-		cur := w.settings
-		inv.settings, w.settings = &cur, *st.settings
-		// Every formula computes differently in the other arithmetic.
-		w.structural = w.structural || cur.decimal != w.decimal
-	}
-	if st.macros != nil {
-		cur := w.macros
-		inv.macros, w.macros = &cur, slices.Clone(*st.macros)
-	}
-	for s, v := range st.views {
-		cur := s.view
-		inv.views[s] = &cur
-		s.view = *v
-		s.hidden.valid = false
-		if !slices.Equal(cur.merges, v.merges) {
-			s.version++
-			s.respill(Rect{To: Addr{Col: MaxCols - 1, Row: MaxRows - 1}})
-		}
-	}
+	inv, changed := w.restore(st)
 	w.recalcSwapped(changed)
 	if undo {
 		h.redo = append(h.redo, inv)

@@ -60,29 +60,36 @@ func (m *Model) paste(values bool) tea.Cmd {
 		m.note = "Nothing to paste: copy with Ctrl+C first"
 		return nil
 	}
-	var r, moved sheet.Rect
-	var err error
-	if c.cut && !values {
-		if !c.sheet.Live() {
+	var moved sheet.Rect
+	if c.cut && !values && !c.sheet.Live() {
+		m.copied = clipboard{}
+		m.note = "Nothing to move: the cut cells' sheet was deleted"
+		return nil
+	}
+	write := func() (sheet.Rect, error) {
+		if c.cut && !values {
+			moved = c.clip.MoveRange(m.cur)
 			m.copied = clipboard{}
-			m.note = "Nothing to move: the cut cells' sheet was deleted"
+			return c.sheet.MoveTo(m.sheet, moved, m.cur)
+		}
+		m.copied.keep = true
+		return m.sheet.Paste(c.clip, m.selection(), values)
+	}
+	// Cells moved take their rules along (sheet.Move, sheet.MoveTo),
+	// so what's pasted meets the rules where it lands only when copied.
+	check := !c.cut || values
+	var r sheet.Rect
+	if check {
+		var ok bool
+		if r, ok = m.writeChecked("Paste", write); !ok {
 			return nil
 		}
-		moved = c.clip.MoveRange(m.cur)
-		r, err = c.sheet.MoveTo(m.sheet, moved, m.cur)
-		m.copied = clipboard{}
 	} else {
-		r, err = m.sheet.Paste(c.clip, m.selection(), values)
-		m.copied.keep = true
-	}
-	if err != nil {
-		m.fail(err.Error())
-		return nil
-	}
-	// Cells moved on their sheet take their rules along (sheet.Move);
-	// anything else meets the rules where it lands.
-	if (!c.cut || values || c.sheet != m.sheet) && !m.checkWritten(r, "Paste") {
-		return nil
+		var err error
+		if r, err = write(); err != nil {
+			m.fail(err.Error())
+			return nil
+		}
 	}
 	m.selectRect(r)
 	switch {
@@ -164,22 +171,24 @@ func (m *Model) pasteText(content string) bool {
 	if m.refuseEdit(r, false) {
 		return true
 	}
-	m.sheet.Batch(sheet.Change{Label: "paste into " + r.String(), Focus: r}, func() error {
-		for i, row := range rows {
-			for j := range width {
-				var v string
-				if j < len(row) {
-					v = row[j]
-				}
-				a := sheet.Addr{Col: r.From.Col + j, Row: r.From.Row + i}
-				if m.sheet.Set(a, m.storedEntry(v)) != nil {
-					m.sheet.Set(a, "'"+v) // a broken formula stays as text
+	_, ok := m.writeChecked("Paste", func() (sheet.Rect, error) {
+		return r, m.sheet.Batch(sheet.Change{Label: "paste into " + r.String(), Focus: r}, func() error {
+			for i, row := range rows {
+				for j := range width {
+					var v string
+					if j < len(row) {
+						v = row[j]
+					}
+					a := sheet.Addr{Col: r.From.Col + j, Row: r.From.Row + i}
+					if m.sheet.Set(a, m.storedEntry(v)) != nil {
+						m.sheet.Set(a, "'"+v) // a broken formula stays as text
+					}
 				}
 			}
-		}
-		return nil
+			return nil
+		})
 	})
-	if !m.checkWritten(r, "Paste") {
+	if !ok {
 		return true
 	}
 	m.selectRect(r)

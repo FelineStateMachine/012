@@ -165,7 +165,9 @@ line:
 ```json
   "conditionalFormats": [
     {"ranges":"A2:A6","condition":"formula","values":["=$D2"],"text":"green","strikethrough":true},
-    {"ranges":"C2:C6","scale":[{"type":"min","color":"green"},{"type":"percentile","value":"50","color":"yellow"},{"type":"max","color":"red"}]}
+    {"ranges":"C2:C6","scale":[{"type":"min","color":"green"},{"type":"percentile","value":"50","color":"yellow"},{"type":"max","color":"red"}]},
+    {"ranges":"E2:E6","dataBar":{"color":"blue","min":{"type":"min"},"max":{"type":"max"}}},
+    {"ranges":"F2:F6","iconSet":{"icons":"arrows","points":[{"type":"percent","value":"33"},{"type":"percent","value":"67"}]}}
   ],
   "validations": [
     {"ranges":"B2:B6","criteria":"list","items":["Ann","Bo","Cy"],"help":"Pick who does it"},
@@ -178,17 +180,29 @@ line:
 - A single-color rule has a `condition` (`empty`, `not_empty`, `contains`,
   `not_contains`, `starts_with`, `ends_with`, `exactly`, `date_is`,
   `date_before`, `date_after`, `gt`, `ge`, `lt`, `le`, `eq`, `ne`,
-  `between`, `not_between`, `formula`), its `values` as typed, and its
-  style: `text` and `fill` colors (`red`, `yellow`, `green`, `cyan`,
-  `blue`, `magenta`) and `bold`, `italic`, `underline`, `strikethrough`.
+  `between`, `not_between`, `formula`, and those comparing a cell with
+  the rest: `top`, `bottom`, `top_percent`, `bottom_percent`,
+  `above_average`, `below_average`, `duplicate`, `unique`), its `values`
+  as typed (a date rule's may be a period: `this week`), and its style:
+  `text` and `fill` colors (`red`, `yellow`, `green`, `cyan`, `blue`,
+  `magenta`) and `bold`, `italic`, `underline`, `strikethrough`.
 - A color scale has `scale`: two or three points, each a `type` (`min`,
   `max`, `num`, `percent`, `percentile`), a `value` where it takes one,
   and a `color`.
+- A data bar has `dataBar`: its `color`, its `min` and `max` points as a
+  scale's, and `barOnly` to hide the values. An icon set has `iconSet`:
+  its `icons` (`arrows`, `circles`, `symbols`, `rating`), the `points`
+  where each icon after the first starts, `reverse` for the other way
+  round and `iconOnly` to hide the values. Older builds leave both out.
 - A validation rule has `criteria` (`list`, `range`, `checkbox`,
   `number`, `date`, `length`, `formula`) with its `items`, `source`
   (`Lists!A1:A20`), or `condition` (`between`, `not_between`, `eq`, `ne`,
   `gt`, `ge`, `lt`, `le`; none for any date) and `values`; `reject` refuses
-  invalid entries, and `help` replaces the rule's own help text.
+  invalid entries, and `help` replaces the rule's own help text. A
+  checkbox's `items`, when it has them, are its checked and unchecked
+  values (`["Yes", "No"]`); a dropdown's `display` is `chip` or `plain`
+  when it doesn't show the arrow. Older builds draw every dropdown with
+  its arrow, and a checkbox with values of its own as invalid entries.
 
 A line of either list is also what Add conditional format rule and Add
 data validation rule take (in the palette, and as `run(...,

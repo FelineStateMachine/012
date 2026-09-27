@@ -134,12 +134,7 @@ func (g *grid) selectRect(r sheet.Rect) {
 }
 
 func (m *Model) fill(fn func(sheet.Rect) (sheet.Rect, error)) tea.Cmd {
-	r, err := fn(m.selection())
-	if err != nil {
-		m.fail(err.Error())
-		return nil
-	}
-	m.checkWritten(r, "Fill")
+	m.writeChecked("Fill", func() (sheet.Rect, error) { return fn(m.selection()) })
 	return nil
 }
 

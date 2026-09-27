@@ -119,7 +119,12 @@ var textRules = map[sheet.RuleOp]struct{ typ, op, formula string }{
 // cfRule writes rule f as a <cfRule> of priority p, or reports false
 // when Excel can't take it.
 func (w *xlsxWriter) cfRule(f sheet.CondFormat, p int) (string, bool) {
-	if f.IsScale() {
+	switch {
+	case f.IsBar():
+		return dataBarXML(f, p), true
+	case f.IsIcons():
+		return iconSetXML(f, p)
+	case f.IsScale():
 		return colorScaleXML(f.Scale, p), true
 	}
 	cell := excelRect(sheet.Rect{From: f.Ranges[0].From, To: f.Ranges[0].From})
@@ -143,8 +148,12 @@ func (w *xlsxWriter) cfRule(f sheet.CondFormat, p int) (string, bool) {
 			formulas(fmt.Sprintf(t.formula, cell, excelText(arg))) + "</cfRule>", true
 	case op == sheet.RuleExactly && !sheet.IsFormulaEntry(arg):
 		return fmt.Sprintf(head, "cellIs") + ` operator="equal">` + formulas(excelText(arg)) + "</cfRule>", true
+	case (op == sheet.RuleDateIs || op == sheet.RuleDateBefore || op == sheet.RuleDateAfter) && sheet.IsPeriod(arg):
+		return periodRule(head, cell, op, arg)
 	case op == sheet.RuleDateIs || op == sheet.RuleDateBefore || op == sheet.RuleDateAfter:
 		return w.dateRule(head, cell, op, arg)
+	case op.Ranks():
+		return rankRule(head, op, arg), true
 	case op == sheet.RuleFormula:
 		fx, ok := toExcelFormula(arg, w.renamed)
 		return fmt.Sprintf(head, "expression") + ">" + formulas(fx) + "</cfRule>", ok
@@ -214,6 +223,12 @@ func (w *xlsxWriter) validation(v sheet.Validation) (string, bool) {
 		fs = []string{excelText(list)}
 	case sheet.ValidCheckbox:
 		fs = []string{`"TRUE,FALSE"`}
+		if on, off, custom := v.CheckboxValues(); custom {
+			// Excel has no checkbox of other values: a list of them.
+			list := strings.Trim(on+","+off, ",")
+			ok = !strings.ContainsAny(on+off, `,"`)
+			fs = []string{excelText(list)}
+		}
 	case sheet.ValidRange:
 		name, r, rok := v.SourceRange()
 		ref, _ := strings.CutPrefix(excelRange("x", r), sheet.QuoteSheet("x")+"!")
@@ -246,6 +261,9 @@ func (w *xlsxWriter) validation(v sheet.Validation) (string, bool) {
 	fmt.Fprintf(&b, `<dataValidation type="%s"`, typ)
 	if op != "" {
 		fmt.Fprintf(&b, ` operator="%s"`, op)
+	}
+	if v.Kind.Dropdown() && v.Display == sheet.DropPlain {
+		b.WriteString(` showDropDown="1"`) // Excel's name for hiding the arrow
 	}
 	style := "stop"
 	if !v.Reject {

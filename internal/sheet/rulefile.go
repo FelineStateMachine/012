@@ -13,7 +13,9 @@ import (
 //
 //	"conditionalFormats": [
 //	  {"ranges": "B2:B20", "condition": "gt", "values": ["100"], "fill": "green", "bold": true},
-//	  {"ranges": "C2:C20", "scale": [{"type": "min", "color": "red"}, {"type": "max", "color": "green"}]}
+//	  {"ranges": "C2:C20", "scale": [{"type": "min", "color": "red"}, {"type": "max", "color": "green"}]},
+//	  {"ranges": "D2:D20", "dataBar": {"color": "blue", "min": {"type": "min"}, "max": {"type": "max"}}},
+//	  {"ranges": "E2:E20", "iconSet": {"icons": "arrows", "points": [{"type": "percent", "value": "33"}, {"type": "percent", "value": "67"}]}}
 //	],
 //	"validations": [
 //	  {"ranges": "D2:D20", "criteria": "list", "items": ["Yes", "No"], "reject": true}
@@ -33,12 +35,52 @@ type fileCondFormat struct {
 	Underline bool         `json:"underline,omitempty"`
 	Strike    bool         `json:"strikethrough,omitempty"`
 	Scale     []fileScaled `json:"scale,omitempty"`
+	// Data bars and icon sets need no version bump: earlier builds ignore
+	// them, losing the rule, as they lose rules they don't know.
+	DataBar *fileBar   `json:"dataBar,omitempty"`
+	IconSet *fileIcons `json:"iconSet,omitempty"`
 }
 
 type fileScaled struct {
 	Type  string `json:"type"`
 	Value string `json:"value,omitempty"`
 	Color string `json:"color"`
+}
+
+// filePoint is a data bar's or icon set's point.
+type filePoint struct {
+	Type  string `json:"type"`
+	Value string `json:"value,omitempty"`
+}
+
+type fileBar struct {
+	Color   string    `json:"color"`
+	Min     filePoint `json:"min"`
+	Max     filePoint `json:"max"`
+	BarOnly bool      `json:"barOnly,omitempty"`
+}
+
+type fileIcons struct {
+	Icons    string      `json:"icons"`
+	Points   []filePoint `json:"points"`
+	Reverse  bool        `json:"reverse,omitempty"`
+	IconOnly bool        `json:"iconOnly,omitempty"`
+}
+
+func filePointOf(p ScalePoint) filePoint {
+	fp := filePoint{Type: p.Kind.String()}
+	if p.Kind.TakesValue() {
+		fp.Value = p.Value
+	}
+	return fp
+}
+
+func (fp filePoint) point() (ScalePoint, error) {
+	k, ok := ParsePointKind(fp.Type)
+	if !ok {
+		return ScalePoint{}, fmt.Errorf("invalid point %q", fp.Type)
+	}
+	return ScalePoint{Kind: k, Value: fp.Value}, nil
 }
 
 type fileValidation struct {
@@ -50,6 +92,9 @@ type fileValidation struct {
 	Source    string   `json:"source,omitempty"`
 	Reject    bool     `json:"reject,omitempty"`
 	Help      string   `json:"help,omitempty"`
+	// Display needs no version bump: earlier builds draw every dropdown
+	// with its arrow.
+	Display string `json:"display,omitempty"` // "chip" or "plain"
 }
 
 // values lists the first n of args, as files keep them.
@@ -64,7 +109,15 @@ func values(args [2]string, n int) []string {
 // {"ranges":"B2:B20","condition":"gt","values":["100"],"fill":"green"}.
 func (f CondFormat) JSON() string {
 	fc := fileCondFormat{Ranges: rangesText(f.Ranges)}
-	if f.IsScale() {
+	switch {
+	case f.IsBar() && len(f.Scale) == 2:
+		fc.DataBar = &fileBar{Color: f.Bar.String(), Min: filePointOf(f.Scale[0]), Max: filePointOf(f.Scale[1]), BarOnly: f.BarOnly}
+	case f.IsIcons():
+		fc.IconSet = &fileIcons{Icons: f.Icons.String(), Reverse: f.Reverse, IconOnly: f.BarOnly}
+		for _, p := range f.Scale {
+			fc.IconSet.Points = append(fc.IconSet.Points, filePointOf(p))
+		}
+	case f.IsScale():
 		for _, p := range f.Scale {
 			sp := fileScaled{Type: p.Kind.String(), Color: p.Color.String()}
 			if p.Kind.TakesValue() {
@@ -72,7 +125,7 @@ func (f CondFormat) JSON() string {
 			}
 			fc.Scale = append(fc.Scale, sp)
 		}
-	} else {
+	default:
 		st := f.Style
 		fc.Condition, fc.Values = f.Op.String(), values(f.Args, f.Op.Args())
 		fc.Text, fc.Fill = st.Text.String(), st.Fill.String()
@@ -101,6 +154,12 @@ func (fc fileCondFormat) rule() (CondFormat, error) {
 		return CondFormat{}, fmt.Errorf("invalid ranges %q", fc.Ranges)
 	}
 	f := CondFormat{Ranges: rs}
+	switch {
+	case fc.DataBar != nil:
+		return fc.DataBar.rule(f)
+	case fc.IconSet != nil:
+		return fc.IconSet.rule(f)
+	}
 	for _, sp := range fc.Scale {
 		k, ok := ParsePointKind(sp.Type)
 		c, cok := ParseColor(sp.Color)
@@ -124,12 +183,42 @@ func (fc fileCondFormat) rule() (CondFormat, error) {
 	return f, nil
 }
 
+func (fb *fileBar) rule(f CondFormat) (CondFormat, error) {
+	c, ok := ParseColor(fb.Color)
+	lo, err1 := fb.Min.point()
+	hi, err2 := fb.Max.point()
+	if !ok || c == ColorNone || err1 != nil || err2 != nil {
+		return CondFormat{}, fmt.Errorf("invalid data bar %q", fb.Color)
+	}
+	f.Bar, f.Scale, f.BarOnly = c, []ScalePoint{lo, hi}, fb.BarOnly
+	return f, nil
+}
+
+func (fi *fileIcons) rule(f CondFormat) (CondFormat, error) {
+	set, ok := ParseIconSet(fi.Icons)
+	if !ok || set == IconsNone || len(fi.Points) > 4 {
+		return CondFormat{}, fmt.Errorf("invalid icon set %q", fi.Icons)
+	}
+	f.Icons, f.Reverse, f.BarOnly = set, fi.Reverse, fi.IconOnly
+	for _, fp := range fi.Points {
+		p, err := fp.point()
+		if err != nil {
+			return CondFormat{}, err
+		}
+		f.Scale = append(f.Scale, p)
+	}
+	return f, nil
+}
+
 // JSON writes the rule as a line of the file, e.g.
 // {"ranges":"D2:D20","criteria":"list","items":["Yes","No"]}.
 func (v Validation) JSON() string {
 	fv := fileValidation{Ranges: rangesText(v.Ranges), Criteria: v.Kind.String(), Reject: v.Reject, Help: v.Help}
+	if v.Kind.Dropdown() {
+		fv.Display = v.Display.String()
+	}
 	switch {
-	case v.Kind == ValidList:
+	case v.Kind == ValidList, v.Kind == ValidCheckbox:
 		fv.Items = v.Items
 	case v.Kind == ValidRange:
 		fv.Source = v.Source
@@ -162,10 +251,11 @@ func (fv fileValidation) rule() (Validation, error) {
 	}
 	k, ok := ParseValidKind(fv.Criteria)
 	op, opOK := ParseRuleOp(fv.Condition)
-	if !ok || !opOK || len(fv.Values) > 2 {
+	d, dOK := ParseDropDisplay(fv.Display)
+	if !ok || !opOK || !dOK || len(fv.Values) > 2 {
 		return Validation{}, fmt.Errorf("invalid validation %q %q", fv.Criteria, fv.Condition)
 	}
-	v := Validation{Ranges: rs, Kind: k, Op: op, Items: fv.Items, Source: fv.Source, Reject: fv.Reject, Help: fv.Help}
+	v := Validation{Ranges: rs, Kind: k, Op: op, Items: fv.Items, Source: fv.Source, Reject: fv.Reject, Help: fv.Help, Display: d}
 	copy(v.Args[:], fv.Values)
 	return v, nil
 }

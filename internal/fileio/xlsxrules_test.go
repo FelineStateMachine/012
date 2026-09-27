@@ -169,7 +169,7 @@ func TestXLSXRulesImport(t *testing.T) {
 		`<sheetData><row r="1"><c r="A1"><v>5</v></c></row></sheetData>` +
 		`<conditionalFormatting sqref="A1:A10"><cfRule type="dataBar" priority="4"><dataBar><cfvo type="min"/><cfvo type="max"/><color rgb="FF638EC6"/></dataBar></cfRule>` +
 		`<cfRule type="cellIs" dxfId="0" priority="2" operator="lessThan"><formula>10</formula></cfRule>` +
-		`<cfRule type="iconSet" priority="5"><iconSet><cfvo type="percent" val="0"/></iconSet></cfRule></conditionalFormatting>` +
+		`<cfRule type="iconSet" priority="5"><iconSet iconSet="3Arrows"><cfvo type="percent" val="0"/><cfvo type="percent" val="33"/><cfvo type="percent" val="67"/></iconSet></cfRule></conditionalFormatting>` +
 		`<conditionalFormatting sqref="B1:B10 D1"><cfRule type="expression" dxfId="1" priority="1"><formula>INT(B1)&lt;DATE(2026,1,5)</formula></cfRule>` +
 		`<cfRule type="expression" dxfId="2" priority="3"><formula>B1&gt;0</formula></cfRule>` +
 		`<cfRule type="colorScale" priority="6"><colorScale><cfvo type="min"/><cfvo type="max"/><color theme="0"/><color rgb="FF57BB8A"/></colorScale></cfRule>` +
@@ -180,7 +180,8 @@ func TestXLSXRulesImport(t *testing.T) {
 		`<dataValidation type="list" sqref="G1"><formula1>Choices</formula1></dataValidation></dataValidations>` +
 		`<extLst><ext uri="{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF}"><x14:dataValidations count="1"><x14:dataValidation type="list" allowBlank="1" showErrorMessage="1">` +
 		`<x14:formula1><xm:f>Lists!$A$1:$A$5</xm:f></x14:formula1><xm:sqref>H1:H9</xm:sqref></x14:dataValidation></x14:dataValidations></ext>` +
-		`<ext uri="{78C0D931-6437-407d-A8EE-F0AAD7539E65}"><x14:conditionalFormattings><x14:conditionalFormatting><x14:cfRule type="dataBar" id="{1}"/><xm:sqref>A1:A10</xm:sqref></x14:conditionalFormatting></x14:conditionalFormattings></ext></extLst></worksheet>`
+		`<ext uri="{78C0D931-6437-407d-A8EE-F0AAD7539E65}"><x14:conditionalFormattings><x14:conditionalFormatting><x14:cfRule type="dataBar" id="{1}"/><xm:sqref>A1:A10</xm:sqref></x14:conditionalFormatting>` +
+		`<x14:conditionalFormatting><x14:cfRule type="iconSet" id="{2}"><x14:iconSet iconSet="3Stars"/></x14:cfRule><xm:sqref>C1:C5</xm:sqref></x14:conditionalFormatting></x14:conditionalFormattings></ext></extLst></worksheet>`
 	path := writeParts(t, t.TempDir(), "excel.xlsx", p)
 	got, err := Import(context.Background(), path, Options{})
 	if err != nil {
@@ -190,7 +191,10 @@ func TestXLSXRulesImport(t *testing.T) {
 	wantF := []string{
 		`{"ranges":"B1:B10,D1","condition":"date_before","values":["2026-01-05"],"text":"blue","bold":true}`,
 		`{"ranges":"A1:A10","condition":"lt","values":["10"],"text":"red","fill":"red"}`,
+		`{"ranges":"A1:A10","dataBar":{"color":"blue","min":{"type":"min"},"max":{"type":"max"}}}`,
+		`{"ranges":"A1:A10","iconSet":{"icons":"arrows","points":[{"type":"percent","value":"33"},{"type":"percent","value":"67"}]}}`,
 		`{"ranges":"B1:B10,D1","scale":[{"type":"min","color":"yellow"},{"type":"max","color":"green"}]}`,
+		`{"ranges":"B1:B10,D1","condition":"date_is","values":["last week"],"text":"red","fill":"red"}`,
 	}
 	if f := formatLines(s); !reflect.DeepEqual(f, wantF) {
 		t.Errorf("conditional formats:\n%s\nwant\n%s", strings.Join(f, "\n"), strings.Join(wantF, "\n"))
@@ -204,7 +208,7 @@ func TestXLSXRulesImport(t *testing.T) {
 		t.Errorf("validations:\n%s\nwant\n%s", strings.Join(v, "\n"), strings.Join(wantV, "\n"))
 	}
 	wantNotes := []string{
-		"5 conditional formats left out: data bars (1), dates in periods other than today, tomorrow and yesterday (1), icon sets (1), in Excel 2010's extension (data bars, icon sets) (1), without a text color, fill or text style 012 draws (1)",
+		"2 conditional formats left out: in Excel 2010's extension (its own icon sets and the like) (1), without a text color, fill or text style 012 draws (1)",
 		"2 data validation rules left out: lists from named ranges or formulas (1), time rules (1)",
 	}
 	if !reflect.DeepEqual(got.Notes, wantNotes) {

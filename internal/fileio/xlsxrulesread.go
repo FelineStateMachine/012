@@ -177,12 +177,19 @@ type xlsxCF struct {
 	formulas              []string
 	cfvo                  [][2]string // type and val
 	colors                []xlsxColor
+	// top10's, aboveAverage's, dataBar's and iconSet's settings; see
+	// xlsxrulesmore.go.
+	rank, stdDev               int
+	percent, bottom            bool
+	aboveAverage, equalAverage bool
+	iconSet                    string
+	reverse, hideValue         bool
 }
 
 // xlsxDV is a <dataValidation>, of the main part or the extension.
 type xlsxDV struct {
 	typ, op, style, prompt, err, sqref string
-	showErr                            bool
+	showErr, hideArrow                 bool
 	formulas                           [2]string
 }
 
@@ -201,10 +208,32 @@ func (r *xlsxSheetReader) readRuleElement(se xml.StartElement) (bool, error) {
 	case se.Name.Local == "dataValidation":
 		return true, r.readValidation(se)
 	case se.Name.Local == "conditionalFormatting":
-		r.extRules++ // Excel 2010's data bars, icon sets and the like
-		return true, r.x.skip()
+		return true, r.readExtRules()
 	}
 	return false, nil
+}
+
+// readExtRules counts the rules of a <conditionalFormatting> of Excel
+// 2010's extension, which 012 leaves out: its own icon sets and the
+// like. A data bar there is the extension's copy of one the main part
+// holds too, with settings 012 doesn't draw, so it isn't counted.
+func (r *xlsxSheetReader) readExtRules() error {
+	for depth := r.x.depth; ; {
+		t, err := r.x.next()
+		if err != nil {
+			return eofAsUnexpected(err)
+		}
+		switch t := t.(type) {
+		case xml.EndElement:
+			if r.x.depth < depth {
+				return nil
+			}
+		case xml.StartElement:
+			if t.Name.Local == "cfRule" && attrOr(t, "type", "") != "dataBar" {
+				r.extRules++
+			}
+		}
+	}
 }
 
 func (r *xlsxSheetReader) readCondFormatting(se xml.StartElement) error {
@@ -224,7 +253,9 @@ func (r *xlsxSheetReader) readCondFormatting(se xml.StartElement) error {
 			if t.Name.Local == "cfRule" && len(r.cfs) < maxRules {
 				r.cfs = append(r.cfs, xlsxCF{sqref: ref, typ: attrOr(t, "type", ""), op: attrOr(t, "operator", ""),
 					text: attrOr(t, "text", ""), period: attrOr(t, "timePeriod", ""), dxf: intAttr(t, "dxfId", -1),
-					priority: intAttr(t, "priority", len(r.cfs)+1)})
+					priority: intAttr(t, "priority", len(r.cfs)+1), rank: intAttr(t, "rank", 10), stdDev: intAttr(t, "stdDev", 0),
+					percent: boolAttr(t, "percent", false), bottom: boolAttr(t, "bottom", false),
+					aboveAverage: boolAttr(t, "aboveAverage", true), equalAverage: boolAttr(t, "equalAverage", false)})
 				cur = &r.cfs[len(r.cfs)-1]
 			} else if err := r.cfPart(t, cur); err != nil {
 				return err
@@ -233,10 +264,19 @@ func (r *xlsxSheetReader) readCondFormatting(se xml.StartElement) error {
 	}
 }
 
-// cfPart reads an element inside a <cfRule>: a formula, or a color
-// scale's point or color. Each rule keeps at most three of each.
+// cfPart reads an element inside a <cfRule>: a formula, a color scale's,
+// data bar's or icon set's point or color, or the bar or set itself.
+// Each rule keeps at most three formulas and colors and five points.
 func (r *xlsxSheetReader) cfPart(t xml.StartElement, cur *xlsxCF) error {
 	switch t.Name.Local {
+	case "dataBar":
+		if cur != nil {
+			cur.hideValue = !boolAttr(t, "showValue", true)
+		}
+	case "iconSet":
+		if cur != nil {
+			cur.iconSet, cur.reverse, cur.hideValue = attrOr(t, "iconSet", ""), boolAttr(t, "reverse", false), !boolAttr(t, "showValue", true)
+		}
 	case "formula":
 		var err error
 		if r.buf, err = r.x.text(r.buf[:0]); err != nil {
@@ -246,7 +286,7 @@ func (r *xlsxSheetReader) cfPart(t xml.StartElement, cur *xlsxCF) error {
 			cur.formulas = append(cur.formulas, string(r.buf))
 		}
 	case "cfvo":
-		if cur != nil && len(cur.cfvo) < 3 {
+		if cur != nil && len(cur.cfvo) < 5 {
 			cur.cfvo = append(cur.cfvo, [2]string{attrOr(t, "type", ""), attrOr(t, "val", "")})
 		}
 	case "color":
@@ -260,7 +300,7 @@ func (r *xlsxSheetReader) cfPart(t xml.StartElement, cur *xlsxCF) error {
 func (r *xlsxSheetReader) readValidation(se xml.StartElement) error {
 	dv := xlsxDV{typ: attrOr(se, "type", "none"), op: attrOr(se, "operator", "between"), style: attrOr(se, "errorStyle", "stop"),
 		prompt: attrOr(se, "prompt", ""), err: attrOr(se, "error", ""), sqref: attrOr(se, "sqref", ""),
-		showErr: boolAttr(se, "showErrorMessage", false)}
+		showErr: boolAttr(se, "showErrorMessage", false), hideArrow: boolAttr(se, "showDropDown", false)}
 	for depth := r.x.depth; ; {
 		t, err := r.x.next()
 		if err != nil {

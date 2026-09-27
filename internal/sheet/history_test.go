@@ -145,3 +145,39 @@ func TestLoadIsNotUndoable(t *testing.T) {
 		t.Error("RecalcAll kept history")
 	}
 }
+
+// Try takes a change back whole, on its own as Discard does, or inside
+// a step another change opened (a macro's run), which goes on and still
+// undoes as one.
+func TestTryTakesBack(t *testing.T) {
+	s := New()
+	w := s.Book()
+	s.Set(at("A1"), "1")
+	kept, err := w.Try(func() error { return s.Set(at("A2"), "2") }, func() bool { return true })
+	if kept || err != nil || s.Filled(at("A2")) || s.Value(at("A1")).Num != 1 {
+		t.Errorf("alone: kept %v %v, A2 %v", kept, err, s.Value(at("A2")))
+	}
+	// Taking back nothing leaves the step before alone.
+	w.Try(func() error { return nil }, func() bool { return true })
+	if s.Value(at("A1")).Num != 1 {
+		t.Error("an empty try took back the step before")
+	}
+	end := w.Begin(Change{Label: "macro", Sheet: s})
+	s.Set(at("B1"), "=A1+A3")
+	w.Try(func() error { return s.Set(at("A3"), "5") }, func() bool { return s.Value(at("B1")).Num == 6 })
+	if s.Filled(at("A3")) {
+		t.Error("inside a step: A3 kept")
+	}
+	kept, _ = w.Try(func() error { return s.Set(at("A4"), "4") }, func() bool { return false })
+	if !kept {
+		t.Error("inside a step: A4 taken back")
+	}
+	end()
+	if s.Value(at("B1")).Num != 1 || s.Value(at("A4")).Num != 4 {
+		t.Errorf("after the step: B1 %v A4 %v", s.Value(at("B1")), s.Value(at("A4")))
+	}
+	s.Undo()
+	if s.Filled(at("B1")) || s.Filled(at("A4")) || s.Value(at("A1")).Num != 1 {
+		t.Error("the step didn't undo as one")
+	}
+}

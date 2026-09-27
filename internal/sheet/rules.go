@@ -105,18 +105,32 @@ const (
 	RuleBetween
 	RuleNotBetween
 	RuleFormula
+	// The tests of a cell against the others in the rule's ranges, as
+	// Excel's top 10, above average and duplicate values rules (see
+	// condrank.go).
+	RuleTop
+	RuleBottom
+	RuleTopPercent
+	RuleBottomPercent
+	RuleAboveAverage
+	RuleBelowAverage
+	RuleDuplicate
+	RuleUnique
 	numRuleOps
 )
 
 var ruleOpNames = [numRuleOps]string{"", "empty", "not_empty", "contains", "not_contains",
 	"starts_with", "ends_with", "exactly", "date_is", "date_before", "date_after",
-	"gt", "ge", "lt", "le", "eq", "ne", "between", "not_between", "formula"}
+	"gt", "ge", "lt", "le", "eq", "ne", "between", "not_between", "formula",
+	"top", "bottom", "top_percent", "bottom_percent", "above_average", "below_average", "duplicate", "unique"}
 
 var ruleOpTitles = [numRuleOps]string{"None", "Is empty", "Is not empty", "Text contains",
 	"Text does not contain", "Text starts with", "Text ends with", "Text is exactly",
 	"Date is", "Date is before", "Date is after",
 	"Greater than", "Greater than or equal to", "Less than", "Less than or equal to",
-	"Is equal to", "Is not equal to", "Is between", "Is not between", "Custom formula is"}
+	"Is equal to", "Is not equal to", "Is between", "Is not between", "Custom formula is",
+	"Top values", "Bottom values", "Top percent", "Bottom percent", "Above average", "Below average",
+	"Duplicate values", "Unique values"}
 
 // String names the test as files store it.
 func (op RuleOp) String() string {
@@ -138,7 +152,7 @@ func (op RuleOp) Title() string {
 // between.
 func (op RuleOp) Args() int {
 	switch op {
-	case RuleNone, RuleEmpty, RuleNotEmpty:
+	case RuleNone, RuleEmpty, RuleNotEmpty, RuleAboveAverage, RuleBelowAverage, RuleDuplicate, RuleUnique:
 		return 0
 	case RuleBetween, RuleNotBetween:
 		return 2
@@ -162,8 +176,14 @@ func CondFormatOps() []RuleOp {
 	return []RuleOp{RuleEmpty, RuleNotEmpty, RuleContains, RuleNotContains, RuleStartsWith,
 		RuleEndsWith, RuleExactly, RuleDateIs, RuleDateBefore, RuleDateAfter, RuleGreater,
 		RuleGreaterEq, RuleLess, RuleLessEq, RuleEqual, RuleNotEqual, RuleBetween,
-		RuleNotBetween, RuleFormula}
+		RuleNotBetween, RuleTop, RuleBottom, RuleTopPercent, RuleBottomPercent, RuleAboveAverage,
+		RuleBelowAverage, RuleDuplicate, RuleUnique, RuleFormula}
 }
+
+// Ranks reports whether the test compares a cell with the rest of the
+// rule's cells (top values, above average, duplicates) rather than with
+// values of its own.
+func (op RuleOp) Ranks() bool { return op >= RuleTop && op < numRuleOps }
 
 // CompareOps are the comparisons data validation offers for numbers,
 // dates and text lengths.
