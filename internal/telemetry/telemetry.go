@@ -91,8 +91,8 @@ func start(w io.Writer, e *exporter, c Config) {
 	var hs []slog.Handler
 	if w != nil {
 		// OTLP carries the service in its resource instead.
-		hs = append(hs, idsHandler{slog.NewJSONHandler(w, &slog.HandlerOptions{Level: c.Level}).
-			WithAttrs([]slog.Attr{slog.String("service", "012")})})
+		hs = append(hs, slog.NewJSONHandler(w, &slog.HandlerOptions{Level: c.Level}).
+			WithAttrs([]slog.Attr{slog.String("service", "012")}))
 	}
 	if e != nil && e.urls.logs != "" {
 		hs = append(hs, &otlpHandler{e: e, level: c.Level})
@@ -187,11 +187,14 @@ func emit(level slog.Level, name string, d time.Duration, attrs []slog.Attr, ids
 	if !l.Enabled(ctx, level) {
 		return
 	}
-	if span {
-		ctx = context.WithValue(ctx, spanKey{}, ids)
-	}
-	all := make([]slog.Attr, 0, len(attrs)+2)
+	all := make([]slog.Attr, 0, len(attrs)+5)
 	all = append(all, slog.String("event", name), slog.Float64("dur_ms", ms(d)))
+	if span {
+		all = idAttrs(all, ids)
+		if e != nil && e.urls.logs != "" { // the OTLP log handler's
+			ctx = context.WithValue(ctx, spanKey{}, ids)
+		}
+	}
 	l.LogAttrs(ctx, level, name, append(all, attrs...)...)
 }
 

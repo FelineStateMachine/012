@@ -259,23 +259,22 @@ func ParentFrom(ctx context.Context) Parent {
 	return p
 }
 
-// idsHandler adds a span's ids to its record in the JSON log, as
-// trace_id, span_id and, below a root, parent_id, so the file log holds
-// the same tree as the traces.
-type idsHandler struct{ slog.Handler }
-
-func (h idsHandler) Handle(ctx context.Context, r slog.Record) error {
-	if ids, ok := ctx.Value(spanKey{}).(spanIDs); ok {
-		r = r.Clone()
-		r.AddAttrs(slog.String("trace_id", hex.EncodeToString(ids.trace[:])), slog.String("span_id", hex.EncodeToString(ids.span[:])))
-		if !ids.parent.IsZero() {
-			r.AddAttrs(slog.String("parent_id", hex.EncodeToString(ids.parent[:])))
-		}
+// idAttrs appends a span's ids to attrs as trace_id, span_id and, below
+// a root, parent_id, so the JSON log holds the same tree as the traces.
+// The three are cut from one string, one allocation.
+func idAttrs(attrs []slog.Attr, ids spanIDs) []slog.Attr {
+	var b [64]byte
+	hex.Encode(b[:32], ids.trace[:])
+	hex.Encode(b[32:48], ids.span[:])
+	n := 48
+	if !ids.parent.IsZero() {
+		hex.Encode(b[48:], ids.parent[:])
+		n = 64
 	}
-	return h.Handler.Handle(ctx, r)
+	s := string(b[:n])
+	attrs = append(attrs, slog.String("trace_id", s[:32]), slog.String("span_id", s[32:48]))
+	if n == 64 {
+		attrs = append(attrs, slog.String("parent_id", s[48:]))
+	}
+	return attrs
 }
-
-func (h idsHandler) WithAttrs(as []slog.Attr) slog.Handler {
-	return idsHandler{h.Handler.WithAttrs(as)}
-}
-func (h idsHandler) WithGroup(name string) slog.Handler { return idsHandler{h.Handler.WithGroup(name)} }

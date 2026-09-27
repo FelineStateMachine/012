@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// spanKey carries a span's ids (spanIDs) from emit to the log handlers,
-// so the log record of an operation links to its span.
+// spanKey carries a span's ids (spanIDs) from emit to the OTLP log
+// handler, so the log record of an operation links to its span.
 type spanKey struct{}
 
 // otlpHandler is a slog.Handler that queues OTLP log records.
@@ -32,13 +32,17 @@ func (h *otlpHandler) Handle(ctx context.Context, r slog.Record) error {
 		Body:                 str(r.Message),
 		Attributes:           slices.Clip(h.attrs),
 	}
-	r.Attrs(func(a slog.Attr) bool {
-		rec.Attributes = appendAttr(rec.Attributes, h.prefix, a)
-		return true
-	})
-	if ids, ok := ctx.Value(spanKey{}).(spanIDs); ok {
+	ids, span := ctx.Value(spanKey{}).(spanIDs)
+	if span {
 		rec.TraceID, rec.SpanID = ids.trace, ids.span
 	}
+	r.Attrs(func(a slog.Attr) bool {
+		// The record's own trace and span ids say these; parent_id stays.
+		if !span || (a.Key != "trace_id" && a.Key != "span_id") {
+			rec.Attributes = appendAttr(rec.Attributes, h.prefix, a)
+		}
+		return true
+	})
 	h.e.log(rec)
 	return nil
 }
