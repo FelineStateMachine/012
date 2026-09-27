@@ -65,7 +65,9 @@ stress:
 stress-data:
 	scripts/stress-data.sh
 
-# Compare the latest run with the previous one and a baseline (DuckDB).
+# Compare the latest run with the previous one, a baseline and the last
+# tagged release's run (DuckDB); exits 1 on a regression against the
+# release past THRESHOLD (0.10) plus the benchmark's noise.
 stress-report:
 	scripts/stress/report.sh
 

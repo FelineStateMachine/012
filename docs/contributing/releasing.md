@@ -18,7 +18,7 @@ publishes there, and `make dist` uploads nothing.
 2. **Stress** (optional for small releases): `make stress` on a quiet
    machine, then `make stress-report`, which compares the run with the
    last release's and exits non-zero on a regression past the threshold
-   (see [Observability](observability.md#stress-runs)).
+   (see [Observability](observability.md#regressions-against-the-last-release)).
    Record the run on the release commit so the next release compares
    against it.
 3. **XLSX in spreadsheet apps.** Export a workbook that uses what the

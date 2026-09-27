@@ -278,18 +278,49 @@ FROM read_json_auto('events.jsonl') WHERE msg = 'jev';
 `git_sha`, `git_dirty`, `go_version`, `goos`, `goarch`, `cpu`, `host`,
 `pkg`, `name`, `procs`, `n`, `ns_op`, `b_op`, `allocs_op`, `mb_s`, and
 `metrics`, a map of custom units such as `B/cell`, `cells/s`,
-`MB-file` or `us/answer`. `make stress-report` loads them with
-`scripts/stress/load.sql` and runs `scripts/stress/report.sql`: the
-latest run against the previous one on the same CPU and against a
-baseline (`BASELINE=run_id`, default the oldest run that covered most
-of the same benchmarks), flagging changes past `THRESHOLD` (0.10) and
+`MB-file` or `us/answer`. `COUNT=n` runs each benchmark n times, one
+record per sample. `make stress-report` loads them with
+`scripts/stress/load.sql` (a benchmark's time in a run is the median of
+its samples) and runs `scripts/stress/report.sql`: the latest run
+against the previous one on the same CPU and against a baseline
+(`BASELINE=run_id`, default the oldest run that covered most of the
+same benchmarks), flagging changes past `THRESHOLD` (0.10) and
 `MIN_DELTA_NS` (2000), and the headline benchmarks over the last eight
 runs. With the default 500 ms per benchmark, runs on a busy machine (say
 with the Docker stack ingesting) differ by 10 to 30% on benchmarks of a
 few tens of milliseconds; use `BENCHTIME=2s` on a quiet machine before
-trusting a single regression. `FAIL_ON_REGRESSION=1` makes it
-exit 1 on a regression, for CI. The same records load into ClickHouse
-(`stress.results`) with the same columns.
+trusting a single regression. `FAIL_ON_REGRESSION=1` also makes it exit
+1 on a regression against the previous run. The same records load into
+ClickHouse (`stress.results`) with the same columns; there, samples of
+one benchmark in one run collapse into one row.
+
+### Regressions against the last release
+
+`make stress-report` then compares the latest run with the last
+release's (`scripts/stress/release.sql`) and exits 1 when anything
+regressed, so a release checklist ([Releasing](releasing.md)) can stop
+on it:
+
+- **The release** is the newest `v*` tag reachable from HEAD whose
+  commit has a clean recorded run on the latest run's CPU and OS (other
+  than the latest run, and not on the latest run's commit). All such
+  runs of that commit are pooled. `RELEASE=v1.2.3` picks the tag,
+  `RELEASE_RUN=run_id` one run instead. With none recorded, the report
+  says so and exits 0: record one with `make stress` on the tagged
+  commit.
+- **Noise** is each benchmark's spread, `(max - min) / median` of its
+  samples, the larger of the release's and the latest run's. It is 0
+  for a benchmark with one sample on each side, so `COUNT=3` or more on
+  both runs gives the threshold room where a benchmark is noisy.
+- **A regression** is a median slower than the release's by more than
+  `THRESHOLD` plus the noise (10% plus, by default) and by more than
+  `MIN_DELTA_NS`. Faster past the same bar is listed as `faster`.
+
+```sh
+COUNT=3 BENCHTIME=2s make stress     # on the tagged commit, then on the change
+make stress-report                   # exit 1 on a regression against the tag
+THRESHOLD=0.2 RELEASE=v0.2.0 make stress-report
+```
 
 ## The stack
 

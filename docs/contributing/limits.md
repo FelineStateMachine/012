@@ -513,7 +513,7 @@ In order of value for effort. The first two are what raising
 ```sh
 make stress           # fetch datasets, run everything, record the run (5 minutes)
 BENCH='Edit|Frame' make stress   # a subset; BENCHTIME=2s for steadier numbers
-make stress-report    # latest against previous and baseline, with trends
+make stress-report    # latest against previous, baseline and last release, with trends
 make stress-e2e       # key press to screen through libghostty
 ```
 
