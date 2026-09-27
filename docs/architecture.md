@@ -22,6 +22,14 @@ internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   theme          style roles, color schemes and the widgets drawn with them (frames, key chips)
   rowtext        laying out a row of cell text across the columns on screen
   formula        reading the formula being typed (F4, the word and call at the caret)
+  overlay        the contract of what takes over input: Overlay, boxes, mouse events, lists
+  lineedit       the one-line editor every text field shares
+  picker         the searchable list behind the palette and every picker
+  cmdline        the : command line and its completions
+  findbar        find and replace, a bar on the context line
+  themepicker    File > Settings > Theme, previewing as it moves
+  tabstrip       the sheet tabs' layout and where each sheet was left
+  transfer       imports running in the background and their progress
 e2e/             end-to-end tests through libghostty (separate module, cgo)
 oracle/          differential tests against excelize's calculation (separate module)
 ```
@@ -168,23 +176,50 @@ draw. The components:
 | Component | Type | Owns |
 |---|---|---|
 | grid (embedded) | `grid` | the sheet shown, active cell, scroll, window size, selection; mapping rows and columns to the screen, frozen panes, moving and selecting (`grid.go`, `panes.go`, `selection.go`) |
-| edit line | `lineEdit` | the one-line editor shared by cell entries, prompts and search fields (`line.go`) |
+| edit line | `lineedit.Line` | the one-line editor shared by cell entries, prompts and search fields (package `lineedit`) |
 | cell entry | `entry`, `assist` | typing into a cell, pointing at references, other sheets while pointing, formula suggestions and signatures (`entry.go`, `assist.go`) |
 | prompt | `prompt` | a question on the context line, typed or pointed at (`prompt.go`) |
-| overlays | `overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (`palette.go`, `names.go`), the filter picker, the find, sort and choice bars, the chart editor and selection, the pivot editor (`pivoteditor.go`, `pivotactions.go`), the shortcuts |
-| sheet tabs | `tabStrip` | where each sheet was left, the tab strip's scroll, layout and clicks (`tabstrip.go`) |
+| overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker, the sort and choice bars, the chart editor and selection, the pivot editor (`pivoteditor.go`, `pivotactions.go`), the shortcuts |
+| sheet tabs | `tabstrip.Strip` | where each sheet was left, the tab strip's scroll and layout (package `tabstrip`); what clicks on it do (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
-| import | `transfer` | the import in progress, its progress display and cancelling (`transfer.go`) |
+| import | `transfer.Transfer` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`) |
 | macros | `recorder`, `macroState` | a recording in progress (`macrorec.go`); a macro running, trust in the file's macros (`macrorun.go`); what scripts act on (`macrohost.go`, `macrohostnav.go`); Data > Macros and the manager (`macro.go`, `macromanage.go`) |
 | others | `clipboard`, `trace`, `chartState`, `jevRunner`, `terminal` | what Ctrl+V pastes, a trace being shown, chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it |
 
-Overlays implement the `overlay` interface (`overlay.go`): an indicator
-for the mode, `key` and `mouse` handlers, a `layout` of boxes to draw, and
-the status line while open; bars on the context line add a
-`contextLine`, and those with a text field a `cursor`. Like `assist` and
-`prompt`, they are handed the model when they handle input, since acting
-on it is their job. A new overlay is a new type; `Model` needs no new
-fields, only a way to open it (usually a command).
+Overlays implement `overlay.Overlay` (package `overlay`): an indicator for
+the mode, `Key` and `Mouse` handlers, a `Layout` of boxes to draw, and
+the status line while open; bars on the context line add `ContextLine`
+(`overlay.Liner`), and those with a text field `Cursor` and `Changed`
+(`overlay.Text`). The model routes to them without handing itself over:
+each overlay is built with the host it acts on and keeps it. A new
+overlay is a new type; `Model` needs no new fields, only a way to open it
+(usually a command).
+
+**Hosts.** A component names what it needs of the model in a small
+interface, its host, and is tested against a fake of it. Components in
+packages of their own declare an exported `Host`, which the model
+implements through `host` (`hosts.go`), an adapter that keeps those
+methods off `ui.Model`'s exported API:
+
+| Package | Host | Methods |
+|---|---|---|
+| `picker` | `picker.Host` | theme, size, the edit line, close, record the answer to a command's question (5) |
+| `cmdline` | `cmdline.Host` | theme, size, the edit line, close, the commands to complete, run a line, fail (7) |
+| `themepicker` | `themepicker.Host` | a picker's host, and the current theme, the themes directory, preview, keep (9) |
+| `findbar` | `findbar.Host` | theme, size, the edit line, the workbook, the sheet and cell shown, show a cell, note, mark modified, leave keeping the search, pass a click to the grid (10) |
+| `tabstrip`, `transfer` | none | they're handed a view or messages and draw what they're given |
+
+Components that stay in package `ui` declare an unexported host the model
+implements itself: `menuHost` for menus (9 methods; their items are the
+command registry and the menu bar's definitions), `macrosHost` for the
+macro manager (9; it's a few keys over a picker, and what they do is the
+macro machinery), and `pivotHost` for the pivot editor and its field
+picker (14; it opens the model's pickers, filter values and range prompt
+and comes back from them). The rest (the filter picker, the sort and
+choice bars, the chart editor and selection, the shortcuts, the named
+ranges picker) still keep the model itself. Commands still run in one
+place: a host's way to run one (`runFromOverlay`, `cmdline.Host.Run`)
+goes through `runCommand`, so macros record them and pivots guard them.
 
 **Drawing.** `View` (`panel.go`) stacks the control panel, the header,
 the grid rows and the status line, then composites the floating layers
@@ -196,11 +231,15 @@ of roles with dark and light variants on the terminal's 16 ANSI colors,
 so the user's palette applies; its widgets (framed boxes, key chips, key
 hints) are what every overlay is drawn with.
 
-**Packages.** `theme`, `rowtext` and `formula` depend on nothing in
-`ui`, so they can be tested and measured alone. The components stay in
-package `ui` because they act on the model; moving them out would mean
-exporting most of it. New leaf packages are split off the same way when
-a part needs only the sheet or the theme.
+**Packages.** `theme`, `rowtext`, `formula`, `overlay` and `lineedit`
+depend on nothing in `ui`, so they can be tested and measured alone. The
+components in `picker`, `cmdline`, `themepicker`, `findbar`, `tabstrip`
+and `transfer` build on them and reach the model only through their
+hosts, with unit tests of their own. A component moves out of package
+`ui` when its host stays small (about ten methods or fewer); one that
+needs more keeps a narrow interface inside `ui` instead, since moving it
+would mean exporting half of the model. New leaf packages are split off
+the same way when a part needs only the sheet or the theme.
 
 ## Files
 

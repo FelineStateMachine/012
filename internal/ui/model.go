@@ -88,18 +88,18 @@ type Model struct {
 
 	// Components. Each owns its state and the handling of the input it
 	// takes; Model routes messages to them and composes what they draw.
-	line    lineedit.Line     // the edit line of entries, prompts and search fields: line.go
+	line    lineedit.Line     // the edit line of entries, prompts and search fields: package lineedit
 	entry   entry             // typing into a cell: entry.go
 	point   pointer           // the cell or range pointed at in POINT mode and range prompts
 	prompt  *prompt           // a question on the context line: prompt.go
 	overlay overlay.Overlay   // the open menu, picker or bar, if any (modeMenu): overlay.go
 	mouse   mouseState        // drags, hover and double clicks: mouse.go
-	tabs    tabstrip.Strip    // the sheet tabs and where each sheet was left: tabstrip.go
-	find    *findbar.Bar      // the last search, reopened by Ctrl+F: find.go
+	tabs    tabstrip.Strip    // the sheet tabs and where each sheet was left: package tabstrip
+	find    *findbar.Bar      // the last search, reopened by Ctrl+F: package findbar
 	charts  chartState        // chart commands' target: charts.go
 	copied  clipboard         // what Ctrl+V pastes: clipboard.go
 	trace   *trace            // precedents or dependents being shown: trace.go
-	xfer    transfer.Transfer // imports and downloads: transfer.go
+	xfer    transfer.Transfer // the import running and the file imported: package transfer
 	jev     *jevRunner        // answers JEV functions; nil without an API key: jev.go
 	term    terminal          // what the terminal supports: graphics.go
 	prefs   prefs             // the settings in effect and the theme chosen: prefs.go
