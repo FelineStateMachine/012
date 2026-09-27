@@ -185,7 +185,7 @@ func (m *Model) formulaBar() string {
 	case modePoint:
 		return box + m.entry.prefix + m.th.Selection.Render(m.pointRef()) + m.entry.suffix
 	}
-	if anchor, ok := m.sheet.SpillAnchor(m.cur); ok {
+	if anchor, ok := m.sheet.SpillAnchor(m.cur); ok && m.sheet.HasSpills() {
 		// A spilled cell shows the formula it spills from, dimmed, as
 		// Sheets does.
 		return box + m.th.Muted.Render(m.sheet.Cell(anchor).Input)

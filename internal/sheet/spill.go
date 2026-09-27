@@ -307,6 +307,10 @@ func (s *Sheet) SpillAnchor(a Addr) (Addr, bool) {
 	return found, ok
 }
 
+// HasSpills reports whether a formula on the sheet spills or would, so
+// what draws the sheet can skip looking for spilled cells.
+func (s *Sheet) HasSpills() bool { return len(s.spills) > 0 }
+
 // SpillArea returns the cells the formula at a spills into, the anchor
 // first, when it spills.
 func (s *Sheet) SpillArea(a Addr) (Rect, bool) {

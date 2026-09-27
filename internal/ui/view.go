@@ -147,6 +147,7 @@ func (m *Model) gridRow(row int) string {
 // roles for the pointer, the selection, search matches and errors.
 func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr, sel sheet.Rect, selecting bool) string {
 	var b strings.Builder
+	spills := m.sheet.HasSpills()
 	for i, sp := range spans {
 		a := sheet.Addr{Col: first + i, Row: row}
 		base, colored := m.th.Cell, true
@@ -163,7 +164,7 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 			base = m.th.Muted
 		case m.sheet.Value(a).Kind == sheet.Error:
 			base = m.th.ErrorCell
-		case sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: row}).Spilled():
+		case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: row}).Spilled():
 			base = m.th.Spilled
 		default:
 			colored = false
