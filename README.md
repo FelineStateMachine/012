@@ -1,132 +1,84 @@
 # 012
 
 A spreadsheet for the terminal with a Lotus 1-2-3 look and Google Sheets
-behavior, built on Bubble Tea v2.
+behavior, built on [Bubble Tea v2](https://github.com/charmbracelet/bubbletea).
+
+Inside the grid it works the way Sheets does: typing replaces a cell, `=`
+starts a formula, Enter and Tab move you on, Shift+arrows and the mouse
+select, and Sheets' shortcuts do what you expect. Around the grid, the
+control panel, the mode indicator and the character grid keep 1-2-3's look.
+It is one pure-Go binary.
+
+## Install
 
 ```sh
-make run            # build (pure Go, CGO_ENABLED=0) and start
-./bin/012 budget.012
-./bin/012 sales.xlsx   # or .csv, .tsv, .sqlite, .parquet, .wk1: imported
+go install github.com/FelineStateMachine/012/cmd/012@latest
 ```
 
-## Keys
-
-Inside the grid, 012 works like Google Sheets.
-
-| Key | Action |
-|---|---|
-| Type | Replace the cell. `=` starts a formula, `'` forces text; `$1,200`, `12%`, `9/26/2026` and `14:30` are numbers that keep their format |
-| Enter / Tab | Accept and move down / right (Enter returns to where a run of Tabs began) |
-| Enter or F2, double-click | Edit the cell |
-| Arrows while typing a formula | After an operator, pick a cell; Shift+arrows pick a range |
-| Shift+arrows, drag, Shift+click | Select; the status line shows Sum, Avg and Count |
-| Ctrl+arrows | Jump to the edge of the data (add Shift to select) |
-| Click a header, Ctrl+Space, Shift+Space | Select whole columns or rows |
-| Ctrl+A | Select the data, then everything |
-| Del / Backspace | Clear the selection (formatting stays) |
-| Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z | Undo, redo |
-| Ctrl+C, Ctrl+X, Ctrl+V | Copy, cut, paste; references adjust as in Sheets, and copies also go to the system clipboard |
-| Ctrl+Shift+V | Paste values only |
-| Paste from the terminal | Tab-separated or multi-line text fills a block of cells |
-| Ctrl+D, Ctrl+R | Fill down, fill right; top rows that start a series (1, 2 over blanks) continue it |
-| Drag the fill handle | The ▟ at the selection's corner, shown on hover: continue a series (1, 2, 3; Jan, Feb; Mon, Tue; dates; Item 1, Item 2) or copy |
-| View > Freeze | Keep rows or columns on screen while the rest scrolls |
-| Data > Sort sheet, Sort range | Sort by the active column A to Z or Z to A, or pick columns and order on a bar (Left/Right column, Space order, Alt+A add, Alt+H header row) |
-| Alt+Down, click ▾ in a header | With a filter (Data > Create a filter): pick the column's values (Space checks, type to search) or a condition |
-| Ctrl+Alt+= / Ctrl+Alt+- | Insert rows above / delete the selected rows (columns when whole columns are selected) |
-| Ctrl+Enter while typing | Enter the same entry in every selected cell |
-| F4 while typing a formula | Cycle the reference at the caret through A1, $A$1, A$1, $A1 |
-| Typing a function or range name | Suggestions drop down: Up/Down pick, Tab or Enter insert, Esc hides them; inside a function's parentheses the context line shows its arguments with the current one marked |
-| Alt+, / Alt+. | Trace precedents / dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; press again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) |
-| Data > Named ranges | Name ranges for formulas (`=SUM(Sales)`): Enter goes to one, F2 renames or repoints it, Ctrl+D deletes it; Data > Define named range names the selection |
-| Ctrl+Shift+1 ... 6 | Number, time, date, currency, percent, scientific format |
-| Ctrl+B, Ctrl+I, Ctrl+U, Alt+Shift+5 | Bold, italic, underline, strikethrough |
-| Ctrl+Shift+L / E / R | Align left, center, right |
-| Ctrl+\ | Clear formatting |
-| Ctrl+S, Ctrl+O, Ctrl+Q | Save, open (imports other formats), quit |
-| Ctrl+G or F5 | Go to a cell, a range or a named range |
-| Alt+F, Alt+E, Alt+V, Alt+I, Alt+O, Alt+H, F10, click a title | Open a menu (arrows move, Enter runs, Esc closes) |
-| Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
-| Right-click, Shift+F10 | Cell, column or row menu |
-| F1 or Ctrl+/ | Keyboard shortcuts |
-| Insert > Chart | Chart the selection (or the table around the active cell); the editor bar picks the type with Left/Right, S switches rows and columns, H and L toggle the header row and labels, R changes the range, T the title |
-| Click a chart, then Arrows / Shift+arrows / Del | Move, resize or delete it; drag the chart or its corner with the mouse; Enter edits it |
-| Cmd- or Ctrl-click a URL | Open it: cells holding a URL, and `=HYPERLINK(url, [label])`, are terminal hyperlinks |
-
-Charts float over the grid and redraw as their data changes. In terminals
-with the kitty graphics protocol (kitty, Ghostty, WezTerm; detected by
-asking the terminal at startup) the plot is a real image, drawn in the
-terminal's own palette; elsewhere, and in tmux without passthrough, it is
-drawn with block and braille characters. Error cells get a curly underline
-and the context line explains them, e.g. `#DIV/0!  Division by zero in
-B3/0`. When a long job such as JEV answers finishes while the window is in
-the background, 012 sends a desktop notification (OSC 9).
-
-The top three lines are the menu bar and mode indicator, the formula bar
-(name box, then the cell's contents or the entry being typed) and the
-context line (prompts, key hints, formula errors).
-
-## Files
-
-Sheets save as `.012` files (JSON, one line per cell). Other formats come
-in through File > Import, File > Open or the command line, and go out
-through File > Download. Imports run in the background with a progress
-bar; Esc cancels. Saving an imported sheet asks whether to save it as a
-`.012` file or download it back in its format.
-
-| Format | Import | Download |
-|---|---|---|
-| CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, as Sheets' Download does |
-| Excel `.xlsx` | First sheet: values, formulas, number formats, bold, italic, underline, strikethrough, alignment, column widths. Formulas 012 can't read (other sheets, unknown functions) keep their values | The same, with formulas in Excel's syntax and their results cached. JEV functions and `#AND#` save as values |
-| SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet or the selection as a table, first row as column names; a table of that name is replaced |
-| Parquet | Every column, with dates and timestamps; lists joined with commas | |
-| Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
-
-## JEV functions
-
-With a TypeSafe API key, four functions ask the hosted JEV model about a
-value (a cell, a range or text). They follow Sheets' argument style: the
-value, the question, then what the answers mean.
-
-| Function | Returns | Like |
-|---|---|---|
-| `=JEV.TEST(A2, "Is this a complaint?", [yes means], [no means])` | TRUE or FALSE | an `IF` condition, a boolean mask |
-| `=JEV.PROB(A2, "Is this a complaint?")` | probability of yes, as a percent | `predict_proba` |
-| `=JEV.CLASSIFY(A2, "Sentiment", "negative, positive", [descriptions])` | the best label | `SWITCH`, `pd.cut` |
-| `=JEV.SCORE(A2, "Urgency", "low, mid, high")` | a score from 0 to levels-1 | a rating scale |
-
-Labels, descriptions and levels can also be ranges. Answers arrive in the
-background (cells show `Loading…`), are cached by question, and the context
-line shows the confidence for the selected cell. Data > Ask JEV again
-re-asks the selection.
-
-Set `TYPESAFE_API_KEY` in the environment or a `.env` file in the current
-directory or next to the sheet; `TYPESAFE_BASE_URL` and
-`TYPESAFE_DEFAULT_MODEL` are optional. Without a key the functions show
-`#N/A` and say why. `JEV_LIVE_TEST=1 go test ./internal/jev -run TestLive`
-checks the real service.
-
-## Layout
-
-```
-cmd/012        entry point
-internal/sheet   engine: addresses, Pratt parser, evaluator, recalc, file format
-internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1
-internal/ui      Bubble Tea model: modes, menu, prompts, rendering
-e2e/             end-to-end tests: real binary on a pty, rendered by libghostty-vt
-oracle/          differential tests of formulas and formats against excelize
-```
-
-## Tests
+Requires Go 1.27. Or from a clone: `make build` puts the binary in `bin/012`.
 
 ```sh
-make test     # engine and UI unit tests
-make fuzz     # fuzz the formula parser
-make e2e      # builds libghostty-vt from source with Zig, then runs e2e tests
-make oracle   # compare formulas and number formats with excelize
+012                  # a new sheet
+012 budget.012       # open or create a sheet
+012 sales.xlsx       # import .xlsx, .csv, .tsv, .sqlite, .parquet or Lotus .wk1
 ```
 
-`make e2e` needs Zig 0.16+ and `pkg-config`. It is a separate Go module so the
-cgo dependency never reaches the main binary; so is `oracle`, which keeps
-its calculation engine out of the tests. `oracle/oracle_test.go` lists the formulas skipped
-because Sheets and Excel disagree or excelize departs from Excel.
+F1 shows every shortcut, F10 or Alt+letter opens the menus, and Ctrl+K
+searches every command.
+
+## What it does
+
+- **Sheets-style editing.** Formulas with 120 Sheets-compatible functions,
+  autocomplete and argument hints, pointing at cells with the arrows or the
+  mouse, named ranges, undo and redo for everything, copy and paste with
+  reference adjustment and the system clipboard, fill series, insert and
+  delete rows and columns.
+- **Formats and styles.** Currency, percent, dates and times detected as you
+  type; number formats, bold, italic, underline, strikethrough, alignment.
+- **Data tools.** Freeze rows and columns, multi-column sort, filters with
+  value pickers and conditions, find and replace with regular expressions,
+  tracing precedents and dependents.
+- **Charts.** Column, bar, line and pie charts that float over the grid and
+  update live; real images in terminals with the kitty graphics protocol
+  (kitty, Ghostty, WezTerm), text elsewhere.
+- **Files.** A diff-friendly JSON format, plus import from CSV, TSV, XLSX,
+  SQLite, Parquet and Lotus 1-2-3 `.wk1`, and export to CSV, TSV, XLSX and
+  SQLite.
+- **JEV functions.** `JEV.TEST`, `JEV.PROB`, `JEV.CLASSIFY` and `JEV.SCORE`
+  ask TypeSafe's hosted JEV model about your data, answered in the background
+  and cached ([docs](docs/jev.md)).
+- **Made for terminals.** Mouse with hover and resize handles, hyperlinks,
+  light and dark themes that follow the terminal, desktop notifications,
+  menus and a command palette styled like terminal software, not a GUI.
+
+## Documentation
+
+- [Keys and mouse](docs/keys.md)
+- [Entries and formulas](docs/formulas.md) and [functions](docs/functions.md)
+- [Working with data](docs/data.md)
+- [Charts, links and the terminal](docs/charts.md)
+- [Files](docs/files.md)
+- [JEV functions](docs/jev.md)
+- [Architecture](docs/architecture.md), [UX bar](docs/UX.md) and [testing](docs/testing.md)
+- [Roadmap](ROADMAP.md)
+
+## Development
+
+```sh
+make build    # pure Go, CGO_ENABLED=0
+make test     # unit tests
+make e2e      # the real binary in libghostty, Ghostty's terminal core (needs Zig 0.16+ and pkg-config)
+make screens  # golden screens and the review gallery
+make oracle   # formulas and formats against excelize
+```
+
+See [docs/testing.md](docs/testing.md).
+
+## Status
+
+Young and moving quickly. The file format is versioned and older files keep
+loading; the Go packages are internal and may change at any time.
+
+## License
+
+[MIT](LICENSE)
