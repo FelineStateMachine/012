@@ -110,10 +110,9 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 | Precedent tracing explains when every precedent is on a hidden sheet. Done, for dependents too | A generic "no formula" hides why nothing shows | S |
 | Settings > JEV API key checks the key with a test call. Done: one fixed question, "Key saved and checked" or why the check failed ([jev.md](docs/jev.md#setup)) | A mistyped key otherwise shows only as `#ERROR!` in cells | S |
 | `012 serve`: open a file from the ssh command line, and save unsaved work to a recovery file on shutdown or idle timeout. Done: `ssh -t host file.012` (a one-word exec request taken as a file name inside the served directory, never run) and `.012-recovery/`, offered back on the next open ([ssh.md](docs/ssh.md#unsaved-work)) | Sessions reach a file in one step, and stopping the server or idling out keeps work | M |
-
-| Vim `p`/`P` after `yy` carries the rows' line formats, as a whole-row paste does | Only cell formats go with it | S |
-| Cutting a block clears the source cells to plain, as Sheets does | They keep showing their column or row format | S |
-| Replace current sheet removes charts whose range no longer fits the new data, or asks | They stay, pointing at empty cells, with a note | S |
+| Vim `p`/`P` after `yy` carries the rows' line formats, as a whole-row paste does. Done: `yy` and `dd` copy whole rows ([data.md](docs/data.md#copy-paste-and-fill)) | Only cell formats go with it | S |
+| Cutting a block clears the source cells to plain, as Sheets does. Done, over formatted columns, rows and the sheet ([data.md](docs/data.md#copy-paste-and-fill)) | They keep showing their column or row format | S |
+| Replace current sheet removes charts whose range no longer fits the new data, or asks. Done: removed, listed first in the note, and back on undo ([files.md](docs/files.md)) | They stay, pointing at empty cells, with a note | S |
 
 ### 2. Spreadsheet features Sheets users reach for
 
@@ -124,11 +123,11 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 | Conditional formatting (color scales, rules on values and formulas), drawn in theme roles | Visual; must read under all 349 schemes | M |
 | Data validation: dropdown lists (a picker in the cell), number and date rules, checkboxes | Pairs with the filter picker | M |
 | Wrap text, row heights, borders, merged cells | Layout changes in the grid renderer | M to L |
-| Notes on cells (shown on hover and in the context line) | | S |
+| Notes on cells (shown on hover and in the context line). Done: Insert > Note (Shift+F2), a corner mark, the context line and a hover box, saved and in XLSX as Excel's notes; see [data.md](docs/data.md#notes) | | S |
 | Locale: decimal comma, date order, list separator in formulas | Sheets' File > Settings > Locale | M |
-| Charts: scatter, area, stacked columns and bars, axis options, a legend position | Registry entries in `internal/chart` | M |
-| Pivot tables: column subtotals, renaming value columns, check the "(blank)" label against Sheets | Left open by pivots | S |
-| Protected ranges and sheets (warn on edit) | | S |
+| Charts: scatter, area, stacked columns and bars, axis options, a legend position. Done: area and scatter (with trend lines) types, stacked and 100% stacked columns, bars and areas, value axis minimum, maximum and log scale, gridlines on and off, the legend at the bottom, right or none; see [charts.md](docs/charts.md) | Registry entries in `internal/chart` | M |
+| Pivot tables: column subtotals, renaming value columns, check the "(blank)" label against Sheets. Done: a subtotal column per outer column group, R renames a value in the editor, and blank groups have a blank label as in Sheets ([data.md](docs/data.md#pivot-tables)) | Left open by pivots | S |
+| Protected ranges and sheets (warn on edit). Done: Data > Protect sheets and ranges, edits ask on the context line; an XLSX sheet's protection is noted on import; see [data.md](docs/data.md#protected-sheets-and-ranges) | | S |
 
 ### 3. Scale (see "Next: vast data" above and docs/limits.md)
 

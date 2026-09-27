@@ -61,6 +61,8 @@ type xlsxSheetReader struct {
 	dvs      []xlsxDV
 	extRules int
 
+	protected bool // the sheet has a <sheetProtection sheet="1">, read by readTail
+
 	inData bool // inside <sheetData>
 	row    xlsxRowData
 	shared map[int]sharedFormula

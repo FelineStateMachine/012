@@ -76,24 +76,25 @@ func TestImportLocation(t *testing.T) {
 	}
 	press(t, m, "<ctrl+z>")
 
-	// Replace current sheet keeps the sheet's name, place and charts,
-	// and says what became of the charts.
+	// Replace current sheet keeps the sheet's name, place and the charts
+	// that fit the new data, removes the rest, and says which.
 	press(t, m, "<ctrl+pgup>")
 	m.sheet.AddChart(sheet.Chart{Data: sheet.NewRect(addr("C1"), addr("C2")), Title: "Totals"})
+	m.sheet.AddChart(sheet.Chart{Data: sheet.NewRect(addr("A1"), addr("B2")), Title: "Regions"})
 	writeFile(t, "sales.csv", "Region,Total\nSouth,50\n")
 	importInto(t, m, "sales.csv", "Replace current sheet")
 	if sheetNames(m) != "Sheet1,sales" || m.sheet.Name() != "Sheet1" || input(m, "A2") != "South" || input(m, "A1") != "Region" {
 		t.Fatalf("replaced: %s on %s, A2 %q", sheetNames(m), m.sheet.Name(), input(m, "A2"))
 	}
-	if line(m, contextLine) != "Imported sales.csv into Sheet1 (2 rows); charts: Totals kept on C1:C2, empty now" {
-		t.Errorf("context %q", line(m, contextLine))
+	if got := line(m, contextLine); !strings.HasPrefix(got, "Imported sales.csv into Sheet1 (2 rows); removed charts: Totals (C1:C2); charts:") {
+		t.Errorf("context %q", got)
 	}
-	if len(m.sheet.Charts()) != 1 {
-		t.Errorf("charts after replacing: %+v", m.sheet.Charts())
+	if c := m.sheet.Charts(); len(c) != 1 || c[0].Title != "Regions" {
+		t.Errorf("charts after replacing: %+v", c)
 	}
 	press(t, m, "<ctrl+z>")
-	if m.sheet.Name() != "Sheet1" || input(m, "A1") != "=sales!B2*2" {
-		t.Errorf("undo replace: on %s, A1 %q", m.sheet.Name(), input(m, "A1"))
+	if m.sheet.Name() != "Sheet1" || input(m, "A1") != "=sales!B2*2" || len(m.sheet.Charts()) != 2 {
+		t.Errorf("undo replace: on %s, A1 %q, %d charts", m.sheet.Name(), input(m, "A1"), len(m.sheet.Charts()))
 	}
 }
 

@@ -21,11 +21,12 @@ import (
 type Role uint8
 
 const (
-	None   Role = iota // background
-	Axis               // axis lines and tick marks
-	Label              // tick values, category labels and legend text
-	Muted              // messages such as "No numbers to chart"
-	Series             // Series+i is the color of series (or slice) i
+	None     Role = iota // background
+	Axis                 // axis lines and tick marks
+	Label                // tick values, category labels and legend text
+	Muted                // messages such as "No numbers to chart"
+	Gridline             // gridlines
+	Series               // Series+i is the color of series (or slice) i
 )
 
 // Colors is how many series colors there are; later series reuse them.
@@ -57,6 +58,9 @@ type Options struct {
 	// CellW and CellH are the size of a terminal cell in pixels; they set
 	// a pie's proportions. Zero means the usual 1:2.
 	CellW, CellH int
+	// Chart is the chart's own settings: stacking, the value axis, the
+	// gridlines and the legend.
+	Chart sheet.ChartOptions
 }
 
 func (o Options) aspect() float64 {
@@ -128,13 +132,14 @@ func Draw(t sheet.ChartType, d sheet.ChartData, w, h int, o Options) *Grid {
 	if w < 8 || h < 3 {
 		return g
 	}
-	p := planFor(t, d, w, h, o)
+	p, lg := planFor(t, d, w, h, o)
 	if msg := p.note(); msg != "" {
 		g.message(msg)
 		return g
 	}
 	g.Plot = p.plotArea()
 	p.draw(g, o)
+	lg.draw(g)
 	return g
 }
 
@@ -159,10 +164,12 @@ func finite(series []sheet.ChartSeries) (lo, hi float64, ok bool) {
 }
 
 // scale is a value axis: lo..hi divided into n intervals of step, each k
-// cells long, so every tick lands on a cell boundary.
+// cells long, so every tick lands on a cell boundary. On a log scale lo,
+// hi and step are powers of ten (their logarithms), see axis.go.
 type scale struct {
 	lo, hi, step float64
 	n, k         int
+	log          bool
 	label        func(float64) string
 }
 
@@ -171,11 +178,22 @@ func (s scale) cells() int { return s.n * s.k }
 
 // pos maps a value to a distance along the axis in cells.
 func (s scale) pos(v float64) float64 {
+	if s.log {
+		if v <= 0 {
+			return math.Inf(-1)
+		}
+		v = math.Log10(v)
+	}
 	return (v - s.lo) / (s.hi - s.lo) * float64(s.cells())
 }
 
 // tick returns the value of tick j.
-func (s scale) tick(j int) float64 { return s.lo + float64(j)*s.step }
+func (s scale) tick(j int) float64 {
+	if s.log {
+		return math.Pow(10, s.lo+float64(j)*s.step)
+	}
+	return s.lo + float64(j)*s.step
+}
 
 // newScale fits dlo..dhi onto length cells, with ticks at least minK
 // cells apart and at most maxN intervals.
@@ -272,43 +290,6 @@ func groupDigits(s string) string {
 		b.WriteString("." + frac)
 	}
 	return b.String()
-}
-
-// legend draws "■ Rent   ■ Food" centered on row y, shortening names to
-// fit.
-func (g *Grid) legend(y int, names []string) {
-	const gap = "   "
-	for limit := 24; limit >= 1; limit-- {
-		items := make([]string, len(names))
-		width := 0
-		for i, n := range names {
-			items[i] = "■ " + ansi.Truncate(n, limit, "…")
-			width += ansi.StringWidth(items[i])
-		}
-		width += len(gap) * (len(items) - 1)
-		if width > g.W && limit > 1 {
-			continue
-		}
-		x := max((g.W-width)/2, 0)
-		for i, it := range items {
-			if x+ansi.StringWidth(it) > g.W {
-				g.text(max(x, 0), y, "…", Label)
-				return
-			}
-			g.set(x, y, "■", SeriesRole(i))
-			g.text(x+2, y, it[len("■ "):], Label)
-			x += ansi.StringWidth(it) + len(gap)
-		}
-		return
-	}
-}
-
-func seriesNames(d sheet.ChartData) []string {
-	names := make([]string, len(d.Series))
-	for i, s := range d.Series {
-		names[i] = s.Name
-	}
-	return names
 }
 
 // eighths are the block elements filling 0/8 to 8/8 of a cell from the

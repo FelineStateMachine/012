@@ -43,6 +43,32 @@ var mixed = sheet.ChartData{
 	Format:     sheet.Format{Kind: sheet.FmtPercent},
 }
 
+// signs has positive and negative values in the same category.
+var signs = sheet.ChartData{
+	Categories: []string{"Q1", "Q2", "Q3"},
+	Series: []sheet.ChartSeries{
+		{Name: "Sales", Values: []float64{30, 40, 20}},
+		{Name: "Costs", Values: []float64{-20, -10, -30}},
+		{Name: "Other", Values: []float64{10, -5, 15}},
+	},
+}
+
+// xy is a scatter: X in the first series, two series of Y against it.
+var xy = sheet.ChartData{
+	Categories: []string{"1", "2", "3", "4", "5", "6"},
+	Series: []sheet.ChartSeries{
+		{Name: "Hours", Values: []float64{1, 2, 3, 5, 6, 8}},
+		{Name: "Score", Values: []float64{52, 55, 61, 70, 71, 80}},
+		{Name: "Retake", Values: []float64{40, nan, 50, 58, 66, 69}},
+	},
+}
+
+// growth spans several powers of ten, for log scales.
+var growth = sheet.ChartData{
+	Categories: []string{"Y1", "Y2", "Y3", "Y4", "Y5"},
+	Series:     []sheet.ChartSeries{{Name: "Users", Values: []float64{3, 40, 700, 9000, 0}}},
+}
+
 // TestDrawGoldens renders every chart type as text; the goldens in
 // testdata are the review surface for how charts look.
 func TestDrawGoldens(t *testing.T) {
@@ -51,22 +77,42 @@ func TestDrawGoldens(t *testing.T) {
 		t    sheet.ChartType
 		d    sheet.ChartData
 		w, h int
+		o    sheet.ChartOptions
 	}{
-		{"column", sheet.ChartColumn, budget, 44, 12},
-		{"column-single", sheet.ChartColumn, single, 40, 10},
-		{"column-negative", sheet.ChartColumn, mixed, 36, 10},
-		{"column-narrow", sheet.ChartColumn, budget, 22, 8},
-		{"bar", sheet.ChartBar, budget, 44, 12},
-		{"bar-single", sheet.ChartBar, single, 40, 8},
-		{"line", sheet.ChartLine, budget, 44, 12},
-		{"line-single", sheet.ChartLine, single, 40, 10},
-		{"pie", sheet.ChartPie, single, 40, 10},
-		{"empty", sheet.ChartColumn, sheet.ChartData{Categories: []string{"a"}, Series: []sheet.ChartSeries{{Values: []float64{nan}}}}, 30, 8},
-		{"pie-negative", sheet.ChartPie, sheet.ChartData{Categories: []string{"a"}, Series: []sheet.ChartSeries{{Values: []float64{-1}}}}, 30, 8},
+		{"column", sheet.ChartColumn, budget, 44, 12, sheet.ChartOptions{}},
+		{"column-single", sheet.ChartColumn, single, 40, 10, sheet.ChartOptions{}},
+		{"column-negative", sheet.ChartColumn, mixed, 36, 10, sheet.ChartOptions{}},
+		{"column-narrow", sheet.ChartColumn, budget, 22, 8, sheet.ChartOptions{}},
+		{"bar", sheet.ChartBar, budget, 44, 12, sheet.ChartOptions{}},
+		{"bar-single", sheet.ChartBar, single, 40, 8, sheet.ChartOptions{}},
+		{"line", sheet.ChartLine, budget, 44, 12, sheet.ChartOptions{}},
+		{"line-single", sheet.ChartLine, single, 40, 10, sheet.ChartOptions{}},
+		{"pie", sheet.ChartPie, single, 40, 10, sheet.ChartOptions{}},
+		{"empty", sheet.ChartColumn, sheet.ChartData{Categories: []string{"a"}, Series: []sheet.ChartSeries{{Values: []float64{nan}}}}, 30, 8, sheet.ChartOptions{}},
+		{"pie-negative", sheet.ChartPie, sheet.ChartData{Categories: []string{"a"}, Series: []sheet.ChartSeries{{Values: []float64{-1}}}}, 30, 8, sheet.ChartOptions{}},
+		{"pie-no-legend", sheet.ChartPie, single, 40, 10, sheet.ChartOptions{Legend: sheet.LegendNone}},
+		{"area", sheet.ChartArea, budget, 44, 12, sheet.ChartOptions{}},
+		{"area-stacked", sheet.ChartArea, budget, 44, 12, sheet.ChartOptions{Stack: sheet.StackNormal}},
+		{"area-negative", sheet.ChartArea, mixed, 36, 10, sheet.ChartOptions{}},
+		{"column-stacked", sheet.ChartColumn, budget, 44, 12, sheet.ChartOptions{Stack: sheet.StackNormal}},
+		{"column-percent", sheet.ChartColumn, budget, 44, 12, sheet.ChartOptions{Stack: sheet.StackPercent}},
+		{"column-stacked-negative", sheet.ChartColumn, signs, 40, 12, sheet.ChartOptions{Stack: sheet.StackNormal}},
+		{"bar-stacked", sheet.ChartBar, budget, 44, 12, sheet.ChartOptions{Stack: sheet.StackNormal}},
+		{"bar-percent", sheet.ChartBar, budget, 44, 12, sheet.ChartOptions{Stack: sheet.StackPercent}},
+		{"scatter", sheet.ChartScatter, xy, 44, 12, sheet.ChartOptions{}},
+		{"scatter-trend", sheet.ChartScatter, xy, 44, 12, sheet.ChartOptions{Trend: true}},
+		{"scatter-single", sheet.ChartScatter, single, 40, 10, sheet.ChartOptions{}},
+		{"legend-right", sheet.ChartColumn, budget, 44, 12, sheet.ChartOptions{Legend: sheet.LegendRight}},
+		{"legend-none", sheet.ChartLine, budget, 44, 12, sheet.ChartOptions{Legend: sheet.LegendNone}},
+		{"no-gridlines", sheet.ChartColumn, single, 40, 10, sheet.ChartOptions{NoGrid: true}},
+		{"axis-min-max", sheet.ChartColumn, budget, 44, 12, sheet.ChartOptions{Min: 500, HasMin: true, Max: 1600, HasMax: true}},
+		{"axis-min", sheet.ChartLine, budget, 44, 12, sheet.ChartOptions{Min: 400, HasMin: true}},
+		{"axis-log", sheet.ChartColumn, growth, 40, 12, sheet.ChartOptions{Log: true}},
+		{"bar-log", sheet.ChartBar, growth, 40, 10, sheet.ChartOptions{Log: true}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := Draw(tc.t, tc.d, tc.w, tc.h, Options{}).String() + "\n"
+			got := Draw(tc.t, tc.d, tc.w, tc.h, Options{Chart: tc.o}).String() + "\n"
 			path := filepath.Join("testdata", tc.name+".txt")
 			if *update {
 				os.MkdirAll("testdata", 0o755)
@@ -122,7 +168,7 @@ func TestScale(t *testing.T) {
 
 func TestLayout(t *testing.T) {
 	// Columns: every bar lies inside the plot and bars don't overlap.
-	p := newColumnPlan(budget, 44, 12, false)
+	p := newColumnPlan(budget, 44, 12, columnBars, sheet.ChartOptions{})
 	prev := 0
 	for i := range 4 {
 		for j := range 2 {
@@ -143,7 +189,7 @@ func TestLayout(t *testing.T) {
 		many.Categories = append(many.Categories, "c")
 		many.Series[0].Values = append(many.Series[0].Values, float64(i))
 	}
-	if p := newColumnPlan(many, 30, 10, false); p.shown != p.plot.Dx() {
+	if p := newColumnPlan(many, 30, 10, columnBars, sheet.ChartOptions{}); p.shown != p.plot.Dx() {
 		t.Errorf("shown %d categories in %d columns", p.shown, p.plot.Dx())
 	}
 	// The plot rectangle is what Image fills.
@@ -160,7 +206,7 @@ func TestLayout(t *testing.T) {
 // TestTypes checks every chart type the editor offers has a layout.
 func TestTypes(t *testing.T) {
 	for _, ty := range sheet.ChartTypes {
-		if types[ty] == nil {
+		if types[ty].layout == nil {
 			t.Errorf("%v has no layout", ty)
 		}
 	}
@@ -190,7 +236,7 @@ var testPalette = Palette{
 
 func TestImagePixels(t *testing.T) {
 	o := Options{CellW: 8, CellH: 16}
-	p := newColumnPlan(single, 40, 10, false)
+	p := newColumnPlan(single, 40, 10, columnBars, sheet.ChartOptions{})
 	img := Image(sheet.ChartColumn, single, 40, 10, o, testPalette)
 	x0, x1 := p.bar(0, 0)
 	mid := ((x0+x1)/2 - p.plot.Min.X) * 8

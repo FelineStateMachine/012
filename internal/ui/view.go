@@ -190,6 +190,8 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 		switch {
 		case m.showFillHandle(a):
 			text = ansi.Truncate(text, w-1, "") + base.Render("▟")
+		case m.sheet.Note(a) != "":
+			text = m.noteMark(text, a, base, colored)
 		case look.Dropdown:
 			text = m.dropdownMark(text, w, base, colored)
 		}

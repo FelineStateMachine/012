@@ -222,6 +222,9 @@ func (m *Model) contextLineText() string {
 			left = m.validationLine() // looks.go
 		}
 		if left == "" {
+			left = m.noteLine()
+		}
+		if left == "" {
 			left = m.recordingLine()
 		}
 	case m.mode == modeMenu:

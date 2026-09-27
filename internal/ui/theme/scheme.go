@@ -98,7 +98,7 @@ func minContrast(role string) float64 {
 	case "Disabled":
 		return minDisabled
 	case "Hint", "Muted", "Border", "FrozenLine", "ChartFrame", "ChartAxis", "ChartLabel",
-		"Progress", "ProgressTodo", "Copied", "Series", "Match", "Dropdown":
+		"Progress", "ProgressTodo", "Copied", "Series", "Match", "Dropdown", "NoteMark":
 		return minSecondary
 	}
 	return minText

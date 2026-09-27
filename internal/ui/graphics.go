@@ -185,6 +185,7 @@ func (t *terminal) syncImages(s *sheet.Sheet, shown func() []sheet.Chart, th *th
 		live[id] = true
 		w, h := chartInner(c)
 		d := s.ChartData(c)
+		o.Chart = c.ChartOptions
 		key := fmt.Sprintf("%v %v %d %d %v %v", c.Type, d, w, h, o, pal)
 		prev, resent := t.sent[id]
 		if prev == key {

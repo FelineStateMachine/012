@@ -315,8 +315,8 @@ func (s *Sheet) eachLine(r Rect, fn func(*lineFmt)) {
 
 // placeFormat has the cell at a show want, giving it formatting of its
 // own only where its lines don't already show it, and placing a copy so
-// the change can be undone. A cell left with neither contents nor
-// formatting is removed.
+// the change can be undone. A cell left with neither contents,
+// formatting nor a note is removed.
 func (s *Sheet) placeFormat(a Addr, want lineFmt) {
 	old := s.cells.get(a)
 	c := old.clone()
@@ -325,7 +325,7 @@ func (s *Sheet) placeFormat(a Addr, want lineFmt) {
 	}
 	c.Format, c.Style = own(want, s.inherited(a))
 	switch {
-	case c.Blank() && c.Format.IsZero() && c.Style.IsZero():
+	case c.Blank() && c.Format.IsZero() && c.Style.IsZero() && c.Note == "":
 		if old != nil {
 			s.place(a, nil)
 		}

@@ -77,13 +77,13 @@ func init() {
 				m.changed = true
 				return nil
 			}},
-		&command{id: "insert.checkbox", title: "Checkbox", edits: (*Model).selection,
+		&command{id: "insert.checkbox", title: "Checkbox", edits: (*Model).selection, changes: noCells,
 			desc: "Make the selected cells checkboxes: TRUE or FALSE, toggled with Space or a click",
 			run: func(m *Model) tea.Cmd {
 				m.failOn(m.host().SaveValidation(-1, sheet.Validation{Ranges: []sheet.Rect{m.selection()}, Kind: sheet.ValidCheckbox}))
 				return nil
 			}},
-		&command{id: "insert.dropdown", macro: macroView, title: "Dropdown", edits: (*Model).selection,
+		&command{id: "insert.dropdown", macro: macroView, title: "Dropdown", edits: (*Model).selection, changes: noCells,
 			desc: "Give the selected cells a list of items to pick from",
 			run: func(m *Model) tea.Cmd {
 				m.openOverlay(rules.Validations(m.host()).Add(true))
@@ -156,6 +156,12 @@ func (m *Model) openDropdown() {
 // pickItem enters a dropdown's item in the cell at a.
 func (m *Model) pickItem(a sheet.Addr, item string) {
 	m.closeOverlay()
+	if m.askProtected(sheet.Rect{From: a, To: a}, func(m *Model) tea.Cmd {
+		m.pickItem(a, item)
+		return nil
+	}) {
+		return
+	}
 	if err := m.sheet.Set(a, item); err != nil {
 		m.note = err.Error()
 		return

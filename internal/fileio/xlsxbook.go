@@ -19,8 +19,10 @@ type xlsxBook struct {
 	date1904 bool
 	sst      sharedStrings
 	styles   xlsxStyles
-	expanded int64     // bytes of shared formulas expanded, see formula
-	skips    ruleSkips // rules left out, see xlsxrulesimport.go
+	expanded int64 // bytes of shared formulas expanded, see formula
+	// protected names the sheets read so far that Excel protects.
+	protected []string
+	skips     ruleSkips // rules left out, see xlsxrulesimport.go
 }
 
 // xlsxSheetInfo is a sheet as the workbook lists it.

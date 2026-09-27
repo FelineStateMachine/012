@@ -82,7 +82,7 @@ func TestXLSXFrozenAndFilterRoundTrip(t *testing.T) {
 	if !db {
 		t.Errorf("no _FilterDatabase name: %+v", x.GetDefinedName())
 	}
-	afs, err := referenceAutoFilters(name)
+	afs, _, err := referenceAutoFilters(name)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,16 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // View state that belongs to the worksheet rather than to a cell: frozen
-// rows and columns, and the filter. It is saved in the file and every
-// change to it is an undo step, as in Sheets.
+// rows and columns, the filter and the protected ranges. It is saved in
+// the file and every change to it is an undo step, as in Sheets.
 type viewState struct {
 	frozenRows, frozenCols int
-	filter                 *Filter // never modified in place; replaced whole
+	filter                 *Filter      // never modified in place; replaced whole
+	protected              []Protection // see protect.go; replaced whole too
 }
 
 // Frozen returns how many rows and columns are frozen at the top and left.
@@ -75,15 +77,18 @@ func (s *Sheet) recordView() {
 
 func (v viewState) equal(w viewState) bool {
 	return v.frozenRows == w.frozenRows && v.frozenCols == w.frozenCols &&
-		(v.filter == w.filter || reflect.DeepEqual(v.filter, w.filter))
+		(v.filter == w.filter || reflect.DeepEqual(v.filter, w.filter)) &&
+		slices.Equal(v.protected, w.protected)
 }
 
-// shiftView keeps frozen lines and the filter in step with inserted or
-// deleted rows or columns: inserting inside the frozen area freezes the
-// new lines too, and the filter's range grows, shrinks or moves like a
-// range reference (and goes away when all of it is deleted).
+// shiftView keeps frozen lines, the filter and protected ranges in step
+// with inserted or deleted rows or columns: inserting inside the frozen
+// area freezes the new lines too, and the filter's and protections'
+// ranges grow, shrink or move like range references (and go away when
+// all of one is deleted).
 func (s *Sheet) shiftView(rows bool, sp formula.Span) {
 	v := s.view
+	v.protected = shiftProtected(v.protected, rows, sp)
 	frozen := &v.frozenCols
 	if rows {
 		frozen = &v.frozenRows
@@ -125,8 +130,9 @@ func (s *Sheet) shiftView(rows bool, sp formula.Span) {
 //	"freeze": {"rows": 1},
 //	"filter": {"range": "A1:C20", "columns": {"B": {"condition": "gt", "value": "100"}}},
 type fileView struct {
-	Freeze *fileFreeze `json:"freeze,omitempty"`
-	Filter *fileFilter `json:"filter,omitempty"`
+	Freeze    *fileFreeze      `json:"freeze,omitempty"`
+	Filter    *fileFilter      `json:"filter,omitempty"`
+	Protected []fileProtection `json:"protected,omitempty"`
 }
 
 type fileFreeze struct {
@@ -145,7 +151,8 @@ type fileCriteria struct {
 	Value     string   `json:"value,omitempty"`
 }
 
-// writeView adds the frozen panes and the filter to a file being written.
+// writeView adds the frozen panes, the filter and the protected ranges to
+// a file being written.
 func (s *Sheet) writeView(b *bytes.Buffer, indent string) error {
 	var keys []string
 	var parts []any
@@ -159,6 +166,9 @@ func (s *Sheet) writeView(b *bytes.Buffer, indent string) error {
 		}
 		keys, parts = append(keys, "filter"), append(parts, ff)
 	}
+	if ps := s.view.protected; len(ps) > 0 {
+		keys, parts = append(keys, "protected"), append(parts, encodeProtections(ps))
+	}
 	for i, p := range parts {
 		raw, err := json.Marshal(p)
 		if err != nil {
@@ -169,8 +179,14 @@ func (s *Sheet) writeView(b *bytes.Buffer, indent string) error {
 	return nil
 }
 
-// readView restores the frozen panes and the filter from a file.
+// readView restores the frozen panes, the filter and the protected
+// ranges from a file.
 func (s *Sheet) readView(fv fileView) error {
+	ps, err := decodeProtections(fv.Protected)
+	if err != nil {
+		return err
+	}
+	s.view.protected = ps
 	if fz := fv.Freeze; fz != nil {
 		s.view.frozenRows, s.view.frozenCols = clampInt(fz.Rows, 0, MaxFrozen), clampInt(fz.Cols, 0, MaxFrozen)
 	}

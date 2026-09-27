@@ -26,7 +26,7 @@ the app uses, so it never drifts from what the keys do.
 | View > Freeze | Keep rows or columns on screen while the rest scrolls |
 | Data > Sort sheet, Sort range | Sort by the active column A to Z or Z to A, or pick columns and order on a bar (Left/Right column, Space order, Alt+A add, Alt+H header row) |
 | Alt+Down, click ▾ in a header | With a filter (Data > Create a filter): pick the column's values (Space checks, type to search) or a condition |
-| Data > Pivot table | Summarize the table on a new sheet; in the pivot editor Up/Down pick a line, Space adds a field (or opens a filter, flips a total, changes the data range), Left/Right change a field's order or summary, S its "show as", Shift+Up/Down move it, Del removes it, Enter keeps, Esc undoes. Data > Edit pivot table reopens it |
+| Data > Pivot table | Summarize the table on a new sheet; in the pivot editor Up/Down pick a line, Space adds a field (or opens a filter, flips a total, changes the data range), Left/Right change a field's order or summary, S its "show as", R or F2 renames a value, Shift+Up/Down move it, Del removes it, Enter keeps, Esc undoes. Data > Edit pivot table reopens it |
 | Alt+Shift+F | Frequency table of the active column on a new sheet (Data > Frequency table), as VisiData's Shift+F |
 | Ctrl+Alt+= / Ctrl+Alt+- | Insert rows above / delete the selected rows (columns when whole columns are selected) |
 | Ctrl+Enter while typing | Enter the same entry in every selected cell |
@@ -34,6 +34,8 @@ the app uses, so it never drifts from what the keys do.
 | Typing a function, range or sheet name | Suggestions drop down: Up/Down pick, Tab or Enter insert (a sheet as `Summary!`, then arrows point into it), Esc hides them; inside a function's parentheses the context line shows its arguments with the current one marked |
 | Alt+, / Alt+. | Trace precedents / dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; press again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) |
 | Data > Named ranges | Name ranges for formulas (`=SUM(Sales)`): Enter goes to one, F2 renames or repoints it, Ctrl+D deletes it; Data > Define named range names the selection |
+| Shift+F2, Insert > Note | Add or edit the active cell's note on the context line (Alt+Enter or Shift+Enter starts a new line); see [data.md](data.md#notes) |
+| Data > Protect sheets and ranges | Protect a range or the sheet so edits to it ask first; Enter goes to a protection, Ctrl+D removes it; see [data.md](data.md#protected-sheets-and-ranges) |
 | Ctrl+Shift+1 ... 6 | Number, time, date, currency, percent, scientific format |
 | Ctrl+B, Ctrl+I, Ctrl+U, Alt+Shift+5 | Bold, italic, underline, strikethrough |
 | Ctrl+Shift+L / E / R | Align left, center, right |
@@ -48,7 +50,7 @@ the app uses, so it never drifts from what the keys do.
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
 | Right-click, Shift+F10 | Cell, column or row menu |
 | F1 or Ctrl+/ | Keyboard shortcuts |
-| Insert > Chart | Chart the selection (or the table around the active cell); the editor bar picks the type with Left/Right, S switches rows and columns, H and L toggle the header row and labels, R changes the range, T the title |
+| Insert > Chart | Chart the selection (or the table around the active cell); the editor bar picks the type with Left/Right or 1 to 6, S switches rows and columns, H and L toggle the header row and labels, K stacks columns, bars and areas, E adds a scatter's trend line, R changes the range, T the title, and A opens the axis and legend bar (N minimum, X maximum, L log scale, G gridlines, P legend position) |
 | Click a chart, then Arrows / Shift+arrows / Del | Move, resize or delete it; drag the chart or its corner with the mouse; Enter edits it |
 | Cmd- or Ctrl-click a URL | Open it: cells holding a URL, and `=HYPERLINK(url, [label])`, are terminal hyperlinks |
 | Data > Macros | Record what you do as a macro (absolute or relative references), stop and save it with a name and shortcut, run or manage saved macros; see [macros.md](macros.md) |
@@ -83,7 +85,7 @@ are taken.
 | `o` `O` | Insert a row below or above and start typing in it |
 | `x` | Clear the cell (with a count, that many to the right) |
 | `dd` `yy` | Cut or copy the row (with a count, that many rows); `p` pastes them back |
-| `p` `P` | Paste rows cut or copied with `dd` or `yy` as new rows below or above; other copied cells paste at the active cell |
+| `p` `P` | Paste rows cut or copied with `dd` or `yy` as new rows below or above, with their row formats; other copied cells paste at the active cell |
 | `u`, Ctrl+R | Undo, redo |
 | `v` `V` | Select cells or whole rows (VISUAL); motions stretch the selection |
 | `/`, `n` `N` | Find (Enter stays on the match), next and previous match |

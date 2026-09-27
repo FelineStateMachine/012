@@ -10,7 +10,8 @@ import (
 )
 
 // barPlan lays out horizontal bar charts: category labels on the left,
-// bars growing right, and the value axis along the bottom.
+// bars growing right, and the value axis along the bottom. Draw adds the
+// legend.
 //
 //	Jan │██████████▌
 //	Feb │███████▎
@@ -18,32 +19,36 @@ import (
 //	    0   1,000 2,000
 type barPlan struct {
 	d       sheet.ChartData
+	stacked bool
+	grid    bool
 	msg     string
 	sc      scale
 	catW    int // width of the category labels
 	axisX   int
 	axisRow int
 	tickRow int
-	legend  int
 	plot    image.Rectangle
 	shown   int
+	slots   int // bars per category: the series, or one stack
 	rows    int // rows per category, including a gap row
 }
 
-func newBarPlan(d sheet.ChartData, w, h int) *barPlan {
-	p := &barPlan{d: d, legend: -1}
+func newBarPlan(d sheet.ChartData, w, h int, o sheet.ChartOptions) *barPlan {
+	d = prepare(d, o, true)
+	p := &barPlan{d: d, stacked: o.Stack != sheet.StackNone, grid: !o.NoGrid, slots: len(d.Series)}
 	lo, hi, ok := finite(d.Series)
+	if p.stacked {
+		lo, hi, ok = stackedRange(d, len(d.Categories))
+		p.slots = 1
+	}
 	if !ok || len(d.Categories) == 0 {
 		p.msg = "No numbers to chart"
 		return p
 	}
-	lo, hi = min(lo, 0), max(hi, 0)
-	p.tickRow = h - 1
-	ns := len(d.Series)
-	if ns > 1 && h >= 7 {
-		p.legend = h - 1
-		p.tickRow = h - 2
+	if !o.Log {
+		lo, hi = min(lo, 0), max(hi, 0)
 	}
+	p.tickRow = h - 1
 	p.axisRow = p.tickRow - 1
 	if p.axisRow < 1 {
 		p.msg = "Too small to chart"
@@ -64,56 +69,69 @@ func newBarPlan(d sheet.ChartData, w, h int) *barPlan {
 			p.msg = "Too small to chart"
 			return p
 		}
-		p.sc = newScale(lo, hi, plotW, labelW+2, 6, d.Format)
+		p.sc = newAxis(lo, hi, plotW, labelW+2, 6, d.Format, o)
 		for j := 0; j <= p.sc.n; j++ {
 			labelW = max(labelW, ansi.StringWidth(p.sc.label(p.sc.tick(j))))
 		}
 	}
 	p.plot = image.Rect(x0, 0, x0+p.sc.cells(), p.axisRow)
-	p.rows = ns + 1
+	p.rows = p.slots + 1
 	if len(d.Categories)*p.rows-1 > p.axisRow {
-		p.rows = ns
+		p.rows = p.slots
 	}
-	p.shown = max(min(len(d.Categories), (p.axisRow+p.rows-ns)/p.rows), 1)
+	p.shown = max(min(len(d.Categories), (p.axisRow+p.rows-p.slots)/p.rows), 1)
 	return p
 }
 
-// barRow returns the row of series j's bar in category i.
-func (p *barPlan) barRow(i, j int) int { return i*p.rows + j }
+// barRow returns the row of series j's bar in category i; stacked, all
+// series share one.
+func (p *barPlan) barRow(i, j int) int {
+	if p.stacked {
+		j = 0
+	}
+	return i*p.rows + j
+}
+
+// piles returns category i's bars as spans, as columnPlan.piles does.
+func (p *barPlan) piles(i int, buf []span) []span {
+	if p.stacked {
+		return stack(p.d, i, buf)
+	}
+	buf = buf[:0]
+	base := p.sc.base()
+	for j, s := range p.d.Series {
+		if v := value(s, i); !math.IsNaN(v) {
+			buf = append(buf, span{min(v, base), max(v, base), j})
+		}
+	}
+	return buf
+}
 
 func (p *barPlan) draw(g *Grid, o Options) {
 	p.drawAxis(g)
-	ns := len(p.d.Series)
 	for i := 0; i < p.shown; i++ {
 		label := ansi.Truncate(p.d.Categories[i], p.catW, "…")
-		g.text(p.catW-ansi.StringWidth(label), p.barRow(i, (ns-1)/2), label, Label)
-	}
-	if p.legend >= 0 {
-		g.legend(p.legend, seriesNames(p.d))
+		g.text(p.catW-ansi.StringWidth(label), p.barRow(i, (p.slots-1)/2), label, Label)
 	}
 	if o.Image {
 		return
 	}
-	zero := p.sc.pos(0)
-	for j, s := range p.d.Series {
-		for i := 0; i < p.shown && i < len(s.Values); i++ {
-			v := s.Values[i]
-			if math.IsNaN(v) {
-				continue
-			}
-			lo, hi := min(zero, p.sc.pos(v)), max(zero, p.sc.pos(v))
-			for c := int(math.Floor(lo)); float64(c) < hi; c++ {
-				// Left of the axis, bars fill from the right.
-				if glyph := barGlyph(lo, hi, c, v >= 0, leftEighths, "▐"); glyph != "" {
-					g.set(p.plot.Min.X+c, p.barRow(i, j), glyph, SeriesRole(j))
-				}
+	if p.grid {
+		for j := 1; j <= p.sc.n; j++ {
+			for y := 0; y < p.axisRow; y++ {
+				g.set(p.plot.Min.X+j*p.sc.k-1, y, "┊", Gridline)
 			}
 		}
 	}
+	drawPiles(p.sc, p.shown, p.stacked, p.piles, leftEighths, "▐", func(i, j, c int, cell Cell) {
+		if at := g.At(p.plot.Min.X+c, p.barRow(i, j)); at != nil {
+			*at = cell
+		}
+	})
 }
 
 // drawAxis draws the category axis on the left and the value axis along
-// the bottom, labeling as many ticks as fit without touching.
+// the bottom.
 func (p *barPlan) drawAxis(g *Grid) {
 	for y := 0; y < p.axisRow; y++ {
 		g.set(p.axisX, y, "│", Axis)
@@ -122,39 +140,26 @@ func (p *barPlan) drawAxis(g *Grid) {
 	for x := p.axisX + 1; x < p.plot.Max.X; x++ {
 		g.set(x, p.axisRow, "─", Axis)
 	}
+	drawXTicks(g, p.sc, p.axisX, p.plot.Min.X, p.axisRow, p.tickRow)
+}
+
+// drawXTicks marks the ticks of a horizontal axis on row axisRow, the
+// first at column axisX and the rest ending intervals from x0, and labels
+// as many on row tickRow as fit without touching.
+func drawXTicks(g *Grid, sc scale, axisX, x0, axisRow, tickRow int) {
 	next := 0 // first free column
-	for j := 0; j <= p.sc.n; j++ {
-		x := p.axisX
+	for j := 0; j <= sc.n; j++ {
+		x := axisX
 		if j > 0 {
-			x = p.plot.Min.X + j*p.sc.k - 1
-			g.set(x, p.axisRow, "┬", Axis)
+			x = x0 + j*sc.k - 1
+			g.set(x, axisRow, "┬", Axis)
 		}
-		label := p.sc.label(p.sc.tick(j))
+		label := sc.label(sc.tick(j))
 		lw := ansi.StringWidth(label)
 		lx := min(max(x-(lw-1)/2, 0), g.W-lw)
 		if lx >= next {
-			g.text(lx, p.tickRow, label, Label)
+			g.text(lx, tickRow, label, Label)
 			next = lx + lw + 1
 		}
 	}
-}
-
-// barGlyph is the glyph of cell c of a bar from lo to hi, distances
-// along its axis in cells, or "" for none. A positive bar grows away
-// from the axis in eighths; a negative one has no eighths growing the
-// other way, so its partly covered cells are a full block or the half
-// block half.
-func barGlyph(lo, hi float64, c int, positive bool, eighths []string, half string) string {
-	cover := min(hi, float64(c+1)) - max(lo, float64(c))
-	switch {
-	case positive:
-		if g := eighths[int(math.Round(cover*8))]; g != " " {
-			return g
-		}
-	case cover >= 0.75:
-		return "█"
-	case cover >= 0.25:
-		return half
-	}
-	return ""
 }

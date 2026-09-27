@@ -41,6 +41,9 @@ type Snapshot struct {
 	// that keep them (XLSX).
 	CondFormats []sheet.CondFormat
 	Validations []sheet.Validation
+	// Notes are the cells' notes in the range, for formats that keep
+	// them (XLSX, as comments). A note may be on a cell with no contents.
+	Notes map[sheet.Addr]string
 }
 
 // SnapName is a named range: its name, and the range on the sheet
@@ -71,7 +74,9 @@ func (c SnapCell) Text() string {
 // row and column with contents, so exporting whole columns writes their
 // data rather than a million blank lines.
 func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
+	notes := r
 	if r == (sheet.Rect{}) {
+		notes = sheet.Rect{To: sheet.Addr{Col: sheet.MaxCols - 1, Row: sheet.MaxRows - 1}}
 		r, _ = s.UsedRange()
 	} else if data, ok := s.FilledBounds(r); ok {
 		r.To = data.To
@@ -82,6 +87,12 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true), Filter: s.Filter(),
 		CondFormats: s.CondFormats(), Validations: s.Validations()}
 	snap.FrozenRows, snap.FrozenCols = s.Frozen()
+	for _, a := range s.NotesIn(notes) {
+		if snap.Notes == nil {
+			snap.Notes = map[sheet.Addr]string{}
+		}
+		snap.Notes[a] = s.Note(a)
+	}
 	if f := snap.Filter; f != nil {
 		snap.HiddenRows = map[int]bool{}
 		for row := max(f.Range.From.Row, r.From.Row); row <= min(f.Range.To.Row, r.To.Row); row++ {
