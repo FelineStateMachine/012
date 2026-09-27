@@ -212,7 +212,8 @@ makes comes back to the UI goroutine as a message (`macroCallMsg`), is
 run on the model, and releases the script; the UI keeps taking calls
 within one update for a few milliseconds, so a 1000-action replay costs
 about 2 ms, and gives the screen back when the script pauses, so Esc can
-stop a runaway. The whole run is one undo step opened with
+stop a runaway. A script whose program is gone (it quit, or its SSH
+session dropped) stops after waiting 30 s for a call to be taken. The whole run is one undo step opened with
 `Workbook.Begin`.
 
 Recording (`macrorec.go`) listens where actions happen: `runCommand` for

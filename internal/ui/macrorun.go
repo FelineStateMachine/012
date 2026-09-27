@@ -48,6 +48,8 @@ type macroRun struct {
 	start time.Time
 	span  telemetry.Span
 	print string // the last line the script printed
+
+	orphan *time.Timer // see do; used only on the script's goroutine
 }
 
 type macroDone struct {
@@ -93,7 +95,7 @@ func (m *Model) startMacro(mc sheet.Macro) tea.Cmd {
 	r.end = m.book().Begin(sheet.Change{Label: "run macro " + mc.Name, Focus: m.selection(), Sheet: m.sheet})
 	r.run = macro.New(mc.Name, mc.Source, macro.Env{
 		Host:     scriptHost{m},
-		Do:       func(fn func()) { r.calls <- fn; <-r.ack },
+		Do:       r.do,
 		Print:    func(s string) { r.print = s },
 		MaxSteps: macroMaxSteps,
 	})
@@ -104,6 +106,28 @@ func (m *Model) startMacro(mc sheet.Macro) tea.Cmd {
 		r.done <- macroDone{st, err}
 	}()
 	return r.wait()
+}
+
+// orphanAfter is how long a script waits for the UI to take a call before
+// deciding the program is gone (it quit, or its SSH session dropped) and
+// stopping, so its goroutine doesn't outlive the program. A live UI
+// always has a wait running, so it takes calls at once.
+var orphanAfter = 30 * time.Second
+
+// do hands fn to the UI goroutine and waits until it has run. It runs on
+// the script's goroutine.
+func (r *macroRun) do(fn func()) {
+	if r.orphan == nil {
+		r.orphan = time.NewTimer(orphanAfter)
+	} else {
+		r.orphan.Reset(orphanAfter)
+	}
+	select {
+	case r.calls <- fn:
+		<-r.ack
+	case <-r.orphan.C:
+		r.run.Cancel() // the call is dropped; the script stops at its next step
+	}
 }
 
 // wait is the command that waits for the script's next call or its end.

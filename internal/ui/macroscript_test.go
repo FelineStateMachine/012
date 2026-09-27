@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -10,6 +11,23 @@ import (
 )
 
 // Scripts run against the model: the API, errors, limits and Esc.
+
+func TestAScriptOutlivesNoProgram(t *testing.T) {
+	defer func(d time.Duration) { orphanAfter = d }(orphanAfter)
+	orphanAfter = 20 * time.Millisecond
+	m := newModel()
+	m.book().SaveMacro("", sheet.Macro{Name: "Spin", Source: "while True:\n    move(0, 0)\n"}, "add")
+	m.trustHere()
+	m.runMacro(mustMacro(t, m, "Spin")) // its wait is never run: the program is gone
+	select {
+	case d := <-m.macros.run.done:
+		if d.err == nil {
+			t.Error("finished without an error")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the script's goroutine is still waiting")
+	}
+}
 
 // script saves src as a trusted macro and runs it to the end.
 func script(t *testing.T, m *Model, src string) {

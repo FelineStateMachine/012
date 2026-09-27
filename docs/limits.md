@@ -28,7 +28,7 @@ it lags, and past a second it stalls.
 | Undo | One step of any size: undo costs what the edit cost | 100 steps that each rewrite a whole column: 217 MB held | | Whole-cell before-images, 264 B per cell per step |
 | JEV | Up to about 1000 JEV cells: 0.3 ms of CPU per answer | 4000 JEV cells: 1.3 ms per answer, 5 s of CPU to answer them all | | Every answer recalculates every JEV cell (they're volatile) |
 | Formula depth | 10,000 nested parentheses or IFs: under 5 ms | | No explicit limit; recursion grows the stack | Recursive parser and evaluator |
-| Macros | Replaying 1000 recorded actions: 2 ms, one undo step; a script's call to the sheet: about 1.3 us | | Scripts past 10 M Starlark steps: stopped, with the line | One message per call to the sheet, served in batches on the UI goroutine |
+| Macros | Replaying 1000 recorded actions: 2.2 ms, one undo step; a script's call to the sheet: about 1.4 us | | Scripts past 10 M Starlark steps: stopped, with the line | One message per call to the sheet, served in batches on the UI goroutine |
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
 
 ## Sheet size
@@ -199,9 +199,9 @@ step whatever its size (`BenchmarkMacroReplay`, `BenchmarkMacroScript`,
 
 | Benchmark | Time | Per action or call | Allocations |
 |---|---|---|---|
-| Replay 1000 recorded actions, absolute references (entries, selects, extends, a command) | 2.05 ms | 2.0 us | 30 k, 1.6 MB |
-| The same with relative references (moves, formulas moved with the active cell) | 2.07 ms | 2.1 us | 31 k, 1.7 MB |
-| A script's loop: 5000 `set` and 5000 `get` calls | 13.2 ms | 1.3 us per call | 220 k, 7.8 MB |
+| Replay 1000 recorded actions, absolute references (entries, selects, extends, a command) | 2.16 ms | 2.2 us | 30 k, 1.6 MB |
+| The same with relative references (moves, formulas moved with the active cell) | 2.19 ms | 2.2 us | 31 k, 1.7 MB |
+| A script's loop: 5000 `set` and 5000 `get` calls | 13.7 ms | 1.4 us per call | 220 k, 7.8 MB |
 
 Reading a range walks its cells; a range larger than 4096 cells (whole
 columns) is first trimmed to the used range, which costs a pass over the
