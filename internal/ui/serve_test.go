@@ -153,6 +153,13 @@ func TestSaveAsksWhenFileChanged(t *testing.T) {
 		t.Errorf("save after overwrite: overlay %T changed %v", m.overlay, m.changed)
 	}
 
+	// A file deleted meanwhile is written again without asking.
+	os.Remove("book.012")
+	press(t, m, "<up>", "back", "<enter>", "<ctrl+s>")
+	if got, _ := readSheet("book.012"); m.overlay != nil || a1Of(got) != "back" {
+		t.Errorf("save after delete: overlay %T, A1 on disk %q", m.overlay, a1Of(got))
+	}
+
 	// Quitting with Save and quit waits for the answer, then quits.
 	writeSheet(t, "book.012", "theirs again, longer")
 	press(t, m, "<up>", "last", "<enter>")

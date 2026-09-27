@@ -168,7 +168,8 @@ func saveCmd(s *sheet.Sheet, name, path string, expect *stamp) tea.Cmd {
 		if err != nil {
 			return savedMsg{name: name, err: err}
 		}
-		if expect != nil && !diskStamp(path).equal(*expect) {
+		// A file deleted meanwhile is simply written again.
+		if now := diskStamp(path); expect != nil && now != (stamp{}) && !now.equal(*expect) {
 			return savedMsg{name: name, conflict: true}
 		}
 		if err := writeAtomic(path, buf.String()); err != nil {
