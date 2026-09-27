@@ -16,9 +16,11 @@ import (
 // instead of creating styles inline, so the look stays consistent and a
 // new theme only has to be defined here.
 //
-// Colors are the 16 ANSI colors, so the sheet follows the user's terminal
-// palette; dark and light variants only differ where ANSI colors would
-// lose contrast.
+// Roles are defined on the 16 ANSI colors (New). The terminal theme draws
+// them as ANSI indexes, so the sheet follows the user's terminal palette,
+// with dark and light variants that only differ where ANSI colors would
+// lose contrast. A color scheme (FromPalette) draws the same roles in the
+// scheme's colors, corrected for contrast, on its own background.
 type Theme struct {
 	Indicator    lipgloss.Style // mode indicator, top right
 	Header       lipgloss.Style // column letters, row numbers and the name box
@@ -75,6 +77,25 @@ type Theme struct {
 	MatchSelected     lipgloss.Style // matched characters in the highlighted row
 	Cell              lipgloss.Style // an ordinary cell: the base for bold, italic and underline
 
+	// Bars: full-width bands behind the menu bar, formula bar, context
+	// line, column headers and status line. Each line is drawn on its
+	// role's background, with its foreground for text that has none, out
+	// to the terminal's edge; an empty role leaves the line as it is.
+	MenuBarRow      lipgloss.Style
+	FormulaBarRow   lipgloss.Style
+	ContextRow      lipgloss.Style
+	ColumnHeaderRow lipgloss.Style
+	StatusBarRow    lipgloss.Style
+	RowHeader       lipgloss.Style // row numbers not focused, selected or hovered
+	// Screen is the background and default text color of the whole
+	// screen. Empty in the terminal theme, so the terminal's own show.
+	Screen lipgloss.Style
+
+	// Name is the theme's name, and Palette its colors: nil for the
+	// terminal theme, whose colors only the terminal knows.
+	Name    string
+	Palette *Palette
+
 	// Charts: see charts.go in package ui.
 	ChartFrame    lipgloss.Style // a chart's border
 	ChartSelected lipgloss.Style // the border of the selected chart and its resize handle
@@ -115,7 +136,7 @@ func (t *Theme) Text(base lipgloss.Style, st sheet.Style) lipgloss.Style {
 	return base
 }
 
-// New returns the dark or light variant.
+// New returns the terminal theme's dark or light variant.
 func New(dark bool) Theme {
 	// Contrast was checked against the reference palettes in e2e: text on
 	// colored backgrounds stays at or above roughly 4.5:1.
@@ -181,6 +202,9 @@ func New(dark bool) Theme {
 		Match:             lipgloss.NewStyle().Foreground(match).Bold(true),
 		MatchSelected:     accent.Bold(true).Underline(true),
 		Cell:              lipgloss.NewStyle(),
+
+		RowHeader: lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
+		Name:      Terminal,
 
 		ChartFrame:    lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
 		ChartSelected: lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true),
