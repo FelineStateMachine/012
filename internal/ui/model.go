@@ -84,10 +84,12 @@ type Model struct {
 	recovered     string       // the recovery file restored into this book, removed once it's saved: recovery.go
 
 	mode      mode
-	protectOK bool   // an edit to a protected range was agreed to: protect.go
-	note      string // feedback on the last action, e.g. "Undid: clear B3"
-	warn      string // like note, for something that went wrong, e.g. a macro's error
-	errMsg    string // the message ERROR mode shows
+	protectOK bool // an edit to a protected range was agreed to: protect.go
+	// borderLine is the line Format > Borders draws with: layoutfmt.go.
+	borderLine sheet.Line
+	note       string // feedback on the last action, e.g. "Undid: clear B3"
+	warn       string // like note, for something that went wrong, e.g. a macro's error
+	errMsg     string // the message ERROR mode shows
 
 	// Components. Each owns its state and the handling of the input it
 	// takes; Model routes messages to them and composes what they draw.

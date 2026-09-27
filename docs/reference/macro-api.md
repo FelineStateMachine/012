@@ -76,6 +76,7 @@ is already in the formulas that use it.
 | `add_sheet(name=None)` | Add a sheet after the one shown and show it; returns its name |
 | `move_sheet(position)` | Move the sheet shown to a position, counting from 1 |
 | `set_width(cols, width)` | Set column widths, 1 to 240: `set_width("B", 14)`, `set_width("B:D", 8)` |
+| `set_height(rows, height)` | Set row heights in lines, 1 to 50, or 0 to fit their contents: `set_height("3", 2)`, `set_height("3:5", 0)` |
 
 ## Commands
 

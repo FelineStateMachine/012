@@ -65,6 +65,10 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 	if m.refuseEdit(r, false) {
 		return nil
 	}
+	if len(m.sheet.MergesIn(r)) > 0 {
+		m.fail(sheet.ErrSortMerged.Error())
+		return nil
+	}
 	if m.askProtected(r, func(m *Model) tea.Cmd { return m.sort(r, keys) }) {
 		return nil
 	}

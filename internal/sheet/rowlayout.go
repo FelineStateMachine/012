@@ -158,17 +158,35 @@ func (s *Sheet) RowHeight(row int) (int, bool) {
 }
 
 // SetRowHeight sets rows from..to to h lines, as one undo step; h 0
-// has them fit their contents again, as Sheets' Fit to data.
+// has them fit their contents again, as Sheets' Fit to data. Heights are
+// kept row by row, so a range of more than materializeLimit rows (whole
+// columns) stops at the last row holding a cell.
 func (s *Sheet) SetRowHeight(from, to, h int) {
 	label := "row height"
 	if h <= 0 {
 		label = "fit rows to data"
+	}
+	if to-from >= materializeLimit {
+		used, _ := s.cells.bounds(rowRect(from, to))
+		to = max(from, used.To.Row)
 	}
 	s.change(label, rowRect(from, to), func() {
 		for r := from; r <= to; r++ {
 			s.setHeight(r, h)
 		}
 	})
+}
+
+// ColsWidth is the width of columns from..to together, at the cost of
+// the columns with a width of their own.
+func (s *Sheet) ColsWidth(from, to int) int {
+	w := (to - from + 1) * DefaultWidth
+	for c, cw := range s.widths {
+		if c >= from && c <= to {
+			w += cw - DefaultWidth
+		}
+	}
+	return w
 }
 
 // Heights returns the rows that have a height set by hand.

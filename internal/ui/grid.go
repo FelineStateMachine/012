@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/rowtext"
 )
 
 // grid is the sheet as the window shows it: which sheet, the active cell,
@@ -11,10 +12,11 @@ import (
 // or input, which belong to Model. Model embeds it, so m.sheet and m.cur
 // read as the model's own.
 type grid struct {
-	sheet         *sheet.Sheet // the sheet shown; its workbook is the file
-	cur           sheet.Addr   // the active cell
-	top, left     int          // first visible scrolling row and column
-	width, height int          // the window
+	sheet         *sheet.Sheet   // the sheet shown; its workbook is the file
+	cur           sheet.Addr     // the active cell
+	top, left     int            // first visible scrolling row and column
+	width, height int            // the window
+	shapes        rowtext.Shapes // how the rows drawn are laid out; see bands.go
 
 	// The selection: see selection.go.
 	selecting bool

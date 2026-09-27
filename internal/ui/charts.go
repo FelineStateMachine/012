@@ -118,9 +118,12 @@ func (g *grid) showChart(i int) {
 		return
 	}
 	c := charts[i]
-	rows := g.visibleRows()
-	if c.At.Row < g.top || c.At.Row+c.H > g.top+rows {
-		g.top = clamp(c.At.Row+c.H-rows, 0, c.At.Row)
+	if _, y := g.chartScreen(c); c.At.Row < g.top || y+c.H > gridTop+g.visibleRows() {
+		// The chart's bottom at the grid's, or its top at the top.
+		g.top = c.At.Row
+		for g.top > 0 && g.lineOf(c.At.Row, c.H+g.height)+c.H+g.span(g.stepRow(g.top, -1)) <= gridTop+g.visibleRows() {
+			g.top = g.stepRow(g.top, -1)
+		}
 	}
 	if c.At.Col < g.left || g.colStart(c.At.Col)+c.W > g.width {
 		g.left = c.At.Col
@@ -160,7 +163,7 @@ func chartInner(c sheet.Chart) (w, h int) { return c.W - 4, c.H - 2 }
 // chartScreen returns where chart c's top-left corner is on screen; it
 // may be off screen.
 func (g *grid) chartScreen(c sheet.Chart) (x, y int) {
-	return g.colStart(c.At.Col), gridTop + c.At.Row - g.top
+	return g.colStart(c.At.Col), g.lineOf(c.At.Row, c.H+g.height)
 }
 
 // chartAt returns the topmost chart drawn under x, y, or -1.

@@ -32,7 +32,8 @@ var (
 	})
 	rowMenu = concat(clipboardItems, []menuItem{sep,
 		{cmd: "insert.row_above", title: "Insert row above"}, {cmd: "insert.row_below", title: "Insert row below"}, sep,
-		{cmd: "delete.row", title: "Delete row"}, {cmd: "clear"},
+		{cmd: "delete.row", title: "Delete row"}, {cmd: "clear"}, sep,
+		{cmd: "row.height", title: "Resize row"}, {cmd: "row.fit"},
 	})
 )
 

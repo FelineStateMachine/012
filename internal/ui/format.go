@@ -140,6 +140,11 @@ func init() {
 // Ctrl+Shift+1 arrives as ctrl+! and Alt+Shift+5 as alt+%.
 var keyAliases = func() map[string]string {
 	a := map[string]string{"alt+%": "alt+shift+5", "alt+shift+%": "alt+shift+5"}
+	for i, sym := range "!@#$^&" { // Sheets' border keys, Alt+Shift+1 to 4, 6 and 7
+		d := string("123467"[i])
+		a["alt+"+string(sym)] = "alt+shift+" + d
+		a["alt+shift+"+string(sym)] = "alt+shift+" + d
+	}
 	for i, sym := range "!@#$%^" {
 		d := string(rune('1' + i))
 		a["ctrl+"+string(sym)] = "ctrl+shift+" + d

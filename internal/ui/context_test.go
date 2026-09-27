@@ -92,7 +92,7 @@ func TestRightClickHeaders(t *testing.T) {
 	if r := m.selection(); r.From != addr("A4") || r.To.Col != sheet.MaxCols-1 {
 		t.Errorf("row header selected %s", r)
 	}
-	if got := menuLabels(t, m); got != "Cut,Copy,Paste,-,Insert row above,Insert row below,-,Delete row,Clear" {
+	if got := menuLabels(t, m); got != "Cut,Copy,Paste,-,Insert row above,Insert row below,-,Delete row,Clear,-,Resize row,Fit rows to data" {
 		t.Errorf("row menu %s", got)
 	}
 }

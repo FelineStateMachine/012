@@ -69,6 +69,10 @@ type Theme struct {
 	// NoteMark is the mark in the top-right corner of a cell with a note,
 	// like Sheets' small triangle.
 	NoteMark lipgloss.Style
+	// CellBorder draws the lines of Format > Borders, in the ink of the
+	// text beside them rather than a color of their own, as Sheets draws
+	// borders black.
+	CellBorder lipgloss.Style
 
 	// Conditional formats (rules.go), indexed by sheet.Color: a rule's
 	// text color on the cell, its fill with text readable on it, and
@@ -168,7 +172,9 @@ func New(dark bool) Theme {
 	bar := lipgloss.Cyan
 	filterFg := lipgloss.Yellow
 	noteFg := lipgloss.Yellow
+	borderFg := lipgloss.White
 	if !dark {
+		borderFg = lipgloss.Black
 		noteFg = lipgloss.Magenta
 		headerBg, headerFg = lipgloss.White, lipgloss.Black
 		selFg, muted, match = lipgloss.BrightWhite, lipgloss.Black, lipgloss.Blue
@@ -219,6 +225,7 @@ func New(dark bool) Theme {
 		TabHover:   lipgloss.NewStyle().Foreground(bar).Bold(true).Underline(true),
 		FilterOn:   lipgloss.NewStyle().Background(headerBg).Foreground(filterFg).Bold(true),
 		NoteMark:   lipgloss.NewStyle().Foreground(noteFg),
+		CellBorder: lipgloss.NewStyle().Foreground(borderFg),
 
 		MenuBar:           lipgloss.NewStyle(),
 		MenuAccel:         lipgloss.NewStyle().Underline(true),

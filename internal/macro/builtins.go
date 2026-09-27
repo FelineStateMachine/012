@@ -26,7 +26,7 @@ func (r *Run) builtins() starlark.StringDict {
 		"move": r.move, "extend": r.extend, "jump": r.jump, "enter": r.enter, "paste_text": r.pasteText,
 		"sheets": r.sheets, "active_sheet": r.activeSheet, "activate_sheet": r.activateSheet,
 		"add_sheet": r.addSheet, "move_sheet": r.moveSheet,
-		"run": r.run, "set_width": r.setWidth, "fill": r.fill, "offset": offset,
+		"run": r.run, "set_width": r.setWidth, "set_height": r.setHeight, "fill": r.fill, "offset": offset,
 	}
 	out := make(starlark.StringDict, len(fns))
 	for name, fn := range fns {
@@ -367,6 +367,15 @@ func (r *Run) setWidth(args starlark.Tuple, kwargs []starlark.Tuple) (starlark.V
 		return nil, err
 	}
 	return starlark.None, r.host(func(h Host) error { return h.SetWidth(cols, width) })
+}
+
+func (r *Run) setHeight(args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	var rows string
+	var height int
+	if err := unpack("set_height", args, kwargs, "rows", &rows, "height", &height); err != nil {
+		return nil, err
+	}
+	return starlark.None, r.host(func(h Host) error { return h.SetHeight(rows, height) })
 }
 
 func (r *Run) fill(args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {

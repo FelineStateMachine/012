@@ -29,15 +29,22 @@ const (
 	dragCells
 	dragCols
 	dragRows
-	dragPoint  // dragging out a range in POINT mode or a range prompt
-	dragResize // dragging a column header border
-	dragFill   // dragging the fill handle
-	dragTab    // dragging a sheet's tab to move it
+	dragPoint     // dragging out a range in POINT mode or a range prompt
+	dragResize    // dragging a column header border
+	dragRowResize // dragging a row number's bottom border
+	dragFill      // dragging the fill handle
+	dragTab       // dragging a sheet's tab to move it
 )
 
 // selection returns the selected range; just the active cell when nothing
-// is selected.
+// is selected. A range takes in the merged cells it touches, as in Sheets.
 func (g *grid) selection() sheet.Rect {
+	return g.sheet.Grow(g.corners())
+}
+
+// corners is the range between the active cell and the selection's
+// moving corner, before merged cells grow it: what a macro records.
+func (g *grid) corners() sheet.Rect {
 	if !g.selecting {
 		return sheet.Rect{From: g.cur, To: g.cur}
 	}
@@ -53,9 +60,22 @@ func (g *grid) selection() sheet.Rect {
 	return r
 }
 
-// hasRange reports whether more than one cell is selected.
+// snap returns the cell a stands for: the top-left cell of the merge
+// holding it, where a merged cell's contents are.
+func (g *grid) snap(a sheet.Addr) sheet.Addr {
+	if m, ok := g.sheet.MergeAt(a); ok {
+		return m.From
+	}
+	return a
+}
+
+// hasRange reports whether more than one cell is selected: a merged
+// cell alone counts as one.
 func (g *grid) hasRange() bool {
 	r := g.selection()
+	if m, ok := g.sheet.MergeAt(g.cur); ok && r == m {
+		return false
+	}
 	return r.From != r.To
 }
 
@@ -85,6 +105,7 @@ func (g *grid) moveKey(key string) bool {
 		return g.navigate(base, &g.ext)
 	}
 	if g.navigate(key, &g.cur) {
+		g.cur = g.snap(g.cur)
 		g.clearSelection()
 		return true
 	}
@@ -105,6 +126,7 @@ func (m *Model) pointMoveKey(key string) bool {
 		return m.navigate(base, &m.point.at)
 	}
 	if m.navigate(key, &m.point.at) {
+		m.point.at = m.snap(m.point.at)
 		m.point.anchored = false
 		return true
 	}
@@ -145,6 +167,18 @@ func (g *grid) selectAll() tea.Cmd {
 // Keys follow Google Sheets.
 func (g *grid) navigate(key string, a *sheet.Addr) bool {
 	rows, cols := g.scrollRows(), g.visibleCols(g.left)
+	if m, ok := g.sheet.MergeAt(*a); ok { // steps leave a merged cell from its edge
+		switch key {
+		case "up":
+			a.Row = m.From.Row
+		case "down":
+			a.Row = m.To.Row
+		case "left", "shift+tab":
+			a.Col = m.From.Col
+		case "right", "tab":
+			a.Col = m.To.Col
+		}
+	}
 	switch key {
 	case "up":
 		a.Row = g.stepRow(a.Row, -1)
@@ -250,7 +284,7 @@ func (m *Model) gotoText(text string) bool {
 	m.showSheet(target)
 	if r.From == r.To {
 		m.clearSelection()
-		m.cur = r.From
+		m.cur = m.snap(r.From)
 		return true
 	}
 	m.selectRect(r)

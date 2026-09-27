@@ -32,6 +32,8 @@ func (m *Model) openWidth() tea.Cmd {
 		label:     "Column width (1-240):",
 		indicator: "WIDTH",
 		fresh:     true,
+		resize:    (*Model).setWidths,
+		maxSize:   240,
 		onText: func(m *Model, text string) tea.Cmd {
 			w, err := strconv.Atoi(text)
 			if err != nil || w < 1 || w > 240 {

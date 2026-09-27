@@ -21,7 +21,7 @@ type promptKind int
 const (
 	promptText promptKind = iota
 	promptRange
-	promptWidth
+	promptWidth // a size: digits only, and Left/Right preview one less or more
 )
 
 // prompt is a question on the context line, such as a file name or a
@@ -37,7 +37,10 @@ type prompt struct {
 	onText    func(m *Model, text string) tea.Cmd
 	onRange   func(m *Model, r sheet.Rect) tea.Cmd
 	onCancel  func(m *Model)
-	files     []string // the file list shown by File Open
+	// resize previews a size prompt's answer, from 1 to maxSize.
+	resize  func(m *Model, n int)
+	maxSize int
+	files   []string // the file list shown by File Open
 }
 
 // pointing reports whether a range prompt is taking the arrows.
@@ -150,11 +153,11 @@ func (p *prompt) stepWidth(m *Model, key string) {
 	} else {
 		w++
 	}
-	w = clamp(w, 1, 240)
+	w = clamp(w, 1, p.maxSize)
 	m.line.Clear()
 	p.fresh = false
 	m.line.Insert(strconv.Itoa(w))
-	m.setWidths(w) // live preview
+	p.resize(m, w)
 }
 
 // typeKey edits the answer; the first key typed replaces the default.

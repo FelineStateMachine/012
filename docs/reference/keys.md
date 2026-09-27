@@ -73,6 +73,8 @@ copies and which series the fill handle continues.
 | Ctrl+Shift+6 | Scientific |
 | Ctrl+B, Ctrl+I, Ctrl+U, Alt+Shift+5 | Bold, italic, underline, strikethrough |
 | Ctrl+Shift+L, Ctrl+Shift+E, Ctrl+Shift+R | Align left, center, right |
+| Alt+Shift+1, Alt+Shift+2, Alt+Shift+3, Alt+Shift+4 | Top, right, bottom, left border |
+| Alt+Shift+7, Alt+Shift+6 | Outer borders, clear borders |
 | Ctrl+\ | Clear formatting |
 
 The rest of the formats are in the Format menu.
@@ -197,6 +199,7 @@ line isn't a command itself (`:fill d` Enter fills down).
 | Double-click | Edit the cell |
 | Drag the fill handle (▟ at the selection's corner, shown on hover) | Continue a series (1, 2, 3; Jan, Feb; Mon, Tue; dates; Item 1, Item 2) or copy |
 | Drag a column header's right edge; double-click it | Resize the column; fit it to its contents |
+| Drag the bottom-right corner of a row number (`▄` on hover); double-click it | Resize the row; fit it to its contents |
 | Right-click | The cell, column or row menu |
 | Click `▾` in a header, or in a cell | Open the column's filter, or the cell's dropdown |
 | Click a checkbox | Check or uncheck it |

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -211,6 +212,23 @@ func (h scriptHost) SetWidth(cols string, width int) error {
 	for c := r.From.Col; c <= r.To.Col; c++ {
 		h.m.sheet.SetColWidth(c, width)
 	}
+	return nil
+}
+
+func (h scriptHost) SetHeight(rows string, height int) error {
+	r, ok := parseWhole(rows)
+	if !ok {
+		if n, err := strconv.Atoi(strings.TrimSpace(rows)); err == nil && n >= 1 && n <= sheet.MaxRows {
+			r, ok = sheet.Rect{From: sheet.Addr{Row: n - 1}, To: sheet.Addr{Row: n - 1}}, true
+		}
+	}
+	if !ok {
+		return fmt.Errorf("not a row or rows: %s", rows)
+	}
+	if height < 0 || height > sheet.MaxRowHeight {
+		return fmt.Errorf("row height must be between 1 and %d lines, or 0 to fit", sheet.MaxRowHeight)
+	}
+	h.m.sheet.SetRowHeight(r.From.Row, r.To.Row, height)
 	return nil
 }
 

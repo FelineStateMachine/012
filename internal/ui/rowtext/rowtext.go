@@ -41,7 +41,20 @@ type Span struct {
 // It can come from cells outside the viewport, so the scan starts at the
 // nearest filled cell on each side.
 func Layout(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int) []Span {
-	l := rowLayout{s: s, row: row, lo: lo, hi: lo + ncols - 1, out: make([]Span, ncols)}
+	return LayoutLine(s, row, lo, ncols, minCol, maxCol, Line{N: 1})
+}
+
+// Line is one line of a row: the K-th of its N, from 0 at the top.
+type Line struct{ K, N int }
+
+// LayoutLine is Layout for one line of a row N lines tall. Values sit on
+// the row's last line, as Sheets aligns them to the bottom, and text
+// that wraps (sheet.WrapOn) fills lines of its own column up to it, cut
+// at the top when the row is too short. Clipped text (sheet.WrapClip)
+// stays in its column. Text doesn't run on across a border or into
+// merged cells, whose contents the caller draws (see Merged).
+func LayoutLine(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int, ln Line) []Span {
+	l := rowLayout{s: s, row: row, lo: lo, hi: lo + ncols - 1, out: make([]Span, ncols), ln: ln, shaped: s.Shaped()}
 	for i := range l.out {
 		l.out[i] = Span{Trail: s.ColWidth(lo + i)}
 	}
@@ -69,6 +82,8 @@ type rowLayout struct {
 	x           []int
 	claimed     int // text of earlier cells reaches up to here
 	out         []Span
+	ln          Line
+	shaped      bool // the sheet wraps, draws borders or merges: see sheet.Shaped
 }
 
 // content is the cell in column c of the row, or nil if it's blank.
@@ -101,11 +116,38 @@ func (l *rowLayout) reach(minCol, maxCol int) (first, last int) {
 	return first, last
 }
 
+// free reports whether text may run on into column k from the column
+// on side (-1 left, 1 right): it's blank, not merged, and no border
+// lies between.
+func (l *rowLayout) free(k, side int) bool {
+	if l.content(k) != nil {
+		return false
+	}
+	if !l.shaped {
+		return true
+	}
+	a := sheet.Addr{Col: k, Row: l.row}
+	edge := a
+	if side < 0 {
+		edge.Col++
+	}
+	_, merged := l.s.MergeAt(a)
+	return !merged && l.s.EdgeLeft(edge) == sheet.LineNone
+}
+
 // place lays out the text of the cell in column c over the columns it
 // reaches.
 func (l *rowLayout) place(c int, cell *sheet.Cell) {
 	x0, x1 := l.col(c)
 	text, align, pad := l.display(c, cell, x1-x0)
+	style := l.s.CellStyle(sheet.Addr{Col: c, Row: l.row})
+	own := style.Wrap != sheet.WrapOverflow // the text stays in its column
+	if l.shaped {
+		var show bool
+		if text, show = l.shape(c, cell, style, text, x1-x0); !show {
+			return
+		}
+	}
 	tw := ansi.StringWidth(text)
 	start := x0 + pad
 	switch align {
@@ -116,10 +158,12 @@ func (l *rowLayout) place(c int, cell *sheet.Cell) {
 	case sheet.AlignCenter:
 		start = x0 + (x1-x0-tw)/2
 	}
-	from, to := l.room(c, cell, start, tw)
+	from, to := max(x0, l.claimed), x1
+	if !own {
+		from, to = l.room(c, cell, start, tw)
+	}
 	l.claimed = to
 	cut := textCutter{s: text}
-	style := l.s.CellStyle(sheet.Addr{Col: c, Row: l.row})
 	for k := max(l.first, l.lo); k <= min(l.last, l.hi); k++ {
 		kx0, kx1 := l.col(k)
 		if kx1 <= from || kx0 >= to {
@@ -162,10 +206,10 @@ func (l *rowLayout) room(c int, cell *sheet.Cell, start, tw int) (from, to int) 
 	if cell.Value.Kind != sheet.Text {
 		return from, to
 	}
-	for k := c + 1; k <= l.last && start+tw > to && l.content(k) == nil; k++ {
+	for k := c + 1; k <= l.last && start+tw > to && l.free(k, 1); k++ {
 		_, to = l.col(k)
 	}
-	for k := c - 1; k >= l.first && start < from && l.content(k) == nil; k-- {
+	for k := c - 1; k >= l.first && start < from && l.free(k, -1); k-- {
 		kx0, _ := l.col(k)
 		if kx0 < l.claimed {
 			return l.claimed, to
@@ -173,6 +217,24 @@ func (l *rowLayout) room(c int, cell *sheet.Cell, start, tw int) (from, to int) 
 		from = kx0
 	}
 	return from, to
+}
+
+// shape fits the text of the cell in column c, w wide and in style st,
+// to the line being laid out, and reports whether it shows there. A
+// merged cell's text is the caller's to draw.
+func (l *rowLayout) shape(c int, cell *sheet.Cell, st sheet.Style, text string, w int) (string, bool) {
+	if _, merged := l.s.MergeAt(sheet.Addr{Col: c, Row: l.row}); merged {
+		return "", false
+	}
+	if st.Wrap == sheet.WrapOn && cell.Value.Kind == sheet.Text {
+		lines := Wrap(text, w-2)
+		i := l.ln.K - max(l.ln.N-len(lines), 0)
+		if i < 0 || i >= len(lines) {
+			return "", false
+		}
+		return lines[i], true
+	}
+	return text, l.ln.K == l.ln.N-1
 }
 
 // keepGaps keeps a gap where text that runs to the edge of its column

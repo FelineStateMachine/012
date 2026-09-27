@@ -57,7 +57,7 @@ func (g *grid) selState() selState {
 }
 
 func (s selState) rect() sheet.Rect {
-	return (&grid{cur: s.cur, ext: s.ext, selecting: s.selecting, whole: s.whole}).selection()
+	return (&grid{cur: s.cur, ext: s.ext, selecting: s.selecting, whole: s.whole}).corners()
 }
 
 // startRecording starts recording, from the selection as it is.
@@ -224,7 +224,8 @@ func (m *Model) recordMove(key string) bool {
 // observe follows an input event while recording: with relative
 // references a new sheet shown is recorded right away (where its
 // selection starts can't be told later), and a change to the workbook
-// nothing recorded is noted as a comment.
+// nothing recorded is noted as a comment. A border being dragged is
+// recorded when it's let go.
 func (m *Model) observeRecording(before int) {
 	r := m.rec
 	if r == nil || m.mode != modeReady && m.mode != modeError || m.overlay != nil || m.prompt != nil {
@@ -233,7 +234,7 @@ func (m *Model) observeRecording(before int) {
 	if r.relative && m.sheet != r.base.sheet {
 		r.add(m, macro.Call("activate_sheet", m.sheet.Name()))
 	}
-	if m.sheet.StateID() != before && !r.acted {
+	if resizing := m.mouse.drag == dragResize || m.mouse.drag == dragRowResize; m.sheet.StateID() != before && !r.acted && !resizing {
 		what := cmp.Or(m.note, m.book().UndoLabel(), "a change")
 		r.actions = append(r.actions, macro.Note("Not recorded: "+strings.ToLower(what[:1])+what[1:]))
 	}

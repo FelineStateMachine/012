@@ -82,8 +82,22 @@ var menuBar = []menuDef{
 		}},
 		{cmd: "format.decimals_more", title: "Increase decimal places"}, {cmd: "format.decimals_less", title: "Decrease decimal places"}, sep,
 		{cmd: "format.bold", title: "Bold"}, {cmd: "format.italic", title: "Italic"}, {cmd: "format.underline", title: "Underline"}, {cmd: "format.strikethrough", title: "Strikethrough"}, sep,
-		{cmd: "format.align_left", title: "Align left"}, {cmd: "format.align_center", title: "Align center"}, {cmd: "format.align_right", title: "Align right"}, sep,
-		{cmd: "column.width"}, {cmd: "column.reset"}, sep,
+		{cmd: "format.align_left", title: "Align left"}, {cmd: "format.align_center", title: "Align center"}, {cmd: "format.align_right", title: "Align right"},
+		{title: "Wrapping", items: []menuItem{
+			{cmd: "format.wrap_overflow"}, {cmd: "format.wrap"}, {cmd: "format.wrap_clip"},
+		}},
+		{title: "Borders", items: []menuItem{
+			{cmd: "format.borders_all", title: "All"}, {cmd: "format.borders_outer", title: "Outer"}, {cmd: "format.borders_inner", title: "Inner"}, sep,
+			{cmd: "format.border_top", title: "Top"}, {cmd: "format.border_bottom", title: "Bottom"},
+			{cmd: "format.border_left", title: "Left"}, {cmd: "format.border_right", title: "Right"}, sep,
+			{cmd: "format.borders_clear", title: "None"}, sep,
+			{cmd: "format.border_thin"}, {cmd: "format.border_thick"}, {cmd: "format.border_double"},
+		}},
+		{title: "Merge cells", items: []menuItem{
+			{cmd: "format.merge_all"}, {cmd: "format.merge_horizontal"}, {cmd: "format.merge_vertical"}, sep,
+			{cmd: "format.unmerge"},
+		}}, sep,
+		{cmd: "column.width"}, {cmd: "column.reset"}, {cmd: "row.height"}, {cmd: "row.fit"}, sep,
 		{cmd: "format.conditional"}, {cmd: "format.conditional_clear"}, sep,
 		{cmd: "format.clear", title: "Clear formatting"},
 	}},
@@ -151,6 +165,17 @@ type barMenu struct {
 	x, w int // the title's span, including one column of padding each side
 }
 
+// anyVisible reports whether visibleItems would keep any of items,
+// without making the list: the menu bar asks every frame.
+func anyVisible(items []menuItem) bool {
+	for _, it := range items {
+		if it.items != nil && anyVisible(it.items) || !it.sep && it.items == nil && commands[it.cmd] != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // barMenus lays out the menus that have visible items. Titles are
 // separated by two spaces, as elsewhere in the UI.
 func barMenus() []barMenu {
@@ -158,7 +183,7 @@ func barMenus() []barMenu {
 	x := 0
 	for i := range menuBar {
 		d := &menuBar[i]
-		if len(visibleItems(d.items)) == 0 {
+		if !anyVisible(d.items) {
 			continue
 		}
 		w := len(d.title) + 2

@@ -60,7 +60,8 @@ func (f *fakeHost) Run(id string, answer *string) error {
 	}
 	return f.log("run %s %q", id, *answer)
 }
-func (f *fakeHost) SetWidth(cols string, w int) error { return f.log("width %s %d", cols, w) }
+func (f *fakeHost) SetWidth(cols string, w int) error  { return f.log("width %s %d", cols, w) }
+func (f *fakeHost) SetHeight(rows string, h int) error { return f.log("height %s %d", rows, h) }
 func (f *fakeHost) Fill(to string, rows, cols int) error {
 	return f.log("fill %q %d %d", to, rows, cols)
 }
@@ -82,6 +83,7 @@ func TestSourceRunsAsRecorded(t *testing.T) {
 		Call("run", "format.bold"),
 		Call("activate_sheet", "Q3 plan"),
 		Call("set_width", "B:C", 14),
+		Call("set_height", "3:4", 2),
 		Call("fill").With("rows", 3),
 		Call("move_sheet", 2),
 	}
@@ -96,7 +98,7 @@ func TestSourceRunsAsRecorded(t *testing.T) {
 	want := []string{
 		`select B2 ""`, `enter "=SUM(A1:A3)" false ""`, "move 0 1", `extend 2 0 "columns"`, "jump down true",
 		`enter "total" true ""`, `enter "=A1" false "B2"`, `paste "a\tb\n\"c\""`, `run column.width "12"`, "run format.bold",
-		"activate Q3 plan", "width B:C 14", `fill "" 3 0`, "move sheet 2",
+		"activate Q3 plan", "width B:C 14", "height 3:4 2", `fill "" 3 0`, "move sheet 2",
 	}
 	if strings.Join(f.calls, "\n") != strings.Join(want, "\n") {
 		t.Errorf("calls:\n%s\nwant:\n%s", strings.Join(f.calls, "\n"), strings.Join(want, "\n"))

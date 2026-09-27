@@ -187,7 +187,7 @@ func (s *chartSel) release(m *Model) {
 // chartCellAt returns the cell a chart's corner snaps to when dragged to
 // screen position x, y, which may be past the grid's edges.
 func (g *grid) chartCellAt(x, y int) sheet.Addr {
-	a := sheet.Addr{Row: max(g.top+y-gridTop, 0), Col: g.left}
+	a := sheet.Addr{Row: g.rowAtLine(y), Col: g.left}
 	switch {
 	case x >= g.hdrW():
 		if col, _, ok := g.colSpan(x); ok {

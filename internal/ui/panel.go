@@ -29,13 +29,11 @@ func (m *Model) View() tea.View {
 		defer m.timeFrame(time.Now())
 	}
 	lines := []string{m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.headerRow()}
-	rows := m.screenRows()
-	for i := range m.visibleRows() {
-		if i < len(rows) {
-			lines = append(lines, m.gridRow(rows[i]))
-		} else {
-			lines = append(lines, "")
-		}
+	for _, b := range m.bands() {
+		lines = m.appendBand(lines, b)
+	}
+	for len(lines) < gridTop+m.visibleRows() {
+		lines = append(lines, "")
 	}
 	lines = append(lines, m.statusLine())
 	for i, l := range lines {

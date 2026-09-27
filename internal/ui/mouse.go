@@ -25,6 +25,7 @@ type mouseState struct {
 	x, y          int    // last position, for autoscroll
 	autoscrolling bool   // an autoscroll tick is pending
 	resizeCol     int    // the column being resized by its header border
+	resizeRow     int    // the row being resized by its number's border
 	shape         string // the pointer shape last sent to the terminal
 
 	// A fill handle drag, see fill.go: where it points, and the range it
@@ -42,6 +43,7 @@ const (
 	hitColHeader
 	hitColBorder // the resize handle at the right edge of a column header
 	hitRowHeader
+	hitRowBorder // the resize handle at the bottom right of a row number
 	hitCell
 	hitFormulaBar // the active cell's contents in READY mode
 	hitEditLine   // the entry being typed
@@ -98,22 +100,7 @@ func (m *Model) hitTest(x, y int) hit {
 		}
 		return hit{kind: kind, addr: sheet.Addr{Col: col, Row: m.top}}
 	case y >= gridTop && y < gridTop+m.visibleRows():
-		row, ok := m.rowAt(y)
-		if !ok {
-			return hit{}
-		}
-		if x < m.hdrW() {
-			return hit{kind: hitRowHeader, addr: sheet.Addr{Col: m.left, Row: row}}
-		}
-		col, start, ok := m.colSpan(x)
-		if !ok {
-			return hit{}
-		}
-		a := sheet.Addr{Col: col, Row: row}
-		if m.mode == modeReady && a == m.fillCorner() && x == start+m.sheet.ColWidth(col)-1 {
-			return hit{kind: hitFillHandle, addr: a}
-		}
-		return hit{kind: m.ruleHit(a, x, start), addr: a}
+		return m.gridHit(x, y)
 	case y == m.height-1:
 		if h, ok := m.tabAt(x); ok {
 			return h
@@ -121,6 +108,31 @@ func (m *Model) hitTest(x, y int) hit {
 		return hit{kind: hitStatus}
 	}
 	return hit{}
+}
+
+// gridHit is hitTest over the grid's rows: a row's number, the resize
+// handle at its corner, or a cell.
+func (m *Model) gridHit(x, y int) hit {
+	row, ok := m.rowAt(y)
+	if !ok {
+		return hit{}
+	}
+	if x < m.hdrW() {
+		kind := hitRowHeader
+		if b, _ := m.bandOf(row); x == m.hdrW()-1 && y == b.end()-1 && b.shown == b.lines {
+			kind = hitRowBorder
+		}
+		return hit{kind: kind, addr: sheet.Addr{Col: m.left, Row: row}}
+	}
+	col, start, ok := m.colSpan(x)
+	if !ok {
+		return hit{}
+	}
+	a := sheet.Addr{Col: col, Row: row}
+	if m.mode == modeReady && a == m.fillCorner() && x == start+m.sheet.ColWidth(col)-1 {
+		return hit{kind: hitFillHandle, addr: a}
+	}
+	return hit{kind: m.ruleHit(a, x, start), addr: a}
 }
 
 // dragAnchor is where the drag in progress started.
@@ -228,15 +240,21 @@ func (m *Model) readyPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 			return nil
 		}
 		m.mouse.resizeCol, m.mouse.drag = h.addr.Col, dragResize
+	case hitRowBorder:
+		if double {
+			m.fitRows(h.addr.Row)
+			return nil
+		}
+		m.mouse.resizeRow, m.mouse.drag = h.addr.Row, dragRowResize
 	case hitCell:
 		switch {
 		case shift:
 			m.selecting, m.whole, m.ext = true, wholeNone, h.addr
-		case double && h.addr == m.cur:
+		case double && m.snap(h.addr) == m.cur:
 			m.clearSelection()
 			return m.runCommand("edit")
 		default:
-			m.cur = h.addr
+			m.cur = m.snap(h.addr)
 			m.clearSelection()
 		}
 		m.mouse.drag = dragCells
@@ -277,6 +295,13 @@ func (m *Model) dragTo(x, y int) tea.Cmd {
 		m.sheet.SetColWidth(m.mouse.resizeCol, clamp(x-m.colStart(m.mouse.resizeCol)+1, 1, 240))
 		m.changed = true
 		return nil
+	case dragRowResize:
+		if b, ok := m.bandOf(m.mouse.resizeRow); ok {
+			r := m.mouse.resizeRow
+			m.sheet.SetRowHeight(r, r, clamp(y-b.top()+1, 1, sheet.MaxRowHeight))
+			m.changed = true
+		}
+		return nil
 	case dragTab:
 		return nil // handleMotion tracks the tab under the mouse
 	}
@@ -309,7 +334,7 @@ func autoscrollTick() tea.Cmd {
 // handleAutoscroll moves a drag that's past the edge of the grid one more
 // step and keeps ticking until the mouse comes back or is released.
 func (m *Model) handleAutoscroll() tea.Cmd {
-	if m.mouse.drag == dragNone || m.mouse.drag == dragResize || m.mouse.drag == dragTab {
+	if m.mouse.drag == dragNone || m.mouse.drag == dragResize || m.mouse.drag == dragRowResize || m.mouse.drag == dragTab {
 		m.mouse.autoscrolling = false
 		return nil
 	}
@@ -344,6 +369,9 @@ func (m *Model) handleRelease() tea.Cmd {
 		m.dropTab()
 	case dragResize:
 		m.record(widthAction(m.mouse.resizeCol, m.mouse.resizeCol, m.sheet.ColWidth(m.mouse.resizeCol)))
+	case dragRowResize:
+		h, _ := m.sheet.RowHeight(m.mouse.resizeRow)
+		m.record(heightAction(m.mouse.resizeRow, m.mouse.resizeRow, h))
 	}
 	m.mouse.drag, m.mouse.autoscrolling = dragNone, false
 	if m.selecting && m.whole == wholeNone && m.ext == m.cur {
@@ -360,6 +388,8 @@ func (m *Model) pointerShape() tea.Cmd {
 	switch {
 	case m.mouse.drag == dragResize, m.mouse.hover.kind == hitColBorder:
 		shape = "col-resize"
+	case m.mouse.drag == dragRowResize, m.mouse.hover.kind == hitRowBorder:
+		shape = "row-resize"
 	case m.mouse.drag == dragFill, m.mouse.hover.kind == hitFillHandle:
 		shape = "crosshair"
 	case m.mode == modeReady && m.chartAt(m.mouse.x, m.mouse.y) >= 0:

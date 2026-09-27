@@ -86,6 +86,9 @@ type Host interface {
 	Run(id string, answer *string) error
 	// SetWidth sets the width of the columns cols, e.g. "B" or "B:D".
 	SetWidth(cols string, width int) error
+	// SetHeight sets the height of the rows rows, e.g. "3" or "3:5", in
+	// lines; 0 fits them to their contents.
+	SetHeight(rows string, height int) error
 	// Fill fills from the selection as dragging the fill handle does: to
 	// the range to, or by rows (down, or up when negative) or cols.
 	Fill(to string, rows, cols int) error

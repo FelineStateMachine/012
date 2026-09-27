@@ -113,6 +113,7 @@ func (m *Model) showHandle(c int) bool {
 	return m.mouse.hover.kind == hitColBorder && m.mouse.hover.addr.Col == c
 }
 
+// gridRow draws a row one line tall.
 func (m *Model) gridRow(row int) string {
 	if row >= sheet.MaxRows {
 		return ""
@@ -120,33 +121,48 @@ func (m *Model) gridRow(row int) string {
 	if row == divider {
 		return m.dividerRow()
 	}
-	focus := m.active()
-	sel, selecting := m.highlight()
+	return m.rowLine(row, rowtext.Line{N: 1})
+}
+
+// rowLine draws line ln of a row: its number on the last line, beside
+// its values, so a tall row ends on the line that numbers it, then its
+// cells.
+func (m *Model) rowLine(row int, ln rowtext.Line) string {
+	lc := m.lineContext(row, ln)
 	hdr := m.th.RowHeader
 	switch {
-	case row == focus.Row:
+	case row == lc.focus.Row:
 		hdr = m.th.HeaderActive
-	case selecting && row >= sel.From.Row && row <= sel.To.Row:
+	case lc.selecting && row >= lc.sel.From.Row && row <= lc.sel.To.Row:
 		hdr = m.th.HeaderSel
 	case m.mouse.hover.kind == hitRowHeader && m.mouse.hover.addr.Row == row:
 		hdr = m.th.HeaderHover
 	}
 	var b strings.Builder
-	b.WriteString(hdr.Render(theme.PadLeft(strconv.Itoa(row+1), m.hdrW()-1) + " "))
+	num := ""
+	if ln.K == ln.N-1 {
+		num = strconv.Itoa(row + 1)
+	}
+	if m.showRowHandle(row) && ln.K == ln.N-1 {
+		b.WriteString(hdr.Render(theme.PadLeft(num, m.hdrW()-1)) + m.th.Handle.Render("▄"))
+	} else {
+		b.WriteString(hdr.Render(theme.PadLeft(num, m.hdrW()-1) + " "))
+	}
 
 	_, fc := m.frozen()
 	if fc > 0 {
-		b.WriteString(m.cellsText(row, 0, rowtext.Layout(m.sheet, row, 0, fc, 0, fc-1), focus, sel, selecting))
+		b.WriteString(m.cellsText(&lc, 0, m.layoutLine(&lc, 0, fc, 0, fc-1)))
 		b.WriteString(m.th.FrozenLine.Render("│"))
 	}
 	ncols := m.visibleCols(m.left)
-	b.WriteString(m.cellsText(row, m.left, rowtext.Layout(m.sheet, row, m.left, ncols, fc, sheet.MaxCols-1), focus, sel, selecting))
+	b.WriteString(m.cellsText(&lc, m.left, m.layoutLine(&lc, m.left, ncols, fc, sheet.MaxCols-1)))
 	return b.String()
 }
 
-// cellsText draws the spans of a row's columns from first on, in the
-// roles for the pointer, the selection, search matches and errors.
-func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr, sel sheet.Rect, selecting bool) string {
+// cellsText draws the spans of a line of cells from column first on, in
+// the roles for the pointer, the selection, search matches and errors.
+func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
+	row := lc.row
 	var b strings.Builder
 	spills := m.sheet.HasSpills()
 	rules := m.sheet.HasRules()
@@ -156,41 +172,26 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 	}
 	for i, sp := range spans {
 		a := sheet.Addr{Col: first + i, Row: row}
-		base, colored := m.th.Cell, true
-		switch {
-		case a == focus:
-			base = m.th.Pointer
-		case selecting && sel.Contains(a):
-			base = m.th.Selection
-		case m.found(a):
-			base = m.th.Found
-		case m.trace.covers(m.sheet, a):
-			base = m.th.Traced
-		case sheet.IsPending(m.sheet.Value(a)):
-			base = m.th.Muted
-		case m.sheet.Value(a).Kind == sheet.Error:
-			base = m.th.ErrorCell
-		case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: row}).Spilled():
-			base = m.th.Spilled
-		default:
-			colored = false
-		}
+		base, colored := m.cellRole(lc, a, sp, spills)
 		var look sheet.Look
 		var shade theme.Shade
 		shaded := false
-		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() {
+		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() && lc.bottom() {
 			sp = rowtext.Span{Text: m.inCellText(m.sheet.ColWidth(a.Col))}
 		} else {
 			m.decorate(&sp, row) // links and error marks, see links.go
 			if rules {
 				look, shade, shaded = m.ruleSpan(a, &sp, colored, rgb) // looks.go
+				if look.Checkbox && !lc.bottom() {
+					sp = rowtext.Span{Trail: m.sheet.ColWidth(a.Col)}
+				}
 			}
 		}
 		if shaded {
 			base, colored = shade.Style, true
 		}
 		// The copy marker is layered on the cell's own colors.
-		if m.copied.marks(m.sheet, a) {
+		if lc.bottom() && m.copied.marks(m.sheet, a) {
 			base, colored, shaded = base.Inherit(m.th.Copied), true, false
 		}
 		var text string
@@ -199,18 +200,50 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 		} else {
 			text = renderSpan(&m.th, sp, base, colored)
 		}
-		w := m.sheet.ColWidth(a.Col)
-		switch {
-		case m.showFillHandle(a):
-			text = ansi.Truncate(text, w-1, "") + base.Render("▟")
-		case m.sheet.Note(a) != "":
-			text = m.noteMark(text, a, base, colored)
-		case look.Dropdown:
-			text = m.dropdownMark(text, w, base, colored)
-		}
-		b.WriteString(text)
+		b.WriteString(m.cellMarks(lc, a, text, look, base, colored))
 	}
 	return b.String()
+}
+
+// cellRole is the role a cell is drawn in: the pointer, the selection,
+// a search match, a trace, an error or a spill, or the plain cell role
+// (colored false).
+func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp rowtext.Span, spills bool) (lipgloss.Style, bool) {
+	switch {
+	case a == lc.focus || lc.merged(a, lc.focus):
+		return m.th.Pointer, true
+	case lc.selecting && lc.sel.Contains(a):
+		return m.th.Selection, true
+	case m.found(a):
+		return m.th.Found, true
+	case m.trace.covers(m.sheet, a):
+		return m.th.Traced, true
+	case sheet.IsPending(m.sheet.Value(a)):
+		return m.th.Muted, true
+	case m.sheet.Value(a).Kind == sheet.Error:
+		return m.th.ErrorCell, true
+	case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: lc.row}).Spilled():
+		return m.th.Spilled, true
+	}
+	return m.th.Cell, false
+}
+
+// cellMarks draws a cell's marks over its text: the fill handle, a
+// note's corner or a dropdown's ▾, and the border along its left.
+func (m *Model) cellMarks(lc *lineCtx, a sheet.Addr, text string, look sheet.Look, base lipgloss.Style, colored bool) string {
+	w := m.sheet.ColWidth(a.Col)
+	switch {
+	case lc.bottom() && m.showFillHandle(a):
+		text = ansi.Truncate(text, w-1, "") + base.Render("▟")
+	case lc.ln.K == 0 && m.sheet.Note(a) != "":
+		text = m.noteMark(text, a, base, colored)
+	case lc.bottom() && look.Dropdown:
+		text = m.dropdownMark(text, w, base, colored)
+	}
+	if lc.shaped {
+		text = m.leftEdge(lc, a, text, base, colored)
+	}
+	return text
 }
 
 // dividerRow is the line under the frozen rows, crossing the one right of
