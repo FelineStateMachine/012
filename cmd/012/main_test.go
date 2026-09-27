@@ -132,6 +132,13 @@ func TestStartJEV(t *testing.T) {
 		t.Errorf(".env: %v %v", client, notes)
 	}
 
+	// jev-api-key-command waits for the first question.
+	writeConfig(t, "jev-api-key-command = /nonexistent/key-helper\n")
+	c, _ = loadConfig(e, nil)
+	if client, notes := startJEV(c, e, store); client == nil || len(notes) != 0 {
+		t.Errorf("command: %v %v", client, notes)
+	}
+
 	// The base URL only comes from the config or environment, and must
 	// be https.
 	e.getenv = func(k string) string {

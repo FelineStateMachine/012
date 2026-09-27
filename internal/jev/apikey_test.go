@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/FelineStateMachine/012/internal/keyring"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 func env(vals map[string]string) func(string) string {
@@ -148,5 +149,21 @@ func TestNewClientChecksBaseURL(t *testing.T) {
 	}
 	if _, err := NewClient(Config{APIKey: "k", BaseURL: "http://127.0.0.1:8799"}); err != nil {
 		t.Errorf("localhost: %v", err)
+	}
+}
+
+func TestLazyConnectsOnce(t *testing.T) {
+	calls := 0
+	c := Lazy(func() (Client, error) { calls++; return nil, errors.New("jev-api-key-command: op: exit status 1") })
+	if calls != 0 {
+		t.Fatal("connected before a question")
+	}
+	for range 2 {
+		if a := Ask(context.Background(), c, sheet.RemoteCall{Kind: "noul", Instructions: "Q", Criteria: [2]string{}}); !strings.Contains(a.Failed, "exit status 1") {
+			t.Errorf("answer %+v", a)
+		}
+	}
+	if calls != 1 {
+		t.Errorf("connected %d times", calls)
 	}
 }

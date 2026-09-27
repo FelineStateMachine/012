@@ -10,7 +10,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+
+	typesafe "github.com/FelineStateMachine/typesafe-go"
 
 	"github.com/FelineStateMachine/012/internal/config"
 	"github.com/FelineStateMachine/012/internal/keyring"
@@ -153,4 +156,27 @@ func LoadConfig(dirs ...string) (Config, bool) {
 		return c, false
 	}
 	return c, c.APIKey != ""
+}
+
+// Lazy is a Client that connects the first time a question is asked,
+// with connect, and remembers the result, error included. 012 uses it for
+// jev-api-key-command, so a password manager is only asked for the key
+// when a sheet actually uses JEV.
+func Lazy(connect func() (Client, error)) Client {
+	return &lazyClient{connect: connect}
+}
+
+type lazyClient struct {
+	once    sync.Once
+	connect func() (Client, error)
+	client  Client
+	err     error
+}
+
+func (l *lazyClient) SystemOne(ctx context.Context, r typesafe.SystemOneRequest) (*typesafe.SystemOneResponse, error) {
+	l.once.Do(func() { l.client, l.err = l.connect() })
+	if l.err != nil {
+		return nil, l.err
+	}
+	return l.client.SystemOne(ctx, r)
 }

@@ -130,13 +130,26 @@ func jevConfig(c *config.Config, key string) jev.Config {
 // startJEV finds the API key and connects, returning notes for the
 // context line: why the key couldn't be read, or that a .env file's key
 // is no longer read.
+//
+// jev-api-key-command runs only when the environment and the credential
+// store have no key, and then only when a sheet first asks JEV
+// something, so a password manager doesn't prompt on every start.
 func startJEV(c *config.Config, e env, store keyring.Store) (jev.Client, []string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*jev.KeyCommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), jev.KeyCommandTimeout)
 	defer cancel()
-	key, _, err := jev.ResolveKey(ctx, jev.KeySources{Getenv: e.getenv, Store: store, Command: c.String("jev-api-key-command")})
+	key, _, err := jev.ResolveKey(ctx, jev.KeySources{Getenv: e.getenv, Store: store})
 	var notes []string
 	if err != nil {
 		notes = append(notes, "JEV API key: "+err.Error())
+	}
+	if command := c.String("jev-api-key-command"); key == "" && command != "" {
+		return jev.Lazy(func() (jev.Client, error) {
+			key, _, err := jev.ResolveKey(context.Background(), jev.KeySources{Command: command})
+			if err != nil {
+				return nil, err
+			}
+			return jev.NewClient(jevConfig(c, key))
+		}), notes
 	}
 	if key == "" {
 		if jev.DotEnvHasKey(".") {
