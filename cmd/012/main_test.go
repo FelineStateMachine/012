@@ -174,3 +174,15 @@ func TestRunWarnsOnConfig(t *testing.T) {
 		t.Error("two files")
 	}
 }
+
+func TestVersion(t *testing.T) {
+	e, out, _ := testEnv(t, nil)
+	version = "v9.8.7"
+	defer func() { version = "" }()
+	for _, arg := range []string{"version", "--version"} {
+		out.Reset()
+		if err := run([]string{arg}, e); err != nil || !strings.HasPrefix(out.String(), "012 v9.8.7") {
+			t.Errorf("%s: %v %q", arg, err, out)
+		}
+	}
+}

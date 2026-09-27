@@ -77,7 +77,8 @@ var Groups = []string{GroupAppearance, GroupData, GroupJEV, GroupTelemetry, Grou
 // (go test ./internal/config -update-docs) and Settings follow.
 var Options = []Option{
 	{Name: "theme", Group: GroupAppearance, Default: "terminal", Env: []string{"O12_THEME"}, Flag: "--theme", Live: true,
-		Desc: "Colors. `terminal` uses the terminal's own 16-color palette. Any other name is a " +
+		Desc: "Colors. `terminal` uses the terminal's own 16-color palette. `high-contrast` draws white on " +
+			"black or black on white by the terminal's background, with WCAG AAA contrast. Any other name is a " +
 			"terminal color scheme, built in (`012 config themes` lists them) or a file in the themes " +
 			"directory, drawn in its own colors with solid menu and status bars. " +
 			"`light:NAME,dark:NAME` picks one by the terminal's background and follows it when it changes.",

@@ -7,6 +7,8 @@
 #
 #   BENCH=Edit|Frame    only these benchmarks (a go test -bench pattern)
 #   BENCHTIME=500ms     per benchmark (slow ones still run once)
+#   COUNT=1             samples per benchmark (make stress-report reads
+#                       their spread as noise)
 #   PKGS="./internal/sheet"
 set -euo pipefail
 
@@ -21,7 +23,7 @@ pkgs=${PKGS:-"./internal/sheet ./internal/ui ./internal/fileio ./internal/chart 
 
 # shellcheck disable=SC2086 # pkgs is a list
 STRESS_DIR="$root/.deps/stress" go test -tags stress -run '^$' \
-	-bench "${BENCH:-.}" -benchmem -benchtime "${BENCHTIME:-500ms}" -timeout 60m $pkgs 2>&1 |
+	-bench "${BENCH:-.}" -benchmem -benchtime "${BENCHTIME:-500ms}" -count "${COUNT:-1}" -timeout 60m $pkgs 2>&1 |
 	tee "$raw" | awk '/^Benchmark/ { print "  " $1; fflush() } /^(FAIL|panic|--- FAIL)/ { print; fflush() }'
 
 sha=$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo unknown)

@@ -12,6 +12,7 @@ import (
 // Contrast minimums.
 const (
 	minText      = 4.5 // text: WCAG AA
+	minTextAAA   = 7.0 // text: WCAG AAA, the high-contrast schemes' minimum
 	minSecondary = 3.0 // hints, muted text, borders, chart axes
 	minDisabled  = 2.0 // unavailable items stay visible but recede
 	minDistinct  = 1.2 // a background role against the screen, so bars and highlights show
