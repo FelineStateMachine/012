@@ -169,7 +169,8 @@ builds can safely ignore (decimal arithmetic) don't raise the version.
 
 Every seam above has a telemetry span and a `-tags stress` benchmark
 (`make stress`, `make stress-report`), and [limits.md](limits.md) records
-the bounds. A change to a seam reports before and after numbers.
+the bounds. A change to a seam comes with its numbers, measured against
+the code it replaces.
 
 Spans nest without a `context.Context` through the engine: start a UI
 span through the model's trace (`m.spans.Start`), so it holds what it
@@ -184,8 +185,8 @@ global: `012 serve` runs many programs in one process (see
 `make lint`: no function over cognitive complexity 25, no Go file over 500
 lines. A package that keeps growing past a few thousand lines gets split
 along a boundary where dependencies point one way, as the function
-library (`internal/functions`) and values (`internal/value`) were split
-from the engine: the lower package defines the small interface it needs
+library (`internal/functions`) and values (`internal/value`) sit below
+the engine: the lower package defines the small interface it needs
 (`functions.Book`) and the engine implements it, keeping its API through
 aliases so callers don't change.
 

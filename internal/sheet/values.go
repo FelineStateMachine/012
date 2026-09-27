@@ -83,10 +83,9 @@ func LookupFunc(name string) (*FuncDef, bool) { return functions.LookupFunc(name
 // Funcs returns every function, sorted by name.
 func Funcs() []*FuncDef { return functions.Funcs() }
 
-func num(v float64) Value             { return value.Num(v) }
-func boolean(b bool) Value            { return value.Boolean(b) }
-func toNum(v Value) (float64, *Value) { return value.ToNum(v) }
-func text(v Value) string             { return value.AsText(v) }
-func compare(l, r Value) int          { return value.Compare(l, r) }
+func num(v float64) Value    { return value.Num(v) }
+func boolean(b bool) Value   { return value.Boolean(b) }
+func text(v Value) string    { return value.AsText(v) }
+func compare(l, r Value) int { return value.Compare(l, r) }
 
 func clampInt(v, lo, hi int) int { return max(lo, min(v, hi)) }

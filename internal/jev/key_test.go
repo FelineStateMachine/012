@@ -41,8 +41,9 @@ func TestKeysAreDistinct(t *testing.T) {
 		m[l] = l + "!"
 	}
 	c := sheet.RemoteCall{Kind: "choice", State: "x", Instructions: "q", Criteria: m}
+	want := Key(c)
 	for range 20 {
-		if Key(c) != Key(c) {
+		if got := Key(c); got != want {
 			t.Fatal("map order changed the key")
 		}
 	}
