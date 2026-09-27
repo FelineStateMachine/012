@@ -47,4 +47,18 @@ func TestUsedRangeAndStats(t *testing.T) {
 	if got := s.RangeStats(NewRect(at("A1"), at("D8192"))); got != want {
 		t.Errorf("RangeStats large = %+v", got)
 	}
+	// The cached result follows edits, recalculation and undo.
+	r := NewRect(at("A1"), at("D3"))
+	s.Set(at("C1"), "=B2*2")
+	if got := s.RangeStats(r); got != (Stats{Sum: 62, Count: 4, Nums: 3}) {
+		t.Errorf("after an edit = %+v", got)
+	}
+	s.Set(at("B2"), "1")
+	if got := s.RangeStats(r); got != (Stats{Sum: 35, Count: 4, Nums: 3}) {
+		t.Errorf("after a recalc = %+v", got)
+	}
+	s.Undo()
+	if got := s.RangeStats(r); got != (Stats{Sum: 62, Count: 4, Nums: 3}) {
+		t.Errorf("after undo = %+v", got)
+	}
 }

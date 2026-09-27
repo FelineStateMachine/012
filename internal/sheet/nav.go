@@ -62,9 +62,24 @@ type Stats struct {
 	Count, Nums int
 }
 
-// RangeStats computes Stats over r, visiting whichever is smaller: the
-// cells in r or the non-blank cells in the sheet.
+// statsCache is the last RangeStats result: the status line asks for the
+// selection's statistics on every frame, and over a whole sheet of two
+// million cells they take tens of milliseconds.
+type statsCache struct {
+	r       Rect
+	version uint64
+	st      Stats
+	ok      bool
+}
+
+// RangeStats computes Stats over r, visiting whichever is cheaper: the
+// cells in r one lookup at a time, or every stored cell (iterating the
+// map costs about a quarter of a lookup per cell). The result is kept
+// until a cell or value changes.
 func (s *Sheet) RangeStats(r Rect) Stats {
+	if c := s.stats; c.ok && c.r == r && c.version == s.version {
+		return c.st
+	}
 	var st Stats
 	add := func(c *Cell) {
 		st.Count++
@@ -74,7 +89,7 @@ func (s *Sheet) RangeStats(r Rect) Stats {
 		}
 	}
 	area := (r.To.Col - r.From.Col + 1) * (r.To.Row - r.From.Row + 1)
-	if area <= len(s.cells) {
+	if area <= len(s.cells)/4 {
 		for row := r.From.Row; row <= r.To.Row; row++ {
 			for col := r.From.Col; col <= r.To.Col; col++ {
 				if c := s.cells[Addr{Col: col, Row: row}]; !c.Blank() {
@@ -82,12 +97,13 @@ func (s *Sheet) RangeStats(r Rect) Stats {
 				}
 			}
 		}
-		return st
-	}
-	for a, c := range s.cells {
-		if r.Contains(a) && !c.Blank() {
-			add(c)
+	} else {
+		for a, c := range s.cells {
+			if r.Contains(a) && !c.Blank() {
+				add(c)
+			}
 		}
 	}
+	s.stats = statsCache{r: r, version: s.version, st: st, ok: true}
 	return st
 }

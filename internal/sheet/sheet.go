@@ -67,6 +67,11 @@ type Sheet struct {
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
 
+	// version counts changes to cells and their values, so what is derived
+	// from them can be cached; see RangeStats.
+	version uint64
+	stats   statsCache
+
 	charts []Chart // floating charts, bottom first; see chart.go
 
 	hist history // undo and redo, see history.go
@@ -280,6 +285,7 @@ func (c *Cell) setExpr(n Node) {
 // keeping the dependency indexes current. Every cell mutation goes through
 // here.
 func (s *Sheet) place(a Addr, c *Cell) {
+	s.version++
 	s.record(a)
 	s.unlink(a)
 	if c == nil {
@@ -435,6 +441,7 @@ func (s *Sheet) affected(changed []Addr) map[Addr]int {
 // cell that is reached again while it is still being evaluated is part of
 // a cycle and becomes ERR.
 func (s *Sheet) evaluate(state map[Addr]int) {
+	s.version++
 	s.Circular = false
 	s.hidden.valid = false // values may have changed what the filter hides
 	var compute func(Addr) Value
