@@ -39,7 +39,7 @@ func TestImportPicker(t *testing.T) {
 	m := newModel()
 	m.runCommand("file.import")
 	got := strings.Join(pickerTitles(t, m), "\n")
-	want := "Old.WK1 | Lotus 1-2-3 worksheet  1 B\nsales.csv | Comma-separated values  28 B"
+	want := "Old.WK1 | Lotus 1-2-3 worksheet     1 B\nsales.csv | Comma-separated values   28 B"
 	if got != want {
 		t.Errorf("picker lists\n%s\nwant\n%s", got, want)
 	}
@@ -249,7 +249,7 @@ func TestImportProgress(t *testing.T) {
 	if l := line(m, contextLine); l != "Importing big.csv…    Esc  cancel" {
 		t.Errorf("context %q", l)
 	}
-	if l := line(m, m.height-1); !strings.HasPrefix(l, "Importing big.csv") || !strings.HasSuffix(l, "1,234 rows") {
+	if l := line(m, m.height-1); !strings.HasPrefix(l, "Importing big.csv") || !strings.HasSuffix(l, "1,234 rows read") {
 		t.Errorf("status %q", l)
 	}
 	if pb := m.View().ProgressBar; pb == nil || pb.State != tea.ProgressBarIndeterminate {
@@ -257,7 +257,7 @@ func TestImportProgress(t *testing.T) {
 	}
 	prog.Report(4096, 1, 2)
 	l := line(m, m.height-1)
-	if l != "Importing big.csv                4,096 rows  ━━━━━━━━━━━━━━━───────────────  50%" {
+	if l != "Importing big.csv           4,096 rows read  ━━━━━━━━━━━━━━━───────────────  50%" {
 		t.Errorf("status %q", l)
 	}
 	if pb := m.View().ProgressBar; pb == nil || pb.Value != 50 {
@@ -272,7 +272,6 @@ func TestImportProgress(t *testing.T) {
 	if !cancelled {
 		t.Error("Esc didn't cancel")
 	}
-	send(m, importedMsg{id: 7, name: "data/big.csv", err: context.Canceled})
 	if m.xfer.job != nil || line(m, contextLine) != "Import of big.csv cancelled" {
 		t.Errorf("after cancel: %q", line(m, contextLine))
 	}

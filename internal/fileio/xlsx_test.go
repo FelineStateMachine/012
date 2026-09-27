@@ -151,7 +151,7 @@ func TestXLSXImport(t *testing.T) {
 	}
 	notes := strings.Join(res.Notes, "; ")
 	for _, want := range []string{
-		"imported the first sheet, Q1; 2 other sheets not imported (Q2, Q3)",
+		"first sheet only, Q1; not imported: Q2, Q3",
 		"1 formula kept as values, e.g. A2 =Q2!A1*2",
 	} {
 		if !strings.Contains(notes, want) {

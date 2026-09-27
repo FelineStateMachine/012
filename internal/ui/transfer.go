@@ -125,12 +125,18 @@ func importable() []string {
 // too.
 func (m *Model) openImport() tea.Cmd {
 	var items []pickItem
-	for _, name := range importable() {
+	names := importable()
+	lw := 0 // types line up, and sizes after them
+	for _, name := range names {
+		k, _ := fileio.KindOf(name)
+		lw = max(lw, len(k.Label()))
+	}
+	for _, name := range names {
 		k, _ := fileio.KindOf(name)
 		detail, desc := k.Label(), "Import "+name+", "+strings.ToLower(k.Label()[:1])+k.Label()[1:]
 		if st, err := os.Stat(name); err == nil {
-			detail += "  " + fileSize(st.Size())
-			desc += ", " + fileSize(st.Size()) + ", changed " + st.ModTime().Format("Jan 2 15:04")
+			detail = fmt.Sprintf("%-*s %6s", lw, k.Label(), fileSize(st.Size()))
+			desc += ", " + fileSize(st.Size())
 		}
 		items = append(items, pickItem{title: name, name: len(name), detail: detail, desc: desc,
 			pick: func(m *Model) tea.Cmd {
@@ -228,18 +234,27 @@ func (m *Model) importing(msg tea.Msg) (tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if msg.String() == "esc" {
-			m.xfer.job.cancel()
+			m.cancelImport()
 		}
 		return nil, true
 	case tea.MouseClickMsg:
 		if msg.Mouse().Y == contextLine {
-			m.xfer.job.cancel() // the Esc chip
+			m.cancelImport() // the Esc chip
 		}
 		return nil, true
 	case tea.MouseMsg, tea.PasteMsg:
 		return nil, true
 	}
 	return nil, false
+}
+
+// cancelImport stops the import at once; its result, if it still
+// arrives, is ignored.
+func (m *Model) cancelImport() {
+	job := m.xfer.job
+	job.cancel()
+	m.xfer.job = nil
+	m.note = "Import of " + filepath.Base(job.name) + " cancelled"
 }
 
 // handleTransfer handles import and export messages.
@@ -372,7 +387,7 @@ func (m *Model) importStatus() string {
 	job := m.xfer.job
 	rows, frac := job.prog.Get()
 	left := m.th.key.Render("Importing " + filepath.Base(job.name))
-	right := countRows(rows)
+	right := countRows(rows) + " read"
 	if frac >= 0 {
 		pct := fmt.Sprintf(" %3d%%", int(frac*100))
 		w := clamp(m.width-ansi.StringWidth(left)-ansi.StringWidth(right)-len(pct)-6, 0, 30)

@@ -48,6 +48,7 @@ func importWK1(ctx context.Context, name string, prog *Progress) (*Result, error
 		return nil, err
 	}
 	defer f.Close()
+	defer context.AfterFunc(ctx, func() { f.Close() })() // unblocks a read from a pipe
 	var size int64
 	if st, err := f.Stat(); err == nil {
 		size = st.Size()

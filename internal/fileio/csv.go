@@ -152,6 +152,7 @@ func importDelimited(ctx context.Context, name string, k Kind, prog *Progress) (
 		return nil, err
 	}
 	defer f.Close()
+	defer context.AfterFunc(ctx, func() { f.Close() })() // unblocks a read from a pipe
 	var size int64
 	if st, err := f.Stat(); err == nil && st.Mode().IsRegular() {
 		size = st.Size()
@@ -191,6 +192,13 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, progress func(rows
 	b := newBuilder()
 	row := 0
 	for ; ; row++ {
+		// Report before reading on: a pipe may keep the next read waiting.
+		if row%256 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, 0, nil, err
+			}
+			progress(row)
+		}
 		rec, err := cr.Read()
 		if errors.Is(err, io.EOF) {
 			break
@@ -201,12 +209,6 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, progress func(rows
 				return nil, 0, nil, fmt.Errorf("line %d: %v", pe.Line, pe.Err)
 			}
 			return nil, 0, nil, err
-		}
-		if row%256 == 0 {
-			if err := ctx.Err(); err != nil {
-				return nil, 0, nil, err
-			}
-			progress(row)
 		}
 		for col, field := range rec {
 			if field != "" {

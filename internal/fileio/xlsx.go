@@ -32,8 +32,7 @@ func importXLSX(ctx context.Context, name string, prog *Progress) (*Result, erro
 	ws := sheets[0]
 	var notes []string
 	if n := len(sheets) - 1; n > 0 {
-		notes = append(notes, fmt.Sprintf("imported the first sheet, %s; %s not imported (%s)",
-			ws, count(n, "other sheet", "other sheets"), strings.Join(sheets[1:], ", ")))
+		notes = append(notes, fmt.Sprintf("first sheet only, %s; not imported: %s", ws, strings.Join(sheets[1:], ", ")))
 	}
 
 	total := 0

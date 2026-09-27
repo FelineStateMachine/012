@@ -31,6 +31,7 @@ func importParquet(ctx context.Context, name string, prog *Progress) (*Result, e
 		return nil, err
 	}
 	defer f.Close()
+	defer context.AfterFunc(ctx, func() { f.Close() })() // unblocks a read from a pipe
 	st, err := f.Stat()
 	if err != nil {
 		return nil, err
