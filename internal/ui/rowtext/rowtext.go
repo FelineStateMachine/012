@@ -1,4 +1,9 @@
-package ui
+// Package rowtext lays out the text of one row of cells across the
+// columns on screen, as Sheets does: values formatted and aligned, text
+// running on into blank neighbors, cut to column boundaries in a single
+// pass. It reads the sheet and nothing else, so drawing the grid can be
+// measured and tested on its own.
+package rowtext
 
 import (
 	"strings"
@@ -8,21 +13,21 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// span is what one grid column shows in a row: blank columns, the text,
+// Span is what one grid column shows in a row: blank columns, the text,
 // blank columns. Only the text takes the owning cell's text style, so an
 // underline doesn't run into the padding.
-type span struct {
-	lead  int
-	text  string
-	trail int
-	style sheet.Style
-	owner int // column of the cell the text belongs to
+type Span struct {
+	Lead  int
+	Text  string
+	Trail int
+	Style sheet.Style
+	Owner int // column of the cell the text belongs to
 
-	link  string // the owner's link target, drawn as a hyperlink
-	error bool   // the owner shows an error: its text gets the error mark
+	Link  string // the owner's link target, drawn as a hyperlink
+	Error bool   // the owner shows an error: its text gets the error mark
 }
 
-// rowText lays out ncols columns of row from lo, each span exactly its
+// Layout lays out ncols columns of row from lo, each span exactly its
 // column's width. Text may run in from columns between minCol and maxCol,
 // so it stops at the frozen columns' divider. Values are formatted with
 // their cell's number format and aligned as Sheets does: numbers right,
@@ -31,10 +36,10 @@ type span struct {
 // left-aligned, to the left when right-aligned, both ways when centered.
 // It can come from cells outside the viewport, so the scan starts at the
 // nearest filled cell on each side.
-func rowText(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int) []span {
-	l := rowLayout{s: s, row: row, lo: lo, hi: lo + ncols - 1, out: make([]span, ncols)}
+func Layout(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int) []Span {
+	l := rowLayout{s: s, row: row, lo: lo, hi: lo + ncols - 1, out: make([]Span, ncols)}
 	for i := range l.out {
-		l.out[i] = span{trail: s.ColWidth(lo + i)}
+		l.out[i] = Span{Trail: s.ColWidth(lo + i)}
 	}
 	l.first, l.last = l.reach(minCol, maxCol)
 	// x[k] is where column first+k starts, relative to column first.
@@ -51,7 +56,7 @@ func rowText(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int) []span {
 	return l.out
 }
 
-// rowLayout is rowText's work in progress on one row.
+// rowLayout is Layout's work in progress on one row.
 type rowLayout struct {
 	s           *sheet.Sheet
 	row         int
@@ -59,7 +64,7 @@ type rowLayout struct {
 	first, last int // the columns whose text may reach them
 	x           []int
 	claimed     int // text of earlier cells reaches up to here
-	out         []span
+	out         []Span
 }
 
 // content is the cell in column c of the row, or nil if it's blank.
@@ -115,9 +120,9 @@ func (l *rowLayout) place(c int, cell *sheet.Cell) {
 		if kx1 <= from || kx0 >= to {
 			continue
 		}
-		sp := span{trail: kx1 - kx0, style: cell.Style, owner: c}
+		sp := Span{Trail: kx1 - kx0, Style: cell.Style, Owner: c}
 		if seg0, seg1 := max(start, kx0, from), min(start+tw, kx1, to); seg1 > seg0 {
-			sp.lead, sp.text, sp.trail = seg0-kx0, cut.cut(seg0-start, seg1-start), kx1-seg1
+			sp.Lead, sp.Text, sp.Trail = seg0-kx0, cut.cut(seg0-start, seg1-start), kx1-seg1
 		}
 		l.out[k-l.lo] = sp
 	}
@@ -168,12 +173,12 @@ func (l *rowLayout) room(c int, cell *sheet.Cell, start, tw int) (from, to int) 
 // keepGaps keeps a gap where text that runs to the edge of its column
 // would touch a neighbor that starts at its own edge
 // ("Groceries9/28/2026").
-func keepGaps(out []span) {
+func keepGaps(out []Span) {
 	for i := 0; i+1 < len(out); i++ {
 		l, r := &out[i], &out[i+1]
-		if l.text != "" && l.trail == 0 && r.text != "" && r.lead == 0 && l.owner != r.owner {
-			l.text = ansi.Truncate(l.text, ansi.StringWidth(l.text)-1, "")
-			l.trail = 1
+		if l.Text != "" && l.Trail == 0 && r.Text != "" && r.Lead == 0 && l.Owner != r.Owner {
+			l.Text = ansi.Truncate(l.Text, ansi.StringWidth(l.Text)-1, "")
+			l.Trail = 1
 		}
 	}
 }

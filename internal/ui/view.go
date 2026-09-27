@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/rowtext"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -134,17 +135,17 @@ func (m *Model) gridRow(row int) string {
 
 	_, fc := m.frozen()
 	if fc > 0 {
-		b.WriteString(m.cellsText(row, 0, rowText(m.sheet, row, 0, fc, 0, fc-1), focus, sel, selecting))
+		b.WriteString(m.cellsText(row, 0, rowtext.Layout(m.sheet, row, 0, fc, 0, fc-1), focus, sel, selecting))
 		b.WriteString(m.th.FrozenLine.Render("│"))
 	}
 	ncols := m.visibleCols(m.left)
-	b.WriteString(m.cellsText(row, m.left, rowText(m.sheet, row, m.left, ncols, fc, sheet.MaxCols-1), focus, sel, selecting))
+	b.WriteString(m.cellsText(row, m.left, rowtext.Layout(m.sheet, row, m.left, ncols, fc, sheet.MaxCols-1), focus, sel, selecting))
 	return b.String()
 }
 
 // cellsText draws the spans of a row's columns from first on, in the
 // roles for the pointer, the selection, search matches and errors.
-func (m *Model) cellsText(row, first int, spans []span, focus sheet.Addr, sel sheet.Rect, selecting bool) string {
+func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr, sel sheet.Rect, selecting bool) string {
 	var b strings.Builder
 	for i, sp := range spans {
 		a := sheet.Addr{Col: first + i, Row: row}
@@ -170,7 +171,7 @@ func (m *Model) cellsText(row, first int, spans []span, focus sheet.Addr, sel sh
 			base, colored = base.Inherit(m.th.Copied), true
 		}
 		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() {
-			sp = span{text: m.inCellText(m.sheet.ColWidth(a.Col))}
+			sp = rowtext.Span{Text: m.inCellText(m.sheet.ColWidth(a.Col))}
 		} else {
 			m.decorate(&sp, row) // links and error marks, see links.go
 		}
@@ -201,20 +202,20 @@ func (m *Model) dividerRow() string {
 
 // renderSpan draws a span on base, one of the cell roles. Plain cells
 // with no text style are written without escape codes.
-func renderSpan(th *theme.Theme, sp span, base lipgloss.Style, colored bool) string {
-	lead, trail := strings.Repeat(" ", sp.lead), strings.Repeat(" ", sp.trail)
-	st := sp.style
+func renderSpan(th *theme.Theme, sp rowtext.Span, base lipgloss.Style, colored bool) string {
+	lead, trail := strings.Repeat(" ", sp.Lead), strings.Repeat(" ", sp.Trail)
+	st := sp.Style
 	st.Align = sheet.AlignAuto
-	plain := st.IsZero() && sp.link == "" && !sp.error
+	plain := st.IsZero() && sp.Link == "" && !sp.Error
 	switch {
 	case plain && !colored:
-		return lead + sp.text + trail
+		return lead + sp.Text + trail
 	case plain:
-		return base.Render(lead + sp.text + trail)
+		return base.Render(lead + sp.Text + trail)
 	case !colored:
-		return lead + spanStyle(th, base, sp).Render(sp.text) + trail
+		return lead + spanStyle(th, base, sp).Render(sp.Text) + trail
 	}
-	return base.Render(lead) + spanStyle(th, base, sp).Render(sp.text) + base.Render(trail)
+	return base.Render(lead) + spanStyle(th, base, sp).Render(sp.Text) + base.Render(trail)
 }
 
 // inCellText shows the entry being typed inside the cell, keeping the end
