@@ -68,6 +68,7 @@ type exporter struct {
 	sent    [3]int64 // items accepted by the endpoint
 	dropped [3]int64 // items dropped because the queue was full
 	failed  [3]int64 // items in requests that failed
+	down    bool     // the last request failed: the endpoint looks unreachable
 
 	wake    chan struct{}
 	done    chan struct{}
@@ -215,11 +216,18 @@ func (e *exporter) run() {
 		case <-t.C:
 		case <-e.wake:
 		case <-e.done:
-			// The last flush shares one timeout, so quitting 012 waits
-			// at most that long for a collector that doesn't answer.
-			ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
-			e.flush(ctx, true)
-			cancel()
+			// Quitting waits at most finalTimeout for the last flush,
+			// and not at all when the endpoint already failed: an
+			// inherited OTEL_EXPORTER_OTLP_ENDPOINT may name a collector
+			// that's gone, and quitting shouldn't wait on it.
+			e.mu.Lock()
+			down := e.down
+			e.mu.Unlock()
+			if !down {
+				ctx, cancel := context.WithTimeout(context.Background(), e.finalTimeout())
+				e.flush(ctx, true)
+				cancel()
+			}
 			return
 		}
 		e.flush(context.Background(), false)
@@ -232,9 +240,15 @@ func (e *exporter) shutdown() {
 	close(e.done)
 	select {
 	case <-e.stopped:
-	case <-time.After(e.timeout + time.Second):
+	case <-time.After(e.finalTimeout() + 250*time.Millisecond):
 	}
 }
+
+// finalTimeout bounds the flush when 012 quits.
+func (e *exporter) finalTimeout() time.Duration { return min(e.timeout, finalFlush) }
+
+// finalFlush is the most quitting waits for the last flush.
+const finalFlush = time.Second
 
 func (e *exporter) flush(ctx context.Context, final bool) {
 	e.mu.Lock()
@@ -269,6 +283,7 @@ func (e *exporter) send(ctx context.Context, sig, items int, body any) {
 	url := [3]string{e.urls.logs, e.urls.traces, e.urls.metrics}[sig]
 	err := e.post(ctx, url, body)
 	e.mu.Lock()
+	e.down = err != nil
 	if err != nil {
 		e.failed[sig] += int64(items)
 	} else {

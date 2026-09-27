@@ -102,7 +102,7 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 
 | Item | Why | Size |
 |---|---|---|
-| Open 012's XLSX output in real Excel and LibreOffice (a round-trip corpus, run by hand before releases) | The new writer is checked only by excelize and 012's reader | S |
+| Open 012's XLSX output in real Excel and LibreOffice (a round-trip corpus, run by hand before releases). In progress: a first sample is being checked in Excel | The new writer is checked only by excelize and 012's reader | S |
 | Column and row formats travel with copy, cut and move; formulas reading blanks of a newly formatted column re-infer at once | Left open by step A | S |
 | Save as onto another existing file asks before replacing (local and `012 serve`) | Only the open file is checked today | S |
 | XLSX sheet names with characters Excel forbids: rewrite formulas that name them, not just the sheet | Formulas keep the old name today | S |
@@ -110,7 +110,6 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 | Precedent tracing explains when every precedent is on a hidden sheet | Says "no formula" today | S |
 | Settings > JEV API key checks the key with a test call | Left open by the config work | S |
 | `012 serve`: open a file from the ssh command line (`ssh -t host file.012` as a request, not exec), and save unsaved work to a recovery file on shutdown or idle timeout | Sessions start empty; unsaved work is lost today | M |
-| Decide whether 012 honors OTEL_* variables it inherits from the desktop session, or only its own config | A GUI-launched 012 exports to whatever the session's variables name | S |
 
 ### 2. Spreadsheet features Sheets users reach for
 

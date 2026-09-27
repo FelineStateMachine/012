@@ -203,8 +203,16 @@ queues (2048 items per signal); a background goroutine sends them every
 2 seconds, or sooner once 512 are waiting, gzipped, with no retries. A
 full queue drops new items and a failed request drops its batch; both
 are counted in `o12.telemetry.dropped` and the `otlp` event on exit.
-On exit, what is queued is sent within one request timeout (so at most
-about 3 s with a collector that doesn't answer).
+On exit, what is queued is sent within a second at most, and not at all
+once a request has failed this session.
+
+012 honors the standard `OTEL_*` variables it inherits, like any
+OpenTelemetry program, unless its own config or flags override them. So
+if your desktop session sets `OTEL_EXPORTER_OTLP_ENDPOINT` for every app,
+012 exports there too; when that collector is gone (a laptop whose tailnet
+collector isn't up), sends fail in the background, are counted, and cost
+nothing at exit. Set `otlp-endpoint` in the config, or `OTEL_SDK_DISABLED=true`,
+to change that for 012 alone.
 
 `internal/telemetry/otlp_test.go` checks the payloads against the
 spec's JSON mapping with a fake collector (hex ids, 64-bit integers as
