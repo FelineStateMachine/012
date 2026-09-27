@@ -101,6 +101,7 @@ func (s *Sheet) restructure(rows bool, sp span) {
 	s.change(label, focus, func() {
 		s.remap(label, focus, cell, relocate(cell, rng))
 		s.remapNames(rng)
+		s.shiftCharts(cell, rng)
 		if !rows {
 			s.shiftWidths(sp)
 		}

@@ -66,6 +66,8 @@ type Sheet struct {
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
 
+	charts []Chart // floating charts, bottom first; see chart.go
+
 	hist history // undo and redo, see history.go
 }
 

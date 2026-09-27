@@ -32,6 +32,49 @@ type fileFormat struct {
 	Widths  map[string]int             `json:"widths,omitempty"`
 	Names   map[string]string          `json:"names,omitempty"`
 	Cells   map[string]json.RawMessage `json:"cells"`
+	Charts  []fileChart                `json:"charts,omitempty"`
+}
+
+// fileChart is a chart, one per line after the cells:
+//
+//	{"type": "column", "data": "A1:C7", "at": "E2", "width": 44, "height": 14, "header": true, "labels": true}
+//
+// Older versions of 012 ignore the field and drop the charts.
+type fileChart struct {
+	Type   string `json:"type"`
+	Data   string `json:"data"`
+	At     string `json:"at"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+	ByRow  bool   `json:"byRow,omitempty"`
+	Header bool   `json:"header,omitempty"`
+	Labels bool   `json:"labels,omitempty"`
+	Title  string `json:"title,omitempty"`
+}
+
+func encodeChart(c Chart) ([]byte, error) {
+	return json.Marshal(fileChart{
+		Type: c.Type.String(), Data: c.Data.String(), At: c.At.String(), Width: c.W, Height: c.H,
+		ByRow: c.ByRow, Header: c.Header, Labels: c.Labels, Title: c.Title,
+	})
+}
+
+func decodeChart(fc fileChart) (Chart, error) {
+	t, ok := ParseChartType(fc.Type)
+	if !ok {
+		return Chart{}, fmt.Errorf("unknown chart type %q", fc.Type)
+	}
+	data, ok := ParseRange(fc.Data)
+	if !ok {
+		return Chart{}, fmt.Errorf("invalid chart range %q", fc.Data)
+	}
+	at, ok := ParseAddr(fc.At)
+	if !ok {
+		return Chart{}, fmt.Errorf("invalid chart position %q", fc.At)
+	}
+	c := Chart{Type: t, Data: data, At: at, W: fc.Width, H: fc.Height,
+		ByRow: fc.ByRow, Header: fc.Header, Labels: fc.Labels, Title: fc.Title}
+	return c.clamped(), nil
 }
 
 type fileCell struct {
@@ -146,7 +189,22 @@ func (s *Sheet) Write(w io.Writer) error {
 	if len(addrs) > 0 {
 		b.WriteString("\n  ")
 	}
-	b.WriteString("}\n}\n")
+	b.WriteString("}")
+	if len(s.charts) > 0 {
+		b.WriteString(",\n  \"charts\": [")
+		for i, c := range s.charts {
+			raw, err := encodeChart(c)
+			if err != nil {
+				return err
+			}
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			fmt.Fprintf(&b, "\n    %s", raw)
+		}
+		b.WriteString("\n  ]")
+	}
+	b.WriteString("\n}\n")
 	_, err := w.Write(b.Bytes())
 	return err
 }
@@ -201,6 +259,13 @@ func Read(r io.Reader) (*Sheet, error) {
 			return nil, fmt.Errorf("%s: %w", name, err)
 		}
 		s.place(a, c)
+	}
+	for i, fc := range f.Charts {
+		c, err := decodeChart(fc)
+		if err != nil {
+			return nil, fmt.Errorf("chart %d: %w", i+1, err)
+		}
+		s.charts = append(s.charts, c)
 	}
 	s.RecalcAll()
 	return s, nil

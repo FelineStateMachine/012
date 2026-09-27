@@ -1,5 +1,7 @@
 package sheet
 
+import "slices"
+
 // MaxUndo is how many steps of undo history a sheet keeps.
 const MaxUndo = 100
 
@@ -31,13 +33,18 @@ type step struct {
 	cells  map[Addr]*Cell   // before the step; nil for blank
 	widths map[int]int      // before the step; 0 for the default width
 	names  map[string]*Name // before the step, by key; nil for undefined
+	// charts is every chart before the step, when it changed any.
+	charts      []Chart
+	chartsSaved bool
 }
 
 func newStep(label string, focus Rect) *step {
 	return &step{label: label, focus: focus, cells: map[Addr]*Cell{}, widths: map[int]int{}, names: map[string]*Name{}}
 }
 
-func (st *step) empty() bool { return len(st.cells) == 0 && len(st.widths) == 0 && len(st.names) == 0 }
+func (st *step) empty() bool {
+	return len(st.cells) == 0 && len(st.widths) == 0 && len(st.names) == 0 && !st.chartsSaved
+}
 
 func (c *Cell) clone() *Cell {
 	if c == nil {
@@ -120,6 +127,14 @@ func (s *Sheet) recordName(k string) {
 	}
 }
 
+// recordCharts saves the charts before their first change in the open
+// step. Charts are few, so the step keeps them all.
+func (s *Sheet) recordCharts() {
+	if st := s.hist.open; st != nil && !st.chartsSaved {
+		st.charts, st.chartsSaved = slices.Clone(s.charts), true
+	}
+}
+
 // push adds a finished step to the undo stack and clears redo, dropping
 // no-op changes.
 func (s *Sheet) push(st *step) {
@@ -139,13 +154,16 @@ func (s *Sheet) push(st *step) {
 			delete(st.names, k)
 		}
 	}
+	if st.chartsSaved && slices.Equal(st.charts, s.charts) {
+		st.charts, st.chartsSaved = nil, false
+	}
 	if st.empty() {
 		return
 	}
 	h.redo = nil
 	h.lastID++
-	widthOnly := len(st.cells) == 0 && len(st.names) == 0
-	if top := h.top(); widthOnly && h.mergeWidths && top != nil && len(top.cells) == 0 && len(top.names) == 0 {
+	widthOnly := len(st.cells) == 0 && len(st.names) == 0 && !st.chartsSaved
+	if top := h.top(); widthOnly && h.mergeWidths && top != nil && len(top.cells) == 0 && len(top.names) == 0 && !top.chartsSaved {
 		for c, w := range st.widths {
 			if _, ok := top.widths[c]; !ok {
 				top.widths[c] = w
@@ -230,6 +248,10 @@ func (s *Sheet) swap(from, to *[]*step) (Change, bool) {
 	for k, n := range st.names {
 		inv.names[k] = s.namePtr(k)
 		changed = append(changed, s.putName(k, n)...)
+	}
+	if st.chartsSaved {
+		inv.charts, inv.chartsSaved = s.charts, true
+		s.charts = slices.Clone(st.charts)
 	}
 	s.recalc(changed)
 	*to = append(*to, inv)
