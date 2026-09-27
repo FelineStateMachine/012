@@ -5,21 +5,26 @@ import "slices"
 // MaxUndoBytes caps the memory the undo history's before-images hold, as
 // estimated by step.size. When a new step takes the history past it, the
 // oldest steps are dropped first; the newest step is always kept, however
-// large, so any single change can be undone. 256 MB keeps MaxUndo steps
-// that each rewrite a whole column (about 250 MB, see docs/contributing/limits.md).
+// large, so any single change can be undone (a step past MaxStepBytes
+// asks first). 256 MB holds a step clearing a full max-cells sheet of
+// numbers, about 195 MB, and MaxUndo steps rewriting a whole column of
+// 8192 take 16 MB (see docs/contributing/limits.md).
 const MaxUndoBytes = 256 << 20
 
 // undoBudget is MaxUndoBytes; tests lower it.
 var undoBudget int64 = MaxUndoBytes
 
-// Estimated heap held by the parts of a step. A before-image is a Cell
-// (216 B) plus its map entry, its input and boxed literal (a plain cell's
-// are made for it from the store, see store.go); a formula also keeps its
-// parsed tree and reference lists alive, which grow with its text. The constants match the heap measured by the stress
-// benchmarks (BenchmarkHistoryFull) within about 10%.
+// Estimated heap held by the parts of a step. A plain cell's
+// before-image is a slot (slotBytes) and its text, once per image (see
+// historyimage.go); a rich one is also a Cell (216 B) with its input,
+// and a formula keeps its parsed tree and reference lists alive, which
+// grow with its text. The constants match the heap measured by the
+// stress benchmarks (BenchmarkHistoryFull, BenchmarkHistoryWide,
+// BenchmarkClearMax) within about 10%.
 const (
 	stepBytes      = 512 // the step and its empty maps
 	entryBytes     = 64  // a map entry: the key and a pointer
+	imageBytes     = 256 // a sheet's image, empty
 	cellBytes      = 256 // a Cell, its input's header and its boxed literal
 	formulaBytes   = 256 // a parsed formula's tree and references, plus perFormulaByte per byte of text
 	perFormulaByte = 16
@@ -27,10 +32,18 @@ const (
 	ruleBytes      = 256 // a rule with its ranges and values
 )
 
-// keep records c as the before-image of the cell at l and counts it.
-func (st *step) keep(l loc, c *Cell) {
-	st.cells[l] = c
-	st.cellBytes += entryBytes + cellSize(c)
+// keep records the cell at a of s as it stands, unless the step holds
+// it already, and counts it.
+func (st *step) keep(s *Sheet, a Addr) {
+	img := st.cells[s]
+	if img == nil {
+		img = &image{}
+		st.cells[s] = img
+		st.cellBytes += imageBytes
+	}
+	if !img.seen(a) {
+		st.cellBytes += img.keep(&s.cells, a)
+	}
 }
 
 // size estimates the heap a finished step holds: its cells, counted as
@@ -108,3 +121,51 @@ func (h *history) popUndo() *step {
 
 // HistoryBytes estimates the memory the undo steps hold.
 func (w *Workbook) HistoryBytes() int64 { return w.hist.bytes }
+
+// MaxStepBytes is the most undo history one change may hold without
+// asking: the UI asks before a change its UndoCost puts over it, and runs
+// it WithoutUndo if told to go on. Plain cells cost about 20 B each, so
+// only millions of formulas or of distinct long texts come near it.
+const MaxStepBytes = 1 << 30
+
+// UndoCost estimates the undo history a change to every cell of r would
+// hold: a slot a cell, the rich cells in r whole, and r's share of the
+// sheet's strings.
+func (s *Sheet) UndoCost(r Rect) int64 {
+	st := &s.cells
+	cells := 0
+	for _, c := range st.stored.colsIn(r.From.Col, r.To.Col) {
+		cells += st.stored.countIn(c, r.From.Row, r.To.Row)
+	}
+	if cells == 0 {
+		return 0
+	}
+	n := int64(cells) * slotBytes
+	for _, rc := range st.rich {
+		if rc.c != nil && r.Contains(rc.a) {
+			n += richBytes + cellSize(rc.c)
+		}
+	}
+	var strs int64
+	for _, str := range st.strs.strs {
+		strs += strBytes + int64(len(str))
+	}
+	return n + strs*int64(cells)/int64(st.len())
+}
+
+// WithoutUndo runs fn, a change too large to undo (see MaxStepBytes),
+// recording no before-images, and forgets the undo history, which could
+// no longer be undone past it. Inside a Batch it runs fn as part of it.
+func (w *Workbook) WithoutUndo(fn func()) {
+	h := &w.hist
+	if h.depth > 0 {
+		fn()
+		return
+	}
+	h.off = true
+	defer func() {
+		id := h.lastID + 1
+		w.hist = history{lastID: id, base: id}
+	}()
+	fn()
+}

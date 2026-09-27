@@ -12,11 +12,12 @@ const MaxUndo = 100
 // before the step; undoing swaps those back in and records the state it
 // replaced as the redo step.
 //
-// Steps snapshot whole cells (a shallow copy of the struct), so fields
-// added to Cell later are covered without changes here. That relies on
-// one rule: a stored *Cell is never modified in place except for its
-// computed Value. To change a cell, build a new one and store it with
-// place.
+// Steps keep cells' before-images in the compact form the sheet keeps
+// its cells (see historyimage.go): plain cells as slots, rich ones as a
+// shallow copy of their Cell, so fields added to Cell later are covered
+// without changes here. That relies on one rule: a stored *Cell is never
+// modified in place except for its computed Value. To change a cell,
+// build a new one and store it with place.
 type history struct {
 	undo, redo []*step
 	open       *step // the step being built; nil outside change
@@ -24,6 +25,12 @@ type history struct {
 	dirty      []loc
 	lastID     int
 	bytes      int64 // estimated heap held by the undo steps; see historysize.go
+	// off is set while a change runs without undo (WithoutUndo): its
+	// step records no before-images.
+	off bool
+	// base is the state ID with no step to undo: 0 until a change ran
+	// without undo, then that change's.
+	base int
 	// mergeWidths lets the next width-only step join the top one, so a
 	// live preview of a column width and its final value (or its
 	// cancellation) are one step. Seal ends the run.
@@ -39,7 +46,7 @@ type step struct {
 	label     string              // what the step did, e.g. "clear B3:B5"
 	sheet     *Sheet              // the sheet the UI shows when the step is undone or redone
 	focus     Rect                // what the UI selects there
-	cells     map[loc]*Cell       // before the step; nil for blank
+	cells     map[*Sheet]*image   // before the step, by sheet
 	widths    map[colKey]int      // before the step; 0 for the default width
 	lines     map[lineKey]lineFmt // column and row formats before the step
 	names     map[string]*Name    // before the step, by key; nil for undefined
@@ -66,12 +73,12 @@ type colKey struct {
 }
 
 func newStep(label string, s *Sheet, focus Rect) *step {
-	return &step{label: label, sheet: s, focus: focus, cells: map[loc]*Cell{}, widths: map[colKey]int{}, lines: map[lineKey]lineFmt{},
+	return &step{label: label, sheet: s, focus: focus, cells: map[*Sheet]*image{}, widths: map[colKey]int{}, lines: map[lineKey]lineFmt{},
 		names: map[string]*Name{}, views: map[*Sheet]*viewState{}, charts: map[*Sheet][]Chart{}, pivots: map[*Sheet]*Pivot{}, rules: map[*Sheet]rulesState{}}
 }
 
 func (st *step) empty() bool {
-	return len(st.cells) == 0 && len(st.widths) == 0 && st.widthOnly()
+	return len(st.widths) == 0 && st.widthOnly()
 }
 
 // widthOnly reports whether the step changed nothing but column widths.
@@ -160,11 +167,10 @@ func (s *Sheet) record(a Addr) {
 	if st == nil {
 		return
 	}
-	l := loc{s, a}
-	if _, seen := st.cells[l]; !seen {
-		st.keep(l, s.cells.copyOf(a))
+	if !s.wb.hist.off {
+		st.keep(s, a)
 	}
-	s.wb.hist.dirty = append(s.wb.hist.dirty, l)
+	s.wb.hist.dirty = append(s.wb.hist.dirty, loc{s, a})
 }
 
 // recordWidth saves column c's width before its first change in the open
@@ -244,10 +250,11 @@ func (w *Workbook) push(st *step) {
 func (w *Workbook) dropUnchanged(st *step) {
 	st.dropUnchangedLines()
 	st.dropUnchangedRules()
-	for l, c := range st.cells {
-		if c == nil && !l.s.cells.has(l.a) {
-			delete(st.cells, l)
-			st.cellBytes -= entryBytes
+	for s, img := range st.cells {
+		st.cellBytes -= img.dropBlanks(s)
+		if img.len() == 0 {
+			delete(st.cells, s)
+			st.cellBytes -= imageBytes
 		}
 	}
 	for k, n := range st.names {
@@ -375,7 +382,7 @@ func (w *Workbook) StateID() int {
 	if top := w.hist.top(); top != nil {
 		return top.id
 	}
-	return 0
+	return w.hist.base
 }
 
 // ClearHistory forgets all undo and redo steps.
@@ -419,11 +426,13 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		inv.sheets = w.sheetList()
 		w.setSheets(st.sheets)
 	}
-	changed := make([]loc, 0, len(st.cells))
-	for l, c := range st.cells {
-		inv.keep(l, l.s.cells.copyOf(l.a))
-		l.s.place(l.a, c.clone())
-		changed = append(changed, l)
+	var changed []loc
+	for s, img := range st.cells {
+		img.each(func(a Addr, c *Cell) {
+			inv.keep(s, a)
+			s.place(a, c)
+			changed = append(changed, loc{s, a})
+		})
 	}
 	for k, width := range st.widths {
 		inv.widths[k] = k.s.widths[k.col]
@@ -475,21 +484,4 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 	h.mergeWidths = false
 	macrosOnly := st.macros != nil && len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil
 	return Change{Label: st.label, Focus: st.focus, Sheet: st.sheet, Tabs: st.sheets != nil, Macros: macrosOnly}, true
-}
-
-// colRect is the range covering whole columns from..to.
-func colRect(from, to int) Rect {
-	return Rect{From: Addr{Col: from}, To: Addr{Col: to, Row: MaxRows - 1}}
-}
-
-// rowRect is the range covering whole rows from..to.
-func rowRect(from, to int) Rect {
-	return Rect{From: Addr{Row: from}, To: Addr{Col: MaxCols - 1, Row: to}}
-}
-
-func union(a, b Rect) Rect {
-	return Rect{
-		From: Addr{Col: min(a.From.Col, b.From.Col), Row: min(a.From.Row, b.From.Row)},
-		To:   Addr{Col: max(a.To.Col, b.To.Col), Row: max(a.To.Row, b.To.Row)},
-	}
 }

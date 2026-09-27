@@ -22,9 +22,9 @@ func TestUndoByteBudget(t *testing.T) {
 	fillColumn(t, s, 1000, "x")
 	w := s.Book()
 	w.ClearHistory()
-	fillColumn(t, s, 1000, "0") // before-images of 1000 cells
+	fillColumn(t, s, 1000, "0") // before-images of 1000 cells, slots and one string
 	one := w.HistoryBytes()
-	if one < 1000*cellBytes/2 || one > 1000*(entryBytes+cellBytes+64) {
+	if one < 1000*slotBytes || one > 1000*slotBytes+8<<10 {
 		t.Fatalf("a 1000-cell step is estimated at %d bytes", one)
 	}
 	defer func(b int64) { undoBudget = b }(undoBudget)
@@ -120,13 +120,32 @@ func historySum(w *Workbook) int64 {
 	var n int64
 	for _, st := range w.hist.undo {
 		var cells int64
-		for _, c := range st.cells {
-			cells += entryBytes + cellSize(c)
+		for _, img := range st.cells {
+			cells += img.walkSize()
 		}
 		if cells != st.cellBytes {
 			return -1
 		}
 		n += st.bytes
+	}
+	return n
+}
+
+// walkSize is what keep counts for the image, found by walking it.
+func (img *image) walkSize() int64 {
+	t := img.tables()
+	n := int64(imageBytes + t.stored.n*slotBytes)
+	for _, ic := range img.small {
+		if !ic.blank {
+			n += slotBytes
+		}
+	}
+	n += int64(t.stored.blocks()+img.blank.blocks()) * blockBytes
+	for _, rc := range t.rich {
+		n += richBytes + cellSize(rc.c)
+	}
+	for _, s := range t.strs.strs[min(1, len(t.strs.strs)):] {
+		n += strBytes + int64(len(s))
 	}
 	return n
 }
