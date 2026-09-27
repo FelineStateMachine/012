@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: build run test fuzz e2e screens oracle libghostty clean
+.PHONY: build run test fuzz e2e screens oracle libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load
 
 build:
 	CGO_ENABLED=0 go build -o bin/012 ./cmd/012
@@ -30,6 +30,20 @@ e2e: $(GHOSTTY_STAMP)
 # visual review. Review the diff and the gallery before committing.
 screens: $(GHOSTTY_STAMP)
 	cd e2e && PKG_CONFIG_PATH=$(GHOSTTY_OUT)/share/pkgconfig go test -count=1 -run TestScreens ./... -update
+
+# Stress: fetch real datasets into .deps/stress, run the benchmarks built
+# with -tags stress, print a summary and record the run in
+# .deps/stress/results/runs.jsonl. BENCH, BENCHTIME and PKGS narrow it;
+# see docs/limits.md. Plain `go test ./...` never runs these.
+stress:
+	scripts/stress/run.sh
+
+stress-data:
+	scripts/stress-data.sh
+
+# Compare the latest run with the previous one and a baseline (DuckDB).
+stress-report:
+	scripts/stress/report.sh
 
 # Differential tests: formulas and number formats against excelize's
 # calculation engine. A separate module, so the binary never depends on it.
