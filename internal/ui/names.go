@@ -151,6 +151,9 @@ func (m *Model) editName(n sheet.Name, sel sheet.Rect) {
 			return nil
 		}
 		r := n.Range
+		if n.Sheet.Live() {
+			m.showSheet(n.Sheet) // the range is pointed at on its own sheet
+		}
 		m.openRange("Range for "+text+":", func(m *Model, r sheet.Rect) tea.Cmd {
 			if err := m.sheet.EditName(n.Name, text, r); err != nil {
 				m.fail(err.Error())
@@ -171,7 +174,7 @@ func (m *Model) editName(n sheet.Name, sel sheet.Rect) {
 func (m *Model) namedSelection() (string, bool) {
 	r := m.selection()
 	for _, n := range m.sheet.Names() {
-		if !n.Lost && n.Range == r {
+		if !n.Gone() && n.Sheet == m.sheet && n.Range == r {
 			return n.Name, true
 		}
 	}

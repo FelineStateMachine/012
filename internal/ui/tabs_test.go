@@ -323,6 +323,31 @@ func TestFindAllSheets(t *testing.T) {
 	}
 }
 
+func TestNamedRangeOnAnotherSheet(t *testing.T) {
+	m := newModel()
+	press(t, m, "<shift+f11>", "3", "<enter>", "4", "<enter>")
+	m.sheet.DefineName("Costs", sheet.NewRect(addr("A1"), addr("A2")))
+	press(t, m, "<ctrl+pgup>", "=SUM(Costs)", "<enter>")
+	if v := m.sheet.Value(addr("A1")); v.Num != 7 {
+		t.Errorf("SUM(Costs) = %v", v)
+	}
+	m.runCommand("data.named_ranges")
+	if !strings.Contains(screen(m), "Sheet2!A1:A2") {
+		t.Errorf("names list doesn't say the sheet:\n%s", screen(m))
+	}
+	press(t, m, "cos", "<enter>")
+	if m.sheet.Name() != "Sheet2" || m.selection() != sheet.NewRect(addr("A1"), addr("A2")) {
+		t.Errorf("go to name: on %s, %v", m.sheet.Name(), m.selection())
+	}
+	if name := strings.TrimSpace(ansi.Cut(line(m, formulaLine), 0, nameBoxW)); name != "Costs" {
+		t.Errorf("name box %q", name)
+	}
+	press(t, m, "<ctrl+pgup>", "<ctrl+home>", "<shift+down>")
+	if name := strings.TrimSpace(ansi.Cut(line(m, formulaLine), 0, nameBoxW)); name != "A1:A2" {
+		t.Errorf("name box on Sheet1 %q", name)
+	}
+}
+
 func TestTraceIntoOtherSheet(t *testing.T) {
 	m := newModel()
 	press(t, m, "<shift+f11>", "7", "<enter>", "<ctrl+pgup>", "=Sheet2!A1*2", "<enter>", "<up>")

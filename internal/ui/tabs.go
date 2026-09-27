@@ -432,8 +432,7 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 		switch {
 		case i == active:
 			style = m.th.tabActive
-		case m.drag == dragTab && m.hover.kind == hitTab && m.hover.addr.Col == i,
-			m.drag == dragNone && m.hover.kind == hitTab && m.hover.addr.Col == i:
+		case m.hover.kind == hitTab && m.hover.addr.Col == i && (m.drag == dragNone || m.drag == dragTab):
 			style = m.th.tabHover
 		}
 		label := tabLabel(sheets[i])
@@ -474,6 +473,9 @@ func (m *Model) tabPress(h hit, double bool) tea.Cmd {
 	case hitTabNext:
 		m.stepEntrySheet(1)
 	case hitTabAdd:
+		if m.mode == modePoint {
+			m.resumeEntry(m.pointRef())
+		}
 		if m.editing() && !m.commit() {
 			return nil
 		}
