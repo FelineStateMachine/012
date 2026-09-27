@@ -60,6 +60,27 @@ start.
 
 <!-- Generated from internal/config/registry.go by `go test ./internal/config -update-docs`. Don't edit below. -->
 
+| Option | Default | Environment, flag |
+|---|---|---|
+| [`theme`](#theme) | `terminal` | `O12_THEME`, `--theme` |
+| [`chart-images`](#chart-images) | `true` | `O12_CHART_IMAGES` |
+| [`notifications`](#notifications) | `true` | `O12_NOTIFICATIONS` |
+| [`keymap`](#keymap) | `default` | `O12_KEYMAP` |
+| [`max-cells`](#max-cells) | `2000000` | `O12_MAX_CELLS` |
+| [`jev-api-key-command`](#jev-api-key-command) |  |  |
+| [`jev-credential-store`](#jev-credential-store) | `true` | `O12_JEV_CREDENTIAL_STORE` |
+| [`jev-base-url`](#jev-base-url) |  | `TYPESAFE_BASE_URL` |
+| [`jev-model`](#jev-model) |  | `TYPESAFE_DEFAULT_MODEL` |
+| [`log-file`](#log-file) |  | `O12_LOG`, `--log` |
+| [`log-level`](#log-level) | `info` | `O12_LOG_LEVEL` |
+| [`otlp-endpoint`](#otlp-endpoint) |  | `OTEL_EXPORTER_OTLP_ENDPOINT`, `--otlp` |
+| [`serve-listen`](#serve-listen) | `127.0.0.1:2312` |  |
+| [`serve-authorized-keys`](#serve-authorized-keys) | `~/.ssh/authorized_keys` |  |
+| [`serve-host-key`](#serve-host-key) |  |  |
+| [`serve-idle-timeout`](#serve-idle-timeout) | `30m` |  |
+| [`serve-max-sessions`](#serve-max-sessions) | `8` |  |
+| [`config-file`](#config-file) |  |  |
+
 ### Appearance
 
 #### `theme`

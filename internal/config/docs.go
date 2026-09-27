@@ -12,6 +12,26 @@ const DocsMarker = "<!-- Generated from internal/config/registry.go by `go test 
 // Reference is the option reference in Markdown, one section per group.
 func Reference() string {
 	var b strings.Builder
+	b.WriteString("\n| Option | Default | Environment, flag |\n|---|---|---|\n")
+	for _, g := range Groups {
+		for _, o := range Options {
+			if o.Group != g {
+				continue
+			}
+			def := ""
+			if o.Default != "" {
+				def = "`" + o.Default + "`"
+			}
+			var via []string
+			for _, e := range o.Env {
+				via = append(via, "`"+e+"`")
+			}
+			if o.Flag != "" {
+				via = append(via, "`"+o.Flag+"`")
+			}
+			fmt.Fprintf(&b, "| [`%s`](#%s) | %s | %s |\n", o.Name, o.Name, def, strings.Join(via, ", "))
+		}
+	}
 	for _, g := range Groups {
 		fmt.Fprintf(&b, "\n### %s\n", g)
 		for _, o := range Options {
