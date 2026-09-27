@@ -211,42 +211,111 @@ func (p *barPlan) image(cv *canvas) {
 func (p *piePlan) image(cv *canvas) {
 	b := cv.Rect
 	cx, cy := float64(b.Dx())/2, float64(b.Dy())/2
-	r := min(cx, cy) - 1
-	const n = 4 // samples per pixel along each axis
-	gap := 1.0  // pixels between slices
-	counts := make([]float64, len(p.slices))
+	pr := newPieRaster(p, cx, cy, min(cx, cy)-1, 1)
 	for y := range b.Dy() {
 		for x := range b.Dx() {
-			clear(counts)
-			for sy := range n {
-				for sx := range n {
-					dx := (float64(x) + (float64(sx)+0.5)/n - cx) / r
-					dy := (float64(y) + (float64(sy)+0.5)/n - cy) / r
-					i := p.sliceAt(dx, dy)
-					if i < 0 || len(p.slices) > 1 && p.nearEdge(i, dx, dy, gap/r) {
-						continue
-					}
-					counts[i]++
+			if i, ok := pr.solid(float64(x)+0.5-cx, float64(y)+0.5-cy); ok {
+				if i >= 0 {
+					cv.blend(x, y, cv.pal.Series[i%Colors], 1)
 				}
+				continue
 			}
-			for i, k := range counts {
+			for i, k := range pr.coverage(x, y) {
 				if k > 0 {
-					cv.blend(x, y, cv.pal.Series[i%Colors], k/(n*n))
+					cv.blend(x, y, cv.pal.Series[i%Colors], k/(pieSamples*pieSamples))
 				}
 			}
 		}
 	}
 }
 
-// nearEdge reports whether a point of slice i lies within half of gap
-// (as a fraction of the radius) of the slice's straight edges.
-func (p *piePlan) nearEdge(i int, dx, dy, gap float64) bool {
-	for _, f := range []float64{p.slices[i].from, p.slices[i].to} {
-		a := f * 2 * math.Pi
-		// The edge runs from the center toward (sin a, -cos a).
-		ex, ey := math.Sin(a), -math.Cos(a)
-		along := dx*ex + dy*ey
-		if along > 0 && math.Abs(dx*ey-dy*ex) < gap/2 {
+// pieSamples is the samples per pixel along each axis.
+const pieSamples = 4
+
+// halfDiagonal is a little over the distance from a pixel's center to
+// its corners.
+const halfDiagonal = 0.7072
+
+// pieRaster decides which slices cover each pixel of a pie of radius r
+// pixels centered at cx, cy, leaving gap pixels between slices. Only
+// pixels near an edge or the rim are supersampled; any other lies wholly
+// in one slice, or outside the disc.
+type pieRaster struct {
+	p      *piePlan
+	cx, cy float64
+	r, gap float64
+	// edges are unit vectors along each slice's straight edges, from the
+	// center, with y down.
+	edges  [][2][2]float64
+	counts []float64
+}
+
+func newPieRaster(p *piePlan, cx, cy, r, gap float64) *pieRaster {
+	pr := &pieRaster{p: p, cx: cx, cy: cy, r: r, gap: gap, counts: make([]float64, len(p.slices))}
+	pr.edges = make([][2][2]float64, len(p.slices))
+	for i, s := range p.slices {
+		for k, f := range []float64{s.from, s.to} {
+			a := f * 2 * math.Pi
+			pr.edges[i][k] = [2]float64{math.Sin(a), -math.Cos(a)}
+		}
+	}
+	return pr
+}
+
+// solid reports the slice covering all of the pixel whose center is px,
+// py pixels from the pie's center, or -1 when the pixel is wholly
+// outside the disc; false means the pixel needs supersampling.
+func (pr *pieRaster) solid(px, py float64) (int, bool) {
+	d := math.Hypot(px, py)
+	switch {
+	case d-halfDiagonal > pr.r:
+		return -1, true
+	case d+halfDiagonal >= pr.r:
+		return 0, false
+	}
+	i := pr.p.sliceAt(px/pr.r, py/pr.r)
+	if len(pr.p.slices) == 1 {
+		return i, true
+	}
+	for _, e := range pr.edges[i] {
+		// The distance to the edge, a ray from the center.
+		dist := d
+		if px*e[0]+py*e[1] > 0 {
+			dist = math.Abs(px*e[1] - py*e[0])
+		}
+		if dist <= pr.gap/2+halfDiagonal {
+			return 0, false
+		}
+	}
+	return i, true
+}
+
+// coverage returns how many of pixel x, y's samples fall in each slice.
+func (pr *pieRaster) coverage(x, y int) []float64 {
+	const n = pieSamples
+	clear(pr.counts)
+	for sy := range n {
+		for sx := range n {
+			dx := (float64(x) + (float64(sx)+0.5)/n - pr.cx) / pr.r
+			dy := (float64(y) + (float64(sy)+0.5)/n - pr.cy) / pr.r
+			i := pr.p.sliceAt(dx, dy)
+			if i < 0 || len(pr.p.slices) > 1 && pr.nearEdge(i, dx, dy) {
+				continue
+			}
+			pr.counts[i]++
+		}
+	}
+	return pr.counts
+}
+
+// nearEdge reports whether a point of slice i, as a fraction of the
+// radius from the center, lies within half the gap of the slice's
+// straight edges.
+func (pr *pieRaster) nearEdge(i int, dx, dy float64) bool {
+	gap := pr.gap / pr.r
+	for _, e := range pr.edges[i] {
+		along := dx*e[0] + dy*e[1]
+		if along > 0 && math.Abs(dx*e[1]-dy*e[0]) < gap/2 {
 			return true
 		}
 	}

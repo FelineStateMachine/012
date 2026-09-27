@@ -3,6 +3,7 @@ package chart
 import (
 	"image"
 	"math"
+	"sort"
 	"strconv"
 
 	"github.com/charmbracelet/x/ansi"
@@ -84,12 +85,9 @@ func (p *piePlan) sliceAt(dx, dy float64) int {
 	if f < 0 {
 		f++
 	}
-	for i, s := range p.slices {
-		if f < s.to {
-			return i
-		}
-	}
-	return len(p.slices) - 1
+	// The first slice ending past f; slices run clockwise in order.
+	i := sort.Search(len(p.slices), func(i int) bool { return f < p.slices[i].to })
+	return min(i, len(p.slices)-1)
 }
 
 func (p *piePlan) draw(g *Grid, o Options) {
