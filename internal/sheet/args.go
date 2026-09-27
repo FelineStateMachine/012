@@ -12,7 +12,7 @@ import (
 func numArg(n Node, get lookup) (float64, *Value) {
 	v := eval(n, get)
 	if v.Kind == Error {
-		return 0, &v
+		return 0, errOf(v)
 	}
 	return toNum(v)
 }
@@ -50,7 +50,7 @@ func intArg(args []Node, i int, def float64, get lookup) (int, *Value) {
 func textArg(n Node, get lookup) (string, *Value) {
 	v := eval(n, get)
 	if v.Kind == Error {
-		return "", &v
+		return "", errOf(v)
 	}
 	return text(v), nil
 }
@@ -120,7 +120,7 @@ func nums(args []Node, get lookup) ([]float64, *Value) {
 	e := each(args, get, func(v Value, direct bool) *Value {
 		switch {
 		case v.Kind == Error:
-			return &v
+			return errOf(v)
 		case v.Kind == Empty, v.Kind != Number && !direct:
 			return nil
 		}
@@ -140,7 +140,7 @@ func texts(args []Node, get lookup) ([]string, *Value) {
 	var out []string
 	e := each(args, get, func(v Value, _ bool) *Value {
 		if v.Kind == Error {
-			return &v
+			return errOf(v)
 		}
 		out = append(out, text(v))
 		return nil

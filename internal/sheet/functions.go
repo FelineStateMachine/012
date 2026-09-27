@@ -197,7 +197,7 @@ func aggregate(done func(agg) Value) func([]Node, lookup) Value {
 		e := each(args, get, func(v Value, direct bool) *Value {
 			switch v.Kind {
 			case Error:
-				return &v
+				return errOf(v)
 			case Empty:
 				return nil
 			}
@@ -228,7 +228,7 @@ func logical(test func(trues, n int) bool) func([]Node, lookup) Value {
 		e := each(args, get, func(v Value, direct bool) *Value {
 			switch {
 			case v.Kind == Error:
-				return &v
+				return errOf(v)
 			case v.Kind == Empty, v.Kind == Text && !direct:
 				return nil
 			}

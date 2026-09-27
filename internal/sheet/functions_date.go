@@ -125,7 +125,7 @@ func parsedText(n Node, get lookup) (string, *Value) {
 	v := eval(n, get)
 	switch v.Kind {
 	case Error:
-		return "", &v
+		return "", errOf(v)
 	case Text:
 		return v.Str, nil
 	}

@@ -64,6 +64,12 @@ func boolean(b bool) Value {
 // toNum coerces v for arithmetic as Sheets does: blanks are 0, booleans
 // 1 or 0, numeric text (including dates such as "2026-09-26") is its
 // number, other text is #VALUE!.
+// errOf returns a pointer to a copy of v, for the *Value error results of
+// argument helpers. Taking &v of a parameter directly would move it to
+// the heap on every call, erroneous or not: one allocation per cell read
+// by SUM over a range.
+func errOf(v Value) *Value { return &v }
+
 func toNum(v Value) (float64, *Value) {
 	switch v.Kind {
 	case Empty:
@@ -76,7 +82,7 @@ func toNum(v Value) (float64, *Value) {
 		}
 		return 0, &ErrValue
 	}
-	return 0, &v
+	return 0, errOf(v)
 }
 
 // lookup resolves the current value of a referenced cell.
