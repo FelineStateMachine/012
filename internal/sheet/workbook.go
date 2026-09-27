@@ -163,20 +163,7 @@ func (w *Workbook) nextSheetName() string {
 
 // freeName returns base, or base with a number added ("Copy of Sheet1 2")
 // until no sheet has the name, within the length limit.
-func (w *Workbook) freeName(base string) string {
-	trim := func(s string, n int) string {
-		if r := []rune(s); len(r) > n {
-			return string(r[:n])
-		}
-		return s
-	}
-	name := trim(base, maxSheetName)
-	for n := 2; w.Lookup(name) != nil; n++ {
-		suffix := fmt.Sprintf(" %d", n)
-		name = trim(base, maxSheetName-len(suffix)) + suffix
-	}
-	return name
-}
+func (w *Workbook) freeName(base string) string { return freeIn(base, w) }
 
 // checkName validates a new name for s (nil for a new sheet).
 func (w *Workbook) checkName(s *Sheet, name string) error {
@@ -244,6 +231,8 @@ func (w *Workbook) DeleteSheet(s *Sheet) error {
 		return errors.New("That sheet was already deleted")
 	case len(w.sheets) == 1:
 		return errors.New("A spreadsheet needs at least one sheet")
+	case !s.tabHidden && w.visibleCount() == 1:
+		return errLastVisible
 	}
 	w.change(s, "delete sheet "+s.name, Rect{}, func() {
 		w.recordSheets()

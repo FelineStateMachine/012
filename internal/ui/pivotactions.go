@@ -307,6 +307,10 @@ func (e *pivotEditor) editSource(m *Model) {
 		e.msg = "The source sheet " + p.Source + " doesn't exist"
 		return
 	}
+	if src.Hidden() {
+		e.msg = hiddenMsg(src)
+		return
+	}
 	m.closeOverlay()
 	m.showSheet(src)
 	if !p.Lost {

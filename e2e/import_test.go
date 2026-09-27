@@ -189,3 +189,42 @@ func TestImportProgressAndCancel(t *testing.T) {
 	s.waitFor("Import of big.csv cancelled")
 	s.waitFor("READY")
 }
+
+// File > Import on a spreadsheet with something in it asks where the
+// file goes: new sheets (every sheet of an .xlsx), undone as one step,
+// or in place of the sheet shown.
+func TestImportLocation(t *testing.T) {
+	dir := t.TempDir()
+	importDir(t, dir)
+	s := start(t, dir)
+	s.keys("Notes", "<enter>")
+	openImportPicker(s)
+	s.keys("q3", "<enter>")
+	s.waitFor("Import location")
+	scr := s.screen()
+	if !strings.Contains(scr, "Insert new sheets") || !strings.Contains(scr, "Replace spreadsheet") || strings.Contains(scr, "Replace current sheet") {
+		t.Errorf("locations for an .xlsx:\n%s", scr)
+	}
+	s.keys("<enter>")
+	s.waitFor("Imported q3.xlsx as Q3 and Q4")
+	if l := s.line(int(s.rows) - 1); !strings.HasPrefix(l, " Sheet1   Q3   Q4   +") {
+		t.Errorf("tabs %q", l)
+	}
+	s.waitFor("$1,200.50")
+	s.keys("<ctrl+z>")
+	s.waitFor("Undid: import q3.xlsx")
+	if l := s.line(int(s.rows) - 1); !strings.HasPrefix(l, " Sheet1   +") {
+		t.Errorf("tabs after undo %q", l)
+	}
+
+	openImportPicker(s)
+	s.keys("tsv", "<enter>")
+	s.waitFor("Import location")
+	s.keys("current", "<enter>")
+	s.waitFor("Imported budget.tsv into Sheet1 (2 rows)")
+	s.waitForBar("A1", "Rent")
+	s.keys("<ctrl+z>")
+	s.waitFor("Undid: import budget.tsv")
+	s.keys("<ctrl+home>")
+	s.waitForBar("A1", "Notes")
+}

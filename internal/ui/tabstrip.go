@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -50,7 +51,8 @@ type tabView struct {
 }
 
 func (m *Model) tabView() tabView {
-	return tabView{sheets: m.book().Sheets(), active: m.book().Index(m.sheet), hover: m.mouse.hover, drag: m.mouse.drag}
+	sheets := m.visibleSheets()
+	return tabView{sheets: sheets, active: slices.Index(sheets, m.sheet), hover: m.mouse.hover, drag: m.mouse.drag}
 }
 
 // tabSpan is a clickable part of the tab strip on the status line.
@@ -213,7 +215,7 @@ func (m *Model) tabPress(h hit, double bool) tea.Cmd {
 		}
 		return m.runCommand("sheet.new")
 	case hitTab:
-		s := m.book().Sheet(h.addr.Col)
+		s := m.tabSheet(h.addr.Col)
 		if m.editing() {
 			m.pointInto(s)
 			return nil
@@ -229,12 +231,21 @@ func (m *Model) tabPress(h hit, double bool) tea.Cmd {
 
 // dropTab moves the dragged sheet to the tab it was released over.
 func (m *Model) dropTab() {
-	if m.mouse.hover.kind == hitTab && m.mouse.hover.addr.Col != m.book().Index(m.sheet) {
-		to := m.mouse.hover.addr.Col
+	if m.mouse.hover.kind != hitTab {
+		return
+	}
+	if to := m.book().Index(m.tabSheet(m.mouse.hover.addr.Col)); to != m.book().Index(m.sheet) {
 		m.book().MoveSheet(m.sheet, to)
 		m.note = "Moved " + m.sheet.Name() + " to position " + strconv.Itoa(to+1)
 		m.record(macro.Call("move_sheet", to+1))
 	}
+}
+
+// tabSheet is the sheet of tab i, counting the tabs shown (hidden sheets
+// have none).
+func (m *Model) tabSheet(i int) *sheet.Sheet {
+	tabs := m.visibleSheets()
+	return tabs[clamp(i, 0, len(tabs)-1)]
 }
 
 // tabRightClick shows the tab's sheet and opens its menu.
@@ -245,6 +256,6 @@ func (m *Model) tabRightClick(h hit, x, y int) {
 		}
 		return
 	}
-	m.showSheet(m.book().Sheet(h.addr.Col))
+	m.showSheet(m.tabSheet(h.addr.Col))
 	m.showContextMenu(tabMenu, x, y)
 }

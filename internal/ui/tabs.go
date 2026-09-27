@@ -52,7 +52,7 @@ func init() {
 			return nil
 		}},
 		&command{id: "sheet.delete", title: "Delete sheet", desc: "Delete the sheet; formulas that use it show #REF!",
-			enabled: func(m *Model) bool { return m.book().Len() > 1 }, run: (*Model).confirmDeleteSheet},
+			enabled: func(m *Model) bool { return len(m.book().Visible()) > 1 }, run: (*Model).confirmDeleteSheet},
 		&command{id: "sheet.move_left", title: "Move sheet left", desc: "Move the sheet's tab one place left", enabled: func(m *Model) bool { return m.sheetAt(-1) != nil },
 			run: func(m *Model) tea.Cmd { return m.moveSheet(-1) }},
 		&command{id: "sheet.move_right", title: "Move sheet right", desc: "Move the sheet's tab one place right", enabled: func(m *Model) bool { return m.sheetAt(1) != nil },
@@ -69,19 +69,27 @@ func init() {
 
 // tabMenu is the menu of a sheet's tab, as in Sheets.
 var tabMenu = []menuItem{
-	{cmd: "sheet.rename", title: "Rename"}, {cmd: "sheet.duplicate", title: "Duplicate"}, {cmd: "sheet.delete", title: "Delete"}, sep,
+	{cmd: "sheet.rename", title: "Rename"}, {cmd: "sheet.duplicate", title: "Duplicate"}, {cmd: "sheet.delete", title: "Delete"}, {cmd: "sheet.hide"}, sep,
 	{cmd: "sheet.move_left", title: "Move left"}, {cmd: "sheet.move_right", title: "Move right"}, sep,
-	{cmd: "sheet.new"}, {cmd: "sheet.goto"},
+	{cmd: "sheet.new"}, {cmd: "sheet.goto"}, {cmd: "sheet.unhide"},
 }
 
-// sheetAt returns the sheet d tabs from the one shown, or nil past the
-// ends: moving between sheets doesn't wrap around, as in Sheets.
+// sheetAt returns the sheet d tabs from the one shown, skipping hidden
+// sheets, or nil past the ends: moving between sheets doesn't wrap
+// around, as in Sheets.
 func (g *grid) sheetAt(d int) *sheet.Sheet {
-	i := g.book().Index(g.sheet) + d
-	if i < 0 || i >= g.book().Len() {
-		return nil
+	book, step, n := g.book(), 1, d
+	if d < 0 {
+		step, n = -1, -d
 	}
-	return g.book().Sheet(i)
+	for i := book.Index(g.sheet) + step; i >= 0 && i < book.Len() && n > 0; i += step {
+		if s := book.Sheet(i); !s.Hidden() {
+			if n--; n == 0 {
+				return s
+			}
+		}
+	}
+	return nil
 }
 
 func (m *Model) stepSheet(d int) tea.Cmd {
@@ -91,9 +99,12 @@ func (m *Model) stepSheet(d int) tea.Cmd {
 	return nil
 }
 
+// moveSheet moves the sheet shown past its visible neighbour d tabs
+// away (hidden sheets between keep their order).
 func (m *Model) moveSheet(d int) tea.Cmd {
-	i := m.book().Index(m.sheet)
-	m.book().MoveSheet(m.sheet, i+d)
+	if s := m.sheetAt(d); s != nil {
+		m.book().MoveSheet(m.sheet, m.book().Index(s))
+	}
 	return nil
 }
 
@@ -212,16 +223,18 @@ func (m *Model) pointRef() string {
 func (m *Model) afterSheetsChange(prefer *sheet.Sheet, index int) {
 	book := m.book()
 	switch {
-	case prefer != nil && prefer.Live():
+	case prefer != nil && prefer.Live() && !prefer.Hidden():
 		m.showSheet(prefer)
 	case !m.sheet.Live():
-		s := book.Sheet(clamp(index, 0, book.Len()-1))
+		s := m.nearVisible(clamp(index, 0, book.Len()-1))
 		m.sheet = s // the old sheet is gone: nothing to remember of it
 		p := m.tabs.places[s]
 		m.cur, m.top, m.left = p.cur, p.top, p.left
 		m.clearSelection()
 		m.charts.last = -1
 		book.SetActive(s)
+	case m.sheet.Hidden():
+		m.showSheet(m.nearVisible(book.Index(m.sheet)))
 	}
 }
 
@@ -275,7 +288,7 @@ func (m *Model) openRename() {
 func (m *Model) openSheetPicker() {
 	var items []pickItem
 	sel := 0
-	for i, s := range m.book().Sheets() {
+	for i, s := range m.visibleSheets() {
 		if s == m.sheet {
 			sel = i
 		}

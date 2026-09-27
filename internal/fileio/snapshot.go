@@ -24,6 +24,7 @@ type Snapshot struct {
 	// named ranges as name and Excel reference, e.g. Q3!$B$2:$B$9.
 	Sheets []*Snapshot
 	Names  [][2]string
+	Hidden bool // a hidden sheet of Sheets, written hidden
 }
 
 // SnapCell is one non-blank cell of a snapshot.
@@ -34,6 +35,7 @@ type SnapCell struct {
 	Own     sheet.Format // the cell's own format
 	Style   sheet.Style
 	Formula bool
+	Sheets  []string // the sheets a formula names, as written
 }
 
 // Text is the cell as displayed, without a width limit.
@@ -60,6 +62,7 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 			Own:     c.Format,
 			Style:   c.Style,
 			Formula: c.IsFormula(),
+			Sheets:  s.NamedSheets(a),
 		}
 	}
 	return snap
@@ -73,6 +76,7 @@ func SnapBook(s *sheet.Sheet) *Snapshot {
 	all := []*Snapshot{}
 	for _, t := range s.Book().Sheets() {
 		sn := Snap(t, sheet.Rect{}, t.Name())
+		sn.Hidden = t.Hidden() && t != s
 		if t == s {
 			out = sn
 		}

@@ -134,21 +134,55 @@ func toMultiple(round func(float64) float64) func([]Node, lookup) Value {
 	}
 }
 
+// sumIf, sumIfs and sumProduct add in binary; their decimal twins
+// (decimal.go) visit the same terms and add them in decimal.
 func sumIf(args []Node, get lookup) Value {
+	total := 0.0
+	if e := sumIfTerms(args, get, func(f float64) { total += f }); e != nil {
+		return *e
+	}
+	return num(total)
+}
+
+func sumIfs(args []Node, get lookup) Value {
+	total := 0.0
+	if e := sumIfsTerms(args, get, func(f float64) { total += f }); e != nil {
+		return *e
+	}
+	return num(total)
+}
+
+func sumProduct(args []Node, get lookup) Value {
+	total := 0.0
+	e := sumProductTerms(args, get, func(fs []float64) {
+		p := 1.0
+		for _, f := range fs {
+			p *= f
+		}
+		total += p
+	})
+	if e != nil {
+		return *e
+	}
+	return num(total)
+}
+
+// sumIfTerms calls add with each number SUMIF sums, or returns the error
+// it gives.
+func sumIfTerms(args []Node, get lookup, add func(float64)) *Value {
 	rng := matrixArg(args[0], get)
 	cv := eval(args[1], get)
 	if cv.Kind == Error {
-		return cv
+		return &cv
 	}
 	c := newCriterion(cv)
 	sum := rng
 	if len(args) > 2 {
 		sum = matrixArg(args[2], get).resized(rng.rows, rng.cols, get)
 		if sum.rows != rng.rows || sum.cols != rng.cols {
-			return ErrValue
+			return &ErrValue
 		}
 	}
-	total := 0.0
 	for i := range rng.size() {
 		if !c.test(rng.at(i)) {
 			continue
@@ -156,24 +190,25 @@ func sumIf(args []Node, get lookup) Value {
 		v := sum.at(i)
 		switch v.Kind {
 		case Error:
-			return v
+			return &v
 		case Number:
-			total += v.Num
+			add(v.Num)
 		}
 	}
-	return num(total)
+	return nil
 }
 
-func sumIfs(args []Node, get lookup) Value {
+// sumIfsTerms calls add with each number SUMIFS sums, or returns the
+// error it gives.
+func sumIfsTerms(args []Node, get lookup, add func(float64)) *Value {
 	sum := matrixArg(args[0], get)
 	rows, cols, mask, err := criteriaMask(args, 1, get)
 	switch {
 	case err != nil:
-		return *err
+		return err
 	case rows != sum.rows || cols != sum.cols:
-		return ErrValue
+		return &ErrValue
 	}
-	total := 0.0
 	for i, ok := range mask {
 		if !ok {
 			continue
@@ -181,39 +216,39 @@ func sumIfs(args []Node, get lookup) Value {
 		v := sum.at(i)
 		switch v.Kind {
 		case Error:
-			return v
+			return &v
 		case Number:
-			total += v.Num
+			add(v.Num)
 		}
 	}
-	return num(total)
+	return nil
 }
 
-// sumProduct multiplies same-sized arrays entry by entry and sums; text
-// and blanks count as 0.
-func sumProduct(args []Node, get lookup) Value {
+// sumProductTerms calls term with the factors of each entry of
+// same-sized arrays (text and blanks count as 0), or returns the error
+// SUMPRODUCT gives. The slice is reused between calls.
+func sumProductTerms(args []Node, get lookup, term func(fs []float64)) *Value {
 	ms := make([]matrix, len(args))
 	for i, a := range args {
 		ms[i] = matrixArg(a, get)
 		if ms[i].rows != ms[0].rows || ms[i].cols != ms[0].cols {
-			return ErrValue
+			return &ErrValue
 		}
 	}
-	total := 0.0
+	fs := make([]float64, len(ms))
 	for k := range ms[0].size() {
-		p := 1.0
-		for _, m := range ms {
+		for i, m := range ms {
 			v := m.at(k)
 			switch v.Kind {
 			case Error:
-				return v
+				return &v
 			case Number:
-				p *= v.Num
+				fs[i] = v.Num
 			default:
-				p = 0
+				fs[i] = 0
 			}
 		}
-		total += p
+		term(fs)
 	}
-	return num(total)
+	return nil
 }

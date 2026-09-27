@@ -31,7 +31,7 @@ the app uses, so it never drifts from what the keys do.
 | Ctrl+Alt+= / Ctrl+Alt+- | Insert rows above / delete the selected rows (columns when whole columns are selected) |
 | Ctrl+Enter while typing | Enter the same entry in every selected cell |
 | F4 while typing a formula | Cycle the reference at the caret through A1, $A$1, A$1, $A1 |
-| Typing a function or range name | Suggestions drop down: Up/Down pick, Tab or Enter insert, Esc hides them; inside a function's parentheses the context line shows its arguments with the current one marked |
+| Typing a function, range or sheet name | Suggestions drop down: Up/Down pick, Tab or Enter insert (a sheet as `Summary!`, then arrows point into it), Esc hides them; inside a function's parentheses the context line shows its arguments with the current one marked |
 | Alt+, / Alt+. | Trace precedents / dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; press again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) |
 | Data > Named ranges | Name ranges for formulas (`=SUM(Sales)`): Enter goes to one, F2 renames or repoints it, Ctrl+D deletes it; Data > Define named range names the selection |
 | Ctrl+Shift+1 ... 6 | Number, time, date, currency, percent, scientific format |
@@ -43,6 +43,7 @@ the app uses, so it never drifts from what the keys do.
 | Ctrl+PgDn / Ctrl+PgUp, Alt+Right / Alt+Left | Next / previous sheet; while typing a formula, point into it to insert `Sheet2!A1` |
 | Shift+F11 | New sheet (also Insert > Sheet) |
 | Alt+Shift+K | Go to a sheet by name |
+| Right-click a tab > Hide sheet, View > Hidden sheets | Hide a sheet (formulas still read it; next, previous and the tabs skip it), and list the hidden ones to show one again |
 | Alt+F, Alt+E, Alt+V, Alt+I, Alt+O, Alt+H, F10, click a title | Open a menu (arrows move, Enter runs, Esc closes) |
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
 | Right-click, Shift+F10 | Cell, column or row menu |
@@ -125,7 +126,7 @@ bar in terminals that support it (OSC 22).
 
 The sheet tabs at the left of the status line take the mouse too: click a
 tab to show its sheet, double-click to rename it, right-click for its menu
-(rename, duplicate, delete, move left or right), drag it onto another tab to
+(rename, duplicate, delete, hide, move left or right), drag it onto another tab to
 move it there, and click `+` to add a sheet. When the tabs don't all fit,
 `‹` and `›` step through them. While typing a formula, clicking a tab points
 into that sheet, as in Sheets.

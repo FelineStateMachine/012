@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -53,6 +54,8 @@ func (m *Model) stepTrace(dependents bool) {
 		} else {
 			t.targets = m.sheet.Precedents(m.cur)
 		}
+		// Cells on hidden sheets can't be shown, so the trace skips them.
+		t.targets = slices.DeleteFunc(t.targets, func(tg sheet.Target) bool { return tg.Sheet.Hidden() })
 		if len(t.targets) == 0 {
 			m.trace = nil
 			m.note = "No formulas read " + m.cur.String()
