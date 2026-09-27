@@ -94,7 +94,7 @@ func summarize(since, now time.Time, render, keys []time.Duration, gauges map[st
 	for _, k := range slices.Sorted(maps.Keys(gauges)) {
 		attrs = append(attrs, slog.Int64(k, gauges[k]))
 	}
-	emit(slog.LevelInfo, "frames", window, attrs, false)
+	emit(slog.LevelInfo, "frames", window, attrs, spanIDs{})
 	if _, e := current(); e != nil && e.urls.metrics != "" {
 		e.window(frameWindow{start: since, end: now, render: r, key: k, heap: heap, gauges: gauges})
 	}

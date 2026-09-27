@@ -7,14 +7,9 @@ import (
 	"time"
 )
 
-// spanKey carries a span's ids from log to the OTLP log handler, so the
-// log record of an operation links to its span.
+// spanKey carries a span's ids (spanIDs) from emit to the log handlers,
+// so the log record of an operation links to its span.
 type spanKey struct{}
-
-type spanIDs struct {
-	trace traceID
-	span  spanID
-}
 
 // otlpHandler is a slog.Handler that queues OTLP log records.
 type otlpHandler struct {

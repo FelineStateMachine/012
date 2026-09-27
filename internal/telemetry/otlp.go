@@ -127,24 +127,10 @@ func randomBytes(b []byte) {
 	}
 }
 
-func newIDs() (traceID, spanID) {
-	var t traceID
-	var s spanID
-	for t.IsZero() {
-		randomBytes(t[:])
-	}
-	for s.IsZero() {
-		randomBytes(s[:])
-	}
-	return t, s
-}
-
-// span records a finished operation: a span when traces are on, and its
-// duration in the operation histogram when metrics are. It returns the
-// span's ids for the log record that goes with it. attrs is not kept.
-func (e *exporter) span(name string, start, end time.Time, failed bool, attrs []slog.Attr) (traceID, spanID) {
-	var t traceID
-	var s spanID
+// span records a finished operation: a span with ids when traces are on,
+// and its duration in the operation histogram when metrics are. attrs is
+// not kept.
+func (e *exporter) span(name string, start, end time.Time, failed bool, attrs []slog.Attr, ids spanIDs) {
 	if e.urls.metrics != "" {
 		e.mu.Lock()
 		h := e.ops[name]
@@ -157,11 +143,10 @@ func (e *exporter) span(name string, start, end time.Time, failed bool, attrs []
 		e.mu.Unlock()
 	}
 	if e.urls.traces == "" {
-		return t, s
+		return
 	}
-	t, s = newIDs()
 	sp := spanData{
-		TraceID: t, SpanID: s, Name: name, Kind: spanKindInternal,
+		TraceID: ids.trace, SpanID: ids.span, ParentSpanID: ids.parent, Name: name, Kind: spanKindInternal,
 		StartTimeUnixNano: nanos(start), EndTimeUnixNano: nanos(end),
 		Attributes: attrsOf(attrs),
 		Status:     status{Code: statusOK},
@@ -184,7 +169,6 @@ func (e *exporter) span(name string, start, end time.Time, failed bool, attrs []
 	n := len(e.spans)
 	e.mu.Unlock()
 	e.nudge(n)
-	return t, s
 }
 
 func (e *exporter) log(r logRecord) {

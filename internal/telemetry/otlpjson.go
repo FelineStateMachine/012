@@ -183,6 +183,7 @@ const (
 type spanData struct {
 	TraceID           traceID    `json:"traceId"`
 	SpanID            spanID     `json:"spanId"`
+	ParentSpanID      spanID     `json:"parentSpanId,omitzero"`
 	Name              string     `json:"name"`
 	Kind              int        `json:"kind"`
 	StartTimeUnixNano u64        `json:"startTimeUnixNano"`

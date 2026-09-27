@@ -91,8 +91,8 @@ func start(w io.Writer, e *exporter, c Config) {
 	var hs []slog.Handler
 	if w != nil {
 		// OTLP carries the service in its resource instead.
-		hs = append(hs, slog.NewJSONHandler(w, &slog.HandlerOptions{Level: c.Level}).
-			WithAttrs([]slog.Attr{slog.String("service", "012")}))
+		hs = append(hs, idsHandler{slog.NewJSONHandler(w, &slog.HandlerOptions{Level: c.Level}).
+			WithAttrs([]slog.Attr{slog.String("service", "012")})})
 	}
 	if e != nil && e.urls.logs != "" {
 		hs = append(hs, &otlpHandler{e: e, level: c.Level})
@@ -157,68 +157,13 @@ func Logger() *slog.Logger {
 	return logger
 }
 
-// Span times one operation. The zero Span, returned while off, does
-// nothing. With OTLP on, each span is sent as a root span of its own
-// trace (spans don't nest: call sites pass no context), and the log
-// record of the same event carries its trace and span ids.
-type Span struct {
-	name  string
-	start time.Time
-	// attrs holds up to four attributes given to Start, in the Span
-	// itself: keeping the variadic slice would move it to the heap at
-	// every call site, telemetry on or off.
-	attrs [4]slog.Attr
-	n     int
-}
-
-// Start begins timing an operation named like "recalc" or "import", with
-// up to four attributes known at the start.
-func Start(name string, attrs ...slog.Attr) Span {
-	if !on.Load() {
-		return Span{}
-	}
-	s := Span{name: name, start: time.Now()}
-	s.n = copy(s.attrs[:], attrs)
-	return s
-}
-
-// End logs the operation with its duration in milliseconds and any
-// attributes learned along the way, such as rows read.
-func (s Span) End(attrs ...slog.Attr) {
-	if s.name == "" || !on.Load() {
-		return
-	}
-	emit(slog.LevelInfo, s.name, time.Since(s.start), append(s.attrs[:s.n:s.n], attrs...), true)
-}
-
-// Fail ends the span with an error, logged at Warn with its message.
-func (s Span) Fail(err error, attrs ...slog.Attr) {
-	if err == nil {
-		s.End(attrs...)
-		return
-	}
-	if s.name == "" || !on.Load() {
-		return
-	}
-	attrs = append(append(s.attrs[:s.n:s.n], attrs...), slog.String("error", err.Error()))
-	emit(slog.LevelWarn, s.name, time.Since(s.start), attrs, true)
-}
-
-// Event logs a finished operation that took d (a span, for OTLP).
-func Event(name string, d time.Duration, attrs ...slog.Attr) {
-	if !on.Load() {
-		return
-	}
-	emit(slog.LevelInfo, name, d, attrs, true)
-}
-
 // Debug logs a finished operation at Debug level, for events too
 // frequent to keep by default (and to send as spans).
 func Debug(name string, d time.Duration, attrs ...slog.Attr) {
 	if !on.Load() {
 		return
 	}
-	emit(slog.LevelDebug, name, d, attrs, false)
+	emit(slog.LevelDebug, name, d, attrs, spanIDs{})
 }
 
 // current is the logger and the OTLP exporter (nil unless OTLP is on).
@@ -228,21 +173,22 @@ func current() (*slog.Logger, *exporter) {
 	return logger, exp
 }
 
-// emit logs an event that took d and ended now. With span set and OTLP
-// on, it is also a span and a sample of the operation histogram, and its
-// log record carries the span's ids. attrs is not kept.
-func emit(level slog.Level, name string, d time.Duration, attrs []slog.Attr, span bool) {
+// emit logs an event that took d and ended now. With ids set it is a
+// span: its log record carries the ids, and with OTLP on it is also sent
+// as a span and a sample of the operation histogram. attrs is not kept.
+func emit(level slog.Level, name string, d time.Duration, attrs []slog.Attr, ids spanIDs) {
 	l, e := current()
-	ctx := context.Background()
+	span := !ids.span.IsZero()
 	if span && e != nil {
 		end := time.Now()
-		t, s := e.span(name, end.Add(-d), end, level >= slog.LevelWarn, attrs)
-		if !t.IsZero() {
-			ctx = context.WithValue(ctx, spanKey{}, spanIDs{t, s})
-		}
+		e.span(name, end.Add(-d), end, level >= slog.LevelWarn, attrs, ids)
 	}
+	ctx := context.Background()
 	if !l.Enabled(ctx, level) {
 		return
+	}
+	if span {
+		ctx = context.WithValue(ctx, spanKey{}, ids)
 	}
 	all := make([]slog.Attr, 0, len(attrs)+2)
 	all = append(all, slog.String("event", name), slog.Float64("dur_ms", ms(d)))

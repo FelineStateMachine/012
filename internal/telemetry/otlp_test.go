@@ -466,3 +466,27 @@ func BenchmarkSpanOTLP(b *testing.B) {
 		s.End(slog.Int("cells", 2))
 	}
 }
+
+// Nested spans go out with their parent's span id and trace id; roots
+// without a parentSpanId.
+func TestOTLPNestedSpans(t *testing.T) {
+	c := newCollector(t)
+	otlpSetup(t, OTLPConfig{Endpoint: c.srv.URL})
+	tr := &Trace{}
+	cmd := tr.Start("command")
+	tr.Begin("recalc")
+	tr.End()
+	cmd.End()
+	Close()
+	spans, _ := c.items("/v1/traces")
+	if len(spans) != 2 {
+		t.Fatalf("%d spans: %v", len(spans), spans)
+	}
+	recalc, command := spans[0], spans[1]
+	if recalc["parentSpanId"] != command["spanId"] || recalc["traceId"] != command["traceId"] || !hexSpan.MatchString(recalc["parentSpanId"].(string)) {
+		t.Errorf("recalc %v is not under command %v", recalc, command)
+	}
+	if _, ok := command["parentSpanId"]; ok {
+		t.Errorf("root span with a parent: %v", command)
+	}
+}
