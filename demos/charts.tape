@@ -1,6 +1,6 @@
-# Charts: Insert > Chart charts the table around the active cell; the
-# editor bar switches the type with Left/Right, and the chart redraws as
-# its data changes. Terminals with the kitty graphics protocol get a real
+# Charts: Insert > Chart (here from the palette) charts the table
+# around the active cell; the editor bar switches the type with
+# Left/Right, and the chart redraws as its data changes. Terminals with the kitty graphics protocol get a real
 # image; this recording shows the text rendering every terminal gets.
 Output out/charts.gif
 Source lib/setup.tape
@@ -11,10 +11,9 @@ Sleep 2s
 Show
 
 Sleep 800ms
-Alt+i
+Ctrl+K
+Type@120ms "chart"
 Sleep 900ms
-Up
-Sleep 500ms
 Enter
 Sleep 1.8s
 Screenshot out/stills/chart-editor.png

@@ -85,7 +85,10 @@ follow-up task.
       Fix anything misaligned, low-contrast, cramped or clipped before
       committing. Screens are drawn from libghostty's cell grid, so they
       match what a terminal shows.
-- [ ] README keys table updated if keys changed.
+- [ ] The feature's doc updated in place, where a reader looks for it,
+      and its keys in [keys.md](keys.md) (tests check every bound key is
+      there); a headline feature gets a tape in `demos/` and a place in
+      the README ([testing.md](testing.md#demo-recordings)).
 
 ## Review checklist for screenshots
 

@@ -209,6 +209,8 @@ file, every sheet of it, to decimal math for money. The status line then says
 `decimal`, the menu shows a check mark, and the setting is saved with the
 file and can be undone.
 
+![Decimal arithmetic on: 435 whole cents, and 0.1 + 0.2 equal to 0.3](media/decimal-on.png)
+
 | Computed in decimal | Stays binary |
 |---|---|
 | `+ - * /` and postfix `%`; `SUM`, `AVERAGE`, `PRODUCT`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`; `ROUND`, `ROUNDUP`, `ROUNDDOWN`, `TRUNC` | `^`, `SQRT`, statistics, finance, dates and everything else |

@@ -9,6 +9,8 @@ select whole columns and rows. The active cell stays distinct from the rest
 of the selection, and the status line shows Sum, Avg and Count, dropping the
 ones that don't fit on a narrow terminal.
 
+![A column selected, with its Sum, Avg and Count on the status line](media/selection-stats.png)
+
 ## Copy, paste and fill
 
 Ctrl+C, Ctrl+X and Ctrl+V work as in Sheets: relative references shift,
@@ -54,6 +56,14 @@ right-click menus, or Ctrl+Alt+= and Ctrl+Alt+- (rows, or columns when whole
 columns are selected). Formulas, names, charts, filters and widths follow.
 Drag a column header's edge to resize it, or use Format > Column width.
 
+Formatting whole columns or rows (select them with Ctrl+Space or
+Shift+Space, or click their headers) keeps the format on the column or
+row, as Sheets does, rather than on each of their million cells: every
+cell of it shows the format unless it has its own, and a cell typed into
+later takes it. A cell's format comes from the cell, else its row, else
+its column, else the whole sheet's (Ctrl+A twice, then a format); the
+number format and the text style fall back separately.
+
 ## Freeze
 
 View > Freeze keeps rows or columns on screen while the rest scrolls, marked
@@ -73,8 +83,9 @@ then text ignoring case, then booleans, then errors, with blanks last.
 
 Data > Create a filter puts a filter on the selection or the table around
 the active cell; headers show `▾`. Alt+Down or a click on `▾` opens the
-column's filter: check values in a searchable list, or pick a condition such
-as "greater than" or "text contains". Filtered-out rows are hidden, not
+column's filter: check values in a list (Space checks one, typing
+narrows the list), or pick a condition such as "greater than" or "text
+contains". Filtered-out rows are hidden, not
 deleted: row numbers show the gap, navigation skips them, formulas still
 count them, and the status line says how many rows are hidden.
 
@@ -87,6 +98,8 @@ Shift+Up/Down moves it. In a rule's form, Up/Down pick a line,
 Left/Right change a choice, Space flips a check, text lines are typed
 into, Enter saves and Esc goes back without saving. Every change is an
 undo step.
+
+![Checking a task off, picking an owner from a dropdown, a rejected entry, and the rules panel](media/rules.gif)
 
 A rule applies to ranges (`A2:A100`, or several: `A2:A9,C2:C9`) and is
 one of:
@@ -169,6 +182,8 @@ picking an item asks as typing does ([protection](#protected-sheets-and-ranges))
 
 ## Pivot tables
 
+![Building a pivot table of revenue by region and quarter, then changing its data](media/pivot.gif)
+
 Data > Pivot table summarizes the selection, or the table around the
 active cell, on a new sheet named `Pivot Table 1`, as Sheets' Insert >
 Pivot table does. The data's first row names the fields. The pivot editor
@@ -241,7 +256,7 @@ changes it.
 Ctrl+F opens a find bar on the context line: matches highlight as you type,
 the active cell follows the current one, and Enter and Shift+Enter step
 through them. Ctrl+H adds a replacement field; Enter replaces and moves on,
-Ctrl+Enter replaces all as one undo step. Chips toggle match case (Alt+C),
+Ctrl+Enter or Alt+A replaces all as one undo step. Chips toggle match case (Alt+C),
 whole cell (Alt+W), regular expressions (Alt+R, with `$1` in replacements),
 searching formulas (Alt+=). The scope chip says where to search, as Sheets'
 "Search" choice: this sheet, all sheets, or the range selected when the bar

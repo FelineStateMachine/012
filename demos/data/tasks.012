@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "widths": {"A": 16, "B": 10, "C": 8, "D": 7},
+  "cells": {
+    "A1": {"input":"Task","bold":true},
+    "B1": {"input":"Owner","bold":true},
+    "C1": {"input":"Hours","bold":true,"align":"right"},
+    "D1": {"input":"Done","bold":true,"align":"center"},
+    "A2": "Write spec", "B2": "Ann", "C2": "12", "D2": "TRUE",
+    "A3": "Build UI", "B3": "Bo", "C3": "40", "D3": "FALSE",
+    "A4": "Tests", "B4": "Cy", "C4": "26", "D4": "TRUE",
+    "A5": "Docs", "B5": "Dee", "C5": "6", "D5": "FALSE",
+    "A6": "Release notes", "B6": "Ann", "C6": "3", "D6": "FALSE",
+    "A7": "Launch", "B7": "Bo", "C7": "8", "D7": "FALSE",
+    "A8": {"input":"Total","bold":true}, "C8": "=SUM(C2:C7)"
+  },
+  "conditionalFormats": [
+    {"ranges":"A2:A7","condition":"formula","values":["=$D2"],"text":"green","strikethrough":true},
+    {"ranges":"C2:C7","scale":[{"type":"min","color":"green"},{"type":"percentile","value":"50","color":"yellow"},{"type":"max","color":"red"}]},
+    {"ranges":"C8","condition":"gt","values":["100"],"fill":"magenta","bold":true}
+  ],
+  "validations": [
+    {"ranges":"B2:B7","criteria":"list","items":["Ann","Bo","Cy"],"help":"Pick who does it"},
+    {"ranges":"D2:D7","criteria":"checkbox"},
+    {"ranges":"C2:C7","criteria":"number","condition":"between","values":["0","80"],"reject":true}
+  ]
+}
