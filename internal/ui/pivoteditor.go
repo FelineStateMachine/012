@@ -109,7 +109,7 @@ func (e *pivotEditor) pivot(m pivotHost) sheet.Pivot {
 	return p
 }
 
-// items lists the editor's lines for the pivot as it is now.
+// items lists the editor's lines for the pivot's current definition.
 func (e *pivotEditor) items(m pivotHost) []pivotItem {
 	p := e.pivot(m)
 	items := []pivotItem{{kind: itemSource}}

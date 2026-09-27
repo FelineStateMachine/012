@@ -144,20 +144,6 @@ func DotEnvHasKey(dir string) bool {
 	return false
 }
 
-// LoadConfig reads TYPESAFE_API_KEY, TYPESAFE_BASE_URL and
-// TYPESAFE_DEFAULT_MODEL from the environment only, reporting false when
-// there's no key or the base URL isn't https (or localhost). The dirs
-// are ignored: .env files are no longer read. New code resolves the key
-// with ResolveKey and takes the rest from internal/config.
-func LoadConfig(dirs ...string) (Config, bool) {
-	c := Config{APIKey: strings.TrimSpace(os.Getenv(KeyEnv)), BaseURL: strings.TrimSpace(os.Getenv("TYPESAFE_BASE_URL")),
-		Model: strings.TrimSpace(os.Getenv("TYPESAFE_DEFAULT_MODEL"))}
-	if c.BaseURL != "" && config.CheckBaseURL(c.BaseURL) != nil {
-		return c, false
-	}
-	return c, c.APIKey != ""
-}
-
 // Lazy is a Client that connects the first time a question is asked,
 // with connect, and remembers the result, error included. 012 uses it for
 // jev-api-key-command, so a password manager is only asked for the key
