@@ -5,70 +5,21 @@
 package jev
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 
 	typesafe "github.com/FelineStateMachine/typesafe-go"
 
+	"github.com/FelineStateMachine/012/internal/config"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// Config is how to reach the service.
+// Config is how to reach the service. The key comes from ResolveKey;
+// the base URL and model from the config file or environment
+// (internal/config), never from files next to a sheet.
 type Config struct {
 	APIKey, BaseURL, Model string
-}
-
-// LoadConfig reads TYPESAFE_API_KEY, TYPESAFE_BASE_URL and
-// TYPESAFE_DEFAULT_MODEL from the environment, falling back to .env files
-// in dirs, first found wins. It reports false when there is no key, which
-// turns JEV functions off.
-func LoadConfig(dirs ...string) (Config, bool) {
-	vals := map[string]string{}
-	for _, dir := range dirs {
-		for k, v := range readDotEnv(filepath.Join(dir, ".env")) {
-			if _, seen := vals[k]; !seen {
-				vals[k] = v
-			}
-		}
-	}
-	get := func(k string) string {
-		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
-			return v
-		}
-		return vals[k]
-	}
-	c := Config{APIKey: get("TYPESAFE_API_KEY"), BaseURL: get("TYPESAFE_BASE_URL"), Model: get("TYPESAFE_DEFAULT_MODEL")}
-	return c, c.APIKey != ""
-}
-
-// readDotEnv reads the TYPESAFE_ settings from a .env file: KEY=value
-// lines, optionally quoted, ignoring comments and anything else.
-func readDotEnv(path string) map[string]string {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-	out := map[string]string{}
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(sc.Text()), "export "))
-		k, v, ok := strings.Cut(line, "=")
-		if !ok || !strings.HasPrefix(k, "TYPESAFE_") {
-			continue
-		}
-		v = strings.TrimSpace(v)
-		if len(v) >= 2 && (v[0] == '"' || v[0] == '\'') && v[len(v)-1] == v[0] {
-			v = v[1 : len(v)-1]
-		}
-		out[strings.TrimSpace(k)] = v
-	}
-	return out
 }
 
 // Client is the part of the TypeSafe SDK used here, so tests can fake it.
@@ -76,8 +27,15 @@ type Client interface {
 	SystemOne(context.Context, typesafe.SystemOneRequest) (*typesafe.SystemOneResponse, error)
 }
 
-// NewClient connects to the service with c.
+// NewClient connects to the service with c. The base URL must be https
+// (or http on this machine), so the key is never sent in the clear or to
+// an address a stray file chose.
 func NewClient(c Config) (Client, error) {
+	if c.BaseURL != "" {
+		if err := config.CheckBaseURL(c.BaseURL); err != nil {
+			return nil, err
+		}
+	}
 	opts := []typesafe.Option{typesafe.WithAPIKey(c.APIKey)}
 	if c.BaseURL != "" {
 		opts = append(opts, typesafe.WithBaseURL(c.BaseURL))

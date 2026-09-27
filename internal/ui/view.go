@@ -121,7 +121,7 @@ func (m *Model) gridRow(row int) string {
 	}
 	focus := m.active()
 	sel, selecting := m.highlight()
-	hdr := m.th.Header
+	hdr := m.th.RowHeader
 	switch {
 	case row == focus.Row:
 		hdr = m.th.HeaderActive

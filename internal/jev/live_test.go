@@ -10,13 +10,13 @@ import (
 )
 
 // TestLive asks the real service one question of each kind. It only runs
-// with JEV_LIVE_TEST=1 and a key in the environment or the repo's .env.
+// with JEV_LIVE_TEST=1 and TYPESAFE_API_KEY in the environment.
 func TestLive(t *testing.T) {
 	if os.Getenv("JEV_LIVE_TEST") != "1" {
 		t.Skip("set JEV_LIVE_TEST=1 to call the live JEV service")
 	}
-	cfg, ok := LoadConfig("../..")
-	if !ok {
+	cfg := Config{APIKey: os.Getenv(KeyEnv), BaseURL: os.Getenv("TYPESAFE_BASE_URL"), Model: os.Getenv("TYPESAFE_DEFAULT_MODEL")}
+	if cfg.APIKey == "" {
 		t.Skip("no TYPESAFE_API_KEY")
 	}
 	client, err := NewClient(cfg)

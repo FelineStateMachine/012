@@ -235,6 +235,18 @@ func (c *Config) set(o *Option, v string, src Source) {
 	}
 }
 
+// Override sets an option for the rest of the session, over every other
+// source, e.g. a theme picked in Settings. why says who set it. An
+// invalid value is ignored and returned as an error.
+func (c *Config) Override(name, value, why string) error {
+	o := mustLookup(name)
+	if err := o.validate(value); err != nil {
+		return err
+	}
+	c.vals[name] = []Value{{Raw: value, Src: Source{Kind: FromFlag, Name: why}}}
+	return nil
+}
+
 func (c *Config) warn(src Source, msg string) {
 	c.Warnings = append(c.Warnings, Warning{Src: src, Msg: msg})
 }

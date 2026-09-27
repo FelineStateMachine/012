@@ -32,7 +32,12 @@ type terminal struct {
 	palette      map[int]color.RGBA
 	sent         map[int]string // image id -> what was sent, to send only changes
 	blurred      bool           // the terminal window doesn't have focus
+	noImages     bool           // chart-images = false
+	noNotify     bool           // notifications = false
 }
+
+// images reports whether charts are drawn as images.
+func (t *terminal) images() bool { return t.kitty && !t.noImages }
 
 func newTerminal() terminal {
 	return terminal{tmux: os.Getenv("TMUX") != "", palette: map[int]color.RGBA{}, sent: map[int]string{}}
@@ -128,20 +133,28 @@ func (t *terminal) color(i int) color.RGBA {
 	return xtermColors[i%16]
 }
 
-// chartPalette is the theme's series colors as the terminal draws them.
+// chartPalette is the theme's series colors as the terminal draws them,
+// or as the theme's color scheme has them.
 func (t *terminal) chartPalette(th *theme.Theme) chart.Palette {
+	col := t.color
+	if th.Palette != nil {
+		col = func(i int) color.RGBA {
+			r, g, b, _ := th.Palette.ANSI[i%16].RGBA()
+			return color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), 255}
+		}
+	}
 	var p chart.Palette
 	for i, idx := range th.SeriesANSI {
-		p.Series[i] = t.color(idx)
+		p.Series[i] = col(idx)
 	}
-	p.Grid = t.color(8) // bright black, like the text axes
+	p.Grid = col(8) // bright black, like the text axes
 	p.Grid.A = 90
 	return p
 }
 
 // chartOptions are the drawing options for charts on this terminal.
 func (t *terminal) chartOptions() chart.Options {
-	return chart.Options{Image: t.kitty, CellW: t.cellW, CellH: t.cellH}
+	return chart.Options{Image: t.images(), CellW: t.cellW, CellH: t.cellH}
 }
 
 // syncImages sends the images of charts that changed since they were last
@@ -150,8 +163,8 @@ func (t *terminal) chartOptions() chart.Options {
 // after every message, so images follow edits, recalculation, resizing
 // and the theme.
 func (t *terminal) syncImages(s *sheet.Sheet, shown func() []sheet.Chart, th *theme.Theme) tea.Cmd {
-	if !t.kitty {
-		return nil
+	if !t.images() {
+		return t.freeImages()
 	}
 	var out strings.Builder
 	o := t.chartOptions()
@@ -201,6 +214,19 @@ func (t *terminal) syncImages(s *sheet.Sheet, shown func() []sheet.Chart, th *th
 	return tea.Raw(out.String())
 }
 
+// freeImages frees every image sent, when images are turned off.
+func (t *terminal) freeImages() tea.Cmd {
+	if len(t.sent) == 0 {
+		return nil
+	}
+	var b strings.Builder
+	for id := range t.sent {
+		b.WriteString(chart.Delete(id, t.wrap))
+		delete(t.sent, id)
+	}
+	return tea.Raw(b.String())
+}
+
 // release undoes the startup modes and frees the chart images.
 func (t *terminal) release() string {
 	var b strings.Builder
@@ -215,7 +241,7 @@ func (t *terminal) release() string {
 // notification (OSC 9) when the terminal window isn't focused. When it is,
 // the screen already shows the result.
 func (t *terminal) notify(msg string) tea.Cmd {
-	if !t.blurred {
+	if !t.blurred || t.noNotify {
 		return nil
 	}
 	msg = strings.Map(func(r rune) rune {

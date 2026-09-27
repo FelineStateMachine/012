@@ -1,40 +1,24 @@
 package main
 
 import (
-	"errors"
 	"log/slog"
 	"runtime/debug"
-	"strings"
 
+	"github.com/FelineStateMachine/012/internal/config"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
-// telemetryFlags takes --log path and --otlp url (or --log=path,
-// --otlp=url) out of args. Without them the log file comes from O12_LOG
-// and the OTLP endpoint from OTEL_EXPORTER_OTLP_ENDPOINT (and the other
-// OTEL_* variables), and telemetry stays off when none is set.
-func telemetryFlags(args []string) (telemetry.Config, []string, error) {
-	c := telemetry.ConfigFromEnv()
-	flags := map[string]*string{"--log": &c.LogPath, "--otlp": &c.OTLP.Endpoint}
-	var rest []string
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		name, value, hasValue := strings.Cut(a, "=")
-		dst, ok := flags[name]
-		switch {
-		case !ok:
-			rest = append(rest, a)
-		case hasValue:
-			*dst = value
-		case i+1 < len(args):
-			*dst = args[i+1]
-			i++
-		default:
-			return c, nil, errors.New(name + " needs a value")
-		}
-	}
-	return c, rest, nil
+// telemetryConfig is where telemetry goes: the log file, level and OTLP
+// endpoint from the config (whose flags and variables win over the
+// file), and the rest of OTLP's settings from the OTEL_* variables.
+// Telemetry stays off when neither a log file nor an endpoint is set.
+func telemetryConfig(c *config.Config) telemetry.Config {
+	tc := telemetry.ConfigFromEnv()
+	tc.LogPath = c.String("log-file")
+	tc.OTLP.Endpoint = c.String("otlp-endpoint")
+	tc.Level.UnmarshalText([]byte(c.String("log-level")))
+	return tc
 }
 
 // startTelemetry opens the log and reports every recalculation to it.

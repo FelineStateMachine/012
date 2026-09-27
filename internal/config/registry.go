@@ -142,7 +142,11 @@ func (o *Option) validate(v string) error {
 			return fmt.Errorf("%q isn't one of %s", v, strings.Join(o.Values, ", "))
 		}
 	case URL:
-		u, err := url.Parse(v)
+		withScheme := v
+		if !strings.Contains(v, "://") {
+			withScheme = "http://" + v // host:port, as OTEL_EXPORTER_OTLP_ENDPOINT allows
+		}
+		u, err := url.Parse(withScheme)
 		if err != nil || u.Host == "" {
 			return fmt.Errorf("%q isn't a URL", v)
 		}

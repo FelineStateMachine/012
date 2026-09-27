@@ -136,7 +136,7 @@ func (j *jevRunner) line(th *theme.Theme, calls []sheet.RemoteCall) string {
 		return ""
 	}
 	if j == nil {
-		return th.Warning.Render("JEV functions need TYPESAFE_API_KEY, in the environment or a .env file")
+		return th.Warning.Render("JEV functions need an API key: File > Settings > JEV API key")
 	}
 	var parts []string
 	for _, c := range calls {
