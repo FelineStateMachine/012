@@ -36,7 +36,7 @@ func TestImportLocation(t *testing.T) {
 	m.runCommand("file.import")
 	press(t, m, "sales.csv", "<enter>")
 	got := strings.Join(pickerTitles(t, m), "\n")
-	want := "Insert new sheet | after the others\nReplace current sheet | Sheet1\nReplace spreadsheet | open it instead"
+	want := "Insert new sheet | after Sheet1\nReplace current sheet | Sheet1\nReplace spreadsheet | open it instead"
 	if got != want {
 		t.Errorf("locations:\n%s\nwant\n%s", got, want)
 	}
@@ -68,16 +68,28 @@ func TestImportLocation(t *testing.T) {
 	if sheetNames(m) != "Sheet1,sales" || !strings.Contains(line(m, contextLine), "Undid: import sales.csv") {
 		t.Errorf("undo: %s, %q", sheetNames(m), line(m, contextLine))
 	}
-
-	// Replace current sheet keeps the sheet's name and place.
+	// New sheets go after the sheet shown, not at the end.
 	press(t, m, "<ctrl+pgup>")
+	importInto(t, m, "sales.csv", "Insert new sheet")
+	if sheetNames(m) != "Sheet1,sales 2,sales" || m.sheet.Name() != "sales 2" {
+		t.Errorf("insert after Sheet1: %s on %s", sheetNames(m), m.sheet.Name())
+	}
+	press(t, m, "<ctrl+z>")
+
+	// Replace current sheet keeps the sheet's name, place and charts,
+	// and says what became of the charts.
+	press(t, m, "<ctrl+pgup>")
+	m.sheet.AddChart(sheet.Chart{Data: sheet.NewRect(addr("C1"), addr("C2")), Title: "Totals"})
 	writeFile(t, "sales.csv", "Region,Total\nSouth,50\n")
 	importInto(t, m, "sales.csv", "Replace current sheet")
 	if sheetNames(m) != "Sheet1,sales" || m.sheet.Name() != "Sheet1" || input(m, "A2") != "South" || input(m, "A1") != "Region" {
 		t.Fatalf("replaced: %s on %s, A2 %q", sheetNames(m), m.sheet.Name(), input(m, "A2"))
 	}
-	if line(m, contextLine) != "Imported sales.csv into Sheet1 (2 rows)" {
+	if line(m, contextLine) != "Imported sales.csv into Sheet1 (2 rows); charts: Totals kept on C1:C2, empty now" {
 		t.Errorf("context %q", line(m, contextLine))
+	}
+	if len(m.sheet.Charts()) != 1 {
+		t.Errorf("charts after replacing: %+v", m.sheet.Charts())
 	}
 	press(t, m, "<ctrl+z>")
 	if m.sheet.Name() != "Sheet1" || input(m, "A1") != "=sales!B2*2" {
@@ -102,7 +114,7 @@ func TestImportLocationWorkbook(t *testing.T) {
 	press(t, m, "x", "<enter>")
 	m.runCommand("file.import")
 	press(t, m, "book", "<enter>")
-	if got := strings.Join(pickerTitles(t, m), "\n"); got != "Insert new sheets | after the others\nReplace spreadsheet | unsaved changes" {
+	if got := strings.Join(pickerTitles(t, m), "\n"); got != "Insert new sheets | after Sheet1\nReplace spreadsheet | unsaved changes" {
 		t.Errorf("locations:\n%s", got)
 	}
 	press(t, m, "insert", "<enter>")

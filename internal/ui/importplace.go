@@ -13,9 +13,9 @@ import (
 )
 
 // Where File > Import puts what it reads, as Sheets' Import location:
-// into new sheets after the others, in place of the sheet shown, or in
-// place of the whole spreadsheet (what File > Open and the command line
-// do). A new, empty spreadsheet is just replaced. Inserting or replacing
+// into new sheets after the sheet shown, in place of it (keeping its
+// charts), or in place of the whole spreadsheet (what File > Open and
+// the command line do). A new, empty spreadsheet is just replaced. Inserting or replacing
 // a sheet is one undo step, and the file stays the one being edited.
 
 // The places are transfer.Book, transfer.NewSheets and transfer.Sheet.
@@ -45,10 +45,14 @@ func (m *Model) askImportPlace(name string) tea.Cmd {
 			return run(m)
 		}}
 	}
-	items := []picker.Item{item(insert, "after the others", "Add "+base+as,
+	items := []picker.Item{item(insert, "after "+m.sheet.Name(), "Add "+base+as,
 		func(m *Model) tea.Cmd { return m.startImport(name, fileio.Options{}, transfer.NewSheets) })}
 	if !k.HoldsSheets() {
-		items = append(items, item("Replace current sheet", m.sheet.Name(), "Put "+base+" in place of "+m.sheet.Name()+", keeping its name",
+		keeping := ", keeping its name"
+		if len(m.sheet.Charts()) > 0 {
+			keeping = ", keeping its name and charts"
+		}
+		items = append(items, item("Replace current sheet", m.sheet.Name(), "Put "+base+" in place of "+m.sheet.Name()+keeping,
 			func(m *Model) tea.Cmd { return m.startImport(name, fileio.Options{}, transfer.Sheet) }))
 	}
 	detail := "open it instead"
@@ -70,7 +74,7 @@ func (m *Model) placeImport(msg transfer.ImportedMsg, what string) bool {
 	label := "import " + filepath.Base(msg.Name)
 	switch msg.Place {
 	case transfer.NewSheets:
-		ins, err := m.book().InsertBook(res.Sheet.Book(), label)
+		ins, err := m.book().InsertBook(res.Sheet.Book(), m.book().Index(m.sheet)+1, label)
 		if err != nil {
 			m.fail(err.Error())
 			return true
@@ -86,12 +90,13 @@ func (m *Model) placeImport(msg transfer.ImportedMsg, what string) bool {
 		}
 	case transfer.Sheet:
 		i := m.book().Index(m.sheet)
-		if err := m.book().ReplaceSheet(m.sheet, res.Sheet, label); err != nil {
+		fates, err := m.book().ReplaceSheet(m.sheet, res.Sheet, label)
+		if err != nil {
 			m.fail(err.Error())
 			return true
 		}
 		m.afterSheetsChange(res.Sheet, i)
-		m.note = "Imported " + what + " into " + res.Sheet.Name() + " (" + transfer.Rows(res.Rows) + ")"
+		m.note = "Imported " + what + " into " + res.Sheet.Name() + " (" + transfer.Rows(res.Rows) + ")" + chartFates(fates)
 	default:
 		return false
 	}
@@ -113,4 +118,24 @@ func sheetList(sheets []*sheet.Sheet) string {
 	default:
 		return transfer.Thousands(n) + " sheets, " + sheets[0].Name() + " to " + sheets[n-1].Name()
 	}
+}
+
+// chartFates tells what replacing a sheet did to its charts, for the
+// note: re-pointed to the new data, or kept on their range.
+func chartFates(fates []sheet.ChartFate) string {
+	if len(fates) == 0 {
+		return ""
+	}
+	parts := make([]string, len(fates))
+	for i, f := range fates {
+		switch {
+		case f.Now != f.Was:
+			parts[i] = f.Name + " re-pointed to " + f.Now.String()
+		case f.Empty:
+			parts[i] = f.Name + " kept on " + f.Now.String() + ", empty now"
+		default:
+			parts[i] = f.Name + " kept on " + f.Now.String()
+		}
+	}
+	return "; charts: " + strings.Join(parts, ", ")
 }

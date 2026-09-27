@@ -19,12 +19,12 @@ type ImportResult struct {
 	Names   int               // named ranges left out, their names taken
 }
 
-// InsertBook moves the sheets of src, an imported workbook, into w after
-// its last sheet, with src's named ranges, as one undo step labelled
-// label. A sheet whose name w already has gets a number ("Sales 2"), and
+// InsertBook moves the sheets of src, an imported workbook, into w at
+// index at (clamped to the ends; the UI puts them after the sheet shown),
+// with src's named ranges, as one undo step labelled label. A sheet whose name w already has gets a number ("Sales 2"), and
 // src's formulas follow the new name; a named range whose name w already
 // has is left out. src is used up.
-func (w *Workbook) InsertBook(src *Workbook, label string) (ImportResult, error) {
+func (w *Workbook) InsertBook(src *Workbook, at int, label string) (ImportResult, error) {
 	var res ImportResult
 	if src == w || len(src.sheets) == 0 {
 		return res, errors.New("Nothing to import")
@@ -49,10 +49,16 @@ func (w *Workbook) InsertBook(src *Workbook, label string) (ImportResult, error)
 		s.wb = w
 	}
 	src.sheets = nil
-	w.change(sheets[0], label, Rect{}, func() {
+	// Undo shows the sheet the new ones follow, where the import started.
+	at = clampInt(at, 0, len(w.sheets))
+	shown := sheets[0]
+	if at > 0 {
+		shown = w.sheets[at-1]
+	}
+	w.change(shown, label, Rect{}, func() {
 		w.recordSheets()
-		for _, s := range sheets {
-			w.insert(s, len(w.sheets))
+		for i, s := range sheets {
+			w.insert(s, at+i)
 		}
 		for _, n := range names {
 			if _, taken := w.LookupName(n.Name); taken {
@@ -69,14 +75,16 @@ func (w *Workbook) InsertBook(src *Workbook, label string) (ImportResult, error)
 // ReplaceSheet puts s, the sheet of an imported workbook, in the place of
 // dst, as one undo step labelled label: it takes dst's name and position,
 // so formulas reading dst read it, and named ranges on dst move to it.
-// dst's cells, charts and the rest go with it; undo brings them back.
-func (w *Workbook) ReplaceSheet(dst, s *Sheet, label string) error {
+// dst's charts stay, drawing s's data (see keepCharts), and it returns
+// what became of each. dst's cells and the rest go; undo brings them back.
+func (w *Workbook) ReplaceSheet(dst, s *Sheet, label string) ([]ChartFate, error) {
 	switch {
 	case !dst.live || dst.wb != w:
-		return errors.New("That sheet was deleted")
+		return nil, errors.New("That sheet was deleted")
 	case s.wb == w:
-		return errors.New("That sheet is already in the spreadsheet")
+		return nil, errors.New("That sheet is already in the spreadsheet")
 	}
+	fates := s.keepCharts(dst)
 	s.wb.detach(s)
 	s.wb.sheets = slices.DeleteFunc(s.wb.sheets, func(t *Sheet) bool { return t == s })
 	s.wb, s.tabHidden = w, dst.tabHidden
@@ -93,7 +101,54 @@ func (w *Workbook) ReplaceSheet(dst, s *Sheet, label string) error {
 			}
 		}
 	})
-	return nil
+	return fates, nil
+}
+
+// ChartFate says what replacing a sheet did to one of its charts.
+type ChartFate struct {
+	Name     string // the chart's title, or Chart 1, Chart 2 by position
+	Was, Now Rect   // the range it drew, and draws
+	Empty    bool   // the new data has nothing in Now
+}
+
+// keepCharts gives s, replacing old, old's charts. A chart that drew a
+// whole block of old's data is re-pointed to the block s has at the same
+// corner when it has as many series (columns, or rows for a chart by
+// row), so a chart of last month's table draws this month's, however
+// many rows it has. Any other chart keeps its range, which may now hold
+// something else or nothing; ChartFate says which.
+func (s *Sheet) keepCharts(old *Sheet) []ChartFate {
+	fates := make([]ChartFate, 0, len(old.charts))
+	for i, c := range old.charts {
+		name := c.Title
+		if name == "" {
+			name = fmt.Sprintf("Chart %d", i+1)
+		}
+		was := c.Data
+		c.Data = s.repoint(old, was, c.ByRow)
+		_, filled := s.FilledBounds(c.Data)
+		fates = append(fates, ChartFate{Name: name, Was: was, Now: c.Data, Empty: !filled})
+		s.charts = append(s.charts, c)
+	}
+	return fates
+}
+
+// repoint is the range on s a chart drawing d on old draws: s's block of
+// data at d's corner when d was old's whole block there and the two have
+// as many series, else d. Whole columns or rows read any data as is.
+func (s *Sheet) repoint(old *Sheet, d Rect, byRow bool) Rect {
+	if d.AllRows() || d.AllCols() || old.Region(d.From) != d {
+		return d
+	}
+	now := s.Region(d.From)
+	if now.From != d.From || s.cells.get(now.From).Blank() && now.From == now.To {
+		return d
+	}
+	if byRow && now.To.Row-now.From.Row != d.To.Row-d.From.Row ||
+		!byRow && now.To.Col-now.From.Col != d.To.Col-d.From.Col {
+		return d
+	}
+	return now
 }
 
 // freeIn returns base, or base with a number added ("Sales 2"), so that

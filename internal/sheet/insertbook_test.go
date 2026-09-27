@@ -4,7 +4,8 @@ import (
 	"testing"
 )
 
-// Inserting an imported workbook adds its sheets after the others,
+// Inserting an imported workbook adds its sheets where asked, here after
+// the first,
 // renaming the ones whose names are taken (and the formulas that use
 // them), brings its free named ranges, and undoes as one step.
 func TestInsertBook(t *testing.T) {
@@ -22,11 +23,11 @@ func TestInsertBook(t *testing.T) {
 	src.DefineName("Fresh", src.Sheet(1), NewRect(at("A1"), at("A1")))
 	src.hidePlain(src.Sheet(1))
 
-	res, err := w.InsertBook(src, "import book.xlsx")
+	res, err := w.InsertBook(src, 1, "import book.xlsx")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := namesOf(w); got != "Sales,Notes,Sales 2,Data" {
+	if got := namesOf(w); got != "Sales,Sales 2,Data,Notes" {
 		t.Fatalf("sheets %s", got)
 	}
 	if len(res.Sheets) != 2 || res.Renamed["Sales"] != "Sales 2" || res.Names != 1 {
@@ -60,7 +61,7 @@ func TestInsertBook(t *testing.T) {
 		t.Errorf("undo left Fresh %v, Notes!A1 %s", ok, show(t, w, "Notes!A1"))
 	}
 	w.Redo()
-	if namesOf(w) != "Sales,Notes,Sales 2,Data" || show(t, w, "Notes!A1") != "6" {
+	if namesOf(w) != "Sales,Sales 2,Data,Notes" || show(t, w, "Notes!A1") != "6" {
 		t.Errorf("redo: %s", namesOf(w))
 	}
 }
@@ -78,7 +79,7 @@ func TestReplaceSheet(t *testing.T) {
 	src := bookOf(t, page{"sales", map[string]string{"A1": "21"}})
 
 	old := w.Sheet(0)
-	if err := w.ReplaceSheet(old, src.Sheet(0), "import sales.csv"); err != nil {
+	if _, err := w.ReplaceSheet(old, src.Sheet(0), "import sales.csv"); err != nil {
 		t.Fatal(err)
 	}
 	if namesOf(w) != "Sales,Notes" || old.Live() || show(t, w, "Sales!B1") != "" {
@@ -110,3 +111,47 @@ func namesOf(w *Workbook) string {
 
 // hidePlain hides s outside the history, as a loader would.
 func (w *Workbook) hidePlain(s *Sheet) { s.tabHidden = true }
+
+// Replacing a sheet keeps its charts: one that drew the whole table is
+// re-pointed to the new table when it has as many columns, and the rest
+// keep their ranges, whatever they now hold.
+func TestReplaceSheetKeepsCharts(t *testing.T) {
+	w := bookOf(t, page{"Sales", map[string]string{
+		"A1": "Month", "B1": "Total", "A2": "Jan", "B2": "1", "A3": "Feb", "B3": "2",
+		"E1": "x", "E2": "3", "H1": "9",
+	}})
+	old := w.Sheet(0)
+	old.AddChart(Chart{Data: NewRect(at("A1"), at("B3")), Title: "Totals"})
+	old.AddChart(Chart{Data: NewRect(at("E1"), at("E2"))})
+	old.AddChart(Chart{Data: NewRect(at("H1"), at("H1"))})
+	w.ClearHistory()
+	src := bookOf(t, page{"sales", map[string]string{
+		"A1": "Month", "B1": "Total", "A2": "Jan", "B2": "4", "A3": "Feb", "B3": "5", "A4": "Mar", "B4": "6",
+		"E1": "a", "F1": "b", "E2": "1", "F2": "2",
+	}})
+	fates, err := w.ReplaceSheet(old, src.Sheet(0), "import sales.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []ChartFate{
+		{Name: "Totals", Was: NewRect(at("A1"), at("B3")), Now: NewRect(at("A1"), at("B4"))},
+		{Name: "Chart 2", Was: NewRect(at("E1"), at("E2")), Now: NewRect(at("E1"), at("E2"))}, // a column more: kept
+		{Name: "Chart 3", Was: NewRect(at("H1"), at("H1")), Now: NewRect(at("H1"), at("H1")), Empty: true},
+	}
+	if len(fates) != len(want) {
+		t.Fatalf("fates %+v", fates)
+	}
+	for i := range want {
+		if fates[i] != want[i] {
+			t.Errorf("chart %d: %+v, want %+v", i+1, fates[i], want[i])
+		}
+	}
+	charts := w.Sheet(0).Charts()
+	if len(charts) != 3 || charts[0].Data != want[0].Now || charts[0].Title != "Totals" {
+		t.Errorf("charts on the new sheet: %+v", charts)
+	}
+	w.Undo()
+	if w.Sheet(0) != old || len(old.Charts()) != 3 || old.Charts()[0].Data != want[0].Was {
+		t.Errorf("undo: charts %+v", old.Charts())
+	}
+}

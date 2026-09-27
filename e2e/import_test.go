@@ -191,13 +191,13 @@ func TestImportProgressAndCancel(t *testing.T) {
 }
 
 // File > Import on a spreadsheet with something in it asks where the
-// file goes: new sheets (every sheet of an .xlsx), undone as one step,
-// or in place of the sheet shown.
+// file goes: new sheets after the one shown (every sheet of an .xlsx),
+// undone as one step, or in place of the sheet shown.
 func TestImportLocation(t *testing.T) {
 	dir := t.TempDir()
 	importDir(t, dir)
 	s := start(t, dir)
-	s.keys("Notes", "<enter>")
+	s.keys("<shift+f11>", "<ctrl+pgup>", "Notes", "<enter>")
 	openImportPicker(s)
 	s.keys("q3", "<enter>")
 	s.waitFor("Import location")
@@ -207,13 +207,13 @@ func TestImportLocation(t *testing.T) {
 	}
 	s.keys("<enter>")
 	s.waitFor("Imported q3.xlsx as Q3 and Q4")
-	if l := s.line(int(s.rows) - 1); !strings.HasPrefix(l, " Sheet1   Q3   Q4   +") {
+	if l := s.line(int(s.rows) - 1); !strings.HasPrefix(l, " Sheet1   Q3   Q4   Sheet2   +") {
 		t.Errorf("tabs %q", l)
 	}
 	s.waitFor("$1,200.50")
 	s.keys("<ctrl+z>")
 	s.waitFor("Undid: import q3.xlsx")
-	if l := s.line(int(s.rows) - 1); !strings.HasPrefix(l, " Sheet1   +") {
+	if l := s.line(int(s.rows) - 1); !strings.HasPrefix(l, " Sheet1   Sheet2   +") {
 		t.Errorf("tabs after undo %q", l)
 	}
 
