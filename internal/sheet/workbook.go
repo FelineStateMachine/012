@@ -62,6 +62,10 @@ type Workbook struct {
 	// sheet name may now resolve differently.
 	structural bool
 
+	// gen counts recalculations, so what is worked out from values
+	// (the looks of rules) is kept until the next one.
+	gen uint64
+
 	// pivotDepth counts pivots refreshed because a pivot they read
 	// changed, to stop a loop; see pivotlayout.go.
 	pivotDepth int
@@ -224,6 +228,7 @@ func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
 	cp.view = s.view
 	cp.view.filter = s.view.filter.clone()
 	cp.charts = slices.Clone(s.charts)
+	cp.rules = s.rules // never changed in place
 	cp.pivot = pivotState{def: s.pivot.def.clone(), stale: s.pivot.def != nil, out: s.pivot.out, fit: s.pivot.fit}
 	w.change(cp, "duplicate "+s.name, Rect{}, func() {
 		w.recordSheets()
@@ -274,6 +279,7 @@ func (w *Workbook) RenameSheet(s *Sheet, name string) error {
 			w.renameRefs(old, name)
 		}
 		w.renamePivots(old, name)
+		w.renameRules(old, name)
 	})
 	return nil
 }

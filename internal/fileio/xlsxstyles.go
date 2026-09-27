@@ -18,6 +18,7 @@ type xlsxStyles struct {
 	fonts   []xlsxFont
 	xfs     []xlsxXf
 	cache   map[int]xlsxStyle
+	dxfs    []sheet.RuleStyle // conditional formats' styles, see xlsxrulesread.go
 }
 
 type xlsxFont struct{ bold, italic, strike, underline bool }
@@ -118,8 +119,18 @@ func (s *xlsxStyles) read(p *xlsxPackage, part string) error {
 
 // element reads one element inside a section of the styles part.
 func (s *xlsxStyles) element(x *xmlStream, se xml.StartElement, section string, cur *xlsxXf) (*xlsxXf, error) {
-	full := len(s.numFmts) >= x.g.p.lim.styles || len(s.fonts) >= x.g.p.lim.styles || len(s.xfs) >= x.g.p.lim.styles
+	full := len(s.numFmts) >= x.g.p.lim.styles || len(s.fonts) >= x.g.p.lim.styles || len(s.xfs) >= x.g.p.lim.styles ||
+		len(s.dxfs) >= x.g.p.lim.styles
 	switch {
+	case section == "dxfs" && se.Name.Local == "dxf" && x.depth == 3:
+		if full {
+			return nil, fmt.Errorf("the workbook has more than %d styles: %w", x.g.p.lim.styles, errXLSXLimit)
+		}
+		st, err := readDxf(x)
+		if err != nil {
+			return nil, err
+		}
+		s.dxfs = append(s.dxfs, st)
 	case section == "numFmts" && se.Name.Local == "numFmt" && x.depth == 3:
 		if full {
 			return nil, fmt.Errorf("the workbook has more than %d styles: %w", x.g.p.lim.styles, errXLSXLimit)

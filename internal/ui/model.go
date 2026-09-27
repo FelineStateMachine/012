@@ -300,7 +300,7 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 		m.showBarMenu(i)
 		return nil
 	}
-	if id, ok := keymap[canonicalKey(key)]; ok {
+	if id, ok := keymap[canonicalKey(key)]; ok && (!commands[id].typed || commands[id].available(m)) {
 		return m.runCommand(id)
 	}
 	if cmd, ok := m.runShortcut(key); ok {

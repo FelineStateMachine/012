@@ -40,6 +40,8 @@ func spanStyle(th *theme.Theme, base lipgloss.Style, sp rowtext.Span) lipgloss.S
 		s = s.Inherit(th.Link).Hyperlink(sp.Link)
 	case sp.Error:
 		s = s.Inherit(th.ErrorMark)
+	case sp.Invalid:
+		s = s.Inherit(th.Invalid)
 	}
 	return s
 }

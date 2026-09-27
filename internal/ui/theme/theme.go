@@ -69,6 +69,24 @@ type Theme struct {
 	// like Sheets' small triangle.
 	NoteMark lipgloss.Style
 
+	// Conditional formats (rules.go), indexed by sheet.Color: a rule's
+	// text color on the cell, its fill with text readable on it, and
+	// RuleOn[fill*sheet.NumColors+text] a text color on a fill, in the
+	// fill's own ink where the text color wouldn't read on it.
+	RuleText [sheet.NumColors]lipgloss.Style
+	RuleFill [sheet.NumColors]lipgloss.Style
+	RuleOn   [sheet.NumColors * sheet.NumColors]lipgloss.Style
+	// Invalid is layered on the text of a cell that fails its data
+	// validation, as Sheets' red corner: a dotted underline, in the
+	// warning color where the terminal colors underlines.
+	Invalid lipgloss.Style
+	// Dropdown is the ▾ at the right of a cell with a dropdown list.
+	Dropdown lipgloss.Style
+	// scales and shades keep the shades of color scales and of rule
+	// colors drawn so far.
+	scales map[scaleKey]Shade
+	shades map[sheet.RuleStyle]Shade
+
 	// Chrome: the menu bar, dropdowns, the palette and dialogs.
 	MenuBar           lipgloss.Style // menu bar titles
 	MenuAccel         lipgloss.Style // a title's accelerator letter
@@ -218,7 +236,13 @@ func New(dark bool) Theme {
 		ChartSelected: lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true),
 		ChartAxis:     lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
 		ChartLabel:    lipgloss.NewStyle().Foreground(muted),
+
+		Invalid:  lipgloss.NewStyle().UnderlineStyle(lipgloss.UnderlineDotted).UnderlineColor(lipgloss.Yellow),
+		Dropdown: lipgloss.NewStyle().Foreground(muted),
+		scales:   map[scaleKey]Shade{},
+		shades:   map[sheet.RuleStyle]Shade{},
 	}
+	ruleRoles(&t, dark)
 	for i, c := range series {
 		t.Series[i] = lipgloss.NewStyle().Foreground(c)
 		t.SeriesBg[i] = lipgloss.NewStyle().Background(c)

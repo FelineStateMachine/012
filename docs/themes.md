@@ -90,6 +90,22 @@ for cell text, text on the bars, the selection, the headers and every
 other role (`TestEveryThemeReadable`). Charts, as text and as kitty
 images, use the scheme's colors too.
 
+Conditional formats ([data.md](data.md#conditional-formatting)) name
+their colors (red, yellow, green, cyan, blue, magenta) rather than
+giving RGB, and each is an ANSI slot, so they follow the theme too: a
+text color is the slot on the cell (`RuleText`), a fill the slot as a
+background with black or bright white text, whichever reads better
+(`RuleFill`), and a text color on a fill (`RuleOn`) takes the fill's
+ink where it wouldn't read on it. These roles are corrected and checked
+like the others, and the terminal theme's are checked against the two
+reference palettes. A color scale blends the slots of its points, the
+scheme's colors or the terminal's own (asked for with OSC 4 at startup,
+xterm's when it doesn't answer), in 32 shades between two points; text
+on a shade is the scheme's text or background color (the terminal's
+bright white or black), whichever reads better, or pure black or white
+where neither reaches 4.5:1. A test checks the shades of every pair of
+colors under every scheme.
+
 The roles for the bars are `MenuBarRow`, `FormulaBarRow`, `ContextRow`,
 `ColumnHeaderRow` and `StatusBarRow` (a background and a text color for
 the whole line, out to the terminal's edge, under overlays too), with

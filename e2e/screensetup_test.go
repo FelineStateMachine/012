@@ -101,7 +101,7 @@ func pivotEditor(s *session) {
 // name, ending on the total.
 func named(s *session) {
 	budget(s)
-	s.keys("<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>", "<alt+d>", "d", "Expenses", "<enter>")
+	s.keys("<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>", "<alt+d>", "d", "<enter>", "Expenses", "<enter>")
 	s.waitForName("Expenses")
 	s.keys("<esc>", "<ctrl+home>", "<down>", "<right>", "<right>", "4", "<enter>")
 	s.keys("<ctrl+home>", "<down>", "<down>", "<down>", "<down>", "<down>", "<down>", "<down>", "<right>")

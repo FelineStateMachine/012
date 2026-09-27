@@ -49,10 +49,21 @@ func (t *terminal) wrap(seq string) string {
 	return seq
 }
 
-// probes are the startup queries: kitty graphics support, and live
-// light and dark changes (mode 2031).
+// probes are the startup queries: kitty graphics support, live light
+// and dark changes (mode 2031), and the 16 palette colors (OSC 4), which
+// chart images and color scales draw with.
 func (t *terminal) probes() tea.Cmd {
-	return tea.Raw(t.wrap(chart.Query()) + ansi.SetModeLightDark)
+	return tea.Raw(t.wrap(chart.Query()) + ansi.SetModeLightDark + paletteQuery())
+}
+
+// paletteQuery asks for the 16 ANSI colors; terminals that don't answer
+// leave xtermColors in use.
+func paletteQuery() string {
+	var q strings.Builder
+	for i := range 16 {
+		fmt.Fprintf(&q, "\x1b]4;%d;?\x07", i)
+	}
+	return q.String()
 }
 
 // firstImageID is the image id of the first chart. Placeholders name
@@ -69,14 +80,9 @@ func (t *terminal) handle(msg tea.Msg) tea.Cmd {
 	case uv.KittyGraphicsEvent:
 		if msg.Options.ID == chart.QueryID && string(msg.Payload) == "OK" && !t.kitty {
 			t.kitty = true
-			// Ask for the cell size (for image proportions) and the
-			// palette colors charts draw with.
-			var q strings.Builder
-			q.WriteString(ansi.WindowOp(16)) // 16: report the cell size in pixels
-			for i := range 16 {
-				fmt.Fprintf(&q, "\x1b]4;%d;?\x07", i)
-			}
-			return tea.Raw(q.String())
+			// Ask for the cell size, for image proportions; the palette
+			// was asked for at startup.
+			return tea.Raw(ansi.WindowOp(16)) // 16: report the cell size in pixels
 		}
 	case uv.CellSizeEvent:
 		if msg.Width > 0 && msg.Height > 0 {

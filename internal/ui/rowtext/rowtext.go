@@ -26,6 +26,9 @@ type Span struct {
 	// Left for the caller to fill in from the owner's value.
 	Link  string // the owner's link target, drawn as a hyperlink
 	Error bool   // the owner shows an error: its text gets the error mark
+	// Invalid is set when the owner fails its data validation: its text
+	// gets the invalid mark.
+	Invalid bool
 }
 
 // Layout lays out ncols columns of row from lo, each span exactly its

@@ -85,16 +85,19 @@ The rest of the formats are in the Format menu.
 | Key | Action | More |
 |---|---|---|
 | Ctrl+F, Ctrl+H | Find; find and replace | [data.md](data.md#find-and-replace) |
-| Alt+Down | With a filter on (Data > Create a filter), open the column's filter: Space checks values, type to search, or pick a condition | [data.md](data.md#filter) |
+| Alt+Down | Open the active cell's dropdown (type to search, Enter picks); elsewhere, with a filter on (Data > Create a filter), the column's filter (Space checks values, type to search, or pick a condition) | [validation](data.md#data-validation), [filter](data.md#filter) |
+| Space | Check or uncheck the selected checkboxes (Insert > Checkbox); elsewhere Space starts an entry | [data.md](data.md#data-validation) |
 | Alt+, Alt+. | Trace precedents, dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) | [formulas.md](formulas.md#building-formulas) |
 | Alt+Shift+F | Frequency table of the active column on a new sheet, as VisiData's Shift+F | [data.md](data.md#frequency-tables) |
 | Shift+F2 | Add or edit the active cell's note; Alt+Enter or Shift+Enter starts a new line | [data.md](data.md#notes) |
 
 Tools with no key of their own have their keys on screen while they're
-open, and in their docs: sorting by several columns and pivot tables
-([data.md](data.md#sort), [pivot tables](data.md#pivot-tables)),
-protected ranges ([data.md](data.md#protected-sheets-and-ranges)), and
-charts ([charts.md](charts.md)). In Data > Named ranges, Enter goes to a
+open, and in their docs: sorting by several columns
+([data.md](data.md#sort)), conditional formatting and data validation
+([rules panel](data.md#conditional-formatting)), pivot tables
+([pivot editor](data.md#pivot-tables)), protected ranges
+([data.md](data.md#protected-sheets-and-ranges)) and charts
+([charts.md](charts.md)). In Data > Named ranges, Enter goes to a
 range, F2 renames or repoints it and Ctrl+D deletes it.
 
 ## Files, menus and help
@@ -188,7 +191,8 @@ line isn't a command itself (`:fill d` Enter fills down).
 | Drag the fill handle (▟ at the selection's corner, shown on hover) | Continue a series (1, 2, 3; Jan, Feb; Mon, Tue; dates; Item 1, Item 2) or copy |
 | Drag a column header's right edge; double-click it | Resize the column; fit it to its contents |
 | Right-click | The cell, column or row menu |
-| Click `▾` in a header | Open the column's filter |
+| Click `▾` in a header, or in a cell | Open the column's filter, or the cell's dropdown |
+| Click a checkbox | Check or uncheck it |
 | Click a chart; drag it or its corner | Select it; move or resize it (then arrows move it, Shift+arrows resize, Enter edits, Del deletes) |
 | Cmd- or Ctrl-click a link | Open a URL in a cell or a `=HYPERLINK(url, [label])` |
 | Hover a cell with a note | Show the note beside it |
