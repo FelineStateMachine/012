@@ -139,7 +139,7 @@ Every session is a separate 012 with nothing shared but the process:
 its own workbook, undo history, clipboard, theme, JEV cache and
 terminal state. What it learns about the terminal comes from the
 client: the window size and its changes, the colors (from the `TERM`
-the client sends), the light or dark background, kitty graphics, and
+the client sends), the light or dark background, kitty or sixel graphics, and
 the clipboard, which Ctrl+C sets on the client's machine through OSC 52.
 
 [Macros](../sheets/macros.md) can be recorded, run, renamed and deleted in a

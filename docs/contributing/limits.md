@@ -238,7 +238,10 @@ whatever its data: only the categories that fit are drawn (a pie of 8192
 slices, 0.44 ms, is the worst). An image for kitty graphics is redrawn
 when its data, size or theme changes: 25 to 260 us at 24 x 10 cells and
 1 to 1.5 ms at 120 x 40, a pie 8.6 ms (`internal/chart`,
-`BenchmarkDraw`, `BenchmarkImage`). Key presses add little: an arrow key
+`BenchmarkDraw`, `BenchmarkImage`). A sixel image is encoded then too,
+in 0.07 to 0.3 ms at 24 x 10 cells and 3 to 7 ms at 120 x 40 (10 x 20
+pixel cells), 0.6 to 67 KB to send (`BenchmarkSixel`); it is sent again,
+without encoding, whenever the screen under it is redrawn. Key presses add little: an arrow key
 through to its frame is 0.19 ms at 80 x 24 and 0.9 ms at 200 x 60;
 Page Down 1.1 ms.
 

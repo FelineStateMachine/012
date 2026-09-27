@@ -502,8 +502,12 @@ the user's editor (`AllowEditor`), since that starts a program.
 `internal/chart` draws a chart in two layers that share one layout: text
 for any terminal (block elements for bars, braille for lines, half blocks
 for pies, eighths filled column by column for areas) and, on terminals
-with kitty graphics, an image of the plot area with the axes and legend
-still terminal text. Each chart type is a layout in the `types` table,
+with kitty or sixel graphics, an image of the plot area with the axes and
+legend still terminal text. A kitty image is placed by placeholder
+characters, which the renderer treats as text; a sixel image
+(`chart.Sixel`) is pixels Bubble Tea's renderer doesn't know of, so
+`internal/ui/sixel.go` keeps blank cells for it, draws it once the frame
+has settled, and clears the screen when it moves. Each chart type is a layout in the `types` table,
 returning a plan that draws it both ways, and the series its legend
 lists; `Draw` places the legend and gives the layout the room left. The
 type constants and their names, and the options of each chart

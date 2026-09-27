@@ -45,7 +45,6 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 | Record dialog choices (sort bar, filter picker, find and replace, chart editor) and chart drags; let scripts run commands that open dialogs, with answers | M |
 | Vim: `.` repeat, registers, marks, `cc`/`s`, command-line history, `:w!` | M |
 | Hold-to-preview and Shift+Enter on terminals with the kitty keyboard protocol (`View.KeyboardEnhancements`) | S |
-| Sixel chart images, redrawn on resize, for terminals without kitty graphics | M |
 
 ## Later: sharing a live sheet (shelved)
 
@@ -105,6 +104,7 @@ by a gateway dialing the iroh ticket.
 - Color schemes and a config file: [Themes](docs/terminal/themes.md), [Configuration](docs/reference/config.md)
 - A high-contrast theme at WCAG AAA, and every state readable without color: [Themes](docs/terminal/themes.md#high-contrast), [UX](docs/contributing/ux.md#reading-without-color)
 - `012 serve` over SSH, with files on the ssh command line and recovery of unsaved work: [Serving over SSH](docs/terminal/ssh.md)
+- Sixel chart images on terminals without kitty graphics, drawn after the frame and redrawn as the screen moves: [Charts](docs/sheets/charts.md)
 
 **Files**
 
