@@ -301,3 +301,29 @@ func TestRecordRowHeightDrag(t *testing.T) {
 		t.Errorf("replayed height %d (%q)", h, r.warn)
 	}
 }
+
+// A chart floats over the rows it's anchored to, however tall they are,
+// and dragging it snaps its corner to the row under the mouse.
+func TestChartOverTallRows(t *testing.T) {
+	m := newModel()
+	m.sheet.AddChart(sheet.Chart{Type: sheet.ChartColumn, Data: rect("A1:B3"), At: addr("D5"), W: 20, H: 8})
+	m.sheet.SetRowHeight(1, 1, 4) // row 2 is four lines tall
+	c := m.sheet.Charts()[0]
+	_, y := m.chartScreen(c)
+	if want, _ := m.rowY(4); y != want {
+		t.Errorf("chart at line %d, row 5 at %d", y, want)
+	}
+	if got := m.chartCellAt(0, y); got.Row != 4 {
+		t.Errorf("line %d is row %d", y, got.Row+1)
+	}
+	if got := m.chartCellAt(0, gridTop+2); got.Row != 1 {
+		t.Errorf("the third line is row %d, want 2", got.Row+1)
+	}
+	m.top = 3 // scrolled past the tall row: the chart's lines follow
+	if _, y := m.chartScreen(c); y != gridTop+1 {
+		t.Errorf("scrolled: chart at line %d", y)
+	}
+	if _, y := m.chartScreen(sheet.Chart{At: addr("D2"), H: 8}); y != gridTop-5 {
+		t.Errorf("above the top: chart at line %d", y)
+	}
+}

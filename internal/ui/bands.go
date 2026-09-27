@@ -89,9 +89,12 @@ func (g *grid) scrollRows() int {
 func (g *grid) bands() []band {
 	n := g.visibleRows()
 	out := make([]band, 0, n)
-	y := gridTop
+	y, shaped := gridTop, g.sheet.Shaped()
 	add := func(r int) bool {
-		sh := g.shape(r)
+		sh := rowtext.Shape{Lines: 1}
+		if shaped {
+			sh = g.shape(r)
+		}
 		b := band{row: r, y: y, rule: sh.Rule, lines: sh.Lines}
 		b.shown = min(sh.Lines, gridTop+n-b.top())
 		if b.shown <= 0 {
