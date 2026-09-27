@@ -32,7 +32,6 @@ type tooDeep struct{}
 // evaluator is the state of one evaluate.
 type evaluator struct {
 	w       *Workbook
-	stack   []loc // cells being evaluated, outermost first
 	pending []loc // cells put off, each needed by the one before
 }
 
@@ -52,10 +51,8 @@ func (w *Workbook) evaluate() {
 		s.calcFmt = w.formatFrom(s)
 	}
 	for _, s := range w.sheets {
-		for a, st := range s.calc {
-			if st == dirty {
-				e.settle(loc{s, a})
-			}
+		for !e.sweep(s) {
+			e.settle()
 		}
 	}
 	for _, s := range w.sheets {
@@ -80,14 +77,11 @@ func (e *evaluator) compute(s *Sheet, a Addr) Value {
 	case c.derived: // a pivot's result, set when the pivot was computed
 		s.calc[a] = done
 		return c.Value
-	case w.depth >= maxEvalDepth:
+	case c.expr != nil && w.depth >= maxEvalDepth:
 		s.calc[a] = deferred
 		e.pending = append(e.pending, loc{s, a})
 		panic(tooDeep{})
 	}
-	s.calc[a] = visiting
-	e.stack = append(e.stack, loc{s, a})
-	w.depth++
 	c.auto = Format{}
 	switch {
 	case c.Input == "":
@@ -97,26 +91,47 @@ func (e *evaluator) compute(s *Sheet, a Addr) Value {
 	case c.expr == nil:
 		c.Value = Value{Kind: Text, Str: strings.TrimPrefix(c.Input, "'")}
 	default:
-		expr := s.bound(c)
-		outer := w.evaluating
-		w.evaluating = loc{s, a}
-		c.Value = eval(w.arith(expr), s.calcGet)
-		w.evaluating = outer
-		if _, lit := expr.(formula.Num); !lit {
-			c.auto = inferFormat(expr, s.calcFmt)
+		if n, lit := c.expr.(formula.Num); lit { // a number typed in
+			c.Value = num(n.V)
+		} else {
+			e.formula(s, a, c)
 		}
 	}
-	w.depth--
-	e.stack = e.stack[:len(e.stack)-1]
 	s.calc[a] = done
 	s.cells.changed(a)
 	return c.Value
 }
 
-// settle evaluates the dirty cell at l, and every cell put off on the
-// way, deepest first.
-func (e *evaluator) settle(l loc) {
-	e.pending = append(e.pending[:0], l)
+// formula evaluates the formula in c, at a, which may read other cells:
+// it's visiting meanwhile.
+func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
+	w := e.w
+	s.calc[a] = visiting
+	w.depth++
+	expr := s.bound(c)
+	outer := w.evaluating
+	w.evaluating = loc{s, a}
+	c.Value = eval(w.arith(expr), s.calcGet)
+	w.evaluating = outer
+	c.auto = inferFormat(expr, s.calcFmt)
+	w.depth--
+}
+
+// sweep evaluates s's dirty cells, reporting false if it went too deep
+// and put off a cell.
+func (e *evaluator) sweep(s *Sheet) (finished bool) {
+	defer e.abandon(&finished)
+	for a, st := range s.calc {
+		if st == dirty {
+			e.compute(s, a)
+		}
+	}
+	return true
+}
+
+// settle evaluates the cells put off, deepest first, putting off more on
+// the way if need be.
+func (e *evaluator) settle() {
 	for len(e.pending) > 0 {
 		top := e.pending[len(e.pending)-1]
 		if top.s.calc[top.a] == deferred {
@@ -131,23 +146,33 @@ func (e *evaluator) settle(l loc) {
 // try evaluates the cell at l, reporting false if it went too deep and
 // put off a cell, having undone what it had started.
 func (e *evaluator) try(l loc) (finished bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			if _, deep := r.(tooDeep); !deep {
-				panic(r)
-			}
-			for _, v := range e.stack {
-				v.s.calc[v.a] = dirty
-			}
-			for _, p := range e.pending {
-				p.s.calc[p.a] = deferred
-			}
-			e.stack = e.stack[:0]
-			e.w.depth = 0
-			e.w.evaluating = loc{}
-			finished = false
-		}
-	}()
+	defer e.abandon(&finished)
 	e.compute(l.s, l.a)
 	return true
+}
+
+// abandon, deferred, recovers from an evaluation that went too deep:
+// the cells it was evaluating go back to dirty, those put off stay
+// deferred, and finished is set false.
+func (e *evaluator) abandon(finished *bool) {
+	r := recover()
+	if r == nil {
+		return
+	}
+	if _, deep := r.(tooDeep); !deep {
+		panic(r)
+	}
+	for _, s := range e.w.sheets {
+		for a, st := range s.calc {
+			if st == visiting {
+				s.calc[a] = dirty
+			}
+		}
+	}
+	for _, p := range e.pending {
+		p.s.calc[p.a] = deferred
+	}
+	e.w.depth = 0
+	e.w.evaluating = loc{}
+	*finished = false
 }

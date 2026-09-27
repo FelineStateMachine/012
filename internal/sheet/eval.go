@@ -118,19 +118,6 @@ func eval(n Node, get lookup) Value {
 			return get.cell(n.Sheet, n.Rect.From)
 		}
 		return ErrValue
-	case formula.Unary, decUnary, formula.Binary, decBinary, formula.Call:
-		get.w.depth++
-		v := evalNested(n, get)
-		get.w.depth--
-		return v
-	}
-	return ErrValue
-}
-
-// evalNested computes an operator or a call, which evaluate their
-// operands: eval counts the nesting around it (see evaluate.go).
-func evalNested(n Node, get lookup) Value {
-	switch n := n.(type) {
 	case formula.Unary:
 		return evalUnary(n, get, false)
 	case decUnary:
@@ -140,7 +127,10 @@ func evalNested(n Node, get lookup) Value {
 	case decBinary:
 		return evalBinary(formula.Binary(n), get, true)
 	case formula.Call:
-		return funcOf(n).call(n.Args, get)
+		get.w.depth++ // see evaluate.go; operators count in theirs
+		v := funcOf(n).call(n.Args, get)
+		get.w.depth--
+		return v
 	}
 	return ErrValue
 }
@@ -148,7 +138,9 @@ func evalNested(n Node, get lookup) Value {
 // evalUnary computes a prefix operator or the postfix %; with dec, % is
 // decimal (decimal.go).
 func evalUnary(n formula.Unary, get lookup, dec bool) Value {
+	get.w.depth++
 	x := eval(n.X, get)
+	get.w.depth--
 	if x.Kind == Error {
 		return x
 	}
@@ -183,7 +175,9 @@ func evalUnary(n formula.Unary, get lookup, dec bool) Value {
 // evalBinary computes a binary operator; with dec, arithmetic is decimal
 // (decimal.go).
 func evalBinary(n formula.Binary, get lookup, dec bool) Value {
+	get.w.depth++
 	l, r := eval(n.L, get), eval(n.R, get)
+	get.w.depth--
 	if l.Kind == Error {
 		return l
 	}
