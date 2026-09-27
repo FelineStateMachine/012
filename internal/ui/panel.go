@@ -46,6 +46,9 @@ func (m *Model) View() tea.View {
 		// Terminals that support it (OSC 9;4) show activity in the tab.
 		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarIndeterminate, 0)
 	}
+	if bar := m.progressBar(); bar != nil {
+		v.ProgressBar = bar
+	}
 	if m.changed {
 		v.WindowTitle += " (modified)"
 	}
@@ -57,6 +60,9 @@ func (m *Model) View() tea.View {
 }
 
 func (m *Model) displayName() string {
+	if m.filename == "" && m.xfer.source != "" {
+		return filepath.Base(m.xfer.source)
+	}
 	if m.filename == "" {
 		return "untitled"
 	}
@@ -66,6 +72,8 @@ func (m *Model) displayName() string {
 // indicator is the mode shown at the top right.
 func (m *Model) indicator() string {
 	switch {
+	case m.xfer.job != nil:
+		return "WAIT"
 	case m.overlay != nil:
 		return m.overlay.indicator()
 	case m.mode == modePrompt:
@@ -115,6 +123,8 @@ func (m *Model) formulaBar() string {
 func (m *Model) contextLineText() string {
 	var left, right string
 	switch {
+	case m.xfer.job != nil:
+		left = m.importLine()
 	case m.drag == dragResize:
 		left = m.th.key.Render("Column "+sheet.ColName(m.resizeCol)) + m.th.muted.Render(" width ") +
 			strconv.Itoa(m.sheet.ColWidth(m.resizeCol)) + m.th.muted.Render("   double-click the border to fit")
@@ -226,6 +236,9 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 func (m *Model) statusLine() string {
 	if m.mode == modeError {
 		return m.th.error.Render(m.errMsg) + m.th.muted.Render("   press any key")
+	}
+	if m.xfer.job != nil {
+		return m.importStatus()
 	}
 	desc, keys, floating := m.assistStatus()
 	if m.overlay != nil {

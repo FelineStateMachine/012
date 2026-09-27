@@ -99,6 +99,7 @@ type Model struct {
 	overlay  overlay    // open menu, palette or dialog, if any (modeMenu)
 	lastFind *findBar   // the last search, reopened by Ctrl+F
 	jev      *jevRunner // answers JEV functions; nil without an API key
+	xfer     transfer   // imports and downloads, see transfer.go
 	prompt   *prompt
 	files    []string // file list shown by File Open
 	errMsg   string
@@ -118,11 +119,14 @@ func New(s *sheet.Sheet, filename string) *Model {
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
 	// sendJEV starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.probes(), m.sendJEV())
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.probes(), m.sendJEV(), m.startupCmd())
 }
 
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, ok := m.importing(msg); ok {
+		return m, cmd
+	}
 	before, beforeMode := *m.focus(), m.mode
 	state := m.beginUpdate(msg)
 	var cmd tea.Cmd
@@ -167,6 +171,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if busy && m.jevBusy() == "" {
 			cmd = m.notifyDone("JEV finished answering in " + m.displayName())
 		}
+	case importedMsg, importTickMsg, exportedMsg:
+		cmd = m.handleTransfer(msg)
 	default:
 		cmd = m.handleTerminal(msg)
 	}

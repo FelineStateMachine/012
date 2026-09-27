@@ -150,6 +150,9 @@ func init() {
 
 // save writes to the current file, asking for a name the first time.
 func (m *Model) save() tea.Cmd {
+	if m.filename == "" && m.xfer.source != "" {
+		return m.saveImported()
+	}
 	if m.filename == "" {
 		return m.openSave()
 	}

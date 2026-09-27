@@ -11,6 +11,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"012/internal/fileio"
 	"012/internal/sheet"
 )
 
@@ -125,7 +126,7 @@ func (m *Model) setWidths(w int) {
 func (m *Model) openSave() tea.Cmd {
 	name := m.filename
 	if name == "" {
-		name = "SHEET1" + sheet.FileExt
+		name = m.displayBase() + sheet.FileExt
 	}
 	m.openText("Save as:", name, func(m *Model, text string) tea.Cmd {
 		return saveCmd(m.sheet, withExt(text))
@@ -136,6 +137,9 @@ func (m *Model) openSave() tea.Cmd {
 func (m *Model) openRetrieve() tea.Cmd {
 	m.files = nil
 	m.openText("Open file:", "", func(m *Model, text string) tea.Cmd {
+		if _, ok := fileio.KindOf(text); ok {
+			return m.confirmImport(text, fileio.Options{})
+		}
 		return loadCmd(withExt(text))
 	})
 	return listFilesCmd

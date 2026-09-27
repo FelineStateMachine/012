@@ -67,8 +67,8 @@ func TestPaletteMatchesMenuPath(t *testing.T) {
 	for _, pm := range openPicker(t, m).shown {
 		got = append(got, pm.item.title)
 	}
-	slices.Sort(got[:5])
-	if s := strings.Join(got[:5], ","); s != "New,Open,Quit,Save,Save as" {
+	slices.Sort(got[:6])
+	if s := strings.Join(got[:6], ","); s != "Import,New,Open,Quit,Save,Save as" {
 		t.Errorf("file matched %s", strings.Join(got, ","))
 	}
 	press(t, m, "<down>", "<down>")

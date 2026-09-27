@@ -6,6 +6,7 @@ behavior, built on Bubble Tea v2.
 ```sh
 make run            # build (pure Go, CGO_ENABLED=0) and start
 ./bin/012 budget.012
+./bin/012 sales.xlsx   # or .csv, .tsv, .sqlite, .parquet, .wk1: imported
 ```
 
 ## Keys
@@ -42,7 +43,7 @@ Inside the grid, 012 works like Google Sheets.
 | Ctrl+B, Ctrl+I, Ctrl+U, Alt+Shift+5 | Bold, italic, underline, strikethrough |
 | Ctrl+Shift+L / E / R | Align left, center, right |
 | Ctrl+\ | Clear formatting |
-| Ctrl+S, Ctrl+O, Ctrl+Q | Save, open, quit |
+| Ctrl+S, Ctrl+O, Ctrl+Q | Save, open (imports other formats), quit |
 | Ctrl+G or F5 | Go to a cell, a range or a named range |
 | Alt+F, Alt+E, Alt+V, Alt+I, Alt+O, Alt+H, F10, click a title | Open a menu (arrows move, Enter runs, Esc closes) |
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
@@ -64,6 +65,22 @@ the background, 012 sends a desktop notification (OSC 9).
 The top three lines are the menu bar and mode indicator, the formula bar
 (name box, then the cell's contents or the entry being typed) and the
 context line (prompts, key hints, formula errors).
+
+## Files
+
+Sheets save as `.012` files (JSON, one line per cell). Other formats come
+in through File > Import, File > Open or the command line, and go out
+through File > Download. Imports run in the background with a progress
+bar; Esc cancels. Saving an imported sheet asks whether to save it as a
+`.012` file or download it back in its format.
+
+| Format | Import | Download |
+|---|---|---|
+| CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, as Sheets' Download does |
+| Excel `.xlsx` | First sheet: values, formulas, number formats, bold, italic, underline, strikethrough, alignment, column widths. Formulas 012 can't read (other sheets, unknown functions) keep their values | The same, with formulas in Excel's syntax and their results cached. JEV functions and `#AND#` save as values |
+| SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet or the selection as a table, first row as column names; a table of that name is replaced |
+| Parquet | Every column, with dates and timestamps; lists joined with commas | |
+| Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
 
 ## JEV functions
 
@@ -94,6 +111,7 @@ checks the real service.
 ```
 cmd/012        entry point
 internal/sheet   engine: addresses, Pratt parser, evaluator, recalc, file format
+internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1
 internal/ui      Bubble Tea model: modes, menu, prompts, rendering
 e2e/             end-to-end tests: real binary on a pty, rendered by libghostty-vt
 oracle/          differential tests of formulas and formats against excelize
@@ -110,5 +128,5 @@ make oracle   # compare formulas and number formats with excelize
 
 `make e2e` needs Zig 0.16+ and `pkg-config`. It is a separate Go module so the
 cgo dependency never reaches the main binary; so is `oracle`, which keeps
-excelize out of it. `oracle/oracle_test.go` lists the formulas skipped
+its calculation engine out of the tests. `oracle/oracle_test.go` lists the formulas skipped
 because Sheets and Excel disagree or excelize departs from Excel.

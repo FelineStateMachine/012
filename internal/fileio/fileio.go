@@ -121,6 +121,13 @@ func (p *Progress) Get() (rows int, frac float64) {
 	return int(p.rows.Load()), float64(pm) / 1000
 }
 
+// Report sets the rows read and, with a positive total, the fraction
+// done; importers call it, and tests of progress displays.
+func (p *Progress) Report(rows int, done, total int64) {
+	p.setRows(rows)
+	p.setFrac(done, total)
+}
+
 func (p *Progress) setRows(n int) {
 	if p != nil {
 		p.rows.Store(int64(n))

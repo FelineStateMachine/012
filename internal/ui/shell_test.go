@@ -226,8 +226,9 @@ func TestMenuMouse(t *testing.T) {
 		}
 	}
 	box := o.layout(m)[0]
-	// Hovering highlights; the Save item is the third row.
-	mouseAt(m, tea.MouseMotionMsg{X: box.x + 3, Y: box.y + 3})
+	// Hovering highlights; the Save item is the fifth row, after New,
+	// Open, Import and a separator.
+	mouseAt(m, tea.MouseMotionMsg{X: box.x + 3, Y: box.y + 5})
 	if highlighted(t, m) != "Save" {
 		t.Errorf("hover highlighted %q", highlighted(t, m))
 	}
@@ -250,7 +251,7 @@ func TestMenuMouse(t *testing.T) {
 	t.Chdir(t.TempDir())
 	leftClick(m, 2, menuLine)
 	box = openMenu(t, m).layout(m)[0]
-	leftClick(m, box.x+3, box.y+4) // Save as
+	leftClick(m, box.x+3, box.y+6) // Save as
 	if m.mode != modePrompt || m.prompt.label != "Save as:" {
 		t.Errorf("click on Save as: mode %v", m.mode)
 	}

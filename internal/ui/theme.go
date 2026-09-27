@@ -34,11 +34,13 @@ type theme struct {
 	// errorMark is layered on an error's text, so errors show beyond
 	// color: a curly underline, in the error color where the terminal
 	// supports colored underlines.
-	errorMark lipgloss.Style
-	link      lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
-	found     lipgloss.Style // cells matching an open search
-	traced    lipgloss.Style // precedents or dependents being traced
-	argument  lipgloss.Style // the argument at the caret in a function's signature
+	errorMark    lipgloss.Style
+	link         lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
+	found        lipgloss.Style // cells matching an open search
+	traced       lipgloss.Style // precedents or dependents being traced
+	argument     lipgloss.Style // the argument at the caret in a function's signature
+	progress     lipgloss.Style // the done part of an import's progress bar
+	progressTodo lipgloss.Style // the rest of the progress bar
 	// copied marks the range on the clipboard, like Sheets' dashed border:
 	// a dashed underline across every cell, layered on the cell's own
 	// style, with its own text color where the cell has none.
@@ -107,11 +109,13 @@ func newTheme(dark bool) theme {
 	// colored backgrounds stays at or above roughly 4.5:1.
 	headerBg, headerFg := lipgloss.BrightBlack, lipgloss.BrightWhite
 	selFg, muted, match := lipgloss.Black, lipgloss.BrightBlack, lipgloss.Yellow
+	bar := lipgloss.Cyan
 	filterFg := lipgloss.Yellow
 	if !dark {
 		headerBg, headerFg = lipgloss.White, lipgloss.Black
 		selFg, muted, match = lipgloss.BrightWhite, lipgloss.Black, lipgloss.Blue
 		filterFg = lipgloss.Blue
+		bar = lipgloss.Blue
 	}
 	// Links are blue, as in Sheets; plain blue is too dark on a dark
 	// background.
@@ -145,6 +149,8 @@ func newTheme(dark bool) theme {
 		found:        lipgloss.NewStyle().Background(lipgloss.Yellow).Foreground(lipgloss.Black),
 		traced:       lipgloss.NewStyle().Background(lipgloss.Green).Foreground(lipgloss.Black),
 		argument:     lipgloss.NewStyle().Bold(true).Underline(true),
+		progress:     lipgloss.NewStyle().Foreground(bar),
+		progressTodo: lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
 		copied: lipgloss.NewStyle().Foreground(lipgloss.Magenta).
 			UnderlineStyle(lipgloss.UnderlineDashed).UnderlineSpaces(true),
 		frozenLine: lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),

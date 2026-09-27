@@ -34,7 +34,13 @@ type menuDef struct {
 
 var menuBar = []menuDef{
 	{title: "File", accel: 'f', items: []menuItem{
-		{cmd: "file.new"}, {cmd: "file.open"}, {cmd: "file.save"}, {cmd: "file.saveas"}, sep,
+		{cmd: "file.new"}, {cmd: "file.open"}, {cmd: "file.import"}, sep,
+		{cmd: "file.save"}, {cmd: "file.saveas"}, {title: "Download", items: []menuItem{
+			{cmd: "file.download.csv", title: "Comma-separated values (.csv)"},
+			{cmd: "file.download.tsv", title: "Tab-separated values (.tsv)"},
+			{cmd: "file.download.xlsx", title: "Microsoft Excel (.xlsx)"},
+			{cmd: "file.download.sqlite", title: "SQLite database (.sqlite)"},
+		}}, sep,
 		{cmd: "quit"},
 	}},
 	{title: "Edit", accel: 'e', items: []menuItem{

@@ -101,6 +101,10 @@ type picker struct {
 	items       []pickItem
 	shown       []pickMatch
 	list
+
+	// enter, when set, gets the first look at Enter with the search text,
+	// e.g. to take a typed path; it reports whether it handled it.
+	enter func(m *Model, query string) (tea.Cmd, bool)
 }
 
 const (
@@ -200,6 +204,11 @@ func (p *picker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 }
 
 func (p *picker) pick(m *Model) tea.Cmd {
+	if p.enter != nil {
+		if cmd, ok := p.enter(m, strings.TrimSpace(string(m.buf))); ok {
+			return cmd
+		}
+	}
 	if p.sel >= len(p.shown) || p.shown[p.sel].item.off {
 		return nil
 	}

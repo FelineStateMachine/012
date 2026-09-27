@@ -10,6 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"012/internal/fileio"
 	"012/internal/jev"
 	"012/internal/sheet"
 	"012/internal/ui"
@@ -24,7 +25,7 @@ func main() {
 
 func run(args []string) error {
 	if len(args) > 1 {
-		return errors.New("usage: 012 [file" + sheet.FileExt + "]")
+		return errors.New("usage: 012 [file]: a " + sheet.FileExt + " sheet, or a .csv, .tsv, .xlsx, .sqlite, .parquet or .wk1 file to import")
 	}
 	// JEV functions run when an API key is set, in the environment or a
 	// .env file next to the sheet or in the current directory. The cache
@@ -45,6 +46,17 @@ func run(args []string) error {
 	}
 
 	s, name := sheet.New(), ""
+	var importName string
+	if len(args) == 1 {
+		if _, ok := fileio.KindOf(args[0]); ok {
+			// Other formats are imported in the background once the
+			// screen is up, with progress; the file must exist.
+			if _, err := os.Stat(args[0]); err != nil {
+				return err
+			}
+			importName, args = args[0], nil
+		}
+	}
 	if len(args) == 1 {
 		name = args[0]
 		f, err := os.Open(name)
@@ -61,6 +73,9 @@ func run(args []string) error {
 		}
 	}
 	m := ui.New(s, name)
+	if importName != "" {
+		m.Import(importName)
+	}
 	if jevClient != nil {
 		m.EnableJEV(jevClient, jevCache)
 	}
