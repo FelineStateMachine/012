@@ -229,24 +229,56 @@ func (w *Workbook) crossReads(u, l loc) bool {
 	return false
 }
 
-// lookupOn resolves references in a formula on s with get: references
-// without a sheet read s, others the sheet they name (#REF! when no sheet
-// has that name). The last sheet name is remembered, so a range on
-// another sheet resolves its name once.
-func (w *Workbook) lookupOn(s *Sheet, get func(*Sheet, Addr) Value) lookup {
-	var lastName string
-	var last *Sheet
-	return func(sheet string, a Addr) Value {
-		if sheet == "" {
-			return get(s, a)
+// reader resolves the references of formulas on s with read: references
+// without a sheet ("") read s, others the sheet they name, with cells on
+// a sheet no sheet has the name of reading as #REF!. The last sheet name
+// is remembered, so a range on another sheet resolves its name once.
+type reader struct {
+	w        *Workbook
+	s        *Sheet
+	read     func(*Sheet, Addr) Value
+	lastName string
+	last     *Sheet
+}
+
+func (w *Workbook) lookupOn(s *Sheet, read func(*Sheet, Addr) Value) lookup {
+	return &reader{w: w, s: s, read: read}
+}
+
+// sheet is the sheet a reference written with the name sheet points at.
+func (rd *reader) sheet(sheet string) *Sheet {
+	if sheet == "" {
+		return rd.s
+	}
+	if sheet != rd.lastName || rd.last == nil {
+		rd.lastName, rd.last = sheet, rd.w.byKey[formula.SheetKey(sheet)]
+	}
+	return rd.last
+}
+
+// cell returns the current value of a cell.
+func (rd *reader) cell(sheet string, a Addr) Value {
+	t := rd.sheet(sheet)
+	if t == nil {
+		return ErrRef
+	}
+	return rd.read(t, a)
+}
+
+// cells calls fn with the value of every cell of r, row by row, until fn
+// returns false.
+func (rd *reader) cells(sheet string, r Rect, fn func(Value) bool) {
+	t := rd.sheet(sheet)
+	for row := r.From.Row; row <= r.To.Row; row++ {
+		for col := r.From.Col; col <= r.To.Col; col++ {
+			v := ErrRef
+			if t != nil {
+				v = rd.read(t, Addr{Col: col, Row: row})
+			}
+			if !fn(v) {
+				return
+			}
 		}
-		if sheet != lastName || last == nil {
-			lastName, last = sheet, w.byKey[formula.SheetKey(sheet)]
-		}
-		if last == nil {
-			return ErrRef
-		}
-		return get(last, a)
 	}
 }
 

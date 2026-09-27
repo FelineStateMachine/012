@@ -82,11 +82,11 @@ func (s *Sheet) errorOrigin(n Node, want Value) (Node, *loc) {
 	}
 	switch n := n.(type) {
 	case formula.Ref:
-		if same(get(n.Sheet, n.Addr)) {
+		if same(get.cell(n.Sheet, n.Addr)) {
 			return n, at(n.Sheet, n.Addr)
 		}
 	case formula.Range:
-		if n.Rect.From == n.Rect.To && same(get(n.Sheet, n.Rect.From)) {
+		if n.Rect.From == n.Rect.To && same(get.cell(n.Sheet, n.Rect.From)) {
 			return n, at(n.Sheet, n.Rect.From)
 		}
 	case formula.Unary:

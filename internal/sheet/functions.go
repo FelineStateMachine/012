@@ -166,7 +166,7 @@ type agg struct {
 func each(args []Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
 	for _, arg := range args {
 		if ref, ok := arg.(formula.Ref); ok {
-			if e := fn(get(ref.Sheet, ref.Addr), false); e != nil {
+			if e := fn(get.cell(ref.Sheet, ref.Addr), false); e != nil {
 				return e
 			}
 			continue
@@ -175,12 +175,13 @@ func each(args []Node, get lookup, fn func(v Value, direct bool) *Value) *Value 
 			continue
 		}
 		if rn, ok := arg.(formula.Range); ok {
-			for r := rn.Rect.From.Row; r <= rn.Rect.To.Row; r++ {
-				for c := rn.Rect.From.Col; c <= rn.Rect.To.Col; c++ {
-					if e := fn(get(rn.Sheet, Addr{Col: c, Row: r}), false); e != nil {
-						return e
-					}
-				}
+			var e *Value
+			get.cells(rn.Sheet, rn.Rect, func(v Value) bool {
+				e = fn(v, false)
+				return e == nil
+			})
+			if e != nil {
+				return e
 			}
 			continue
 		}

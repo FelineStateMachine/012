@@ -83,7 +83,7 @@ func jevState(n Node, get lookup) (any, error) {
 		for r := rn.Rect.From.Row; r <= rn.Rect.To.Row; r++ {
 			var row []any
 			for c := rn.Rect.From.Col; c <= rn.Rect.To.Col; c++ {
-				v := get(rn.Sheet, Addr{Col: c, Row: r})
+				v := get.cell(rn.Sheet, Addr{Col: c, Row: r})
 				if v.Kind == Error {
 					return nil, inputError{v}
 				}
@@ -139,7 +139,7 @@ func jevList(n Node, get lookup) ([]string, error) {
 	if rn, ok := n.(formula.Range); ok {
 		for r := rn.Rect.From.Row; r <= rn.Rect.To.Row; r++ {
 			for c := rn.Rect.From.Col; c <= rn.Rect.To.Col; c++ {
-				v := get(rn.Sheet, Addr{Col: c, Row: r})
+				v := get.cell(rn.Sheet, Addr{Col: c, Row: r})
 				if v.Kind == Error {
 					return nil, inputError{v}
 				}

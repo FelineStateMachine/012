@@ -88,10 +88,12 @@ func toNum(v Value) (float64, *Value) {
 	return 0, errOf(v)
 }
 
-// lookup resolves the current value of a referenced cell: on the
-// formula's own sheet when sheet is "", otherwise on the sheet with that
-// name.
-type lookup func(sheet string, a Addr) Value
+// lookup is how a formula reads other cells (see reader): one at a time,
+// or a whole range at once, so reading a range needn't cost a lookup per
+// cell and can later be served from column blocks or cached aggregates.
+// It is a concrete type rather than an interface so the callbacks given
+// to cells stay on the stack.
+type lookup = *reader
 
 func eval(n Node, get lookup) Value {
 	switch n := n.(type) {
@@ -102,7 +104,7 @@ func eval(n Node, get lookup) Value {
 	case formula.Bool:
 		return boolean(n.V)
 	case formula.Ref:
-		return get(n.Sheet, n.Addr)
+		return get.cell(n.Sheet, n.Addr)
 	case formula.Name:
 		return ErrName
 	case formula.RefErr:
@@ -113,7 +115,7 @@ func eval(n Node, get lookup) Value {
 		// A range outside a function: Sheets uses the top-left cell here
 		// for single-cell ranges and #VALUE! otherwise.
 		if n.Rect.From == n.Rect.To {
-			return get(n.Sheet, n.Rect.From)
+			return get.cell(n.Sheet, n.Rect.From)
 		}
 		return ErrValue
 	case formula.Unary:

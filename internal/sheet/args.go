@@ -97,7 +97,7 @@ func rectMatrix(sheet string, r Rect, get lookup) matrix {
 	return matrix{
 		rows: r.To.Row - r.From.Row + 1, cols: r.To.Col - r.From.Col + 1,
 		cell: func(row, col int) Value {
-			return get(sheet, Addr{Col: r.From.Col + col, Row: r.From.Row + row})
+			return get.cell(sheet, Addr{Col: r.From.Col + col, Row: r.From.Row + row})
 		},
 		origin: r.From, sheet: sheet, ref: true,
 	}
