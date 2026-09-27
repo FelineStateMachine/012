@@ -58,6 +58,22 @@ func TestVimRepeat(t *testing.T) {
 	}
 }
 
+// Every sequence begun shows what finishes it.
+func TestVimPendingLines(t *testing.T) {
+	m := vimModel(t)
+	for _, prefix := range []string{"d", "y", "c", "g", `"`, "m", "'", "`", `"a`, "3"} {
+		press(t, m, prefix)
+		if l := line(m, contextLine); !strings.HasPrefix(l, prefix) || !strings.Contains(l, "Esc") {
+			t.Errorf("%s: %q", prefix, l)
+		}
+		press(t, m, "<esc>")
+	}
+	press(t, m, "V", "3")
+	if l := line(m, contextLine); !strings.HasPrefix(l, "3") {
+		t.Errorf("V 3: %q", l)
+	}
+}
+
 // Registers: "a keeps its own copy, "0 the last copy, "1 to "9 deleted
 // rows and "- deleted cells, while the clipboard follows every copy.
 func TestVimRegisters(t *testing.T) {
@@ -143,7 +159,11 @@ func TestVimSystemClipboard(t *testing.T) {
 // what they cleared to paste.
 func TestVimChange(t *testing.T) {
 	m := vimModel(t)
-	press(t, m, "j", "l", "cc")
+	press(t, m, "j", "l", "c")
+	if l := line(m, contextLine); !strings.Contains(l, "clear the row and start typing") {
+		t.Errorf("c: %q", l)
+	}
+	press(t, m, "c")
 	if m.mode != modeEnter || m.cur != addr("B2") || input(m, "A2") != "" || input(m, "C2") != "" {
 		t.Fatalf("cc: mode %v at %v, A2 %q", m.mode, m.cur, input(m, "A2"))
 	}
@@ -173,7 +193,7 @@ func TestVimChange(t *testing.T) {
 }
 
 // Marks: m sets one, ` goes back to the cell and ' to its row, across
-// sheets; '' goes back from a jump.
+// sheets; a quote typed twice goes back from a jump.
 func TestVimMarks(t *testing.T) {
 	m := vimModel(t)
 	press(t, m, "j", "l", "ma")

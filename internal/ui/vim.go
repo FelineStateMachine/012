@@ -306,7 +306,7 @@ func (m *Model) vimNext() []string {
 	case "":
 		return nil // just a count or a register: anything may follow
 	case `"`:
-		return []string{"a-z", "named", "0", "last copy", "1-9", "rows deleted", "-", "cells deleted", "+", "system clipboard"}
+		return []string{"a-z", "named", "0-9", "copies, rows cut", "-", "cells cut", "+", "clipboard"}
 	case "m":
 		return []string{"a-z", "mark the cell"}
 	case "'", "`":
@@ -329,8 +329,10 @@ func (m *Model) vimNext() []string {
 	var out []string
 	for _, seq := range seqs {
 		what := "first row"
-		if b, ok := table[seq]; ok {
+		if b, ok := table[seq]; ok && b.id != "" {
 			what = strings.ToLower(commands[b.id].title)
+		} else if ok {
+			what = strings.ToLower(b.label[:1]) + b.label[1:]
 		}
 		out = append(out, seq[len(m.vim.keys):], what)
 	}
