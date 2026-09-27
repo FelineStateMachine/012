@@ -16,5 +16,6 @@ in [CLAUDE.md](../../CLAUDE.md), then:
 | [Testing](testing.md) | Unit, end-to-end through libghostty, golden screens, the oracle, docs checks, demos |
 | [Bounds of support](limits.md) | Measured bounds and known bottlenecks |
 | [Observability](observability.md) | Event logs, OTLP export, DuckDB queries, the local telemetry stack |
+| [Releasing](releasing.md) | The release checklist and `make dist` |
 
 Plans are in the [roadmap](../../ROADMAP.md).
