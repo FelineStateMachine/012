@@ -1,4 +1,4 @@
-package sheet
+package value
 
 import (
 	"strconv"
@@ -47,23 +47,8 @@ func ParseFormatKind(s string) (FormatKind, bool) {
 	return FmtAuto, false
 }
 
-// label names the kind in undo labels: "format B3 as date time".
-func (k FormatKind) label() string {
-	switch k {
-	case FmtAuto:
-		return "automatic"
-	case FmtText:
-		return "plain text"
-	case FmtDateTime:
-		return "date time"
-	case FmtCustom:
-		return "custom"
-	}
-	return k.String()
-}
-
-// hasDecimals reports whether the kind takes a number of decimal places.
-func (k FormatKind) hasDecimals() bool {
+// HasDecimals reports whether the kind takes a number of decimal places.
+func (k FormatKind) HasDecimals() bool {
 	switch k {
 	case FmtNumber, FmtPercent, FmtScientific, FmtAccounting, FmtFinancial, FmtCurrency:
 		return true
@@ -71,8 +56,8 @@ func (k FormatKind) hasDecimals() bool {
 	return false
 }
 
-// isTime reports whether the kind shows a date, time or duration.
-func (k FormatKind) isTime() bool {
+// IsTime reports whether the kind shows a date, time or duration.
+func (k FormatKind) IsTime() bool {
 	return k >= FmtDate && k <= FmtDuration
 }
 
@@ -93,7 +78,7 @@ const MaxDecimals = 15
 // Preset returns kind with Sheets' default decimals: two for the number
 // kinds.
 func Preset(k FormatKind) Format {
-	if k.hasDecimals() {
+	if k.HasDecimals() {
 		return Format{Kind: k, Decimals: 2}
 	}
 	return Format{Kind: k}
@@ -102,14 +87,14 @@ func Preset(k FormatKind) Format {
 // IsZero reports whether f is Automatic.
 func (f Format) IsZero() bool { return f == Format{} }
 
-// pattern returns the Sheets-style pattern f renders with, or "" for
+// Code returns the Sheets-style format pattern f renders with, or "" for
 // Automatic and Plain text.
-func (f Format) pattern() string {
+func (f Format) Code() string {
 	dec := ""
 	if f.Decimals > 0 {
 		dec = "." + strings.Repeat("0", min(f.Decimals, MaxDecimals))
 	}
-	if f.Pattern != "" && (f.Kind == FmtCustom || f.Kind.isTime()) {
+	if f.Pattern != "" && (f.Kind == FmtCustom || f.Kind.IsTime()) {
 		return f.Pattern
 	}
 	switch f.Kind {
@@ -143,7 +128,7 @@ func (f Format) pattern() string {
 // Formats without decimals (dates, plain text) are returned unchanged.
 func (f Format) WithDecimals(delta int, v float64) Format {
 	switch {
-	case f.Kind.hasDecimals():
+	case f.Kind.HasDecimals():
 		f.Decimals = clampInt(f.Decimals+delta, 0, MaxDecimals)
 	case f.Kind == FmtAuto:
 		d := clampInt(visibleDecimals(v)+delta, 0, MaxDecimals)
@@ -168,51 +153,3 @@ func visibleDecimals(v float64) int {
 }
 
 func clampInt(v, lo, hi int) int { return max(lo, min(v, hi)) }
-
-// Align is a cell's horizontal alignment.
-type Align uint8
-
-const (
-	AlignAuto   Align = iota // numbers right, text left, booleans and errors centered
-	AlignLeft                //
-	AlignCenter              //
-	AlignRight               //
-	// AlignFill is only returned by Display: the text spans the cell
-	// exactly and isn't padded (Accounting's $ at the left edge).
-	AlignFill
-)
-
-var alignNames = [...]string{"", "left", "center", "right"}
-
-// String returns the alignment's name as stored in files.
-func (a Align) String() string {
-	if int(a) < len(alignNames) {
-		return alignNames[a]
-	}
-	return ""
-}
-
-// ParseAlign is the inverse of Align.String.
-func ParseAlign(s string) (Align, bool) {
-	for i, n := range alignNames {
-		if n == s {
-			return Align(i), true
-		}
-	}
-	return AlignAuto, false
-}
-
-// Style is a cell's text style. It is a plain value so cells can be
-// copied freely.
-type Style struct {
-	Bold, Italic, Underline, Strikethrough bool
-	Align                                  Align
-
-	// own marks a cell's format and style as wholly its own, not falling
-	// back on its row's or column's even where they are Automatic or
-	// plain; see lines.go.
-	own bool
-}
-
-// IsZero reports whether s is the default style.
-func (s Style) IsZero() bool { return s == Style{} }

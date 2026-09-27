@@ -3,6 +3,8 @@ package sheet
 import (
 	"testing"
 	"time"
+
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 func TestDateFunctions(t *testing.T) {
@@ -104,7 +106,7 @@ func TestVolatileRecalc(t *testing.T) {
 	if got := s.Value(at("A2")).Num; got != 46292 {
 		t.Fatalf("A2 = %v", got)
 	}
-	Now = func() time.Time { return time.Date(2026, 9, 27, 9, 0, 0, 0, time.Local) }
+	value.Now = func() time.Time { return time.Date(2026, 9, 27, 9, 0, 0, 0, time.Local) }
 	s.Set(at("Z1"), "unrelated") // any change recalculates volatile cells
 	if got := s.Value(at("A2")).Num; got != 46293 {
 		t.Errorf("A2 after a day = %v, want 46293", got)

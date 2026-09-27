@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/numfmt"
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 var (
@@ -20,9 +21,9 @@ func init() {
 		&FuncDef{Name: "TIME", Args: "hour, minute, second", Desc: "A time of day from its parts", Min: 3, Max: 3,
 			eval: numeric(timeOfDay), format: timeFormat},
 		&FuncDef{Name: "TODAY", Desc: "Today's date, updated on every change", Max: 0, Volatile: true,
-			eval: func([]Node, lookup) Value { return num(math.Floor(numfmt.SerialOf(Now()))) }, format: dateFormat},
+			eval: func([]Node, lookup) Value { return num(math.Floor(numfmt.SerialOf(value.Now()))) }, format: dateFormat},
 		&FuncDef{Name: "NOW", Desc: "The current date and time, updated on every change", Max: 0, Volatile: true,
-			eval: func([]Node, lookup) Value { return num(numfmt.SerialOf(Now())) }, format: dateTimeFormat},
+			eval: func([]Node, lookup) Value { return num(numfmt.SerialOf(value.Now())) }, format: dateTimeFormat},
 		&FuncDef{Name: "YEAR", Args: "date", Desc: "Year of a date", Min: 1, Max: 1,
 			eval: datePart(func(y, _, _ int) int { return y })},
 		&FuncDef{Name: "MONTH", Args: "date", Desc: "Month of a date, 1 to 12", Min: 1, Max: 1,
@@ -118,7 +119,7 @@ func dateValue(args []Node, get lookup) Value {
 	if ok != nil {
 		return *ok
 	}
-	d, f, parsed := parseDateTime(v)
+	d, f, parsed := value.ParseDateTime(v)
 	if !parsed || f.Kind == FmtTime || f.Kind == FmtDuration {
 		return ErrValue
 	}
@@ -130,7 +131,7 @@ func timeValue(args []Node, get lookup) Value {
 	if ok != nil {
 		return *ok
 	}
-	if d, _, parsed := parseDateTime(v); parsed {
+	if d, _, parsed := value.ParseDateTime(v); parsed {
 		return num(d - math.Floor(d))
 	}
 	return ErrValue

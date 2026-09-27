@@ -1,4 +1,4 @@
-package sheet
+package value
 
 import (
 	"strconv"
@@ -15,12 +15,12 @@ var Now = time.Now
 // Typed dates and times become serial day numbers, as in Sheets; see
 // numfmt's calendar.
 
-// parseDateTime recognizes dates and times typed into a cell the way
+// ParseDateTime recognizes dates and times typed into a cell the way
 // Sheets does in the en-US locale: 9/26/2026, 9/26/26, 9/26 (this year),
 // 2026-09-26, Sep 26, 2026, 26 Sep 2026, 14:30, 2:30 PM, 2pm, 25:30 (a
 // duration) and a date followed by a time. It returns the serial and the
 // format Sheets would apply.
-func parseDateTime(s string) (float64, Format, bool) {
+func ParseDateTime(s string) (float64, Format, bool) {
 	s = strings.TrimSpace(s)
 	if s == "" || !(isDigit(s[0]) || isLetter(s[0])) {
 		return 0, Format{}, false
@@ -120,7 +120,7 @@ func clockParts(parts []string) (h, m int, sec float64, ok bool) {
 	return h, m, sec, true
 }
 
-// parseDate recognizes the date forms listed at parseDateTime.
+// parseDate recognizes the date forms listed at ParseDateTime.
 func parseDate(s string) (float64, Format, bool) {
 	s = strings.TrimSpace(s)
 	switch {

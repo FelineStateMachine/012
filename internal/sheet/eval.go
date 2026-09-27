@@ -2,91 +2,9 @@ package sheet
 
 import (
 	"math"
-	"strings"
 
 	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/numfmt"
 )
-
-// Kind is the type of a computed cell value.
-type Kind int
-
-const (
-	Empty Kind = iota
-	Number
-	Text
-	Bool
-	Error
-)
-
-// Value is the computed contents of a cell.
-type Value struct {
-	Kind Kind
-	Num  float64 // numbers, and booleans as 1 or 0
-	Str  string  // text, or the error code such as #DIV/0!
-}
-
-// String renders a value the way a cell shows it in General format.
-func (v Value) String() string {
-	switch v.Kind {
-	case Number:
-		return numfmt.General(v.Num)
-	case Bool:
-		if v.Num != 0 {
-			return "TRUE"
-		}
-		return "FALSE"
-	}
-	return v.Str
-}
-
-// Error values, using Google Sheets codes.
-var (
-	ErrDiv0  = Value{Kind: Error, Str: "#DIV/0!"}
-	ErrValue = Value{Kind: Error, Str: "#VALUE!"}
-	ErrName  = Value{Kind: Error, Str: "#NAME?"}
-	ErrNA    = Value{Kind: Error, Str: "#N/A"}
-	ErrNum   = Value{Kind: Error, Str: "#NUM!"}
-	ErrRef   = Value{Kind: Error, Str: "#REF!"} // also circular references
-)
-
-func num(v float64) Value {
-	if math.IsNaN(v) || math.IsInf(v, 0) {
-		return ErrNum
-	}
-	return Value{Kind: Number, Num: v}
-}
-
-func boolean(b bool) Value {
-	if b {
-		return Value{Kind: Bool, Num: 1}
-	}
-	return Value{Kind: Bool}
-}
-
-// toNum coerces v for arithmetic as Sheets does: blanks are 0, booleans
-// 1 or 0, numeric text (including dates such as "2026-09-26") is its
-// number, other text is #VALUE!.
-// errOf returns a pointer to a copy of v, for the *Value error results of
-// argument helpers. Taking &v of a parameter directly would move it to
-// the heap on every call, erroneous or not: one allocation per cell read
-// by SUM over a range.
-func errOf(v Value) *Value { return &v }
-
-func toNum(v Value) (float64, *Value) {
-	switch v.Kind {
-	case Empty:
-		return 0, nil
-	case Number, Bool:
-		return v.Num, nil
-	case Text:
-		if n, _, ok := ParseValue(v.Str); ok {
-			return n, nil
-		}
-		return 0, &ErrValue
-	}
-	return 0, errOf(v)
-}
 
 // lookup is how a formula reads other cells (see reader): one at a time,
 // or a whole range at once, so reading a range needn't cost a lookup per
@@ -236,45 +154,4 @@ func evalBinary(n formula.Binary, get lookup, dec bool) Value {
 		return boolean(a != 0 || b != 0)
 	}
 	return ErrValue
-}
-
-// text converts a value for string concatenation.
-func text(v Value) string {
-	if v.Kind == Empty {
-		return ""
-	}
-	return v.String()
-}
-
-// compare orders values like Sheets: numbers < text < booleans, text is
-// case-insensitive, and a blank equals 0 or "".
-func compare(l, r Value) int {
-	rank := func(v Value) int {
-		switch v.Kind {
-		case Text:
-			return 1
-		case Bool:
-			return 2
-		}
-		return 0
-	}
-	if l.Kind == Empty && r.Kind == Text {
-		l = Value{Kind: Text}
-	}
-	if r.Kind == Empty && l.Kind == Text {
-		r = Value{Kind: Text}
-	}
-	if d := rank(l) - rank(r); d != 0 {
-		return d
-	}
-	if l.Kind == Text {
-		return strings.Compare(strings.ToUpper(l.Str), strings.ToUpper(r.Str))
-	}
-	switch {
-	case l.Num < r.Num:
-		return -1
-	case l.Num > r.Num:
-		return 1
-	}
-	return 0
 }

@@ -5,14 +5,16 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 // fixedNow pins TODAY() and entries without a year to 2026-09-26 14:30.
 func fixedNow(t *testing.T) {
 	t.Helper()
-	old := Now
-	Now = func() time.Time { return time.Date(2026, 9, 26, 14, 30, 0, 0, time.Local) }
-	t.Cleanup(func() { Now = old })
+	old := value.Now
+	value.Now = func() time.Time { return time.Date(2026, 9, 26, 14, 30, 0, 0, time.Local) }
+	t.Cleanup(func() { value.Now = old })
 }
 
 func TestDisplay(t *testing.T) {

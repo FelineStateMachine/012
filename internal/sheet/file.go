@@ -141,7 +141,7 @@ func encodeCell(c *Cell) (json.RawMessage, error) {
 	if !c.Format.IsZero() {
 		fc.Format = c.Format.Kind.String()
 	}
-	if c.Format.Kind.hasDecimals() {
+	if c.Format.Kind.HasDecimals() {
 		d := c.Format.Decimals
 		fc.Decimals = &d
 	}

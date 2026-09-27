@@ -36,7 +36,7 @@ func (s *Sheet) DisplayFormat(a Addr) Format {
 // cells, which keep it for when something is typed. Whole columns and
 // rows keep it as their line's format rather than on each cell.
 func (s *Sheet) SetFormat(r Rect, f Format) {
-	s.change("format "+r.String()+" as "+f.Kind.label(), r, func() {
+	s.change("format "+r.String()+" as "+kindLabel(f.Kind), r, func() {
 		s.eachFormat(r, !f.IsZero(), func(_ Addr, l *lineFmt) { l.Format = f })
 	})
 }
@@ -145,12 +145,12 @@ func inferFormat(n Node, at func(string, Addr) Format) Format {
 		l, r := inferFormat(n.L, at), inferFormat(n.R, at)
 		switch n.Op {
 		case "+", "-":
-			if n.Op == "-" && l.Kind.isTime() && r.Kind.isTime() {
+			if n.Op == "-" && l.Kind.IsTime() && r.Kind.IsTime() {
 				return Format{} // days between two dates
 			}
 			return firstFormat(l, r)
 		case "*", "/":
-			if l.Kind.isTime() || r.Kind.isTime() {
+			if l.Kind.IsTime() || r.Kind.IsTime() {
 				return Format{}
 			}
 			return firstFormat(l, r)
