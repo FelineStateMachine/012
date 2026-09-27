@@ -1,9 +1,10 @@
-package sheet
+package functions
 
 import (
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 // JEV functions ask TypeSafe's hosted model (jev) typed questions about a
@@ -25,10 +26,10 @@ func init() {
 		&FuncDef{Name: "JEV.PROB", Args: "value, question, [yes_means], [no_means]",
 			Desc: "The probability the answer is yes, from the JEV model", Min: 2, Max: 4, Volatile: true,
 			remote: yesNoCall, eval: remoteEval(yesNoCall, func(a RemoteAnswer) Value { return num(a.Noul) }),
-			format: func([]Node, func(Node) Format) Format { return Format{Kind: FmtPercent} }},
+			format: func([]Node, func(Node) Format) Format { return Format{Kind: value.FmtPercent} }},
 		&FuncDef{Name: "JEV.CLASSIFY", Args: "value, question, labels, [descriptions]",
 			Desc: "The label that fits best, chosen by the JEV model", Min: 3, Max: 4, Volatile: true,
-			remote: choiceCall, eval: remoteEval(choiceCall, func(a RemoteAnswer) Value { return Value{Kind: Text, Str: a.Choice} })},
+			remote: choiceCall, eval: remoteEval(choiceCall, func(a RemoteAnswer) Value { return Value{Kind: value.Text, Str: a.Choice} })},
 		&FuncDef{Name: "JEV.SCORE", Args: "value, question, levels",
 			Desc: "A score on an ordered rubric, from the JEV model", Min: 3, Max: 3, Volatile: true,
 			remote: scoreCall, eval: remoteEval(scoreCall, func(a RemoteAnswer) Value { return num(a.Score) })},
@@ -45,11 +46,11 @@ const (
 
 // ErrRemote is a question the model couldn't answer, e.g. a network
 // failure; the context line says why.
-var ErrRemote = Value{Kind: Error, Str: "#ERROR!"}
+var ErrRemote = Value{Kind: value.Error, Str: "#ERROR!"}
 
-// remoteEval evaluates a JEV function through the workbook's
-// RemoteSource, converting the
-// answer with result. Errors in the inputs come back as-is so they can be
+// remoteEval evaluates a JEV function by asking the Book, which looks
+// the answer up in the workbook's RemoteSource, converting the answer
+// with result. Errors in the inputs come back as-is so they can be
 // fixed; they're never sent.
 func remoteEval(build func([]Node, lookup) (RemoteCall, error), result func(RemoteAnswer) Value) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
@@ -57,15 +58,10 @@ func remoteEval(build func([]Node, lookup) (RemoteCall, error), result func(Remo
 		if err != nil {
 			return err.(inputError).v
 		}
-		remote := get.w.remote
-		if remote == nil {
-			return ErrNoRemote
-		}
-		ans, ok := remote.Lookup(call)
+		ans, v := get.book.Ask(call)
 		switch {
-		case !ok:
-			get.w.wait(call)
-			return Pending
+		case v.Kind == value.Error:
+			return v
 		case ans.Failed != "":
 			return ErrRemote
 		}
@@ -88,7 +84,7 @@ func (e inputError) Error() string { return e.v.Str }
 func jevState(n Node, get lookup) (any, error) {
 	if rn, ok := n.(formula.Range); ok {
 		m := rectMatrix(rn.Sheet, rn.Rect, get)
-		if m.blank.Kind == Error {
+		if m.blank.Kind == value.Error {
 			return nil, inputError{m.blank}
 		}
 		rows, cols := m.rows, m.cols
@@ -100,7 +96,7 @@ func jevState(n Node, get lookup) (any, error) {
 			var row []any
 			for c := range cols {
 				v := m.cell(r, c)
-				if v.Kind == Error {
+				if v.Kind == value.Error {
 					return nil, inputError{v}
 				}
 				row = append(row, plain(v))
@@ -110,7 +106,7 @@ func jevState(n Node, get lookup) (any, error) {
 		return out, nil
 	}
 	v := eval(n, get)
-	if v.Kind == Error {
+	if v.Kind == value.Error {
 		return nil, inputError{v}
 	}
 	return plain(v), nil
@@ -119,11 +115,11 @@ func jevState(n Node, get lookup) (any, error) {
 // plain converts a value to a JSON-friendly Go value.
 func plain(v Value) any {
 	switch v.Kind {
-	case Number:
+	case value.Number:
 		return v.Num
-	case Bool:
+	case value.Bool:
 		return v.Num != 0
-	case Text:
+	case value.Text:
 		return v.Str
 	}
 	return ""
@@ -132,7 +128,7 @@ func plain(v Value) any {
 // jevText evaluates an argument that must be text, such as the question.
 func jevText(n Node, get lookup) (string, error) {
 	v := eval(n, get)
-	if v.Kind == Error {
+	if v.Kind == value.Error {
 		return "", inputError{v}
 	}
 	return strings.TrimSpace(text(v)), nil
@@ -142,7 +138,7 @@ func jevText(n Node, get lookup) (string, error) {
 func jevQuestion(n Node, get lookup) (string, error) {
 	q, err := jevText(n, get)
 	if err == nil && q == "" {
-		err = inputError{ErrValue}
+		err = inputError{value.ErrValue}
 	}
 	return q, err
 }
@@ -155,7 +151,7 @@ func jevList(n Node, get lookup) ([]string, error) {
 	if rn, ok := n.(formula.Range); ok {
 		var err error
 		get.cells(rn.Sheet, rn.Rect, func(_ Addr, v Value) bool {
-			if v.Kind == Error {
+			if v.Kind == value.Error {
 				err = inputError{v}
 				return false
 			}
@@ -223,7 +219,7 @@ func choiceCall(args []Node, get lookup) (RemoteCall, error) {
 		}
 	}
 	if len(labels) < 2 || len(labels) > maxChoiceLabels {
-		return RemoteCall{}, inputError{ErrValue} // nothing to choose between, or too many
+		return RemoteCall{}, inputError{value.ErrValue} // nothing to choose between, or too many
 	}
 	criteria := make(map[string]string, len(labels))
 	for i, l := range labels {
@@ -249,7 +245,7 @@ func scoreCall(args []Node, get lookup) (RemoteCall, error) {
 		return RemoteCall{}, err
 	}
 	if len(levels) < 2 || len(levels) > maxScoreLevels {
-		return RemoteCall{}, inputError{ErrValue}
+		return RemoteCall{}, inputError{value.ErrValue}
 	}
 	return RemoteCall{Kind: "score", State: state, Instructions: q, Criteria: levels}, nil
 }

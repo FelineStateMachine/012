@@ -1,10 +1,11 @@
-package sheet
+package functions
 
 import (
 	"math"
 	"math/rand/v2"
 
 	"github.com/FelineStateMachine/012/internal/numfmt"
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 func init() {
@@ -16,7 +17,7 @@ func init() {
 		&FuncDef{Name: "SUMPRODUCT", Args: "array1, [array2, ...]", Desc: "Sum of the products of matching entries", Min: 1, Max: -1,
 			eval: sumProduct},
 		&FuncDef{Name: "PRODUCT", Args: "factor1, [factor2, ...]", Desc: "Product of numbers", Min: 1, Max: -1,
-			eval: aggregate(func(s agg) Value {
+			eval: aggregate(func(s Agg) Value {
 				if s.nums == 0 {
 					return num(0)
 				}
@@ -48,7 +49,7 @@ func init() {
 		&FuncDef{Name: "LN", Args: "value", Desc: "Natural logarithm", Min: 1, Max: 1,
 			eval: numeric(func(x []float64) Value {
 				if x[0] <= 0 {
-					return ErrNum
+					return value.ErrNum
 				}
 				return num(math.Log(x[0]))
 			})},
@@ -64,23 +65,23 @@ func init() {
 				}
 				switch {
 				case x <= 0 || base <= 0:
-					return ErrNum
+					return value.ErrNum
 				case base == 1:
-					return ErrDiv0
+					return value.ErrDiv0
 				}
 				return num(math.Log(x) / math.Log(base))
 			}},
 		&FuncDef{Name: "LOG10", Args: "value", Desc: "Base-10 logarithm", Min: 1, Max: 1,
 			eval: numeric(func(x []float64) Value {
 				if x[0] <= 0 {
-					return ErrNum
+					return value.ErrNum
 				}
 				return num(math.Log10(x[0]))
 			})},
 		&FuncDef{Name: "QUOTIENT", Args: "dividend, divisor", Desc: "Integer part of a division", Min: 2, Max: 2,
 			eval: numeric(func(x []float64) Value {
 				if x[1] == 0 {
-					return ErrDiv0
+					return value.ErrDiv0
 				}
 				return num(math.Trunc(x[0] / x[1]))
 			})},
@@ -90,7 +91,7 @@ func init() {
 			eval: numeric(func(x []float64) Value {
 				lo, hi := math.Ceil(x[0]), math.Floor(x[1])
 				if lo > hi {
-					return ErrNum
+					return value.ErrNum
 				}
 				return num(lo + math.Floor(rand.Float64()*(hi-lo+1)))
 			})},
@@ -99,7 +100,7 @@ func init() {
 
 func powerOf(b, e float64) Value {
 	if b == 0 && e < 0 {
-		return ErrDiv0
+		return value.ErrDiv0
 	}
 	return num(math.Pow(b, e))
 }
@@ -121,7 +122,7 @@ func toMultiple(round func(float64) float64) func([]Node, lookup) Value {
 		case f == 0 || x == 0:
 			return num(0)
 		case x > 0 && f < 0:
-			return ErrNum
+			return value.ErrNum
 		}
 		q := x / f
 		// Snap quotients like 2.0000000000000004 to the integer they mean.

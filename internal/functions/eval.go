@@ -1,32 +1,29 @@
-package sheet
+package functions
 
 import (
 	"math"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
-// lookup is how a formula reads other cells (see reader): one at a time,
-// or a whole range at once, so reading a range needn't cost a lookup per
-// cell and can later be served from column blocks or cached aggregates.
-// It is a concrete type rather than an interface so the callbacks given
-// to cells stay on the stack.
-type lookup = *reader
+// Eval computes a formula, reading the cells it refers to through get.
+func Eval(n Node, get *Reader) Value { return eval(n, get) }
 
 func eval(n Node, get lookup) Value {
 	switch n := n.(type) {
 	case formula.Num:
 		return num(n.V)
 	case formula.Str:
-		return Value{Kind: Text, Str: n.V}
+		return Value{Kind: value.Text, Str: n.V}
 	case formula.Bool:
 		return boolean(n.V)
 	case formula.Ref:
 		return get.cell(n.Sheet, n.Addr)
 	case formula.Name:
-		return ErrName
+		return value.ErrName
 	case formula.RefErr:
-		return ErrRef
+		return value.ErrRef
 	case formula.Empty:
 		return Value{}
 	case formula.Range:
@@ -35,7 +32,7 @@ func eval(n Node, get lookup) Value {
 		if n.Rect.From == n.Rect.To {
 			return get.cell(n.Sheet, n.Rect.From)
 		}
-		return ErrValue
+		return value.ErrValue
 	case formula.Unary:
 		return evalUnary(n, get, false)
 	case decUnary:
@@ -45,21 +42,21 @@ func eval(n Node, get lookup) Value {
 	case decBinary:
 		return evalBinary(formula.Binary(n), get, true)
 	case formula.Call:
-		get.w.depth++ // see evaluate.go; operators count in theirs
+		*get.depth++ // see the engine's evaluate.go; operators count in theirs
 		v := funcOf(n).call(n.Args, get)
-		get.w.depth--
+		*get.depth--
 		return v
 	}
-	return ErrValue
+	return value.ErrValue
 }
 
 // evalUnary computes a prefix operator or the postfix %; with dec, % is
 // decimal (decimal.go).
 func evalUnary(n formula.Unary, get lookup, dec bool) Value {
-	get.w.depth++
+	*get.depth++
 	x := eval(n.X, get)
-	get.w.depth--
-	if x.Kind == Error {
+	*get.depth--
+	if x.Kind == value.Error {
 		return x
 	}
 	switch n.Op {
@@ -93,18 +90,18 @@ func evalUnary(n formula.Unary, get lookup, dec bool) Value {
 // evalBinary computes a binary operator; with dec, arithmetic is decimal
 // (decimal.go).
 func evalBinary(n formula.Binary, get lookup, dec bool) Value {
-	get.w.depth++
+	*get.depth++
 	l, r := eval(n.L, get), eval(n.R, get)
-	get.w.depth--
-	if l.Kind == Error {
+	*get.depth--
+	if l.Kind == value.Error {
 		return l
 	}
-	if r.Kind == Error {
+	if r.Kind == value.Error {
 		return r
 	}
 	switch n.Op {
 	case "&":
-		return Value{Kind: Text, Str: text(l) + text(r)}
+		return Value{Kind: value.Text, Str: text(l) + text(r)}
 	case "=", "<>", "<", ">", "<=", ">=":
 		c := compare(l, r)
 		switch n.Op {
@@ -143,7 +140,7 @@ func evalBinary(n formula.Binary, get lookup, dec bool) Value {
 		return num(a * b)
 	case "/":
 		if b == 0 {
-			return ErrDiv0
+			return value.ErrDiv0
 		}
 		return num(a / b)
 	case "^":
@@ -153,5 +150,5 @@ func evalBinary(n formula.Binary, get lookup, dec bool) Value {
 	case "#OR#":
 		return boolean(a != 0 || b != 0)
 	}
-	return ErrValue
+	return value.ErrValue
 }

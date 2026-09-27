@@ -78,6 +78,12 @@ func (st *cellStore) colScan(c, r0, r1 int, fn func(row int) bool) bool {
 	return st.stored.colScan(c, r0, r1, fn)
 }
 
+// colFill writes the rows from r0 to r1 of column c that hold a cell
+// into dst, until it is full; see occupancy.colFill.
+func (st *cellStore) colFill(c, r0, r1 int, dst []Addr) int {
+	return st.stored.colFill(c, r0, r1, dst)
+}
+
 // inRange yields the stored cells in r in row-major order, visiting only
 // the rows of each column that hold cells.
 func (st *cellStore) inRange(r Rect) iter.Seq2[Addr, *Cell] {
@@ -99,6 +105,28 @@ func (st *cellStore) inRange(r Rect) iter.Seq2[Addr, *Cell] {
 			}
 		}
 	}
+}
+
+// rangeFill writes the stored cells of r from the cell from on, in
+// row-major order, into dst until it is full, and returns how many.
+func (st *cellStore) rangeFill(r Rect, from Addr, dst []Addr) int {
+	n := 0
+	if from.Col > r.From.Col { // the rest of a row first
+		for a := range st.inRange(Rect{From: from, To: Addr{Col: r.To.Col, Row: from.Row}}) {
+			dst[n] = a
+			if n++; n == len(dst) {
+				return n
+			}
+		}
+		from = Addr{Col: r.From.Col, Row: from.Row + 1}
+	}
+	for a := range st.inRange(Rect{From: from, To: r.To}) {
+		dst[n] = a
+		if n++; n == len(dst) {
+			break
+		}
+	}
+	return n
 }
 
 // anyInRange yields the stored cells in r in no particular order,

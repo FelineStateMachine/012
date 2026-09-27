@@ -1,8 +1,11 @@
-package sheet
+package functions
 
 import (
 	"strings"
 	"unicode"
+
+	"github.com/FelineStateMachine/012/internal/numfmt"
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 // maxText is the longest text a function may build, as in Sheets.
@@ -111,7 +114,7 @@ func mid(args []Node, get lookup) Value {
 		return *err
 	}
 	if start < 1 || n < 0 {
-		return ErrValue
+		return value.ErrValue
 	}
 	r := []rune(s)
 	if start > len(r) {
@@ -142,7 +145,7 @@ func replaceAt(args []Node, get lookup) Value {
 		return *err
 	}
 	if pos < 1 || n < 0 {
-		return ErrValue
+		return value.ErrValue
 	}
 	r := []rune(s)
 	from := min(pos-1, len(r))
@@ -152,40 +155,40 @@ func replaceAt(args []Node, get lookup) Value {
 
 func textFormat(args []Node, get lookup) Value {
 	v := eval(args[0], get)
-	if v.Kind == Error {
+	if v.Kind == value.Error {
 		return v
 	}
 	pat, err := textArg(args[1], get)
 	if err != nil {
 		return *err
 	}
-	if v.Kind == Text {
-		n, _, ok := ParseValue(v.Str)
+	if v.Kind == value.Text {
+		n, _, ok := value.ParseValue(v.Str)
 		if !ok {
 			return v
 		}
 		v = num(n)
 	}
-	return str(FormatPattern(v.Num, pat))
+	return str(numfmt.Format(v.Num, pat))
 }
 
 func valueOf(args []Node, get lookup) Value {
 	v := eval(args[0], get)
 	switch v.Kind {
-	case Error, Number:
+	case value.Error, value.Number:
 		return v
-	case Empty:
+	case value.Empty:
 		return num(0)
-	case Bool:
-		return ErrValue
+	case value.Bool:
+		return value.ErrValue
 	}
-	if n, _, ok := ParseValue(strings.TrimSpace(v.Str)); ok {
+	if n, _, ok := value.ParseValue(strings.TrimSpace(v.Str)); ok {
 		return num(n)
 	}
 	if strings.TrimSpace(v.Str) == "" {
 		return num(0)
 	}
-	return ErrValue
+	return value.ErrValue
 }
 
 func rept(args []Node, get lookup) Value {
@@ -198,7 +201,7 @@ func rept(args []Node, get lookup) Value {
 		return *err
 	}
 	if n < 0 || n*len(s) > maxText {
-		return ErrValue
+		return value.ErrValue
 	}
 	return str(strings.Repeat(s, n))
 }
@@ -217,7 +220,7 @@ func exact(args []Node, get lookup) Value {
 
 func capText(s string) Value {
 	if len(s) > maxText {
-		return ErrValue
+		return value.ErrValue
 	}
 	return str(s)
 }
@@ -254,7 +257,7 @@ func textSlice(f func(r []rune, n int) string) func([]Node, lookup) Value {
 			return *err
 		}
 		if n < 0 {
-			return ErrValue
+			return value.ErrValue
 		}
 		return str(f([]rune(s), n))
 	}
@@ -300,7 +303,7 @@ func substitute(args []Node, get lookup) Value {
 	case err != nil:
 		return *err
 	case nth < 1:
-		return ErrValue
+		return value.ErrValue
 	case old == "":
 		return str(s)
 	}
@@ -336,7 +339,7 @@ func textFinder(search bool) func([]Node, lookup) Value {
 		}
 		r := []rune(hay)
 		if start < 1 || start > len(r)+1 {
-			return ErrValue
+			return value.ErrValue
 		}
 		if needle == "" {
 			return num(float64(start))
@@ -352,7 +355,7 @@ func textFinder(search bool) func([]Node, lookup) Value {
 				return num(float64(i + 1))
 			}
 		}
-		return ErrValue
+		return value.ErrValue
 	}
 }
 

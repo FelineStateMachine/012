@@ -1,4 +1,4 @@
-package sheet
+package functions
 
 import (
 	"flag"
@@ -19,23 +19,23 @@ var updateDocs = flag.Bool("update-docs", false, "rewrite docs/functions.md from
 // docsPath is the generated function reference.
 const docsPath = "../../docs/functions.md"
 
-// categories names each functions*.go file's group, in the order the
-// reference lists them.
+// categories names the group of the functions each file defines, in the
+// order the reference lists them.
 var categories = []struct{ file, title string }{
-	{"functions.go", "Everyday"},
-	{"functions_math.go", "Math"},
-	{"functions_stats.go", "Statistics"},
-	{"functions_logic.go", "Logic and information"},
-	{"functions_text.go", "Text"},
-	{"functions_lookup.go", "Lookup"},
-	{"functions_date.go", "Date and time"},
-	{"functions_finance.go", "Finance"},
-	{"functions_link.go", "Links"},
-	{"functions_jev.go", "JEV (hosted model)"},
+	{"everyday.go", "Everyday"},
+	{"math.go", "Math"},
+	{"stats.go", "Statistics"},
+	{"logic.go", "Logic and information"},
+	{"text.go", "Text"},
+	{"lookup.go", "Lookup"},
+	{"date.go", "Date and time"},
+	{"finance.go", "Finance"},
+	{"link.go", "Links"},
+	{"jev.go", "JEV (hosted model)"},
 }
 
 // TestFunctionsDoc keeps docs/functions.md in step with the function
-// table, as help is: run `go test ./internal/sheet -run FunctionsDoc
+// table, as help is: run `go test ./internal/functions -run FunctionsDoc
 // -update-docs` after adding a function.
 func TestFunctionsDoc(t *testing.T) {
 	byFile, err := definingFiles()
@@ -51,7 +51,7 @@ func TestFunctionsDoc(t *testing.T) {
 	}
 	want, err := os.ReadFile(docsPath)
 	if err != nil || string(want) != got {
-		t.Errorf("docs/functions.md is stale; run go test ./internal/sheet -run FunctionsDoc -update-docs")
+		t.Errorf("docs/functions.md is stale; run go test ./internal/functions -run FunctionsDoc -update-docs")
 	}
 }
 
@@ -60,7 +60,7 @@ func TestFunctionsDoc(t *testing.T) {
 func definingFiles() (map[string]string, error) {
 	fset := gotoken.NewFileSet()
 	out := map[string]string{}
-	files, err := filepath.Glob("functions*.go")
+	files, err := filepath.Glob("*.go")
 	if err != nil {
 		return nil, err
 	}

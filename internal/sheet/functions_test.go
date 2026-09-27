@@ -63,11 +63,3 @@ func checkFormulas(t *testing.T, s *Sheet, tests []fnCase) {
 		}
 	}
 }
-
-func TestFunctionTable(t *testing.T) {
-	for _, f := range Funcs() {
-		if f.Desc == "" || (f.Max != 0 && f.Args == "") || f.eval == nil {
-			t.Errorf("%s is missing its description, signature or implementation", f.Name)
-		}
-	}
-}

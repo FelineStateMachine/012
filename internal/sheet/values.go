@@ -1,10 +1,14 @@
 package sheet
 
-import "github.com/FelineStateMachine/012/internal/value"
+import (
+	"github.com/FelineStateMachine/012/internal/functions"
+	"github.com/FelineStateMachine/012/internal/value"
+)
 
 // Values, formats and the parsing of typed entries live in
-// internal/value, below the engine. The engine's API keeps their names,
-// as it does the formula package's, so callers see one package.
+// internal/value, below the function library and the engine; functions
+// in internal/functions. The engine's API keeps their names, as it does
+// the formula package's, so callers see one package.
 
 type (
 	// Kind is the type of a computed cell value.
@@ -15,6 +19,8 @@ type (
 	FormatKind = value.FormatKind
 	// Format is a cell's number format.
 	Format = value.Format
+	// FuncDef describes a spreadsheet function.
+	FuncDef = functions.FuncDef
 )
 
 // Kinds of values.
@@ -71,9 +77,14 @@ func ParseNumber(s string) (float64, bool) { return value.ParseNumber(s) }
 // Sheets applies.
 func ParseValue(s string) (float64, Format, bool) { return value.ParseValue(s) }
 
+// LookupFunc finds a function by name or alias; callers pass upper case.
+func LookupFunc(name string) (*FuncDef, bool) { return functions.LookupFunc(name) }
+
+// Funcs returns every function, sorted by name.
+func Funcs() []*FuncDef { return functions.Funcs() }
+
 func num(v float64) Value             { return value.Num(v) }
 func boolean(b bool) Value            { return value.Boolean(b) }
-func errOf(v Value) *Value            { return value.ErrOf(v) }
 func toNum(v Value) (float64, *Value) { return value.ToNum(v) }
 func text(v Value) string             { return value.AsText(v) }
 func compare(l, r Value) int          { return value.Compare(l, r) }

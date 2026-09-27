@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/functions"
 )
 
 // Evaluation is lazy and recursive: a formula reading a dirty cell
@@ -51,8 +52,7 @@ func (w *Workbook) evaluate() {
 	for _, s := range w.sheets {
 		s.version++
 		s.hidden.valid = false // values may have changed what the filter hides
-		s.calcGet = w.lookupOn(s, e.compute)
-		s.calcGet.memo = memo
+		s.calcGet = w.recalcReader(s, e, memo)
 		s.calcFmt = w.formatFrom(s)
 	}
 	for _, s := range w.sheets {
@@ -61,6 +61,7 @@ func (w *Workbook) evaluate() {
 		}
 	}
 	for _, s := range w.sheets {
+		s.calcGet.read, s.calcGet.memo = nil, nil
 		s.calc, s.calcGet, s.calcFmt = nil, nil, nil
 	}
 }
@@ -116,9 +117,9 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 	expr := s.bound(c)
 	outer := w.evaluating
 	w.evaluating = loc{s, a}
-	c.Value = eval(w.arith(expr), s.calcGet)
+	c.Value = functions.Eval(w.arith(expr), s.calcGet.lib)
 	w.evaluating = outer
-	c.auto = inferFormat(expr, s.calcFmt)
+	c.auto = functions.InferFormat(expr, s.calcFmt)
 	w.depth--
 }
 

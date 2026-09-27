@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/functions"
 )
 
 // DefaultWidth is the initial column width: nine characters plus padding.
@@ -77,8 +78,11 @@ type Sheet struct {
 	// recalculates, with calcGet and calcFmt, the lookups its formulas
 	// read other cells and formats with; all nil otherwise.
 	calc    map[Addr]int
-	calcGet lookup
+	calcGet *reader
 	calcFmt func(string, Addr) Format
+	// recalcs is calcGet kept between recalculations, so the buffers the
+	// function library reads ranges through are made once.
+	recalcs *reader
 
 	charts []Chart    // floating charts, bottom first; see chart.go
 	pivot  pivotState // the sheet's pivot table, if any; see pivot.go
@@ -296,7 +300,7 @@ func (c *Cell) setExpr(n Node) {
 				c.ranges = append(c.ranges, r)
 			})
 		formula.WalkNames(n, func(nn formula.Name) { c.names = append(c.names, nameKey(nn.Name)) })
-		c.volatile = isVolatile(n)
+		c.volatile = functions.IsVolatile(n)
 	}
 }
 

@@ -198,6 +198,36 @@ func (o *occupancy) colScan(c, r0, r1 int, fn func(row int) bool) bool {
 	return true
 }
 
+// colFill writes the cells of column c from row r0 to r1 that hold a
+// cell into dst, in order, until dst is full, and returns how many it
+// wrote: colScan without a call per cell, for reading a column in
+// chunks.
+func (o *occupancy) colFill(c, r0, r1 int, dst []Addr) int {
+	ci := o.col(c)
+	if ci == nil || r0 > r1 || len(dst) == 0 {
+		return 0
+	}
+	n := 0
+	i, _ := slices.BinarySearch(ci.ids, r0>>blockShift)
+	for ; i < len(ci.ids) && ci.ids[i] <= r1>>blockShift; i++ {
+		id := ci.ids[i]
+		b, base := ci.blocks[id], id<<blockShift
+		lo, hi := max(r0-base, 0), min(r1-base, blockRows-1)
+		for w := lo >> 6; w <= hi>>6; w++ {
+			x := b.bits[w] & wordMask(w, lo, hi)
+			for x != 0 {
+				bit := bits.TrailingZeros64(x)
+				x &^= 1 << bit
+				dst[n] = Addr{Col: c, Row: base + w<<6 + bit}
+				if n++; n == len(dst) {
+					return n
+				}
+			}
+		}
+	}
+	return n
+}
+
 // nextRow returns the first row of column c at or after row (dir 1), or
 // at or before it (dir -1), that holds a cell.
 func (o *occupancy) nextRow(c, row, dir int) (int, bool) {

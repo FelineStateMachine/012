@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/functions"
 )
 
 // ExplainError says why the cell at a shows an error, for the context
@@ -82,7 +83,7 @@ func (s *Sheet) errorOrigin(n Node, want Value) (Node, *loc) {
 type errorSearch struct {
 	s    *Sheet
 	want Value
-	get  lookup
+	get  *reader
 }
 
 func (e errorSearch) same(v Value) bool { return v.Kind == Error && v.Str == e.want.Str }
@@ -99,11 +100,11 @@ func (e errorSearch) at(sheet string, a Addr) *loc {
 func (e errorSearch) find(n Node) (Node, *loc) {
 	switch n := n.(type) {
 	case formula.Ref:
-		if e.same(e.get.cell(n.Sheet, n.Addr)) {
+		if e.same(e.get.Cell(n.Sheet, n.Addr)) {
 			return n, e.at(n.Sheet, n.Addr)
 		}
 	case formula.Range:
-		if n.Rect.From == n.Rect.To && e.same(e.get.cell(n.Sheet, n.Rect.From)) {
+		if n.Rect.From == n.Rect.To && e.same(e.get.Cell(n.Sheet, n.Rect.From)) {
 			return n, e.at(n.Sheet, n.Rect.From)
 		}
 	case formula.Unary:
@@ -120,7 +121,7 @@ func (e errorSearch) find(n Node) (Node, *loc) {
 // at n when none has.
 func (e errorSearch) operand(n Node, operands ...Node) (Node, *loc) {
 	for _, x := range operands {
-		if e.same(eval(x, e.get)) {
+		if e.same(functions.Eval(x, e.get.lib)) {
 			return e.find(x)
 		}
 	}
@@ -130,7 +131,7 @@ func (e errorSearch) operand(n Node, operands ...Node) (Node, *loc) {
 // inCall follows the first argument of a call that has the error: for a
 // range, its first cell with it.
 func (e errorSearch) inCall(n formula.Call) (Node, *loc) {
-	if funcOf(n).remote != nil {
+	if funcOf(n).Remote() {
 		return n, nil // JEV explains its own answers
 	}
 	for _, arg := range n.Args {
@@ -140,7 +141,7 @@ func (e errorSearch) inCall(n formula.Call) (Node, *loc) {
 			}
 			continue
 		}
-		if e.same(eval(arg, e.get)) {
+		if e.same(functions.Eval(arg, e.get.lib)) {
 			return e.find(arg)
 		}
 	}

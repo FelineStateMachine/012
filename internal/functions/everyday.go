@@ -1,4 +1,4 @@
-package sheet
+package functions
 
 import (
 	"math"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/numfmt"
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 // FuncDef describes a spreadsheet function. The table drives parsing
@@ -31,6 +32,26 @@ type FuncDef struct {
 }
 
 func (f *FuncDef) call(args []Node, get lookup) Value { return f.eval(args, get) }
+
+// Signature is how the parser checks calls to f.
+func (f *FuncDef) Signature() formula.Signature {
+	return formula.Signature{Name: f.Name, Args: f.Args, Min: f.Min, Max: f.Max, Step: f.step}
+}
+
+// Remote reports whether f asks a remote question (JEV functions).
+func (f *FuncDef) Remote() bool { return f.remote != nil }
+
+// Question is the remote question a call of f asks with its current
+// arguments, or an error when they don't make one.
+func (f *FuncDef) Question(args []Node, get *Reader) (RemoteCall, error) {
+	return f.remote(args, get)
+}
+
+// Of is the function a parsed call calls: always one of the table's, as
+// long as the parser found functions through LookupFunc.
+func Of(c formula.Call) *FuncDef { return c.Fn.(*FuncDef) }
+
+func funcOf(c formula.Call) *FuncDef { return Of(c) }
 
 var funcs = map[string]*FuncDef{}
 
@@ -71,27 +92,27 @@ func Funcs() []*FuncDef {
 func init() {
 	define(
 		&FuncDef{Name: "SUM", Args: "value1, [value2, ...]", Desc: "Sum of numbers", Min: 1, Max: -1,
-			eval: aggregate(func(s agg) Value { return num(s.sum) }), format: inherit},
+			eval: aggregate(func(s Agg) Value { return num(s.sum) }), format: inherit},
 		&FuncDef{Name: "AVERAGE", Args: "value1, [value2, ...]", Desc: "Average of numbers, ignoring text", Min: 1, Max: -1,
-			eval: aggregate(func(s agg) Value {
+			eval: aggregate(func(s Agg) Value {
 				if s.nums == 0 {
-					return ErrDiv0
+					return value.ErrDiv0
 				}
 				return num(s.sum / float64(s.nums))
 			}), format: inherit},
 		&FuncDef{Name: "COUNT", Args: "value1, [value2, ...]", Desc: "Count of numeric values", Min: 1, Max: -1,
-			eval: aggregate(func(s agg) Value { return num(float64(s.nums)) })},
+			eval: aggregate(func(s Agg) Value { return num(float64(s.nums)) })},
 		&FuncDef{Name: "COUNTA", Args: "value1, [value2, ...]", Desc: "Count of non-empty values", Min: 1, Max: -1,
-			eval: aggregate(func(s agg) Value { return num(float64(s.count)) })},
+			eval: aggregate(func(s Agg) Value { return num(float64(s.count)) })},
 		&FuncDef{Name: "MIN", Args: "value1, [value2, ...]", Desc: "Smallest number", Min: 1, Max: -1,
-			eval: aggregate(func(s agg) Value {
+			eval: aggregate(func(s Agg) Value {
 				if s.nums == 0 {
 					return num(0)
 				}
 				return num(s.min)
 			}), format: inherit},
 		&FuncDef{Name: "MAX", Args: "value1, [value2, ...]", Desc: "Largest number", Min: 1, Max: -1,
-			eval: aggregate(func(s agg) Value {
+			eval: aggregate(func(s Agg) Value {
 				if s.nums == 0 {
 					return num(0)
 				}
@@ -105,18 +126,18 @@ func init() {
 		&FuncDef{Name: "MOD", Args: "dividend, divisor", Desc: "Remainder, with the sign of the divisor", Min: 2, Max: 2,
 			eval: numeric(func(x []float64) Value {
 				if x[1] == 0 {
-					return ErrDiv0
+					return value.ErrDiv0
 				}
 				return num(x[0] - x[1]*math.Floor(x[0]/x[1]))
 			})},
 		&FuncDef{Name: "PI", Desc: "The number pi", Max: 0, eval: constant(num(math.Pi))},
 		&FuncDef{Name: "TRUE", Desc: "The logical value TRUE", Max: 0, eval: constant(boolean(true))},
 		&FuncDef{Name: "FALSE", Desc: "The logical value FALSE", Max: 0, eval: constant(boolean(false))},
-		&FuncDef{Name: "NA", Desc: "The #N/A error", Max: 0, eval: constant(ErrNA)},
+		&FuncDef{Name: "NA", Desc: "The #N/A error", Max: 0, eval: constant(value.ErrNA)},
 		&FuncDef{Name: "IF", Args: "condition, value_if_true, [value_if_false]", Desc: "Choose a value by a condition", Min: 2, Max: 3,
 			eval: func(args []Node, get lookup) Value {
 				c := eval(args[0], get)
-				if c.Kind == Error {
+				if c.Kind == value.Error {
 					return c
 				}
 				f, err := toNum(c)
@@ -134,11 +155,11 @@ func init() {
 		&FuncDef{Name: "IFERROR", Args: "value, [value_if_error]", Desc: "A fallback when a value is an error", Min: 1, Max: 2,
 			eval: func(args []Node, get lookup) Value {
 				v := eval(args[0], get)
-				if v.Kind != Error {
+				if v.Kind != value.Error {
 					return v
 				}
 				if len(args) < 2 {
-					return Value{Kind: Text}
+					return Value{Kind: value.Text}
 				}
 				return eval(args[1], get)
 			}},
@@ -151,7 +172,11 @@ func init() {
 	)
 }
 
-type agg struct {
+// Agg is the running aggregate of SUM-like functions (SUM, AVERAGE,
+// COUNT, COUNTA, MIN, MAX, PRODUCT): what they read of a range, added
+// in order. The engine keeps one per range shared by a recalculation
+// (Book.RangeAgg).
+type Agg struct {
 	sum      float64
 	prod     float64
 	count    int // non-empty values
@@ -190,17 +215,17 @@ func eachOf(arg Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
 	return fn(eval(arg, get), true)
 }
 
-// add counts v into the aggregate, with SUM's rules: blanks are skipped,
+// Add counts v into the aggregate, with SUM's rules: blanks are skipped,
 // errors returned, and text counts only when given directly.
-func (s *agg) add(v Value, direct bool) *Value {
+func (s *Agg) Add(v Value, direct bool) *Value {
 	switch v.Kind {
-	case Error:
+	case value.Error:
 		return errOf(v)
-	case Empty:
+	case value.Empty:
 		return nil
 	}
 	s.count++
-	if v.Kind != Number && !direct {
+	if v.Kind != value.Number && !direct {
 		return nil
 	}
 	f, err := toNum(v)
@@ -214,19 +239,21 @@ func (s *agg) add(v Value, direct bool) *Value {
 	return nil
 }
 
-func newAgg() agg { return agg{prod: 1, min: math.Inf(1), max: math.Inf(-1)} }
+// NewAgg is the aggregate of nothing.
+func NewAgg() Agg { return Agg{prod: 1, min: math.Inf(1), max: math.Inf(-1)} }
 
 // aggregate builds SUM-like functions with Sheets semantics: in ranges only
 // numbers count and text is ignored; direct arguments are coerced, so
 // SUM("a") is #VALUE!. A range read first is served from the running
-// aggregates shared by the recalculation (rangememo.go), so a thousand
-// SUM(A:A) or a column of running totals read each cell once.
-func aggregate(done func(agg) Value) func([]Node, lookup) Value {
+// aggregates shared by the recalculation (Book.RangeAgg; the engine's
+// rangememo.go), so a thousand SUM(A:A) or a column of running totals
+// read each cell once.
+func aggregate(done func(Agg) Value) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
-		s := newAgg()
+		s := NewAgg()
 		for _, arg := range args {
 			if rn, ok := arg.(formula.Range); ok && s.count == 0 {
-				if a, e, ok := get.rangeAgg(rn.Sheet, rn.Rect); ok {
+				if a, e, ok := get.book.RangeAgg(rn.Sheet, rn.Rect); ok {
 					if e != nil {
 						return *e
 					}
@@ -234,7 +261,7 @@ func aggregate(done func(agg) Value) func([]Node, lookup) Value {
 					continue
 				}
 			}
-			if e := eachOf(arg, get, s.add); e != nil {
+			if e := eachOf(arg, get, s.Add); e != nil {
 				return *e
 			}
 		}
@@ -247,9 +274,9 @@ func logical(test func(trues, n int) bool) func([]Node, lookup) Value {
 		trues, n := 0, 0
 		e := each(args, get, func(v Value, direct bool) *Value {
 			switch {
-			case v.Kind == Error:
+			case v.Kind == value.Error:
 				return errOf(v)
-			case v.Kind == Empty, v.Kind == Text && !direct:
+			case v.Kind == value.Empty, v.Kind == value.Text && !direct:
 				return nil
 			}
 			f, err := toNum(v)
@@ -266,7 +293,7 @@ func logical(test func(trues, n int) bool) func([]Node, lookup) Value {
 		case e != nil:
 			return *e
 		case n == 0:
-			return ErrValue
+			return value.ErrValue
 		}
 		return boolean(test(trues, n))
 	}
@@ -278,7 +305,7 @@ func numeric(f func([]float64) Value) func([]Node, lookup) Value {
 		xs := make([]float64, len(args))
 		for i, a := range args {
 			v := eval(a, get)
-			if v.Kind == Error {
+			if v.Kind == value.Error {
 				return v
 			}
 			x, err := toNum(v)

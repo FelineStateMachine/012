@@ -1,6 +1,9 @@
 package sheet
 
-import "github.com/FelineStateMachine/012/internal/formula"
+import (
+	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/functions"
+)
 
 // Recalculation: a change marks the changed cells and everything that
 // transitively reads them dirty, on any sheet, then evaluates the dirty
@@ -165,10 +168,12 @@ func (w *Workbook) crossReads(u, l loc) bool {
 	return false
 }
 
-// reader resolves the references of formulas on s with read: references
-// without a sheet ("") read s, others the sheet they name, with cells on
-// a sheet no sheet has the name of reading as #REF!. The last sheet name
-// is remembered, so a range on another sheet resolves its name once.
+// reader is the engine's side of how formulas on s read cells: the Book
+// the function library reads through (functions.Book). It resolves
+// references with read: references without a sheet ("") read s, others
+// the sheet they name, with cells on a sheet no sheet has the name of
+// reading as #REF!. The last sheet name is remembered, so a range on
+// another sheet resolves its name once.
 type reader struct {
 	w        *Workbook
 	s        *Sheet
@@ -176,10 +181,27 @@ type reader struct {
 	memo     *aggMemo // running aggregates shared by a recalculation; nil otherwise
 	lastName string
 	last     *Sheet
+	lib      *functions.Reader // what the function library is given, reading through rd
+	dense    bool              // denseReads when lib was made
 }
 
-func (w *Workbook) lookupOn(s *Sheet, read func(*Sheet, Addr) Value) lookup {
-	return &reader{w: w, s: s, read: read}
+func (w *Workbook) lookupOn(s *Sheet, read func(*Sheet, Addr) Value) *reader {
+	rd := &reader{w: w, s: s, read: read, dense: denseReads}
+	rd.lib = functions.NewReader(rd, &w.depth, denseReads)
+	return rd
+}
+
+// recalcReader is the reader for formulas on s in a recalculation, which
+// reads through e and shares running aggregates in memo: the one kept
+// from the last recalculation, when there is one.
+func (w *Workbook) recalcReader(s *Sheet, e *evaluator, memo *aggMemo) *reader {
+	rd := s.recalcs
+	if rd == nil || rd.w != w || rd.dense != denseReads {
+		rd = w.lookupOn(s, nil)
+		s.recalcs = rd
+	}
+	rd.read, rd.memo, rd.lastName, rd.last = e.compute, memo, "", nil
+	return rd
 }
 
 // sheet is the sheet a reference written with the name sheet points at.
@@ -193,8 +215,8 @@ func (rd *reader) sheet(sheet string) *Sheet {
 	return rd.last
 }
 
-// cell returns the current value of a cell.
-func (rd *reader) cell(sheet string, a Addr) Value {
+// Cell returns the current value of a cell.
+func (rd *reader) Cell(sheet string, a Addr) Value {
 	t := rd.sheet(sheet)
 	if t == nil {
 		return ErrRef
@@ -202,35 +224,79 @@ func (rd *reader) cell(sheet string, a Addr) Value {
 	return rd.read(t, a)
 }
 
-// cells calls fn with the address and value of every cell of r that
-// holds something, row by row, until fn returns false: blank cells are
-// skipped without being visited, so a whole column costs what it holds.
-// A range on a sheet that doesn't exist reads as one #REF!.
-func (rd *reader) cells(sheet string, r Rect, fn func(Addr, Value) bool) {
+// Scan reads the stored cells of r from the cell from on, row by row, as
+// functions.Book describes: blank cells are skipped without being
+// visited, so a whole column costs what it holds. It finds the cells
+// first, then reads their values, so the chunk is filled without a call
+// per cell.
+func (rd *reader) Scan(sheet string, r Rect, from Addr, addrs []Addr, vals []Value) int {
 	t := rd.sheet(sheet)
-	switch {
-	case t == nil:
-		fn(r.From, ErrRef)
-	case denseReads:
-		for row := r.From.Row; row <= r.To.Row; row++ {
-			for col := r.From.Col; col <= r.To.Col; col++ {
-				if a := (Addr{Col: col, Row: row}); !fn(a, rd.read(t, a)) {
-					return
-				}
-			}
-		}
-	case r.From.Col == r.To.Col:
-		t.cells.colScan(r.From.Col, r.From.Row, r.To.Row, func(row int) bool {
-			a := Addr{Col: r.From.Col, Row: row}
-			return fn(a, rd.read(t, a))
-		})
-	default:
-		for a := range t.cells.inRange(r) {
-			if !fn(a, rd.read(t, a)) {
-				return
-			}
+	if t == nil {
+		return -1
+	}
+	n := fill(t, r, from, addrs)
+	if vals == nil {
+		return n
+	}
+	for i, a := range addrs[:n] {
+		v := rd.read(t, a)
+		vals[i] = v
+		if v.Kind == Error {
+			return i + 1
 		}
 	}
+	return n
+}
+
+// fill writes the stored cells of r on t from the cell from on into dst,
+// row by row, until it is full, and returns how many.
+func fill(t *Sheet, r Rect, from Addr, dst []Addr) int {
+	switch {
+	case denseReads:
+		return fillDense(r, from, dst)
+	case r.From.Col == r.To.Col:
+		return t.cells.colFill(r.From.Col, from.Row, r.To.Row, dst)
+	}
+	return t.cells.rangeFill(r, from, dst)
+}
+
+// fillDense writes every address of r from the cell from on into dst,
+// row by row, until it is full, as tests ask with denseReads.
+func fillDense(r Rect, from Addr, dst []Addr) int {
+	n := 0
+	for a := from; a.Row <= r.To.Row && n < len(dst); n++ {
+		dst[n] = a
+		if a.Col++; a.Col > r.To.Col {
+			a = Addr{Col: r.From.Col, Row: a.Row + 1}
+		}
+	}
+	return n
+}
+
+// Bounds is the smallest range holding every stored cell of r.
+func (rd *reader) Bounds(sheet string, r Rect) (b Rect, any, exists bool) {
+	t := rd.sheet(sheet)
+	if t == nil {
+		return Rect{}, false, false
+	}
+	b, any = t.cells.bounds(r)
+	return b, any, true
+}
+
+// Ask looks up the answer to a JEV function's question in the workbook's
+// RemoteSource, noting that the formula being evaluated waits for it
+// when it isn't known yet.
+func (rd *reader) Ask(call RemoteCall) (RemoteAnswer, Value) {
+	w := rd.w
+	if w.remote == nil {
+		return RemoteAnswer{}, ErrNoRemote
+	}
+	ans, ok := w.remote.Lookup(call)
+	if !ok {
+		w.wait(call)
+		return RemoteAnswer{}, Pending
+	}
+	return ans, Value{}
 }
 
 // denseReads makes formulas read every address of their ranges, as they
@@ -239,7 +305,7 @@ func (rd *reader) cells(sheet string, r Rect, fn func(Addr, Value) bool) {
 var denseReads bool
 
 // values reads current values for formulas on s, across sheets.
-func (w *Workbook) values(s *Sheet) lookup {
+func (w *Workbook) values(s *Sheet) *reader {
 	return w.lookupOn(s, func(t *Sheet, a Addr) Value { return t.Value(a) })
 }
 

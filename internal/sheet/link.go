@@ -4,27 +4,8 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/functions"
 )
-
-func init() {
-	define(&FuncDef{Name: "HYPERLINK", Args: "url, [link_label]", Desc: "A link that opens url, shown as its label", Min: 1, Max: 2,
-		eval: func(args []Node, get lookup) Value {
-			url, err := textArg(args[0], get)
-			if err != nil {
-				return *err
-			}
-			if given(args, 1) {
-				label, err := textArg(args[1], get)
-				if err != nil {
-					return *err
-				}
-				if label != "" {
-					return Value{Kind: Text, Str: label}
-				}
-			}
-			return Value{Kind: Text, Str: url}
-		}})
-}
 
 // Link returns the address a cell links to: its text when that is a URL
 // (http, https or mailto), or the target of a HYPERLINK formula. It is
@@ -35,7 +16,7 @@ func (s *Sheet) Link(a Addr) string {
 		return ""
 	}
 	if call, ok := c.expr.(formula.Call); ok && funcOf(call).Name == "HYPERLINK" && c.IsFormula() {
-		v := eval(call.Args[0], s.wb.values(s))
+		v := functions.Eval(call.Args[0], s.wb.values(s).lib)
 		if v.Kind == Error {
 			return ""
 		}

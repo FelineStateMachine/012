@@ -1,8 +1,10 @@
-package sheet
+package functions
 
 import (
 	"math"
 	"slices"
+
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 func init() {
@@ -42,7 +44,7 @@ func init() {
 
 func median(x []float64) Value {
 	if len(x) == 0 {
-		return ErrNum
+		return value.ErrNum
 	}
 	slices.Sort(x)
 	n := len(x)
@@ -66,7 +68,7 @@ func mode(x []float64) Value {
 		}
 	}
 	if bestN < 2 {
-		return ErrNA
+		return value.ErrNA
 	}
 	return num(best)
 }
@@ -94,7 +96,7 @@ func rank(args []Node, get lookup) Value {
 		}
 	}
 	if !found {
-		return ErrNA
+		return value.ErrNA
 	}
 	return num(float64(rank))
 }
@@ -116,7 +118,7 @@ func withNums(f func([]float64) Value) func([]Node, lookup) Value {
 func spread(x []float64, ddof int, root bool) Value {
 	n := len(x)
 	if n-ddof <= 0 {
-		return ErrDiv0
+		return value.ErrDiv0
 	}
 	mean := 0.0
 	for _, v := range x {
@@ -147,7 +149,7 @@ func nth(cmp func(a, b float64) int) func([]Node, lookup) Value {
 		}
 		k := int(math.Ceil(n))
 		if k < 1 || k > len(x) {
-			return ErrNum
+			return value.ErrNum
 		}
 		slices.SortFunc(x, cmp)
 		return num(x[k-1])

@@ -1,6 +1,9 @@
 package sheet
 
-import "github.com/FelineStateMachine/012/internal/formula"
+import (
+	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/functions"
+)
 
 // The formula language lives in internal/formula. The engine's API keeps
 // its names for addresses, ranges and parsing, so callers see one package.
@@ -59,14 +62,9 @@ func parserFuncs(name string) (formula.Func, bool) {
 	return nil, false
 }
 
-// Signature is how the parser checks calls to f.
-func (f *FuncDef) Signature() formula.Signature {
-	return formula.Signature{Name: f.Name, Args: f.Args, Min: f.Min, Max: f.Max, Step: f.step}
-}
-
-// funcOf is the function a parsed call calls: always one of ours, since
-// the parser only finds functions through parserFuncs.
-func funcOf(c formula.Call) *FuncDef { return c.Fn.(*FuncDef) }
+// funcOf is the function a parsed call calls: always one of the
+// library's, since the parser only finds functions through parserFuncs.
+func funcOf(c formula.Call) *FuncDef { return functions.Of(c) }
 
 func isLetter(c byte) bool {
 	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')

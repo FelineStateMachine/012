@@ -1,4 +1,4 @@
-package sheet
+package functions
 
 import (
 	"math"
@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	dateFormat     = returns(Preset(FmtDate))
-	timeFormat     = returns(Preset(FmtTime))
-	dateTimeFormat = returns(Preset(FmtDateTime))
+	dateFormat     = returns(value.Preset(value.FmtDate))
+	timeFormat     = returns(value.Preset(value.FmtTime))
+	dateTimeFormat = returns(value.Preset(value.FmtDateTime))
 )
 
 func init() {
@@ -63,11 +63,11 @@ func date(x []float64) Value {
 		y += 1900 // DATE(26, 1, 1) is 1926, as in Sheets
 	}
 	if y < 0 || y >= 10000 || math.Abs(m) > 1e6 || math.Abs(d) > 1e8 {
-		return ErrNum
+		return value.ErrNum
 	}
 	v := numfmt.DateSerial(int(y), int(m), int(d))
 	if v < 0 {
-		return ErrNum
+		return value.ErrNum
 	}
 	return num(v)
 }
@@ -75,7 +75,7 @@ func date(x []float64) Value {
 func timeOfDay(x []float64) Value {
 	secs := math.Trunc(x[0])*3600 + math.Trunc(x[1])*60 + math.Trunc(x[2])
 	if secs < 0 {
-		return ErrNum
+		return value.ErrNum
 	}
 	return num(math.Mod(secs, 86400) / 86400)
 }
@@ -99,7 +99,7 @@ func weekday(args []Node, get lookup) Value {
 	case 3:
 		return num(float64((wd + 6) % 7))
 	}
-	return ErrNum
+	return value.ErrNum
 }
 
 func days(args []Node, get lookup) Value {
@@ -120,8 +120,8 @@ func dateValue(args []Node, get lookup) Value {
 		return *ok
 	}
 	d, f, parsed := value.ParseDateTime(v)
-	if !parsed || f.Kind == FmtTime || f.Kind == FmtDuration {
-		return ErrValue
+	if !parsed || f.Kind == value.FmtTime || f.Kind == value.FmtDuration {
+		return value.ErrValue
 	}
 	return num(math.Floor(d))
 }
@@ -134,19 +134,19 @@ func timeValue(args []Node, get lookup) Value {
 	if d, _, parsed := value.ParseDateTime(v); parsed {
 		return num(d - math.Floor(d))
 	}
-	return ErrValue
+	return value.ErrValue
 }
 
 // parsedText requires a text argument, as DATEVALUE and TIMEVALUE do.
 func parsedText(n Node, get lookup) (string, *Value) {
 	v := eval(n, get)
 	switch v.Kind {
-	case Error:
+	case value.Error:
 		return "", errOf(v)
-	case Text:
+	case value.Text:
 		return v.Str, nil
 	}
-	return "", &ErrValue
+	return "", &value.ErrValue
 }
 
 // dateArg is a date argument: a serial number or text such as
@@ -157,7 +157,7 @@ func dateArg(n Node, get lookup) (float64, *Value) {
 		return 0, err
 	}
 	if d < 0 {
-		return 0, &ErrNum
+		return 0, &value.ErrNum
 	}
 	return d, nil
 }
@@ -200,7 +200,7 @@ func monthShift(endOfMonth bool) func([]Node, lookup) Value {
 		y, m, day := numfmt.Civil(int64(math.Floor(d)))
 		y, m = numfmt.AddMonths(y, m, months)
 		if y < 1 || y > 9999 {
-			return ErrNum
+			return value.ErrNum
 		}
 		last := numfmt.DaysIn(y, m)
 		if endOfMonth || day > last {
@@ -208,7 +208,7 @@ func monthShift(endOfMonth bool) func([]Node, lookup) Value {
 		}
 		v := numfmt.DateSerial(y, m, day)
 		if v < 0 {
-			return ErrNum
+			return value.ErrNum
 		}
 		return num(v)
 	}
@@ -229,7 +229,7 @@ func datedif(args []Node, get lookup) Value {
 	}
 	s, e := int64(math.Floor(start)), int64(math.Floor(end))
 	if s > e {
-		return ErrNum
+		return value.ErrNum
 	}
 	sy, sm, sd := numfmt.Civil(s)
 	ey, em, ed := numfmt.Civil(e)
@@ -265,7 +265,7 @@ func datedif(args []Node, get lookup) Value {
 		anniv := numfmt.DateSerial(y, sm, min(sd, numfmt.DaysIn(y, sm)))
 		return num(float64(e) - anniv)
 	}
-	return ErrNum
+	return value.ErrNum
 }
 
 func networkdays(args []Node, get lookup) Value {
@@ -293,7 +293,7 @@ func networkdays(args []Node, get lookup) Value {
 		s, e, sign = e, s, -1
 	}
 	if e-s > 1e7 {
-		return ErrNum
+		return value.ErrNum
 	}
 	n := 0
 	for d := s; d <= e; d++ {

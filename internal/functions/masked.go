@@ -1,8 +1,10 @@
-package sheet
+package functions
 
 import (
 	"cmp"
 	"slices"
+
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 // Functions over aligned ranges (SUMIF, COUNTIFS, SUMPRODUCT...) visit
@@ -22,18 +24,15 @@ func (m matrix) storedPos(get lookup) ([]pos, bool) {
 	if !m.ref {
 		return []pos{{}}, true
 	}
-	t := get.sheet(m.sheet)
-	switch {
-	case denseReads:
+	if get.dense {
 		return nil, false
-	case t == nil:
-		return nil, true
 	}
 	r := Rect{From: m.origin, To: Addr{Col: m.origin.Col + m.cols - 1, Row: m.origin.Row + m.rows - 1}}
 	var out []pos
-	for a := range t.cells.inRange(r) {
+	get.stored(m.sheet, r, func(a Addr) bool {
 		out = append(out, pos{a.Row - r.From.Row, a.Col - r.From.Col})
-	}
+		return true
+	})
 	return out, true
 }
 
@@ -111,13 +110,13 @@ func passes(ms []matrix, cs []criterion, p pos) bool {
 func sumMasked(m matrix, k masked, add func(float64)) *Value {
 	for _, p := range k.pass {
 		switch v := m.cell(p.r, p.c); v.Kind {
-		case Error:
+		case value.Error:
 			return &v
-		case Number:
+		case value.Number:
 			add(v.Num)
 		}
 	}
-	if k.tail > 0 && k.tailPass && m.blank.Kind == Error {
+	if k.tail > 0 && k.tailPass && m.blank.Kind == value.Error {
 		return &m.blank
 	}
 	return nil
@@ -128,18 +127,18 @@ func averageMasked(m matrix, k masked) Value {
 	sum, n := 0.0, 0
 	for _, p := range k.pass {
 		switch v := m.cell(p.r, p.c); v.Kind {
-		case Error:
+		case value.Error:
 			return v
-		case Number:
+		case value.Number:
 			sum += v.Num
 			n++
 		}
 	}
 	switch {
-	case k.tail > 0 && k.tailPass && m.blank.Kind == Error:
+	case k.tail > 0 && k.tailPass && m.blank.Kind == value.Error:
 		return m.blank
 	case n == 0:
-		return ErrDiv0
+		return value.ErrDiv0
 	}
 	return num(sum / float64(n))
 }
@@ -182,14 +181,14 @@ func sumProduct(args []Node, get lookup) Value {
 func sumIfTerms(args []Node, get lookup, add func(float64)) *Value {
 	rng := matrixArg(args[0], get)
 	cv := eval(args[1], get)
-	if cv.Kind == Error {
+	if cv.Kind == value.Error {
 		return &cv
 	}
 	sum := rng
 	if len(args) > 2 {
 		sum = matrixArg(args[2], get).resized(rng.rows, rng.cols, get)
 		if sum.rows != rng.rows || sum.cols != rng.cols {
-			return &ErrValue
+			return &value.ErrValue
 		}
 	}
 	return sumMasked(sum, applyCriteria(get, []matrix{rng}, []criterion{newCriterion(cv)}, sum), add)
@@ -204,7 +203,7 @@ func sumIfsTerms(args []Node, get lookup, add func(float64)) *Value {
 	case err != nil:
 		return err
 	case len(ms) == 0 || ms[0].rows != sum.rows || ms[0].cols != sum.cols:
-		return &ErrValue
+		return &value.ErrValue
 	}
 	return sumMasked(sum, applyCriteria(get, ms, cs, sum), add)
 }
@@ -212,7 +211,7 @@ func sumIfsTerms(args []Node, get lookup, add func(float64)) *Value {
 func averageIf(args []Node, get lookup) Value {
 	rng := matrixArg(args[0], get)
 	cv := eval(args[1], get)
-	if cv.Kind == Error {
+	if cv.Kind == value.Error {
 		return cv
 	}
 	avg := rng
@@ -229,7 +228,7 @@ func averageIfs(args []Node, get lookup) Value {
 	case err != nil:
 		return *err
 	case len(ms) == 0 || ms[0].rows != avg.rows || ms[0].cols != avg.cols:
-		return ErrValue
+		return value.ErrValue
 	}
 	return averageMasked(avg, applyCriteria(get, ms, cs, avg))
 }
@@ -249,7 +248,7 @@ func countIfs(args []Node, get lookup) Value {
 
 func countBlank(args []Node, get lookup) Value {
 	m := matrixArg(args[0], get)
-	isBlank := func(v Value) bool { return v.Kind == Empty || v.Kind == Text && v.Str == "" }
+	isBlank := func(v Value) bool { return v.Kind == value.Empty || v.Kind == value.Text && v.Str == "" }
 	cells := cellsOf(get, m)
 	n := 0
 	for _, p := range cells {
@@ -272,7 +271,7 @@ func sumProductTerms(args []Node, get lookup, term func(fs []float64)) *Value {
 	for i, a := range args {
 		ms[i] = matrixArg(a, get)
 		if ms[i].rows != ms[0].rows || ms[i].cols != ms[0].cols {
-			return &ErrValue
+			return &value.ErrValue
 		}
 	}
 	cells := cellsOf(get, ms...)
@@ -280,9 +279,9 @@ func sumProductTerms(args []Node, get lookup, term func(fs []float64)) *Value {
 	for _, pc := range cells {
 		for i, m := range ms {
 			switch v := m.cell(pc.r, pc.c); v.Kind {
-			case Error:
+			case value.Error:
 				return &v
-			case Number:
+			case value.Number:
 				fs[i] = v.Num
 			default:
 				fs[i] = 0
@@ -292,7 +291,7 @@ func sumProductTerms(args []Node, get lookup, term func(fs []float64)) *Value {
 	}
 	if ms[0].size() > len(cells) {
 		for _, m := range ms {
-			if m.blank.Kind == Error {
+			if m.blank.Kind == value.Error {
 				return &m.blank
 			}
 		}

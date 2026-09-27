@@ -1,7 +1,9 @@
-package sheet
+package functions
 
 import (
 	"math"
+
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 // Finance functions follow the usual cash-flow sign convention: money
@@ -14,7 +16,7 @@ func init() {
 			eval: finance(func(x []float64) Value {
 				r, n, pv, fv, t := x[0], x[1], x[2], x[3], x[4]
 				if n == 0 {
-					return ErrNum
+					return value.ErrNum
 				}
 				if r == 0 {
 					return num(-(pv + fv) / n)
@@ -45,19 +47,19 @@ func init() {
 				r, pmt, pv, fv, t := x[0], x[1], x[2], x[3], x[4]
 				if r == 0 {
 					if pmt == 0 {
-						return ErrNum
+						return value.ErrNum
 					}
 					return num(-(pv + fv) / pmt)
 				}
 				a := pmt * (1 + r*t)
 				ratio := (a - fv*r) / (a + pv*r)
 				if ratio <= 0 || r <= -1 {
-					return ErrNum
+					return value.ErrNum
 				}
 				return num(math.Log(ratio) / math.Log(1+r))
 			})},
 		&FuncDef{Name: "RATE", Args: "number_of_periods, payment_per_period, present_value, [future_value], [end_or_beginning], [rate_guess]", Desc: "Interest rate per period of an annuity", Min: 3, Max: 6,
-			eval: rate, format: returns(Preset(FmtPercent))},
+			eval: rate, format: returns(value.Preset(value.FmtPercent))},
 		&FuncDef{Name: "NPV", Args: "discount, cashflow1, [cashflow2, ...]", Desc: "Net present value of periodic cash flows", Min: 2, Max: -1,
 			eval: func(args []Node, get lookup) Value {
 				r, err := numArg(args[0], get)
@@ -69,12 +71,12 @@ func init() {
 					return *err
 				}
 				if r == -1 {
-					return ErrDiv0
+					return value.ErrDiv0
 				}
 				return num(npv(r, flows, 1))
 			}},
 		&FuncDef{Name: "IRR", Args: "cashflow_amounts, [rate_guess]", Desc: "Internal rate of return of periodic cash flows", Min: 1, Max: 2,
-			eval: irr, format: returns(Preset(FmtPercent))},
+			eval: irr, format: returns(value.Preset(value.FmtPercent))},
 	)
 }
 
@@ -126,7 +128,7 @@ func rate(args []Node, get lookup) Value {
 		t = 1
 	}
 	if n <= 0 {
-		return ErrNum
+		return value.ErrNum
 	}
 	f := func(r float64) float64 {
 		if math.Abs(r) < 1e-12 {
@@ -140,7 +142,7 @@ func rate(args []Node, get lookup) Value {
 		h := 1e-7 * math.Max(1, math.Abs(r))
 		d := (f(r+h) - f(r-h)) / (2 * h)
 		if d == 0 || math.IsNaN(d) {
-			return ErrNum
+			return value.ErrNum
 		}
 		next := r - y/d
 		if next <= -1 {
@@ -151,7 +153,7 @@ func rate(args []Node, get lookup) Value {
 		}
 		r = next
 	}
-	return ErrNum
+	return value.ErrNum
 }
 
 // irr finds the rate where the cash flows' present value is zero: Newton
@@ -171,7 +173,7 @@ func irr(args []Node, get lookup) Value {
 		neg = neg || v < 0
 	}
 	if !pos || !neg {
-		return ErrNum
+		return value.ErrNum
 	}
 	f := func(r float64) float64 { return npv(r, flows, 0) }
 	df := func(r float64) float64 {
@@ -202,7 +204,7 @@ func irr(args []Node, get lookup) Value {
 		hi *= 2
 	}
 	if f(hi)*f(lo) > 0 {
-		return ErrNum
+		return value.ErrNum
 	}
 	for range 200 {
 		mid := (lo + hi) / 2

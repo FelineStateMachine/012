@@ -1,4 +1,6 @@
-package sheet
+package functions
+
+import "github.com/FelineStateMachine/012/internal/value"
 
 func init() {
 	define(
@@ -11,19 +13,19 @@ func init() {
 		&FuncDef{Name: "IFNA", Args: "value, value_if_na", Desc: "A fallback when a value is #N/A", Min: 2, Max: 2,
 			eval: ifNA, format: inherit},
 		&FuncDef{Name: "ISBLANK", Args: "value", Desc: "TRUE if a cell is empty", Min: 1, Max: 1,
-			eval: is(func(v Value) bool { return v.Kind == Empty })},
+			eval: is(func(v Value) bool { return v.Kind == value.Empty })},
 		&FuncDef{Name: "ISNUMBER", Args: "value", Desc: "TRUE if a value is a number", Min: 1, Max: 1,
-			eval: is(func(v Value) bool { return v.Kind == Number })},
+			eval: is(func(v Value) bool { return v.Kind == value.Number })},
 		&FuncDef{Name: "ISTEXT", Args: "value", Desc: "TRUE if a value is text", Min: 1, Max: 1,
-			eval: is(func(v Value) bool { return v.Kind == Text })},
+			eval: is(func(v Value) bool { return v.Kind == value.Text })},
 		&FuncDef{Name: "ISLOGICAL", Args: "value", Desc: "TRUE if a value is TRUE or FALSE", Min: 1, Max: 1,
-			eval: is(func(v Value) bool { return v.Kind == Bool })},
+			eval: is(func(v Value) bool { return v.Kind == value.Bool })},
 		&FuncDef{Name: "ISERROR", Args: "value", Desc: "TRUE if a value is any error", Min: 1, Max: 1,
-			eval: is(func(v Value) bool { return v.Kind == Error })},
+			eval: is(func(v Value) bool { return v.Kind == value.Error })},
 		&FuncDef{Name: "ISERR", Args: "value", Desc: "TRUE if a value is an error other than #N/A", Min: 1, Max: 1,
-			eval: is(func(v Value) bool { return v.Kind == Error && v != ErrNA })},
+			eval: is(func(v Value) bool { return v.Kind == value.Error && v != value.ErrNA })},
 		&FuncDef{Name: "ISNA", Args: "value", Desc: "TRUE if a value is #N/A", Min: 1, Max: 1,
-			eval: is(func(v Value) bool { return v == ErrNA })},
+			eval: is(func(v Value) bool { return v == value.ErrNA })},
 	)
 }
 
@@ -39,7 +41,7 @@ func ifs(args []Node, get lookup) Value {
 			return eval(args[i+1], get)
 		}
 	}
-	return ErrNA
+	return value.ErrNA
 }
 
 func ifsFormat(args []Node, infer func(Node) Format) Format {
@@ -52,13 +54,13 @@ func ifsFormat(args []Node, infer func(Node) Format) Format {
 
 func switchCase(args []Node, get lookup) Value {
 	x := eval(args[0], get)
-	if x.Kind == Error {
+	if x.Kind == value.Error {
 		return x
 	}
 	i := 1
 	for ; i+1 < len(args); i += 2 {
 		c := eval(args[i], get)
-		if c.Kind == Error {
+		if c.Kind == value.Error {
 			return c
 		}
 		if sameKind(x, c) && compare(x, c) == 0 {
@@ -68,12 +70,12 @@ func switchCase(args []Node, get lookup) Value {
 	if i < len(args) {
 		return eval(args[i], get)
 	}
-	return ErrNA
+	return value.ErrNA
 }
 
 func ifNA(args []Node, get lookup) Value {
 	v := eval(args[0], get)
-	if v == ErrNA {
+	if v == value.ErrNA {
 		return eval(args[1], get)
 	}
 	return v
@@ -90,7 +92,7 @@ func is(test func(Value) bool) func([]Node, lookup) Value {
 // lookups: numbers only equal numbers, text only text. A blank is 0 or "".
 func sameKind(a, b Value) bool {
 	ka, kb := a.Kind, b.Kind
-	if ka == Empty || kb == Empty {
+	if ka == value.Empty || kb == value.Empty {
 		return true
 	}
 	return ka == kb

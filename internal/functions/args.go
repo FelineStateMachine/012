@@ -1,10 +1,11 @@
-package sheet
+package functions
 
 import (
 	"strings"
 	"unicode/utf8"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 // Argument helpers shared by the function library. Errors come back as a
@@ -13,7 +14,7 @@ import (
 
 func numArg(n Node, get lookup) (float64, *Value) {
 	v := eval(n, get)
-	if v.Kind == Error {
+	if v.Kind == value.Error {
 		return 0, errOf(v)
 	}
 	return toNum(v)
@@ -44,14 +45,14 @@ func intArg(args []Node, i int, def float64, get lookup) (int, *Value) {
 		return 0, err
 	}
 	if f > 1e9 || f < -1e9 {
-		return 0, &ErrNum
+		return 0, &value.ErrNum
 	}
 	return int(f), nil
 }
 
 func textArg(n Node, get lookup) (string, *Value) {
 	v := eval(n, get)
-	if v.Kind == Error {
+	if v.Kind == value.Error {
 		return "", errOf(v)
 	}
 	return text(v), nil
@@ -113,15 +114,13 @@ func rectMatrix(sheet string, r Rect, get lookup) matrix {
 		rows: r.To.Row - r.From.Row + 1, cols: r.To.Col - r.From.Col + 1,
 		origin: r.From, sheet: sheet, ref: true,
 	}
-	switch t := get.sheet(sheet); {
-	case t == nil:
-		m.blank = ErrRef
-	case denseReads:
+	switch b, any, exists := get.book.Bounds(sheet, r); {
+	case !exists:
+		m.blank = value.ErrRef
+	case get.dense:
 		m.dataRows, m.dataCols = m.rows, m.cols
-	default:
-		if b, ok := t.cells.bounds(r); ok {
-			m.dataRows, m.dataCols = b.To.Row-r.From.Row+1, b.To.Col-r.From.Col+1
-		}
+	case any:
+		m.dataRows, m.dataCols = b.To.Row-r.From.Row+1, b.To.Col-r.From.Col+1
 	}
 	rows, cols, blank := m.dataRows, m.dataCols, m.blank
 	m.cell = func(row, col int) Value {
@@ -149,9 +148,9 @@ func nums(args []Node, get lookup) ([]float64, *Value) {
 	var out []float64
 	e := each(args, get, func(v Value, direct bool) *Value {
 		switch {
-		case v.Kind == Error:
+		case v.Kind == value.Error:
 			return errOf(v)
-		case v.Kind == Empty, v.Kind != Number && !direct:
+		case v.Kind == value.Empty, v.Kind != value.Number && !direct:
 			return nil
 		}
 		f, err := toNum(v)
@@ -169,7 +168,7 @@ func nums(args []Node, get lookup) ([]float64, *Value) {
 func texts(args []Node, get lookup) ([]string, *Value) {
 	var out []string
 	e := each(args, get, func(v Value, _ bool) *Value {
-		if v.Kind == Error {
+		if v.Kind == value.Error {
 			return errOf(v)
 		}
 		out = append(out, text(v))
@@ -192,7 +191,7 @@ func textsWithBlanks(args []Node, get lookup, limit int) ([]string, *Value) {
 		rn, ok := arg.(formula.Range)
 		if !ok {
 			if e := eachOf(arg, get, func(v Value, _ bool) *Value {
-				if v.Kind == Error {
+				if v.Kind == value.Error {
 					return errOf(v)
 				}
 				out = append(out, text(v))
@@ -206,7 +205,7 @@ func textsWithBlanks(args []Node, get lookup, limit int) ([]string, *Value) {
 		width := r.To.Col - r.From.Col + 1
 		var e *Value
 		get.cells(rn.Sheet, r, func(a Addr, v Value) bool {
-			if v.Kind == Error {
+			if v.Kind == value.Error {
 				e = errOf(v)
 				return false
 			}
@@ -222,8 +221,6 @@ func textsWithBlanks(args []Node, get lookup, limit int) ([]string, *Value) {
 	}
 	return out, nil
 }
-
-func str(s string) Value { return Value{Kind: Text, Str: s} }
 
 func runeLen(s string) int { return utf8.RuneCountInString(s) }
 
@@ -264,15 +261,15 @@ func hasWildcards(s string) bool { return strings.ContainsAny(s, "*?~") }
 // criterion is a condition of SUMIF, COUNTIFS and friends: 5, ">5",
 // "<>done", "a*", "" (blank) or TRUE.
 type criterion struct {
-	op   string // =, <>, <, >, <=, >=
-	kind Kind   // Number, Text, Bool or Empty (blank)
+	op   string     // =, <>, <, >, <=, >=
+	kind value.Kind // Number, Text, Bool or Empty (blank)
 	num  float64
 	text string
 }
 
 func newCriterion(v Value) criterion {
 	c := criterion{op: "=", kind: v.Kind, num: v.Num}
-	if v.Kind == Text {
+	if v.Kind == value.Text {
 		s := v.Str
 		for _, op := range []string{"<=", ">=", "<>", "<", ">", "="} {
 			if rest, ok := strings.CutPrefix(s, op); ok {
@@ -281,13 +278,13 @@ func newCriterion(v Value) criterion {
 			}
 		}
 		c.text = s
-		switch n, _, isNum := ParseValue(s); {
+		switch n, _, isNum := value.ParseValue(s); {
 		case s == "":
-			c.kind = Empty
+			c.kind = value.Empty
 		case isNum:
-			c.kind, c.num = Number, n
+			c.kind, c.num = value.Number, n
 		case strings.EqualFold(s, "TRUE") || strings.EqualFold(s, "FALSE"):
-			c.kind, c.num = Bool, 0
+			c.kind, c.num = value.Bool, 0
 			if strings.EqualFold(s, "TRUE") {
 				c.num = 1
 			}
@@ -298,8 +295,8 @@ func newCriterion(v Value) criterion {
 
 // test reports whether a cell value satisfies the criterion.
 func (c criterion) test(v Value) bool {
-	blank := v.Kind == Empty || v.Kind == Text && v.Str == ""
-	if c.kind == Empty {
+	blank := v.Kind == value.Empty || v.Kind == value.Text && v.Str == ""
+	if c.kind == value.Empty {
 		switch c.op {
 		case "=":
 			return blank
@@ -308,8 +305,8 @@ func (c criterion) test(v Value) bool {
 		}
 		return false
 	}
-	if c.kind == Text {
-		if v.Kind != Text {
+	if c.kind == value.Text {
+		if v.Kind != value.Text {
 			return c.op == "<>"
 		}
 		switch c.op {
@@ -358,11 +355,11 @@ func criteriaArgs(args []Node, i int, get lookup) ([]matrix, []criterion, *Value
 	for ; i+1 < len(args); i += 2 {
 		m := matrixArg(args[i], get)
 		cv := eval(args[i+1], get)
-		if cv.Kind == Error {
+		if cv.Kind == value.Error {
 			return nil, nil, &cv
 		}
 		if len(ms) > 0 && (m.rows != ms[0].rows || m.cols != ms[0].cols) {
-			return nil, nil, &ErrValue
+			return nil, nil, &value.ErrValue
 		}
 		ms, cs = append(ms, m), append(cs, newCriterion(cv))
 	}
