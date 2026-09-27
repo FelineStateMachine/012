@@ -86,11 +86,11 @@ as one of its cells, as in Sheets and Excel (implicit intersection):
 
 Ranges on other sheets work the same, by the formula's row or column:
 `='Q3 plan'!C2:C9` in A3 reads `'Q3 plan'!C3`. Functions that take ranges
-(`SUM`, `COUNTIF`, `MATCH`, `VLOOKUP`, `SUMPRODUCT` and the like) still
+(`SUM`, `COUNTIF`, `MATCH`, `VLOOKUP`, `SUMPRODUCT` and the like)
 read the whole range. Inside their range arguments an expression over
 ranges, such as `SUM(B2:B4*2)` or `SUMPRODUCT(A1:A3*B1:B3)`, is `#VALUE!`:
-Sheets computes those as arrays, which 012 doesn't yet, so it doesn't give
-a single cell's answer instead.
+Sheets computes those as arrays, which 012 doesn't, and a single cell's
+answer there would be wrong rather than missing.
 
 ## Values and errors
 
