@@ -436,7 +436,7 @@ var screens = []screen{
 	{name: "pivot-rename", setup: func(s *session) {
 		pivotEditor(s)
 		s.keys("r")
-		s.waitFor("Name: AVERAGE of Price")
+		s.waitFor("Value name: AVERAGE of Price")
 		s.keys("Avg price")
 	}},
 	{name: "pivot-subtotals", setup: func(s *session) {
@@ -444,7 +444,7 @@ var screens = []screen{
 		// each Reorder value, and the average renamed.
 		pivotEditor(s)
 		s.keys("r")
-		s.waitFor("Name: AVERAGE of Price")
+		s.waitFor("Value name: AVERAGE of Price")
 		s.keys("Avg price", "<enter>")
 		s.waitFor("   Avg price")
 		s.keys("<up>", "<up>", "<up>", "<up>", "<up>", "<delete>")

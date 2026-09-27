@@ -104,7 +104,7 @@ func TestPivotRenameAndColumnSubtotals(t *testing.T) {
 	pivotByCategory(s)
 	// R renames the value on the context line.
 	s.keys("r")
-	s.waitFor("Name: SUM of Qty")
+	s.waitFor("Value name: SUM of Qty")
 	s.keys("Units", "<enter>")
 	s.waitFor("PIVOT")
 	s.eventually("renamed header", func() bool { return strings.Contains(s.line(gridRow1), "Units") })

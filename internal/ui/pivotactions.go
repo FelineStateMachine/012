@@ -164,7 +164,7 @@ func (e *pivotEditor) rename(m pivotHost, it pivotItem) {
 	}
 	p := e.pivot(m)
 	m.closeOverlay()
-	m.askText("Name:", m.book().ValueTitle(p, p.Values[it.i]), func(text string) {
+	m.askText("Value name:", m.book().ValueTitle(p, p.Values[it.i]), func(text string) {
 		e.set(m, "rename "+e.fieldName(m, e.pivot(m), it), func(p *sheet.Pivot) {
 			v := &p.Values[it.i]
 			v.Name = strings.TrimSpace(text)

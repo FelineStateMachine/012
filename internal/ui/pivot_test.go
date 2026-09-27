@@ -44,7 +44,7 @@ func TestPivotCreateAndEdit(t *testing.T) {
 	if shows(m, "B1") != "SUM of Units" || shows(m, "B2") != "16" || shows(m, "B4") != "20" {
 		t.Fatalf("values: %q %q %q", shows(m, "B1"), shows(m, "B2"), shows(m, "B4"))
 	}
-	if !strings.Contains(screen(m), "‹ SUM ›") || !strings.Contains(line(m, m.height-1), "summarize by") {
+	if !strings.Contains(screen(m), "‹ SUM ›") || !strings.Contains(line(m, m.height-1), "summary") {
 		t.Errorf("value line or hints missing:\n%s", screen(m))
 	}
 	press(t, m, "<left>")

@@ -397,7 +397,7 @@ func (e *pivotEditor) help(m pivotHost, it pivotItem) (string, []string) {
 		if v.Name != "" {
 			desc = e.fieldName(m, p, it) + ": " + desc
 		}
-		return desc, append([]string{"←/→", "summarize by", "S", "show as", "R", "rename"}, remove...)
+		return desc, append([]string{"←/→", "summary", "S", "show as", "R", "name"}, remove...)
 	case sectFilters:
 		return "Choose which values count, or a condition", append([]string{"Space", "values"}, remove...)
 	}
