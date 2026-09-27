@@ -2,7 +2,7 @@
 
 <!-- Generated from the engine's function table by TestFunctionsDoc; do not edit. -->
 
-012 has 130 functions. They follow Google Sheets' names, arguments and
+012 has 138 functions. They follow Google Sheets' names, arguments and
 semantics; `[brackets]` mark optional arguments. Function names are
 case-insensitive, and 1-2-3's `@SUM(A1..A5)` spelling still works.
 
@@ -142,6 +142,19 @@ Aliases: `AVG` for `AVERAGE`.
 | `SORTN(range, [n], [display_ties_mode], [sort_column1, is_ascending1, ...])` | The first n rows of a range after sorting |
 | `TRANSPOSE(array_or_range)` | Rows as columns and columns as rows |
 | `UNIQUE(range, [by_column], [exactly_once])` | The distinct rows (or columns) of a range, in order |
+
+## LET and LAMBDA
+
+| Function | Description |
+|---|---|
+| `BYCOL(array_or_range, LAMBDA)` | Each column of an array passed to a LAMBDA, one value per column |
+| `BYROW(array_or_range, LAMBDA)` | Each row of an array passed to a LAMBDA, one value per row |
+| `LAMBDA([name, ...], formula_expression)` | A function of names, called with values: LAMBDA(x, x*2)(3) |
+| `LET(name1, value_expression1, [name2, value_expression2, ...], formula_expression)` | Name values for use in a formula |
+| `MAKEARRAY(rows, columns, LAMBDA)` | An array of a size, each entry a LAMBDA of its row and column |
+| `MAP(array1, [array2, ...], LAMBDA)` | Each entry of arrays passed to a LAMBDA |
+| `REDUCE(initial_value, array_or_range, LAMBDA)` | An array folded into one value by a LAMBDA of the total so far and each entry |
+| `SCAN(initial_value, array_or_range, LAMBDA)` | The running totals of REDUCE, one for each entry |
 
 ## Date and time
 
