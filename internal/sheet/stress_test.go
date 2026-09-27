@@ -11,8 +11,8 @@ import (
 	"runtime"
 	"testing"
 
-	"012/internal/sheet"
-	"012/internal/stress"
+	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/stress"
 )
 
 func BenchmarkBuild(b *testing.B) {

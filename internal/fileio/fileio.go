@@ -9,11 +9,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // Kind is an external file format.
@@ -177,6 +180,19 @@ func Import(ctx context.Context, name string, opt Options) (*Result, error) {
 	if !ok {
 		return nil, ErrUnsupported
 	}
+	span := telemetry.Start("import", slog.String("format", k.String()))
+	r, err := importKind(ctx, name, k, opt)
+	if err != nil {
+		span.Fail(err)
+		return nil, err
+	}
+	if telemetry.Enabled() {
+		span.End(slog.Int64("bytes", fileSize(name)), slog.Int("rows", r.Rows), slog.Int("cells", r.Sheet.Len()), slog.Int("notes", len(r.Notes)))
+	}
+	return r, nil
+}
+
+func importKind(ctx context.Context, name string, k Kind, opt Options) (*Result, error) {
 	var (
 		r   *Result
 		err error
@@ -216,6 +232,19 @@ type ExportResult struct {
 
 // Export writes a snapshot of a sheet to name in format k.
 func Export(ctx context.Context, name string, k Kind, snap *Snapshot, opt ExportOptions) (*ExportResult, error) {
+	span := telemetry.Start("export", slog.String("format", k.String()), slog.Int("cells", len(snap.Cells)))
+	res, err := exportKind(ctx, name, k, snap, opt)
+	if err != nil {
+		span.Fail(err)
+		return nil, err
+	}
+	if telemetry.Enabled() {
+		span.End(slog.Int("rows", res.Rows), slog.Int64("bytes", fileSize(name)))
+	}
+	return res, nil
+}
+
+func exportKind(ctx context.Context, name string, k Kind, snap *Snapshot, opt ExportOptions) (*ExportResult, error) {
 	switch k {
 	case CSV, TSV:
 		return exportDelimited(name, k, snap)
@@ -225,4 +254,13 @@ func Export(ctx context.Context, name string, k Kind, snap *Snapshot, opt Export
 		return exportSQLite(ctx, name, snap, opt.Table)
 	}
 	return nil, fmt.Errorf("can't export %s files", k)
+}
+
+// fileSize is the size of the file name, for telemetry; -1 if unknown.
+func fileSize(name string) int64 {
+	st, err := os.Stat(name)
+	if err != nil {
+		return -1
+	}
+	return st.Size()
 }

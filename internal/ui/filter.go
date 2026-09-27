@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/sahilm/fuzzy"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // Filters follow Sheets' Data > Create a filter: the headers of the
@@ -216,7 +218,9 @@ func (p *filterPicker) apply(m *Model) {
 		cr.Cond = sheet.Condition{}
 	}
 	m.closeOverlay()
+	span := telemetry.Start("filter")
 	m.sheet.FilterColumn(p.col, cr)
+	span.End(slog.Int("hidden", m.sheet.HiddenRows()))
 	m.changed = true
 	if n := m.sheet.HiddenRows(); n > 0 {
 		m.note = "Filtered column " + sheet.ColName(p.col) + ": " + rowCount(n) + " hidden"

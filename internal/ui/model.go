@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // mode is the state shown in the mode indicator.
@@ -107,6 +108,8 @@ type Model struct {
 	term      terminal // what the terminal supports, see graphics.go
 	lastChart int      // the chart last selected, for chart commands; -1 for none
 
+	keyAt time.Time // when the key the next frame answers was pressed, for telemetry
+
 	th theme
 }
 
@@ -124,6 +127,9 @@ func (m *Model) Init() tea.Cmd {
 
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, key := msg.(tea.KeyPressMsg); key && m.keyAt.IsZero() && telemetry.Enabled() {
+		m.keyAt = time.Now()
+	}
 	if cmd, ok := m.importing(msg); ok {
 		return m, cmd
 	}

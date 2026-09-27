@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 type promptKind int
@@ -268,8 +270,12 @@ type filesMsg []string
 // saveCmd writes the worksheet atomically: to a temporary file first, then
 // renamed over the target.
 func saveCmd(s *sheet.Sheet, name string) tea.Cmd {
+	span := telemetry.Start("save")
 	var buf strings.Builder
 	err := s.Write(&buf)
+	if telemetry.Enabled() {
+		span.End(slog.Int("cells", s.Len()), slog.Int("bytes", buf.Len()))
+	}
 	return func() tea.Msg {
 		if err != nil {
 			return savedMsg{name, err}
@@ -289,9 +295,24 @@ func loadCmd(name string) tea.Cmd {
 			return loadedMsg{name: name, err: err}
 		}
 		defer f.Close()
+		span := telemetry.Start("open")
 		s, err := sheet.Read(f)
+		if err != nil {
+			span.Fail(err)
+		} else if telemetry.Enabled() {
+			span.End(slog.Int("cells", s.Len()), slog.Int64("bytes", openSize(f)))
+		}
 		return loadedMsg{name, s, err}
 	}
+}
+
+// openSize is the size of an open file, for telemetry; -1 if unknown.
+func openSize(f *os.File) int64 {
+	st, err := f.Stat()
+	if err != nil {
+		return -1
+	}
+	return st.Size()
 }
 
 func listFilesCmd() tea.Msg {

@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"log/slog"
+
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // The fill handle, as in Sheets: the bottom-right corner of the selection
@@ -72,7 +75,9 @@ func (m *Model) finishFill() {
 	if dst == src {
 		return
 	}
+	span := telemetry.Start("fill", slog.Int("cells", (dst.To.Row-dst.From.Row+1)*(dst.To.Col-dst.From.Col+1)))
 	got, err := m.sheet.FillSeries(src, dst)
+	span.Fail(err)
 	if err != nil {
 		m.fail(err.Error())
 		return

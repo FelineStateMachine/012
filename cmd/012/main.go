@@ -24,9 +24,15 @@ func main() {
 }
 
 func run(args []string) error {
-	if len(args) > 1 {
-		return errors.New("usage: 012 [file]: a " + sheet.FileExt + " sheet, or a .csv, .tsv, .xlsx, .sqlite, .parquet or .wk1 file to import")
+	tc, args, err := logFlag(args)
+	if err != nil || len(args) > 1 {
+		return errors.New("usage: 012 [--log file.jsonl] [file]: a " + sheet.FileExt + " sheet, or a .csv, .tsv, .xlsx, .sqlite, .parquet or .wk1 file to import")
 	}
+	stopTelemetry, err := startTelemetry(tc)
+	if err != nil {
+		return err
+	}
+	defer stopTelemetry()
 	// JEV functions run when an API key is set, in the environment or a
 	// .env file next to the sheet or in the current directory. The cache
 	// goes in before loading so the file's JEV cells queue their questions.
@@ -79,6 +85,6 @@ func run(args []string) error {
 	if jevClient != nil {
 		m.EnableJEV(jevClient, jevCache)
 	}
-	_, err := tea.NewProgram(m).Run()
+	_, err = tea.NewProgram(m).Run()
 	return err
 }

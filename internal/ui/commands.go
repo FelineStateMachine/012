@@ -2,12 +2,14 @@ package ui
 
 import (
 	"cmp"
+	"log/slog"
 	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // command is a user-facing action. Every action is registered once here
@@ -105,6 +107,10 @@ func (m *Model) runCommand(id string) tea.Cmd {
 	if !ok {
 		panic("unknown command " + id)
 	}
+	// Sort, filter, find, fill and the rest are all commands, so this
+	// one span times every one of them.
+	span := telemetry.Start("command", slog.String("id", id))
+	defer span.End()
 	return c.run(m)
 }
 

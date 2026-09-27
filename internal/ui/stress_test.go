@@ -11,6 +11,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -18,9 +20,10 @@ import (
 	typesafe "github.com/FelineStateMachine/typesafe-go"
 	uv "github.com/charmbracelet/ultraviolet"
 
-	"012/internal/jev"
-	"012/internal/sheet"
-	"012/internal/stress"
+	"github.com/FelineStateMachine/012/internal/jev"
+	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/stress"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 var termSizes = []struct{ w, h int }{{80, 24}, {200, 60}, {400, 120}}
@@ -176,6 +179,62 @@ func BenchmarkKeystroke(b *testing.B) {
 				}
 			})
 		}
+	}
+}
+
+// BenchmarkTelemetry is an arrow key through to its frame and an edit
+// that recalculates, with telemetry off and on (a JSON log in a temp
+// file): what the instrumentation costs.
+func BenchmarkTelemetry(b *testing.B) {
+	s := lazy(func() *sheet.Sheet { return stress.Dense(sheet.MaxRows, 26) })
+	for _, on := range []bool{false, true} {
+		name := "off"
+		if on {
+			name = "on"
+		}
+		b.Run("arrow/"+name, func(b *testing.B) {
+			stop := telemetryFor(b, on)
+			defer stop()
+			m := sized(s(), 200, 60)
+			t := newFakeTerm(200, 60)
+			keys := []string{"down", "up"}
+			i := 0
+			for b.Loop() {
+				m.Update(key(keys[i%2]))
+				t.frame(m)
+				i++
+			}
+		})
+		b.Run("edit/"+name, func(b *testing.B) {
+			stop := telemetryFor(b, on)
+			defer stop()
+			m := sized(s(), 200, 60)
+			keys := []string{"7", "enter", "up"}
+			i := 0
+			for b.Loop() {
+				m.Update(key(keys[i%3]))
+				i++
+			}
+		})
+	}
+}
+
+// telemetryFor turns telemetry on, logging to a temp file, when on is
+// set, the way cmd/012 does.
+func telemetryFor(b *testing.B, on bool) func() error {
+	if !on {
+		return func() error { return nil }
+	}
+	stop, err := telemetry.Setup(telemetry.Config{LogPath: filepath.Join(b.TempDir(), "log.jsonl")})
+	if err != nil {
+		b.Fatal(err)
+	}
+	sheet.OnRecalc = func(i sheet.RecalcInfo) {
+		telemetry.Event("recalc", i.Duration, slog.Int("evaluated", i.Evaluated), slog.Int("cells", i.Cells))
+	}
+	return func() error {
+		sheet.OnRecalc = nil
+		return stop()
 	}
 }
 

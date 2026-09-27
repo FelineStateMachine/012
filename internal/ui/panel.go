@@ -6,11 +6,13 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // The control panel is three lines: the menu bar with the mode indicator,
@@ -19,6 +21,9 @@ import (
 
 // View implements tea.Model.
 func (m *Model) View() tea.View {
+	if telemetry.Enabled() {
+		defer m.timeFrame(time.Now())
+	}
 	lines := []string{m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.headerRow()}
 	rows := m.screenRows()
 	for i := range m.visibleRows() {
@@ -57,6 +62,16 @@ func (m *Model) View() tea.View {
 		v.Cursor.Shape = tea.CursorBar
 	}
 	return v
+}
+
+// timeFrame reports a frame begun at start to telemetry, with how long
+// ago the key press it answers came in.
+func (m *Model) timeFrame(start time.Time) {
+	var key time.Duration
+	if !m.keyAt.IsZero() {
+		key, m.keyAt = time.Since(m.keyAt), time.Time{}
+	}
+	telemetry.Frame(time.Since(start), key)
 }
 
 func (m *Model) displayName() string {

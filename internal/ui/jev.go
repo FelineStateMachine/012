@@ -3,12 +3,14 @@ package ui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/jev"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // JEV functions are answered in the background: the engine queues
@@ -72,7 +74,9 @@ func (m *Model) sendJEV() tea.Cmd {
 	if m.jev == nil {
 		return nil
 	}
-	inFlight, _ := m.jev.cache.Busy()
+	inFlight, queued := m.jev.cache.Busy()
+	telemetry.Set("jev_in_flight", int64(inFlight))
+	telemetry.Set("jev_queued", int64(queued))
 	calls := m.jev.cache.Take(jevParallel - inFlight)
 	cmds := make([]tea.Cmd, len(calls))
 	for i, call := range calls {
@@ -80,7 +84,14 @@ func (m *Model) sendJEV() tea.Cmd {
 		cmds[i] = func() tea.Msg {
 			ctx, cancel := context.WithTimeout(context.Background(), jevTimeout)
 			defer cancel()
-			return jevAnswerMsg{call: call, answer: jev.Ask(ctx, client, call)}
+			span := telemetry.Start("jev", slog.String("kind", call.Kind), slog.Int("queued", queued))
+			answer := jev.Ask(ctx, client, call)
+			outcome := "ok"
+			if answer.Failed != "" {
+				outcome = "failed"
+			}
+			span.End(slog.String("outcome", outcome))
+			return jevAnswerMsg{call: call, answer: answer}
 		}
 	}
 	return tea.Batch(cmds...)

@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/chart"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // terminal is what 012 knows about the terminal it runs in, learned from
@@ -165,13 +167,17 @@ func (m *Model) syncImages() tea.Cmd {
 			continue
 		}
 		m.term.sent[id] = key
+		span := telemetry.Start("chart.image", slog.String("type", c.Type.String()), slog.Int("w", w), slog.Int("h", h))
 		g := chart.Draw(c.Type, d, w, h, o)
 		img := chart.Image(c.Type, d, w, h, o, pal)
 		if img == nil || g.Plot.Empty() {
+			span.End()
 			out.WriteString(chart.Delete(id, m.term.wrap))
 			continue
 		}
-		out.WriteString(chart.Transmit(id, img, g.Plot.Dx(), g.Plot.Dy(), m.term.wrap))
+		sent := chart.Transmit(id, img, g.Plot.Dx(), g.Plot.Dy(), m.term.wrap)
+		span.End(slog.Int("bytes", len(sent)))
+		out.WriteString(sent)
 	}
 	for id := range m.term.sent {
 		if !live[id] {

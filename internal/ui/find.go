@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // Find and replace is a bar on the context line rather than a dialog, in
@@ -111,7 +113,9 @@ func (f *findBar) options() sheet.FindOptions {
 // while typing.
 func (f *findBar) search(m *Model) {
 	f.err, f.matches, f.index, f.cur = "", nil, nil, -1
+	span := telemetry.Start("find")
 	found, err := m.sheet.Find(f.fields[0], f.options())
+	span.End(slog.Int("matches", len(found)))
 	if err != nil {
 		f.err = "Invalid regular expression"
 		return
@@ -223,7 +227,9 @@ func (f *findBar) replaceOne(m *Model) {
 }
 
 func (f *findBar) replaceAll(m *Model) {
+	span := telemetry.Start("replace")
 	n, err := m.sheet.ReplaceAll(f.fields[0], f.fields[1], f.options())
+	span.End(slog.Int("replaced", n))
 	if n > 0 {
 		m.changed = true
 	}

@@ -9,7 +9,7 @@ import (
 	"math/rand/v2"
 	"strings"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Shape is one synthetic sheet: a name for benchmark output, and a

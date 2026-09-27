@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"testing"
 
-	"012/internal/sheet"
-	"012/internal/stress"
+	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/stress"
 )
 
 // stressDir is where scripts/stress-data.sh puts the datasets.

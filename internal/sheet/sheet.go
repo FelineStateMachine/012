@@ -361,11 +361,13 @@ func (s *Sheet) unlink(a Addr) {
 func (s *Sheet) RecalcAll() {
 	// Every cell is dirty, so there is nothing to propagate: tracing
 	// dependents from each cell cost O(cells x range users).
+	start := recalcStart()
 	state := make(map[Addr]int, len(s.cells))
 	for a := range s.cells {
 		state[a] = dirty
 	}
 	s.evaluate(state)
+	s.observe(true, start, len(state))
 	s.ClearHistory()
 }
 
@@ -379,7 +381,10 @@ const (
 // recalc recomputes the changed cells, volatile formulas, and everything
 // that transitively depends on them.
 func (s *Sheet) recalc(changed []Addr) {
-	s.evaluate(s.affected(changed))
+	start := recalcStart()
+	state := s.affected(changed)
+	s.evaluate(state)
+	s.observe(false, start, len(state))
 }
 
 // affected marks dirty the changed cells, volatile formulas, and every
