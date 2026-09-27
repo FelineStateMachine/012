@@ -3,6 +3,7 @@
 // 1-2-3 worksheets. Everything is pure Go. The sheet package knows none
 // of these formats: importers build a sheet through its public API
 // (Load, SetColWidth, RecalcAll) and exporters read a Snapshot of one.
+// Each format is a row of the table in formats.go and a file of its own.
 package fileio
 
 import (
@@ -20,111 +21,6 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 )
-
-// Kind is an external file format.
-type Kind int
-
-const (
-	CSV Kind = iota + 1
-	TSV
-	XLSX
-	SQLite
-	Parquet
-	WK1
-)
-
-// A fileFormat is everything about a Kind: its names, its extensions, and
-// the functions reading and writing it. Adding a format is a file with
-// its importer (and exporter) and a row here.
-type fileFormat struct {
-	kind  Kind
-	name  string   // short name, e.g. in "Export as CSV"
-	label string   // what the file is, for the import picker
-	exts  []string // recognized extensions, the first one written
-	// book is set for formats that hold named sheets of their own; a
-	// file of any other kind names its one sheet after the file.
-	book bool
-	read importer
-	// write is nil for formats 012 only imports.
-	write exporter
-}
-
-// An importer reads a file into a new workbook, returning the sheet to
-// show. It checks ctx between rows, and updates opt.Progress.
-type importer func(ctx context.Context, name string, opt Options) (*Result, error)
-
-// An exporter writes a snapshot to a file.
-type exporter func(ctx context.Context, name string, snap *Snapshot, opt ExportOptions) (*ExportResult, error)
-
-// kinds are the formats, in Kind order, which is menu order.
-var kinds = []fileFormat{
-	{CSV, "CSV", "Comma-separated values", []string{".csv"}, false, importCSV, exportCSV},
-	{TSV, "TSV", "Tab-separated values", []string{".tsv", ".tab"}, false, importTSV, exportTSV},
-	{XLSX, "XLSX", "Excel workbook", []string{".xlsx", ".xlsm"}, true, importXLSX, exportXLSX},
-	{SQLite, "SQLite", "SQLite database", []string{".sqlite", ".sqlite3", ".db"}, false, importSQLite, exportSQLite},
-	{Parquet, "Parquet", "Parquet file", []string{".parquet"}, false, importParquet, nil},
-	{WK1, "WK1", "Lotus 1-2-3 worksheet", []string{".wk1", ".wks"}, false, importWK1, nil},
-}
-
-// format returns the kind's format, or nil for an unknown kind.
-func (k Kind) format() *fileFormat {
-	if k < 1 || int(k) > len(kinds) {
-		return nil
-	}
-	return &kinds[k-1]
-}
-
-// Kinds lists every format, in menu order.
-func Kinds() []Kind {
-	out := make([]Kind, len(kinds))
-	for i, k := range kinds {
-		out[i] = k.kind
-	}
-	return out
-}
-
-// String is the format's short name, e.g. "XLSX".
-func (k Kind) String() string {
-	if f := k.format(); f != nil {
-		return f.name
-	}
-	return "unknown"
-}
-
-// Label says what a file of this kind is, e.g. "Excel workbook".
-func (k Kind) Label() string {
-	if f := k.format(); f != nil {
-		return f.label
-	}
-	return ""
-}
-
-// Ext is the extension written for this kind, e.g. ".xlsx".
-func (k Kind) Ext() string {
-	if f := k.format(); f != nil {
-		return f.exts[0]
-	}
-	return ""
-}
-
-// CanExport reports whether sheets can be written in this format.
-func (k Kind) CanExport() bool {
-	f := k.format()
-	return f != nil && f.write != nil
-}
-
-// KindOf recognizes a file's format by its extension.
-func KindOf(name string) (Kind, bool) {
-	ext := strings.ToLower(filepath.Ext(name))
-	for _, k := range kinds {
-		for _, e := range k.exts {
-			if e == ext {
-				return k.kind, true
-			}
-		}
-	}
-	return 0, false
-}
 
 // Progress reports how far an import has got. The importer updates it
 // from its goroutine; the UI reads it on a timer.
@@ -222,13 +118,12 @@ func Import(ctx context.Context, name string, opt Options) (*Result, error) {
 }
 
 func importKind(ctx context.Context, name string, k Kind, opt Options) (*Result, error) {
-	f := k.format()
-	r, err := f.read(ctx, name, opt)
+	r, err := k.format().read(ctx, name, opt)
 	if err != nil {
 		return nil, err
 	}
 	// A file of one table becomes one sheet named after it, as in Sheets.
-	if book := r.Sheet.Book(); !f.book && book.Len() == 1 {
+	if book := r.Sheet.Book(); !k.HoldsSheets() && book.Len() == 1 {
 		base := strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))
 		if opt.Table != "" {
 			base = opt.Table
