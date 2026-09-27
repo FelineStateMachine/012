@@ -55,6 +55,7 @@ var layoutScreens = []screen{
 		s.keys("<ctrl+home>") // the pointer on the merged title
 		s.waitForBar("A1", "Trip to Lisbon")
 	}},
+	{name: "layout-high-contrast", opts: options{config: highContrastConfig}, setup: tripPlan},
 	{name: "layout-merge-confirm", setup: func(s *session) {
 		budget(s)
 		s.keys("<up>", "<up>", "<up>", "<left>", "<shift+right>", "<shift+down>")
@@ -77,7 +78,7 @@ var layoutScreens = []screen{
 func init() {
 	for _, sc := range layoutScreens {
 		screens = append(screens, sc)
-		if sc.name != "layout-narrow" {
+		if sc.name != "layout-narrow" && sc.name != "layout-high-contrast" {
 			sc.name += "-light"
 			sc.opts.light = true
 			screens = append(screens, sc)
