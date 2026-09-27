@@ -2,7 +2,7 @@
 // and TSV, Excel workbooks, SQLite databases, Parquet files and Lotus
 // 1-2-3 worksheets. Everything is pure Go. The sheet package knows none
 // of these formats: importers build a sheet through its public API
-// (Load, SetColWidth, RecalcAll) and exporters read a Snapshot of one.
+// (Load, LoadColWidth, RecalcAll) and exporters read a Snapshot of one.
 // Each format is a row of the table in formats.go and a file of its own.
 package fileio
 

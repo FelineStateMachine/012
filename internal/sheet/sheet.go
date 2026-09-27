@@ -51,9 +51,10 @@ func (c *Cell) Blank() bool { return c == nil || c.Input == "" }
 
 // Sheet is a sparse worksheet, one of a Workbook's sheets.
 type Sheet struct {
-	wb   *Workbook
-	name string
-	live bool // in the workbook's list; false once deleted
+	wb        *Workbook
+	name      string
+	live      bool // in the workbook's list; false once deleted
+	tabHidden bool // left out of the tabs; see hidden.go
 
 	cells  cellStore // see store.go
 	widths map[int]int

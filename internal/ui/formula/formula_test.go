@@ -25,6 +25,13 @@ func TestScanCaret(t *testing.T) {
 		{"=A1+1|", "", "", 0},
 		{"=SU|M(1)", "", "", 0},
 		{"=Sales|", "Sales", "", 0},
+		// Sheet names: quoted ones are a word from the quote on, and
+		// what's inside the quotes doesn't open calls or arguments.
+		{"=SUM('Q3 p|", "'Q3 p", "SUM", 0},
+		{"='|", "'", "", 0},
+		{"=SUM('a(b, c'!A1, |", "", "SUM", 1},
+		{"='Q3 plan'!A|", "A", "", 0},
+		{"=Summary!B|", "B", "", 0},
 	} {
 		i := strings.Index(tc.text, "|")
 		buf := []rune(strings.Replace(tc.text, "|", "", 1))

@@ -13,9 +13,10 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
-// Formula assistance, as in Sheets: while a function or range name is
-// being typed, a list of matching functions and named ranges drops down
-// from the formula bar at the caret, and while the caret is inside a
+// Formula assistance, as in Sheets: while a function, range or sheet
+// name is being typed, a list of matching functions, named ranges and
+// other sheets (assistsheets.go) drops down from the formula bar at the
+// caret, and while the caret is inside a
 // function's parentheses the context line shows its signature with the
 // current argument marked. The list takes only the keys Sheets gives it
 // (Up/Down, Tab, Enter, Esc) and only while it shows, so arrows after an
@@ -34,21 +35,24 @@ const assistRows = 8
 
 const assistID = "assist"
 
-// suggestion is a function or named range offered for the word at the
-// caret.
+// suggestion is a function, named range or sheet offered for the word
+// at the caret.
 type suggestion struct {
-	name   string // e.g. "SUM" or "Sales"
-	detail string // the signature, or the range a name stands for
+	name   string // e.g. "SUM", "Sales" or "'Q3 plan'!"
+	detail string // the signature, the range a name stands for, or a sheet's cells
 	desc   string
 	fn     bool // a function: accepting it adds "("
 }
 
-// suggestions lists the functions and named ranges for word: those
-// starting with it first (names before functions), then, from two
-// letters on, those containing it, such as COUNTIFS for "ifs". A word
-// that is already a cell reference only gets names and functions that
-// start with it.
+// suggestions lists the functions, named ranges and sheets for word:
+// those starting with it first (names, then sheets, then functions),
+// then, from two letters on, those containing it, such as COUNTIFS for
+// "ifs". A word that is already a cell reference only gets those that
+// start with it, and a word in quotes ('Q3) only sheets.
 func suggestions(sh *sheet.Sheet, word string) []suggestion {
+	if rest, quoted := strings.CutPrefix(word, "'"); quoted {
+		return sheetSuggestions(sh, strings.ToUpper(rest))
+	}
 	w := strings.ToUpper(word)
 	var prefix, inner []suggestion
 	add := func(s suggestion, name string) {
@@ -61,6 +65,9 @@ func suggestions(sh *sheet.Sheet, word string) []suggestion {
 	}
 	for _, n := range sh.Names() {
 		add(suggestion{name: n.Name, detail: n.Ref(), desc: "Named range " + n.Name + ": " + n.Ref()}, strings.ToUpper(n.Name))
+	}
+	for _, s := range otherSheets(sh) {
+		add(sheetSuggestion(s), strings.ToUpper(s.Name()))
 	}
 	for _, f := range sheet.Funcs() {
 		add(suggestion{name: f.Name, detail: f.Name + "(" + f.Args + ")", desc: f.Desc, fn: true}, f.Name)
@@ -83,7 +90,7 @@ func (a *assist) shown(m *Model) ([]suggestion, int) {
 	if c.Word == "" {
 		return nil, 0
 	}
-	list := suggestions(m.sheet, c.Word)
+	list := suggestions(m.entrySheet(), c.Word)
 	if len(list) == 0 || len(list) == 1 && !list[0].fn && strings.EqualFold(list[0].name, c.Word) {
 		return nil, 0
 	}
@@ -127,6 +134,9 @@ func (a *assist) accept(m *Model, s suggestion, start int) {
 	rest := m.line.buf[m.line.pos:]
 	if s.fn && (len(rest) == 0 || rest[0] != '(') {
 		text = append(text, '(')
+	}
+	if strings.HasSuffix(s.name, "!") {
+		rest = trimSheetEnd(rest) // the rest of a sheet name typed before
 	}
 	pos := start + len(text)
 	if s.fn && len(rest) > 0 && rest[0] == '(' {

@@ -23,6 +23,14 @@ func (s *Sheet) Load(a Addr, input string, f Format, st Style) error {
 	return nil
 }
 
+// LoadColWidth sets column c's width, as a loader does: without
+// recording undo or recalculating.
+func (s *Sheet) LoadColWidth(c, w int) {
+	if c >= 0 && c < MaxCols {
+		s.setWidth(c, w)
+	}
+}
+
 // Unload removes a cell a loader stored, as an importer does with a row
 // that doesn't fit whole.
 func (s *Sheet) Unload(a Addr) { s.place(a, nil) }

@@ -119,6 +119,12 @@ client: the window size and its changes, the colors (from the `TERM`
 the client sends), the light or dark background, kitty graphics, and
 the clipboard, which Ctrl+C sets on the client's machine through OSC 52.
 
+[Macros](macros.md) can be recorded, run, renamed and deleted in a
+session, but not edited as scripts: that would start an editor on the
+server. A file's macros ask for trust once per session, since the
+session isn't the server's own computer, and scripts have no file,
+network or clock access in any case.
+
 ## Two sessions, one file
 
 Opening the same file in two sessions gives two copies. Saving over a

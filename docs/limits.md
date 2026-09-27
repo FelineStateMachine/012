@@ -26,14 +26,14 @@ it lags, and past a second it stalls.
 | Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1 to 2 ms); 1000 SUMs over a full column: 0.7 ms; 8192 running totals: 2.7 ms | | | About 20 ns per cell read: two map lookups |
 | Full recalc | Any sheet: under 40 ms for 213 k numbers; 1000 full-column SUMs 1.1 ms; 8192 running totals 2.6 ms | | | Same as above |
 | Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
-| Selection statistics | Any selection, once computed (cached) | Extending a selection over 2 M cells: 30 ms per key | | Summing 2 M map entries per change |
-| Imports | CSV, SQLite, Parquet: 1 to 3 M cells/s (two million cells in about 1 s) | XLSX with formulas: 200 k cells/s | Data past `max-cells` or the grid (dropped, with a note) | Building cells one at a time; XLSX formula translation |
+| Selection statistics | Any selection: extending one over all 2 M cells costs 0.5 ms a key | | | Per column with data, 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
+| Imports | CSV, SQLite, Parquet: 1 to 3 M cells/s (two million cells in about 1 s); XLSX numbers or text: 0.7 to 1.1 M cells/s | XLSX with formulas: 0.4 to 0.6 M cells/s | Data past `max-cells` or the grid (dropped, with a note); XLSX files past the reader's limits (refused) | Building cells one at a time; XML decoding; XLSX formula translation |
 | Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 250 MB | | Whole-cell before-images, about 300 B per cell per step |
-| JEV | Up to about 1000 JEV cells: 0.3 ms of CPU per answer | 4000 JEV cells: 1.3 ms per answer, 5 s of CPU to answer them all | | Every answer recalculates every JEV cell (they're volatile) |
-| Formula depth | 10,000 nested parentheses or IFs: under 5 ms | | No explicit limit; recursion grows the stack | Recursive parser and evaluator |
+| JEV | 4000 JEV cells: 4 us of CPU per answer, 15 ms to answer them all | | | An answer recalculates the cells that asked it; answers within a frame recalculate together |
+| Formula depth | 1000 nested parentheses or IFs: under 0.5 ms; chains of formulas through every cell of a sheet | | More than 1024 levels of nesting in one formula: a parse error | Recursive parser; evaluation puts off cells past 65,536 levels |
 | Macros | Replaying 1000 recorded actions: 2.2 ms, one undo step; a script's call to the sheet: about 1.4 us | | Scripts past 10 M Starlark steps: stopped, with the line | One message per call to the sheet, served in batches on the UI goroutine |
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
-| SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 16.6 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 60 fps pacing; per session, the terminal's cell buffers |
+| SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 8.7 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 120 fps pacing; per session, the terminal's cell buffers |
 | Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 1 to 4 ms | | Results past the grid (the pivot shows #REF!) | Reading each source cell of its fields: a map lookup each |
 
 ## Sheet size
@@ -51,8 +51,13 @@ cells, as they always did; only the grid is no longer a cost.
 | Live heap | 64 MB | 602 MB (about 300 B per number cell) |
 | Save `.012` (JSON, one line per cell) | 74 ms, 4.6 MB | 1.04 s, 47 MB |
 | Open `.012` | 134 ms (116 MB allocated) | 2.08 s (1.3 GB allocated) |
-| Export CSV / TSV / XLSX / SQLite | 41 / 55 / 87 / 40 ms | 0.71 / 0.66 / 0.91 / 0.72 s |
+| Export CSV / TSV / XLSX / SQLite | 41 / 55 / 62 / 40 ms | 0.71 / 0.66 / 0.81 / 0.72 s |
 | Frame at 200 x 60, whole | 1.06 ms | 1.05 ms |
+
+XLSX exports are written by 012 with archive/zip since excelize went:
+measured back to back with the excelize writer, 8192 x 26 went from 335
+to 62 ms and 379 to 1.9 MB allocated, 8192 x 256 from 0.97 to 0.81 s
+(mostly compression) and 259 to 17 MB allocated.
 
 Heap per non-blank cell after loading (`BenchmarkMemory`,
 `BenchmarkImport`): numbers 301 B, formulas 707 B (the parsed tree and
@@ -80,11 +85,15 @@ Every volatile formula is recomputed on every change, as in Sheets, so
 8192 volatile cells add about 1.2 ms to every edit anywhere.
 
 Through a real terminal (`make stress-e2e`: 200 x 60, 8192 x 26 imported,
-200 SUMs over column A): arrow keys p50 16.7 ms, p95 17.5 ms; an entry
-that recalculates the 200 SUMs p50 57 ms, p95 72 ms. The arrow floor is
-Bubble Tea's renderer, which draws at most 60 frames a second, so a key
-waits up to 16 ms for the next frame; 012's own share of an arrow key is
-0.2 to 1 ms.
+200 SUMs over column A): arrow keys p50 8.3 ms, p95 10.2 ms; an entry
+that recalculates the 200 SUMs p50 62 to 70 ms, p95 67 to 75 ms. The
+arrow floor is Bubble Tea's renderer, which draws at most 120 frames a
+second (`ui.FrameRate`, its maximum; the default is 60), so a key waits
+up to 8 ms for the next frame; 012's own share of an arrow key is 0.2
+to 1 ms. At 60 frames a second the same arrows took p50 16.6 ms, p95
+18.4 ms. The renderer writes a frame only when the view changed, so an
+idle 012 costs the same at either rate: 0.6 to 2.2 ms of CPU a second
+on an empty sheet over 30 s, within the noise of measuring it.
 
 ## Rendering
 
@@ -113,9 +122,29 @@ when its data, size or theme changes: 25 to 260 us at 24 x 10 cells and
 is 0.21 ms at 80 x 24 and 1.06 ms at 200 x 60; Page Down 1.26 ms.
 
 With the whole of an 8192 x 256 sheet selected, the status line's Sum,
-Avg and Count cover 2.1 M cells: 29 ms to compute, then cached until a
-cell changes, so frames with a standing selection cost 0.3 ms; each key
-that changes the selection pays the 29 ms again.
+Avg and Count cover 2.1 M cells. On a sheet of more than 16,384 cells,
+a selection of more than 4096 is summed from an index of each column's
+sum, count and count of numbers in blocks of 64 rows (`internal/sheet/stats.go`):
+the whole blocks it covers, plus the rows at its ends a cell at a time.
+The index is built on first use, in one pass over the cells (the 30 ms
+the whole sum used to take every time), and a stored, deleted or
+recalculated cell marks its block to be summed again when a selection
+next covers it. Sums are recomputed, never adjusted, so they don't
+drift. The result is still cached until a cell changes. Each key that
+changes a selection over the whole sheet, through to its frame
+(`BenchmarkKeystroke`, 3 runs each, same machine):
+
+| Key, 8192 x 256 numbers | 80 x 24 before | after | 200 x 60 before | after |
+|---|---|---|---|---|
+| Shift+Up and Shift+Down with the data selected (`extend-data`) | 31 to 44 ms | 0.53 ms | 32 to 46 ms | 2.1 ms |
+| Ctrl+Shift+Down and Ctrl+Shift+Up over the first row (`extend-edge`) | 16 to 23 ms | 0.43 ms | 18 to 24 ms | 1.7 ms |
+| Ctrl+A, the selection standing (`select-data`) | 0.30 ms | 0.30 ms | 1.8 ms | 1.8 ms |
+
+A CPU profile of `extend-data` before put 54% of the time in
+`RangeStats` walking the map; the rest is building the benchmark's sheet.
+The index costs 0.5 MB per sheet that has one (32,768 blocks of 16 B),
+nothing on sheets that never had a large selection, and a nil check per
+stored or recalculated cell.
 
 ## Imports
 
@@ -128,7 +157,7 @@ Real, openly licensed datasets fetched by `scripts/stress-data.sh`
 | Airport codes (CSV) | 86,134 x 13, first 8192 rows kept | 83 ms | 107 MB/s | 274 B |
 | NOAA daily CO2 (CSV) | 18,304 x 2 | 6 ms | 2.7 M cells/s | 294 B |
 | Country codes (CSV, Arabic, CJK) | 249 x 56 | 5.6 ms | 2.2 M cells/s | 272 B |
-| Apache POI formula tests (XLSX) | 788 rows, 1189 formulas | 19 ms | 205 k cells/s | 358 B |
+| Apache POI formula tests (XLSX) | 788 rows, 1189 formulas, 3828 cells | 9.7 ms | 395 k cells/s | 425 B |
 | Chinook PlaylistTrack (SQLite) | 8715 x 2 | 5.5 ms | 3.0 M cells/s | 293 B |
 | Parquet alltypes_tiny_pages | 7300 x 13 | 40 ms | 2.4 M cells/s | 276 B |
 
@@ -139,9 +168,36 @@ CSV, TSV and SQLite queries are read to their end to count it, without
 keeping it. The table above is from before the grid grew, when files
 were cut at row 8192; now the airport codes (855 k cells, 0.80 s) and
 OWID energy (1.04 M cells, 0.95 s) come in whole, at the same rate of
-about a million cells a second. Every importer but XLSX
-streams, so memory follows the sheet, not the file; excelize holds an
-XLSX worksheet in memory while its rows are read.
+about a million cells a second. Every importer streams,
+so memory follows the sheet, not the file. XLSX used to go through
+excelize, which held each worksheet in memory while its rows were read;
+012's own reader streams it a token at a time, keeping only the shared
+strings (in one buffer, 4 bytes a string besides the text), the cell
+formats, and the first cell of each shared formula.
+
+XLSX imports of full sheets written by 012's exporter
+(`BenchmarkImportXLSX`) and the POI file, before (excelize) and after
+(012's reader), on an Apple M5 Pro. Peak heap is sampled while
+importing, per cell kept, and includes garbage not yet collected:
+
+| Workbook | Time | Allocated | Allocations | Heap per cell after | Peak heap per cell |
+|---|---|---|---|---|---|
+| 8192 x 26 numbers (213 k cells) | 480 -> 199 ms | 491 -> 170 MB | 8.4 -> 3.3 M | 304 -> 290 B | 1365 -> 589 B |
+| 8192 x 26 table, text and numbers | 642 -> 296 ms | 644 -> 234 MB | 14.4 -> 7.4 M | 297 -> 297 B | 1432 -> 722 B |
+| 8192 formulas (`=A1+1` down a column) | 33 -> 13.9 ms | 38 -> 17 MB | 718 -> 321 k | 752 -> 746 B | 4790 -> 2188 B |
+| Apache POI formula tests | 21.1 -> 9.7 ms | 22 -> 9.7 MB | 373 -> 179 k | 429 -> 425 B | 2343 -> 1288 B |
+
+The reader refuses files past `xlsxLimits` (in `internal/fileio/xlsxpkg.go`),
+with a message naming the limit: 10,000 files in the zip; 1 GB
+uncompressed in one part and 2 GB in all, counted as the bytes come out
+whatever the zip's headers say; a part compressed more than 250 to 1
+once past 16 MB (a zip bomb); XML nested more than 256 deep or a single
+tag or text over 32 MB; 16.7 M shared strings; 65,536 cell formats,
+fonts, number formats or names; 4096 sheets; 256 MB of text from
+expanding shared formulas; rows past 1,048,576, columns past XFD and
+rows of more than 16,384 cells; part names that are absolute, climb with
+`..` or hold a backslash. encoding/xml expands no external or declared
+entities, so entity bombs fail as unknown entities.
 
 ## Undo
 
@@ -171,20 +227,65 @@ BigUndo's 3%; everything else is unchanged.
 ## JEV
 
 Each JEV formula is volatile: every recalculation looks its question up
-in the cache, and every answer that arrives recalculates all JEV
-cells. With a fake client answering instantly (`BenchmarkJEV`), the CPU
-per answer grows with the number of JEV cells:
+in the cache. A formula shown Loading… is noted against the question it
+waits for (by `RemoteCall.Key`), and an answer recalculates only the
+formulas waiting for it and what reads them
+(`Workbook.RecalcAnswered`). Answers are stored as they arrive; the
+first since the last recalculation schedules one a frame later
+(`ui.FrameInterval`), which covers every answer stored meanwhile, so
+answers arriving together recalculate once. With a fake client
+answering instantly (`BenchmarkJEV`, 3 runs each, same machine; the
+benchmark doesn't wait the frame, so answers queued together, up to 8,
+recalculate together):
 
-| JEV cells | Per answer | All answers |
-|---|---|---|
-| 100 | 26 us | 2.7 ms |
-| 1000 | 261 us | 0.26 s |
-| 4000 | 1.3 ms | 5.1 s |
+| JEV cells | Per answer before | after | All answers before | after |
+|---|---|---|---|---|
+| 100 | 29 us | 3.5 us | 2.9 ms | 0.35 ms |
+| 1000 | 270 us | 3.6 us | 0.27 s | 3.6 ms |
+| 4000 | 1.2 ms | 3.8 us | 4.9 s | 15 ms |
 
 Against the real service the network dominates: at most 8 questions are
-in flight, so 4000 questions at 300 ms each take 2.5 minutes, of which
-5 s is recalculation spread over that time. Each answer blocks the UI
-for its recalculation (1.3 ms at 4000 cells).
+in flight, so 4000 questions at 300 ms each take 2.5 minutes, and the
+recalculation is now a few microseconds per answer whatever the number
+of JEV cells. Other changes still recalculate every JEV cell, as every
+volatile formula, looking the answers up in the cache.
+
+## Formula depth
+
+The parser (`internal/formula`) counts nesting as it recurses:
+parentheses, function calls and prefix operators each open a level. Past
+`formula.MaxDepth`, 1024 levels, a formula fails to parse with "Formula
+is nested too deeply (more than 1024 levels)", shown on the context line
+with the caret at the level past the cap, as other parse errors are.
+Excel allows 64 nested functions; 1024 is far beyond a formula written
+by hand, and bounds the recursion of everything that walks a formula
+(the printer, reference rewriting, the evaluator within one formula). A
+`.012` file holding a deeper formula (none could have been written by
+hand) fails to open with that message and the cell; imports keep such a
+formula's text or cached value, as for any formula they can't read.
+
+Evaluation recurses once per link of a chain of formulas, which no
+parser cap bounds: a chain through all 2.1 M cells of a sheet used to
+overflow the goroutine's 1 GB stack and kill the program. Evaluation now
+counts its depth in cells and operators; a cell reached past 65,536
+levels is put off: the evaluation in progress is abandoned (its cells go
+back to dirty), the cell is evaluated from the top of the stack, and the
+abandoned evaluation is retried and finds it done. Values are exactly as
+before, a cycle longer than the limit is still a cycle, and the stack
+stays under 32 MB (`TestFullSheetChain`, run with
+`SHEET_FULL_CHAIN=1`, checks it under a 64 MB limit: 4 s for 2.1 M
+cells, building included).
+
+Same machine, 8 runs each with before and after interleaved, other
+work running (differences under 10% are noise):
+
+| Benchmark | Before | After |
+|---|---|---|
+| Parse (`BenchmarkParse`) | 2.36 us | 2.41 us |
+| 1000 nested parentheses / IFs, parse and evaluate | 195 / 425 us | 203 / 438 us |
+| 10,000 nested parentheses / IFs | 1.8 / 4.4 ms, accepted | 1.1 / 2.0 ms to refuse |
+| RecalcAll chain of 8192 / dense 8192 x 26 | 1.33 / 50 ms | 1.28 to 1.38 / 41 to 51 ms |
+| Edit chain of 8192 / 8192 volatiles | 2.36 / 1.68 ms | 2.34 / 1.72 ms |
 
 ## Several sheets
 
@@ -227,7 +328,7 @@ session press an arrow key at once, 200 times, timing each key from the
 client's write to the first bytes of its frame arriving. The clients
 run in the same process, so the heap and CPU figures include their side
 of the connections and are upper bounds for the server. Medians of 3
-runs, `-benchtime 200x`:
+runs, `-benchtime 200x`, at 60 frames a second:
 
 | Sessions, sheet | Heap per session | Key to frame p50 / p95 / max | CPU per frame |
 |---|---|---|---|
@@ -236,8 +337,18 @@ runs, `-benchtime 200x`:
 | 50, new sheet | 1.30 MiB | 9.2 / 16.3 / 19.2 ms | 0.53 ms |
 | 50, 1000 x 26 numbers | 8.5 MiB | 9.4 / 16.7 / 20.5 ms | 0.69 ms |
 
+Sessions now ask for 120 frames a second, as the local app does. One
+run each, back to back, before and after:
+
+| Sessions, sheet | p50 / p95 / max at 60 fps | at 120 fps | CPU per frame, 60 / 120 fps |
+|---|---|---|---|
+| 10, new sheet | 10.8 / 16.6 / 16.8 ms | 5.1 / 8.3 / 9.6 ms | 0.78 / 0.67 ms |
+| 10, 1000 x 26 numbers | 9.7 / 16.6 / 20.7 ms | 4.3 / 8.3 / 8.5 ms | 1.41 / 0.71 ms |
+| 50, new sheet | 9.3 / 16.3 / 18.5 ms | 5.0 / 8.7 / 17.8 ms | 0.58 / 0.53 ms |
+| 50, 1000 x 26 numbers | 9.5 / 16.7 / 19.7 ms | 5.1 / 8.9 / 12.8 ms | 0.71 / 0.66 ms |
+
 Latency doesn't move from 10 to 50 sessions: it's Bubble Tea's frame
-pacing (at most one frame every 16.7 ms, so a key waits half a frame on
+pacing (at most one frame every 8.3 ms, so a key waits half a frame on
 average), not load. A heap profile with 50 sessions open
 (`SERVE_HEAP_PROFILE=file`) puts three quarters of a session's heap in
 Bubble Tea's render buffers (about 1 MiB at 120 x 40, growing with the
@@ -247,7 +358,9 @@ top come about 300 B per cell of the sheets a session has open;
 sessions opening the same file each hold a copy. CPU per frame covers both ends of the connection (the
 encryption twice, the client reading the frame); at 0.7 ms, 50 sessions
 typing continuously at 60 frames a second would keep about two cores
-busy.
+busy, and at 120 about four: frames are drawn only when a session's
+screen changes, so the rate is the most keys can cause, not a cost of
+being connected.
 
 ## Pivot tables
 
@@ -363,6 +476,10 @@ Each with its benchmark before and after, in the commit that fixed it.
 | Aggregates read every cell of every range, 1000 identical SUMs a thousand times, running totals O(n^2) | Fan-in and running-total edits | Edit/fanin 176 ms, running 0.73 s | 0.72 ms, 2.7 ms (running aggregates shared per recalculation) |
 | Range users bucketed by a fixed array of 256 columns, scanned whole per changed cell | 16,384 columns; whole-row ranges in every bucket | | Interval trees per column, wide ranges in one tree |
 | A range read visited every address, blank or not | A whole column is a million addresses | | Occupancy index: only stored cells are visited |
+| Changing a selection summed every cell in it | CPU profile of Shift+Up over the whole sheet: `RangeStats` 54% | extend-data 80 x 24: 31 to 44 ms | 0.53 ms |
+| Every JEV answer recalculated every JEV cell | Per-answer cost grew with the number of JEV cells | JEV/4000 4.9 s | 15 ms |
+| Bubble Tea drew at most 60 frames a second | Arrow keys through a terminal waited for the next frame | p50 16.6 ms, p95 18.4 ms | 8.3 ms, 10.2 ms |
+| Lazy evaluation recursed once per link of a chain | A chain through all 2 M cells of a sheet overflowed the 1 GB stack and killed the program | crash | 4 s to build and evaluate, under 32 MB of stack |
 
 ## What would raise the bounds
 
@@ -391,26 +508,20 @@ is done: see Step A.)
    allocation tenfold; a columnar or gzip-compressed variant would cut
    the size about fourfold. The format is `internal/sheet/file.go`, apart
    from the cell store.
-3. **Incremental selection statistics** (S, 2 days). Keep per-column
-   sums and counts, updated in `place` and after recalc, and compute a
-   selection's Sum and Count from column totals minus the rows outside
-   it; extending a whole-sheet selection would drop from 29 ms to well
-   under 1 ms.
-4. **JEV recalc by question** (S to M, 3 days). Index JEV cells by
-   question key and recalculate only the cells whose question was
-   answered (and their dependents), and coalesce answers that arrive in
-   the same frame: answering 4000 questions would cost 4000 small
-   recalcs instead of 4000 full ones.
+3. **Incremental selection statistics.** Done: per-column block
+   aggregates, marked stale as cells change (see [Rendering](#rendering));
+   extending a whole-sheet selection went from 31 to 44 ms to 0.53 ms.
+4. **JEV recalc by question.** Done: an answer recalculates the cells
+   waiting for it, and answers within a frame recalculate together (see
+   [JEV](#jev)); answering 4000 questions went from 4.9 s of CPU to
+   15 ms.
 5. **Smaller undo steps** (S, 1 day). The history is capped by the
    memory its before-images hold; storing formatting-only changes as
    diffs rather than whole cells would let it keep more of them.
-6. **Frame rate** (S, hours). Bubble Tea draws at most 60 frames a
-   second; asking for 120 would halve the key-to-screen floor from about
-   16 ms to 8 ms at the cost of more redraws.
-7. **Recursion limits** (S, hours). The parser (`internal/formula`) and
-   the evaluator recurse without a limit; a depth cap (Excel allows 64
-   nested functions) would turn a pathological file into an error rather
-   than a deep stack.
+6. **Frame rate.** Done: 120 frames a second, Bubble Tea's maximum,
+   locally and over SSH; arrow keys through a terminal went from p50
+   16.6 ms to 8.3 ms, with no more CPU when idle.
+7. **Recursion limits.** Done: see [Formula depth](#formula-depth).
 
 ## Measuring
 

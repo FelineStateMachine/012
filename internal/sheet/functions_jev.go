@@ -64,6 +64,7 @@ func remoteEval(build func([]Node, lookup) (RemoteCall, error), result func(Remo
 		ans, ok := remote.Lookup(call)
 		switch {
 		case !ok:
+			get.w.wait(call)
 			return Pending
 		case ans.Failed != "":
 			return ErrRemote

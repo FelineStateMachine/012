@@ -23,9 +23,10 @@ import (
 // a deleted cell not yet reached isn't yielded, a new one may or may not
 // be.
 type cellStore struct {
-	m      map[Addr]*Cell
-	stored occupancy // every cell in m
-	filled occupancy // the cells with contents (not Blank)
+	m         map[Addr]*Cell
+	stored    occupancy // every cell in m
+	filled    occupancy // the cells with contents (not Blank), with their statistics; see stats.go
+	statsUsed bool      // a selection has been summed from the statistics index
 }
 
 func newCellStore() cellStore { return cellStore{m: make(map[Addr]*Cell)} }
@@ -46,11 +47,13 @@ func (st *cellStore) set(a Addr, c *Cell) {
 		st.filled.unmark(a)
 	}
 	st.m[a] = c
+	st.touch(a)
 }
 
 // delete removes the cell at a, if any.
 func (st *cellStore) delete(a Addr) {
 	if old, ok := st.m[a]; ok {
+		st.touch(a)
 		st.stored.unmark(a)
 		if !old.Blank() {
 			st.filled.unmark(a)
@@ -127,14 +130,14 @@ func (st *cellStore) yieldBlock(in []colBlock, id int, r Rect, yield func(Addr, 
 	base := id << blockShift
 	lo, hi := max(r.From.Row-base, 0), min(r.To.Row-base, blockRows-1)
 	for w := lo >> 6; w <= hi>>6; w++ {
-		var any uint64
+		var occ uint64
 		for _, cb := range in {
-			any |= cb.b.bits[w]
+			occ |= cb.b.bits[w]
 		}
-		any &= wordMask(w, lo, hi)
-		for any != 0 {
-			bit := bits.TrailingZeros64(any)
-			any &^= 1 << bit
+		occ &= wordMask(w, lo, hi)
+		for occ != 0 {
+			bit := bits.TrailingZeros64(occ)
+			occ &^= 1 << bit
 			row := base + w<<6 + bit
 			for _, cb := range in {
 				if cb.b.bits[w]&(1<<bit) == 0 {

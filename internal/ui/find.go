@@ -115,7 +115,7 @@ func (m *Model) openFind(replace bool) {
 			f = &findBar{cur: -1}
 		}
 		f.scope, f.home = nil, m.sheet
-		if f.where == inRange || f.where == inAll && m.book().Len() == 1 {
+		if f.where == inRange || f.where == inAll && len(m.book().Visible()) == 1 {
 			f.where = inSheet
 		}
 		if m.hasRange() {
@@ -170,7 +170,7 @@ func (f *findBar) options() sheet.FindOptions {
 func (f *findBar) sheets(m *Model) []*sheet.Sheet {
 	switch f.where {
 	case inAll:
-		return m.book().Sheets()
+		return m.book().Visible() // a match on a hidden sheet couldn't be shown
 	case inRange:
 		if f.home.Live() {
 			return []*sheet.Sheet{f.home}
@@ -237,7 +237,7 @@ func (f *findBar) step(m *Model, d int) {
 // the sheet, then all sheets (if there are several).
 func (f *findBar) nextScope(m *Model) findScope {
 	order := []findScope{inSheet}
-	if m.book().Len() > 1 {
+	if len(m.book().Visible()) > 1 {
 		order = append(order, inAll)
 	}
 	if f.scope != nil {

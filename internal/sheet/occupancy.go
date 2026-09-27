@@ -25,8 +25,9 @@ const (
 )
 
 type rowBlock struct {
-	bits [blockWords]uint64
-	n    int
+	bits  [blockWords]uint64
+	n     int
+	stats *blockStats // the filled index's statistics, made on first use; see stats.go
 }
 
 // colIndex is the occupancy of one column: its blocks by number (nil

@@ -45,7 +45,7 @@ func system() env {
 		getenv: os.Getenv, keys: keyring.System(),
 		stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr,
 		readKey: readPassword, isTTY: isTerminal(os.Stdin), editorIO: true,
-		runTUI: func(m tea.Model) error { _, err := tea.NewProgram(m).Run(); return err },
+		runTUI: func(m tea.Model) error { _, err := tea.NewProgram(m, tea.WithFPS(ui.FrameRate)).Run(); return err },
 	}
 }
 

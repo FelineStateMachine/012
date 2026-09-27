@@ -118,6 +118,8 @@ func BenchmarkHistoryWide(b *testing.B) {
 	}
 }
 
+// BenchmarkNested enters deeply nested formulas: within the parser's cap
+// (formula.MaxDepth, 1024) they're parsed and evaluated, past it refused.
 func BenchmarkNested(b *testing.B) {
 	for _, depth := range []int{100, 1000, 10000} {
 		for name, f := range map[string]func(int) string{"paren": stress.Nested, "if": stress.NestedIF} {
@@ -125,7 +127,7 @@ func BenchmarkNested(b *testing.B) {
 				s := sheet.New()
 				src := f(depth)
 				for b.Loop() {
-					if err := s.Set(sheet.Addr{Col: 1}, src); err != nil {
+					if err := s.Set(sheet.Addr{Col: 1}, src); (err != nil) != (depth > 1000) {
 						b.Fatal(err)
 					}
 				}

@@ -60,6 +60,7 @@ type fileFormat struct {
 // fileSheet is one sheet of a file.
 type fileSheet struct {
 	Name   string                     `json:"name,omitempty"`
+	Hidden bool                       `json:"hidden,omitempty"` // version 4, ignored by older builds
 	Widths map[string]int             `json:"widths,omitempty"`
 	Lines  map[string]json.RawMessage `json:"lines,omitempty"` // column and row formats, see linefile.go
 	fileView
@@ -215,6 +216,9 @@ func (w *Workbook) Write(out io.Writer) error {
 				b.WriteByte(',')
 			}
 			fmt.Fprintf(&b, "\n    {\n      \"name\": %s,\n", jsonString(s.name))
+			if s.tabHidden {
+				b.WriteString("      \"hidden\": true,\n")
+			}
 			if err := s.writeBody(&b, "      ", ""); err != nil {
 				return err
 			}
@@ -398,6 +402,7 @@ func ReadBook(r io.Reader) (*Workbook, error) {
 		}
 	}
 	w.active = clampInt(f.Active, 0, len(w.sheets)-1)
+	w.settleHidden()
 	// Anything but "decimal" (say, a mode from a later build) computes in
 	// binary, as the file would in a build without the setting.
 	w.decimal = f.Arithmetic == "decimal"
@@ -440,6 +445,7 @@ func (w *Workbook) readNames(names map[string]string) error {
 
 // read fills an empty sheet from its part of a file.
 func (s *Sheet) read(f fileSheet, version int) error {
+	s.tabHidden = f.Hidden
 	for name, width := range f.Widths {
 		c, ok := ParseCol(name)
 		if !ok {

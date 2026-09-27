@@ -19,7 +19,7 @@ func tabX(t *testing.T, m *Model, name string) int {
 	t.Helper()
 	_, spans := m.statusLayout()
 	for _, sp := range spans {
-		if name == "+" && sp.kind == hitTabAdd || sp.kind == hitTab && m.book().Sheet(sp.index).Name() == name {
+		if name == "+" && sp.kind == hitTabAdd || sp.kind == hitTab && m.tabSheet(sp.index).Name() == name {
 			return sp.x + sp.w/2
 		}
 	}

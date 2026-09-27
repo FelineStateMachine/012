@@ -3,6 +3,7 @@ package sheet
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -39,10 +40,18 @@ type Workbook struct {
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
 
-	remote  RemoteSource // answers JEV functions, see remote.go
-	hist    history      // undo and redo, see history.go
-	active  int          // the sheet last shown, saved in the file
-	decimal bool         // decimal arithmetic, see decimal.go
+	remote RemoteSource // answers JEV functions, see remote.go
+	// waiting are the formulas that were shown Loading… by question key,
+	// so an answer recalculates only them; evaluating is the formula
+	// being evaluated, which a question is asked for (see remote.go).
+	waiting    map[string]map[loc]struct{}
+	evaluating loc
+	// depth counts the cells and operators being evaluated, nested; see
+	// evaluate.go.
+	depth   int
+	hist    history // undo and redo, see history.go
+	active  int     // the sheet last shown, saved in the file
+	decimal bool    // decimal arithmetic, see decimal.go
 
 	macros      []Macro // see macros.go
 	macroOrigin string
@@ -163,20 +172,7 @@ func (w *Workbook) nextSheetName() string {
 
 // freeName returns base, or base with a number added ("Copy of Sheet1 2")
 // until no sheet has the name, within the length limit.
-func (w *Workbook) freeName(base string) string {
-	trim := func(s string, n int) string {
-		if r := []rune(s); len(r) > n {
-			return string(r[:n])
-		}
-		return s
-	}
-	name := trim(base, maxSheetName)
-	for n := 2; w.Lookup(name) != nil; n++ {
-		suffix := fmt.Sprintf(" %d", n)
-		name = trim(base, maxSheetName-len(suffix)) + suffix
-	}
-	return name
-}
+func (w *Workbook) freeName(base string) string { return freeIn(base, w) }
 
 // checkName validates a new name for s (nil for a new sheet).
 func (w *Workbook) checkName(s *Sheet, name string) error {
@@ -223,6 +219,7 @@ func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
 	for c, width := range s.widths {
 		cp.widths[c] = width
 	}
+	cp.lines = lineFormats{cols: maps.Clone(s.lines.cols), rows: maps.Clone(s.lines.rows), sheet: s.lines.sheet}
 	cp.view = s.view
 	cp.view.filter = s.view.filter.clone()
 	cp.charts = slices.Clone(s.charts)
@@ -244,6 +241,8 @@ func (w *Workbook) DeleteSheet(s *Sheet) error {
 		return errors.New("That sheet was already deleted")
 	case len(w.sheets) == 1:
 		return errors.New("A spreadsheet needs at least one sheet")
+	case !s.tabHidden && w.visibleCount() == 1:
+		return errLastVisible
 	}
 	w.change(s, "delete sheet "+s.name, Rect{}, func() {
 		w.recordSheets()

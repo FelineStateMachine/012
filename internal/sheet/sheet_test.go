@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"unicode"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 func at(s string) Addr {
@@ -131,6 +133,7 @@ func TestParseErrors(t *testing.T) {
 		{`="abc`, "Missing closing quote"},
 		{"=ROUND()", "Wrong number of arguments to ROUND(value, [places])"},
 		{"=PI(1)", "Wrong number of arguments to PI()"},
+		{"=" + strings.Repeat("(", 2000) + "1" + strings.Repeat(")", 2000), "Formula is nested too deeply (more than 1024 levels)"},
 	}
 	for _, tt := range tests {
 		var pe *ParseError
@@ -234,6 +237,13 @@ func TestParseNumber(t *testing.T) {
 func FuzzParse(f *testing.F) {
 	for _, s := range []string{"=A1*2", "=SUM(A1:B3)", "=IF(AND(A1>2,B1),1,NA())", `="a"&"b"`, "=1.5E-3^2", "$1,200", "12%", "@SUM(A1..B3)", "=$A$1+A$2*$B3", "=SUM($A1:B$3)", "=#REF!+1", "=A$$1"} {
 		f.Add(s)
+	}
+	// Around the nesting cap: parentheses, calls and prefix operators.
+	for _, n := range []int{formula.MaxDepth - 2, formula.MaxDepth + 1, 4 * formula.MaxDepth} {
+		f.Add("=" + strings.Repeat("(", n) + "1" + strings.Repeat(")", n))
+		f.Add("=" + strings.Repeat("ABS(", n) + "A1" + strings.Repeat(")", n))
+		f.Add("=" + strings.Repeat("-+", n/2) + "1")
+		f.Add("=" + strings.Repeat("(", n))
 	}
 	f.Fuzz(func(t *testing.T, in string) {
 		s := New()

@@ -1,17 +1,19 @@
 package fileio
 
 import (
+	"bufio"
+	"fmt"
 	"maps"
-	"math"
 	"slices"
-
-	"github.com/xuri/excelize/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// Column and row styles: Excel keeps a style for a whole column (in
-// <cols>) or row, as 012 keeps line formats; both travel both ways.
+// Column and row styles: Excel keeps a style for whole columns (in
+// <cols>) and rows (a <row>'s s, with customFormat), as 012 keeps line
+// formats; both travel both ways. Excel has no style for the whole
+// sheet: 012's goes out on every column, and a style on both A and XFD
+// comes back as the sheet's.
 
 // LineFormat is the format and style of a whole column or row.
 type LineFormat struct {
@@ -19,9 +21,8 @@ type LineFormat struct {
 	Style  sheet.Style
 }
 
-// snapLines copies a sheet's column (row false) or row formats. Excel
-// has no format for the whole sheet, so with one every column gets it,
-// under its own.
+// snapLines copies a sheet's column (row false) or row formats, the
+// sheet's own format on every column.
 func snapLines(s *sheet.Sheet, row bool) map[int]LineFormat {
 	fs, ss := s.ColFormats(), s.ColStyles()
 	if row {
@@ -46,95 +47,91 @@ func snapLines(s *sheet.Sheet, row bool) map[int]LineFormat {
 	return out
 }
 
-// importXLSXColumns reads the widths and styles of the sheet's columns
-// up to its data's width (at least 256); a style on every column, the
-// last included, is the sheet's.
-func importXLSXColumns(x *excelize.File, b *builder, ws string, styles map[int]xlsxStyle, width int) {
-	styleOfCol := func(name string) (xlsxStyle, bool) {
-		if id, err := x.GetColStyle(ws, name); err == nil && id != 0 {
-			st := styleOf(x, id, styles)
-			return st, st != (xlsxStyle{})
-		}
-		return xlsxStyle{}, false
-	}
+// loadColStyles gives the builder's sheet the styles of its columns, as
+// styleOf (by column from 0) reports them: the sheet's when A and XFD
+// have the same one, and those of the first width columns (at least
+// 256) that differ from it.
+func loadColStyles(b *builder, width int, styleOf func(col int) (xlsxStyle, bool)) {
 	var whole xlsxStyle
-	if first, ok := styleOfCol("A"); ok {
-		if last, _ := styleOfCol("XFD"); last == first {
+	if first, ok := styleOf(0); ok {
+		if last, _ := styleOf(sheet.MaxCols - 1); last == first {
 			whole = first
 			b.s.LoadLineFormat(false, -1, first.format, first.style)
 		}
 	}
-	cols := map[int]xlsxStyle{}
 	for c := range min(max(width, 256), sheet.MaxCols) {
-		colName, _ := excelize.ColumnNumberToName(c + 1)
-		if w, err := x.GetColWidth(ws, colName); err == nil && math.Abs(w-excelDefaultWidth) >= 0.01 && math.Abs(w-9.140625) >= 0.01 {
-			b.s.SetColWidth(c, max(int(math.Round(w))+excelPadding, 1))
-		}
-		if st, ok := styleOfCol(colName); ok && st != whole {
-			cols[c] = st
-		}
-	}
-	for c, st := range cols {
-		b.s.LoadLineFormat(false, c, st.format, st.style)
-	}
-}
-
-// importXLSXRowStyle keeps the style of row, if it has one of its own.
-func importXLSXRowStyle(x *excelize.File, b *builder, rows *excelize.Rows, row int, styles map[int]xlsxStyle) {
-	if id := rows.GetRowOpts().StyleID; id != 0 && row < sheet.MaxRows {
-		if st := styleOf(x, id, styles); st != (xlsxStyle{}) {
-			b.s.LoadLineFormat(true, row, st.format, st.style)
+		if st, ok := styleOf(c); ok && st != whole {
+			b.s.LoadLineFormat(false, c, st.format, st.style)
 		}
 	}
 }
 
-// colStyles sets the snapshot's column styles on a stream, before any
-// row: runs of columns with the same style as one range.
-func (w *xlsxWriter) colStyles(sw *excelize.StreamWriter, cols map[int]LineFormat) error {
-	ns := slices.Sorted(maps.Keys(cols))
-	for i := 0; i < len(ns); {
+// loadRowStyle gives row (from 0) of the builder's sheet its style.
+func loadRowStyle(b *builder, row int, st xlsxStyle) {
+	if st != (xlsxStyle{}) && row >= 0 && row < sheet.MaxRows {
+		b.s.LoadLineFormat(true, row, st.format, st.style)
+	}
+}
+
+// colSpec is what <cols> says of a column: its width (0 for the
+// default) and style.
+type colSpec struct {
+	width int
+	style int
+}
+
+// writeCols writes <cols>: the columns with a width or a format, runs
+// of columns alike as one <col>.
+func (w *xlsxWriter) writeCols(bw *bufio.Writer, snap *Snapshot) {
+	specs := map[int]colSpec{}
+	for c, width := range snap.Widths {
+		specs[c] = colSpec{width: max(width-excelPadding, 1)}
+	}
+	for c, l := range snap.ColFormats {
+		sp := specs[c]
+		sp.style = w.styles.id(l.Format, l.Style)
+		specs[c] = sp
+	}
+	if len(specs) == 0 {
+		return
+	}
+	bw.WriteString(`<cols>`)
+	cs := slices.Sorted(maps.Keys(specs))
+	for i := 0; i < len(cs); {
 		j := i + 1
-		for j < len(ns) && ns[j] == ns[j-1]+1 && cols[ns[j]] == cols[ns[i]] {
+		for j < len(cs) && cs[j] == cs[j-1]+1 && specs[cs[j]] == specs[cs[i]] {
 			j++
 		}
-		l := cols[ns[i]]
-		id, err := w.styleFor(l.Format, l.Style)
-		if err != nil {
-			return err
+		sp := specs[cs[i]]
+		fmt.Fprintf(bw, `<col min="%d" max="%d"`, cs[i]+1, cs[j-1]+1)
+		if sp.width > 0 {
+			fmt.Fprintf(bw, ` width="%d" customWidth="1"`, sp.width)
 		}
-		if err := sw.SetColStyle(ns[i]+1, ns[j-1]+1, id); err != nil {
-			return err
+		if sp.style > 0 {
+			fmt.Fprintf(bw, ` style="%d"`, sp.style)
 		}
+		bw.WriteString(`/>`)
 		i = j
 	}
-	return nil
+	bw.WriteString(`</cols>`)
 }
 
-// rowOpts is how the stream writes row: with its style, if it has one.
-func (w *xlsxWriter) rowOpts(rows map[int]LineFormat, row int) ([]excelize.RowOpts, error) {
-	l, ok := rows[row]
-	if !ok {
-		return nil, nil
+// rowStart writes a <row> start tag, with the row's style if it has one.
+func (w *xlsxWriter) rowStart(bw *bufio.Writer, snap *Snapshot, row int) {
+	fmt.Fprintf(bw, `<row r="%d"`, row+1)
+	if l, ok := snap.RowFormats[row]; ok {
+		fmt.Fprintf(bw, ` s="%d" customFormat="1"`, w.styles.id(l.Format, l.Style))
 	}
-	id, err := w.styleFor(l.Format, l.Style)
-	return []excelize.RowOpts{{StyleID: id}}, err
+	bw.WriteString(`>`)
 }
 
-// styledRowsAfter writes the rows past the exported range that have a
-// style of their own, as empty rows.
-func (w *xlsxWriter) styledRowsAfter(sw *excelize.StreamWriter, rows map[int]LineFormat, last int) error {
-	for _, row := range slices.Sorted(maps.Keys(rows)) {
-		if row <= last {
-			continue
-		}
-		opts, err := w.rowOpts(rows, row)
-		if err != nil {
-			return err
-		}
-		cell, _ := excelize.CoordinatesToCellName(1, row+1)
-		if err := sw.SetRow(cell, nil, opts...); err != nil {
-			return err
-		}
+// styledRows writes, as empty rows, the styled rows (ascending) before
+// row to, returning those left.
+func (w *xlsxWriter) styledRows(bw *bufio.Writer, snap *Snapshot, rows []int, to int) []int {
+	for len(rows) > 0 && rows[0] < to {
+		w.rowStart(bw, snap, rows[0])
+		bw.WriteString(`</row>`)
+		rows = rows[1:]
 	}
-	return nil
+	return rows
 }

@@ -131,6 +131,9 @@ func (m *Model) recordingCommand(c *command) tea.Cmd {
 	cmd := c.run(m)
 	r.depth--
 	_, choosing := m.overlay.(*choiceBar)
+	if p, ok := m.overlay.(*picker); ok && p.answers {
+		choosing = true
+	}
 	switch {
 	case m.mode == modePrompt || choosing:
 		r.pending = c.id // recorded once answered

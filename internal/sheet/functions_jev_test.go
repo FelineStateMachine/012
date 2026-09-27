@@ -109,3 +109,45 @@ func TestJEVWithoutKey(t *testing.T) {
 		t.Errorf("no key: %+v", s.Value(at("A1")))
 	}
 }
+
+// An answer recalculates the formulas that asked it and what reads them,
+// not every JEV formula.
+func TestRecalcAnswered(t *testing.T) {
+	f := &fakeRemote{answers: map[string]RemoteAnswer{}}
+	s := New()
+	s.SetRemote(f)
+	s.Set(at("A1"), `=JEV.TEST("x", "Q1")`)
+	s.Set(at("A2"), `=JEV.TEST("x", "Q2")`)
+	s.Set(at("A3"), `=IF(JEV.TEST("x", "Q1"), "yes", "no")`)
+	s.Set(at("B1"), `=A1`)
+	if !IsPending(s.Value(at("A1"))) || !IsPending(s.Value(at("A3"))) {
+		t.Fatalf("A1 %+v, A3 %+v", s.Value(at("A1")), s.Value(at("A3")))
+	}
+	f.answers["Q1"] = RemoteAnswer{Noul: 0.9}
+	f.asked = nil
+	q1 := RemoteCall{Kind: "noul", State: "x", Instructions: "Q1", Criteria: [2]string{}}
+	s.Book().RecalcAnswered([]RemoteCall{q1})
+	for _, c := range f.asked {
+		if c.Instructions != "Q1" {
+			t.Errorf("an answer to Q1 asked %q again", c.Instructions)
+		}
+	}
+	if len(f.asked) != 2 {
+		t.Errorf("%d questions looked up, want the 2 cells asking Q1", len(f.asked))
+	}
+	if got := s.Value(at("B1")); got != boolean(true) {
+		t.Errorf("B1, reading A1, = %+v", got)
+	}
+	if got := s.Value(at("A3")); got.Str != "yes" {
+		t.Errorf("A3 = %+v", got)
+	}
+	if !IsPending(s.Value(at("A2"))) {
+		t.Errorf("A2 = %+v", s.Value(at("A2")))
+	}
+	// Answered questions are forgotten; an unknown one does nothing.
+	f.asked = nil
+	s.Book().RecalcAnswered([]RemoteCall{q1, {Kind: "noul", Instructions: "Q9"}})
+	if len(f.asked) != 0 {
+		t.Errorf("answering again looked up %d questions", len(f.asked))
+	}
+}

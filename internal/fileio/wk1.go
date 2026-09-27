@@ -152,7 +152,7 @@ func (w *wk1Reader) record(op uint16, d []byte) bool {
 		if len(d) >= 3 {
 			col := int(binary.LittleEndian.Uint16(d))
 			if col < sheet.MaxCols && d[2] > 0 {
-				w.b.s.SetColWidth(col, int(d[2])+1)
+				w.b.s.LoadColWidth(col, int(d[2])+1)
 			}
 		}
 		return false

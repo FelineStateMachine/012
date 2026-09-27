@@ -27,6 +27,26 @@ func (c *Cell) rewritten(rw formula.Rewriter) *Cell {
 	return c.withFormula(n)
 }
 
+// NamedSheets returns the sheet names the formula at a names, as written
+// and without repeats (in any case), or nil for anything else. Names of
+// sheets that don't exist are included: exporters check them.
+func (s *Sheet) NamedSheets(a Addr) []string {
+	c := s.cells.get(a)
+	if c == nil || len(c.xrefs) == 0 {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	add := func(name string) {
+		if k := formula.SheetKey(name); name != "" && !seen[k] {
+			seen[k] = true
+			out = append(out, name)
+		}
+	}
+	formula.WalkRefs(c.expr, func(n string, _ Addr) { add(n) }, func(n string, _ Rect) { add(n) })
+	return out
+}
+
 // ShiftEntry returns an entry as if it were typed in one cell and copied
 // dc columns and dr rows away: a formula's relative references move and
 // $absolute ones stay, as in a paste. Other entries come back unchanged.
