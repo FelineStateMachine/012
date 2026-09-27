@@ -23,6 +23,8 @@ type FuncDef struct {
 	// format infers the result's display format for Automatic cells; nil
 	// means none.
 	format func(args []Node, infer func(Node) Format) Format
+	// remote builds the question a JEV function asks (functions_jev.go).
+	remote func(args []Node, get lookup) (RemoteCall, error)
 }
 
 func (f *FuncDef) call(args []Node, get lookup) Value { return f.eval(args, get) }

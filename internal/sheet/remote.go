@@ -1,0 +1,85 @@
+package sheet
+
+// Some functions (JEV.*) are answered by a hosted model. The engine never
+// talks to the network: it describes each question as a RemoteCall and
+// asks Remote for the answer. Until the answer arrives the cell shows
+// Loading…, and the source queues the call; when answers arrive the UI
+// calls RecalcVolatile, and the functions, being volatile, look again.
+
+// RemoteCall is one question for the model, built from a function's
+// arguments. It is comparable through its JSON form, which callers use as
+// a cache key.
+type RemoteCall struct {
+	Kind         string `json:"kind"` // "noul", "choice" or "score"
+	State        any    `json:"state"`
+	Instructions string `json:"instructions"`
+	// Criteria depends on Kind: noul is [2]string{yes, no} (either may be
+	// empty), choice is map[label]description, score is []string levels.
+	Criteria any `json:"criteria"`
+}
+
+// RemoteAnswer is the model's answer. Which fields are set depends on the
+// call's Kind; Failed explains an answer that couldn't be had.
+type RemoteAnswer struct {
+	Noul       float64 // probability of yes
+	Choice     string
+	Score      float64
+	Confidence float64 // in Choice or Score, not a probability of truth
+	Failed     string
+}
+
+// RemoteSource answers RemoteCalls. Lookup returns false while an answer
+// isn't known, and queues the call.
+type RemoteSource interface {
+	Lookup(RemoteCall) (RemoteAnswer, bool)
+}
+
+// Remote answers JEV functions. It is nil when no API key is configured,
+// and the functions then evaluate to ErrNoRemote.
+var Remote RemoteSource
+
+var (
+	// Pending is shown while an answer is on its way.
+	Pending = Value{Kind: Error, Str: "Loading…"}
+	// ErrNoRemote means JEV functions can't run: there is no API key.
+	ErrNoRemote = Value{Kind: Error, Str: "#N/A"}
+)
+
+// IsPending reports whether v is waiting for a remote answer.
+func IsPending(v Value) bool { return v == Pending }
+
+// RecalcVolatile recomputes volatile formulas and their dependents, e.g.
+// after remote answers arrive. It doesn't touch the undo history.
+func (s *Sheet) RecalcVolatile() { s.recalc(nil) }
+
+// RemoteCalls returns the questions the formula at a asks, with their
+// current inputs, so the UI can show details or re-ask them.
+func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
+	c := s.cells[a]
+	if c == nil || c.expr == nil {
+		return nil
+	}
+	get := func(a Addr) Value { return s.Value(a) }
+	var calls []RemoteCall
+	var walk func(Node)
+	walk = func(n Node) {
+		switch n := n.(type) {
+		case unaryNode:
+			walk(n.x)
+		case binaryNode:
+			walk(n.l)
+			walk(n.r)
+		case callNode:
+			if n.fn.remote != nil {
+				if call, err := n.fn.remote(n.args, get); err == nil {
+					calls = append(calls, call)
+				}
+			}
+			for _, arg := range n.args {
+				walk(arg)
+			}
+		}
+	}
+	walk(c.expr)
+	return calls
+}
