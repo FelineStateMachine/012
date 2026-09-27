@@ -29,7 +29,8 @@ rest: building from a clone, importing files, `012 serve` and settings.
   mouse, named ranges, references between sheets, arrays that spill
   (FILTER, SORT, UNIQUE, LAMBDA), optional decimal
   arithmetic for money, and undo for everything
-  ([formulas](docs/formulas/README.md)).
+  ([formulas](docs/formulas/README.md)); numbers, dates and formulas
+  typed and shown in a [locale](docs/sheets/locale.md) per file.
 - **Data tools**: freeze, sort, filter, find and replace, conditional
   formatting, dropdowns and checkboxes, notes, protected ranges, and live
   pivot tables ([working with data](docs/sheets/README.md)); wrapped
@@ -56,19 +57,16 @@ rest: building from a clone, importing files, `012 serve` and settings.
 | Menus and the command palette (Ctrl+K) | Charts that float over the grid and follow their data |
 | ![A task list with a color scale, a dropdown and checkboxes](docs/media/rules.gif) | ![A pivot table of sales by region and quarter](docs/media/pivot.gif) |
 | Conditional formatting and data validation | Pivot tables, live |
-| ![Freezing, sorting and filtering](docs/media/freeze-sort-filter.gif) | ![Find and replace](docs/media/find-replace.gif) |
-| Freeze, sort and filter | Find and replace |
-| ![JEV functions classifying reviews](docs/media/jev.gif) | ![Currency formats and totals](docs/media/formats-budget.png) |
-| JEV functions in formulas | Formats detected as you type |
-| ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![Recording a macro and replaying it](docs/media/macros.gif) |
-| Arrays that spill | Macros |
-| ![A trip plan with a merged title, borders and wrapped notes](docs/media/layout.gif) | ![A budget in German: decimal commas and euros](docs/media/locale-de.png) |
-| Wrapped text, borders and merged cells | A locale per file |
+| ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![A trip plan with a merged title, borders and wrapped notes](docs/media/layout.gif) |
+| Arrays that spill | Wrapped text, borders and merged cells |
+| ![JEV functions classifying reviews](docs/media/jev.gif) | ![Recording a macro and replaying it](docs/media/macros.gif) |
+| JEV functions in formulas | Macros |
 
-The recordings are [VHS](https://github.com/charmbracelet/vhs) tapes in
-[`demos/`](demos), rendered by `make demos` in the Catppuccin Mocha
-palette; 012 draws in your terminal's own colors by default
-([themes](docs/terminal/themes.md)). Charts show as text here.
+Each guide shows its own recordings too. They are
+[VHS](https://github.com/charmbracelet/vhs) tapes in [`demos/`](demos),
+rendered by `make demos` in the Catppuccin Mocha palette; 012 draws in
+your terminal's own colors by default ([themes](docs/terminal/themes.md)).
+Charts show as text here.
 
 ## More
 

@@ -93,8 +93,8 @@ var Options = []Option{
 			"`light:NAME,dark:NAME` picks one by the terminal's background and follows it when it changes.",
 		Check: checkTheme},
 	{Name: "chart-images", Kind: Bool, Group: GroupAppearance, Default: "true", Env: []string{"O12_CHART_IMAGES"}, Live: true,
-		Desc: "Draw charts as images on terminals with kitty graphics (kitty, Ghostty, WezTerm). " +
-			"When false, charts are always text."},
+		Desc: "Draw charts as images on terminals with kitty graphics (kitty, Ghostty, WezTerm) or, " +
+			"outside tmux, sixel graphics (foot, xterm, mlterm, Windows Terminal). When false, charts are always text."},
 	{Name: "notifications", Kind: Bool, Group: GroupAppearance, Default: "true", Env: []string{"O12_NOTIFICATIONS"}, Live: true,
 		Desc: "Send a desktop notification (OSC 9) when JEV answers or an import finishes while the " +
 			"terminal window is in the background."},

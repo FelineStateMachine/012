@@ -118,7 +118,9 @@ style.
   its slot, with its text in a table of strings kept once each, its
   formatting in a table of looks, and its input only when that isn't
   the value's own text ("1.50" is kept as 1.5 printed with two
-  decimals). Formulas, notes, and what pivots and spills write are whole
+  decimals). What pivots and spills write is a slot too, marked as
+  derived, holding the value and, in its look, a spill's inferred
+  format; its entry is the value's text. Formulas and notes are whole
   `Cell`s in a side table, which recalculation updates in place. `get`
   hands out a plain cell as a `Cell` made for the caller, a copy whose
   changes reach nothing; `set` is the one way to change a cell. What
@@ -323,7 +325,7 @@ move without touching callers:
   the places functions read ranges.
 - **Files.** The `.012` reader and writer stream (`fileread.go`,
   `filescan.go`) and meet the store only through its methods, so another
-  encoding would sit beside them; [The .012 format](../files/format.md#reading-and-writing)
+  encoding would sit beside them; [Bounds of support](limits.md#the-012-file)
   says why there is one.
 - **Depth limits.** `internal/formula`'s parser caps nesting at
   `formula.MaxDepth` (1024 levels), so a pathological formula fails to
@@ -500,8 +502,12 @@ the user's editor (`AllowEditor`), since that starts a program.
 `internal/chart` draws a chart in two layers that share one layout: text
 for any terminal (block elements for bars, braille for lines, half blocks
 for pies, eighths filled column by column for areas) and, on terminals
-with kitty graphics, an image of the plot area with the axes and legend
-still terminal text. Each chart type is a layout in the `types` table,
+with kitty or sixel graphics, an image of the plot area with the axes and
+legend still terminal text. A kitty image is placed by placeholder
+characters, which the renderer treats as text; a sixel image
+(`chart.Sixel`) is pixels Bubble Tea's renderer doesn't know of, so
+`internal/ui/sixel.go` keeps blank cells for it, draws it once the frame
+has settled, and clears the screen when it moves. Each chart type is a layout in the `types` table,
 returning a plan that draws it both ways, and the series its legend
 lists; `Draw` places the legend and gives the layout the room left. The
 type constants and their names, and the options of each chart

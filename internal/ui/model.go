@@ -238,7 +238,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.clampView()
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
-	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans))
+	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg))
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state

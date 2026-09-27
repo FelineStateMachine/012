@@ -48,6 +48,7 @@ func (m *Model) View() tea.View {
 		content = m.compose(content, boxes)
 	}
 	content = m.fillScreen(content)
+	m.term.six.noteFrame(content)
 	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go

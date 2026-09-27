@@ -66,9 +66,8 @@ muted text included, and 4.5:1 for lines, borders, chart axes and
 unavailable menu items. The pointer is black on cyan, the selection
 white on blue, errors a light red on black (a dark red on white).
 
-States never rest on color alone in any theme: the pointer and the
-selection are in reverse video, errors have a curly underline, invalid
-entries a dotted one, spilled values are italic, and so on
+States never rest on color alone in any theme: each also shows as
+text, a glyph or an attribute such as reverse video or an underline
 ([Reading without color](../contributing/ux.md#reading-without-color)).
 
 ## Your own schemes

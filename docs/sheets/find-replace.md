@@ -5,6 +5,8 @@ sidebar_position: 6
 
 # Find and replace
 
+![Matches lighting up as you type, then replacing every one](../media/find-replace.gif)
+
 Ctrl+F opens a find bar on the context line: matches highlight as you type,
 the active cell follows the current one, and Enter and Shift+Enter step
 through them. Ctrl+H adds a replacement field; Enter replaces and moves on,
