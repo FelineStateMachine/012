@@ -93,6 +93,7 @@ demos: build
 	mkdir -p demos/out/stills
 	bin/fakejev -addr $(FAKEJEV_ADDR) & pid=$$!; trap "kill $$pid" EXIT; \
 	export DEMOS_TTYD="$$(command -v ttyd)" PATH="$(CURDIR)/demos/lib:$$PATH"; \
+	export XDG_CONFIG_HOME="$$(mktemp -d)" O12_JEV_CREDENTIAL_STORE=false O12_THEME=; \
 	cd demos && for d in $(DEMOS); do echo "vhs $$d.tape"; vhs -q $$d.tape || exit 1; done
 	mkdir -p demos/out/media
 	for d in $(DEMOS); do ffmpeg -v error -y -i demos/out/$$d.gif -filter_complex \
