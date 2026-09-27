@@ -46,6 +46,30 @@ The top three lines are the menu bar and mode indicator, the formula bar
 (name box, then the cell's contents or the entry being typed) and the
 context line (prompts, key hints, formula errors).
 
+## JEV functions
+
+With a TypeSafe API key, four functions ask the hosted JEV model about a
+value (a cell, a range or text). They follow Sheets' argument style: the
+value, the question, then what the answers mean.
+
+| Function | Returns | Like |
+|---|---|---|
+| `=JEV.TEST(A2, "Is this a complaint?", [yes means], [no means])` | TRUE or FALSE | an `IF` condition, a boolean mask |
+| `=JEV.PROB(A2, "Is this a complaint?")` | probability of yes, as a percent | `predict_proba` |
+| `=JEV.CLASSIFY(A2, "Sentiment", "negative, positive", [descriptions])` | the best label | `SWITCH`, `pd.cut` |
+| `=JEV.SCORE(A2, "Urgency", "low, mid, high")` | a score from 0 to levels-1 | a rating scale |
+
+Labels, descriptions and levels can also be ranges. Answers arrive in the
+background (cells show `Loading…`), are cached by question, and the context
+line shows the confidence for the selected cell. Data > Ask JEV again
+re-asks the selection.
+
+Set `TYPESAFE_API_KEY` in the environment or a `.env` file in the current
+directory or next to the sheet; `TYPESAFE_BASE_URL` and
+`TYPESAFE_DEFAULT_MODEL` are optional. Without a key the functions show
+`#N/A` and say why. `JEV_LIVE_TEST=1 go test ./internal/jev -run TestLive`
+checks the real service.
+
 ## Layout
 
 ```

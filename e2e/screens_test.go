@@ -63,6 +63,22 @@ func formatted(s *session) {
 	s.waitFor("Bold on for A7:D7")
 }
 
+// reviews types customer reviews with JEV columns, answered by a fake
+// service so the screen is deterministic.
+func reviews(s *session) {
+	s.keys("Review", "<tab>", "Complaint?", "<tab>", "Likely", "<tab>", "Sentiment", "<tab>", "Urgency", "<enter>")
+	for i, r := range []string{"Box arrived crushed", "Fast and friendly", "Wrong size, no reply"} {
+		row := fmt.Sprint(i + 2)
+		s.keys(r, "<tab>",
+			`=JEV.TEST(A`+row+`, "Is this a complaint?")`, "<tab>",
+			`=JEV.PROB(A`+row+`, "Is this a complaint?")`, "<tab>",
+			`=JEV.CLASSIFY(A`+row+`, "Sentiment", "negative, positive")`, "<tab>",
+			`=JEV.SCORE(A`+row+`, "Urgency", "low, mid, high")`, "<enter>")
+	}
+	s.keys("<up>", "<right>", "<right>", "<right>")
+	s.waitFor("JEV: positive, 80% confident")
+}
+
 var screens = []screen{
 	{name: "ready-empty", setup: func(s *session) {}},
 	{name: "budget", setup: budget},
@@ -198,6 +214,7 @@ var screens = []screen{
 		s.waitFor("Copied B7")
 	}},
 	{name: "formats", setup: formatted},
+	{name: "jev", opts: options{jev: true}, setup: reviews},
 	{name: "find", setup: func(s *session) {
 		budget(s)
 		s.keys("<ctrl+f>", "r")
@@ -225,7 +242,7 @@ var screens = []screen{
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
@@ -243,7 +260,12 @@ func TestScreens(t *testing.T) {
 	}
 	for _, sc := range screens {
 		t.Run(sc.name, func(t *testing.T) {
-			s := startWith(t, sc.opts)
+			opts := sc.opts
+			if opts.jev {
+				srv, _ := fakeTypeSafe(t)
+				opts.env = []string{"TYPESAFE_API_KEY=test-key", "TYPESAFE_BASE_URL=" + srv.URL}
+			}
+			s := startWith(t, opts)
 			sc.setup(s)
 			got := s.stableHTML()
 			path := filepath.Join(dir, sc.name+".html")

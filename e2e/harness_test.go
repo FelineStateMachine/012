@@ -63,9 +63,11 @@ type session struct {
 
 // options configures a session.
 type options struct {
-	dir        string // working directory; a fresh temp dir if empty
-	cols, rows uint16 // defaults to 100x30
-	light      bool   // use the light reference palette
+	dir        string   // working directory; a fresh temp dir if empty
+	cols, rows uint16   // defaults to 100x30
+	light      bool     // use the light reference palette
+	env        []string // extra environment, e.g. a fake JEV endpoint
+	jev        bool     // answer JEV functions with a fake service (screens)
 }
 
 // start launches 012 in dir (a fresh temp dir if empty) with args.
@@ -104,7 +106,10 @@ func startWith(t *testing.T, o options, args ...string) *session {
 
 	s.cmd = exec.Command(binPath, args...)
 	s.cmd.Dir = o.dir
-	s.cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
+	// Tests never reach the real JEV service: the key is cleared unless a
+	// test points JEV at a fake server through o.env.
+	s.cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor", "TYPESAFE_API_KEY=", "TYPESAFE_BASE_URL=")
+	s.cmd.Env = append(s.cmd.Env, o.env...)
 	s.pty, err = pty.StartWithSize(s.cmd, &pty.Winsize{Cols: s.cols, Rows: s.rows})
 	if err != nil {
 		t.Fatal(err)
