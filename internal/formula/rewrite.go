@@ -34,7 +34,28 @@ func Rewrite(n Node, rw Rewriter) (Node, bool) {
 		}
 		return n, okL || okR
 	case Call:
-		return rewriteCall(n, rw)
+		args, ok := rewriteList(n.Args, rw)
+		n.Args = args
+		return n, ok
+	case Invoke:
+		fn, okFn := Rewrite(n.Fn, rw)
+		args, ok := rewriteList(n.Args, rw)
+		n.Fn, n.Args = fn, args
+		return n, ok || okFn
+	case Array:
+		var rows [][]Node
+		for i, row := range n.Rows {
+			if r, ok := rewriteList(row, rw); ok {
+				if rows == nil {
+					rows = append([][]Node(nil), n.Rows...)
+				}
+				rows[i] = r
+			}
+		}
+		if rows == nil {
+			return n, false
+		}
+		return Array{rows}, true
 	}
 	return n, false
 }
@@ -58,23 +79,22 @@ func (rw Rewriter) leaf(n Node) Node {
 	return n
 }
 
-// rewriteCall rewrites a call's arguments, copying them only if one
-// changed.
-func rewriteCall(n Call, rw Rewriter) (Node, bool) {
-	var args []Node
-	for i, a := range n.Args {
+// rewriteList rewrites a list of arguments or elements, copying it only
+// if one changed.
+func rewriteList(list []Node, rw Rewriter) ([]Node, bool) {
+	var out []Node
+	for i, a := range list {
 		if b, ok := Rewrite(a, rw); ok {
-			if args == nil {
-				args = append([]Node(nil), n.Args...)
+			if out == nil {
+				out = append([]Node(nil), list...)
 			}
-			args[i] = b
+			out[i] = b
 		}
 	}
-	if args == nil {
-		return n, false
+	if out == nil {
+		return list, false
 	}
-	n.Args = args
-	return n, true
+	return out, true
 }
 
 // Shift is the rewrite for copying a formula by (dc, dr): relative parts

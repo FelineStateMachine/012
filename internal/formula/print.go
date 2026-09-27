@@ -73,15 +73,40 @@ func printNode(b *strings.Builder, n Node) {
 		b.WriteString(n.Op)
 		printChild(b, n.R, power(n.R) <= p)
 	case Call:
-		b.WriteString(n.Fn.Signature().Name + "(")
-		for i, a := range n.Args {
+		b.WriteString(n.Fn.Signature().Name)
+		printArgs(b, n.Args)
+	case Local:
+		b.WriteString(n.Name)
+	case Invoke:
+		printNode(b, n.Fn)
+		printArgs(b, n.Args)
+	case Array:
+		b.WriteByte('{')
+		for i, row := range n.Rows {
 			if i > 0 {
-				b.WriteByte(',')
+				b.WriteByte(';')
 			}
-			printNode(b, a)
+			for j, e := range row {
+				if j > 0 {
+					b.WriteByte(',')
+				}
+				printNode(b, e)
+			}
 		}
-		b.WriteByte(')')
+		b.WriteByte('}')
 	}
+}
+
+// printArgs writes a call's arguments in parentheses.
+func printArgs(b *strings.Builder, args []Node) {
+	b.WriteByte('(')
+	for i, a := range args {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		printNode(b, a)
+	}
+	b.WriteByte(')')
 }
 
 func printUnary(b *strings.Builder, n Unary) {

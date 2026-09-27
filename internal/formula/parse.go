@@ -38,6 +38,9 @@ type parser struct {
 	pos   int
 	funcs Funcs
 	depth int // of expr calls, see MaxDepth
+	// locals are the names LET and LAMBDA calls being parsed have bound,
+	// innermost last, as upper-case keys.
+	locals []string
 }
 
 // Parse parses a formula, finding the functions it calls with funcs. src
@@ -173,6 +176,8 @@ func (p *parser) prefixOp(t token) (Node, error) {
 		}
 		p.next()
 		return n, nil
+	case "{":
+		return p.array(t)
 	case "+", "-", "#NOT#":
 		power := unaryPower
 		if t.text == "#NOT#" {
@@ -205,7 +210,11 @@ func (p *parser) ident(t token, sheet string) (Node, error) {
 			return Bool{false}, nil
 		}
 		// Names match case-insensitively but print as written.
-		return Name{p.src[t.pos : t.pos+len(t.text)]}, nil
+		written := p.src[t.pos : t.pos+len(t.text)]
+		if p.bound(t.text) {
+			return Local{written}, nil
+		}
+		return Name{written}, nil
 	}
 	if !p.isOp(":") && !p.isOp("..") {
 		return Ref{a, abs, sheet}, nil
@@ -268,8 +277,17 @@ func NewRange(a, b Addr, aAbs, bAbs Abs) Range {
 }
 
 // call parses a function call, with or without parentheses (@PI), and
-// checks its number of arguments.
+// checks its number of arguments. A name LET or LAMBDA bound, followed
+// by arguments, calls the LAMBDA it stands for.
 func (p *parser) call(t token) (Node, error) {
+	if p.bound(t.text) && p.isOp("(") {
+		p.next()
+		args, err := p.args(t.text, BindNone)
+		if err != nil {
+			return nil, err
+		}
+		return Invoke{Fn: Local{p.src[t.pos : t.pos+len(t.text)]}, Args: args}, nil
+	}
 	fn, ok := p.funcs(t.text)
 	if !ok {
 		return nil, &ParseError{t.pos, "Unknown function " + t.text}
@@ -278,7 +296,9 @@ func (p *parser) call(t token) (Node, error) {
 	n := Call{Fn: fn}
 	if p.isOp("(") {
 		p.next()
-		args, err := p.args(sig.Name)
+		scope := len(p.locals)
+		args, err := p.args(sig.Name, sig.Binds)
+		p.locals = p.locals[:scope]
 		if err != nil {
 			return nil, err
 		}
@@ -287,19 +307,35 @@ func (p *parser) call(t token) (Node, error) {
 	if !sig.accepts(len(n.Args)) {
 		return nil, &ParseError{t.pos, fmt.Sprintf("Wrong number of arguments to %s(%s)", sig.Name, sig.Args)}
 	}
+	if err := checkBinds(sig, n.Args, t.pos); err != nil {
+		return nil, err
+	}
+	if sig.Binds == BindLambda && p.isOp("(") {
+		p.next()
+		args, err := p.args(sig.Name, BindNone)
+		if err != nil {
+			return nil, err
+		}
+		return Invoke{Fn: n, Args: args}, nil
+	}
 	return n, nil
 }
 
 // args parses a call's arguments after its "(", through the ")". An
-// argument may be left out: F(a, , c) or F(a, ).
-func (p *parser) args(name string) ([]Node, error) {
+// argument may be left out: F(a, , c) or F(a, ). With binds, the names
+// the call binds are declared as they come (see declares).
+func (p *parser) args(name string, binds Binding) ([]Node, error) {
 	if p.isOp(")") {
 		p.next()
 		return nil, nil
 	}
 	var args []Node
 	for {
-		if p.isOp(",") || p.isOp(";") || p.isOp(")") {
+		if decl, ok := p.declares(binds, len(args)); ok {
+			args = append(args, decl)
+			p.next()
+			p.locals = append(p.locals, strings.ToUpper(decl.Name))
+		} else if p.isOp(",") || p.isOp(";") || p.isOp(")") {
 			args = append(args, Empty{})
 		} else {
 			arg, err := p.expr(0)
@@ -314,6 +350,77 @@ func (p *parser) args(name string) ([]Node, error) {
 			return args, nil
 		case sep.kind != tokOp || (sep.text != "," && sep.text != ";"):
 			return nil, &ParseError{sep.pos, "Expected , or ) in " + name}
+		}
+	}
+}
+
+// declares reports whether argument i of a call binding names with binds
+// is a name it declares: a plain name, not a cell, followed by a comma
+// (the last argument is the expression, never a name).
+func (p *parser) declares(binds Binding, i int) (Local, bool) {
+	if binds == BindNone || binds == BindLet && i%2 == 1 {
+		return Local{}, false
+	}
+	t, sep := p.peek(), p.toks[min(p.pos+1, len(p.toks)-1)]
+	if t.kind != tokIdent || sep.kind != tokOp || sep.text != "," && sep.text != ";" {
+		return Local{}, false
+	}
+	if _, _, isRef := ParseRef(t.text); isRef || t.text == "TRUE" || t.text == "FALSE" {
+		return Local{}, false
+	}
+	return Local{p.src[t.pos : t.pos+len(t.text)]}, true
+}
+
+// bound reports whether a LET or LAMBDA being parsed binds the name key.
+func (p *parser) bound(key string) bool {
+	for _, l := range p.locals {
+		if l == key {
+			return true
+		}
+	}
+	return false
+}
+
+// checkBinds checks that a LET or LAMBDA names what it binds: LET takes
+// pairs of a name and a value before its expression (its signature
+// counts them), LAMBDA names before its expression.
+func checkBinds(sig Signature, args []Node, pos int) error {
+	if sig.Binds == BindNone || len(args) == 0 {
+		return nil
+	}
+	for i, a := range args[:len(args)-1] {
+		if sig.Binds == BindLet && i%2 == 1 {
+			continue
+		}
+		if _, ok := a.(Local); !ok {
+			return &ParseError{pos, fmt.Sprintf("Argument %d of %s must be a name, like x or total", i+1, sig.Name)}
+		}
+	}
+	return nil
+}
+
+// array parses an array literal after its "{": elements separated by ","
+// in a row and rows by ";", through the "}".
+func (p *parser) array(open token) (Node, error) {
+	if p.isOp("}") {
+		return nil, &ParseError{open.pos, "An array needs at least one value"}
+	}
+	rows := [][]Node{nil}
+	for {
+		e, err := p.expr(0)
+		if err != nil {
+			return nil, err
+		}
+		rows[len(rows)-1] = append(rows[len(rows)-1], e)
+		sep := p.next()
+		switch {
+		case sep.kind == tokOp && sep.text == "}":
+			return Array{rows}, nil
+		case sep.kind == tokOp && sep.text == ",":
+		case sep.kind == tokOp && sep.text == ";":
+			rows = append(rows, nil)
+		default:
+			return nil, &ParseError{sep.pos, "Expected , ; or } in an array"}
 		}
 	}
 }

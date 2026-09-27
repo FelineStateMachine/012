@@ -39,7 +39,7 @@ func (e *ParseError) Error() string { return e.Msg }
 var (
 	twoCharOps   = [...]string{"..", "<=", ">=", "<>"}
 	hashOps      = [...]string{"#AND#", "#OR#", "#NOT#"}
-	oneCharOps   = "+-*/^=<>&(),;:%"
+	oneCharOps   = "+-*/^=<>&(),;:%{}"
 	refErrorText = "#REF!"
 )
 
