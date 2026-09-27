@@ -1,15 +1,20 @@
 package fileio
 
 import (
+	"archive/zip"
+	"bufio"
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
-
-	"github.com/xuri/excelize/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
+
+// XLSX files are read by xlsximport.go (on xlsxpkg.go, xlsxbook.go,
+// xlsxstyles.go and xlsxsheet.go) and written here and in xlsxwrite.go,
+// all with archive/zip and encoding/xml's escaping.
 
 // Column widths: Excel measures in characters of its default font, 012
 // in terminal columns including one of padding.
@@ -29,159 +34,132 @@ type xlsxStyle struct {
 // exportXLSX writes a workbook: the snapshot's sheets (or just the
 // snapshot), each with values, formulas in Excel's syntax with their
 // results cached, number formats, text styles, alignment and column
-// widths, and the named ranges.
+// widths, and the named ranges. Excel recalculates it on opening.
 func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions) (*ExportResult, error) {
-	x := excelize.NewFile()
-	defer x.Close()
 	sheets := snap.Sheets
 	if len(sheets) == 0 {
 		sheets = []*Snapshot{snap}
 	}
-	w := &xlsxWriter{x: x, styleIDs: map[xlsxStyle]int{}, multi: len(sheets) > 1}
+	w := &xlsxWriter{styles: newXLSXStyleTable(), multi: len(sheets) > 1}
 	res := &ExportResult{}
+	names, active := make([]string, len(sheets)), 0
+	used := map[string]bool{}
 	for i, sn := range sheets {
-		ws := sheetName(sn.Name)
-		var err error
-		if i == 0 {
-			err = x.SetSheetName("Sheet1", ws)
-		} else {
-			_, err = x.NewSheet(ws)
-		}
-		if err != nil {
-			return nil, err
-		}
-		rows, err := w.sheet(ws, sn)
-		if err != nil {
-			return nil, err
-		}
-		res.Rows += rows
-		if sn == snap || snap.Sheets == nil {
-			x.SetActiveSheet(i)
+		names[i] = uniqueSheetName(sheetName(sn.Name), used)
+		if sn == snap {
+			active = i
 		}
 	}
-	for _, n := range snap.Names {
-		if err := x.SetDefinedName(&excelize.DefinedName{Name: n[0], RefersTo: n[1]}); err != nil {
-			return nil, err
+	err := writeFile(name, func(out io.Writer) error {
+		zw := zip.NewWriter(out)
+		for i, sn := range sheets {
+			rows, err := w.writeSheet(zw, i, names[i], sn, i == active)
+			if err != nil {
+				return err
+			}
+			res.Rows += rows
 		}
-	}
-	yes := true
-	if err := x.SetCalcProps(&excelize.CalcPropsOptions{FullCalcOnLoad: &yes}); err != nil {
+		if err := writePart(zw, "xl/styles.xml", w.styles.xml()); err != nil {
+			return err
+		}
+		if err := writePackage(zw, names, active, snap.Names); err != nil {
+			return err
+		}
+		return zw.Close()
+	})
+	if err != nil {
 		return nil, err
 	}
 	if w.values > 0 {
 		res.Notes = append(res.Notes, fmt.Sprintf("%s with no Excel equivalent saved as values, e.g. %s",
 			count(w.values, "formula", "formulas"), w.example))
 	}
-	return res, writeFile(name, func(w io.Writer) error { return x.Write(w) })
+	return res, nil
 }
 
-// xlsxWriter writes sheets into a workbook, sharing cell styles.
-type xlsxWriter struct {
-	x        *excelize.File
-	styleIDs map[xlsxStyle]int
-	values   int    // formulas written as values
-	example  string // the first of them
-	multi    bool   // examples name their sheet
+// uniqueSheetName is name, or name with a number when another sheet
+// already took it (Excel's names ignore case).
+func uniqueSheetName(name string, used map[string]bool) string {
+	out := name
+	for n := 2; used[strings.ToLower(out)]; n++ {
+		suffix := " (" + strconv.Itoa(n) + ")"
+		r := []rune(name)
+		out = string(r[:min(len(r), 31-len(suffix))]) + suffix
+	}
+	used[strings.ToLower(out)] = true
+	return out
 }
 
-func (w *xlsxWriter) styleFor(f sheet.Format, st sheet.Style) (int, error) {
-	key := xlsxStyle{f, st}
-	if id, ok := w.styleIDs[key]; ok {
-		return id, nil
+const (
+	xmlHead   = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` + "\n"
+	relsNS    = `http://schemas.openxmlformats.org/package/2006/relationships`
+	officeRel = `http://schemas.openxmlformats.org/officeDocument/2006/relationships`
+	sheetMain = `http://schemas.openxmlformats.org/spreadsheetml/2006/main`
+	mlType    = `application/vnd.openxmlformats-officedocument.spreadsheetml.`
+)
+
+// writePackage writes the parts around the worksheets and styles: the
+// workbook with its sheets, active tab, names and calculation settings,
+// the relationships and the content types.
+func writePackage(zw *zip.Writer, names []string, active int, defined [][2]string) error {
+	var types, rels, book strings.Builder
+	types.WriteString(xmlHead + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+		`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+		`<Default Extension="xml" ContentType="application/xml"/>` +
+		`<Override PartName="/xl/workbook.xml" ContentType="` + mlType + `sheet.main+xml"/>` +
+		`<Override PartName="/xl/styles.xml" ContentType="` + mlType + `styles+xml"/>`)
+	rels.WriteString(xmlHead + `<Relationships xmlns="` + relsNS + `">`)
+	book.WriteString(xmlHead + `<workbook xmlns="` + sheetMain + `" xmlns:r="` + officeRel + `">` +
+		`<bookViews><workbookView activeTab="` + strconv.Itoa(active) + `"/></bookViews><sheets>`)
+	for i, ws := range names {
+		n := strconv.Itoa(i + 1)
+		fmt.Fprintf(&types, `<Override PartName="/xl/worksheets/sheet%s.xml" ContentType="%sworksheet+xml"/>`, n, mlType)
+		fmt.Fprintf(&rels, `<Relationship Id="rId%s" Type="%s/worksheet" Target="worksheets/sheet%s.xml"/>`, n, officeRel, n)
+		fmt.Fprintf(&book, `<sheet name="%s" sheetId="%s" r:id="rId%s"/>`, escapeXML(ws, true), n, n)
 	}
-	xs := &excelize.Style{}
-	if code := excelCode(f); code != "" {
-		xs.CustomNumFmt = &code
+	fmt.Fprintf(&rels, `<Relationship Id="rId%d" Type="%s/styles" Target="styles.xml"/></Relationships>`, len(names)+1, officeRel)
+	types.WriteString(`</Types>`)
+	book.WriteString(`</sheets>`)
+	if len(defined) > 0 {
+		book.WriteString(`<definedNames>`)
+		for _, n := range defined {
+			fmt.Fprintf(&book, `<definedName name="%s">%s</definedName>`, escapeXML(n[0], true), escapeXML(n[1], false))
+		}
+		book.WriteString(`</definedNames>`)
 	}
-	if st.Bold || st.Italic || st.Underline || st.Strikethrough {
-		xs.Font = &excelize.Font{Bold: st.Bold, Italic: st.Italic, Strike: st.Strikethrough}
-		if st.Underline {
-			xs.Font.Underline = "single"
+	book.WriteString(`<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`)
+	for _, p := range []struct{ name, body string }{
+		{"[Content_Types].xml", types.String()},
+		{"_rels/.rels", xmlHead + `<Relationships xmlns="` + relsNS + `"><Relationship Id="rId1" Type="` + officeRel + `/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+		{"xl/workbook.xml", book.String()},
+		{"xl/_rels/workbook.xml.rels", rels.String()},
+	} {
+		if err := writePart(zw, p.name, p.body); err != nil {
+			return err
 		}
 	}
-	if st.Align != sheet.AlignAuto {
-		xs.Alignment = &excelize.Alignment{Horizontal: st.Align.String()}
-	}
-	id, err := w.x.NewStyle(xs)
-	w.styleIDs[key] = id
-	return id, err
+	return nil
 }
 
-// sheet writes a snapshot to sheet ws and returns the rows written.
-func (w *xlsxWriter) sheet(ws string, snap *Snapshot) (int, error) {
-	sw, err := w.x.NewStreamWriter(ws)
+func writePart(zw *zip.Writer, name, body string) error {
+	w, err := zw.Create(name)
+	if err != nil {
+		return err
+	}
+	_, err = io.WriteString(w, body)
+	return err
+}
+
+// writeSheet writes snapshot sn as worksheet part i and returns the rows
+// written.
+func (w *xlsxWriter) writeSheet(zw *zip.Writer, i int, ws string, sn *Snapshot, active bool) (int, error) {
+	part, err := zw.Create("xl/worksheets/sheet" + strconv.Itoa(i+1) + ".xml")
 	if err != nil {
 		return 0, err
 	}
-	for c, width := range snap.Widths {
-		if err := sw.SetColWidth(c+1, c+1, float64(max(width-excelPadding, 1))); err != nil {
-			return 0, err
-		}
-	}
-	r := snap.Range
-	line := make([]any, r.To.Col-r.From.Col+1)
-	for row := r.From.Row; row <= r.To.Row; row++ {
-		for col := r.From.Col; col <= r.To.Col; col++ {
-			a := sheet.Addr{Col: col, Row: row}
-			line[col-r.From.Col] = nil
-			if c, ok := snap.Cells[a]; ok {
-				if line[col-r.From.Col], err = w.cell(ws, a, c); err != nil {
-					return 0, err
-				}
-			}
-		}
-		cell, _ := excelize.CoordinatesToCellName(r.From.Col+1, row+1)
-		if err := sw.SetRow(cell, line); err != nil {
-			return 0, err
-		}
-	}
-	if err := sw.Flush(); err != nil {
-		return 0, err
-	}
-	return r.To.Row - r.From.Row + 1, nil
-}
-
-// cell is the snapshot cell c at a as excelize writes it. A formula with
-// no Excel equivalent is written as its value, and counted.
-func (w *xlsxWriter) cell(ws string, a sheet.Addr, c SnapCell) (excelize.Cell, error) {
-	// A formula's inferred format is written too, so its result shows
-	// the same in Excel.
-	id := 0
-	if !c.Format.IsZero() || !c.Style.IsZero() {
-		var err error
-		if id, err = w.styleFor(c.Format, c.Style); err != nil {
-			return excelize.Cell{}, err
-		}
-	}
-	xc := excelize.Cell{StyleID: id, Value: xlsxValue(c.Value, c.Format)}
-	if !c.Formula {
-		return xc, nil
-	}
-	if fx, ok := toExcelFormula(c.Input); ok {
-		xc.Formula = fx
-		return xc, nil
-	}
-	w.values++
-	if w.example == "" {
-		w.example = a.String()
-		if w.multi {
-			w.example = sheet.QuoteSheet(ws) + "!" + a.String()
-		}
-	}
-	return xc, nil
-}
-
-// xlsxValue is a computed value as excelize writes it.
-func xlsxValue(v sheet.Value, f sheet.Format) any {
-	switch v.Kind {
-	case sheet.Number:
-		return toExcelSerial(v.Num, f)
-	case sheet.Bool:
-		return v.Num != 0
-	case sheet.Text, sheet.Error:
-		return v.Str
-	}
-	return nil
+	bw := bufio.NewWriterSize(part, 64<<10)
+	rows := w.sheet(bw, ws, sn, active)
+	return rows, bw.Flush()
 }
 
 // sheetName makes a valid Excel sheet name: at most 31 characters, none
