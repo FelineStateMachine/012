@@ -86,3 +86,15 @@ Avoid in the main binary: DuckDB and automerge (both need cgo).
 2. Command palette, autocomplete, status line stats.
 3. CSV and XLSX import/export.
 4. Charts (text first, then kitty placeholders).
+
+## Later: sharing a live sheet (shelved)
+
+Explored, not scheduled. One session host that runs a Bubble Tea program
+for any byte stream with window-size events, fed by SSH
+(`charm.land/wish/v2`), iroh tickets (the Go transport in
+`FelineStateMachine/allons` `local/transport/iroh`, which needs cgo and a
+prebuilt iroh-ffi archive, so it would sit behind a build tag), and the web
+(`NimbleMarkets/go-booba` serves Bubble Tea over WebSocket/WebTransport with
+ghostty-web; Bubble Tea v2 support unverified). Open questions: per-user
+sessions on one sheet versus mirroring one session, and whether the web page
+is served by the host or by a gateway dialing the iroh ticket.
