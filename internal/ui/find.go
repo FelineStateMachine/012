@@ -63,8 +63,46 @@ func init() {
 			return nil
 		}},
 	)
+	register(
+		&command{id: "edit.find_next", title: "Find next", desc: "Go to the next match of the last search", run: func(m *Model) tea.Cmd {
+			m.findAgain(1)
+			return nil
+		}},
+		&command{id: "edit.find_prev", title: "Find previous", desc: "Go to the previous match of the last search", run: func(m *Model) tea.Cmd {
+			m.findAgain(-1)
+			return nil
+		}},
+	)
 	keymap["ctrl+f"] = "edit.find"
 	keymap["ctrl+h"] = "edit.replace"
+}
+
+// findAgain goes to the next (d = 1) or previous (d = -1) match of the
+// last search from the active cell, without opening the bar, as n and N
+// do in vim and less.
+func (m *Model) findAgain(d int) {
+	f := m.find
+	if f == nil || f.fields[0] == "" {
+		m.note = "No search yet: " + m.shortcut("edit.find") + " finds"
+		return
+	}
+	if f.where == inRange && !f.home.Live() {
+		f.where = inSheet
+	}
+	here := cellOn{m.sheet, m.cur}
+	f.from = here
+	f.search(m) // lands on the first match at or after here
+	switch {
+	case f.err != "":
+		m.note = f.err
+		return
+	case len(f.matches) == 0:
+		m.note = "No matches for " + f.fields[0]
+		return
+	case d > 0 && f.matches[f.cur] == here, d < 0:
+		f.step(m, d)
+	}
+	m.note = "Match " + strconv.Itoa(f.cur+1) + " of " + strconv.Itoa(len(f.matches)) + " for " + f.fields[0]
 }
 
 // openFind opens the bar, keeping the last search. A multi-cell selection
@@ -214,6 +252,12 @@ func (f *findBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 		m.find = f
 		m.closeOverlay()
 	case "enter":
+		if m.prefs.vim && !f.replace {
+			// As / in vim: Enter stays on the match; n and N go on.
+			m.find = f
+			m.closeOverlay()
+			return nil
+		}
 		if f.replace && f.field == 1 {
 			f.replaceOne(m)
 		} else {

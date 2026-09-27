@@ -69,17 +69,21 @@ var keymap = map[string]string{
 
 // keysFor returns the shortcuts bound to a command, the one to show first
 // leading: Ctrl combinations (what Sheets shows), then function keys, then
-// Alt combinations and named keys.
-func keysFor(id string) []string {
+// Alt combinations and named keys. With vim keys on, it leaves out the
+// Sheets keys vim takes and adds the vim keys (dd, u) last.
+func keysFor(id string, vim bool) []string {
 	var keys []string
 	for k, c := range keymap {
-		if c == id {
+		if c == id && !(vim && vimShadows(k)) {
 			keys = append(keys, k)
 		}
 	}
 	slices.SortFunc(keys, func(a, b string) int {
 		return cmp.Or(cmp.Compare(keyRank(a), keyRank(b)), cmp.Compare(a, b))
 	})
+	if vim {
+		keys = append(keys, vimKeysFor(id)...)
+	}
 	return keys
 }
 
@@ -97,11 +101,30 @@ func keyRank(k string) int {
 	return 4
 }
 
+// keyLabel is how a key is shown: "Ctrl+S", "Del", or a vim key as typed,
+// e.g. "dd" or "G".
+func keyLabel(k string) string {
+	if isVimKey(k) {
+		return k
+	}
+	return theme.KeyLabel(k)
+}
+
 // shortcut is the key shown next to a command in menus and the palette,
-// e.g. "Ctrl+S", or "" if it has none.
+// e.g. "Ctrl+S", or "" if it has none. It ignores vim keys; see
+// Model.shortcut.
 func shortcut(id string) string {
-	if keys := keysFor(id); len(keys) > 0 {
-		return theme.KeyLabel(keys[0])
+	if keys := keysFor(id, false); len(keys) > 0 {
+		return keyLabel(keys[0])
+	}
+	return ""
+}
+
+// shortcut is the key shown for a command with the keys in use: with vim
+// keys on, the vim key when Sheets' key is taken or there is none.
+func (m *Model) shortcut(id string) string {
+	if keys := keysFor(id, m.prefs.vim); len(keys) > 0 {
+		return keyLabel(keys[0])
 	}
 	return ""
 }

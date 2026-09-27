@@ -43,7 +43,7 @@ func (m *Model) openRetrieve() tea.Cmd {
 // session rather than the sheet carries over: the window, theme, terminal
 // state and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
-	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, charts: chartState{last: -1}}
+	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, charts: chartState{last: -1}, prefs: m.prefs}
 	if m.jev != nil {
 		s.Book().SetRemote(m.jev.cache)
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 func TestShortcutsListEveryBoundCommand(t *testing.T) {
-	rows := helpRows()
+	rows := helpRows(false)
 	for key, id := range keymap {
 		c := commands[id]
 		if c == nil {
@@ -78,8 +78,8 @@ func TestShortcutsTwoColumnsWhenWide(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 200, Height: 50})
 	press(t, m, "<f1>")
 	lines, w := m.overlay.(*shortcuts).lines(m)
-	if w < 100 || len(lines) > len(helpRows()) {
-		t.Errorf("width %d, %d lines for %d rows", w, len(lines), len(helpRows()))
+	if w < 100 || len(lines) > len(helpRows(false)) {
+		t.Errorf("width %d, %d lines for %d rows", w, len(lines), len(helpRows(false)))
 	}
 }
 

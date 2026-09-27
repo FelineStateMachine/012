@@ -40,7 +40,7 @@ func paletteItems(m *Model) []pickItem {
 		seen[id] = true
 		c := commands[id]
 		items = append(items, pickItem{
-			title: c.title, name: len(c.title), detail: path, key: shortcut(id), desc: c.desc,
+			title: c.title, name: len(c.title), detail: path, key: m.shortcut(id), desc: c.desc,
 			off: !c.available(m), pick: func(m *Model) tea.Cmd { return m.runFromOverlay(id) },
 		})
 	}

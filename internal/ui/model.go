@@ -83,6 +83,9 @@ type Model struct {
 	jev     *jevRunner // answers JEV functions; nil without an API key: jev.go
 	term    terminal   // what the terminal supports: graphics.go
 
+	prefs prefs    // the user's preferences, kept across files: prefs.go
+	vim   vimState // a vim key sequence in progress: vim.go
+
 	keyAt time.Time // when the key the next frame answers was pressed, for telemetry
 
 	th theme.Theme
@@ -90,7 +93,8 @@ type Model struct {
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	return &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(), charts: chartState{last: -1}}
+	return &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(), charts: chartState{last: -1},
+		prefs: initialPrefs()}
 }
 
 // Init implements tea.Model. It asks the terminal for its background color
@@ -230,6 +234,11 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 }
 
 func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
+	if m.prefs.vim {
+		if cmd, ok := m.vimKeyPress(k); ok {
+			return cmd
+		}
+	}
 	key := k.String()
 	if m.moveKey(key) {
 		m.entry.tabbing = false
@@ -280,7 +289,7 @@ func (m *Model) focus() *sheet.Addr {
 		return &m.point.at
 	case m.mouse.drag == dragFill:
 		return &m.mouse.fillAt
-	case m.selecting && m.whole == wholeNone:
+	case m.selecting && (m.whole == wholeNone || m.vim.visual == visualRows):
 		return &m.ext
 	}
 	return &m.cur
