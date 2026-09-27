@@ -208,6 +208,22 @@ var screens = []screen{
 	{name: "chart-bar", setup: func(s *session) { chartOfType(s, 1, "Bar chart") }},
 	{name: "chart-line", setup: func(s *session) { chartOfType(s, 2, "Line chart") }},
 	{name: "chart-pie", setup: func(s *session) { chartOfType(s, 3, "Pie chart") }},
+	{name: "chart-area", setup: func(s *session) { chartOfType(s, 4, "Area chart") }},
+	{name: "chart-scatter", setup: func(s *session) { chartWith(s, "Scatter chart", "6", "e") }},
+	{name: "chart-stacked", setup: func(s *session) { chartWith(s, "Column chart", "k") }},
+	{name: "chart-bar-percent", setup: func(s *session) { chartWith(s, "Bar chart", "2", "k", "k") }},
+	{name: "chart-axes", setup: func(s *session) {
+		spending(s)
+		insertChart(s)
+		s.keys("a", "p")
+		s.waitFor("Legend right")
+	}},
+	{name: "chart-axes-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		spending(s)
+		insertChart(s)
+		s.keys("a")
+		s.waitFor("Legend bottom")
+	}},
 	{name: "chart-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
 		spending(s)
 		insertChart(s)
@@ -456,7 +472,7 @@ var screens = []screen{
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents", "sheets", "sheets-point", "sheets-menu", "sheets-many", "vim-normal", "vim-visual", "vim-command", "pivot-editor", "pivot", "frequency", "far-corner"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "chart-area", "chart-scatter", "chart-stacked", "chart-axes", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents", "sheets", "sheets-point", "sheets-menu", "sheets-many", "vim-normal", "vim-visual", "vim-command", "pivot-editor", "pivot", "frequency", "far-corner"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"

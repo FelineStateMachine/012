@@ -19,12 +19,12 @@ import (
 type ChartType int
 
 const (
-	ChartColumn ChartType = iota // vertical bars, one group per category
-	ChartBar                     // horizontal bars
-	ChartLine                    // one line per series
-	ChartPie                     // the first series as slices of a whole
-	ChartArea                    // lines filled down to the axis
-	ChartScatter                 // points at X, Y: the first series is X
+	ChartColumn  ChartType = iota // vertical bars, one group per category
+	ChartBar                      // horizontal bars
+	ChartLine                     // one line per series
+	ChartPie                      // the first series as slices of a whole
+	ChartArea                     // lines filled down to the axis
+	ChartScatter                  // points at X, Y: the first series is X
 )
 
 // chartTypeNames names every type, as files store it, in the order the

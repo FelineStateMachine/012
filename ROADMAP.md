@@ -126,7 +126,7 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 | Wrap text, row heights, borders, merged cells | Layout changes in the grid renderer | M to L |
 | Notes on cells (shown on hover and in the context line) | | S |
 | Locale: decimal comma, date order, list separator in formulas | Sheets' File > Settings > Locale | M |
-| Charts: scatter, area, stacked columns and bars, axis options, a legend position | Registry entries in `internal/chart` | M |
+| Charts: scatter, area, stacked columns and bars, axis options, a legend position. Done: area and scatter (with trend lines) types, stacked and 100% stacked columns, bars and areas, value axis minimum, maximum and log scale, gridlines on and off, the legend at the bottom, right or none; see [charts.md](docs/charts.md) | Registry entries in `internal/chart` | M |
 | Pivot tables: column subtotals, renaming value columns, check the "(blank)" label against Sheets | Left open by pivots | S |
 | Protected ranges and sheets (warn on edit) | | S |
 
