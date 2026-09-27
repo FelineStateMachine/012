@@ -357,3 +357,37 @@ func TestXLSXMissingSheetAsValue(t *testing.T) {
 		t.Errorf("B1 value %q", got)
 	}
 }
+
+// Hidden sheets go out to Excel hidden, and come back hidden.
+func TestXLSXHiddenSheets(t *testing.T) {
+	src := build(t, map[string]string{"A1": "=Data!A1*2"})
+	book := src.Book()
+	data, _ := book.AddSheet("Data", 1)
+	data.Set(addr(t, "A1"), "21")
+	if err := book.HideSheet(data); err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Join(t.TempDir(), "hidden.xlsx")
+	if _, err := Export(context.Background(), name, XLSX, SnapBook(src), ExportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	x, err := excelize.OpenFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shown, _ := x.GetSheetVisible("Data"); shown {
+		t.Error("Data is visible in Excel")
+	}
+	if shown, _ := x.GetSheetVisible(x.GetSheetName(0)); !shown {
+		t.Error("the first sheet is hidden in Excel")
+	}
+	x.Close()
+	got, err := Import(context.Background(), name, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gb := got.Sheet.Book()
+	if !gb.Lookup("Data").Hidden() || got.Sheet.Hidden() || shown(got.Sheet, addr(t, "A1")) != "42" {
+		t.Errorf("read back: Data hidden %v, shown %s hidden %v", gb.Lookup("Data").Hidden(), got.Sheet.Name(), got.Sheet.Hidden())
+	}
+}

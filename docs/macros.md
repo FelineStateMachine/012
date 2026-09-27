@@ -182,9 +182,9 @@ is already in the formulas that use it.
 
 | Function | Does |
 |---|---|
-| `sheets()` | The sheet names, in tab order |
+| `sheets()` | The sheet names, in tab order, hidden ones included |
 | `active_sheet()` | The name of the sheet shown |
-| `activate_sheet(name)` | Show a sheet |
+| `activate_sheet(name)` | Show a sheet (not a hidden one: `run("sheet.unhide", answer=name)` shows it again) |
 | `add_sheet(name=None)` | Add a sheet after the one shown and show it; returns its name |
 | `move_sheet(position)` | Move the sheet shown to a position, counting from 1 |
 | `set_width(cols, width)` | Set column widths, 1 to 240: `set_width("B", 14)`, `set_width("B:D", 8)` |
@@ -194,10 +194,11 @@ is already in the formulas that use it.
 `run(id, answer=None)` runs any command from the menus or palette by its
 id, on the selection, as if picked. A command that asks something (a
 width, a name, a confirmation) needs `answer`: the text you'd type, a range
-for a range question, or the key of a choice (`"enter"`, `"d"`) or its
-label. Commands that open a dialog or picker (Sort range, Insert chart,
-Named ranges) can't run in a script; nor can files, menus, help, undo or
-macros. The ids are those in the recorded scripts; a few:
+for a range question, the key of a choice (`"enter"`, `"d"`) or its
+label, or the item picked from a list (View > Hidden sheets takes the
+sheet's name). Commands that open a dialog or another picker (Sort
+range, Insert chart, Named ranges) can't run in a script; nor can files,
+menus, help, undo or macros. The ids are those in the recorded scripts; a few:
 
 | Id | Command |
 |---|---|
@@ -210,7 +211,7 @@ macros. The ids are those in the recorded scripts; a few:
 | `column.width` (answer: the width), `column.reset` | Column widths |
 | `data.sort_sheet_az`, `data.sort_range_az`, `data.sort_range_za`, `data.filter`, `data.filter_remove` | Sorting and filters |
 | `data.define_name` (answer: the name) | Name the selection |
-| `sheet.new`, `sheet.duplicate`, `sheet.rename` (answer: the name), `sheet.delete` (answer: `"enter"` when it asks) | Sheets |
+| `sheet.new`, `sheet.duplicate`, `sheet.rename` (answer: the name), `sheet.delete` (answer: `"enter"` when it asks), `sheet.hide`, `sheet.unhide` (answer: the sheet's name) | Sheets |
 | `view.freeze_rows1`, `view.freeze_cols1`, `view.freeze_rows0`, ... | Frozen panes |
 
 Record a macro that uses a command to see its id.

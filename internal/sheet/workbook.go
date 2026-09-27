@@ -244,6 +244,8 @@ func (w *Workbook) DeleteSheet(s *Sheet) error {
 		return errors.New("That sheet was already deleted")
 	case len(w.sheets) == 1:
 		return errors.New("A spreadsheet needs at least one sheet")
+	case !s.tabHidden && w.visibleCount() == 1:
+		return errLastVisible
 	}
 	w.change(s, "delete sheet "+s.name, Rect{}, func() {
 		w.recordSheets()

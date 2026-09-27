@@ -47,7 +47,7 @@ func (f *findBar) parts(m *Model) []findPart {
 		parts = append(parts, chip(true, "in "+f.scope.String(), "alt+s"))
 	case f.where == inAll:
 		parts = append(parts, chip(true, "in all sheets", "alt+s"))
-	case f.scope != nil || m.book().Len() > 1:
+	case f.scope != nil || len(m.book().Visible()) > 1:
 		parts = append(parts, chip(false, "in "+m.sheet.Name(), "alt+s"))
 	}
 	return parts
@@ -166,7 +166,7 @@ func (f *findBar) status(m *Model) (string, string) {
 		pairs = []string{"Enter", "replace", "Ctrl+Enter", "all", "Tab", "field", "Esc", "close"}
 	}
 	desc := "Alt+C/W/R/= options"
-	if f.scope != nil || m.book().Len() > 1 {
+	if f.scope != nil || len(m.book().Visible()) > 1 {
 		desc = "Alt+C/W/R/=/S options"
 	}
 	for {

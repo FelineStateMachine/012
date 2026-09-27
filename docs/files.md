@@ -84,6 +84,12 @@ arithmetic, the sheet shown when saved) stay at the top:
 
 Older builds refuse version 4 files rather than lose sheets.
 
+A hidden sheet (Hide sheet on its tab) has `"hidden": true` after its
+name. It needs no version bump: builds without hidden sheets ignore the
+field and show the sheet. A file whose sheets are all hidden opens with
+the first one shown. XLSX downloads write hidden sheets hidden, and
+sheets hidden in Excel import hidden.
+
 ## Pivot tables
 
 A workbook with a pivot table is version 5: version 4 with a `pivot`

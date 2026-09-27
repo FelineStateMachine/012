@@ -107,6 +107,11 @@ type picker struct {
 	// enter, when set, gets the first look at Enter with the search text,
 	// e.g. to take a typed path; it reports whether it handled it.
 	enter func(m *Model, query string) (tea.Cmd, bool)
+
+	// answers marks a picker that is the question of a command that
+	// changes the workbook: a recording keeps the title picked as the
+	// command's answer, and scripts answer it with a title.
+	answers bool
 }
 
 const (
@@ -217,7 +222,7 @@ func (p *picker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 	case "enter":
 		return p.pick(m)
 	case "esc":
-		m.closeOverlay()
+		p.close(m)
 	default:
 		before := m.line.text()
 		m.line.key(k)
@@ -237,7 +242,32 @@ func (p *picker) pick(m *Model) tea.Cmd {
 	if p.sel >= len(p.shown) || p.shown[p.sel].item.off {
 		return nil
 	}
-	return p.shown[p.sel].item.pick(m)
+	it := p.shown[p.sel].item
+	cmd := it.pick(m)
+	if p.answers {
+		m.recordAnswer(it.title, false)
+	}
+	return cmd
+}
+
+// close closes the picker without picking, which cancels the question
+// it asks.
+func (p *picker) close(m *Model) {
+	m.closeOverlay()
+	if p.answers {
+		m.recordAnswer("", true)
+	}
+}
+
+// answer picks the item titled title (in any case), as a script answers
+// the picker's question, and reports whether there was one.
+func (p *picker) answer(m *Model, title string) (tea.Cmd, bool) {
+	for i := range p.items {
+		if it := &p.items[i]; strings.EqualFold(it.title, title) && !it.off {
+			return it.pick(m), true
+		}
+	}
+	return nil, false
 }
 
 // Rows of the box: the top border, the search field, a separator, then
@@ -247,7 +277,7 @@ const pickerFirstRow = 3
 func (p *picker) mouse(m *Model, e mouseEvent) tea.Cmd {
 	if e.box != pickerID {
 		if e.kind == mousePress {
-			m.closeOverlay()
+			p.close(m)
 		}
 		return nil
 	}

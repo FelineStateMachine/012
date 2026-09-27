@@ -22,6 +22,9 @@ func (h scriptHost) Select(ref, active string) error {
 	if err != nil {
 		return err
 	}
+	if s.Hidden() {
+		return errors.New(hiddenMsg(s))
+	}
 	m.showSheet(s)
 	m.selectRect(r)
 	if active == "" {
@@ -162,6 +165,9 @@ func (h scriptHost) ActivateSheet(name string) error {
 	if s == nil {
 		return fmt.Errorf("there's no sheet named %s", name)
 	}
+	if s.Hidden() {
+		return errors.New(hiddenMsg(s))
+	}
 	h.m.showSheet(s)
 	return nil
 }
@@ -289,6 +295,9 @@ func (h scriptHost) answer(c *command, answer *string) error {
 // overlays (dialogs, pickers) can't be answered by a script.
 func (h scriptHost) choose(c *command, answer *string) error {
 	m := h.m
+	if p, ok := m.overlay.(*picker); ok && p.answers {
+		return h.pickAnswer(c, p, answer)
+	}
 	bar, ok := m.overlay.(*choiceBar)
 	if !ok {
 		m.closeOverlay()
@@ -308,4 +317,25 @@ func (h scriptHost) choose(c *command, answer *string) error {
 	}
 	m.closeOverlay()
 	return fmt.Errorf("%s asks %q: give run(%q, answer=...) with one of its keys", c.title, bar.msg, c.id)
+}
+
+// pickAnswer answers a picker that asks a command's question with the
+// title of one of its items.
+func (h scriptHost) pickAnswer(c *command, p *picker, answer *string) error {
+	m := h.m
+	if answer != nil {
+		if cmd, ok := p.answer(m, *answer); ok {
+			m.macros.cmds = append(m.macros.cmds, cmd)
+			if m.mode == modeError {
+				return h.failure()
+			}
+			return nil
+		}
+	}
+	m.closeOverlay()
+	var titles []string
+	for _, it := range p.items {
+		titles = append(titles, it.title)
+	}
+	return fmt.Errorf("%s asks for one of %s: give run(%q, answer=...)", c.title, strings.Join(titles, ", "), c.id)
 }

@@ -43,6 +43,7 @@ the app uses, so it never drifts from what the keys do.
 | Ctrl+PgDn / Ctrl+PgUp, Alt+Right / Alt+Left | Next / previous sheet; while typing a formula, point into it to insert `Sheet2!A1` |
 | Shift+F11 | New sheet (also Insert > Sheet) |
 | Alt+Shift+K | Go to a sheet by name |
+| Right-click a tab > Hide sheet, View > Hidden sheets | Hide a sheet (formulas still read it; next, previous and the tabs skip it), and list the hidden ones to show one again |
 | Alt+F, Alt+E, Alt+V, Alt+I, Alt+O, Alt+H, F10, click a title | Open a menu (arrows move, Enter runs, Esc closes) |
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
 | Right-click, Shift+F10 | Cell, column or row menu |
@@ -125,7 +126,7 @@ bar in terminals that support it (OSC 22).
 
 The sheet tabs at the left of the status line take the mouse too: click a
 tab to show its sheet, double-click to rename it, right-click for its menu
-(rename, duplicate, delete, move left or right), drag it onto another tab to
+(rename, duplicate, delete, hide, move left or right), drag it onto another tab to
 move it there, and click `+` to add a sheet. When the tabs don't all fit,
 `‹` and `›` step through them. While typing a formula, clicking a tab points
 into that sheet, as in Sheets.

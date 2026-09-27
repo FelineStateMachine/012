@@ -74,6 +74,11 @@ func importXLSX(ctx context.Context, name string, opt Options) (*Result, error) 
 	notes = append(notes, importXLSXNames(x, book)...)
 	active := book.Sheet(clamp(x.GetActiveSheetIndex(), 0, book.Len()-1))
 	book.SetActive(active)
+	for i, ws := range names {
+		if shown, err := x.GetSheetVisible(ws); err == nil && !shown && book.Sheet(i) != active {
+			book.HideSheet(book.Sheet(i)) // hidden in Excel, hidden here
+		}
+	}
 	b.s = active
 	prog.setRows(done)
 	s, notes := b.finish(notes)
@@ -254,6 +259,10 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 		res.Rows += rows
 		if sn == snap || snap.Sheets == nil {
 			x.SetActiveSheet(i)
+		} else if sn.Hidden {
+			if err := x.SetSheetVisible(ws, false); err != nil {
+				return nil, err
+			}
 		}
 	}
 	for _, n := range snap.Names {

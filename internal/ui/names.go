@@ -69,6 +69,9 @@ func namesItems(m *Model, sel sheet.Rect) []pickItem {
 			title: n.Name, name: len(n.Name), detail: n.Ref(), desc: desc, off: n.Gone(),
 			pick: func(m *Model) tea.Cmd {
 				m.closeOverlay()
+				if m.refuseHidden(n.Sheet) {
+					return nil
+				}
 				m.showSheet(n.Sheet)
 				m.selectRect(n.Range)
 				return nil
@@ -151,6 +154,9 @@ func (m *Model) editName(n sheet.Name, sel sheet.Rect) {
 			return nil
 		}
 		r := n.Range
+		if m.refuseHidden(n.Sheet) {
+			return nil
+		}
 		if n.Sheet.Live() {
 			m.showSheet(n.Sheet) // the range is pointed at on its own sheet
 		}

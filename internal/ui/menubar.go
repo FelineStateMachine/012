@@ -49,7 +49,7 @@ var menuBar = []menuDef{
 		{cmd: "clear"}, {cmd: "select.all"}, {cmd: "goto"}, sep,
 		{cmd: "delete.row", title: "Delete row"}, {cmd: "delete.col", title: "Delete column"}, {cmd: "delete.selection"}, sep,
 		{title: "Sheet", items: []menuItem{
-			{cmd: "sheet.rename", title: "Rename"}, {cmd: "sheet.duplicate", title: "Duplicate"}, {cmd: "sheet.delete", title: "Delete"}, sep,
+			{cmd: "sheet.rename", title: "Rename"}, {cmd: "sheet.duplicate", title: "Duplicate"}, {cmd: "sheet.delete", title: "Delete"}, {cmd: "sheet.hide"}, sep,
 			{cmd: "sheet.move_left", title: "Move left"}, {cmd: "sheet.move_right", title: "Move right"}, sep,
 			{cmd: "sheet.next"}, {cmd: "sheet.prev"}, {cmd: "sheet.goto"},
 		}},
@@ -61,6 +61,7 @@ var menuBar = []menuDef{
 			{cmd: "view.freeze_cols0", title: "No columns"}, {cmd: "view.freeze_cols1", title: "1 column"},
 			{cmd: "view.freeze_cols2", title: "2 columns"}, {cmd: "view.freeze_cols_cur", title: "Up to current column"},
 		}}, sep,
+		{cmd: "sheet.unhide"}, sep,
 		{cmd: "palette", title: "Command palette"}, {cmd: "help"},
 	}},
 	{title: "Insert", accel: 'i', items: []menuItem{

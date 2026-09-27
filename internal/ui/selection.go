@@ -231,7 +231,9 @@ func (m *Model) gotoText(text string) bool {
 			return true
 		}
 		if text = rest; text == "" {
-			m.showSheet(target)
+			if !m.refuseHidden(target) {
+				m.showSheet(target)
+			}
 			return true
 		}
 	}
@@ -241,6 +243,9 @@ func (m *Model) gotoText(text string) bool {
 	}
 	if !ok {
 		return false
+	}
+	if m.refuseHidden(target) {
+		return true
 	}
 	m.showSheet(target)
 	if r.From == r.To {
