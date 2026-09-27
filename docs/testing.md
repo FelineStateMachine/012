@@ -3,7 +3,7 @@
 ```sh
 make lint     # go vet, cognitive complexity at most 25, Go files at most 500 lines
 make test     # engine, file formats and UI unit tests
-make fuzz     # fuzz the formula parser and the CSV and .wk1 readers
+make fuzz     # fuzz the formula parser and the CSV, .wk1 and XLSX readers
 make oracle   # compare formulas and number formats with excelize
 make e2e      # run the real binary in a terminal emulator (needs Zig and pkg-config)
 make screens  # rewrite the golden screens and build the review gallery
@@ -62,6 +62,20 @@ Every visual change is reviewed there before it's committed.
 formatted values with 012's. Known differences between Sheets and Excel,
 and places where excelize departs from Excel, are listed as skips with a
 reason.
+
+## The XLSX differential test
+
+`TestXLSXDifferential` (`internal/fileio/xlsx_diff_test.go`) imports a
+corpus of workbooks with 012's own XLSX reader and with the excelize
+importer it replaced (kept in `xlsx_excelize_test.go`), and compares
+every sheet as saved, the widths, names, sheet shown, rows and notes.
+The corpus is workbooks written by the test (hand-written SpreadsheetML,
+excelize and 012's exporter), the stress datasets' XLSX files when
+fetched (`STRESS_DIR`), and any directories in `XLSX_CORPUS`, such as
+excelize's own `test/` files in the module cache. Where excelize reads a
+file wrongly (formulas spread across merged cells, spaces dropped from
+shared formulas) the comparison leaves the difference out, with the
+reason next to it.
 
 ## Live checks
 

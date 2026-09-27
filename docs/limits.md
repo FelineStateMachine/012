@@ -24,7 +24,7 @@ it lags, and past a second it stalls.
 | Full recalc | Any sheet without heavy range fan-in: under 40 ms for 213 k numbers | 1000 full-column SUMs: 170 ms | 8192 running totals: 0.7 s | Same as above |
 | Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
 | Selection statistics | Any selection, once computed (cached) | Extending a selection over 2 M cells: 30 ms per key | | Summing 2 M map entries per change |
-| Imports | CSV, SQLite, Parquet: 1 to 3 M cells/s (a full 2.1 M-cell sheet in about 1 s) | XLSX with formulas: 200 k cells/s | Data past the limits (dropped, with a note) | Building cells one at a time; XLSX formula translation |
+| Imports | CSV, SQLite, Parquet: 1 to 3 M cells/s (a full 2.1 M-cell sheet in about 1 s); XLSX numbers or text: 0.7 to 1.1 M cells/s | XLSX with formulas: 0.4 to 0.6 M cells/s | Data past the limits (dropped, with a note); XLSX files past the reader's limits (refused) | Building cells one at a time; XML decoding; XLSX formula translation |
 | Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 250 MB | | Whole-cell before-images, about 300 B per cell per step |
 | JEV | Up to about 1000 JEV cells: 0.3 ms of CPU per answer | 4000 JEV cells: 1.3 ms per answer, 5 s of CPU to answer them all | | Every answer recalculates every JEV cell (they're volatile) |
 | Formula depth | 10,000 nested parentheses or IFs: under 5 ms | | No explicit limit; recursion grows the stack | Recursive parser and evaluator |
@@ -44,8 +44,13 @@ Lotus 1-2-3 Release 2.
 | Live heap | 64 MB | 602 MB (about 300 B per number cell) |
 | Save `.012` (JSON, one line per cell) | 74 ms, 4.6 MB | 1.04 s, 47 MB |
 | Open `.012` | 134 ms (116 MB allocated) | 2.08 s (1.3 GB allocated) |
-| Export CSV / TSV / XLSX / SQLite | 41 / 55 / 87 / 40 ms | 0.71 / 0.66 / 0.91 / 0.72 s |
+| Export CSV / TSV / XLSX / SQLite | 41 / 55 / 62 / 40 ms | 0.71 / 0.66 / 0.81 / 0.72 s |
 | Frame at 200 x 60, whole | 1.06 ms | 1.05 ms |
+
+XLSX exports are written by 012 with archive/zip since excelize went:
+measured back to back with the excelize writer, 8192 x 26 went from 335
+to 62 ms and 379 to 1.9 MB allocated, 8192 x 256 from 0.97 to 0.81 s
+(mostly compression) and 259 to 17 MB allocated.
 
 Heap per non-blank cell after loading (`BenchmarkMemory`,
 `BenchmarkImport`): numbers 301 B, formulas 707 B (the parsed tree and
@@ -120,7 +125,7 @@ Real, openly licensed datasets fetched by `scripts/stress-data.sh`
 | Airport codes (CSV) | 86,134 x 13, first 8192 rows kept | 83 ms | 107 MB/s | 274 B |
 | NOAA daily CO2 (CSV) | 18,304 x 2 | 6 ms | 2.7 M cells/s | 294 B |
 | Country codes (CSV, Arabic, CJK) | 249 x 56 | 5.6 ms | 2.2 M cells/s | 272 B |
-| Apache POI formula tests (XLSX) | 788 rows, 1189 formulas | 19 ms | 205 k cells/s | 358 B |
+| Apache POI formula tests (XLSX) | 788 rows, 1189 formulas, 3828 cells | 9.7 ms | 395 k cells/s | 425 B |
 | Chinook PlaylistTrack (SQLite) | 8715 x 2 | 5.5 ms | 3.0 M cells/s | 293 B |
 | Parquet alltypes_tiny_pages | 7300 x 13 | 40 ms | 2.4 M cells/s | 276 B |
 
@@ -128,9 +133,36 @@ Past the limits, imports keep the first 8192 rows and 256 columns and
 say how much they left out. Parquet files and SQLite tables stop reading
 at the last row and take the count of the rest from the file; CSV, TSV
 and SQLite queries are read to their end to count it, without keeping
-it (the airport codes file is read to its end). Every importer but XLSX
-streams, so memory follows the sheet, not the file; excelize holds an
-XLSX worksheet in memory while its rows are read.
+it (the airport codes file is read to its end). Every importer streams,
+so memory follows the sheet, not the file. XLSX used to go through
+excelize, which held each worksheet in memory while its rows were read;
+012's own reader streams it a token at a time, keeping only the shared
+strings (in one buffer, 4 bytes a string besides the text), the cell
+formats, and the first cell of each shared formula.
+
+XLSX imports of full sheets written by 012's exporter
+(`BenchmarkImportXLSX`) and the POI file, before (excelize) and after
+(012's reader), on an Apple M5 Pro. Peak heap is sampled while
+importing, per cell kept, and includes garbage not yet collected:
+
+| Workbook | Time | Allocated | Allocations | Heap per cell after | Peak heap per cell |
+|---|---|---|---|---|---|
+| 8192 x 26 numbers (213 k cells) | 480 -> 199 ms | 491 -> 170 MB | 8.4 -> 3.3 M | 304 -> 290 B | 1365 -> 589 B |
+| 8192 x 26 table, text and numbers | 642 -> 296 ms | 644 -> 234 MB | 14.4 -> 7.4 M | 297 -> 297 B | 1432 -> 722 B |
+| 8192 formulas (`=A1+1` down a column) | 33 -> 13.9 ms | 38 -> 17 MB | 718 -> 321 k | 752 -> 746 B | 4790 -> 2188 B |
+| Apache POI formula tests | 21.1 -> 9.7 ms | 22 -> 9.7 MB | 373 -> 179 k | 429 -> 425 B | 2343 -> 1288 B |
+
+The reader refuses files past `xlsxLimits` (in `internal/fileio/xlsxpkg.go`),
+with a message naming the limit: 10,000 files in the zip; 1 GB
+uncompressed in one part and 2 GB in all, counted as the bytes come out
+whatever the zip's headers say; a part compressed more than 250 to 1
+once past 16 MB (a zip bomb); XML nested more than 256 deep or a single
+tag or text over 32 MB; 16.7 M shared strings; 65,536 cell formats,
+fonts, number formats or names; 4096 sheets; 256 MB of text from
+expanding shared formulas; rows past 1,048,576, columns past XFD and
+rows of more than 16,384 cells; part names that are absolute, climb with
+`..` or hold a backslash. encoding/xml expands no external or declared
+entities, so entity bombs fail as unknown entities.
 
 ## Undo
 

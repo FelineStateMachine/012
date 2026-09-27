@@ -329,6 +329,91 @@ func TestXLSXWorkbookRoundTrip(t *testing.T) {
 	}
 }
 
+// Text that XML can't hold, or that reads as one of SpreadsheetML's
+// escapes, goes out escaped and comes back the same, through excelize
+// and 012; text past Excel's limit is cut.
+func TestXLSXWriteText(t *testing.T) {
+	src := sheet.New()
+	long := strings.Repeat("x", excelMaxText+10)
+	want := map[string]string{
+		"A1": "bell\x07 and nul\x00", "A2": "_x0041_ stays", "A3": `<&> "quoted" 'too'`,
+		"A4": "cr\rend", "A5": "￾ noncharacter", "A6": long, "A7": "emoji \U0001F642",
+	}
+	for cell, text := range want {
+		if err := src.Load(addr(t, cell), "'"+text, sheet.Format{}, sheet.Style{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	src.RecalcAll()
+	for cell := range want {
+		want[cell] = src.Value(addr(t, cell)).Str // as 012 keeps it
+	}
+	want["A6"] = long[:excelMaxText]
+	name := filepath.Join(t.TempDir(), "text.xlsx")
+	if _, err := Export(context.Background(), name, XLSX, SnapBook(src), ExportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	x, err := excelize.OpenFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer x.Close()
+	for cell, text := range want {
+		if got, _ := x.GetCellValue("Sheet1", cell); got != text {
+			t.Errorf("excelize reads %s as %q, want %q", cell, trim(got), trim(text))
+		}
+	}
+	res, err := Import(context.Background(), name, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	back := res.Sheet.Book().Sheet(0)
+	for cell, text := range want {
+		if got := input(back, addr(t, cell)); got != flatten(text) {
+			t.Errorf("012 reads %s as %q, want %q", cell, trim(got), trim(text))
+		}
+	}
+}
+
+// A sheet whose name Excel can't take as is gets another; formulas
+// naming it go out as values, like formulas naming a missing sheet.
+func TestXLSXRenamedSheetAsValue(t *testing.T) {
+	src := build(t, map[string]string{"A1": "1"})
+	book := src.Book()
+	book.RenameSheet(src, "Plan")
+	spaced, err := book.AddSheet(" Plan", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spaced.Set(addr(t, "A1"), "=' Plan'!A2+Plan!A1")
+	name := filepath.Join(t.TempDir(), "renamed.xlsx")
+	res, err := Export(context.Background(), name, XLSX, SnapBook(src), ExportOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "1 formula naming a sheet that doesn't exist saved as values, e.g. 'Plan (2)'!A1 (' Plan')"
+	if len(res.Notes) != 1 || res.Notes[0] != want {
+		t.Errorf("notes %q, want %q", res.Notes, want)
+	}
+}
+
+func TestUniqueSheetName(t *testing.T) {
+	used := map[string]bool{}
+	long := strings.Repeat("x", 31)
+	for _, tc := range [][2]string{{"Plan", "Plan"}, {"plan", "plan (2)"}, {"Plan", "Plan (3)"}, {long, long}, {long, long[:27] + " (2)"}} {
+		if got := uniqueSheetName(tc[0], used); got != tc[1] {
+			t.Errorf("uniqueSheetName(%q) = %q, want %q", tc[0], got, tc[1])
+		}
+	}
+}
+
+func trim(s string) string {
+	if len(s) > 40 {
+		return s[:40] + "..."
+	}
+	return s
+}
+
 // A formula naming a sheet the workbook doesn't have goes out as its
 // value (#REF!), with a note, since Excel would refuse the reference.
 func TestXLSXMissingSheetAsValue(t *testing.T) {
