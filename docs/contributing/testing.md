@@ -9,7 +9,7 @@ sidebar_position: 5
 make check    # all of the below that must pass before a push: gofmt, vet, lint, test, oracle, e2e
 make lint     # go vet, staticcheck, cognitive complexity at most 25, Go files at most 500 lines, doclint and doccheck (see Docs below)
 make test     # engine, file formats and UI unit tests
-make fuzz     # fuzz the formula parser and the CSV, .wk1 and XLSX readers
+make fuzz     # fuzz the formula parser and the .012, CSV, .wk1 and XLSX readers
 make oracle   # compare formulas and number formats with excelize
 make e2e      # run the real binary in a terminal emulator (needs Zig and pkg-config)
 make screens  # rewrite the golden screens and build the review gallery
@@ -19,7 +19,9 @@ make stress   # benchmarks on synthetic and real data (see limits.md)
 ## Unit tests
 
 The engine is tested directly: parsing, every function, recalculation,
-undo, reference rewriting, file round trips. The UI is tested by sending
+undo, reference rewriting, file round trips. `FuzzRead` holds the
+streaming `.012` reader to encoding/json decoding the whole file: both
+refuse a file or both read it into workbooks that save the same bytes. The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and
 reading what `View` renders, without a terminal.
 

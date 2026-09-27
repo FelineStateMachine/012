@@ -25,13 +25,13 @@ it lags, and past a second it stalls.
 
 | Dimension | Comfortable | Degraded | Unsupported | Dominant cost |
 |---|---|---|---|---|
-| Sheet size | A grid of 1,048,576 x 16,384 (A..XFD), with up to `max-cells` cells (ten million by default): navigation, drawing and every command cost what the cells cost, not the grid; ten million numbers take 205 MB and build in 2.2 s | Opening a `.012` file of ten million cells: 8 s and 2.7 GB at its peak; saving it: 3.7 s | More than `max-cells` cells: imports keep whole rows up to it and say what they dropped; larger pastes and fills are refused | JSON file format, decoded whole; heap per cell (about 20 B for numbers, 20 to 60 B for real data, 750 B for formulas) |
+| Sheet size | A grid of 1,048,576 x 16,384 (A..XFD), with up to `max-cells` cells (ten million by default): navigation, drawing and every command cost what the cells cost, not the grid; ten million numbers take 205 MB, build in 1.8 s and save in 0.54 s | Opening a `.012` file of ten million cells: 1.2 s, 311 MB of heap at its peak | More than `max-cells` cells: imports keep whole rows up to it and say what they dropped; larger pastes and fills are refused | Parsing each cell's entry from the file's JSON; heap per cell (about 20 B for numbers, 20 to 60 B for real data, 750 B for formulas) |
 | Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1.3 to 1.9 ms); 1000 SUMs over a full column: 0.53 ms; 8192 running totals: 2.7 ms | 60 criteria functions (SUMIF, COUNTIFS, AVERAGEIF) over whole columns of 8192 rows: 29 ms an edit | | About 3 ns per cell read: an index into the column's block |
 | Full recalc | Any sheet: numbers and text hold their values and cost nothing; 1000 full-column SUMs 0.5 ms; 8192 running totals 1.8 ms | 60 whole-column criteria functions over 8192 rows: 44 ms | | Same as above |
 | Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms; a color scale on every cell shown adds 0.4 ms at 200 x 60, borders on every cell and wrapped text 0.4 ms | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
 | Selection statistics | Any selection: extending one over all 2.1 M cells of 8192 x 256 costs 0.3 ms a key | | | Per column with data, 1024 or 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
 | Imports | CSV, SQLite, Parquet: 2 to 4 M cells/s (a million cells in 0.25 to 0.4 s); XLSX numbers or text: 0.8 to 1.4 M cells/s | XLSX with formulas: 0.4 to 0.6 M cells/s | Data past `max-cells` or the grid (dropped, with a note); XLSX files past the reader's limits (refused) | Building cells one at a time; XML decoding; XLSX formula translation |
-| Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 280 MB | | Whole-cell before-images, about 300 B per cell per step |
+| Undo | One step of any size: undo costs what the edit cost; clearing all ten million cells of a full sheet holds 193 MB | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 15 MB | A step past 1 GB (millions of formulas or long distinct texts at once): asks, and runs without undo if told to | Before-images in the store's form: a slot (20 B) per plain cell, a whole `Cell` per formula |
 | JEV | 4000 JEV cells: 4 us of CPU per answer, 15 ms to answer them all | | | An answer recalculates the cells that asked it; answers within a frame recalculate together |
 | Formula depth | 1000 nested parentheses or IFs: under 0.5 ms; chains of formulas through every cell of a sheet | | More than 1024 levels of nesting in one formula: a parse error | Recursive parser; evaluation puts off cells past 65,536 levels |
 | Macros | Replaying 1000 recorded actions: 2.2 ms, one undo step; a script's call to the sheet: about 1.4 us | | Scripts past 10 M Starlark steps: stopped, with the line | One message per call to the sheet, served in batches on the UI goroutine |
@@ -47,17 +47,19 @@ Hard limits: `sheet.MaxRows = 1,048,576`, `sheet.MaxCols = 16,384`
 ten million cells by default): imports keep whole rows up to it, pastes
 and fills write at most that many cells at once. WK1 files keep their own
 8192 x 256. The costs below grow with the cells; the grid itself costs
-nothing (see [The grid](#the-grid)). At ten million cells the file
-format is what degrades: a `.012` file is JSON decoded whole.
+nothing (see [The grid](#the-grid)). A `.012` file is read and written
+as a stream, cells straight into and out of the store ([The .012
+format](../files/format.md#reading-and-writing)), so opening costs about
+the memory the workbook then holds.
 
 | Measure | 8192 x 26 (213 k cells) | 8192 x 256 (2.1 M cells) | 1,000,000 x 10 (10 M cells) |
 |---|---|---|---|
-| Build through `Load`, then full recalc | 48 ms | 0.47 s | 2.2 s (396 MB peak resident) |
+| Build through `Load`, then full recalc | 48 ms | 0.47 s | 1.8 s |
 | Live heap | 4.4 MB | 43 MB (20.5 B per number cell) | 205 MB |
-| Save `.012` (JSON, one line per cell) | 77 ms, 4.6 MB | 0.83 s, 47 MB | 3.7 s, 236 MB |
-| Open `.012` | 108 ms (118 MB allocated) | 1.5 s (1.3 GB allocated) | 8.1 to 8.3 s (5.7 GB allocated, 2.7 GB peak resident) |
+| Save `.012` (JSON, one line per cell; heap used at the peak) | 12 ms, 4.6 MB (0.3 MB) | 0.14 s, 47 MB (0.1 MB) | 0.54 s, 236 MB (0.7 MB) |
+| Open `.012` (heap at the peak, the workbook included) | 24 ms (15 MB) | 0.24 s (60 MB) | 1.2 s (311 MB; 0.9 GB resident, the file's bytes and a sheet built beside it included) |
 | Export CSV / TSV / XLSX / SQLite | 33 / 31 / 45 / 38 ms | 0.51 / 0.52 / 0.65 / 0.68 s | |
-| Edit a number, undo and redo it | 0.7 us, 1.2 us | | 0.7 us, 1.2 us |
+| Edit a number, undo and redo it | 0.6 us, 1.2 us | | 0.6 us, 1.2 us |
 | Frame at 200 x 60, whole | 0.88 ms | 0.87 ms | |
 
 XLSX exports are written by 012 with archive/zip: 1.9 MB allocated for
@@ -314,28 +316,41 @@ entities, so entity bombs fail as unknown entities.
 
 ## Undo
 
-Each step keeps a copy of every cell it changed, as a whole `Cell`
-(about 300 B, where the sheet keeps a number in 20). Undoing costs about
-what the change cost, since it recalculates the same cells. Clearing
-213 k cells and undoing it takes 144 ms; clearing all ten million cells
-of a full `max-cells` sheet would keep about 3 GB of before-images, the
-one step the history always keeps however large.
+Each step keeps the cells it changed as they were, in the form the
+sheet keeps them (`historyimage.go`): a plain cell as its 16-byte slot
+in columns of blocks, its text and formatting in the step's own tables,
+and a whole `Cell` only for a formula, a note or a derived cell. A step
+of one cell or a few keeps them in a list. Undoing costs about what the
+change cost, since it recalculates the same cells. Clearing 213 k cells
+and undoing it takes 86 ms; clearing all ten million cells of a full
+`max-cells` sheet of numbers holds 193 MB, and with its undo takes 6.2
+s. A deleted or replaced sheet is kept whole, so its step costs nothing
+more.
 
 The history is bounded by steps (`MaxUndo = 100`) and by an estimate of
 the memory its before-images hold (`MaxUndoBytes = 256 MB`); past either,
 the oldest steps are dropped first, and the newest step is kept however
-large it is. Each cell is counted as it is recorded (a fixed cost per
-cell plus its text, more for a formula, whose parsed tree stays alive),
-so the budget costs nothing to check; counting costs about 20 ns a
-cell, 3% of clearing a sheet and undoing it. The estimate follows the
-measured heap within about 10% (`BenchmarkHistoryFull`,
-`BenchmarkHistoryWide`):
+large it is. Each cell is counted as it is recorded (a slot, a block's
+share, its text once per step, more for a formula, whose parsed tree
+stays alive), so the budget costs nothing to check. The estimate follows
+the measured heap within about 10% (`BenchmarkHistoryFull`,
+`BenchmarkHistoryWide`, `BenchmarkClearMax`):
 
 | Benchmark | Result |
 |---|---|
-| 100 edits rewriting a whole column (819 k before-images) | 281 MB held (252 MB estimated), all 100 kept |
-| 12 edits rewriting all of 8192 x 26 (2.6 M before-images) | 199 MB held (196 MB estimated), the last 3 kept |
-| Undo + redo of one cell (dense, names) | 1.2 us, 110 us |
+| 100 edits rewriting a whole column (819 k before-images) | 15.9 MB held (15.9 MB estimated), all 100 kept |
+| 12 edits rewriting all of 8192 x 26 (2.6 M before-images) | 49.3 MB held (49.4 MB estimated), all 12 kept |
+| Clearing all of 1,000,000 x 10 numbers | 193 MB held (193 MB estimated) |
+| Undo + redo of one cell (dense, names) | 1.2 us, 109 us |
+
+A change whose step would hold more than `MaxStepBytes` (1 GB), as
+`Sheet.UndoCost` estimates it before the change (a slot a cell, the
+formulas whole, the range's share of the strings), asks first on the
+context line: "This can't be undone: it would take N MB of undo
+history." Enter runs it `WithoutUndo`, recording nothing and forgetting
+the history, which could no longer be undone past it. Plain cells cost
+about 20 B each, so only millions of formulas or of long distinct texts
+changed at once come near it.
 
 ## JEV
 
@@ -516,26 +531,14 @@ computation.
 
 ## What would raise the bounds
 
-In order of value for effort; sizes and scheduling are in the
-[roadmap](../../ROADMAP.md#3-scale). `max-cells` stands at ten million,
-as Google Sheets' limit does; the sheet itself would hold several times
-that in a few GB, and these are what stand in the way.
-
-1. **Streaming, compact file format.** The `.012` file is JSON decoded
-   whole: ten million cells take 8 s and 2.7 GB at the peak to open,
-   5.7 GB allocated, for a sheet that then holds 205 MB. A streaming
-   decoder over the same format would roughly halve open time and cut
-   allocation tenfold; a columnar or gzip-compressed variant would cut
-   the size about fourfold. The format is `internal/sheet/file.go`,
-   apart from the cell store.
-2. **Smaller undo steps.** A step keeps a whole `Cell` for each cell it
-   changed, formatting-only changes included (see [Undo](#undo)).
-   Keeping plain cells' before-images as slots, and formatting changes
-   as diffs, would let a step over a full sheet cost what the sheet
-   does.
-3. **Compact spilled and pivot cells.** What arrays and pivots write is
-   kept as whole `Cell`s (516 k of them in the arrays stress shape);
-   their values and inferred formats would fit in slots.
+Sizes and scheduling are in the [roadmap](../../ROADMAP.md#3-scale).
+`max-cells` stands at ten million, as Google Sheets' limit does; the
+sheet itself would hold several times that in a few GB, and opening,
+saving and undoing cost about what the cells do ([Sheet size](#sheet-size),
+[Undo](#undo)). What stands in the way is derived cells: what arrays
+and pivots write is kept as whole `Cell`s (516 k of them in the arrays
+stress shape), where their values and inferred formats would fit in
+slots.
 
 ## Measuring
 

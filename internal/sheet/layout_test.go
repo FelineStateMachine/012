@@ -116,6 +116,11 @@ func TestShapers(t *testing.T) {
 	if !s.RuleAbove(7) || s.RuleAbove(6) || s.RuleAbove(4) {
 		t.Error("rule above row 8 only")
 	}
+	// A number read from a file is indexed too.
+	s.Set(at("A7"), "12.5")
+	if got := roundTrip(t, s); !got.RuleAbove(7) || !slices.Equal(got.WrappedIn(4), []int{2}) {
+		t.Error("the file's borders and wrapping aren't indexed")
+	}
 	s.ClearFormatting(rng("A1:Z99"))
 	if s.Shaped() {
 		t.Error("still shaped after clearing")

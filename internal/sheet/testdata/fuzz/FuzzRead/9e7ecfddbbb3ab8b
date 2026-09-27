@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"version\":4, \"sheets\":[{ \"nAme\": \"0\",\"Cells\":{\"C3\": \"0\",\"C3\":\"\"}}]}0")

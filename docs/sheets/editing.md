@@ -54,6 +54,9 @@ typing, clearing, paste, fill, sort, insert and delete, formats, widths,
 names, charts, freeze, filters, pivot tables, and adding, deleting,
 renaming, moving and duplicating sheets. A multi-cell change is one step,
 and the context line says what was undone, e.g. `Undid: clear B3:B5`.
+A change whose undo would take more than 1 GB of memory (clearing
+millions of formulas at once) asks first: Enter makes it without undo,
+forgetting the steps before it, and Esc backs out.
 
 ## Rows and columns
 

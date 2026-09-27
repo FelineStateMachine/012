@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -189,14 +190,16 @@ func (m *Model) saveAs(name string, check bool) tea.Cmd {
 }
 
 // saveCmd writes the worksheet to path atomically: to a temporary file
-// first, then renamed over the target. With expect set, it writes only
-// if the file on disk is still that version.
+// beside it first, then renamed over the target. The file is written
+// here, as the workbook stands, streaming (see Workbook.Write), so a
+// large workbook isn't held twice in memory; the rename happens in the
+// background. With expect set, it renames only if the file on disk is
+// still that version.
 func saveCmd(s *sheet.Sheet, name, path string, expect *stamp, spans *telemetry.Trace) tea.Cmd {
 	span := spans.Start("save")
-	var buf strings.Builder
-	err := s.Write(&buf)
+	tmp, n, err := writeTemp(path, s.Write)
 	if telemetry.Enabled() {
-		span.End(slog.Int("cells", s.Len()), slog.Int("bytes", buf.Len()))
+		span.End(slog.Int("cells", s.Len()), slog.Int64("bytes", n))
 	}
 	return func() tea.Msg {
 		if err != nil {
@@ -204,37 +207,50 @@ func saveCmd(s *sheet.Sheet, name, path string, expect *stamp, spans *telemetry.
 		}
 		// A file deleted meanwhile is simply written again.
 		if now := diskStamp(path); expect != nil && now != (stamp{}) && !now.equal(*expect) {
+			os.Remove(tmp)
 			return savedMsg{name: name, conflict: true}
 		}
-		if err := writeAtomic(path, buf.String()); err != nil {
+		if err := os.Rename(tmp, path); err != nil {
+			os.Remove(tmp)
 			return savedMsg{name: name, err: err}
 		}
 		return savedMsg{name: name, stamp: diskStamp(path)}
 	}
 }
 
-// writeAtomic writes data to path through a temporary file of its own
-// beside it, so two writers never share one, then renames it over path.
-func writeAtomic(path, data string) error {
+// writeTemp writes a file with write into a temporary file of its own
+// beside path, so two writers never share one, and returns its name and
+// size. On an error it removes the file.
+func writeTemp(path string, write func(io.Writer) error) (string, int64, error) {
 	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 	tmp := f.Name()
-	_, err = f.WriteString(data)
+	cw := &countWriter{w: f}
+	err = write(cw)
 	if err == nil {
 		err = f.Chmod(0o644)
 	}
 	if cerr := f.Close(); err == nil {
 		err = cerr
 	}
-	if err == nil {
-		err = os.Rename(tmp, path)
-	}
 	if err != nil {
 		os.Remove(tmp)
 	}
-	return err
+	return tmp, cw.n, err
+}
+
+// countWriter counts the bytes written through it.
+type countWriter struct {
+	w io.Writer
+	n int64
+}
+
+func (c *countWriter) Write(p []byte) (int, error) {
+	n, err := c.w.Write(p)
+	c.n += int64(n)
+	return n, err
 }
 
 // loadCmd reads the file in the background, the span of it and its

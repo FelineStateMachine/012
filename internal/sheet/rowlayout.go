@@ -1,7 +1,7 @@
 package sheet
 
 import (
-	"bytes"
+	"bufio"
 	"maps"
 	"slices"
 	"strconv"
@@ -296,7 +296,7 @@ func (s *Sheet) heightsIn(lo, hi int) map[int]int {
 }
 
 // writeHeights writes the "heights" field: rows by number, in lines.
-func (s *Sheet) writeHeights(b *bytes.Buffer, indent string) {
+func (s *Sheet) writeHeights(b *bufio.Writer, indent string) {
 	if len(s.heights) == 0 {
 		return
 	}

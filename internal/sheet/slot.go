@@ -56,6 +56,7 @@ type strTable struct {
 	refs  []uint32
 	index map[string]uint32
 	free  []uint32
+	bytes int64 // the estimated heap the strings hold, strBytes and their text each
 }
 
 // add counts one more use of s and returns its entry.
@@ -77,6 +78,7 @@ func (t *strTable) add(s string) uint32 {
 		t.strs, t.refs = append(t.strs, s), append(t.refs, 1)
 	}
 	t.index[s] = i
+	t.bytes += strBytes + int64(len(s))
 	return i
 }
 
@@ -86,6 +88,7 @@ func (t *strTable) release(i uint32) {
 		return
 	}
 	if t.refs[i]--; t.refs[i] == 0 {
+		t.bytes -= strBytes + int64(len(t.strs[i]))
 		delete(t.index, t.strs[i])
 		t.strs[i] = ""
 		t.free = append(t.free, i)
@@ -171,6 +174,9 @@ func (st *cellStore) plainSlot(c *Cell) (slot, bool) {
 // numDec is how input prints v, as slot.dec, or false if it isn't v
 // printed plainly.
 func numDec(v float64, input string) (uint8, bool) {
+	if d, ok := plainDec(v, input); ok {
+		return d, true
+	}
 	var buf [64]byte
 	if string(strconv.AppendFloat(buf[:0], v, 'f', -1, 64)) == input {
 		return 0, true
@@ -184,6 +190,60 @@ func numDec(v float64, input string) (uint8, bool) {
 		return uint8(d + 1), true
 	}
 	return 0, false
+}
+
+// plainDec is numDec for the common input, a plain decimal (see
+// plainForm) that is v, found without printing v. It reports false for
+// any other input, which numDec then prints v to compare.
+func plainDec(v float64, input string) (uint8, bool) {
+	d, ok := plainForm(input)
+	if !ok {
+		return 0, false
+	}
+	if p, err := strconv.ParseFloat(input, 64); err != nil || math.Float64bits(p) != math.Float64bits(v) {
+		return 0, false
+	}
+	return d, true
+}
+
+// plainForm reports whether input is a plain decimal, of at most 15
+// significant digits without a sign but "-", leading zeros or an
+// exponent, and returns how it prints its value as slot.dec. Such a
+// decimal is its value's shortest text when it doesn't end in a zero
+// after the point, and its value printed with as many decimals as it
+// has otherwise: 15 digits always come back from a float64.
+func plainForm(input string) (uint8, bool) {
+	s := input
+	if s != "" && s[0] == '-' {
+		s = s[1:]
+	}
+	if s == "" || s[0] == '0' && len(s) > 1 && s[1] != '.' {
+		return 0, false
+	}
+	point, digits, lead := -1, 0, true
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '.' && point < 0 && i > 0 && i < len(s)-1:
+			point = i
+		case c >= '0' && c <= '9':
+			if lead = lead && c == '0'; !lead {
+				digits++
+			}
+		default:
+			return 0, false
+		}
+	}
+	d := 0
+	if point >= 0 {
+		d = len(s) - point - 1
+	}
+	if digits > 15 || d >= maxDec {
+		return 0, false
+	}
+	if d == 0 || s[len(s)-1] != '0' {
+		return 0, true
+	}
+	return uint8(d + 1), true
 }
 
 func boolText(b bool) string {
@@ -259,10 +319,7 @@ func (st *cellStore) size() int64 {
 	for _, rc := range st.rich {
 		n += cellSize(rc.c)
 	}
-	for _, s := range st.strs.strs {
-		n += strBytes + int64(len(s))
-	}
-	return n
+	return n + st.strs.bytes
 }
 
 // richCell is a rich cell and where it is.

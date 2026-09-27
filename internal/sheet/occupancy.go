@@ -330,3 +330,27 @@ func (o *occupancy) bounds(r Rect) (Rect, bool) {
 	}
 	return out, found
 }
+
+// countIn is the number of cells in rows r0 to r1 of column c, counted
+// by block: whole blocks by their count, the ends by popcount.
+func (o *occupancy) countIn(c, r0, r1 int) int {
+	ci := o.col(c)
+	if ci == nil || r0 > r1 {
+		return 0
+	}
+	n := 0
+	i, _ := slices.BinarySearch(ci.ids, r0>>blockShift)
+	for ; i < len(ci.ids) && ci.ids[i] <= r1>>blockShift; i++ {
+		id := ci.ids[i]
+		b, base := ci.blocks[id], id<<blockShift
+		lo, hi := max(r0-base, 0), min(r1-base, blockRows-1)
+		if lo == 0 && hi == blockRows-1 {
+			n += b.n
+			continue
+		}
+		for w := lo >> 6; w <= hi>>6; w++ {
+			n += bits.OnesCount64(b.bits[w] & wordMask(w, lo, hi))
+		}
+	}
+	return n
+}

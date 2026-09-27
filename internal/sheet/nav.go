@@ -115,3 +115,20 @@ func (s *Sheet) sheetEdge(a Addr, dc, dr int) Addr {
 	}
 	return a
 }
+
+// colRect is the range covering whole columns from..to.
+func colRect(from, to int) Rect {
+	return Rect{From: Addr{Col: from}, To: Addr{Col: to, Row: MaxRows - 1}}
+}
+
+// rowRect is the range covering whole rows from..to.
+func rowRect(from, to int) Rect {
+	return Rect{From: Addr{Row: from}, To: Addr{Col: MaxCols - 1, Row: to}}
+}
+
+func union(a, b Rect) Rect {
+	return Rect{
+		From: Addr{Col: min(a.From.Col, b.From.Col), Row: min(a.From.Row, b.From.Row)},
+		To:   Addr{Col: max(a.To.Col, b.To.Col), Row: max(a.To.Row, b.To.Row)},
+	}
+}
