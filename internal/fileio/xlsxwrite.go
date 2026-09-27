@@ -99,16 +99,6 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 	return r.To.Row - r.From.Row + 1
 }
 
-func mapKeys(m map[int]int) func(func(int) bool) {
-	return func(yield func(int) bool) {
-		for k := range m {
-			if !yield(k) {
-				return
-			}
-		}
-	}
-}
-
 // cell appends snapshot cell c at a as a <c> element. A formula's value
 // is written as its cached result; a formula with no Excel equivalent,
 // or naming a sheet that isn't written, is written as its value alone,
