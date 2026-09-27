@@ -323,7 +323,7 @@ move without touching callers:
   the places functions read ranges.
 - **Files.** The `.012` reader and writer stream (`fileread.go`,
   `filescan.go`) and meet the store only through its methods, so another
-  encoding would sit beside them; [The .012 format](../files/format.md#reading-and-writing)
+  encoding would sit beside them; [Bounds of support](limits.md#the-012-file)
   says why there is one.
 - **Depth limits.** `internal/formula`'s parser caps nesting at
   `formula.MaxDepth` (1024 levels), so a pathological formula fails to
