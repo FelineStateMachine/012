@@ -38,7 +38,7 @@ func sheetNames(m *Model) string {
 
 func TestTabKeys(t *testing.T) {
 	m := newModel()
-	if s := status(m); !strings.HasPrefix(s, " Sheet1   +   untitled") {
+	if s := status(m); !strings.HasPrefix(s, " Sheet1   +  │ untitled") {
 		t.Fatalf("status %q", s)
 	}
 	press(t, m, "<down>", "<down>", "<f11>") // plain F11 does nothing

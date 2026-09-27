@@ -376,7 +376,7 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 	for i, s := range sheets {
 		widths[i] = ansi.StringWidth(tabLabel(s))
 	}
-	const add, arrow = 4, 2 // " + " and "‹ ", each with a space before the next part
+	const add, arrow = 3, 2 // " + ", and "‹" or "›" with the space after it
 	fits := func(first int) (last int, ok bool) {
 		w := add
 		if first > 0 {
@@ -401,6 +401,15 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 	for !ok && first < active {
 		first++
 		last, ok = fits(first)
+	}
+	// Show tabs to the left again when there's room, e.g. once the
+	// screen is wider.
+	for first > 0 {
+		l, ok := fits(first - 1)
+		if !ok || l < last {
+			break
+		}
+		first, last = first-1, l
 	}
 	m.tabLeft = first
 	if last < active {
@@ -436,7 +445,7 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 	if last < len(sheets)-1 {
 		part(hitTabNext, 0, m.th.muted.Render("›"))
 	}
-	addStyle := m.th.tab
+	addStyle := m.th.muted
 	if m.hover.kind == hitTabAdd {
 		addStyle = m.th.tabHover
 	}

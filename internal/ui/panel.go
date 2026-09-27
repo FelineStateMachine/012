@@ -257,7 +257,7 @@ func (m *Model) statusLine() string {
 }
 
 // statusLayout is the status line and where its sheet tabs are. From the
-// left: the tabs, the file name and its state, then selection statistics
+// left: the tabs, a divider, the file name and its state, then selection statistics
 // or the ways in to everything else on the right. When space runs out,
 // the right side gives up detail first, then the file name, then tabs
 // scroll.
@@ -289,7 +289,7 @@ func (m *Model) statusLayout() (string, []tabSpan) {
 	for _, need := range []int{m.allTabs(), min(m.allTabs(), m.width/2), m.minTabs()} {
 		for _, info := range infos {
 			if info != "" {
-				info = "  " + info
+				info = m.th.frozenLine.Render(" │ ") + info // like a tmux pane border
 			}
 			for _, right := range m.statusRights() {
 				room := m.width - ansi.StringWidth(info)

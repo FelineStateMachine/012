@@ -48,9 +48,10 @@ type theme struct {
 	// frozenLine divides frozen rows and columns from the scrolling ones,
 	// like a tmux pane border.
 	frozenLine lipgloss.Style
-	// Sheet tabs on the status line: tabActive is the sheet shown (also
-	// set apart by bold text), tabHover a tab under the mouse or where a
-	// dragged tab would go.
+	// Sheet tabs on the status line, like lazygit's panel tabs: plain
+	// names (so they don't read as key chips), the sheet shown in the
+	// accent and bold, and a tab under the mouse, or where a dragged tab
+	// would go, bold and underlined.
 	tab       lipgloss.Style
 	tabActive lipgloss.Style
 	tabHover  lipgloss.Style
@@ -160,9 +161,9 @@ func newTheme(dark bool) theme {
 		copied: lipgloss.NewStyle().Foreground(lipgloss.Magenta).
 			UnderlineStyle(lipgloss.UnderlineDashed).UnderlineSpaces(true),
 		frozenLine: lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
-		tab:        lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
+		tab:        lipgloss.NewStyle(),
 		tabActive:  accent.Bold(true),
-		tabHover:   lipgloss.NewStyle().Background(headerBg).Foreground(lipgloss.Cyan).Bold(true),
+		tabHover:   lipgloss.NewStyle().Foreground(bar).Bold(true).Underline(true),
 		filterOn:   lipgloss.NewStyle().Background(headerBg).Foreground(filterFg).Bold(true),
 
 		menuBar:           lipgloss.NewStyle(),
