@@ -33,9 +33,9 @@ func record(t *testing.T, m *Model, relative bool, name, key string, keys ...str
 	if m.mode != modePrompt || !strings.HasPrefix(m.prompt.label, "Save macro as") {
 		t.Fatalf("no name prompt: mode %v", m.mode)
 	}
-	m.line.set(name)
+	m.line.Set(name)
 	press(t, m, "<enter>")
-	m.line.set(key)
+	m.line.Set(key)
 	press(t, m, "<enter>")
 	if m.rec != nil {
 		t.Fatalf("still recording: %q %q", m.note, m.errMsg)
@@ -201,7 +201,7 @@ func TestRecordingAnswersAndSkips(t *testing.T) {
 	m = newModel()
 	run(m, m.runCommand("macro.record"))
 	run(m, m.runCommand("column.width"))
-	m.line.set("15")
+	m.line.Set("15")
 	press(t, m, "<enter>")
 	run(m, m.runCommand("macro.stop"))
 	press(t, m, "<enter>", "<enter>")
@@ -307,7 +307,7 @@ func TestPaletteAndPickerRunMacros(t *testing.T) {
 	run(m, m.runCommand("macro.run"))
 	press(t, m, "<enter>")
 	if m.note != "Ran Stamp" || m.overlay != nil {
-		t.Errorf("picker: note %q", m.note)
+		t.Errorf("Picker: note %q", m.note)
 	}
 }
 
@@ -320,10 +320,10 @@ func TestManageMacros(t *testing.T) {
 		t.Fatalf("manager:\n%s", screen(m))
 	}
 	press(t, m, "<down>", "<f2>")
-	m.line.set("Uno")
+	m.line.Set("Uno")
 	press(t, m, "<enter>")
 	press(t, m, "<f3>")
-	m.line.set("7")
+	m.line.Set("7")
 	press(t, m, "<enter>")
 	mc := mustMacro(t, m, "Uno")
 	if mc.Key != "7" {
@@ -349,7 +349,7 @@ func TestWithoutAnEditorScriptsAreReadOnly(t *testing.T) {
 	if strings.Contains(screen(m), "+ Write a macro") {
 		t.Error("the manager offers to write a macro")
 	}
-	if cmd := m.overlay.key(m, tea.KeyPressMsg{Code: tea.KeyF4}); cmd != nil || !strings.Contains(line(m, m.height-1), "No editor in this session") {
+	if cmd := m.overlay.Key(tea.KeyPressMsg{Code: tea.KeyF4}); cmd != nil || !strings.Contains(line(m, m.height-1), "No editor in this session") {
 		t.Errorf("F4: %v %q", cmd, line(m, m.height-1))
 	}
 }

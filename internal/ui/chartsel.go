@@ -5,12 +5,14 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 )
 
 // chartSel is a selected chart. Arrows move it a cell at a time, Shift
 // and arrows resize it, Enter edits it and Del deletes it; the mouse
 // drags it or its corner. Other keys deselect it and act as usual.
 type chartSel struct {
+	m       *Model // the model it acts on
 	i       int
 	drag    int // chartDragNone, chartDragMove or chartDragResize
 	grabX   int // where the chart was grabbed, relative to its corner
@@ -18,9 +20,9 @@ type chartSel struct {
 	preview *sheet.Chart // the chart while being dragged
 }
 
-func (s *chartSel) indicator() string { return "CHART" }
+func (s *chartSel) Indicator() string { return "CHART" }
 
-func (s *chartSel) layout(*Model) []box {
+func (s *chartSel) Layout() []overlay.Box {
 	return nil // drawn with the other charts, see chartBoxes
 }
 
@@ -32,7 +34,8 @@ func (s *chartSel) chart(m *Model) (sheet.Chart, bool) {
 	return charts[s.i], true
 }
 
-func (s *chartSel) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (s *chartSel) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := s.m
 	c, ok := s.chart(m)
 	if !ok {
 		m.closeOverlay()
@@ -95,54 +98,55 @@ func (s *chartSel) press(m *Model, x, y int) {
 	s.preview = &c
 }
 
-func (s *chartSel) mouse(m *Model, e mouseEvent) tea.Cmd {
-	switch e.kind {
-	case mousePress:
+func (s *chartSel) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := s.m
+	switch e.Kind {
+	case overlay.MousePress:
 		return s.pressAt(m, e)
-	case mouseMotion:
+	case overlay.MouseMotion:
 		return s.motion(m, e)
-	case mouseRelease:
+	case overlay.MouseRelease:
 		s.release(m)
-	case mouseWheel:
-		m.handleWheel(tea.Mouse{X: e.x, Y: e.y, Button: e.button})
+	case overlay.MouseWheel:
+		m.handleWheel(tea.Mouse{X: e.X, Y: e.Y, Button: e.Button})
 	}
 	return nil
 }
 
 // pressAt selects the chart pressed and starts dragging it, or opens its
 // menu; pressing off the charts deselects and acts as usual.
-func (s *chartSel) pressAt(m *Model, e mouseEvent) tea.Cmd {
-	i := m.chartAt(e.x, e.y)
+func (s *chartSel) pressAt(m *Model, e overlay.MouseEvent) tea.Cmd {
+	i := m.chartAt(e.X, e.Y)
 	switch {
 	case i < 0:
 		m.closeOverlay()
-		return m.handlePress(tea.Mouse{X: e.x, Y: e.y, Button: e.button})
-	case e.button == tea.MouseRight:
+		return m.handlePress(tea.Mouse{X: e.X, Y: e.Y, Button: e.Button})
+	case e.Button == tea.MouseRight:
 		m.selectChart(i)
-		m.showContextMenu(chartMenu, e.x, e.y+1)
-	case e.button == tea.MouseLeft:
+		m.showContextMenu(chartMenu, e.X, e.Y+1)
+	case e.Button == tea.MouseLeft:
 		if i != s.i {
 			m.selectChart(i)
 			s = m.overlay.(*chartSel)
 		}
-		s.press(m, e.x, e.y)
+		s.press(m, e.X, e.Y)
 	}
 	return nil
 }
 
 // motion moves or resizes the chart being dragged, or else sets the
 // pointer shape for what's under the mouse.
-func (s *chartSel) motion(m *Model, e mouseEvent) tea.Cmd {
+func (s *chartSel) motion(m *Model, e overlay.MouseEvent) tea.Cmd {
 	if s.drag == chartDragNone || s.preview == nil {
-		return m.setShape(s.hoverShape(m, e.x, e.y))
+		return m.setShape(s.hoverShape(m, e.X, e.Y))
 	}
 	p := *s.preview
 	if s.drag == chartDragResize {
 		cx, cy := m.chartScreen(p)
-		p.W = clamp(e.x-cx+1, sheet.MinChartW, sheet.MaxChartW)
-		p.H = clamp(e.y-cy+1, sheet.MinChartH, sheet.MaxChartH)
+		p.W = clamp(e.X-cx+1, sheet.MinChartW, sheet.MaxChartW)
+		p.H = clamp(e.Y-cy+1, sheet.MinChartH, sheet.MaxChartH)
 	} else {
-		p.At = m.chartCellAt(e.x-s.grabX, e.y-s.grabY)
+		p.At = m.chartCellAt(e.X-s.grabX, e.Y-s.grabY)
 	}
 	s.preview = &p
 	return nil
@@ -200,7 +204,8 @@ func (g *grid) chartCellAt(x, y int) sheet.Addr {
 	return clampAddr(a)
 }
 
-func (s *chartSel) status(m *Model) (string, string) {
+func (s *chartSel) Status() (string, string) {
+	m := s.m
 	c, ok := s.chart(m)
 	if !ok {
 		return "", ""
@@ -222,8 +227,9 @@ func (s *chartSel) status(m *Model) (string, string) {
 	}
 }
 
-// contextLine says what's selected and how to change it.
-func (s *chartSel) contextLine(m *Model) (string, string) {
+// ContextLine says what's selected and how to change it.
+func (s *chartSel) ContextLine() (string, string) {
+	m := s.m
 	c, ok := s.chart(m)
 	if !ok {
 		return "", ""

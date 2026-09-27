@@ -13,6 +13,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/transfer"
 )
 
 // writeSheet saves a one-cell sheet at path.
@@ -100,9 +101,9 @@ func TestServedFilesStayInside(t *testing.T) {
 	if !slices.Equal(names, []string{"data.csv"}) {
 		t.Errorf("importable = %v", names)
 	}
-	run(m, m.startImport("../elsewhere/other.csv", fileio.Options{}, placeBook))
-	if m.mode != modeError || m.xfer.job != nil {
-		t.Errorf("import outside: mode %v job %v", m.mode, m.xfer.job)
+	run(m, m.startImport("../elsewhere/other.csv", fileio.Options{}, transfer.Book))
+	if m.mode != modeError || m.xfer.Busy() {
+		t.Errorf("import outside: mode %v busy %v", m.mode, m.xfer.Busy())
 	}
 }
 

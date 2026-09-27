@@ -4,6 +4,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
 )
 
 // Sheets work as in Google Sheets: Ctrl+PgDn and Ctrl+PgUp (or Alt+Right
@@ -127,8 +129,8 @@ func (m *Model) showSheet(s *sheet.Sheet) {
 	}
 	m.leave()
 	m.sheet = s
-	p := m.tabs.places[s]
-	m.cur, m.top, m.left = p.cur, p.top, p.left
+	p := m.tabs.Places[s]
+	m.cur, m.top, m.left = p.Cur, p.Top, p.Left
 	m.clearSelection()
 	m.charts.last = -1
 	m.book().SetActive(s)
@@ -136,14 +138,14 @@ func (m *Model) showSheet(s *sheet.Sheet) {
 
 // leave remembers where the sheet shown is, before another is shown.
 func (m *Model) leave() {
-	if m.tabs.places == nil {
-		m.tabs.places = map[*sheet.Sheet]place{}
+	if m.tabs.Places == nil {
+		m.tabs.Places = map[*sheet.Sheet]tabstrip.Place{}
 	}
 	cur := m.cur
 	if m.away() {
 		cur = m.point.at // the entry's cell is on another sheet
 	}
-	m.tabs.places[m.sheet] = place{cur: cur, top: m.top, left: m.left}
+	m.tabs.Places[m.sheet] = tabstrip.Place{Cur: cur, Top: m.top, Left: m.left}
 }
 
 // away reports whether an entry is being typed for a cell on another
@@ -167,14 +169,14 @@ func (m *Model) pointInto(s *sheet.Sheet) {
 		return
 	}
 	if m.mode != modePoint {
-		if !m.line.isFormula() || !m.line.canPoint() {
+		if !m.line.IsFormula() || !m.line.CanPoint() {
 			if m.commit() {
 				m.showSheet(s)
 			}
 			return
 		}
-		m.entry.prefix = m.line.head()
-		m.entry.suffix = m.line.tail()
+		m.entry.prefix = m.line.Head()
+		m.entry.suffix = m.line.Tail()
 		m.mode = modePoint
 	}
 	if m.entry.home == nil {
@@ -183,13 +185,13 @@ func (m *Model) pointInto(s *sheet.Sheet) {
 	cur := m.cur
 	m.leave()
 	m.sheet = s
-	p := m.tabs.places[s]
+	p := m.tabs.Places[s]
 	if s == m.entry.home {
-		p.cur = cur // back home, pointing starts at the entry's cell
+		p.Cur = cur // back home, pointing starts at the entry's cell
 	}
-	m.top, m.left = p.top, p.left
+	m.top, m.left = p.Top, p.Left
 	m.cur = cur
-	m.point = pointer{at: p.cur}
+	m.point = pointer{at: p.Cur}
 	m.book().SetActive(s)
 }
 
@@ -202,10 +204,10 @@ func (m *Model) returnHome() {
 		return
 	}
 	cur := m.cur
-	m.tabs.places[m.sheet] = place{cur: m.point.at, top: m.top, left: m.left}
+	m.tabs.Places[m.sheet] = tabstrip.Place{Cur: m.point.at, Top: m.top, Left: m.left}
 	m.sheet = home
-	p := m.tabs.places[home]
-	m.cur, m.top, m.left = cur, p.top, p.left
+	p := m.tabs.Places[home]
+	m.cur, m.top, m.left = cur, p.Top, p.Left
 	m.book().SetActive(home)
 }
 
@@ -228,8 +230,8 @@ func (m *Model) afterSheetsChange(prefer *sheet.Sheet, index int) {
 	case !m.sheet.Live():
 		s := m.nearVisible(clamp(index, 0, book.Len()-1))
 		m.sheet = s // the old sheet is gone: nothing to remember of it
-		p := m.tabs.places[s]
-		m.cur, m.top, m.left = p.cur, p.top, p.left
+		p := m.tabs.Places[s]
+		m.cur, m.top, m.left = p.Cur, p.Top, p.Left
 		m.clearSelection()
 		m.charts.last = -1
 		book.SetActive(s)
@@ -260,7 +262,7 @@ func (m *Model) confirmDeleteSheet() tea.Cmd {
 	if n == 0 {
 		what = "Delete " + s.Name() + " and its charts?"
 	}
-	m.openOverlay(&choiceBar{msg: what, warn: true, choices: []choice{
+	m.openOverlay(&choiceBar{m: m, msg: what, warn: true, choices: []choice{
 		{key: "enter", label: "Delete", run: del},
 		{key: "esc", label: "Cancel", run: func(*Model) tea.Cmd { return nil }},
 	}})
@@ -286,7 +288,7 @@ func (m *Model) openRename() {
 // openSheetPicker lists the sheets, fzf style, with the one shown
 // highlighted.
 func (m *Model) openSheetPicker() {
-	var items []pickItem
+	var items []picker.Item
 	sel := 0
 	for i, s := range m.visibleSheets() {
 		if s == m.sheet {
@@ -296,18 +298,18 @@ func (m *Model) openSheetPicker() {
 		if used, ok := s.UsedRange(); ok {
 			detail = used.String() + ", " + cellCount(s.Len())
 		}
-		items = append(items, pickItem{
-			title: s.Name(), name: len(s.Name()), detail: detail, desc: "Show " + s.Name(),
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{
+			Title: s.Name(), Name: len(s.Name()), Detail: detail, Desc: "Show " + s.Name(),
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				m.showSheet(s)
 				return nil
 			},
 		})
 	}
-	p := newPicker(m, "Go to sheet", "Type a sheet name", 60, items)
-	p.action = "show"
-	p.sel = sel
+	p := m.newPicker("Go to sheet", "Type a sheet name", 60, items)
+	p.Action = "show"
+	p.Sel = sel
 	m.openOverlay(p)
 }
 

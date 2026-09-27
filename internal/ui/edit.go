@@ -151,7 +151,7 @@ func (m *Model) structural(err error) tea.Cmd {
 // fillEntry stores the entry being typed in every selected cell, adjusting
 // references as if it were copied from the active cell (Ctrl+Enter).
 func (m *Model) fillEntry() bool {
-	input := m.line.text()
+	input := m.line.Text()
 	if err := m.entrySheet().FillEntry(m.selection(), m.cur, input); err != nil {
 		m.entryError(err, input)
 		return false
@@ -168,15 +168,15 @@ func (m *Model) entryError(err error, input string) {
 	m.mode = modeEdit
 	m.entry.hint = err.Error()
 	if errors.As(err, &pe) {
-		m.line.pos = utf8.RuneCountInString(input[:min(pe.Pos, len(input))])
+		m.line.Pos = utf8.RuneCountInString(input[:min(pe.Pos, len(input))])
 	}
 }
 
 // toggleAbsolute cycles the reference at the caret through A1, $A$1, A$1
 // and $A1, as F4 does in Sheets. A range cycles both corners.
 func (m *Model) toggleAbsolute() {
-	if buf, pos, ok := formula.CycleRef(m.line.buf, m.line.pos); ok {
-		m.line.buf, m.line.pos = buf, pos
+	if buf, pos, ok := formula.CycleRef(m.line.Buf, m.line.Pos); ok {
+		m.line.Buf, m.line.Pos = buf, pos
 	}
 }
 

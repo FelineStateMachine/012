@@ -14,6 +14,8 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -55,7 +57,7 @@ func (m *Model) View() tea.View {
 		// Terminals that support it (OSC 9;4) show activity in the tab.
 		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarIndeterminate, 0)
 	}
-	if bar := m.xfer.progressBar(); bar != nil {
+	if bar := m.xfer.ProgressBar(); bar != nil {
 		v.ProgressBar = bar
 	}
 	if m.changed {
@@ -119,8 +121,8 @@ func (m *Model) timeFrame(start time.Time) {
 }
 
 func (m *Model) displayName() string {
-	if m.filename == "" && m.xfer.source != "" {
-		return filepath.Base(m.xfer.source)
+	if m.filename == "" && m.xfer.Source != "" {
+		return filepath.Base(m.xfer.Source)
 	}
 	if m.filename == "" {
 		return "untitled"
@@ -131,12 +133,12 @@ func (m *Model) displayName() string {
 // indicator is the mode shown at the top right.
 func (m *Model) indicator() string {
 	switch {
-	case m.xfer.job != nil:
+	case m.xfer.Busy():
 		return "WAIT"
 	case m.macros.run != nil:
 		return "CMD" // 1-2-3's indicator while a macro runs
 	case m.overlay != nil:
-		return m.overlay.indicator()
+		return m.overlay.Indicator()
 	case m.mode == modePrompt:
 		return m.prompt.indicator
 	case m.vimActive() && m.visual() != visualNone:
@@ -179,7 +181,7 @@ func (m *Model) formulaBar() string {
 	box := m.th.Header.Render(theme.PadRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
 	switch m.mode {
 	case modeEnter, modeEdit:
-		return box + m.line.text()
+		return box + m.line.Text()
 	case modePoint:
 		return box + m.entry.prefix + m.th.Selection.Render(m.pointRef()) + m.entry.suffix
 	}
@@ -194,8 +196,8 @@ func (m *Model) formulaBar() string {
 func (m *Model) contextLineText() string {
 	var left, right string
 	switch {
-	case m.xfer.job != nil:
-		left = m.xfer.line(&m.th)
+	case m.xfer.Busy():
+		left = m.xfer.Line(&m.th)
 	case m.mouse.drag == dragResize:
 		left = m.th.Key.Render("Column "+sheet.ColName(m.mouse.resizeCol)) + m.th.Muted.Render(" width ") +
 			strconv.Itoa(m.sheet.ColWidth(m.mouse.resizeCol)) + m.th.Muted.Render("   double-click the border to fit")
@@ -220,15 +222,8 @@ func (m *Model) contextLineText() string {
 			left = m.recordingLine()
 		}
 	case m.mode == modeMenu:
-		switch o := m.overlay.(type) {
-		case *choiceBar:
-			left = o.line(m)
-		case *findBar:
-			left, right = o.line(m)
-		case contextLiner:
-			left, right = o.contextLine(m)
-		case *sortBar:
-			left = o.line(m)
+		if o, ok := m.overlay.(overlay.Liner); ok {
+			left, right = o.ContextLine()
 		}
 	case m.mode == modePrompt:
 		left, right = m.prompt.line(m)
@@ -238,9 +233,9 @@ func (m *Model) contextLineText() string {
 		if left, right, ok = signatureLine(&m.th, m.width, prefix, len(prefix), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
 			left = m.th.KeyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
 		}
-	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.isFormula() && m.line.inFunction():
-		left, right, _ = signatureLine(&m.th, m.width, m.line.buf, m.line.pos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
-	case m.mode == modeEnter && m.line.isFormula():
+	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.IsFormula() && inFunction(&m.line):
+		left, right, _ = signatureLine(&m.th, m.width, m.line.Buf, m.line.Pos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
+	case m.mode == modeEnter && m.line.IsFormula():
 		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
 	case m.mode == modeEnter:
 		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "accept and move", "Esc", "cancel")
@@ -264,13 +259,13 @@ func (m *Model) spread(left, right string) string {
 // while typing an entry, on the context line in a text prompt, or in an
 // overlay's search field.
 func (m *Model) cursorPos() (x, y int, ok bool) {
-	if o, isText := m.overlay.(textOverlay); isText {
-		x, y = o.cursor(m)
+	if o, isText := m.overlay.(overlay.Text); isText {
+		x, y = o.Cursor()
 		return x, y, true
 	}
 	switch {
 	case m.mode == modeEnter, m.mode == modeEdit:
-		return formulaBarTextX() + ansi.StringWidth(m.line.head()), formulaLine, true
+		return formulaBarTextX() + ansi.StringWidth(m.line.Head()), formulaLine, true
 	case m.mode == modePrompt && !m.pointing():
 		return ansi.StringWidth(m.prompt.prefix() + m.prompt.head(m)), contextLine, true
 	}
@@ -287,12 +282,12 @@ func (m *Model) statusLine() string {
 // statistics or the ways in to everything else on the right. While a
 // menu, picker or suggestion list is open, it says what the highlighted
 // item does instead.
-func (m *Model) statusLayout() (string, []tabSpan) {
+func (m *Model) statusLayout() (string, []tabstrip.Span) {
 	if m.mode == modeError {
 		return m.th.Error.Render(m.errMsg) + m.th.Muted.Render("   press any key"), nil
 	}
-	if m.xfer.job != nil {
-		return m.spread(m.xfer.status(&m.th, m.width)), nil
+	if m.xfer.Busy() {
+		return m.spread(m.xfer.Status(&m.th, m.width)), nil
 	}
 	if line, ok := m.floatingStatus(); ok {
 		return line, nil
@@ -305,7 +300,7 @@ func (m *Model) statusLayout() (string, []tabSpan) {
 func (m *Model) floatingStatus() (string, bool) {
 	desc, keys, floating := m.entry.assist.status(m)
 	if m.overlay != nil {
-		desc, keys = m.overlay.status(m)
+		desc, keys = m.overlay.Status()
 		floating = true
 	}
 	if !floating || desc == "" && keys == "" {
@@ -321,12 +316,12 @@ func (m *Model) floatingStatus() (string, bool) {
 // out, the right side gives up detail first, then the file name, then
 // tabs scroll: first every tab is tried, then half the line of them, then
 // just the one shown.
-func (m *Model) fileStatus() (string, []tabSpan) {
+func (m *Model) fileStatus() (string, []tabstrip.Span) {
 	v := m.tabView()
 	state := m.statusState()
 	infos := []string{m.displayName() + state, strings.TrimPrefix(state, "  ")}
 	rights := m.statusRights()
-	for _, need := range []int{v.fullWidth(), min(v.fullWidth(), m.width/2), v.minWidth()} {
+	for _, need := range []int{v.FullWidth(), min(v.FullWidth(), m.width/2), v.MinWidth()} {
 		for _, info := range infos {
 			if info != "" {
 				info = m.th.FrozenLine.Render(" │ ") + info // like a tmux pane border
@@ -341,7 +336,7 @@ func (m *Model) fileStatus() (string, []tabSpan) {
 
 // statusFits lays out the status line with info after the tabs and the
 // most detailed of rights that leaves the tabs need columns.
-func (m *Model) statusFits(v tabView, need int, info string, rights []string) (string, []tabSpan, bool) {
+func (m *Model) statusFits(v tabstrip.View, need int, info string, rights []string) (string, []tabstrip.Span, bool) {
 	for _, right := range rights {
 		room := m.width - ansi.StringWidth(info)
 		if right != "" {
@@ -350,7 +345,7 @@ func (m *Model) statusFits(v tabView, need int, info string, rights []string) (s
 		if room < need && (right != "" || info != "") {
 			continue
 		}
-		tabs, spans := m.tabs.layout(&m.th, v, room)
+		tabs, spans := m.tabs.Layout(&m.th, v, room)
 		left := tabs + info
 		gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
 		return left + strings.Repeat(" ", gap) + right, spans, true

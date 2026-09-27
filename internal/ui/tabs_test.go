@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
 )
 
 // status is the status line, where the tabs are.
@@ -19,8 +20,8 @@ func tabX(t *testing.T, m *Model, name string) int {
 	t.Helper()
 	_, spans := m.statusLayout()
 	for _, sp := range spans {
-		if name == "+" && sp.kind == hitTabAdd || sp.kind == hitTab && m.tabSheet(sp.index).Name() == name {
-			return sp.x + sp.w/2
+		if name == "+" && sp.Kind == tabstrip.Add || sp.Kind == tabstrip.Tab && m.tabSheet(sp.Index).Name() == name {
+			return sp.X + sp.W/2
 		}
 	}
 	t.Fatalf("no tab %q in %q", name, status(m))
@@ -243,8 +244,8 @@ func TestSheetPicker(t *testing.T) {
 	}
 	press(t, m, "<alt+shift+k>")
 	p := openPicker(t, m)
-	if len(p.shown) != 4 || p.sel != 3 {
-		t.Fatalf("picker: %d shown, %d selected", len(p.shown), p.sel)
+	if len(p.Shown()) != 4 || p.Sel != 3 {
+		t.Fatalf("picker: %d shown, %d selected", len(p.Shown()), p.Sel)
 	}
 	press(t, m, "sheet2", "<enter>")
 	if m.overlay != nil || m.sheet.Name() != "Sheet2" {
@@ -299,12 +300,12 @@ func TestFindAllSheets(t *testing.T) {
 	press(t, m, "rent", "<enter>", "<shift+f11>", "<down>", "rental", "<enter>", "<ctrl+pgup>")
 	press(t, m, "<ctrl+f>", "rent")
 	f := findBarOf(t, m)
-	if len(f.matches) != 1 || !strings.Contains(line(m, contextLine), "in Sheet1") {
-		t.Fatalf("this sheet: %d matches, %q", len(f.matches), line(m, contextLine))
+	if len(f.Matches()) != 1 || !strings.Contains(line(m, contextLine), "in Sheet1") {
+		t.Fatalf("this sheet: %d matches, %q", len(f.Matches()), line(m, contextLine))
 	}
 	press(t, m, "<alt+s>")
-	if len(f.matches) != 2 || !strings.Contains(line(m, contextLine), "in all sheets") {
-		t.Fatalf("all sheets: %d matches, %q", len(f.matches), line(m, contextLine))
+	if len(f.Matches()) != 2 || !strings.Contains(line(m, contextLine), "in all sheets") {
+		t.Fatalf("all sheets: %d matches, %q", len(f.Matches()), line(m, contextLine))
 	}
 	press(t, m, "<enter>")
 	if m.sheet.Name() != "Sheet2" || m.cur != addr("A2") || !strings.Contains(line(m, contextLine), "2 of 2 on Sheet2") {

@@ -219,8 +219,8 @@ func TestEditExisting(t *testing.T) {
 		t.Errorf("input %q, want =243", got)
 	}
 	press(t, m, "<up>", "<enter>")
-	if m.mode != modeEdit || m.line.text() != "=243" {
-		t.Errorf("Enter should edit: mode %v buf %q", m.mode, m.line.text())
+	if m.mode != modeEdit || m.line.Text() != "=243" {
+		t.Errorf("Enter should edit: mode %v buf %q", m.mode, m.line.Text())
 	}
 }
 
@@ -321,8 +321,8 @@ func TestDoubleClickEdits(t *testing.T) {
 	press(t, m, "hi", "<enter>")
 	click(m, cellX(0), gridTop, 0)
 	click(m, cellX(0), gridTop, 0)
-	if m.mode != modeEdit || m.line.text() != "hi" {
-		t.Errorf("mode %v buf %q", m.mode, m.line.text())
+	if m.mode != modeEdit || m.line.Text() != "hi" {
+		t.Errorf("mode %v buf %q", m.mode, m.line.Text())
 	}
 	press(t, m, "<esc>")
 	m.mouse.lastClick = time.Time{}

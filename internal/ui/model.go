@@ -12,7 +12,12 @@ import (
 	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/findbar"
+	"github.com/FelineStateMachine/012/internal/ui/lineedit"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"github.com/FelineStateMachine/012/internal/ui/transfer"
 )
 
 // mode is the state shown in the mode indicator.
@@ -83,21 +88,21 @@ type Model struct {
 
 	// Components. Each owns its state and the handling of the input it
 	// takes; Model routes messages to them and composes what they draw.
-	line    lineEdit   // the edit line of entries, prompts and search fields: line.go
-	entry   entry      // typing into a cell: entry.go
-	point   pointer    // the cell or range pointed at in POINT mode and range prompts
-	prompt  *prompt    // a question on the context line: prompt.go
-	overlay overlay    // the open menu, picker or bar, if any (modeMenu): overlay.go
-	mouse   mouseState // drags, hover and double clicks: mouse.go
-	tabs    tabStrip   // the sheet tabs and where each sheet was left: tabstrip.go
-	find    *findBar   // the last search, reopened by Ctrl+F: find.go
-	charts  chartState // chart commands' target: charts.go
-	copied  clipboard  // what Ctrl+V pastes: clipboard.go
-	trace   *trace     // precedents or dependents being shown: trace.go
-	xfer    transfer   // imports and downloads: transfer.go
-	jev     *jevRunner // answers JEV functions; nil without an API key: jev.go
-	term    terminal   // what the terminal supports: graphics.go
-	prefs   prefs      // the settings in effect and the theme chosen: prefs.go
+	line    lineedit.Line     // the edit line of entries, prompts and search fields: package lineedit
+	entry   entry             // typing into a cell: entry.go
+	point   pointer           // the cell or range pointed at in POINT mode and range prompts
+	prompt  *prompt           // a question on the context line: prompt.go
+	overlay overlay.Overlay   // the open menu, picker or bar, if any (modeMenu): overlay.go
+	mouse   mouseState        // drags, hover and double clicks: mouse.go
+	tabs    tabstrip.Strip    // the sheet tabs and where each sheet was left: package tabstrip
+	find    *findbar.Bar      // the last search, reopened by Ctrl+F: package findbar
+	charts  chartState        // chart commands' target: charts.go
+	copied  clipboard         // what Ctrl+V pastes: clipboard.go
+	trace   *trace            // precedents or dependents being shown: trace.go
+	xfer    transfer.Transfer // the import running and the file imported: package transfer
+	jev     *jevRunner        // answers JEV functions; nil without an API key: jev.go
+	term    terminal          // what the terminal supports: graphics.go
+	prefs   prefs             // the settings in effect and the theme chosen: prefs.go
 
 	vim    vimState   // a vim key sequence in progress: vim.go
 	rec    *recorder  // a macro being recorded: macrorec.go
@@ -180,7 +185,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.answerJEV(msg)
 	case jevRecalcMsg:
 		cmd = m.recalcAnswered()
-	case importedMsg, importTickMsg, exportedMsg:
+	case transfer.ImportedMsg, transfer.TickMsg, exportedMsg:
 		cmd = m.handleTransfer(msg)
 	case macroCallMsg:
 		cmd = m.serveMacro(msg)
@@ -258,7 +263,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 	case modePoint:
 		return m.pointKey(k)
 	case modeMenu:
-		return m.overlay.key(m, k)
+		return m.overlay.Key(k)
 	case modePrompt:
 		return m.prompt.key(m, k)
 	case modeError:
@@ -334,12 +339,7 @@ func (m *Model) focus() *sheet.Addr {
 }
 
 // typed returns the printable text of a key press, if any.
-func typed(k tea.KeyPressMsg) string {
-	if k.Mod.Contains(tea.ModCtrl) || k.Mod.Contains(tea.ModAlt) {
-		return ""
-	}
-	return k.Text
-}
+func typed(k tea.KeyPressMsg) string { return lineedit.Typed(k) }
 
 func clamp(v, lo, hi int) int {
 	return max(lo, min(v, hi))

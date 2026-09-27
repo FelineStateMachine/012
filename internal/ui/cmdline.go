@@ -7,11 +7,10 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"github.com/FelineStateMachine/012/internal/ui/cmdline"
 )
 
 // The command line (: with vim keys, or from the palette) takes vim's
@@ -21,82 +20,13 @@ import (
 // the command registry as you type, in a box under the context line, so
 // there's no second list of commands to keep up.
 
-type cmdLine struct {
-	list
-	shown  []cmdItem
-	tabbed bool // the text is a completion Tab put there; Tab again moves on
-}
-
-// cmdItem is a completion: a file command or a registered command.
-type cmdItem struct {
-	word  string // what Tab puts on the line: "w", or a command's ID
-	title string
-	desc  string
-	key   string // the command's shortcut
-	off   bool   // unavailable right now
-}
-
-// fileWords are vim's file commands.
-var fileWords = []cmdItem{
-	{word: "w", title: "Write", desc: "Save the sheet; :w name saves it as name, :w name.csv downloads it"},
-	{word: "q", title: "Quit", desc: "Close 012, asking about unsaved changes"},
-	{word: "q!", title: "Quit without saving", desc: "Close 012, discarding unsaved changes"},
-	{word: "wq", title: "Write and quit", desc: "Save the sheet, then close 012"},
-	{word: "x", title: "Write if changed and quit", desc: "Save the sheet if it changed, then close 012"},
-	{word: "e", title: "Edit a file", desc: "Open a sheet or import a file: :e name"},
-}
-
-const cmdLineID = "cmdline"
-
 func init() {
 	register(&command{id: "vim.command", macro: macroNever, title: "Command line",
 		desc: "Type a command: a cell to go to (B12), w, q, wq, e file, or any command by name",
 		run: func(m *Model) tea.Cmd {
-			c := &cmdLine{}
-			m.line.clear()
-			m.openOverlay(c)
-			c.changed(m)
+			m.openOverlay(cmdline.New(m.host()))
 			return nil
 		}})
-}
-
-func (c *cmdLine) indicator() string { return "COMMAND" }
-
-// changed completes what's typed: file commands, then commands whose ID
-// or title starts with it, then those that contain it. Nothing is
-// completed once a file command's argument follows.
-func (c *cmdLine) changed(m *Model) {
-	c.sel, c.top, c.tabbed = 0, 0, false
-	c.shown = c.shown[:0]
-	q := strings.ToLower(strings.TrimPrefix(strings.TrimLeft(m.line.text(), " "), ":"))
-	if word, _, arg := strings.Cut(q, " "); arg && isFileWord(word) {
-		return
-	}
-	for _, w := range fileWords {
-		if strings.HasPrefix(w.word, q) {
-			c.shown = append(c.shown, w)
-		}
-	}
-	var starts, contains []cmdItem
-	for _, id := range commandIDs() {
-		cm := commands[id]
-		title := strings.ToLower(cm.title)
-		it := cmdItem{word: id, title: cm.title, desc: cm.desc, key: m.shortcut(id), off: !cm.available(m)}
-		switch {
-		case id == "vim.command":
-		case strings.HasPrefix(id, q) || strings.HasPrefix(title, q):
-			starts = append(starts, it)
-		case strings.Contains(id, q) || strings.Contains(title, q):
-			contains = append(contains, it)
-		}
-	}
-	c.shown = append(append(c.shown, starts...), contains...)
-}
-
-// isFileWord reports whether word is one of vim's file commands, which
-// take an argument.
-func isFileWord(word string) bool {
-	return slices.ContainsFunc(fileWords, func(it cmdItem) bool { return it.word == strings.TrimSuffix(word, "!") })
 }
 
 // commandIDs are the registered commands' IDs, by title.
@@ -109,68 +39,6 @@ func commandIDs() []string {
 		return cmp.Or(cmp.Compare(commands[a].title, commands[b].title), cmp.Compare(a, b))
 	})
 	return ids
-}
-
-func (c *cmdLine) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
-	switch key := k.String(); {
-	case key == "esc", key == "backspace" && len(m.line.buf) == 0:
-		m.closeOverlay()
-	case key == "enter":
-		return c.run(m)
-	case key == "tab":
-		c.complete(m, 1)
-	case key == "shift+tab":
-		c.complete(m, -1)
-	case key == "up", key == "ctrl+p":
-		c.move(-1, len(c.shown))
-	case key == "down", key == "ctrl+n":
-		c.move(1, len(c.shown))
-	default:
-		before := m.line.text()
-		m.line.key(k)
-		if m.line.text() != before {
-			c.changed(m)
-		}
-	}
-	return nil
-}
-
-// complete puts the highlighted completion on the line; pressed again,
-// it moves on to the next one (d = 1) or the previous one (d = -1).
-func (c *cmdLine) complete(m *Model, d int) {
-	if len(c.shown) == 0 {
-		return
-	}
-	if c.tabbed {
-		c.move(d, len(c.shown))
-	}
-	m.line.set(c.shown[c.sel].word)
-	c.tabbed = true
-}
-
-// run closes the line and carries it out. Text that isn't a command,
-// cell or range runs the highlighted completion, so ":fill d" Enter
-// fills down.
-func (c *cmdLine) run(m *Model) tea.Cmd {
-	text := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(m.line.text()), ":"))
-	fallback := ""
-	if c.sel < len(c.shown) {
-		fallback = c.shown[c.sel].word
-	}
-	m.closeOverlay()
-	if text == "" {
-		return nil
-	}
-	if cmd, ok := m.runCmdLine(text); ok {
-		return cmd
-	}
-	if fallback != "" {
-		if cmd, ok := m.runCmdLine(fallback); ok {
-			return cmd
-		}
-	}
-	m.fail("Not a command, cell or range: " + text)
-	return nil
 }
 
 // runCmdLine carries out a command line and reports whether it was one.
@@ -262,101 +130,4 @@ func (m *Model) editFile(name string, force bool) tea.Cmd {
 		return nil
 	}
 	return m.openFile(name)
-}
-
-func (c *cmdLine) contextLine(m *Model) (string, string) {
-	return m.th.Title.Render(":") + m.line.text(), ""
-}
-
-func (c *cmdLine) cursor(m *Model) (int, int) {
-	return 1 + ansi.StringWidth(m.line.head()), contextLine
-}
-
-func (c *cmdLine) status(m *Model) (string, string) {
-	keys := m.th.KeyHints("Tab", "complete", "Enter", "run", "Esc", "cancel")
-	if c.sel >= len(c.shown) {
-		return "", keys
-	}
-	it := c.shown[c.sel]
-	if it.off {
-		return it.desc + " (not available now)", keys
-	}
-	return it.desc, keys
-}
-
-// rows is how many completions show.
-func (c *cmdLine) rows(m *Model) int {
-	return max(min(len(c.shown), 8, m.height-contextLine-4), 0)
-}
-
-// layout draws the completions in a box under the context line: title,
-// what Tab types, and the shortcut.
-func (c *cmdLine) layout(m *Model) []box {
-	rows := c.rows(m)
-	if rows == 0 {
-		return nil
-	}
-	c.show(rows)
-	tw, ww, kw := 0, 0, 0
-	for _, it := range c.shown {
-		tw = max(tw, ansi.StringWidth(it.title))
-		ww = max(ww, ansi.StringWidth(it.word))
-		if it.key != "" {
-			kw = max(kw, ansi.StringWidth(it.key)+2)
-		}
-	}
-	// As wide as the completions, within the screen and a line's reach.
-	inner := min(max(1+tw+2+ww+2+kw+1, 40), 72, m.width-2)
-	tw = min(tw, inner/2)
-	ww = max(min(ww, inner-1-tw-2-kw-2), 0)
-	lines := make([]string, rows)
-	for r := range rows {
-		i := c.top + r
-		it := c.shown[i]
-		base, dim := m.th.MenuBar, m.th.Muted
-		switch {
-		case i == c.sel:
-			base, dim = m.th.MenuSelected, m.th.MenuSelected
-		case it.off:
-			base, dim = m.th.Disabled, m.th.Disabled
-		}
-		row := base.Render(" "+theme.PadRight(ansi.Truncate(it.title, tw, "…"), tw)+"  ") +
-			dim.Render(theme.PadRight(ansi.Truncate(it.word, ww, "…"), ww))
-		k := ""
-		switch {
-		case it.key == "":
-		case i == c.sel || it.off:
-			k = base.Render(" " + it.key + " ")
-		default:
-			k = m.th.Chip(it.key)
-		}
-		row += base.Render(strings.Repeat(" ", max(inner-ansi.StringWidth(row)-ansi.StringWidth(k)-1, 0))) + k + base.Render(" ")
-		lines[r] = ansi.Truncate(row, inner, "")
-	}
-	footer := strconv.Itoa(c.sel+1) + " of " + strconv.Itoa(len(c.shown))
-	return []box{{id: cmdLineID, x: 0, y: contextLine + 1, lines: m.th.Frame(inner, "Commands", footer, lines)}}
-}
-
-func (c *cmdLine) mouse(m *Model, e mouseEvent) tea.Cmd {
-	if e.box != cmdLineID {
-		if e.kind == mousePress {
-			m.closeOverlay()
-		}
-		return nil
-	}
-	i := c.top + e.row - 1 // under the top border
-	switch {
-	case e.kind == mouseWheel && e.button == tea.MouseWheelUp:
-		c.move(-1, len(c.shown))
-	case e.kind == mouseWheel && e.button == tea.MouseWheelDown:
-		c.move(1, len(c.shown))
-	case e.row < 1 || i >= len(c.shown) || i >= c.top+c.rows(m):
-	case e.kind == mouseMotion:
-		c.sel = i
-	case e.kind == mousePress && e.button == tea.MouseLeft:
-		m.line.set(c.shown[i].word)
-		c.sel = i
-		return c.run(m)
-	}
-	return nil
 }

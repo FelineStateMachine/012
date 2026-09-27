@@ -8,6 +8,8 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"github.com/FelineStateMachine/012/internal/ui/transfer"
 )
 
 // Where File > Import puts what it reads, as Sheets' Import location:
@@ -16,19 +18,12 @@ import (
 // do). A new, empty spreadsheet is just replaced. Inserting or replacing
 // a sheet is one undo step, and the file stays the one being edited.
 
-// importPlace is where an import goes.
-type importPlace int
-
-const (
-	placeBook      importPlace = iota // replace the spreadsheet
-	placeNewSheets                    // insert new sheets
-	placeSheet                        // replace the sheet shown
-)
+// The places are transfer.Book, transfer.NewSheets and transfer.Sheet.
 
 // pristine reports whether the spreadsheet is new and untouched, so an
 // import may simply replace it.
 func (m *Model) pristine() bool {
-	return !m.changed && m.filename == "" && m.xfer.source == "" && m.book().Len() == 1 &&
+	return !m.changed && m.filename == "" && m.xfer.Source == "" && m.book().Len() == 1 &&
 		m.sheet.Len() == 0 && len(m.sheet.Charts()) == 0
 }
 
@@ -36,7 +31,7 @@ func (m *Model) pristine() bool {
 // spreadsheet is new and empty.
 func (m *Model) askImportPlace(name string) tea.Cmd {
 	if m.pristine() {
-		return m.startImport(name, fileio.Options{}, placeBook)
+		return m.startImport(name, fileio.Options{}, transfer.Book)
 	}
 	k, _ := fileio.KindOf(name)
 	base := filepath.Base(name)
@@ -44,17 +39,17 @@ func (m *Model) askImportPlace(name string) tea.Cmd {
 	if k.HoldsSheets() {
 		insert, as = "Insert new sheets", " as new sheets"
 	}
-	item := func(title, detail, desc string, run func(m *Model) tea.Cmd) pickItem {
-		return pickItem{title: title, name: len(title), detail: detail, desc: desc, pick: func(m *Model) tea.Cmd {
+	item := func(title, detail, desc string, run func(m *Model) tea.Cmd) picker.Item {
+		return picker.Item{Title: title, Name: len(title), Detail: detail, Desc: desc, Pick: func() tea.Cmd {
 			m.closeOverlay()
 			return run(m)
 		}}
 	}
-	items := []pickItem{item(insert, "after the others", "Add "+base+as,
-		func(m *Model) tea.Cmd { return m.startImport(name, fileio.Options{}, placeNewSheets) })}
+	items := []picker.Item{item(insert, "after the others", "Add "+base+as,
+		func(m *Model) tea.Cmd { return m.startImport(name, fileio.Options{}, transfer.NewSheets) })}
 	if !k.HoldsSheets() {
 		items = append(items, item("Replace current sheet", m.sheet.Name(), "Put "+base+" in place of "+m.sheet.Name()+", keeping its name",
-			func(m *Model) tea.Cmd { return m.startImport(name, fileio.Options{}, placeSheet) }))
+			func(m *Model) tea.Cmd { return m.startImport(name, fileio.Options{}, transfer.Sheet) }))
 	}
 	detail := "open it instead"
 	if m.changed {
@@ -62,19 +57,19 @@ func (m *Model) askImportPlace(name string) tea.Cmd {
 	}
 	items = append(items, item("Replace spreadsheet", detail, "Open "+base+" instead, as File > Open does",
 		func(m *Model) tea.Cmd { return m.confirmImport(name, fileio.Options{}) }))
-	p := newPicker(m, "Import "+base, "Import location", 60, items)
-	p.action = "import"
+	p := m.newPicker("Import "+base, "Import location", 60, items)
+	p.Action = "import"
 	m.openOverlay(p)
 	return nil
 }
 
 // placeImport puts an imported workbook where the import was asked to go
 // and says what it did, or reports false to replace the spreadsheet.
-func (m *Model) placeImport(msg importedMsg, what string) bool {
-	res := msg.res
-	label := "import " + filepath.Base(msg.name)
-	switch msg.place {
-	case placeNewSheets:
+func (m *Model) placeImport(msg transfer.ImportedMsg, what string) bool {
+	res := msg.Res
+	label := "import " + filepath.Base(msg.Name)
+	switch msg.Place {
+	case transfer.NewSheets:
 		ins, err := m.book().InsertBook(res.Sheet.Book(), label)
 		if err != nil {
 			m.fail(err.Error())
@@ -85,18 +80,18 @@ func (m *Model) placeImport(msg importedMsg, what string) bool {
 			show = ins.Sheets[0]
 		}
 		m.afterSheetsChange(show, m.book().Index(m.sheet))
-		m.note = "Imported " + what + " as " + sheetList(ins.Sheets) + " (" + countRows(res.Rows) + ")"
+		m.note = "Imported " + what + " as " + sheetList(ins.Sheets) + " (" + transfer.Rows(res.Rows) + ")"
 		if ins.Names > 0 {
-			m.note += "; " + plural(ins.Names, "1 named range", thousands(ins.Names)+" named ranges") + " left out, their names taken"
+			m.note += "; " + plural(ins.Names, "1 named range", transfer.Thousands(ins.Names)+" named ranges") + " left out, their names taken"
 		}
-	case placeSheet:
+	case transfer.Sheet:
 		i := m.book().Index(m.sheet)
 		if err := m.book().ReplaceSheet(m.sheet, res.Sheet, label); err != nil {
 			m.fail(err.Error())
 			return true
 		}
 		m.afterSheetsChange(res.Sheet, i)
-		m.note = "Imported " + what + " into " + res.Sheet.Name() + " (" + countRows(res.Rows) + ")"
+		m.note = "Imported " + what + " into " + res.Sheet.Name() + " (" + transfer.Rows(res.Rows) + ")"
 	default:
 		return false
 	}
@@ -116,6 +111,6 @@ func sheetList(sheets []*sheet.Sheet) string {
 	case 2:
 		return sheets[0].Name() + " and " + sheets[1].Name()
 	default:
-		return thousands(n) + " sheets, " + sheets[0].Name() + " to " + sheets[n-1].Name()
+		return transfer.Thousands(n) + " sheets, " + sheets[0].Name() + " to " + sheets[n-1].Name()
 	}
 }

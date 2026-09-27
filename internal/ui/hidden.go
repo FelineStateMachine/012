@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // Hidden sheets, as in Sheets: the tab menu's Hide sheet takes a sheet
@@ -40,15 +41,15 @@ func (m *Model) hideSheet() tea.Cmd {
 // openHiddenPicker lists the hidden sheets; Enter shows the one picked
 // again. A macro records the pick as the command's answer.
 func (m *Model) openHiddenPicker() {
-	var items []pickItem
+	var items []picker.Item
 	for _, s := range m.book().HiddenSheets() {
 		detail := "empty"
 		if used, ok := s.UsedRange(); ok {
 			detail = used.String() + ", " + cellCount(s.Len())
 		}
-		items = append(items, pickItem{
-			title: s.Name(), name: len(s.Name()), detail: detail, desc: "Show " + s.Name() + " again",
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{
+			Title: s.Name(), Name: len(s.Name()), Detail: detail, Desc: "Show " + s.Name() + " again",
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				if err := m.book().UnhideSheet(s); err != nil {
 					m.fail(err.Error())
@@ -60,9 +61,9 @@ func (m *Model) openHiddenPicker() {
 			},
 		})
 	}
-	p := newPicker(m, "Hidden sheets", "Type a sheet name", 60, items)
-	p.action = "unhide"
-	p.answers = true
+	p := m.newPicker("Hidden sheets", "Type a sheet name", 60, items)
+	p.Action = "unhide"
+	p.Answers = true
 	m.openOverlay(p)
 }
 

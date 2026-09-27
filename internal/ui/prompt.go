@@ -47,9 +47,9 @@ func (m *Model) pointing() bool {
 func (m *Model) openPrompt(p *prompt, initial string) {
 	m.mode = modePrompt
 	m.prompt = p
-	m.line.clear()
+	m.line.Clear()
 	m.entry.hint = ""
-	m.line.insert(initial)
+	m.line.Insert(initial)
 }
 
 // openText asks for text, starting from initial, which typing replaces.
@@ -102,7 +102,7 @@ func (p *prompt) cancel(m *Model) {
 
 // accept closes the prompt and acts on the answer.
 func (p *prompt) accept(m *Model) tea.Cmd {
-	text := strings.TrimSpace(m.line.text())
+	text := strings.TrimSpace(m.line.Text())
 	m.closePrompt()
 	if p.kind != promptRange {
 		cmd := p.onText(m, text)
@@ -132,44 +132,44 @@ func (p *prompt) pointKey(m *Model, k tea.KeyPressMsg) {
 		m.point.anchor, m.point.anchored = m.point.at, true
 	case typed(k) != "":
 		p.typing = true
-		m.line.insert(typed(k))
+		m.line.Insert(typed(k))
 	}
 }
 
 // stepWidth changes a width by one, previewing it live.
 func (p *prompt) stepWidth(m *Model, key string) {
-	w, _ := strconv.Atoi(m.line.text())
+	w, _ := strconv.Atoi(m.line.Text())
 	if key == "left" {
 		w--
 	} else {
 		w++
 	}
 	w = clamp(w, 1, 240)
-	m.line.clear()
+	m.line.Clear()
 	p.fresh = false
-	m.line.insert(strconv.Itoa(w))
+	m.line.Insert(strconv.Itoa(w))
 	m.setWidths(w) // live preview
 }
 
 // typeKey edits the answer; the first key typed replaces the default.
 func (p *prompt) typeKey(m *Model, k tea.KeyPressMsg) {
 	if p.fresh && typed(k) != "" {
-		m.line.clear()
+		m.line.Clear()
 	}
 	p.fresh = false
 	if p.kind == promptWidth && !isDigits(typed(k)) {
 		return
 	}
-	m.line.key(k)
+	m.line.Key(k)
 }
 
 // paste types pasted text into the answer.
 func (p *prompt) paste(m *Model, text string) {
 	if p.fresh {
-		m.line.clear()
+		m.line.Clear()
 		p.fresh = false
 	}
-	m.line.insert(text)
+	m.line.Insert(text)
 }
 
 // line is the prompt as the context line shows it, e.g. "Save as:
@@ -180,13 +180,13 @@ func (p *prompt) line(m *Model) (left, right string) {
 		return p.prefix() + m.th.Selection.Render(m.point.text()),
 			m.th.KeyHints("Arrows", "move", "Shift+arrows", "extend", "Enter", "apply", "Esc", "cancel")
 	case len(p.files) > 0:
-		return p.prefix() + m.line.text(), m.th.Muted.Render(strings.Join(p.files, "  "))
+		return p.prefix() + m.line.Text(), m.th.Muted.Render(strings.Join(p.files, "  "))
 	case p.kind == promptWidth:
-		return p.prefix() + m.line.text(), m.th.KeyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
+		return p.prefix() + m.line.Text(), m.th.KeyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
 	case p.secret:
-		return p.prefix() + mask(len(m.line.buf)), m.th.KeyHints("Enter", "save", "Esc", "cancel")
+		return p.prefix() + mask(len(m.line.Buf)), m.th.KeyHints("Enter", "save", "Esc", "cancel")
 	}
-	return p.prefix() + m.line.text(), m.th.KeyHints("Enter", "apply", "Esc", "cancel")
+	return p.prefix() + m.line.Text(), m.th.KeyHints("Enter", "apply", "Esc", "cancel")
 }
 
 func (p *prompt) prefix() string {
@@ -199,9 +199,9 @@ func mask(n int) string { return strings.Repeat("•", n) }
 // head is the answer before the caret, as shown.
 func (p *prompt) head(m *Model) string {
 	if p.secret {
-		return mask(m.line.pos)
+		return mask(m.line.Pos)
 	}
-	return m.line.head()
+	return m.line.Head()
 }
 
 func isDigits(s string) bool {

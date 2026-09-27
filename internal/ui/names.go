@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // Named ranges, as Sheets' Data > Named ranges: a picker lists them with
@@ -29,25 +30,26 @@ func init() {
 
 // namesPicker is the picker of named ranges with its extra keys.
 type namesPicker struct {
-	*picker
+	m *Model // the model it acts on
+	*picker.Picker
 	sel sheet.Rect // the selection when the picker opened, for "Add a range"
 	msg string     // feedback on the last action, e.g. a deletion
 }
 
 // openNames opens the picker; sel is what "Add a range" names.
 func (m *Model) openNames(sel sheet.Rect) {
-	p := newPicker(m, "Named ranges", "Type a name", 60, namesItems(m, sel))
-	p.action = "go to"
+	p := m.newPicker("Named ranges", "Type a name", 60, namesItems(m, sel))
+	p.Action = "go to"
 	m.clearSelection()
-	m.openOverlay(&namesPicker{picker: p, sel: sel})
+	m.openOverlay(&namesPicker{m: m, Picker: p, sel: sel})
 }
 
 // namesItems lists "Add a range" and then every named range.
-func namesItems(m *Model, sel sheet.Rect) []pickItem {
+func namesItems(m *Model, sel sheet.Rect) []picker.Item {
 	add := "+ Add a range"
-	items := []pickItem{{
-		title: add, name: len(add), detail: sel.String(), desc: "Name " + sel.String() + ", to use the name in formulas",
-		pick: func(m *Model) tea.Cmd {
+	items := []picker.Item{{
+		Title: add, Name: len(add), Detail: sel.String(), Desc: "Name " + sel.String() + ", to use the name in formulas",
+		Pick: func() tea.Cmd {
 			m.closeOverlay()
 			m.defineName(sel, true)
 			return nil
@@ -65,9 +67,9 @@ func namesItems(m *Model, sel sheet.Rect) []pickItem {
 		case users > 1:
 			desc += ", used in " + strconv.Itoa(users) + " formulas"
 		}
-		items = append(items, pickItem{
-			title: n.Name, name: len(n.Name), detail: n.Ref(), desc: desc, off: n.Gone(),
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{
+			Title: n.Name, Name: len(n.Name), Detail: n.Ref(), Desc: desc, Off: n.Gone(),
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				if m.refuseHidden(n.Sheet) {
 					return nil
@@ -83,13 +85,14 @@ func namesItems(m *Model, sel sheet.Rect) []pickItem {
 
 // current is the named range highlighted in the picker, if any.
 func (p *namesPicker) current(m *Model) (sheet.Name, bool) {
-	if p.picker.sel >= len(p.shown) {
+	if p.Picker.Sel >= len(p.Shown()) {
 		return sheet.Name{}, false
 	}
-	return m.sheet.LookupName(p.shown[p.picker.sel].item.title)
+	return m.sheet.LookupName(p.Shown()[p.Picker.Sel].Item.Title)
 }
 
-func (p *namesPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (p *namesPicker) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := p.m
 	p.msg = ""
 	switch k.String() {
 	case "f2":
@@ -103,17 +106,18 @@ func (p *namesPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 			m.sheet.DeleteName(n.Name)
 			m.changed = true
 			p.msg = "Deleted " + n.Name + "; Ctrl+Z brings it back"
-			p.items = namesItems(m, p.sel)
-			sel := p.picker.sel
-			p.changed(m)
-			p.picker.sel = max(min(sel, len(p.shown)-1), 0)
+			p.Items = namesItems(m, p.sel)
+			sel := p.Picker.Sel
+			p.Changed()
+			p.Picker.Sel = max(min(sel, len(p.Shown())-1), 0)
 		}
 		return nil
 	}
-	return p.picker.key(m, k)
+	return p.Picker.Key(k)
 }
 
-func (p *namesPicker) status(m *Model) (string, string) {
+func (p *namesPicker) Status() (string, string) {
+	m := p.m
 	keys := m.th.KeyHints("Enter", "go to", "F2", "edit", "Ctrl+D", "delete", "Esc", "close")
 	if _, ok := p.current(m); !ok {
 		keys = m.th.KeyHints("Enter", "add", "Esc", "close")
@@ -121,7 +125,7 @@ func (p *namesPicker) status(m *Model) (string, string) {
 	if p.msg != "" {
 		return p.msg, keys
 	}
-	desc, _ := p.picker.status(m)
+	desc, _ := p.Picker.Status()
 	return desc, keys
 }
 

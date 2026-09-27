@@ -218,17 +218,17 @@ func TestMenuMouse(t *testing.T) {
 	}
 	// The dropdown covers the grid without moving it.
 	after := strings.Split(screen(m), "\n")
-	w := o.layout(m)[0].width()
+	w := o.Layout()[0].Width()
 	for y := gridTop; y < m.height-1; y++ {
 		a, b := ansi.Cut(after[y], w, m.width), ansi.Cut(before[y], w, m.width)
 		if strings.TrimRight(a, " ") != strings.TrimRight(b, " ") {
 			t.Errorf("row %d moved:\n%q\n%q", y, a, b)
 		}
 	}
-	box := o.layout(m)[0]
+	box := o.Layout()[0]
 	// Hovering highlights; the Save item is the fifth row, after New,
 	// Open, Import and a separator.
-	mouseAt(m, tea.MouseMotionMsg{X: box.x + 3, Y: box.y + 5})
+	mouseAt(m, tea.MouseMotionMsg{X: box.X + 3, Y: box.Y + 5})
 	if highlighted(t, m) != "Save" {
 		t.Errorf("hover highlighted %q", highlighted(t, m))
 	}
@@ -250,8 +250,8 @@ func TestMenuMouse(t *testing.T) {
 	// Clicking an item runs it.
 	t.Chdir(t.TempDir())
 	leftClick(m, 2, menuLine)
-	box = openMenu(t, m).layout(m)[0]
-	leftClick(m, box.x+3, box.y+6) // Save as
+	box = openMenu(t, m).Layout()[0]
+	leftClick(m, box.X+3, box.Y+6) // Save as
 	if m.mode != modePrompt || m.prompt.label != "Save as:" {
 		t.Errorf("click on Save as: mode %v", m.mode)
 	}

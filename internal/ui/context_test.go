@@ -47,8 +47,8 @@ func TestRightClickCellMenu(t *testing.T) {
 		t.Errorf("cell menu %s", got)
 	}
 	o := openMenu(t, m)
-	if b := o.layout(m)[0]; b.x != cellX(1) || b.y != gridTop+2 {
-		t.Errorf("menu at %d,%d", b.x, b.y)
+	if b := o.Layout()[0]; b.X != cellX(1) || b.Y != gridTop+2 {
+		t.Errorf("menu at %d,%d", b.X, b.Y)
 	}
 	press(t, m, "<down>", "<enter>")
 	if *copied != 1 || m.overlay != nil {
@@ -100,8 +100,8 @@ func TestRightClickHeaders(t *testing.T) {
 func TestShiftF10OpensCellMenu(t *testing.T) {
 	m := tallModel()
 	press(t, m, "<right>", "<down>", "<shift+f10>")
-	b := openMenu(t, m).layout(m)[0]
-	if b.x != cellX(1)-2 || b.y != gridTop+2 {
-		t.Errorf("menu at %d,%d", b.x, b.y)
+	b := openMenu(t, m).Layout()[0]
+	if b.X != cellX(1)-2 || b.Y != gridTop+2 {
+		t.Errorf("menu at %d,%d", b.X, b.Y)
 	}
 }

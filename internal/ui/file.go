@@ -269,6 +269,7 @@ func globEscape(dir string) string {
 func (m *Model) handleSaved(msg savedMsg) tea.Cmd {
 	if msg.conflict {
 		m.openOverlay(&choiceBar{
+			m:    m,
 			msg:  filepath.Base(msg.name) + " changed on disk since it was opened.",
 			warn: true,
 			choices: []choice{
@@ -307,7 +308,7 @@ func (m *Model) handleLoaded(msg loadedMsg) {
 
 // save writes to the current file, asking for a name the first time.
 func (m *Model) save() tea.Cmd {
-	if m.filename == "" && m.xfer.source != "" {
+	if m.filename == "" && m.xfer.Source != "" {
 		return m.saveImported()
 	}
 	if m.filename == "" {

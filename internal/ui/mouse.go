@@ -113,8 +113,8 @@ func (m *Model) hitTest(x, y int) hit {
 		}
 		return hit{kind: hitCell, addr: a}
 	case y == m.height-1:
-		if sp, ok := m.tabAt(x); ok {
-			return hit{kind: sp.kind, addr: sheet.Addr{Col: sp.index}}
+		if h, ok := m.tabAt(x); ok {
+			return h
 		}
 		return hit{kind: hitStatus}
 	}
@@ -171,17 +171,17 @@ func (m *Model) leftPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 			m.mouse.drag = dragPoint
 		case hitEditLine:
 			m.resumeEntry(m.pointRef())
-			m.line.setCaret(h.x)
+			m.line.SetCaret(h.x)
 		}
 		return nil
 	case modeEnter, modeEdit:
 		switch {
 		case h.kind == hitEditLine:
-			m.line.setCaret(h.x)
+			m.line.SetCaret(h.x)
 			return nil
-		case h.kind == hitCell && m.line.isFormula() && m.line.canPoint():
-			m.entry.prefix = m.line.head()
-			m.entry.suffix = m.line.tail()
+		case h.kind == hitCell && m.line.IsFormula() && m.line.CanPoint():
+			m.entry.prefix = m.line.Head()
+			m.entry.suffix = m.line.Tail()
 			m.point = pointer{at: h.addr, anchor: h.addr}
 			m.mode, m.mouse.drag = modePoint, dragPoint
 			return nil
@@ -205,7 +205,7 @@ func (m *Model) readyPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 	switch h.kind {
 	case hitFormulaBar:
 		m.runCommand("edit")
-		m.line.setCaret(h.x)
+		m.line.SetCaret(h.x)
 	case hitCorner:
 		m.cur = sheet.Addr{Col: m.left, Row: m.top}
 		m.selecting, m.whole, m.ext = true, wholeAll, m.cur

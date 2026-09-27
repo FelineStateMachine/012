@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 )
 
 // Sheet names in formula suggestions: typing =Su offers Summary! with the
@@ -61,8 +62,8 @@ func trimSheetEnd(rest []rune) []rune {
 
 // sheetBeforeCaret returns the sheet named just before the caret, as in
 // "=SUM(Summary!" or "='Q3 plan'!", and where its name starts.
-func (l *lineEdit) sheetBeforeCaret(book *sheet.Workbook) (*sheet.Sheet, int, bool) {
-	head := l.buf[:l.pos]
+func sheetBeforeCaret(l *lineedit.Line, book *sheet.Workbook) (*sheet.Sheet, int, bool) {
+	head := l.Buf[:l.Pos]
 	end := len(head) - 1 // the "!"
 	if end < 2 || head[end] != '!' {
 		return nil, 0, false
@@ -106,15 +107,15 @@ func (m *Model) pointAfterSheet(key string) bool {
 	if _, extend := extendKey(key); !extend && (!isMoveKey(key) || key == "tab" || key == "shift+tab") {
 		return false
 	}
-	s, start, ok := m.line.sheetBeforeCaret(m.book())
+	s, start, ok := sheetBeforeCaret(&m.line, m.book())
 	if !ok || s.Hidden() {
 		return false
 	}
 	if s == m.sheet && !m.away() {
 		return m.startPoint(key) // its own sheet: the name stays as typed
 	}
-	m.line.buf = append(m.line.buf[:start:start], m.line.buf[m.line.pos:]...)
-	m.line.pos = start
+	m.line.Buf = append(m.line.Buf[:start:start], m.line.Buf[m.line.Pos:]...)
+	m.line.Pos = start
 	if s == m.sheet {
 		return m.startPoint(key)
 	}

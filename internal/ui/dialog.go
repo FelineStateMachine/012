@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -14,6 +15,7 @@ import (
 // "You have unsaved changes.  Enter Save and quit  D Discard  Esc Cancel".
 // It takes the keyboard like an overlay but draws no box.
 type choiceBar struct {
+	m       *Model // the model it acts on
 	msg     string
 	warn    bool   // the message is a warning, e.g. about losing work
 	desc    string // more on the status line, when the question needs it
@@ -26,11 +28,12 @@ type choice struct {
 	run   func(m *Model) tea.Cmd
 }
 
-func (c *choiceBar) indicator() string              { return "MENU" }
-func (c *choiceBar) layout(*Model) []box            { return nil }
-func (c *choiceBar) status(*Model) (string, string) { return c.desc, "" }
+func (c *choiceBar) Indicator() string        { return "MENU" }
+func (c *choiceBar) Layout() []overlay.Box    { return nil }
+func (c *choiceBar) Status() (string, string) { return c.desc, "" }
 
-func (c *choiceBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (c *choiceBar) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := c.m
 	key := strings.ToLower(k.String())
 	for _, ch := range c.choices {
 		if key == ch.key {
@@ -47,17 +50,18 @@ func (c *choiceBar) choose(m *Model, ch choice) tea.Cmd {
 	return cmd
 }
 
-// mouse runs a choice when its key chip or label is clicked. A click
+// Mouse runs a choice when its key chip or label is clicked. A click
 // anywhere else cancels, like Esc.
-func (c *choiceBar) mouse(m *Model, e mouseEvent) tea.Cmd {
-	if e.kind != mousePress {
+func (c *choiceBar) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := c.m
+	if e.Kind != overlay.MousePress {
 		return nil
 	}
-	if e.y == contextLine {
+	if e.Y == contextLine {
 		x := ansi.StringWidth(c.prefix(m))
 		for _, ch := range c.choices {
 			w := ansi.StringWidth(c.item(m, ch))
-			if e.x >= x && e.x < x+w {
+			if e.X >= x && e.X < x+w {
 				return c.choose(m, ch)
 			}
 			x += w + len(choiceGap)
@@ -80,13 +84,14 @@ func (c *choiceBar) item(m *Model, ch choice) string {
 	return m.th.Chip(theme.KeyLabel(ch.key)) + " " + ch.label
 }
 
-// line renders the bar for the context line.
-func (c *choiceBar) line(m *Model) string {
+// ContextLine renders the bar for the context line.
+func (c *choiceBar) ContextLine() (string, string) {
+	m := c.m
 	items := make([]string, len(c.choices))
 	for i, ch := range c.choices {
 		items[i] = c.item(m, ch)
 	}
-	return c.prefix(m) + strings.Join(items, choiceGap)
+	return c.prefix(m) + strings.Join(items, choiceGap), ""
 }
 
 // quit exits, asking first when there are unsaved changes. Enter saves
@@ -96,6 +101,7 @@ func (m *Model) quit() tea.Cmd {
 		return m.exit()
 	}
 	m.openOverlay(&choiceBar{
+		m:    m,
 		msg:  "You have unsaved changes.",
 		warn: true,
 		choices: []choice{

@@ -11,6 +11,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -98,19 +99,20 @@ func (g *grid) filterButtonX(c int) int {
 // sheet's filter, or of a pivot table's (pivoteditor.go), which set what
 // applying and cancelling do.
 type filterPicker struct {
+	m       *Model // the model it acts on
 	title   string
 	x       int // where the box goes, e.g. over its column
 	onApply func(m *Model, cr sheet.Criteria)
 	// onCancel, when set, runs after Esc or a click outside closes the
 	// picker.
-	onCancel func(m *Model)
-	values   []sheet.FilterValue
-	checked  map[string]bool
-	cond     sheet.Condition
-	field    int       // 0 is the search, 1 the condition's value
-	fields   [2]string // the text of each field
-	shown    []int     // values matching the search, best first
-	list               // over the rows: "Select all", then shown
+	onCancel     func(m *Model)
+	values       []sheet.FilterValue
+	checked      map[string]bool
+	cond         sheet.Condition
+	field        int       // 0 is the search, 1 the condition's value
+	fields       [2]string // the text of each field
+	shown        []int     // values matching the search, best first
+	overlay.List           // over the rows: "Select all", then shown
 }
 
 const filterID = "filter"
@@ -137,13 +139,13 @@ func (m *Model) openFilterPicker(col int) {
 // over values, with cond as the condition, calling apply with the
 // criteria chosen.
 func (m *Model) openValuesPicker(title string, x int, values []sheet.FilterValue, cond sheet.Condition, apply func(*Model, sheet.Criteria)) *filterPicker {
-	p := &filterPicker{title: title, x: x, onApply: apply, values: values, checked: map[string]bool{}, cond: cond}
+	p := &filterPicker{m: m, title: title, x: x, onApply: apply, values: values, checked: map[string]bool{}, cond: cond}
 	for _, v := range p.values {
 		p.checked[v.Text] = v.Shown
 	}
 	p.fields[1] = p.cond.Arg
 	m.openOverlay(p)
-	m.line.clear()
+	m.line.Clear()
 	p.search()
 	return p
 }
@@ -156,17 +158,18 @@ func (p *filterPicker) close(m *Model) {
 	}
 }
 
-func (p *filterPicker) indicator() string { return "FILTER" }
+func (p *filterPicker) Indicator() string { return "FILTER" }
 
 // focus moves editing to field i, keeping the other field's text.
 func (p *filterPicker) focus(m *Model, i int) {
-	p.fields[p.field] = m.line.text()
+	p.fields[p.field] = m.line.Text()
 	p.field = i
-	m.line.set(p.fields[i])
+	m.line.Set(p.fields[i])
 }
 
-func (p *filterPicker) changed(m *Model) {
-	p.fields[p.field] = m.line.text()
+func (p *filterPicker) Changed() {
+	m := p.m
+	p.fields[p.field] = m.line.Text()
 	if p.field == 0 {
 		p.search()
 	}
@@ -182,7 +185,7 @@ func valueLabel(text string) string {
 
 // search narrows the list to the values matching the search.
 func (p *filterPicker) search() {
-	p.sel, p.top = 0, 0
+	p.Sel, p.Top = 0, 0
 	p.shown = p.shown[:0]
 	q := strings.TrimSpace(p.fields[0])
 	if q == "" {
@@ -231,7 +234,7 @@ func (p *filterPicker) cycle(d int) {
 
 // apply sets the column's criteria and closes the picker.
 func (p *filterPicker) apply(m *Model) {
-	p.fields[p.field] = m.line.text()
+	p.fields[p.field] = m.line.Text()
 	var cr sheet.Criteria
 	for _, v := range p.values {
 		if !p.checked[v.Text] {
@@ -268,7 +271,8 @@ func rowCount(n int) string {
 	return strconv.Itoa(n) + " rows"
 }
 
-func (p *filterPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (p *filterPicker) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := p.m
 	n := len(p.shown) + 1
 	switch key := k.String(); {
 	case key == "esc":
@@ -284,63 +288,65 @@ func (p *filterPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 			p.cycle(1)
 		}
 	case key == "up" || key == "ctrl+p":
-		p.move(-1, n)
+		p.Move(-1, n)
 	case key == "down" || key == "ctrl+n":
-		p.move(1, n)
+		p.Move(1, n)
 	case key == "pgup":
-		p.sel = max(p.sel-p.rows(m), 0)
+		p.Sel = max(p.Sel-p.rows(m), 0)
 	case key == "pgdown":
-		p.sel = min(p.sel+p.rows(m), n-1)
+		p.Sel = min(p.Sel+p.rows(m), n-1)
 	case p.field == 0 && key == "space":
-		p.toggle(p.sel)
+		p.toggle(p.Sel)
 	default:
-		before := m.line.text()
-		m.line.key(k)
-		if m.line.text() != before {
-			p.changed(m)
+		before := m.line.Text()
+		m.line.Key(k)
+		if m.line.Text() != before {
+			p.Changed()
 		}
 	}
 	return nil
 }
 
-func (p *filterPicker) mouse(m *Model, e mouseEvent) tea.Cmd {
-	if e.box != filterID {
-		if e.kind == mousePress {
+func (p *filterPicker) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := p.m
+	if e.Box != filterID {
+		if e.Kind == overlay.MousePress {
 			p.close(m)
 		}
 		return nil
 	}
 	n := len(p.shown) + 1
-	i := p.top + e.row - filterFirstRow
+	i := p.Top + e.Row - filterFirstRow
 	switch {
-	case e.kind == mouseWheel && e.button == tea.MouseWheelUp:
-		p.move(-1, n)
-	case e.kind == mouseWheel && e.button == tea.MouseWheelDown:
-		p.move(1, n)
-	case e.kind != mousePress && e.kind != mouseMotion:
-	case e.row == 1 && e.kind == mousePress:
+	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelUp:
+		p.Move(-1, n)
+	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelDown:
+		p.Move(1, n)
+	case e.Kind != overlay.MousePress && e.Kind != overlay.MouseMotion:
+	case e.Row == 1 && e.Kind == overlay.MousePress:
 		if p.field != 1 {
 			p.focus(m, 1)
 		}
-		switch x := e.col - 1 - len(" If "); {
+		switch x := e.Col - 1 - len(" If "); {
 		case x == 0:
 			p.cycle(-1)
 		case x == ansi.StringWidth(p.condChip())-1:
 			p.cycle(1)
 		}
-	case e.row == 3 && e.kind == mousePress:
+	case e.Row == 3 && e.Kind == overlay.MousePress:
 		p.focus(m, 0)
-	case e.row < filterFirstRow || i >= n || i >= p.top+p.rows(m):
-	case e.kind == mouseMotion:
-		p.sel = i
-	case e.button == tea.MouseLeft:
-		p.sel = i
+	case e.Row < filterFirstRow || i >= n || i >= p.Top+p.rows(m):
+	case e.Kind == overlay.MouseMotion:
+		p.Sel = i
+	case e.Button == tea.MouseLeft:
+		p.Sel = i
 		p.toggle(i)
 	}
 	return nil
 }
 
-func (p *filterPicker) status(m *Model) (string, string) {
+func (p *filterPicker) Status() (string, string) {
+	m := p.m
 	if p.field == 1 {
 		return "Rows must also meet the condition", m.th.KeyHints("Up/Down", "condition", "Tab", "values", "Enter", "apply", "Esc", "cancel")
 	}
@@ -379,13 +385,14 @@ func (p *filterPicker) box(m *Model) (x, y, inner int) {
 	return x, min(y, max(m.height-1-h, 0)), inner
 }
 
-func (p *filterPicker) cursor(m *Model) (int, int) {
+func (p *filterPicker) Cursor() (int, int) {
+	m := p.m
 	x, y, _ := p.box(m)
-	caret := ansi.StringWidth(m.line.head())
+	caret := ansi.StringWidth(m.line.Head())
 	if p.field == 1 {
 		return x + 1 + len(" If ") + ansi.StringWidth(p.condChip()) + 2 + caret, y + 1
 	}
-	return x + 1 + ansi.StringWidth(searchPrompt) + caret, y + 3
+	return x + 1 + ansi.StringWidth(overlay.SearchPrompt) + caret, y + 3
 }
 
 // condChip is the condition's name between arrows that change it.
@@ -393,10 +400,11 @@ func (p *filterPicker) condChip() string {
 	return "‹ " + p.cond.Op.Title() + " ›"
 }
 
-func (p *filterPicker) layout(m *Model) []box {
+func (p *filterPicker) Layout() []overlay.Box {
+	m := p.m
 	x, y, inner := p.box(m)
 	rows := p.rows(m)
-	p.show(rows)
+	p.Show(rows)
 
 	chipStyle := m.th.KeyChip
 	if p.field == 1 {
@@ -406,7 +414,7 @@ func (p *filterPicker) layout(m *Model) []box {
 	if p.cond.Op.TakesArg() {
 		arg := p.fields[1]
 		if p.field == 1 {
-			arg = m.line.text()
+			arg = m.line.Text()
 		}
 		if arg == "" && p.field != 1 {
 			arg = m.th.Muted.Render("value")
@@ -415,16 +423,16 @@ func (p *filterPicker) layout(m *Model) []box {
 	}
 	search := p.fields[0]
 	if p.field == 0 {
-		search = m.line.text()
+		search = m.line.Text()
 	}
-	input := m.th.Title.Render(searchPrompt) + search
+	input := m.th.Title.Render(overlay.SearchPrompt) + search
 	if search == "" {
 		input += m.th.Muted.Render("Search values")
 	}
 	lines := []string{theme.Cells(m.th.MenuBar, cond, inner), theme.SepRow, theme.Cells(m.th.MenuBar, input, inner), theme.SepRow}
 
 	for r := range rows {
-		i := p.top + r
+		i := p.Top + r
 		if i > len(p.shown) {
 			lines = append(lines, theme.Cells(m.th.MenuBar, "", inner))
 			continue
@@ -440,7 +448,7 @@ func (p *filterPicker) layout(m *Model) []box {
 			box = "[x] "
 		}
 		base, muted := m.th.MenuBar, m.th.Muted
-		if i == p.sel {
+		if i == p.Sel {
 			base, muted = m.th.MenuSelected, m.th.MenuSelected
 		}
 		labelStyle := base
@@ -453,5 +461,5 @@ func (p *filterPicker) layout(m *Model) []box {
 	}
 	title := p.title
 	footer := strconv.Itoa(len(p.shown)) + " of " + strconv.Itoa(len(p.values))
-	return []box{{id: filterID, x: x, y: y, lines: m.th.Frame(inner, title, footer, lines)}}
+	return []overlay.Box{{ID: filterID, X: x, Y: y, Lines: m.th.Frame(inner, title, footer, lines)}}
 }

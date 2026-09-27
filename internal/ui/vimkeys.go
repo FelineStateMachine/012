@@ -64,7 +64,7 @@ func (b vimBinding) run(m *Model, n int) tea.Cmd {
 var vimNormal = map[string]vimBinding{
 	"i": {id: "edit", label: "Edit the cell, caret at the start", do: func(m *Model, _ int) tea.Cmd {
 		cmd := m.runCommand("edit")
-		m.line.pos = 0
+		m.line.Pos = 0
 		return cmd
 	}},
 	"a":      {id: "edit", span: spanOnce},

@@ -9,6 +9,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // Macros, as Google Sheets' Extensions > Macros, under Data > Macros:
@@ -50,7 +51,7 @@ func init() {
 			enabled: func(m *Model) bool { return idle(m) && len(m.book().Macros()) > 0 },
 			desc:    "Pick a saved macro and run it",
 			run: func(m *Model) tea.Cmd {
-				p := newPicker(m, "Run macro", "Type a macro's name", 60, macroRunItems(m))
+				p := m.newPicker("Run macro", "Type a macro's name", 60, macroRunItems(m))
 				m.openOverlay(p)
 				return nil
 			}},
@@ -102,13 +103,13 @@ func (m *Model) runShortcut(key string) (tea.Cmd, bool) {
 
 // macroRunItems lists the saved macros for the run picker and the
 // palette; picking one runs it.
-func macroRunItems(m *Model) []pickItem {
-	var items []pickItem
+func macroRunItems(m *Model) []picker.Item {
+	var items []picker.Item
 	for _, mc := range m.book().Macros() {
-		items = append(items, pickItem{
-			title: mc.Name, name: len(mc.Name), detail: "Data › Macros", key: shortcutLabel(mc.Key),
-			desc: "Run the macro " + mc.Name, off: m.rec != nil,
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{
+			Title: mc.Name, Name: len(mc.Name), Detail: "Data › Macros", Key: shortcutLabel(mc.Key),
+			Desc: "Run the macro " + mc.Name, Off: m.rec != nil,
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				return m.runMacro(mc)
 			},
@@ -130,6 +131,7 @@ func (m *Model) runMacro(mc sheet.Macro) tea.Cmd {
 		return m.startMacro(mc)
 	}
 	m.openOverlay(&choiceBar{
+		m:    m,
 		msg:  "Trust this file's macros?",
 		desc: "They were made on another computer and can change the file. Trusting covers all of them from now on.",
 		warn: true,
