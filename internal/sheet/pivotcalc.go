@@ -3,7 +3,6 @@ package sheet
 import (
 	"cmp"
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -89,7 +88,7 @@ type accum struct {
 	rows, counta, n int
 	sum, lo, hi     float64
 	err             Value // the first error, which SUM and the rest show
-	uniq            map[string]struct{}
+	uniq            map[groupKey]struct{}
 }
 
 func (a *accum) add(v Value, unique bool) {
@@ -112,9 +111,9 @@ func (a *accum) add(v Value, unique bool) {
 	a.counta++
 	if unique {
 		if a.uniq == nil {
-			a.uniq = map[string]struct{}{}
+			a.uniq = map[groupKey]struct{}{}
 		}
-		a.uniq[valueKey(v, false)] = struct{}{}
+		a.uniq[keyOf(v, false)] = struct{}{}
 	}
 }
 
@@ -126,25 +125,22 @@ func (a *accum) or(v Value) Value {
 	return v
 }
 
-// valueKey identifies a value for grouping: numbers (dates too) by value,
-// text ignoring case when fold is set, as Sheets groups "east" with
-// "East". Numbers and text never share a key, so 1 and "1" are two
-// groups.
-func valueKey(v Value, fold bool) string {
-	switch v.Kind {
-	case Number:
-		return "n" + strconv.FormatFloat(v.Num, 'g', -1, 64)
-	case Text:
-		if fold {
-			return "t" + strings.ToLower(v.Str)
-		}
-		return "t" + v.Str
-	case Bool:
-		return "b" + strconv.FormatFloat(v.Num, 'g', -1, 64)
-	case Error:
-		return "e" + v.Str
+// groupKey identifies a value for grouping: numbers (dates too) by value,
+// text ignoring case when folded, as Sheets groups "east" with "East".
+// Numbers and text never share a key, so 1 and "1" are two groups. It is
+// a comparable struct, so looking a group up allocates nothing.
+type groupKey struct {
+	kind Kind
+	num  float64
+	str  string
+}
+
+func keyOf(v Value, fold bool) groupKey {
+	k := groupKey{kind: v.Kind, num: v.Num, str: v.Str}
+	if fold && v.Kind == Text {
+		k.str = strings.ToLower(v.Str)
 	}
-	return ""
+	return k
 }
 
 // pivotNode is a group of source rows: the root holds them all, its
@@ -154,7 +150,7 @@ type pivotNode struct {
 	label  Value
 	format Format
 	kids   []*pivotNode
-	byKey  map[string]*pivotNode
+	byKey  map[groupKey]*pivotNode
 	acc    map[int][]accum
 }
 
@@ -165,6 +161,12 @@ type colGroup struct {
 	formats []Format
 }
 
+// colNode finds column groups by each column field's value in turn.
+type colNode struct {
+	kids  map[groupKey]*colNode
+	group *colGroup
+}
+
 // pivotCalc is a pivot being computed.
 type pivotCalc struct {
 	w       *Workbook
@@ -172,14 +174,14 @@ type pivotCalc struct {
 	src     *Sheet
 	root    *pivotNode
 	cols    []*colGroup // sorted once gathered
-	colBy   map[string]*colGroup
+	colRoot colNode
 	unique  []bool   // by value: whether to gather distinct values
 	formats []Format // by value: the format results show in
 	records int      // source rows summarized
 }
 
 func newPivotCalc(w *Workbook, p *Pivot, src *Sheet) *pivotCalc {
-	c := &pivotCalc{w: w, p: p, src: src, root: &pivotNode{}, colBy: map[string]*colGroup{}}
+	c := &pivotCalc{w: w, p: p, src: src, root: &pivotNode{}}
 	for _, v := range p.Values {
 		c.unique = append(c.unique, v.Summarize == CountUniqueBy)
 		c.formats = append(c.formats, c.valueFormat(v))
@@ -258,12 +260,12 @@ func pivotTests(fs []PivotFilter) []colTest {
 // child returns the group of n for the value at a, adding it if new.
 func (n *pivotNode) child(src *Sheet, a Addr) *pivotNode {
 	v := src.Value(a)
-	k := valueKey(v, true)
+	k := keyOf(v, true)
 	if kid, ok := n.byKey[k]; ok {
 		return kid
 	}
 	if n.byKey == nil {
-		n.byKey = map[string]*pivotNode{}
+		n.byKey = map[groupKey]*pivotNode{}
 	}
 	kid := &pivotNode{label: v, format: src.DisplayFormat(a)}
 	n.byKey[k] = kid
@@ -277,24 +279,30 @@ func (c *pivotCalc) colGroupOf(row int) int {
 	if len(c.p.Columns) == 0 || len(c.p.Values) == 0 {
 		return -1
 	}
-	var b strings.Builder
+	n := &c.colRoot
 	for _, g := range c.p.Columns {
-		b.WriteString(valueKey(c.src.Value(Addr{Col: g.Col, Row: row}), true))
-		b.WriteByte(0)
+		k := keyOf(c.src.Value(Addr{Col: g.Col, Row: row}), true)
+		kid := n.kids[k]
+		if kid == nil {
+			if n.kids == nil {
+				n.kids = map[groupKey]*colNode{}
+			}
+			kid = &colNode{}
+			n.kids[k] = kid
+		}
+		n = kid
 	}
-	k := b.String()
-	if cg, ok := c.colBy[k]; ok {
-		return cg.id
+	if n.group == nil {
+		cg := &colGroup{id: len(c.cols)}
+		for _, g := range c.p.Columns {
+			a := Addr{Col: g.Col, Row: row}
+			cg.labels = append(cg.labels, c.src.Value(a))
+			cg.formats = append(cg.formats, c.src.DisplayFormat(a))
+		}
+		n.group = cg
+		c.cols = append(c.cols, cg)
 	}
-	cg := &colGroup{id: len(c.cols)}
-	for _, g := range c.p.Columns {
-		a := Addr{Col: g.Col, Row: row}
-		cg.labels = append(cg.labels, c.src.Value(a))
-		cg.formats = append(cg.formats, c.src.DisplayFormat(a))
-	}
-	c.colBy[k] = cg
-	c.cols = append(c.cols, cg)
-	return cg.id
+	return n.group.id
 }
 
 // add gathers row's values into n, for its column group and for all.

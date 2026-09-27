@@ -107,7 +107,7 @@ func (l *pivotLayout) header() {
 
 func sameLabels(a, b []Value) bool {
 	for i := range a {
-		if valueKey(a[i], true) != valueKey(b[i], true) {
+		if keyOf(a[i], true) != keyOf(b[i], true) {
 			return false
 		}
 	}
