@@ -13,10 +13,10 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// importXLSXStream reads every sheet of a workbook, with its named
+// importXLSX reads every sheet of a workbook, with its named
 // ranges, and returns the sheet that was active in Excel. Worksheets are
 // streamed a row at a time (see xlsxpkg.go).
-func importXLSXStream(ctx context.Context, name string, opt Options) (*Result, error) {
+func importXLSX(ctx context.Context, name string, opt Options) (*Result, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err

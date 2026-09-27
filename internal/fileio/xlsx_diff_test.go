@@ -28,8 +28,8 @@ import (
 func TestXLSXDifferential(t *testing.T) {
 	for _, path := range xlsxCorpus(t) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
-			want, errWant := importXLSX(context.Background(), path, Options{})
-			got, errGot := importXLSXStream(context.Background(), path, Options{})
+			want, errWant := importXLSXExcelize(context.Background(), path, Options{})
+			got, errGot := importXLSX(context.Background(), path, Options{})
 			if (errWant == nil) != (errGot == nil) {
 				t.Fatalf("excelize: %v; 012: %v", errWant, errGot)
 			}
