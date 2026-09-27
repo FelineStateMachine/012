@@ -19,10 +19,31 @@ File > Import asks where the data goes, as Sheets' Import location does
 | Format | Import | Download |
 |---|---|---|
 | CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, as Sheets' Download does |
-| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths, column and row styles, frozen panes, filters (see [Filters in XLSX](#filters-in-xlsx)), shared formulas, dates in the 1904 system; sheets Excel hid stay hidden (unless it's the one Excel showed). Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed. Files past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) are refused with a message saying which | Every sheet, the same, with formulas in Excel's syntax and their results cached, column and row formats as column and row styles, frozen rows and columns as frozen panes, and a filter as Excel's with the rows it hides hidden. A sheet whose name Excel can't take as is (spaces at its ends, or the same as another's but for them and case) gets one it can (without the spaces, with a number when two would clash, e.g. `Plan (2)`), and the formulas and named ranges naming it name that. JEV functions and `#AND#` save as values, and so do formulas naming a sheet that doesn't exist (their `#REF!`; Excel would refuse the reference), and pivot tables: Excel gets the results, not a pivot. The download's result counts the formulas saved as values, with an example |
+| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths, column and row styles, frozen panes, filters (see [Filters in XLSX](#filters-in-xlsx)), shared formulas, dates in the 1904 system; sheets Excel hid stay hidden (unless it's the one Excel showed). Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed. Array formulas (Excel 365's dynamic arrays and older `{=...}` ones) come in as formulas that spill again, without the values Excel kept in the cells they spilled into. Files past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) are refused with a message saying which | Every sheet, the same, with formulas in Excel's syntax and their results cached, column and row formats as column and row styles, frozen rows and columns as frozen panes, and a filter as Excel's with the rows it hides hidden. A sheet whose name Excel can't take as is (spaces at its ends, or the same as another's but for them and case) gets one it can (without the spaces, with a number when two would clash, e.g. `Plan (2)`), and the formulas and named ranges naming it name that. A formula that spills goes out as Excel 365's dynamic array formula, with the values it spilled in the cells, so Excel spills it the same and older Excels show the values; see [Arrays in XLSX](#arrays-in-xlsx). JEV functions and `#AND#` save as values, and so do formulas naming a sheet that doesn't exist (their `#REF!`; Excel would refuse the reference), functions only Sheets has (`SORTN`, `FLATTEN`, `SPLIT`, `REGEXMATCH`, `REGEXEXTRACT`), and pivot tables: Excel gets the results, not a pivot. The download's result counts the formulas saved as values, with an example |
 | SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet shown or the selection as a table, first row as column names; a table of that name is replaced |
 | Parquet | Every column, with dates and timestamps; lists joined with commas | |
 | Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
+
+## Arrays in XLSX
+
+A formula whose array spills (see [formulas.md](formulas.md#arrays-and-spills))
+is written as Excel writes a dynamic array formula: an array formula over
+the cells it spills into (`<f t="array" ref="C1:C9">`) on a cell whose
+metadata marks it dynamic (`cm="1"`, defined in `xl/metadata.xml`), with
+the values in the cells below and right of it. Formulas calling array
+functions (`FILTER`, `SORT`, `UNIQUE`, `SEQUENCE`, `LET`, `LAMBDA` and the
+like) or holding an array literal are written that way even when they
+compute one value, so Excel doesn't put its implicit intersection (`@`)
+in front of them. Excel gets its own names for the functions newer than
+Excel 2007 (`_xlfn._xlws.FILTER`, `_xlfn.SEQUENCE`), `_xlpm.` before the
+names LET and LAMBDA bind, and the formula inside an `ARRAYFORMULA` around
+a whole formula, which a dynamic array formula computes over arrays
+anyway. What Excel can't hold goes out as the value it showed, counted in
+the download's note: functions only Sheets has (`SORTN`, `FLATTEN`,
+`SPLIT`, `REGEXMATCH`, and `REGEXEXTRACT`, whose Excel namesake returns
+the whole match where Sheets' returns the capture group), array literals
+holding references (Excel's hold only constants) and `ARRAYFORMULA`
+inside a formula.
 
 ## Filters in XLSX
 
@@ -169,7 +190,8 @@ A workbook with a pivot table is version 5: version 4 with a `pivot`
 field, on one line after the cells of the pivot's sheet, holding its
 definition. The results are never saved; they are computed again when
 the file opens, so the file stays small and can't disagree with its
-data. Builds that know only version 4 refuse the file rather than show an
+data. Arrays that formulas spill are the same: the file keeps the formula,
+and the cells it spills into only for their formatting. Builds that know only version 4 refuse the file rather than show an
 empty sheet; a workbook without pivots is still written as version 4.
 
 ```json

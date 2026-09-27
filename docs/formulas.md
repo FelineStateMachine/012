@@ -78,26 +78,104 @@ tighter than `^` as in Sheets and Excel, so `=-2^2` is 4. 1-2-3's `#AND#`,
 
 ## A range where one value is wanted
 
-A range used where a formula wants one value (with an operator, as an
-argument that takes a number or text, or as a cell's whole result) reads
-as one of its cells, as in Sheets and Excel (implicit intersection):
+A range used where a formula wants one value (with an operator, or as
+an argument that takes a number or text) reads as one of its cells, as
+in Sheets and Excel (implicit intersection):
 
 - a single column gives the cell in the formula's own row, so with the
   named range Rent = B2:B4, `=Rent*2` in F4 is B4*2 and `=B:B+1` in G5 is
   B5+1;
-- a single row gives the cell in the formula's own column: `=B6:D6` in C8
-  is C6;
+- a single row gives the cell in the formula's own column: `=B6:D6+1` in
+  C8 is C6+1;
 - a single cell is itself;
 - anything else is `#VALUE!`: a formula outside the range's rows (or
   columns), and a range of several rows and columns.
 
 Ranges on other sheets work the same, by the formula's row or column:
-`='Q3 plan'!C2:C9` in A3 reads `'Q3 plan'!C3`. Functions that take ranges
-(`SUM`, `COUNTIF`, `MATCH`, `VLOOKUP`, `SUMPRODUCT` and the like)
-read the whole range. Inside their range arguments an expression over
-ranges, such as `SUM(B2:B4*2)` or `SUMPRODUCT(A1:A3*B1:B3)`, is `#VALUE!`:
-Sheets computes those as arrays, which 012 doesn't, and a single cell's
-answer there would be wrong rather than missing.
+`='Q3 plan'!C2:C9*10` in A3 reads `'Q3 plan'!C3`. A range that is a
+cell's whole formula, `=B2:B4` or `=Rent`, is an array and spills, as in
+Sheets (see [Arrays and spills](#arrays-and-spills)). Functions that
+take ranges (`SUM`, `COUNTIF`, `MATCH`, `VLOOKUP`, `SUMPRODUCT` and the
+like) read the whole range, and an expression given to them is computed
+over arrays: `SUM(B2:B4*2)` doubles each cell and adds them.
+
+## Arrays and spills
+
+An array is a block of values: a range read whole, an array literal
+such as `{1,2;3,4}` (`,` between values in a row, `;` between rows; its
+values may be ranges, so `{A1:A3,C1:C3}` puts two columns side by
+side), or what an array function computes. A formula whose result is an
+array shows its first value and spills the rest into the cells to its
+right and below, as in Sheets:
+
+- `=SEQUENCE(3, 2)` fills three rows of two; `=SORT(A2:A99)`,
+  `=FILTER(A2:C99, C2:C99>100)` and `=UNIQUE(B:B)` spill as tall as
+  their results, and grow or shrink as the data changes. Blank cells past
+  a range's data aren't spilled, so `=SORT(A:A)` fills as many rows as
+  column A holds.
+- Operators work value by value: `={1,2,3}*10` is 10, 20, 30. A row and a
+  column combine into a block (`={1;2}+{10,20}` is two rows of two), and
+  arrays of different sizes line up with `#N/A` past the smaller one.
+- `ARRAYFORMULA(...)` computes its formula over arrays: ranges read whole
+  and functions of one value are applied to each value, so
+  `=ARRAYFORMULA(IF(C2:C99>100, "big", "small"))` spills one word per row
+  and `=ARRAYFORMULA(VLOOKUP(A2:A9, Prices, 2, FALSE))` looks each key up.
+  The arguments of functions that take ranges are computed the same way,
+  so `=SUM(LEN(A2:A9))` counts every character and
+  `=SUMPRODUCT((B2:B99="north")*C2:C99)` sums a column by a condition.
+- Elsewhere an array reads as its first value, as Sheets does:
+  `=LEN(SEQUENCE(3)*100)` is 3. `IF`, `IFERROR`, `IFNA`, `IFS`, `SWITCH`,
+  `CHOOSE` and `INDEX` pass an array through, so
+  `=IFERROR(FILTER(A2:A99, B2:B99="x"), "none")` spills or says none, and
+  `=INDEX(A2:C9, 0, 2)` spills the second column.
+
+The context line says where a spilled cell's value comes from
+("Spilled from B2"), and on the formula's own cell where it spills
+("Spills into B2:C9"); spilled values are drawn in a color of their own,
+and the formula bar shows a spilled cell's formula dimmed. A spilled cell
+can't be typed into, cleared, pasted over or filled: the context line
+names the formula to edit instead. Selecting the formula with its spill
+and pressing Del clears it, formatting spilled cells keeps the
+formatting, and inserting or deleting rows and columns through a spill
+spills it again. Copying spilled cells pastes their values.
+
+When a cell in the way of an array isn't empty, the formula shows
+`#REF!` and says why, as Sheets does: "Array result was not expanded
+because it would overwrite data in C3". Clearing that cell lets the
+array spill. The same goes for an array that would pass the sheet's
+edge, or write more cells than `max-cells` allows.
+
+Formulas reading spilled cells recalculate when the array changes, on
+any sheet, and undo brings back what an array spilled with the formula.
+Files keep only the formula: its array is computed again when the file
+opens.
+
+## Names in a formula: LET and LAMBDA
+
+`=LET(total, SUM(B2:B99), count, COUNT(B2:B99), total/count)` names
+values for use in the rest of the formula. A name bound to a range reads
+as the range would where the name is used. Names that LET and LAMBDA
+bind are the formula's own: a named range of the same name isn't used
+inside them.
+
+`LAMBDA(x, y, x*y)` is a function of its names, called with values right
+after it, `=LAMBDA(x, x*2)(21)`, or through a name LET gave it,
+`=LET(double, LAMBDA(v, v*2), double(21))`. `MAP`, `REDUCE`, `SCAN`,
+`BYROW`, `BYCOL` and `MAKEARRAY` call one for each value, row or column:
+`=BYROW(B2:D9, LAMBDA(row, SUM(row)))` spills each row's total. A LAMBDA
+that isn't called is `#VALUE!`, and one called with the wrong number of
+values `#N/A`, as in Sheets.
+
+## Regular expressions
+
+`REGEXMATCH`, `REGEXEXTRACT` and `REGEXREPLACE` use Go's regular
+expressions, which are RE2, as Sheets' are: the same patterns mean the
+same thing. They take text only: a number is `#VALUE!`, as in Sheets
+(`A1&""` makes one text). `REGEXEXTRACT` returns the first
+capture group, or the whole match without one, and spills several
+groups across; `REGEXREPLACE` writes a group in the replacement as `$1`.
+`SPLIT` spills the pieces of a text across, reading those that look like
+numbers as numbers.
 
 ## Values and errors
 
