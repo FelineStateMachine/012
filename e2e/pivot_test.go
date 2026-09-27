@@ -98,3 +98,27 @@ func TestFrequencyTable(t *testing.T) {
 	s.keys("<ctrl+z>")
 	s.eventually("undone", func() bool { return !strings.Contains(s.line(int(s.rows)-1), "Frequency of") })
 }
+
+func TestPivotRenameAndColumnSubtotals(t *testing.T) {
+	s := start(t, "")
+	pivotByCategory(s)
+	// R renames the value on the context line.
+	s.keys("r")
+	s.waitFor("Name: SUM of Qty")
+	s.keys("Units", "<enter>")
+	s.waitFor("PIVOT")
+	s.eventually("renamed header", func() bool { return strings.Contains(s.line(gridRow1), "Units") })
+	// Category moves from Rows to Columns, after Reorder: a subtotal
+	// column follows each Reorder value.
+	s.keys("<up>", "<up>", "<up>", "<delete>")
+	s.eventually("category removed", func() bool { return !strings.Contains(s.line(gridRow1), "Category") })
+	s.keys("<space>", "reord", "<enter>")
+	s.waitFor("   Reorder")
+	s.keys("a", "categ", "<enter>")
+	s.waitFor("   Category")
+	s.keys("<enter>")
+	s.waitFor("READY")
+	s.eventually("subtotal columns", func() bool {
+		return strings.Contains(s.line(gridRow1), "no Total") && strings.Contains(s.line(gridRow1), "yes Total")
+	})
+}

@@ -433,6 +433,27 @@ var screens = []screen{
 		s.keys("<enter>", "<down>", "<down>", "<right>", "<right>", "5")
 		s.waitFor("Pivot table results can't be edited")
 	}},
+	{name: "pivot-rename", setup: func(s *session) {
+		pivotEditor(s)
+		s.keys("r")
+		s.waitFor("Name: AVERAGE of Price")
+		s.keys("Avg price")
+	}},
+	{name: "pivot-subtotals", setup: func(s *session) {
+		// Reorder, then Category, in Columns: a subtotal column after
+		// each Reorder value, and the average renamed.
+		pivotEditor(s)
+		s.keys("r")
+		s.waitFor("Name: AVERAGE of Price")
+		s.keys("Avg price", "<enter>")
+		s.waitFor("   Avg price")
+		s.keys("<up>", "<up>", "<up>", "<up>", "<up>", "<delete>")
+		s.waitFor("Columns")
+		s.keys("<down>", "a", "categ", "<enter>")
+		s.waitFor("   Category")
+		s.keys("<enter>")
+		s.waitFor("no Total")
+	}},
 	{name: "pivot-filter", setup: func(s *session) {
 		pivotEditor(s)
 		s.keys("<down>", "<space>", "item", "<enter>", "<space>", "bolts")
@@ -456,7 +477,7 @@ var screens = []screen{
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents", "sheets", "sheets-point", "sheets-menu", "sheets-many", "vim-normal", "vim-visual", "vim-command", "pivot-editor", "pivot", "frequency", "far-corner"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents", "sheets", "sheets-point", "sheets-menu", "sheets-many", "vim-normal", "vim-visual", "vim-command", "pivot-editor", "pivot", "pivot-rename", "pivot-subtotals", "frequency", "far-corner"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"

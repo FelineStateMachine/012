@@ -177,6 +177,43 @@ func TestPivotFilterAndSource(t *testing.T) {
 	}
 }
 
+func TestPivotRenameValueAndColumnSubtotals(t *testing.T) {
+	m := wideModel()
+	salesTable(t, m)
+	m.runCommand("data.pivot")
+	// Columns: Region, then Product; Values: Units.
+	press(t, m, "<down>", "<space>", "reg", "<enter>")
+	press(t, m, "a", "prod", "<enter>")
+	press(t, m, "<down>", "<space>", "units", "<enter>")
+	if shows(m, "D1") != "East Total" || shows(m, "F1") != "West Total" || shows(m, "G1") != "Grand Total" {
+		t.Fatalf("headers %q %q %q\n%s", shows(m, "D1"), shows(m, "F1"), shows(m, "G1"), screen(m))
+	}
+	// R renames the value, on the context line.
+	press(t, m, "r")
+	if m.mode != modePrompt || !strings.Contains(line(m, contextLine), "SUM of Units") {
+		t.Fatalf("mode %v, %q", m.mode, line(m, contextLine))
+	}
+	press(t, m, "Units sold", "<enter>")
+	if m.indicator() != "PIVOT" || shows(m, "B3") != "Units sold" || !strings.Contains(screen(m), "Units sold") {
+		t.Fatalf("renamed: %s, B3 %q\n%s", m.indicator(), shows(m, "B3"), screen(m))
+	}
+	// A new summary keeps the name; Esc on the prompt changes nothing.
+	press(t, m, "<left>", "r", "<esc>")
+	if m.indicator() != "PIVOT" || shows(m, "B3") != "Units sold" {
+		t.Errorf("after Left and Esc: %s, %q", m.indicator(), shows(m, "B3"))
+	}
+	// An empty name goes back to Sheets' own.
+	press(t, m, "r", " ")
+	press(t, m, "<enter>")
+	if shows(m, "B3") != "MIN of Units" {
+		t.Errorf("cleared name: %q", shows(m, "B3"))
+	}
+	press(t, m, "<enter>", "<ctrl+z>")
+	if shows(m, "B3") != "Units sold" {
+		t.Errorf("undo: %q", shows(m, "B3"))
+	}
+}
+
 func TestPivotMenus(t *testing.T) {
 	m := wideModel()
 	press(t, m, "<alt+d>")

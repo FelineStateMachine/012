@@ -53,6 +53,8 @@ type pivotHost interface {
 	pickValues(title string, x int, values []sheet.FilterValue, cond sheet.Condition, apply func(sheet.Criteria), cancel func())
 	// pointRange asks for a range, pointed at or typed.
 	pointRange(label string, done func(sheet.Rect), cancel func())
+	// askText asks for text, such as a value's name.
+	askText(label, initial string, done func(string), cancel func())
 }
 
 // Sections of the editor, in order.
@@ -204,6 +206,8 @@ func (e *pivotEditor) Key(k tea.KeyPressMsg) tea.Cmd {
 		}
 	case "s":
 		e.cycleShowAs(m, it)
+	case "r", "f2":
+		e.rename(m, it)
 	case "delete", "backspace", "x", "-":
 		e.remove(m, it)
 	}
@@ -309,7 +313,7 @@ func (e *pivotEditor) line(m pivotHost, p sheet.Pivot, it pivotItem, sel bool, i
 			right = dim.Render("Space add ")
 		}
 	case itemField:
-		left = base.Render("   " + e.fieldName(m, p, it))
+		left = base.Render("   " + e.lineName(m, p, it))
 		right = e.fieldDetail(m, p, it, sel) + base.Render(" ")
 	case itemToggle:
 		on := p.RowTotals
@@ -389,7 +393,11 @@ func (e *pivotEditor) help(m pivotHost, it pivotItem) (string, []string) {
 	switch it.sect {
 	case sectValues:
 		v := p.Values[it.i]
-		return v.Summarize.Desc(), append([]string{"←/→", "summarize by", "S", "show as"}, remove...)
+		desc := v.Summarize.Desc()
+		if v.Name != "" {
+			desc = e.fieldName(m, p, it) + ": " + desc
+		}
+		return desc, append([]string{"←/→", "summarize by", "S", "show as", "R", "rename"}, remove...)
 	case sectFilters:
 		return "Choose which values count, or a condition", append([]string{"Space", "values"}, remove...)
 	}

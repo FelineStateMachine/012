@@ -97,6 +97,9 @@ func (p *prompt) cancel(m *Model) {
 	}
 	m.quitAfterSave = false // cancelling Save as cancels Save and quit
 	m.closePrompt()
+	if m.overlay != nil {
+		m.mode = modeMenu // onCancel went back to the overlay that asked
+	}
 	m.recordAnswer("", true)
 }
 

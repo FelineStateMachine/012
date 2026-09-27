@@ -65,6 +65,16 @@ func (m *Model) pointRange(label string, done func(sheet.Rect), cancel func()) {
 	m.prompt.onCancel = func(*Model) { cancel() }
 }
 
+// askText asks for text on the context line, starting from initial; done
+// gets the answer, and cancel runs after Esc.
+func (m *Model) askText(label, initial string, done func(string), cancel func()) {
+	m.openText(label, initial, func(_ *Model, text string) tea.Cmd {
+		done(text)
+		return nil
+	})
+	m.prompt.onCancel = func(*Model) { cancel() }
+}
+
 // What every component with a text field needs.
 
 func (h host) Theme() *theme.Theme       { return &h.m.th }

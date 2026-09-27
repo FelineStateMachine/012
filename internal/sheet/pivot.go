@@ -30,7 +30,8 @@ type Pivot struct {
 	Filters []PivotFilter
 	// RowTotals adds a Grand Total row, and a subtotal row after each
 	// outer group when there are several row groups. ColumnTotals adds a
-	// Grand Total column when there are column groups.
+	// Grand Total column when there are column groups, and a subtotal
+	// column after each outer group when there are several.
 	RowTotals, ColumnTotals bool
 	// Lost is set when the source range was deleted.
 	Lost bool

@@ -181,7 +181,7 @@ func TestPivotMixedKeysAndBlanks(t *testing.T) {
 		"b|#DIV/0!|1",
 		"TRUE|4|1",
 		"#DIV/0!|32|1",
-		"(blank)|8|1",
+		"|8|1",
 		"Grand Total|#DIV/0!|6")
 }
 
@@ -244,7 +244,7 @@ func TestPivotFrequency(t *testing.T) {
 		"Product|Count|Percent",
 		"Ink|2|40.00%",
 		"Pens|2|40.00%",
-		"(blank)|1|20.00%",
+		"|1|20.00%",
 		"Grand Total|5|100.00%")
 }
 

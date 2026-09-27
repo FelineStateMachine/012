@@ -3,6 +3,7 @@ package ui
 import (
 	"slices"
 	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -120,7 +121,6 @@ func (e *pivotEditor) adjust(m pivotHost, it pivotItem, d int) {
 			fs := sheet.Summaries()
 			v := &p.Values[it.i]
 			v.Summarize = fs[wrap(slices.Index(fs, v.Summarize)+d, len(fs))]
-			v.Name = ""
 		})
 	default:
 		e.set(m, "order "+sectNames[it.sect], func(p *sheet.Pivot) {
@@ -153,8 +153,36 @@ func (e *pivotEditor) cycleShowAs(m pivotHost, it pivotItem) {
 		all := sheet.ShowAsList()
 		v := &p.Values[it.i]
 		v.ShowAs = all[wrap(slices.Index(all, v.ShowAs)+1, len(all))]
-		v.Name = ""
 	})
+}
+
+// rename asks for a value's name, the header of its columns; an empty
+// name goes back to Sheets' "SUM of Sales".
+func (e *pivotEditor) rename(m pivotHost, it pivotItem) {
+	if it.kind != itemField || it.sect != sectValues {
+		return
+	}
+	p := e.pivot(m)
+	m.closeOverlay()
+	m.askText("Name:", m.book().ValueTitle(p, p.Values[it.i]), func(text string) {
+		e.set(m, "rename "+e.fieldName(m, e.pivot(m), it), func(p *sheet.Pivot) {
+			v := &p.Values[it.i]
+			v.Name = strings.TrimSpace(text)
+			if v.Name == m.book().ValueTitle(*p, sheet.PivotValue{Col: v.Col, Summarize: v.Summarize}) {
+				v.Name = "" // the default, which follows the summary
+			}
+		})
+		e.reopen()
+	}, e.reopen)
+}
+
+// lineName is what a field's line calls it: a value's own name, or the
+// source field's.
+func (e *pivotEditor) lineName(m pivotHost, p sheet.Pivot, it pivotItem) string {
+	if it.sect == sectValues && p.Values[it.i].Name != "" {
+		return p.Values[it.i].Name
+	}
+	return e.fieldName(m, p, it)
 }
 
 // remove takes a field out of its section.
