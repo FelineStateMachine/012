@@ -131,6 +131,8 @@ func TestEntryDetection(t *testing.T) {
 		{"-$5", -5, Format{Kind: FmtCurrency}, "-$5"},
 		{"12%", 0.12, Format{Kind: FmtPercent}, "12%"},
 		{"12.5%", 0.125, Preset(FmtPercent), "12.50%"},
+		{"0.7%", 0.007, Preset(FmtPercent), "0.70%"}, // not 0.006999999999999999
+		{"1e3%", 10, Format{Kind: FmtPercent}, "1000%"},
 		{"1,234", 1234, Format{Kind: FmtNumber}, "1,234"},
 		{"1.5e3", 1500, Preset(FmtScientific), "1.50E+03"},
 		{"9/26/2026", 46291, Preset(FmtDate), "9/26/2026"},

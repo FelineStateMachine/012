@@ -55,7 +55,13 @@ func parseNumberFormat(s string) (float64, Format, bool) {
 		return 0, Format{}, false
 	}
 	if pct {
-		v /= 100
+		// Shift the decimal point rather than divide, so "0.7%" is the
+		// double nearest 0.007 and not 0.006999999999999999.
+		if p, err := strconv.ParseFloat(s+"e-2", 64); err == nil {
+			v = p
+		} else {
+			v /= 100
+		}
 	}
 	if neg {
 		v = -v
