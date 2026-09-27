@@ -39,7 +39,7 @@ type entry struct {
 }
 
 func (m *Model) startEntry(md mode, text string) {
-	if m.refusePivot(sheet.Rect{From: m.cur, To: m.cur}) {
+	if m.refuseEdit(sheet.Rect{From: m.cur, To: m.cur}, false) {
 		return
 	}
 	m.mode = md

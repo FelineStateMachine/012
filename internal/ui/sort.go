@@ -62,7 +62,7 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 		m.note = "Nothing to sort"
 		return nil
 	}
-	if m.refusePivot(r) {
+	if m.refuseEdit(r, false) {
 		return nil
 	}
 	span := m.spans.Start("sort", slog.Int("rows", r.To.Row-r.From.Row+1), slog.Int("cols", r.To.Col-r.From.Col+1), slog.Int("keys", len(keys)))

@@ -43,6 +43,7 @@ type Theme struct {
 	// supports colored underlines.
 	ErrorMark    lipgloss.Style
 	Link         lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
+	Spilled      lipgloss.Style // values an array formula spilled into the cells below and right of it
 	Found        lipgloss.Style // cells matching an open search
 	Traced       lipgloss.Style // precedents or dependents being traced
 	Argument     lipgloss.Style // the argument at the caret in a function's signature
@@ -181,6 +182,7 @@ func New(dark bool) Theme {
 		ErrorCell:    lipgloss.NewStyle().Foreground(lipgloss.Red),
 		ErrorMark:    lipgloss.NewStyle().UnderlineStyle(lipgloss.UnderlineCurly).UnderlineColor(lipgloss.Red),
 		Link:         lipgloss.NewStyle().Foreground(link).Underline(true),
+		Spilled:      lipgloss.NewStyle().Foreground(bar),
 		Found:        lipgloss.NewStyle().Background(lipgloss.Yellow).Foreground(lipgloss.Black),
 		Traced:       lipgloss.NewStyle().Background(lipgloss.Green).Foreground(lipgloss.Black),
 		Argument:     lipgloss.NewStyle().Bold(true).Underline(true),

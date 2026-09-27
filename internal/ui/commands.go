@@ -30,9 +30,15 @@ type command struct {
 	checked func(m *Model) bool
 
 	// edits, when set, is the range of the sheet shown that the command
-	// changes. A command that would change a pivot table's results is
-	// refused, as Sheets refuses (see pivot.go).
+	// changes. A command that would change a pivot table's results or
+	// cells an array formula spills is refused, as Sheets refuses (see
+	// pivot.go).
 	edits func(m *Model) sheet.Rect
+	// keepsSpills is set when the command moves the cells of edits
+	// (inserting or deleting rows or columns) or changes only their
+	// formatting: an array spilling there keeps its values, so only
+	// pivots refuse it.
+	keepsSpills bool
 
 	// macro says how recording and scripts treat the command; see
 	// macroUse.
@@ -168,7 +174,7 @@ func (m *Model) runCommand(id string) tea.Cmd {
 	// recalculation, a pivot refresh, a sort.
 	span := m.spans.Start("command", slog.String("id", id))
 	defer span.End()
-	if c.edits != nil && m.refusePivot(c.edits(m)) {
+	if c.edits != nil && m.refuseEdit(c.edits(m), c.keepsSpills) {
 		return nil
 	}
 	if m.rec != nil {

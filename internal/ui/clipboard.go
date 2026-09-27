@@ -139,7 +139,7 @@ func (m *Model) pasteText(content string) bool {
 		m.fail(sheet.ErrPasteEdge.Error())
 		return true
 	}
-	if m.refusePivot(r) {
+	if m.refuseEdit(r, false) {
 		return true
 	}
 	m.sheet.Batch(sheet.Change{Label: "paste into " + r.String(), Focus: r}, func() error {

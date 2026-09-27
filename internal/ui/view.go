@@ -163,6 +163,8 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 			base = m.th.Muted
 		case m.sheet.Value(a).Kind == sheet.Error:
 			base = m.th.ErrorCell
+		case sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: row}).Spilled():
+			base = m.th.Spilled
 		default:
 			colored = false
 		}

@@ -58,7 +58,7 @@ var alignments = []struct {
 func init() {
 	for _, nf := range numberFormats {
 		f, title := nf.f, nf.title
-		register(&command{id: nf.id, title: title, desc: nf.desc, edits: (*Model).selection, run: func(m *Model) tea.Cmd {
+		register(&command{id: nf.id, title: title, desc: nf.desc, edits: (*Model).selection, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			r := m.selection()
 			m.sheet.SetFormat(r, f)
 			m.formatted(title + " format")
@@ -67,7 +67,7 @@ func init() {
 	}
 	for _, ts := range textStyles {
 		get, title := ts.get, ts.title
-		register(&command{id: ts.id, title: title, desc: ts.desc, edits: (*Model).selection, run: func(m *Model) tea.Cmd {
+		register(&command{id: ts.id, title: title, desc: ts.desc, edits: (*Model).selection, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			cur := m.sheet.CellStyle(m.cur)
 			on := !*get(&cur)
 			r := m.selection()
@@ -85,7 +85,7 @@ func init() {
 	}
 	for _, al := range alignments {
 		a, title := al.a, al.title
-		register(&command{id: al.id, title: title, desc: al.desc, edits: (*Model).selection, run: func(m *Model) tea.Cmd {
+		register(&command{id: al.id, title: title, desc: al.desc, edits: (*Model).selection, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			r := m.selection()
 			m.sheet.Batch(sheet.Change{Label: "align " + r.String() + " " + strings.ToLower(title), Focus: r}, func() error {
 				m.sheet.SetStyle(r, func(s *sheet.Style) { s.Align = a })
@@ -96,17 +96,17 @@ func init() {
 		}})
 	}
 	register(
-		&command{id: "format.decimals_more", title: "Increase decimal places", desc: "Show one more decimal place", edits: (*Model).selection, run: func(m *Model) tea.Cmd {
+		&command{id: "format.decimals_more", title: "Increase decimal places", desc: "Show one more decimal place", edits: (*Model).selection, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			m.sheet.AdjustDecimals(m.selection(), 1)
 			m.formatted("One more decimal place")
 			return nil
 		}},
-		&command{id: "format.decimals_less", title: "Decrease decimal places", desc: "Show one less decimal place", edits: (*Model).selection, run: func(m *Model) tea.Cmd {
+		&command{id: "format.decimals_less", title: "Decrease decimal places", desc: "Show one less decimal place", edits: (*Model).selection, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			m.sheet.AdjustDecimals(m.selection(), -1)
 			m.formatted("One less decimal place")
 			return nil
 		}},
-		&command{id: "format.clear", title: "Clear formatting", desc: "Reset number formats and text styles, keeping contents", edits: (*Model).selection, run: func(m *Model) tea.Cmd {
+		&command{id: "format.clear", title: "Clear formatting", desc: "Reset number formats and text styles, keeping contents", edits: (*Model).selection, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			m.sheet.ClearFormatting(m.selection())
 			m.formatted("Formatting cleared")
 			return nil

@@ -44,6 +44,20 @@ func spanStyle(th *theme.Theme, base lipgloss.Style, sp rowtext.Span) lipgloss.S
 	return s
 }
 
+// spillLine says where the active cell's value comes from when an array
+// formula spilled it, or where the active cell's array goes: "Spilled
+// from B2", "Spills into B2:C9".
+func (m *Model) spillLine() string {
+	if anchor, ok := m.sheet.SpillAnchor(m.cur); ok {
+		return m.th.Muted.Render("Spilled from ") + m.th.Key.Render(anchor.String()) +
+			m.th.Muted.Render("; edit the formula there")
+	}
+	if area, ok := m.sheet.SpillArea(m.cur); ok {
+		return m.th.Muted.Render("Spills into ") + m.th.Key.Render(area.String())
+	}
+	return ""
+}
+
 // errorLine explains the active cell's error on the context line, e.g.
 // "#DIV/0!  Division by zero in B3/0".
 func (m *Model) errorLine() string {

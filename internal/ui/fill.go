@@ -73,7 +73,7 @@ func (m *Model) dragFillTo(a sheet.Addr) {
 func (m *Model) finishFill() {
 	m.mouse.drag = dragNone
 	src, dst := m.selection(), m.mouse.fillTo
-	if dst == src || m.refusePivot(dst) {
+	if dst == src || m.refuseEdit(dst, false) {
 		return
 	}
 	m.recordFlush()

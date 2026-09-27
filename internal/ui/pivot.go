@@ -36,13 +36,24 @@ func init() {
 	keyAliases["alt+F"] = "alt+shift+f"
 }
 
-// refusePivot reports whether r overlaps a pivot table's results, which
-// can't be edited, saying so on the context line.
-func (m *Model) refusePivot(r sheet.Rect) bool {
-	if !m.sheet.InPivot(r) {
+// refuseEdit reports whether r overlaps a pivot table's results or
+// cells an array formula spills (unless r holds the formula too, or
+// keepsSpills says the edit moves or formats cells rather than writing
+// them), which can't be edited, saying so on the context line.
+func (m *Model) refuseEdit(r sheet.Rect, keepsSpills bool) bool {
+	if m.sheet.InPivot(r) {
+		m.note = sheet.ErrPivotEdit.Error()
+		return true
+	}
+	if keepsSpills {
 		return false
 	}
-	m.note = sheet.ErrPivotEdit.Error()
+	a, ok := m.sheet.InSpill(r)
+	if !ok {
+		return false
+	}
+	anchor, _ := m.sheet.SpillAnchor(a)
+	m.note = a.String() + " shows part of the array " + anchor.String() + " spills: edit the formula in " + anchor.String()
 	return true
 }
 
