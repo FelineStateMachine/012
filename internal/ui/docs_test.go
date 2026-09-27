@@ -98,19 +98,7 @@ func resolveMenuPath(title, rest string) string {
 		}
 	}
 	for {
-		var found *menuItem
-		for i, it := range items {
-			if it.sep {
-				continue
-			}
-			label := it.label()
-			short, _, _ := strings.Cut(label, " (")
-			for _, l := range []string{label, short} {
-				if labelPrefix(rest, l) && (found == nil || len(l) > len(found.label())) {
-					found = &items[i]
-				}
-			}
-		}
+		found := menuItemAt(items, rest)
 		if found == nil {
 			return "no such item in the " + title + " menu"
 		}
@@ -127,6 +115,25 @@ func resolveMenuPath(title, rest string) string {
 		}
 		title, items, rest = label, found.items, rest[len(" > "):]
 	}
+}
+
+// menuItemAt is the item of items whose label, or its part before a
+// parenthesis, text starts with; the longest when several do.
+func menuItemAt(items []menuItem, text string) *menuItem {
+	var found *menuItem
+	for i, it := range items {
+		if it.sep {
+			continue
+		}
+		label := it.label()
+		short, _, _ := strings.Cut(label, " (")
+		for _, l := range []string{label, short} {
+			if labelPrefix(text, l) && (found == nil || len(l) > len(found.label())) {
+				found = &items[i]
+			}
+		}
+	}
+	return found
 }
 
 // labelPrefix reports whether text starts with label as whole words.

@@ -40,26 +40,32 @@ func TestDocsNameOptions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		name := strings.TrimPrefix(p, "../../")
-		check := func(key string) {
-			if _, ok := Lookup(key); !ok && key != "key" {
-				t.Errorf("%s names setting %q, which isn't an option", name, key)
+		checkDocOptions(t, strings.TrimPrefix(p, "../../"), string(data), env)
+	}
+}
+
+// checkDocOptions reports settings and variables doc names that aren't
+// options.
+func checkDocOptions(t *testing.T, name, doc string, env []string) {
+	t.Helper()
+	check := func(key string) {
+		if _, ok := Lookup(key); !ok && key != "key" {
+			t.Errorf("%s names setting %q, which isn't an option", name, key)
+		}
+	}
+	for _, m := range inlineSetting.FindAllStringSubmatch(doc, -1) {
+		check(m[1])
+	}
+	for _, block := range configBlocks(doc) {
+		for _, l := range block {
+			if m := fileSetting.FindStringSubmatch(l); m != nil {
+				check(m[1])
 			}
 		}
-		for _, m := range inlineSetting.FindAllStringSubmatch(string(data), -1) {
-			check(m[1])
-		}
-		for _, block := range configBlocks(string(data)) {
-			for _, l := range block {
-				if m := fileSetting.FindStringSubmatch(strings.TrimSpace(l)); m != nil {
-					check(m[1])
-				}
-			}
-		}
-		for _, v := range envVar.FindAllString(string(data), -1) {
-			if !slices.Contains(env, v) && !slices.Contains(notOptions, v) {
-				t.Errorf("%s names %s, which no option reads", name, v)
-			}
+	}
+	for _, v := range envVar.FindAllString(doc, -1) {
+		if !slices.Contains(env, v) && !slices.Contains(notOptions, v) {
+			t.Errorf("%s names %s, which no option reads", name, v)
 		}
 	}
 }
