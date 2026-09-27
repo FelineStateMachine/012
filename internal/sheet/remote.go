@@ -97,7 +97,7 @@ func (w *Workbook) RecalcAnswered(calls []RemoteCall) {
 	for _, c := range calls {
 		k := c.Key()
 		for l := range w.waiting[k] {
-			if l.s.live && l.s.cells.get(l.a) != nil {
+			if l.s.live && l.s.cells.has(l.a) {
 				changed = append(changed, l)
 			}
 		}

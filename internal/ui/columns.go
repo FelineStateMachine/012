@@ -71,9 +71,7 @@ func (m *Model) autofit(c int) {
 	}
 	widest := map[int]int{}
 	for _, a := range m.sheet.Addrs() {
-		if cell := m.sheet.Cell(a); cell != nil {
-			widest[a.Col] = max(widest[a.Col], ansi.StringWidth(cell.Value.String()))
-		}
+		widest[a.Col] = max(widest[a.Col], ansi.StringWidth(m.sheet.Value(a).String()))
 	}
 	for _, k := range cols {
 		// One column of padding each side, and never narrower than the

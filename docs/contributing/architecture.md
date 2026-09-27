@@ -92,12 +92,19 @@ was typed, its parsed expression, its computed value, and its format and
 style.
 
 - **Cells.** Each sheet keeps its cells in a `cellStore` (`store.go`):
-  get, set, delete, count, iterate all or a range. Nothing else touches
-  the map beneath, so the representation can change without the rest of
-  the engine noticing. Beside it, occupancy indexes (`occupancy.go`,
+  get, set, delete, count, iterate all or a range, and narrower reads
+  (a value, presence, formatting, the formula cells). Nothing else
+  touches the representation beneath. Occupancy indexes (`occupancy.go`,
   bitmaps of 1024 rows per column) record which cells are stored and
   which have contents, so a range of the million-row grid is read at the
-  cost of what it holds. Formats of whole columns and rows, and of the
+  cost of what it holds; the stored index's blocks hold the cells
+  themselves, a 16-byte slot each in row order (`slot.go`). A plain cell
+  (a number, boolean or text as typed, with a format and style) lives in
+  its slot, with its text in a table of strings and its formatting in a
+  table of looks; formulas, notes, and what pivots and spills write are
+  whole `Cell`s in a side table, which recalculation updates in place.
+  `get` hands out a plain cell as a `Cell` made for the caller, a copy
+  whose changes reach nothing; `set` is the one way to change a cell. Formats of whole columns and rows, and of the
   whole sheet, live on the lines (`lines.go`); a cell falls back on them.
   Copy, paste and move carry the formatting cells show (`clipfmt.go`):
   whole lines as line formats, blocks as the cells' own. A line's format
@@ -273,9 +280,9 @@ setting (`SetDecimal`, which marks formulas with `functions.Decimalize`).
 The package boundaries leave the bounds in [Bounds of support](limits.md) room to
 move without touching callers:
 
-- **Storage.** Compact cell storage (column blocks of values, formulas and
-  formats in side tables) replaces `cellStore`'s map; its methods are the
-  whole contract.
+- **Storage.** `cellStore`'s methods are the whole contract, so what is
+  kept whole or in a slot can change (spilled and pivot cells in slots,
+  plain before-images in the history) without touching callers.
 - **Range reads.** Shared range results, prefix sums for running totals
   and column-block scans go behind the engine's `Scan` and `RangeAgg`,
   the places functions read ranges.

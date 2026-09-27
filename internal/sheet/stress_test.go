@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"runtime"
+	"sync"
 	"testing"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -243,17 +244,34 @@ func saveShapes() []namedBuild {
 		{"dense-8192x26", func() *sheet.Sheet { return stress.Dense(stress.Rows, 26) }},
 		{"dense-8192x256", func() *sheet.Sheet { return stress.Dense(stress.Rows, stress.Cols) }},
 		{"chain-8192", func() *sheet.Sheet { return stress.Chain(stress.Rows) }},
+		{"dense-1Mx10", func() *sheet.Sheet { return stress.Dense(stress.MaxRows, stress.MaxCols) }},
 	}
 }
 
-// BenchmarkMemory reports the live heap per non-blank cell after a load.
+// BenchmarkMemory reports the live heap per non-blank cell after a load:
+// built through Load, or opened from a .012 file written beforehand.
 func BenchmarkMemory(b *testing.B) {
-	for _, sh := range []namedBuild{
-		{"numbers", func() *sheet.Sheet { return stress.Dense(stress.Rows, 64) }},
-		{"formulas", func() *sheet.Sheet { return stress.Chain(stress.Rows) }},
-		{"text-200", func() *sheet.Sheet { return stress.LongText(stress.Rows, 200) }},
+	for _, sh := range []struct {
+		name  string
+		prep  func()
+		build func() *sheet.Sheet
+	}{
+		{"numbers", nil, func() *sheet.Sheet { return stress.Dense(stress.Rows, 64) }},
+		{"numbers-1Mx10", nil, func() *sheet.Sheet { return stress.Dense(stress.MaxRows, stress.MaxCols) }},
+		{"formulas", nil, func() *sheet.Sheet { return stress.Chain(stress.Rows) }},
+		{"text-200", nil, func() *sheet.Sheet { return stress.LongText(stress.Rows, 200) }},
+		{"open-8192x256", func() { denseFile() }, func() *sheet.Sheet {
+			s, err := sheet.Read(bytes.NewReader(denseFile()))
+			if err != nil {
+				b.Fatal(err)
+			}
+			return s
+		}},
 	} {
 		b.Run(sh.name, func(b *testing.B) {
+			if sh.prep != nil {
+				sh.prep()
+			}
 			for b.Loop() {
 				before := heap()
 				s := sh.build()
@@ -263,6 +281,46 @@ func BenchmarkMemory(b *testing.B) {
 			}
 		})
 	}
+}
+
+// denseFile is the .012 file of 8192x256 numbers.
+var denseFile = sync.OnceValue(func() []byte {
+	var buf bytes.Buffer
+	if err := stress.Dense(stress.Rows, stress.Cols).Write(&buf); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+})
+
+// BenchmarkRead is the cost of reading a cell's value, per cell of 8192
+// x 26 numbers: through Sheet.Value, and as formulas read cells in a
+// recalculation (a SUM of each column, read directly).
+func BenchmarkRead(b *testing.B) {
+	s := stress.Dense(stress.Rows, 26)
+	cells := float64(stress.Rows * 26)
+	b.Run("value", func(b *testing.B) {
+		sum := 0.0
+		for b.Loop() {
+			for row := range stress.Rows {
+				for col := range 26 {
+					sum += s.Value(sheet.Addr{Col: col, Row: row}).Num
+				}
+			}
+		}
+		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/cells, "ns/cell")
+	})
+	b.Run("recalc", func(b *testing.B) {
+		for col := range 26 {
+			name := sheet.ColName(col)
+			if err := s.Set(sheet.Addr{Col: col, Row: stress.Rows}, fmt.Sprintf("=SUM(%s1:%s%d)", name, name, stress.Rows)); err != nil {
+				b.Fatal(err)
+			}
+		}
+		for b.Loop() {
+			s.RecalcAll()
+		}
+		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/cells, "ns/cell")
+	})
 }
 
 // heap is the live heap after a full collection.

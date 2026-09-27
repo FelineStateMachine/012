@@ -104,7 +104,7 @@ func (mv sheetMove) readers() map[loc]*Cell {
 		}
 	}
 	for _, t := range []*Sheet{mv.from, mv.to} {
-		for a := range t.cells.all() {
+		for a := range t.cells.richCells() {
 			add(loc{t, a})
 		}
 	}

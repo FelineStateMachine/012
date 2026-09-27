@@ -162,7 +162,7 @@ func (s *Sheet) record(a Addr) {
 	}
 	l := loc{s, a}
 	if _, seen := st.cells[l]; !seen {
-		st.keep(l, s.cells.get(a).clone())
+		st.keep(l, s.cells.copyOf(a))
 	}
 	s.wb.hist.dirty = append(s.wb.hist.dirty, l)
 }
@@ -245,7 +245,7 @@ func (w *Workbook) dropUnchanged(st *step) {
 	st.dropUnchangedLines()
 	st.dropUnchangedRules()
 	for l, c := range st.cells {
-		if c == nil && l.s.cells.get(l.a) == nil {
+		if c == nil && !l.s.cells.has(l.a) {
 			delete(st.cells, l)
 			st.cellBytes -= entryBytes
 		}
@@ -421,7 +421,7 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 	}
 	changed := make([]loc, 0, len(st.cells))
 	for l, c := range st.cells {
-		inv.keep(l, l.s.cells.get(l.a).clone())
+		inv.keep(l, l.s.cells.copyOf(l.a))
 		l.s.place(l.a, c.clone())
 		changed = append(changed, l)
 	}

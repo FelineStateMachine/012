@@ -24,17 +24,18 @@ func (w *Workbook) RecalcAll() {
 // after a sheet is added, renamed or deleted, when references by name may
 // resolve differently. Every cell is dirty, so there is nothing to
 // propagate: tracing dependents from each cell cost O(cells x range
-// users).
+// users). Plain cells hold their values already (store.go), so only rich
+// ones are marked.
 func (w *Workbook) recalcAll() {
 	w.gen++
 	start := w.recalcStart()
 	n := 0
 	for _, s := range w.sheets {
-		s.calc = make(map[Addr]int, s.cells.len())
-		for a := range s.cells.all() {
+		s.calc = make(map[Addr]int, len(s.cells.rich)-len(s.cells.richFree))
+		for a := range s.cells.richCells() {
 			s.calc[a] = dirty
 		}
-		n += len(s.calc)
+		n += s.cells.len()
 	}
 	w.evaluate()
 	w.settleSpills(nil)

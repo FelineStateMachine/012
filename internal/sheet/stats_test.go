@@ -11,8 +11,8 @@ func bruteStats(s *Sheet, r Rect) Stats {
 	var st Stats
 	for row := r.From.Row; row <= r.To.Row; row++ {
 		for col := r.From.Col; col <= r.To.Col; col++ {
-			if c := s.Cell(Addr{Col: col, Row: row}); c != nil {
-				st.add(c)
+			if c := s.Cell(Addr{Col: col, Row: row}); !c.Blank() {
+				st.add(c.Value)
 			}
 		}
 	}
@@ -95,8 +95,8 @@ func TestRangeStatsFullGrid(t *testing.T) {
 	brute := func(r Rect) Stats {
 		var st Stats
 		for a, c := range s.cells.all() {
-			if r.Contains(a) {
-				st.add(c)
+			if r.Contains(a) && !c.Blank() {
+				st.add(c.Value)
 			}
 		}
 		return st

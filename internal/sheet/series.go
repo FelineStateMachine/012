@@ -108,7 +108,7 @@ func (s *Sheet) fill(l fillLane) {
 			fallthrough
 		case c != nil:
 			s.pasteCell(to, c, to.Col-seq[k].Col, to.Row-seq[k].Row, false)
-		case s.cells.get(to) != nil:
+		case s.cells.has(to):
 			s.place(to, nil)
 		}
 	}

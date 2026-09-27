@@ -190,8 +190,8 @@ check protects the local app from other programs writing the file.
 - An idle session is closed without saving over its file; unsaved
   changes go to a recovery file instead.
 - A dropped connection loses unsaved changes.
-- Each session holds about 1.3 MiB of heap on a new sheet, plus about
-  300 B per cell of the sheets it opens; two sessions opening one file
-  hold two copies. With 50 sessions typing at once on loopback, frames
+- Each session holds about 1.3 MiB of heap on a new sheet, plus 20 to
+  60 B per cell of data of the sheets it opens (a formula takes about
+  750); two sessions opening one file hold two copies. With 50 sessions typing at once on loopback, frames
   still arrive within one frame interval (p95 16.6 ms), the same as with
   10: see [Bounds of support](../contributing/limits.md#serving-over-ssh).

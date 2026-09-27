@@ -200,7 +200,7 @@ func (m *Model) toggleCheckboxes() tea.Cmd {
 				continue
 			}
 			for _, vr := range v.Ranges {
-				targets = appendCells(targets, intersect(vr, r), m.cur, func(a sheet.Addr) bool { return on || !s.Cell(a).Blank() })
+				targets = appendCells(targets, intersect(vr, r), m.cur, func(a sheet.Addr) bool { return on || s.Filled(a) })
 			}
 		}
 	}
