@@ -56,10 +56,26 @@ var xlsxEdges = map[string]sheet.Edge{
 	"top": sheet.EdgeTop, "bottom": sheet.EdgeBottom, "left": sheet.EdgeLeft, "start": sheet.EdgeLeft, "right": sheet.EdgeRight, "end": sheet.EdgeRight,
 }
 
-// readBorder reads the rest of a <border>: its four edges.
+// excelVAligns are Excel's vertical alignments; justify and distributed
+// have no match and sit where 012's text sits by default.
+var excelVAligns = map[string]sheet.VAlign{"top": sheet.VAlignTop, "center": sheet.VAlignMiddle, "bottom": sheet.VAlignBottom}
+
+// excelVAlign is the vertical alignment Excel writes for v.
+func excelVAlign(v sheet.VAlign) string {
+	for name, va := range excelVAligns {
+		if va == v {
+			return name
+		}
+	}
+	return ""
+}
+
+// readBorder reads the rest of a <border>: its four edges, each with
+// its line's color as the nearest named color (see xlsxColor.named).
 func readBorder(x *xmlStream) (sheet.Borders, error) {
 	var b sheet.Borders
 	depth := x.depth
+	edge, inEdge := sheet.EdgeTop, false
 	for {
 		t, err := x.next()
 		if err != nil {
@@ -67,11 +83,14 @@ func readBorder(x *xmlStream) (sheet.Borders, error) {
 		}
 		switch t := t.(type) {
 		case xml.StartElement:
-			if x.depth != depth+1 {
-				continue
-			}
-			if e, ok := xlsxEdges[t.Name.Local]; ok {
-				b = b.With(e, borderLine(attrOr(t, "style", "")))
+			switch {
+			case x.depth == depth+1:
+				edge, inEdge = xlsxEdges[t.Name.Local]
+				if inEdge {
+					b = b.With(edge, borderLine(attrOr(t, "style", "")))
+				}
+			case x.depth == depth+2 && inEdge && t.Name.Local == "color" && b.Line(edge) != sheet.LineNone:
+				b = b.WithColor(edge, readColor(t).named())
 			}
 		case xml.EndElement:
 			if x.depth < depth {
@@ -97,28 +116,41 @@ func (t *xlsxStyleTable) bordersXML() string {
 	for _, br := range t.borders {
 		b.WriteString(`<border>`)
 		for _, e := range [...]struct {
-			tag string
-			l   sheet.Line
-		}{{"left", br.Left()}, {"right", br.Right()}, {"top", br.Top()}, {"bottom", br.Bottom()}} {
+			tag  string
+			l    sheet.Line
+			edge sheet.Edge
+		}{{"left", br.Left(), sheet.EdgeLeft}, {"right", br.Right(), sheet.EdgeRight}, {"top", br.Top(), sheet.EdgeTop}, {"bottom", br.Bottom(), sheet.EdgeBottom}} {
 			if e.l == sheet.LineNone {
 				fmt.Fprintf(&b, `<%s/>`, e.tag)
 				continue
 			}
-			fmt.Fprintf(&b, `<%s style="%s"><color auto="1"/></%s>`, e.tag, excelBorderStyle(e.l), e.tag)
+			fmt.Fprintf(&b, `<%s style="%s">%s</%s>`, e.tag, excelBorderStyle(e.l), borderColorXML(br.Color(e.edge)), e.tag)
 		}
 		b.WriteString(`<diagonal/></border>`)
 	}
 	return b.String() + `</borders>`
 }
 
+// borderColorXML is the <color> of a border line: a named color's, as
+// rules write it, or the automatic one.
+func borderColorXML(c sheet.Color) string {
+	if c == sheet.ColorNone {
+		return `<color auto="1"/>`
+	}
+	return fmt.Sprintf(`<color rgb="%s"/>`, ruleRGB[c][0])
+}
+
 // alignmentXML is a cell format's <alignment>, or "" when it has none.
 func alignmentXML(st sheet.Style) string {
-	if st.Align == sheet.AlignAuto && st.Wrap != sheet.WrapOn {
+	if st.Align == sheet.AlignAuto && st.Wrap != sheet.WrapOn && st.VAlign == sheet.VAlignAuto {
 		return ""
 	}
 	s := `<alignment`
 	if st.Align != sheet.AlignAuto {
 		s += fmt.Sprintf(` horizontal="%s"`, st.Align)
+	}
+	if v := excelVAlign(st.VAlign); v != "" {
+		s += fmt.Sprintf(` vertical="%s"`, v)
 	}
 	if st.Wrap == sheet.WrapOn {
 		s += ` wrapText="1"`

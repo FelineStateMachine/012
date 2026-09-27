@@ -41,9 +41,10 @@ func ParseLine(s string) (Line, bool) {
 // thin.
 func Heavier(a, b Line) Line { return max(a, b) }
 
-// Borders are the lines on a cell's four edges, two bits each, so a
-// style stays eight bytes and a cell fits its allocation size class.
-type Borders uint8
+// Borders are the lines on a cell's four edges, two bits each in the
+// low byte, and their colors, four bits each above: ColorNone draws in
+// the ink of the text (see Color and theme.CellBorder).
+type Borders uint32
 
 // Edge is one of a cell's edges.
 type Edge uint8
@@ -63,9 +64,45 @@ func BordersOf(top, bottom, left, right Line) Borders {
 // Line is the line on edge e.
 func (b Borders) Line(e Edge) Line { return Line(b >> (2 * e) & 3) }
 
-// With is b with edge e drawn with l.
+// Color is the color of edge e's line.
+func (b Borders) Color(e Edge) Color { return Color(b >> (8 + 4*e) & 15) }
+
+// Stroke is edge e's line and color.
+func (b Borders) Stroke(e Edge) Stroke { return Stroke{b.Line(e), b.Color(e)} }
+
+// With is b with edge e drawn with l, in the color it had; no line has
+// no color.
 func (b Borders) With(e Edge, l Line) Borders {
-	return b&^(3<<(2*e)) | Borders(l&3)<<(2*e)
+	b = b&^(3<<(2*e)) | Borders(l&3)<<(2*e)
+	if l == LineNone {
+		b = b.WithColor(e, ColorNone)
+	}
+	return b
+}
+
+// WithColor is b with edge e's line in color c.
+func (b Borders) WithColor(e Edge, c Color) Borders {
+	return b&^(15<<(8+4*e)) | Borders(c&15)<<(8+4*e)
+}
+
+// WithStroke is b with edge e drawn as st.
+func (b Borders) WithStroke(e Edge, st Stroke) Borders {
+	return b.With(e, st.Line).WithColor(e, st.Color)
+}
+
+// Stroke is a line and its color.
+type Stroke struct {
+	Line  Line
+	Color Color
+}
+
+// heavier is the stroke drawn where a and b share an edge: the heavier
+// line, and a's when they are as heavy.
+func heavier(a, b Stroke) Stroke {
+	if b.Line > a.Line {
+		return b
+	}
+	return a
 }
 
 func (b Borders) Top() Line    { return b.Line(EdgeTop) }
@@ -142,11 +179,11 @@ func (k BorderKind) edges(r Rect, a Addr) edgeSet {
 	return edgeSet{right: lastCol}
 }
 
-// apply sets the edges of e on b to l.
-func (e edgeSet) apply(b *Borders, l Line) {
+// apply sets the edges of e on b to st.
+func (e edgeSet) apply(b *Borders, st Stroke) {
 	for edge, set := range [...]bool{EdgeTop: e.top, EdgeBottom: e.bottom, EdgeLeft: e.left, EdgeRight: e.right} {
 		if set {
-			*b = b.With(Edge(edge), l)
+			*b = b.WithStroke(Edge(edge), st)
 		}
 	}
 }
@@ -155,19 +192,61 @@ func (e edgeSet) apply(b *Borders, l Line) {
 // line of r for BorderNone, as one undo step. Neighbors outside r lose
 // the lines on the edges they share with the ones set.
 func (s *Sheet) SetBorders(r Rect, k BorderKind, l Line) {
+	s.SetBorderStroke(r, k, Stroke{Line: l})
+}
+
+// SetBorderStroke is SetBorders with lines of a color. An outline of
+// whole columns or rows draws the sheet's first and last edges too.
+func (s *Sheet) SetBorderStroke(r Rect, k BorderKind, st Stroke) {
 	label := k.String() + " border " + r.String() // "top border B2:C4"
 	if k <= BorderInner {
 		label = k.String() + " borders " + r.String()
 	}
+	if st.Color != ColorNone {
+		label += " in " + st.Color.String()
+	}
 	if k == BorderNone {
-		l, label = LineNone, "remove borders from "+r.String()
+		st, label = Stroke{}, "remove borders from "+r.String()
 	}
 	s.change(label, r, func() {
 		s.eachFormat(r, true, func(a Addr, f *lineFmt) {
-			k.edges(r, a).apply(&f.Style.Borders, l)
+			k.edges(r, a).apply(&f.Style.Borders, st)
 		})
+		s.sheetEdges(r, k, st)
 		s.clearFacing(r, k)
 	})
+}
+
+// sheetEdges draws the edges of whole columns or rows that lie on the
+// sheet's own edges, which k.edges leaves out along the axis they cover
+// whole: the top of row 1 and the bottom of the last row under whole
+// columns, the left of column A and the right of the last column beside
+// whole rows. Across the whole sheet those are the lines of its first
+// and last rows and columns; otherwise the cells along them.
+func (s *Sheet) sheetEdges(r Rect, k BorderKind, st Stroke) {
+	var e edgeSet
+	switch k {
+	case BorderOuter:
+		e = edgeSet{true, true, true, true}
+	case BorderTop, BorderBottom, BorderLeft, BorderRight:
+		e = edgeSet{top: k == BorderTop, bottom: k == BorderBottom, left: k == BorderLeft, right: k == BorderRight}
+	default:
+		return
+	}
+	last := Addr{Col: MaxCols - 1, Row: MaxRows - 1}
+	set := func(on bool, n Rect, edge edgeSet) {
+		if on {
+			s.eachFormat(n, true, func(_ Addr, f *lineFmt) { edge.apply(&f.Style.Borders, st) })
+		}
+	}
+	if r.AllRows() {
+		set(e.top, Rect{From: Addr{Col: r.From.Col}, To: Addr{Col: r.To.Col}}, edgeSet{top: true})
+		set(e.bottom, Rect{From: Addr{Col: r.From.Col, Row: last.Row}, To: Addr{Col: r.To.Col, Row: last.Row}}, edgeSet{bottom: true})
+	}
+	if r.AllCols() {
+		set(e.left, Rect{From: Addr{Row: r.From.Row}, To: Addr{Row: r.To.Row}}, edgeSet{left: true})
+		set(e.right, Rect{From: Addr{Col: last.Col, Row: r.From.Row}, To: Addr{Col: last.Col, Row: r.To.Row}}, edgeSet{right: true})
+	}
 }
 
 // clearFacing removes the lines of the neighbors of r on the edges that
@@ -181,7 +260,7 @@ func (s *Sheet) clearFacing(r Rect, k BorderKind) {
 		if !n.From.Valid() || !n.To.Valid() {
 			return
 		}
-		s.eachFormat(n, true, func(_ Addr, f *lineFmt) { e.apply(&f.Style.Borders, LineNone) })
+		s.eachFormat(n, true, func(_ Addr, f *lineFmt) { e.apply(&f.Style.Borders, Stroke{}) })
 	}
 	if outer.top && !r.AllRows() {
 		strip(Addr{Col: r.From.Col, Row: r.From.Row - 1}, Addr{Col: r.To.Col, Row: r.From.Row - 1}, edgeSet{bottom: true})
@@ -199,20 +278,27 @@ func (s *Sheet) clearFacing(r Rect, k BorderKind) {
 
 // EdgeAbove is the line on the edge between the cell at a and the one
 // above it: the heavier of their facing lines.
-func (s *Sheet) EdgeAbove(a Addr) Line {
-	l := s.CellStyle(a).Borders.Top()
-	if a.Row > 0 {
-		l = Heavier(l, s.CellStyle(Addr{Col: a.Col, Row: a.Row - 1}).Borders.Bottom())
-	}
-	return l
-}
+func (s *Sheet) EdgeAbove(a Addr) Line { return s.StrokeAbove(a).Line }
 
 // EdgeLeft is the line on the edge between the cell at a and the one to
 // its left.
-func (s *Sheet) EdgeLeft(a Addr) Line {
-	l := s.CellStyle(a).Borders.Left()
-	if a.Col > 0 {
-		l = Heavier(l, s.CellStyle(Addr{Col: a.Col - 1, Row: a.Row}).Borders.Right())
+func (s *Sheet) EdgeLeft(a Addr) Line { return s.StrokeLeft(a).Line }
+
+// StrokeAbove is EdgeAbove with its color: the heavier line's, or the
+// cell's own where the lines are as heavy.
+func (s *Sheet) StrokeAbove(a Addr) Stroke {
+	st := s.CellStyle(a).Borders.Stroke(EdgeTop)
+	if a.Row > 0 {
+		st = heavier(st, s.CellStyle(Addr{Col: a.Col, Row: a.Row - 1}).Borders.Stroke(EdgeBottom))
 	}
-	return l
+	return st
+}
+
+// StrokeLeft is EdgeLeft with its color.
+func (s *Sheet) StrokeLeft(a Addr) Stroke {
+	st := s.CellStyle(a).Borders.Stroke(EdgeLeft)
+	if a.Col > 0 {
+		st = heavier(st, s.CellStyle(Addr{Col: a.Col - 1, Row: a.Row}).Borders.Stroke(EdgeRight))
+	}
+	return st
 }

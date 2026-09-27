@@ -27,9 +27,11 @@ A formatted cell has its `input` and the formatting that isn't the
 default: `format` (as `number_format` in
 [macros](../reference/macro-api.md#cells) names it: `currency`, `percent`, `date`, ...), `decimals`, `pattern` for a
 custom format, `bold`, `italic`, `underline`, `strikethrough`,
-`align` (`left`, `center`, `right`), `wrap` (`wrap` or `clip`) and
-`borders`, each edge's line by name:
-`"borders":{"top":"thin","bottom":"double","left":"thick","right":"thin"}`
+`align` (`left`, `center`, `right`), `valign` (`top`, `middle`,
+`bottom`), `wrap` (`wrap` or `clip`) and `borders`, each edge's line by
+name, with `topColor`, `bottomColor`, `leftColor` and `rightColor` for
+a line in a [color](../sheets/formatting.md#border-colors):
+`"borders":{"top":"thin","bottom":"double","left":"thick","right":"thin","bottomColor":"red"}`
 ([formatting](../sheets/formatting.md#borders)).
 
 Only what's typed is saved. What 012 computes is computed again when the
@@ -84,6 +86,7 @@ save), so they raise no version:
 | `note` | a cell | Its [note](../sheets/notes-protection.md#notes) |
 | `own` | a cell | `true` when its formatting is its own, not its column's or row's (Automatic in a currency column) |
 | `wrap`, `borders` | a cell or a line | How its text [wraps](../sheets/formatting.md#wrapping) and its [borders](../sheets/formatting.md#borders); older builds show the text overflowing, without lines |
+| `valign`, and colors in `borders` | a cell or a line | Where its text sits in a [tall row](../sheets/formatting.md#vertical-alignment), and its borders' colors; older builds show the text at the bottom and the lines in the text's ink |
 | `lines` | a sheet | [Column and row formats](#column-and-row-formats) |
 | `heights` | a sheet | [Row heights](../sheets/formatting.md#row-heights) set by hand, in lines, by row number: `"heights": {"3": 2, "7": 4}` |
 | `merges` | a sheet | [Merged cells](../sheets/formatting.md#merged-cells), by range: `"merges": ["A1:C1", "D2:D5"]` |

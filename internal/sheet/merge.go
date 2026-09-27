@@ -192,6 +192,22 @@ func (s *Sheet) Merge(r Rect, k MergeKind) error {
 	return nil
 }
 
+// MergeAcross returns a merge the line after the first n rows (or
+// columns) would cut through, as freezing them would, and whether there
+// is one.
+func (s *Sheet) MergeAcross(rows bool, n int) (Rect, bool) {
+	for _, m := range s.view.merges {
+		from, to := m.From.Col, m.To.Col
+		if rows {
+			from, to = m.From.Row, m.To.Row
+		}
+		if n > 0 && from < n && to >= n {
+			return m, true
+		}
+	}
+	return Rect{}, false
+}
+
 // Unmerge splits the merges overlapping r back into cells, as one undo
 // step, and returns how many there were.
 func (s *Sheet) Unmerge(r Rect) int {

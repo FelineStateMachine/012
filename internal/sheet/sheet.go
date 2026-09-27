@@ -28,8 +28,9 @@ type Cell struct {
 
 	// Format and Style are plain values, so copying a Cell copies its
 	// formatting. They survive clearing the contents, as in Sheets.
+	// Style is kept at the end, with the flags, where it fits in what
+	// alignment would otherwise pad, so a Cell stays 256 bytes.
 	Format Format
-	Style  Style
 
 	// Note is the cell's note, as Sheets' Insert > Note: text shown when
 	// the cell is active or hovered. Like formatting, it survives clearing
@@ -42,9 +43,10 @@ type Cell struct {
 	ranges   []Rect   // range references in expr to its own sheet
 	xrefs    []xref   // references that name a sheet, e.g. Sheet2!A1
 	names    []string // names in expr, as keys of Workbook.names
-	volatile bool     // expr calls TODAY, NOW, RAND...
-	derived  bool     // a pivot table's result, owned by the engine: see pivot.go
-	spilled  bool     // part of an array a formula spills, owned by it: see spill.go
+	Style    Style
+	volatile bool // expr calls TODAY, NOW, RAND...
+	derived  bool // a pivot table's result, owned by the engine: see pivot.go
+	spilled  bool // part of an array a formula spills, owned by it: see spill.go
 }
 
 // Spilled reports whether the cell shows part of an array another

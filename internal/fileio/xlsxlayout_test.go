@@ -28,6 +28,8 @@ func TestXLSXLayoutRoundTrip(t *testing.T) {
 	src.SetBorders(rangeOf(t, "A2:C3"), sheet.BorderAll, sheet.LineThin)
 	src.SetBorders(rangeOf(t, "A2:C3"), sheet.BorderOuter, sheet.LineThick)
 	src.SetBorders(rangeOf(t, "B2"), sheet.BorderBottom, sheet.LineDouble)
+	src.SetBorderStroke(rangeOf(t, "C3"), sheet.BorderRight, sheet.Stroke{Line: sheet.LineThick, Color: sheet.ColorGreen})
+	src.SetStyle(rangeOf(t, "B2"), func(st *sheet.Style) { st.VAlign = sheet.VAlignTop })
 	src.SetRowHeight(4, 4, 3)
 
 	name := filepath.Join(t.TempDir(), "layout.xlsx")
@@ -53,6 +55,10 @@ func TestXLSXLayoutRoundTrip(t *testing.T) {
 	id, _ = x.GetCellStyle(ws, "A2")
 	if st, _ = x.GetStyle(id); st == nil || st.Alignment == nil || !st.Alignment.WrapText {
 		t.Errorf("A2 doesn't wrap in Excel: %+v", st)
+	}
+	id, _ = x.GetCellStyle(ws, "B2")
+	if st, _ = x.GetStyle(id); st == nil || st.Alignment == nil || st.Alignment.Vertical != "top" {
+		t.Errorf("B2 isn't at the top in Excel: %+v", st)
 	}
 	x.Close()
 
@@ -82,10 +88,11 @@ func TestXLSXLayoutImport(t *testing.T) {
 		`<row r="3" ht="15.75" customHeight="1"><c r="A3" s="1"/><c r="D3"><v>4</v></c></row>`)
 	p["xl/styles.xml"] = `<styleSheet ` + mainNS + `><fonts count="1"><font/></fonts>` +
 		`<borders count="3"><border><left/><right/><top/><bottom/></border>` +
-		`<border><left style="hair"/><right style="mediumDashed"/><top style="double"/><bottom style="thick"/></border>` +
+		`<border><left style="hair"><color auto="1"/></left><right style="mediumDashed"><color rgb="FF808080"/></right>` +
+		`<top style="double"><color rgb="FFFF0000"/></top><bottom style="thick"><color theme="4"/></bottom></border>` +
 		`<border><left style="dashDot"/></border></borders>` +
 		`<cellXfs count="4"><xf numFmtId="0" fontId="0" borderId="0"/><xf numFmtId="0" fontId="0" borderId="1" applyBorder="1"/>` +
-		`<xf numFmtId="0" fontId="0" borderId="2"/><xf numFmtId="0" fontId="0" borderId="0"><alignment wrapText="1"/></xf></cellXfs></styleSheet>`
+		`<xf numFmtId="0" fontId="0" borderId="2"/><xf numFmtId="0" fontId="0" borderId="0"><alignment wrapText="1" vertical="center"/></xf></cellXfs></styleSheet>`
 	p["xl/worksheets/sheet1.xml"] = p["xl/worksheets/sheet1.xml"][:len(p["xl/worksheets/sheet1.xml"])-len(`</worksheet>`)] +
 		`<mergeCells count="2"><mergeCell ref="B2:C3"/><mergeCell ref="$E$5:$E$9"/></mergeCells></worksheet>`
 	name := writeParts(t, t.TempDir(), "excel.xlsx", p)
@@ -94,9 +101,14 @@ func TestXLSXLayoutImport(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := res.Sheet
-	want := sheet.BordersOf(sheet.LineDouble, sheet.LineThick, sheet.LineThin, sheet.LineThick)
+	// Colors come in as the nearest named one; grays as the text's ink.
+	want := sheet.BordersOf(sheet.LineDouble, sheet.LineThick, sheet.LineThin, sheet.LineThick).
+		WithColor(sheet.EdgeTop, sheet.ColorRed).WithColor(sheet.EdgeBottom, sheet.ColorBlue)
 	if got := s.CellStyle(addr(t, "A1")).Borders; got != want {
-		t.Errorf("A1 borders %+v, want %+v", got, want)
+		t.Errorf("A1 borders %x, want %x", uint32(got), uint32(want))
+	}
+	if v := s.CellStyle(addr(t, "A2")).VAlign; v != sheet.VAlignMiddle {
+		t.Errorf("vertical center read as %v", v)
 	}
 	if got := s.CellStyle(addr(t, "B1")).Borders.Left(); got != sheet.LineThin {
 		t.Errorf("a blank cell's border after the row's values: %v", got)

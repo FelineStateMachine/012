@@ -191,6 +191,8 @@ func streamSeeds(t testing.TB) [][]byte {
 	s.SetStyle(NewRect(Addr{Col: 4}, Addr{Col: 4, Row: MaxRows - 1}), func(st *Style) { st.Wrap = WrapClip })
 	s.SetBorders(NewRect(Addr{Row: 1}, Addr{Col: 2, Row: 3}), BorderAll, LineThin)
 	s.SetBorders(NewRect(Addr{Row: 1}, Addr{Col: 2, Row: 3}), BorderOuter, LineDouble)
+	s.SetBorderStroke(NewRect(Addr{Col: 3, Row: 1}, Addr{Col: 3, Row: 2}), BorderRight, Stroke{Line: LineThick, Color: ColorMagenta})
+	s.SetStyle(NewRect(Addr{Row: 6}, Addr{Col: 1, Row: 6}), func(st *Style) { st.VAlign = VAlignMiddle })
 	s.SetRowHeight(6, 7, 3)
 	s.LoadMerge(NewRect(Addr{Col: 6}, Addr{Col: 8, Row: 1}))
 	one := []byte(written(t, s.Book()))
@@ -219,6 +221,8 @@ func streamSeeds(t testing.TB) [][]byte {
 		[]byte(`{"version": 2, "cells": {"A1": "1"}} trailing`),
 		[]byte(`{"version": 2, "heights": {"2": 3, "9": 99}, "merges": ["A1:B1", "B1:C2", "D4"], "cells": {"A1": {"input": "5", "wrap": "wrap", "borders": {"top": "thin", "right": "double"}}}}`),
 		[]byte(`{"version": 2, "cells": {"A1": {"input": "x", "wrap": "sideways"}, "B1": {"borders": {"left": "dotted"}}}}`),
+		[]byte(`{"version": 2, "cells": {"A1": {"input": "5", "valign": "top", "borders": {"top": "thick", "topColor": "red", "left": "thin", "leftColor": "blue"}}, "B1": {"borders": {"rightColor": "green"}}}}`),
+		[]byte(`{"version": 2, "cells": {"A1": {"input": "x", "valign": "sideways"}, "B1": {"borders": {"left": "thin", "leftColor": "mauve"}}}}`),
 		[]byte(`{"version": 2, "heights": {"0": 2}, "merges": ["A1:"], "cells": {}}`),
 		[]byte(`null`), []byte(`[]`), []byte(`{"version": 2, "cells": {"A1": "1",}}`), []byte(`{"version": 2, "cells": {"A1"`),
 	}

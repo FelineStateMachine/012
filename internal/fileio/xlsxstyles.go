@@ -34,6 +34,7 @@ type xlsxXf struct {
 	numFmt, font, border               int
 	applyFont, applyAlign, applyBorder bool
 	align                              sheet.Align
+	valign                             sheet.VAlign
 	wrap                               bool
 }
 
@@ -54,7 +55,7 @@ func (s *xlsxStyles) style(id int) xlsxStyle {
 		out.style.Bold, out.style.Italic, out.style.Strikethrough, out.style.Underline = f.bold, f.italic, f.strike, f.underline
 	}
 	if xf.applyAlign {
-		out.style.Align = xf.align
+		out.style.Align, out.style.VAlign = xf.align, xf.valign
 		if xf.wrap {
 			out.style.Wrap = sheet.WrapOn
 		}
@@ -185,6 +186,7 @@ func (s *xlsxStyles) element(x *xmlStream, se xml.StartElement, section string, 
 		case "right":
 			cur.align = sheet.AlignRight
 		}
+		cur.valign = excelVAligns[attrOr(se, "vertical", "")]
 	}
 	return cur, nil
 }

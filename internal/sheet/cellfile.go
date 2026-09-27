@@ -23,6 +23,9 @@ type fileCell struct {
 	// and show the text overflowing, without lines.
 	Wrap    string       `json:"wrap,omitempty"` // "wrap" or "clip"
 	Borders *fileBorders `json:"borders,omitempty"`
+	// VAlign needs no version bump either: earlier builds show the text
+	// at the bottom.
+	VAlign string `json:"valign,omitempty"` // "top", "middle" or "bottom"
 	// Note needs no version bump: earlier builds ignore it and drop the
 	// note.
 	Note string `json:"note,omitempty"`
@@ -42,6 +45,7 @@ func encodeCell(c *Cell) (json.RawMessage, error) {
 		Align:         c.Style.Align.String(),
 		Own:           c.Style.own,
 		Wrap:          c.Style.Wrap.String(),
+		VAlign:        c.Style.VAlign.String(),
 		Borders:       encodeBorders(c.Style.Borders),
 		Note:          c.Note,
 	}
@@ -98,28 +102,40 @@ func decodeFormatted(fc fileCell) (string, Format, Style, error) {
 	if !ok {
 		return "", Format{}, Style{}, fmt.Errorf("unknown wrapping %q", fc.Wrap)
 	}
+	va, ok := ParseVAlign(fc.VAlign)
+	if !ok {
+		return "", Format{}, Style{}, fmt.Errorf("unknown vertical alignment %q", fc.VAlign)
+	}
 	b, err := decodeBorders(fc.Borders)
 	if err != nil {
 		return "", Format{}, Style{}, err
 	}
-	st := Style{Bold: fc.Bold, Italic: fc.Italic, Underline: fc.Underline, Strikethrough: fc.Strikethrough, Align: al, Wrap: wr, Borders: b, own: fc.Own}
+	st := Style{Bold: fc.Bold, Italic: fc.Italic, Underline: fc.Underline, Strikethrough: fc.Strikethrough, Align: al, Wrap: wr, VAlign: va, Borders: b, own: fc.Own}
 	return fc.Input, f, st, nil
 }
 
-// fileBorders are a cell's borders in the file, each edge's line by name:
-// {"top": "thin", "left": "double"}.
+// fileBorders are a cell's borders in the file, each edge's line by name
+// and, when it has one, its color: {"top": "thin", "left": "double",
+// "leftColor": "red"}. Earlier builds ignore the colors and draw the
+// lines in the text's ink.
 type fileBorders struct {
-	Top    string `json:"top,omitempty"`
-	Bottom string `json:"bottom,omitempty"`
-	Left   string `json:"left,omitempty"`
-	Right  string `json:"right,omitempty"`
+	Top         string `json:"top,omitempty"`
+	Bottom      string `json:"bottom,omitempty"`
+	Left        string `json:"left,omitempty"`
+	Right       string `json:"right,omitempty"`
+	TopColor    string `json:"topColor,omitempty"`
+	BottomColor string `json:"bottomColor,omitempty"`
+	LeftColor   string `json:"leftColor,omitempty"`
+	RightColor  string `json:"rightColor,omitempty"`
 }
 
 func encodeBorders(b Borders) *fileBorders {
 	if b.IsZero() {
 		return nil
 	}
-	return &fileBorders{Top: b.Top().String(), Bottom: b.Bottom().String(), Left: b.Left().String(), Right: b.Right().String()}
+	return &fileBorders{Top: b.Top().String(), Bottom: b.Bottom().String(), Left: b.Left().String(), Right: b.Right().String(),
+		TopColor: b.Color(EdgeTop).String(), BottomColor: b.Color(EdgeBottom).String(),
+		LeftColor: b.Color(EdgeLeft).String(), RightColor: b.Color(EdgeRight).String()}
 }
 
 func decodeBorders(fb *fileBorders) (Borders, error) {
@@ -127,12 +143,20 @@ func decodeBorders(fb *fileBorders) (Borders, error) {
 	if fb == nil {
 		return b, nil
 	}
-	for edge, name := range [...]string{EdgeTop: fb.Top, EdgeBottom: fb.Bottom, EdgeLeft: fb.Left, EdgeRight: fb.Right} {
+	lines := [...]string{EdgeTop: fb.Top, EdgeBottom: fb.Bottom, EdgeLeft: fb.Left, EdgeRight: fb.Right}
+	colors := [...]string{EdgeTop: fb.TopColor, EdgeBottom: fb.BottomColor, EdgeLeft: fb.LeftColor, EdgeRight: fb.RightColor}
+	for edge, name := range lines {
 		l, ok := ParseLine(name)
 		if !ok {
 			return 0, fmt.Errorf("unknown border line %q", name)
 		}
-		b = b.With(Edge(edge), l)
+		c, ok := ParseColor(colors[edge])
+		if !ok {
+			return 0, fmt.Errorf("unknown border color %q", colors[edge])
+		}
+		if l != LineNone {
+			b = b.WithStroke(Edge(edge), Stroke{l, c})
+		}
 	}
 	return b, nil
 }

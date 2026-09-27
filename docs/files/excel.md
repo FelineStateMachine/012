@@ -43,6 +43,8 @@ What changes on the way:
 | Wrap | The cell format's `wrapText` |
 | Clip | Nothing: Excel has no clipping, so the text overflows there |
 | Borders: thin, thick, double | Borders in the styles part: `thin`, `medium`, `double`. Coming in, `hair`, `dotted` and the dashed lines read as thin, `medium`, `thick` and the medium dashed lines as thick |
+| Border colors | The line's `color`, as the RGB the rules' colors write; coming in, the nearest named color by hue, and grays and black as Automatic |
+| Vertical alignment: top, middle, bottom | The cell format's `vertical`: `top`, `center`, `bottom`; `justify` and `distributed` come in as automatic |
 | A blank cell with borders | Written as a styled cell, and read, even after a row's last value |
 | A row's height, in lines | `ht` in points, 15 to a line, with `customHeight`; coming in, only heights set by hand (`customHeight`) of more than a line, rounded to lines. Rows Excel fitted to their text fit it here too |
 | Merged cells | `mergeCells`; the values Excel keeps under a merge's other cells come in but don't show |
