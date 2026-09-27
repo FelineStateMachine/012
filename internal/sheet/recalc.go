@@ -202,6 +202,7 @@ func (w *Workbook) evaluate() {
 			}
 		}
 		s.calc[a] = done
+		s.cells.changed(a)
 		return c.Value
 	}
 	for _, s := range w.sheets {

@@ -15,7 +15,8 @@ import (
 // iterating, with a map's rules: a deleted cell not yet reached isn't
 // yielded, a new one may or may not be.
 type cellStore struct {
-	m map[Addr]*Cell
+	m     map[Addr]*Cell
+	stats *statsIndex // statistics by block, once a selection needs them; see stats.go
 }
 
 func newCellStore() cellStore { return cellStore{m: make(map[Addr]*Cell)} }
@@ -24,10 +25,19 @@ func newCellStore() cellStore { return cellStore{m: make(map[Addr]*Cell)} }
 func (st *cellStore) get(a Addr) *Cell { return st.m[a] }
 
 // set stores c, which isn't nil, at a.
-func (st *cellStore) set(a Addr, c *Cell) { st.m[a] = c }
+func (st *cellStore) set(a Addr, c *Cell) {
+	st.m[a] = c
+	st.stats.touch(a)
+}
 
 // delete removes the cell at a, if any.
-func (st *cellStore) delete(a Addr) { delete(st.m, a) }
+func (st *cellStore) delete(a Addr) {
+	delete(st.m, a)
+	st.stats.touch(a)
+}
+
+// changed notes that the value of the cell at a was recalculated.
+func (st *cellStore) changed(a Addr) { st.stats.touch(a) }
 
 // len is the number of cells stored, formatting-only ones included.
 func (st *cellStore) len() int { return len(st.m) }
