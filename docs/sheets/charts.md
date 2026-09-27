@@ -5,6 +5,8 @@ sidebar_position: 10
 
 # Charts
 
+![Inserting a chart from the palette, switching its type, and watching it follow its data](../media/charts.gif)
+
 Insert > Chart charts the selection, or the table around the active cell,
 guessing the header row, the label column and a title. The chart floats over
 the grid, pinned to a cell, and redraws when its data changes.

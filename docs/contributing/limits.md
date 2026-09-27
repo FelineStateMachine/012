@@ -48,9 +48,8 @@ ten million cells by default): imports keep whole rows up to it, pastes
 and fills write at most that many cells at once. WK1 files keep their own
 8192 x 256. The costs below grow with the cells; the grid itself costs
 nothing (see [The grid](#the-grid)). A `.012` file is read and written
-as a stream, cells straight into and out of the store ([The .012
-format](../files/format.md#reading-and-writing)), so opening costs about
-the memory the workbook then holds.
+as a stream, so opening costs about the memory the workbook then holds
+([The .012 file](#the-012-file)).
 
 | Measure | 8192 x 26 (213 k cells) | 8192 x 256 (2.1 M cells) | 1,000,000 x 10 (10 M cells) |
 |---|---|---|---|
@@ -80,6 +79,22 @@ input (the `Cell` itself is 216 B). How the store lays
 them out is in [Architecture](architecture.md#the-engine). Reading a
 cell's value is an index into its column's block: 2.8 ns
 (`BenchmarkRead`), 8.6 ns a cell read by a SUM in a full recalculation.
+
+### The .012 file
+
+The reader and writer stream (`internal/sheet/fileread.go`,
+`filescan.go`): each cell goes into its sheet as its line is read, a
+number typed plainly straight into its 16-byte slot, and the other
+fields are small and decoded whole. Saving writes the cells in
+row-major order as it reads them from the sheet, straight into the
+file.
+
+There is one format. A binary one that stored the slots themselves
+would open ten million numbers in about 0.3 s at best (storing ten
+million slots alone takes 0.17 s) where the JSON takes 1.2 s: a second
+saved on sheets near `max-cells`, and nothing a smaller sheet would
+notice, for the loss of what the JSON gives, diffs, merges, and a file
+anyone can read and fix.
 
 ## The grid
 
@@ -213,7 +228,9 @@ every cell on screen a shade), at 200 x 60 (`BenchmarkFrame`,
 | Typing a number and Enter, through to the frame | 0.89 ms | 2.3 ms (the scale's percentile over 213 k numbers) |
 
 Shades and rule colors keep their escape codes, so a plain cell on one
-costs a string concatenation, not a style render.
+costs a string concatenation, not a style render. A custom formula is
+evaluated for each cell drawn, once per recalculation, with its
+references moved for the cell.
 
 Wrapped text, borders, row heights and merged cells cost what the
 screen shows too. A sheet with none of them is drawn a line per row
@@ -229,9 +246,7 @@ top (`BenchmarkFrame`, `BenchmarkKeystroke`):
 |---|---|---|---|
 | 8192 x 26 numbers, a frame | 0.18 ms | 0.90 ms | 3.1 ms |
 | The same laid out, a frame | 0.24 ms | 1.28 ms | 4.3 ms |
-| The same laid out, an arrow key through to its frame | 0.25 ms | 1.25 ms | | A custom formula is
-evaluated for each cell drawn, once per recalculation, with its
-references moved for the cell.
+| The same laid out, an arrow key through to its frame | 0.25 ms | 1.25 ms | |
 
 A chart drawn as text costs 4 to 50 us at 24 x 10 to 120 x 40 cells,
 whatever its data: only the categories that fit are drawn (a pie of 8192
