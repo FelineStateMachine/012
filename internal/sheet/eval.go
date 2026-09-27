@@ -118,6 +118,19 @@ func eval(n Node, get lookup) Value {
 			return get.cell(n.Sheet, n.Rect.From)
 		}
 		return ErrValue
+	case formula.Unary, decUnary, formula.Binary, decBinary, formula.Call:
+		get.w.depth++
+		v := evalNested(n, get)
+		get.w.depth--
+		return v
+	}
+	return ErrValue
+}
+
+// evalNested computes an operator or a call, which evaluate their
+// operands: eval counts the nesting around it (see evaluate.go).
+func evalNested(n Node, get lookup) Value {
+	switch n := n.(type) {
 	case formula.Unary:
 		return evalUnary(n, get, false)
 	case decUnary:

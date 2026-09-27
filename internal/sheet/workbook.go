@@ -45,9 +45,12 @@ type Workbook struct {
 	// being evaluated, which a question is asked for (see remote.go).
 	waiting    map[string]map[loc]struct{}
 	evaluating loc
-	hist       history // undo and redo, see history.go
-	active     int     // the sheet last shown, saved in the file
-	decimal    bool    // decimal arithmetic, see decimal.go
+	// depth counts the cells and operators being evaluated, nested; see
+	// evaluate.go.
+	depth   int
+	hist    history // undo and redo, see history.go
+	active  int     // the sheet last shown, saved in the file
+	decimal bool    // decimal arithmetic, see decimal.go
 
 	macros      []Macro // see macros.go
 	macroOrigin string
