@@ -93,12 +93,66 @@ measured steps (see [docs/limits.md](docs/limits.md)):
 | C | A streaming or binary file format next to the readable JSON one | Open and save scale with the data |
 | Later | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid |
 
-## Suggested order
+## Ahead
 
-1. Command log + undo, Copy/Move with ref adjustment, Range Format.
-2. Command palette, autocomplete, status line stats.
-3. CSV and XLSX import/export.
-4. Charts (text first, then kitty placeholders).
+Collected after phase 5 from the docs, the limits, and what each piece of
+work left open. Sizes: S (a day or two), M (about a week), L (weeks).
+
+### 1. Finish and harden what shipped
+
+| Item | Why | Size |
+|---|---|---|
+| Open 012's XLSX output in real Excel and LibreOffice (a round-trip corpus, run by hand before releases) | The new writer is checked only by excelize and 012's reader | S |
+| Column and row formats travel with copy, cut and move; formulas reading blanks of a newly formatted column re-infer at once | Left open by step A | S |
+| Save as onto another existing file asks before replacing (local and `012 serve`) | Only the open file is checked today | S |
+| XLSX sheet names with characters Excel forbids: rewrite formulas that name them, not just the sheet | Formulas keep the old name today | S |
+| Replace current sheet keeps its charts; Insert new sheet(s) goes after the current tab | Import location details | S |
+| Precedent tracing explains when every precedent is on a hidden sheet | Says "no formula" today | S |
+| Settings > JEV API key checks the key with a test call | Left open by the config work | S |
+| `012 serve`: open a file from the ssh command line (`ssh -t host file.012` as a request, not exec), and save unsaved work to a recovery file on shutdown or idle timeout | Sessions start empty; unsaved work is lost today | M |
+| Decide whether 012 honors OTEL_* variables it inherits from the desktop session, or only its own config | A GUI-launched 012 exports to whatever the session's variables name | S |
+
+### 2. Spreadsheet features Sheets users reach for
+
+| Item | Notes | Size |
+|---|---|---|
+| Dynamic arrays: FILTER, SORT, UNIQUE, SEQUENCE, spill ranges, `#SPILL!`; then LET and LAMBDA | The biggest gap in the function library; spills need engine support for ranges a formula owns | L |
+| Text and regex: TEXTJOIN, SPLIT, REGEXMATCH, REGEXEXTRACT, REGEXREPLACE | Sheets staples | S |
+| Conditional formatting (color scales, rules on values and formulas), drawn in theme roles | Visual; must read under all 349 schemes | M |
+| Data validation: dropdown lists (a picker in the cell), number and date rules, checkboxes | Pairs with the filter picker | M |
+| Wrap text, row heights, borders, merged cells | Layout changes in the grid renderer | M to L |
+| Notes on cells (shown on hover and in the context line) | | S |
+| Locale: decimal comma, date order, list separator in formulas | Sheets' File > Settings > Locale | M |
+| Charts: scatter, area, stacked columns and bars, axis options, a legend position | Registry entries in `internal/chart` | M |
+| Pivot tables: column subtotals, renaming value columns, check the "(blank)" label against Sheets | Left open by pivots | S |
+| Protected ranges and sheets (warn on edit) | | S |
+
+### 3. Scale (see "Next: vast data" above and docs/limits.md)
+
+| Item | Result | Size |
+|---|---|---|
+| Step B: compact column storage behind `cellStore` | 10 M+ cells in a few hundred MB, cell reads 2 to 3 ns | L |
+| Step C: streaming and compact `.012` format | Open and save scale with the data | M |
+| Smaller undo steps: formatting changes as diffs | More history in the same memory | S |
+| Linked, paged read-only ranges over Parquet and SQLite feeding pivots and formulas | Sources too big for any grid | L |
+
+### 4. Macros and keys
+
+| Item | Size |
+|---|---|
+| Record dialog choices (sort bar, filter picker, find and replace, chart editor) and chart drags; let scripts run commands that open dialogs, with answers | M |
+| Vim: `.` repeat, registers, marks, `cc`/`s`, command-line history, `:w!`, `:wq file` quitting | M |
+| Remaining overlays get narrow hosts: filter picker, sort and choice bars, chart editor, shortcuts, named ranges, cell entry and prompts | M |
+
+### 5. Distribution and upkeep
+
+| Item | Size |
+|---|---|
+| Version tags and release notes; prebuilt binaries attached to tags (built locally, since the repo is hosting only) | S |
+| `make check`: vet, lint, tests, oracle, e2e in one target, run before every push | S |
+| `make stress-report` thresholds that flag regressions over a set percentage against the last release | S |
+| Grafana: a trace panel for the nested spans | S |
+| Accessibility: a high-contrast theme, and every state readable without color (already a UX rule; audit it) | S |
 
 ## Later: sharing a live sheet (shelved)
 
