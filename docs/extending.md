@@ -15,7 +15,7 @@ shows it is derived from the table rather than listing it again.
 | Registry | Entry | Derived from it |
 |---|---|---|
 | `sheet.FuncDef` | a function: name, signature, description, arity, eval | parsing, autocomplete, argument hints, help, [functions.md](functions.md) |
-| `ui.command` | an action: id, title, description, run, enabled, checked | key bindings, menu bar, context menus, palette, shortcuts help |
+| `ui.command` | an action: id, title, description, run, enabled, checked | key bindings (Sheets and vim), menu bar, context menus, palette, shortcuts help, the `:` command line and its completions |
 | `fileio` formats (`formats.go`) | a format: name, extensions, labels, traits, importer, exporter | `Import`, `Export`, detection, import picker, File > Download, command line |
 | `chart.types`, with `sheet.ChartTypes` | a type: name and order (sheet, saved in files), a layout drawing text and image (chart) | `chart.Draw`, `chart.Image`, chart editor, Insert > Chart |
 | theme roles | a role: dark and light styles on the 16 ANSI colors | every style in the UI |

@@ -38,7 +38,7 @@ quality keep pace with features: see [docs/UX.md](docs/UX.md).
 | One-key frozen titles | csvlens, sc-im, 1-2-3 /Worksheet Titles | viewport split | S-M |
 | Search (`n`/`N`) and non-destructive row filter | csvlens | | M |
 | Fill down / fill series (1,2,3, Jan, Feb) | Excel, Sheets | needs Copy ref adjustment | S-M |
-| Optional vim keymap (`hjkl`, counts, `:` commands) | sc-im, csvlens | `bubbles/v2/key` bindings | M |
+| Optional vim keymap (`hjkl`, counts, `:` commands). Done: File > Settings > Vim keys, [keys.md](docs/keys.md#vim-keys) | sc-im, csvlens | tables of command bindings, the command registry for `:` | M |
 | Frequency table of a column as a derived sheet | VisiData Shift+F | | M |
 
 ## Phase 3: terminal-native features
