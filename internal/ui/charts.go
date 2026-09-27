@@ -220,7 +220,7 @@ func (m *Model) chartBoxes() []box {
 // border with a resize handle in the corner.
 func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 	w, h := chartInner(c)
-	o := m.chartOptions()
+	o := m.term.chartOptions()
 	if i >= maxImages {
 		o.Image = false
 	}

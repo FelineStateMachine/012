@@ -48,7 +48,7 @@ func (m *Model) View() tea.View {
 	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go
 	v.ReportFocus = true                 // notifications only when the window is in the background
 	v.WindowTitle = "012 - " + m.displayName()
-	if m.jevBusy() != "" {
+	if m.jev.busy() != "" {
 		// Terminals that support it (OSC 9;4) show activity in the tab.
 		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarIndeterminate, 0)
 	}
@@ -155,7 +155,7 @@ func (m *Model) contextLineText() string {
 		left, right = m.traceLine()
 	case m.mode == modeReady:
 		if left = m.readyLine(); left == "" {
-			left = m.jevLine()
+			left = m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur))
 		}
 		if left == "" {
 			left = m.errorLine()
@@ -316,7 +316,7 @@ func (m *Model) statusState() string {
 	if n := m.sheet.HiddenRows(); n > 0 {
 		b.WriteString("  " + m.th.Hint.Render("Filter hides "+rowCount(n)))
 	}
-	if busy := m.jevBusy(); busy != "" {
+	if busy := m.jev.busy(); busy != "" {
 		b.WriteString("  " + m.th.Hint.Render(busy))
 	}
 	return b.String()

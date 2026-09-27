@@ -11,6 +11,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/jev"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // JEV functions are answered in the background: the engine queues
@@ -68,19 +69,19 @@ func plural(n int, one, many string) string {
 	return many
 }
 
-// sendJEV starts queued questions, keeping at most jevParallel in flight
+// send starts queued questions, keeping at most jevParallel in flight
 // so a filled-down column doesn't open hundreds of connections at once.
-func (m *Model) sendJEV() tea.Cmd {
-	if m.jev == nil {
+func (j *jevRunner) send() tea.Cmd {
+	if j == nil {
 		return nil
 	}
-	inFlight, queued := m.jev.cache.Busy()
+	inFlight, queued := j.cache.Busy()
 	telemetry.Set("jev_in_flight", int64(inFlight))
 	telemetry.Set("jev_queued", int64(queued))
-	calls := m.jev.cache.Take(jevParallel - inFlight)
+	calls := j.cache.Take(jevParallel - inFlight)
 	cmds := make([]tea.Cmd, len(calls))
 	for i, call := range calls {
-		client := m.jev.client
+		client := j.client
 		cmds[i] = func() tea.Msg {
 			ctx, cancel := context.WithTimeout(context.Background(), jevTimeout)
 			defer cancel()
@@ -97,21 +98,27 @@ func (m *Model) sendJEV() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// handleJEVAnswer stores an answer and recalculates the JEV cells.
-func (m *Model) handleJEVAnswer(msg jevAnswerMsg) {
+// answerJEV stores an answer and recalculates the JEV cells, telling
+// the user when the last question is answered.
+func (m *Model) answerJEV(msg jevAnswerMsg) tea.Cmd {
 	if m.jev == nil {
-		return
+		return nil
 	}
+	busy := m.jev.busy() != ""
 	m.jev.cache.Store(msg.call, msg.answer)
 	m.sheet.RecalcVolatile()
+	if busy && m.jev.busy() == "" {
+		return m.term.notify("JEV finished answering in " + m.displayName())
+	}
+	return nil
 }
 
-// jevBusy describes questions still being answered, for the status line.
-func (m *Model) jevBusy() string {
-	if m.jev == nil {
+// busy describes questions still being answered, for the status line.
+func (j *jevRunner) busy() string {
+	if j == nil {
 		return ""
 	}
-	inFlight, queued := m.jev.cache.Busy()
+	inFlight, queued := j.cache.Busy()
 	switch {
 	case inFlight+queued == 0:
 		return ""
@@ -121,18 +128,18 @@ func (m *Model) jevBusy() string {
 	return fmt.Sprintf("JEV answering %d, %d waiting", inFlight, queued)
 }
 
-// jevLine explains the JEV answer in the active cell, for the context line.
-func (m *Model) jevLine() string {
-	calls := m.sheet.RemoteCalls(m.cur)
+// line explains the JEV answers of calls, the active cell's, for the
+// context line.
+func (j *jevRunner) line(th *theme.Theme, calls []sheet.RemoteCall) string {
 	if len(calls) == 0 {
 		return ""
 	}
-	if m.jev == nil {
-		return m.th.Warning.Render("JEV functions need TYPESAFE_API_KEY, in the environment or a .env file")
+	if j == nil {
+		return th.Warning.Render("JEV functions need TYPESAFE_API_KEY, in the environment or a .env file")
 	}
 	var parts []string
 	for _, c := range calls {
-		a, ok := m.jev.cache.Answer(c)
+		a, ok := j.cache.Answer(c)
 		if !ok {
 			parts = append(parts, "JEV: asking…")
 			continue
@@ -143,5 +150,5 @@ func (m *Model) jevLine() string {
 	for _, p := range parts[1:] {
 		line += "   " + p
 	}
-	return m.th.Muted.Render(line)
+	return th.Muted.Render(line)
 }

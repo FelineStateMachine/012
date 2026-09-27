@@ -13,7 +13,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/chart"
+	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // terminal is what 012 knows about the terminal it runs in, learned from
@@ -46,8 +48,8 @@ func (t *terminal) wrap(seq string) string {
 
 // probes are the startup queries: kitty graphics support, and live
 // light and dark changes (mode 2031).
-func (m *Model) probes() tea.Cmd {
-	return tea.Raw(m.term.wrap(chart.Query()) + ansi.SetModeLightDark)
+func (t *terminal) probes() tea.Cmd {
+	return tea.Raw(t.wrap(chart.Query()) + ansi.SetModeLightDark)
 }
 
 // firstImageID is the image id of the first chart. Placeholders name
@@ -58,12 +60,12 @@ const firstImageID = 16
 // maxImages caps how many charts become images; the rest stay text.
 const maxImages = 256 - firstImageID
 
-// handleTerminal handles replies to queries and terminal events.
-func (m *Model) handleTerminal(msg tea.Msg) tea.Cmd {
+// handle handles replies to queries and terminal events.
+func (t *terminal) handle(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case uv.KittyGraphicsEvent:
-		if msg.Options.ID == chart.QueryID && string(msg.Payload) == "OK" && !m.term.kitty {
-			m.term.kitty = true
+		if msg.Options.ID == chart.QueryID && string(msg.Payload) == "OK" && !t.kitty {
+			t.kitty = true
 			// Ask for the cell size (for image proportions) and the
 			// palette colors charts draw with.
 			var q strings.Builder
@@ -75,20 +77,20 @@ func (m *Model) handleTerminal(msg tea.Msg) tea.Cmd {
 		}
 	case uv.CellSizeEvent:
 		if msg.Width > 0 && msg.Height > 0 {
-			m.term.cellW, m.term.cellH = msg.Width, msg.Height
+			t.cellW, t.cellH = msg.Width, msg.Height
 		}
 	case uv.UnknownOscEvent:
 		if i, c, ok := parsePaletteReply(string(msg)); ok {
-			m.term.palette[i] = c
+			t.palette[i] = c
 		}
 	case uv.DarkColorSchemeEvent, uv.LightColorSchemeEvent:
 		// The system switched between light and dark. The terminal's
 		// background decides the theme, so ask for it again.
 		return tea.RequestBackgroundColor
 	case tea.FocusMsg:
-		m.term.blurred = false
+		t.blurred = false
 	case tea.BlurMsg:
-		m.term.blurred = true
+		t.blurred = true
 	}
 	return nil
 }
@@ -127,62 +129,63 @@ func (t *terminal) color(i int) color.RGBA {
 }
 
 // chartPalette is the theme's series colors as the terminal draws them.
-func (m *Model) chartPalette() chart.Palette {
+func (t *terminal) chartPalette(th *theme.Theme) chart.Palette {
 	var p chart.Palette
-	for i, idx := range m.th.SeriesANSI {
-		p.Series[i] = m.term.color(idx)
+	for i, idx := range th.SeriesANSI {
+		p.Series[i] = t.color(idx)
 	}
-	p.Grid = m.term.color(8) // bright black, like the text axes
+	p.Grid = t.color(8) // bright black, like the text axes
 	p.Grid.A = 90
 	return p
 }
 
 // chartOptions are the drawing options for charts on this terminal.
-func (m *Model) chartOptions() chart.Options {
-	return chart.Options{Image: m.term.kitty, CellW: m.term.cellW, CellH: m.term.cellH}
+func (t *terminal) chartOptions() chart.Options {
+	return chart.Options{Image: t.kitty, CellW: t.cellW, CellH: t.cellH}
 }
 
 // syncImages sends the images of charts that changed since they were last
-// sent, and frees those of deleted charts. Update calls it after every
-// message, so images follow edits, recalculation, resizing and the theme.
-func (m *Model) syncImages() tea.Cmd {
-	if !m.term.kitty {
+// sent, and frees those of deleted charts; shown gives the charts as
+// drawn, asked for only on terminals that show images. Update calls it
+// after every message, so images follow edits, recalculation, resizing
+// and the theme.
+func (t *terminal) syncImages(s *sheet.Sheet, shown func() []sheet.Chart, th *theme.Theme) tea.Cmd {
+	if !t.kitty {
 		return nil
 	}
 	var out strings.Builder
-	charts := m.displayCharts()
-	o := m.chartOptions()
-	pal := m.chartPalette()
+	o := t.chartOptions()
+	pal := t.chartPalette(th)
 	live := map[int]bool{}
-	for i, c := range charts {
+	for i, c := range shown() {
 		if i >= maxImages {
 			break
 		}
 		id := firstImageID + i
 		live[id] = true
 		w, h := chartInner(c)
-		d := m.sheet.ChartData(c)
+		d := s.ChartData(c)
 		key := fmt.Sprintf("%v %v %d %d %v %v", c.Type, d, w, h, o, pal)
-		if m.term.sent[id] == key {
+		if t.sent[id] == key {
 			continue
 		}
-		m.term.sent[id] = key
+		t.sent[id] = key
 		span := telemetry.Start("chart.image", slog.String("type", c.Type.String()), slog.Int("w", w), slog.Int("h", h))
 		g := chart.Draw(c.Type, d, w, h, o)
 		img := chart.Image(c.Type, d, w, h, o, pal)
 		if img == nil || g.Plot.Empty() {
 			span.End()
-			out.WriteString(chart.Delete(id, m.term.wrap))
+			out.WriteString(chart.Delete(id, t.wrap))
 			continue
 		}
-		sent := chart.Transmit(id, img, g.Plot.Dx(), g.Plot.Dy(), m.term.wrap)
+		sent := chart.Transmit(id, img, g.Plot.Dx(), g.Plot.Dy(), t.wrap)
 		span.End(slog.Int("bytes", len(sent)))
 		out.WriteString(sent)
 	}
-	for id := range m.term.sent {
+	for id := range t.sent {
 		if !live[id] {
-			delete(m.term.sent, id)
-			out.WriteString(chart.Delete(id, m.term.wrap))
+			delete(t.sent, id)
+			out.WriteString(chart.Delete(id, t.wrap))
 		}
 	}
 	if out.Len() == 0 {
@@ -191,21 +194,21 @@ func (m *Model) syncImages() tea.Cmd {
 	return tea.Raw(out.String())
 }
 
-// releaseTerminal undoes the startup modes and frees the chart images.
-func (m *Model) releaseTerminal() string {
+// release undoes the startup modes and frees the chart images.
+func (t *terminal) release() string {
 	var b strings.Builder
 	b.WriteString(ansi.ResetModeLightDark)
-	for id := range m.term.sent {
-		b.WriteString(chart.Delete(id, m.term.wrap))
+	for id := range t.sent {
+		b.WriteString(chart.Delete(id, t.wrap))
 	}
 	return b.String()
 }
 
-// notifyDone tells the user a long job finished, with a desktop
+// notify tells the user a long job finished, with a desktop
 // notification (OSC 9) when the terminal window isn't focused. When it is,
 // the screen already shows the result.
-func (m *Model) notifyDone(msg string) tea.Cmd {
-	if !m.term.blurred {
+func (t *terminal) notify(msg string) tea.Cmd {
+	if !t.blurred {
 		return nil
 	}
 	msg = strings.Map(func(r rune) rune {
@@ -214,5 +217,5 @@ func (m *Model) notifyDone(msg string) tea.Cmd {
 		}
 		return r
 	}, msg)
-	return tea.Raw(m.term.wrap(ansi.Notify("012: " + msg)))
+	return tea.Raw(t.wrap(ansi.Notify("012: " + msg)))
 }

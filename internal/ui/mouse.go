@@ -435,5 +435,5 @@ const (
 // exit restores the pointer shape, Shift+click handling and the other
 // terminal modes 012 changed, frees chart images, then quits.
 func (m *Model) exit() tea.Cmd {
-	return tea.Sequence(tea.Raw(ansi.SetPointerShape("default")+shiftEscapeOff+m.releaseTerminal()), tea.Quit)
+	return tea.Sequence(tea.Raw(ansi.SetPointerShape("default")+shiftEscapeOff+m.term.release()), tea.Quit)
 }

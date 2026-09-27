@@ -102,16 +102,16 @@ func TestLiveLightDark(t *testing.T) {
 
 func TestNotifyOnlyWhenBlurred(t *testing.T) {
 	m := newModel()
-	if m.notifyDone("done") != nil {
+	if m.term.notify("done") != nil {
 		t.Error("notified while focused")
 	}
 	send(m, tea.BlurMsg{})
-	msgs := flatten(m.notifyDone("Import done\x1b]0;x\x07"))
+	msgs := flatten(m.term.notify("Import done\x1b]0;x\x07"))
 	if len(msgs) != 1 || msgs[0].(tea.RawMsg).Msg != "\x1b]9;012: Import done]0;x\x07" {
 		t.Errorf("notification %q", msgs)
 	}
 	send(m, tea.FocusMsg{})
-	if m.notifyDone("done") != nil {
+	if m.term.notify("done") != nil {
 		t.Error("notified after focus came back")
 	}
 	if !m.View().ReportFocus {

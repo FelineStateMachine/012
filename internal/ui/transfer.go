@@ -306,7 +306,7 @@ func (m *Model) handleImported(msg importedMsg) tea.Cmd {
 		m.note += "; " + strings.Join(msg.res.Notes, "; ")
 	}
 	// A long import may finish while the terminal is in the background.
-	return m.notifyDone("Imported " + what)
+	return m.term.notify("Imported " + what)
 }
 
 // openTablePicker asks which table of a SQLite database to import, or
