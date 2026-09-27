@@ -45,7 +45,12 @@ follow-up task.
   `lipgloss.NewStyle()` in views. Need a new role? Add it to `theme` with a
   comment saying what it's for, in both the dark and light variants.
 - Use the 16 ANSI colors so the user's terminal palette applies. No
-  hard-coded RGB.
+  hard-coded RGB. Color schemes ([themes.md](themes.md)) are data: they
+  map the same roles to their colors and correct contrast, and
+  `TestEveryThemeReadable` must pass for a new role.
+- Bars (menu bar, formula bar, context line, column headers, status line)
+  get their background from their row role and must fill the full width,
+  at odd widths and under overlays; draw them with `theme.Fill`.
 - Text on a colored background needs about 4.5:1 contrast against both
   reference palettes (`e2e/palette_test.go`). Check it in the gallery.
 - Never rely on color alone: state also shows as text (mode indicator,

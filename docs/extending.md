@@ -18,10 +18,15 @@ shows it is derived from the table rather than listing it again.
 | `ui.command` | an action: id, title, description, run, enabled, checked | key bindings, menu bar, context menus, palette, shortcuts help |
 | `fileio` formats (`formats.go`) | a format: name, extensions, labels, traits, importer, exporter | `Import`, `Export`, detection, import picker, File > Download, command line |
 | `chart.types`, with `sheet.ChartTypes` | a type: name and order (sheet, saved in files), a layout drawing text and image (chart) | `chart.Draw`, `chart.Image`, chart editor, Insert > Chart |
-| theme roles | a role: dark and light styles on the 16 ANSI colors | every style in the UI |
+| theme roles (`theme.Theme`) | a role: dark and light styles on the 16 ANSI colors, with a contrast minimum for schemes (`minContrast`) | every style in the UI, drawn in the terminal's palette or any color scheme (`FromPalette`); `TestEveryThemeReadable` checks each role under all 349 schemes |
+| `config.Options` | an option: name, type, default, environment variables, flag, live or not, description, check | parsing and warnings, flags, `012 config` and its default file, [config.md](config.md), Reload config |
 
-Adding a function, command, format or chart type means adding an entry
-(and its file), not editing switch statements elsewhere. When a list has to
+Adding a function, command, format, chart type, option or role means
+adding an entry (and its file), not editing switch statements elsewhere.
+A new process-wide setting is a `config.Options` entry read with
+`Config.String`, `Bool`, `Int` or `Duration`; one that belongs to a
+workbook goes in the file instead (pattern 9). A new role goes in
+`theme.Theme` with its ANSI colors in `New`; schemes pick it up. When a list has to
 be kept in sync by hand, turn it into a registry.
 
 ### 2. Components own their state

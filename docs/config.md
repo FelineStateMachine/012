@@ -99,7 +99,7 @@ Send a desktop notification (OSC 9) when JEV answers or an import finishes while
 
 #### `jev-api-key-command`
 
-A command that prints the TypeSafe API key, used when TYPESAFE_API_KEY isn't set and the credential store has no key, e.g. `op read op://Private/TypeSafe/credential` or `pass show typesafe`. It runs without a shell, for up to 10 seconds; for pipes, write `sh -c '...'` yourself. The key itself never goes in this file.
+A command that prints the TypeSafe API key, used when TYPESAFE_API_KEY isn't set and the credential store has no key, e.g. `op read op://Private/TypeSafe/credential` or `pass show typesafe`. It runs the first time a sheet asks JEV something, without a shell, for up to 10 seconds, and its first line of output is the key; for pipes, write `sh -c '...'` yourself. The key itself never goes in this file.
 
 | | |
 |---|---|

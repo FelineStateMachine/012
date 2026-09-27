@@ -8,7 +8,9 @@
 - [Working with data](data.md): selection, copy and fill, undo, freeze, sort, filter, find
 - [Charts, links and the terminal](charts.md): charts, hyperlinks, terminal features used
 - [Files](files.md): the `.012` format, import and export
-- [JEV functions](jev.md): asking a hosted model from formulas
+- [JEV functions](jev.md): asking a hosted model from formulas, and storing the API key
+- [Configuration](config.md): the config file, `012 config` and every option
+- [Themes](themes.md): terminal color schemes, built in or your own
 
 **Working on 012**
 

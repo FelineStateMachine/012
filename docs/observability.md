@@ -25,6 +25,10 @@ O12_LOG_LEVEL=debug                   # also one event per frame
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 012 budget.012  # the same
 ```
 
+Or keep them in the [config file](config.md) as `log-file`, `log-level`
+and `otlp-endpoint`; flags win over the environment, which wins over the
+file.
+
 The two can be on together or separately. Stdout belongs to the
 terminal UI, so events go to the file, appended one JSON object per
 line, and/or to the OTLP endpoint (see [OTLP](#otlp) below). With

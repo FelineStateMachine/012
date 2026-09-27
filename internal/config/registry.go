@@ -91,7 +91,7 @@ var Options = []Option{
 	{Name: "jev-api-key-command", Kind: Command, Group: GroupJEV,
 		Desc: "A command that prints the TypeSafe API key, used when TYPESAFE_API_KEY isn't set and the " +
 			"credential store has no key, e.g. `op read op://Private/TypeSafe/credential` or " +
-			"`pass show typesafe`. It runs without a shell, for up to 10 seconds; for pipes, write " +
+			"`pass show typesafe`. It runs the first time a sheet asks JEV something, without a shell, for up to 10 seconds, and its first line of output is the key; for pipes, write " +
 			"`sh -c '...'` yourself. The key itself never goes in this file."},
 	{Name: "jev-credential-store", Kind: Bool, Group: GroupJEV, Default: "true", Env: []string{"O12_JEV_CREDENTIAL_STORE"},
 		Desc: "Look for the API key in the OS credential store (macOS Keychain, Windows Credential Manager, " +
