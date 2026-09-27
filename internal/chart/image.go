@@ -28,36 +28,16 @@ func Image(t sheet.ChartType, d sheet.ChartData, w, h int, o Options, pal Palett
 	if w < 8 || h < 3 {
 		return nil
 	}
-	var plot image.Rectangle
-	var draw func(c *canvas)
-	switch t {
-	case sheet.ChartBar:
-		p := newBarPlan(d, w, h)
-		plot, draw = p.plot, p.image
-		if p.msg != "" {
-			return nil
-		}
-	case sheet.ChartPie:
-		p := newPiePlan(d, w, h, o)
-		plot, draw = p.disc, p.image
-		if p.msg != "" {
-			return nil
-		}
-	default:
-		p := newColumnPlan(d, w, h, t == sheet.ChartLine)
-		plot, draw = p.plot, p.image
-		if p.msg != "" {
-			return nil
-		}
-	}
-	if plot.Empty() {
+	p := planFor(t, d, w, h, o)
+	plot := p.plotArea()
+	if p.note() != "" || plot.Empty() {
 		return nil
 	}
 	c := &canvas{
 		RGBA: image.NewRGBA(image.Rect(0, 0, plot.Dx()*cw, plot.Dy()*ch)),
 		cw:   float64(cw), ch: float64(ch), pal: pal,
 	}
-	draw(c)
+	p.image(c)
 	return c.RGBA
 }
 
@@ -159,30 +139,12 @@ func (p *columnPlan) image(cv *canvas) {
 	for j := 1; j <= p.sc.n; j++ {
 		cv.hline(int(math.Round(y(p.sc.tick(j)))), cv.pal.Grid)
 	}
-	if p.sc.lo < 0 && !p.line {
-		cv.hline(int(math.Round(y(0))), cv.pal.Grid)
-	}
 	if p.line {
-		width := max(cv.ch/8, 2)
-		for j, s := range p.d.Series {
-			var run [][2]float64
-			flush := func() {
-				if len(run) > 0 {
-					cv.polyline(run, width, cv.pal.Series[j%Colors])
-				}
-				run = run[:0]
-			}
-			for i := 0; i < p.shown && i < len(s.Values); i++ {
-				if math.IsNaN(s.Values[i]) {
-					flush()
-					continue
-				}
-				x := (float64(p.dotX(i)) + 0.5) * cv.cw / 2
-				run = append(run, [2]float64{x, y(s.Values[i])})
-			}
-			flush()
-		}
+		p.lineImage(cv, y)
 		return
+	}
+	if p.sc.lo < 0 {
+		cv.hline(int(math.Round(y(0))), cv.pal.Grid)
 	}
 	inset := min(cv.cw/6, 2)
 	for j, s := range p.d.Series {
@@ -196,6 +158,30 @@ func (p *columnPlan) image(cv *canvas) {
 			px1 := float64(x1-p.plot.Min.X)*cv.cw - inset
 			cv.rect(px0, min(y(v), y(0)), px1, max(y(v), y(0)), cv.pal.Series[j%Colors])
 		}
+	}
+}
+
+// lineImage strokes each series as lines, broken where values are
+// missing; y maps a value to a pixel row.
+func (p *columnPlan) lineImage(cv *canvas, y func(float64) float64) {
+	width := max(cv.ch/8, 2)
+	for j, s := range p.d.Series {
+		var run [][2]float64
+		flush := func() {
+			if len(run) > 0 {
+				cv.polyline(run, width, cv.pal.Series[j%Colors])
+			}
+			run = run[:0]
+		}
+		for i := 0; i < p.shown && i < len(s.Values); i++ {
+			if math.IsNaN(s.Values[i]) {
+				flush()
+				continue
+			}
+			x := (float64(p.dotX(i)) + 0.5) * cv.cw / 2
+			run = append(run, [2]float64{x, y(s.Values[i])})
+		}
+		flush()
 	}
 }
 

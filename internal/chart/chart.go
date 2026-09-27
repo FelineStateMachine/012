@@ -128,16 +128,13 @@ func Draw(t sheet.ChartType, d sheet.ChartData, w, h int, o Options) *Grid {
 	if w < 8 || h < 3 {
 		return g
 	}
-	switch t {
-	case sheet.ChartBar:
-		newBarPlan(d, w, h).draw(g, o)
-	case sheet.ChartLine:
-		newColumnPlan(d, w, h, true).draw(g, o)
-	case sheet.ChartPie:
-		newPiePlan(d, w, h, o).draw(g, o)
-	default:
-		newColumnPlan(d, w, h, false).draw(g, o)
+	p := planFor(t, d, w, h, o)
+	if msg := p.note(); msg != "" {
+		g.message(msg)
+		return g
 	}
+	g.Plot = p.plotArea()
+	p.draw(g, o)
 	return g
 }
 

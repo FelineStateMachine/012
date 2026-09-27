@@ -82,34 +82,8 @@ func newBarPlan(d sheet.ChartData, w, h int) *barPlan {
 func (p *barPlan) barRow(i, j int) int { return i*p.rows + j }
 
 func (p *barPlan) draw(g *Grid, o Options) {
-	if p.msg != "" {
-		g.message(p.msg)
-		return
-	}
-	g.Plot = p.plot
+	p.drawAxis(g)
 	ns := len(p.d.Series)
-	for y := 0; y < p.axisRow; y++ {
-		g.set(p.axisX, y, "│", Axis)
-	}
-	g.set(p.axisX, p.axisRow, "└", Axis)
-	for x := p.axisX + 1; x < p.plot.Max.X; x++ {
-		g.set(x, p.axisRow, "─", Axis)
-	}
-	next := 0
-	for j := 0; j <= p.sc.n; j++ {
-		x := p.axisX
-		if j > 0 {
-			x = p.plot.Min.X + j*p.sc.k - 1
-			g.set(x, p.axisRow, "┬", Axis)
-		}
-		label := p.sc.label(p.sc.tick(j))
-		lw := ansi.StringWidth(label)
-		lx := min(max(x-(lw-1)/2, 0), g.W-lw)
-		if lx >= next {
-			g.text(lx, p.tickRow, label, Label)
-			next = lx + lw + 1
-		}
-	}
 	for i := 0; i < p.shown; i++ {
 		label := ansi.Truncate(p.d.Categories[i], p.catW, "…")
 		g.text(p.catW-ansi.StringWidth(label), p.barRow(i, (ns-1)/2), label, Label)
@@ -127,25 +101,61 @@ func (p *barPlan) draw(g *Grid, o Options) {
 			if math.IsNaN(v) {
 				continue
 			}
-			end := p.sc.pos(v)
-			lo, hi := min(zero, end), max(zero, end)
-			for c := int(math.Floor(lo)); float64(c) < hi; c++ {
-				cover := min(hi, float64(c+1)) - max(lo, float64(c))
-				glyph := ""
-				if v >= 0 {
-					glyph = leftEighths[int(math.Round(cover*8))]
-				} else {
-					switch {
-					case cover >= 0.75:
-						glyph = "█"
-					case cover >= 0.25:
-						glyph = "▐" // left of the axis, bars fill from the right
-					}
-				}
-				if glyph != "" && glyph != " " {
-					g.set(p.plot.Min.X+c, p.barRow(i, j), glyph, SeriesRole(j))
-				}
-			}
+			// Left of the axis, bars fill from the right.
+			barCells(zero, p.sc.pos(v), v >= 0, leftEighths, "▐", func(c int, glyph string) {
+				g.set(p.plot.Min.X+c, p.barRow(i, j), glyph, SeriesRole(j))
+			})
+		}
+	}
+}
+
+// drawAxis draws the category axis on the left and the value axis along
+// the bottom, labeling as many ticks as fit without touching.
+func (p *barPlan) drawAxis(g *Grid) {
+	for y := 0; y < p.axisRow; y++ {
+		g.set(p.axisX, y, "│", Axis)
+	}
+	g.set(p.axisX, p.axisRow, "└", Axis)
+	for x := p.axisX + 1; x < p.plot.Max.X; x++ {
+		g.set(x, p.axisRow, "─", Axis)
+	}
+	next := 0 // first free column
+	for j := 0; j <= p.sc.n; j++ {
+		x := p.axisX
+		if j > 0 {
+			x = p.plot.Min.X + j*p.sc.k - 1
+			g.set(x, p.axisRow, "┬", Axis)
+		}
+		label := p.sc.label(p.sc.tick(j))
+		lw := ansi.StringWidth(label)
+		lx := min(max(x-(lw-1)/2, 0), g.W-lw)
+		if lx >= next {
+			g.text(lx, p.tickRow, label, Label)
+			next = lx + lw + 1
+		}
+	}
+}
+
+// barCells walks the cells a bar covers from zero to end, distances
+// along its axis in cells, calling fill with each cell and its glyph.
+// A positive bar grows away from the axis in eighths; a negative one
+// has no eighths growing the other way, so its partly covered cells are
+// a full block or the half block half.
+func barCells(zero, end float64, positive bool, eighths []string, half string, fill func(c int, glyph string)) {
+	lo, hi := min(zero, end), max(zero, end)
+	for c := int(math.Floor(lo)); float64(c) < hi; c++ {
+		cover := min(hi, float64(c+1)) - max(lo, float64(c))
+		glyph := ""
+		switch {
+		case positive:
+			glyph = eighths[int(math.Round(cover*8))]
+		case cover >= 0.75:
+			glyph = "█"
+		case cover >= 0.25:
+			glyph = half
+		}
+		if glyph != "" && glyph != " " {
+			fill(c, glyph)
 		}
 	}
 }

@@ -108,11 +108,6 @@ func (p *columnPlan) catCenter(i int) int {
 }
 
 func (p *columnPlan) draw(g *Grid, o Options) {
-	if p.msg != "" {
-		g.message(p.msg)
-		return
-	}
-	g.Plot = p.plot
 	// Value axis with a label at each tick, up to the top one.
 	for y := p.axisRow - p.sc.cells(); y < p.axisRow; y++ {
 		g.set(p.axisX, y, "│", Axis)
@@ -173,28 +168,12 @@ func (p *columnPlan) drawBars(g *Grid) {
 				continue
 			}
 			x0, x1 := p.bar(i, j)
-			top := p.sc.pos(v)
-			lo, hi := min(zero, top), max(zero, top)
-			for r := int(math.Floor(lo)); float64(r) < hi; r++ {
-				cover := min(hi, float64(r+1)) - max(lo, float64(r))
-				glyph := ""
-				if v >= 0 {
-					glyph = lowerEighths[int(math.Round(cover*8))]
-				} else {
-					switch {
-					case cover >= 0.75:
-						glyph = "█"
-					case cover >= 0.25:
-						glyph = "▀" // below the axis, bars fill from the top
-					}
-				}
-				if glyph == "" || glyph == " " {
-					continue
-				}
+			// Below the axis, bars fill from the top.
+			barCells(zero, p.sc.pos(v), v >= 0, lowerEighths, "▀", func(r int, glyph string) {
 				for x := x0; x < x1; x++ {
 					g.set(x, p.axisRow-1-r, glyph, SeriesRole(j))
 				}
-			}
+			})
 		}
 	}
 }

@@ -157,6 +157,18 @@ func TestLayout(t *testing.T) {
 	}
 }
 
+// TestTypes checks every chart type the editor offers has a layout.
+func TestTypes(t *testing.T) {
+	for _, ty := range sheet.ChartTypes {
+		if types[ty] == nil {
+			t.Errorf("%v has no layout", ty)
+		}
+	}
+	if len(types) != len(sheet.ChartTypes) {
+		t.Errorf("%d layouts for %d chart types", len(types), len(sheet.ChartTypes))
+	}
+}
+
 func TestImageLeavesPlotToImage(t *testing.T) {
 	g := Draw(sheet.ChartColumn, budget, 44, 12, Options{Image: true})
 	for y := g.Plot.Min.Y; y < g.Plot.Max.Y; y++ {

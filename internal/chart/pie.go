@@ -93,11 +93,6 @@ func (p *piePlan) sliceAt(dx, dy float64) int {
 }
 
 func (p *piePlan) draw(g *Grid, o Options) {
-	if p.msg != "" {
-		g.message(p.msg)
-		return
-	}
-	g.Plot = p.disc
 	p.drawLegend(g)
 	if o.Image {
 		return
