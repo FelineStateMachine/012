@@ -111,6 +111,58 @@ func Sparse(n, stride, k int) *sheet.Sheet {
 	return s
 }
 
+// Criteria is a table of n rows (a number, a category, an amount) and k
+// conditional aggregates over whole columns of it: SUMIF, COUNTIFS with
+// two conditions and AVERAGEIF in turn, each testing every row.
+func Criteria(n, k int) *sheet.Sheet {
+	s := sheet.New()
+	for row := range n {
+		load(s, at(0, row), fmt.Sprint(row%100))
+		load(s, at(1, row), fmt.Sprintf("c%d", row%10))
+		load(s, at(2, row), fmt.Sprint(row%7))
+	}
+	for i := range k {
+		var f string
+		switch i % 3 {
+		case 0:
+			f = fmt.Sprintf(`=SUMIF(B:B, "c%d", C:C)`, i%10)
+		case 1:
+			f = fmt.Sprintf(`=COUNTIFS(A:A, ">%d", B:B, "c%d")`, i%100, i%10)
+		default:
+			f = fmt.Sprintf(`=AVERAGEIF(A:A, "<%d", C:C)`, i%100)
+		}
+		load(s, at(4, i), f)
+	}
+	s.RecalcAll()
+	return s
+}
+
+// Lookup is n keys with a value beside each and k exact lookups into
+// them: VLOOKUP, MATCH and XLOOKUP in turn, each key found somewhere
+// along the column.
+func Lookup(n, k int) *sheet.Sheet {
+	s := sheet.New()
+	for row := range n {
+		load(s, at(0, row), fmt.Sprint(row))
+		load(s, at(1, row), fmt.Sprintf("v%d", row))
+	}
+	for i := range k {
+		key := (i * 37) % n
+		var f string
+		switch i % 3 {
+		case 0:
+			f = fmt.Sprintf("=VLOOKUP(%d, A:B, 2, FALSE)", key)
+		case 1:
+			f = fmt.Sprintf("=MATCH(%d, A:A, 0)", key)
+		default:
+			f = fmt.Sprintf("=XLOOKUP(%d, A:A, B:B)", key)
+		}
+		load(s, at(3, i), f)
+	}
+	s.RecalcAll()
+	return s
+}
+
 // FanOut is one cell, A1, read directly by k formulas.
 func FanOut(k int) *sheet.Sheet {
 	s := sheet.New()
@@ -256,5 +308,7 @@ func Shapes() []Shape {
 		{"names-1000", func() *sheet.Sheet { return Names(1000) }, at(0, 50), "9"},
 		{"fanin-1000xSUM(A:A)", func() *sheet.Sheet { return FanInColumns(Rows, 1000) }, at(0, 4000), "7"},
 		{"sparse-1M", func() *sheet.Sheet { return Sparse(10000, 100, 1000) }, at(0, 500000), "5"},
+		{"criteria-60xSUMIF8192", func() *sheet.Sheet { return Criteria(Rows, 60) }, at(0, 4000), "7"},
+		{"lookup-300xVLOOKUP8192", func() *sheet.Sheet { return Lookup(Rows, 300) }, at(0, 4000), "4000"},
 	}
 }
