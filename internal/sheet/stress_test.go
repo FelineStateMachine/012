@@ -244,6 +244,7 @@ func saveShapes() []namedBuild {
 		{"dense-8192x26", func() *sheet.Sheet { return stress.Dense(stress.Rows, 26) }},
 		{"dense-8192x256", func() *sheet.Sheet { return stress.Dense(stress.Rows, stress.Cols) }},
 		{"chain-8192", func() *sheet.Sheet { return stress.Chain(stress.Rows) }},
+		{"dense-1Mx10", func() *sheet.Sheet { return stress.Dense(stress.MaxRows, stress.MaxCols) }},
 	}
 }
 
@@ -256,6 +257,7 @@ func BenchmarkMemory(b *testing.B) {
 		build func() *sheet.Sheet
 	}{
 		{"numbers", nil, func() *sheet.Sheet { return stress.Dense(stress.Rows, 64) }},
+		{"numbers-1Mx10", nil, func() *sheet.Sheet { return stress.Dense(stress.MaxRows, stress.MaxCols) }},
 		{"formulas", nil, func() *sheet.Sheet { return stress.Chain(stress.Rows) }},
 		{"text-200", nil, func() *sheet.Sheet { return stress.LongText(stress.Rows, 200) }},
 		{"open-8192x256", func() { denseFile() }, func() *sheet.Sheet {

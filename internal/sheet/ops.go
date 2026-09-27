@@ -16,9 +16,9 @@ var (
 	ErrFillTooBig = errors.New("That would write more cells than max-cells allows (see File > Settings)")
 )
 
-// DefaultMaxCells is the max-cells setting's default: about 600 MB of
-// cells at 300 bytes each.
-const DefaultMaxCells = 2_000_000
+// DefaultMaxCells is the max-cells setting's default: about 200 MB of
+// numbers at 20 bytes each (store.go).
+const DefaultMaxCells = 10_000_000
 
 // maxCells caps how many cells a paste or fill writes at once, and how
 // many an import keeps, so an accidental whole-sheet selection or a huge
