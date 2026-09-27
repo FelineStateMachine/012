@@ -97,8 +97,33 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 			rows = append(rows, a.Row)
 		}
 	}
-	// Rows with a key sort to the top; the others (blank keys, and blank
-	// rows) keep their order below them.
+	dst := s.sortedRows(r, rows, keys)
+	next := make(map[Addr]*Cell, len(old))
+	for a, c := range old {
+		to := Addr{Col: a.Col, Row: dst[a.Row]}
+		if to.Row != a.Row {
+			c = c.rewritten(formula.Shift(0, to.Row-a.Row))
+		}
+		next[to] = c
+	}
+	s.change("sort "+r.String(), r, func() {
+		for a := range old {
+			if next[a] == nil {
+				s.place(a, nil)
+			}
+		}
+		for a, c := range next {
+			if old[a] != c {
+				s.place(a, c)
+			}
+		}
+	})
+}
+
+// sortedRows maps each of rows, the rows of r with cells, to where the
+// sort puts it. Rows with a key sort to the top; the others (blank keys,
+// and blank rows) keep their order below them.
+func (s *Sheet) sortedRows(r Rect, rows []int, keys []SortKey) map[int]int {
 	var keyed, rest []int
 	for _, row := range rows {
 		if s.keysBlank(keys, row) {
@@ -122,26 +147,7 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 		}
 		dst[row] = row + len(keyed) - n
 	}
-	next := make(map[Addr]*Cell, len(old))
-	for a, c := range old {
-		to := Addr{Col: a.Col, Row: dst[a.Row]}
-		if to.Row != a.Row {
-			c = c.rewritten(formula.Shift(0, to.Row-a.Row))
-		}
-		next[to] = c
-	}
-	s.change("sort "+r.String(), r, func() {
-		for a := range old {
-			if next[a] == nil {
-				s.place(a, nil)
-			}
-		}
-		for a, c := range next {
-			if old[a] != c {
-				s.place(a, c)
-			}
-		}
-	})
+	return dst
 }
 
 // keysBlank reports whether every key of row is blank.

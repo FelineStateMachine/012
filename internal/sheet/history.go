@@ -239,16 +239,7 @@ func (w *Workbook) push(st *step) {
 
 // dropUnchanged removes from st what ended the step as it began.
 func (w *Workbook) dropUnchanged(st *step) {
-	for k, width := range st.widths {
-		if k.s.widths[k.col] == width {
-			delete(st.widths, k)
-		}
-	}
-	for k, l := range st.lines {
-		if k.s.line(k.row, k.n) == l {
-			delete(st.lines, k)
-		}
-	}
+	st.dropUnchangedLines()
 	for l, c := range st.cells {
 		if c == nil && l.s.cells.get(l.a) == nil {
 			delete(st.cells, l)
@@ -283,6 +274,21 @@ func (w *Workbook) dropUnchanged(st *step) {
 	}
 	if st.macros != nil && slices.Equal(*st.macros, w.macros) {
 		st.macros = nil
+	}
+}
+
+// dropUnchangedLines removes the column widths and line formats that
+// ended the step as they began.
+func (st *step) dropUnchangedLines() {
+	for k, width := range st.widths {
+		if k.s.widths[k.col] == width {
+			delete(st.widths, k)
+		}
+	}
+	for k, l := range st.lines {
+		if k.s.line(k.row, k.n) == l {
+			delete(st.lines, k)
+		}
 	}
 }
 
