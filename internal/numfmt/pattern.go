@@ -9,6 +9,8 @@ import (
 	"math"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // Number format patterns: "#,##0.00", "0.0%", "0.00E+00",
@@ -44,7 +46,12 @@ type ptok struct {
 }
 
 // Format renders v with a number format pattern, as TEXT() does.
-func Format(v float64, pat string) string {
+func Format(v float64, pat string) string { return FormatIn(v, pat, locale.Canonical) }
+
+// FormatIn renders v with a number format pattern as shown in loc: the
+// pattern is written as in en-US ("#,##0.00") and the number shows loc's
+// decimal and thousands separators ("1.234,50" in de-DE).
+func FormatIn(v float64, pat string, loc *locale.Locale) string {
 	secs := splitSections(pat)
 	sec, neg := secs[0], v < 0
 	switch {
@@ -57,7 +64,7 @@ func Format(v float64, pat string) string {
 	if isDatePattern(toks) {
 		return formatDate(v, toks)
 	}
-	return formatNumber(math.Abs(v), neg, toks)
+	return formatNumber(math.Abs(v), neg, toks, loc)
 }
 
 // splitSections splits a pattern on ; outside quotes and escapes.

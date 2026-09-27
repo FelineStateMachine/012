@@ -4,6 +4,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // Rounding is how Fixed and Round treat the digits they drop.
@@ -113,6 +115,23 @@ func General(v float64) string {
 		return strconv.FormatFloat(r, 'E', -1, 64)
 	}
 	return strconv.FormatFloat(r, 'f', -1, 64)
+}
+
+// Localize writes a number in General's form (digits, a point, an
+// exponent, no grouping) with loc's decimal separator.
+func Localize(s string, loc *locale.Locale) string {
+	if loc.Decimal == '.' {
+		return s
+	}
+	return strings.Replace(s, ".", string(loc.Decimal), 1)
+}
+
+// GeneralIn is General as shown in loc: 1,5 in de-DE.
+func GeneralIn(v float64, loc *locale.Locale) string { return Localize(General(v), loc) }
+
+// GeneralFitIn is GeneralFit as shown in loc.
+func GeneralFitIn(v float64, width int, loc *locale.Locale) string {
+	return Localize(GeneralFit(v, width), loc)
 }
 
 // GeneralFit renders v in General format within width columns: as many

@@ -4,6 +4,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // numLayout is where a number section puts each part of the number: the
@@ -19,6 +21,7 @@ type numLayout struct {
 	// literals sit among them too (a phone number pattern).
 	grouped bool
 	scale   int // commas right after the last integer placeholder divide by 1000 each
+	loc     *locale.Locale
 }
 
 func layoutNumber(toks []ptok) numLayout {
@@ -82,7 +85,7 @@ func (l *numLayout) digits(v float64) numDigits {
 	switch {
 	case l.general && len(l.intPH) == 0:
 		// General shows its own decimals; placeholders after it get zeros.
-		return numDigits{whole: General(v), frac: strings.Repeat("0", len(l.fracPH))}
+		return numDigits{whole: Localize(General(v), l.loc), frac: strings.Repeat("0", len(l.fracPH))}
 	case l.exp >= 0:
 		return l.scientific(v)
 	}
@@ -145,9 +148,11 @@ func (l *numLayout) place(d numDigits) []string {
 	return out
 }
 
-// formatNumber renders |v| with a number section; neg adds a minus sign.
-func formatNumber(v float64, neg bool, toks []ptok) string {
+// formatNumber renders |v| with a number section as shown in loc; neg
+// adds a minus sign.
+func formatNumber(v float64, neg bool, toks []ptok, loc *locale.Locale) string {
 	l := layoutNumber(toks)
+	l.loc = loc
 	for range l.percents {
 		v *= 100
 	}
@@ -178,7 +183,7 @@ func (l *numLayout) write(b *strings.Builder, i int, t ptok, d numDigits, placed
 		l.writeDigit(b, i, d, placed)
 	case ptDot:
 		if i == l.dot {
-			b.WriteByte('.')
+			b.WriteByte(l.loc.Decimal)
 		}
 	case ptPercent:
 		b.WriteByte('%')
@@ -209,7 +214,7 @@ func (l *numLayout) writeDigit(b *strings.Builder, i int, d numDigits, placed []
 		for _, p := range l.intPH {
 			digits.WriteString(placed[p])
 		}
-		b.WriteString(group(digits.String()))
+		b.WriteString(group(digits.String(), l.loc.Group))
 	case inInt:
 		if !l.grouped {
 			b.WriteString(placed[i])
@@ -234,9 +239,9 @@ func expSign(sign string, neg bool) string {
 	return "E"
 }
 
-// group inserts thousands separators into a run of digits (and leading
-// spaces from ? placeholders).
-func group(s string) string {
+// group inserts thousands separators sep into a run of digits (and
+// leading spaces from ? placeholders).
+func group(s, sep string) string {
 	lead := len(s) - len(strings.TrimLeft(s, " "))
 	digits := s[lead:]
 	if len(digits) <= 3 {
@@ -250,7 +255,7 @@ func group(s string) string {
 	}
 	for i := first; i < len(digits); i += 3 {
 		if i > 0 {
-			b.WriteByte(',')
+			b.WriteString(sep)
 		}
 		b.WriteString(digits[i : i+3])
 	}
