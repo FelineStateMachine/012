@@ -105,6 +105,9 @@ type pivotState struct {
 	stale bool   // recompute at the end of the current change
 	out   Rect   // what the last result covered, from A1
 	err   string // why the pivot shows #REF!, or ""
+	// blocked is where results in the way of cells would have gone, so
+	// clearing those cells recomputes the pivot.
+	blocked Rect
 	// fit has the result's columns widened to fit, while the sheet is
 	// the pivot's own: from its creation until a width is set by hand.
 	// The widths aren't undo steps; undoing the creation removes them

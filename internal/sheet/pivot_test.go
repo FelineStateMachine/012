@@ -334,6 +334,12 @@ func TestPivotRefusesEdits(t *testing.T) {
 	if got := show(t, w, "'Pivot Table 1'!A6"); got != "note" {
 		t.Errorf("A6 = %q, want the note kept", got)
 	}
+	// Clearing the note makes room again.
+	if err := s.Set(at("A6"), ""); err != nil {
+		t.Fatal(err)
+	}
+	checkGrid(t, s, "Region|SUM of Units", "East|16", "North|0", "South|0", "West|7", "Grand Total|23")
+	w.Undo()
 	// Copying results pastes their values.
 	w.Undo()
 	w.Undo()
@@ -442,6 +448,26 @@ func TestPivotFileRoundTrip(t *testing.T) {
 	if !strings.Contains(buf.String(), `"version": 4`) {
 		t.Errorf("without pivots: %.40s", buf.String())
 	}
+}
+
+// The example in docs/files.md reads.
+func TestPivotFileExample(t *testing.T) {
+	file := `{"version": 5, "sheets": [
+	  {"name": "Sales", "cells": {"A1": "Region", "B1": "Item", "C1": "Year", "D1": "Units", "A2": "East", "B2": "Pens", "C2": "2026", "D2": "3"}},
+	  {"name": "Pivot Table 1", "cells": {},
+	   "pivot": {"source":"Sales!A1:D200","rows":[{"column":"B"},{"column":"A","order":"desc","sortBy":1}],"columns":[{"column":"C"}],"values":[{"column":"D","summarize":"sum"},{"column":"D","summarize":"counta","showAs":"percent_of_total","name":"Share"}],"filters":[{"column":"A","hidden":["North"]}],"rowTotals":true,"columnTotals":false}}
+	]}`
+	w, err := ReadBook(strings.NewReader(file))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := w.Lookup("Pivot Table 1")
+	checkGrid(t, s,
+		"|Year|2026",
+		"Item|Region|SUM of Units|Share",
+		"Pens|East|3|100.00%",
+		"Pens Total||3|100.00%",
+		"Grand Total||3|100.00%")
 }
 
 func TestPivotDuplicate(t *testing.T) {

@@ -268,18 +268,18 @@ func (w *Workbook) refreshPivot(s *Sheet) []loc {
 	}
 	s.pivot.stale = false
 	want, calc, err := w.computePivot(s)
-	s.pivot.err = ""
+	s.pivot.err, s.pivot.blocked = "", Rect{}
 	if err != nil {
+		// Where the results would go, so clearing a cell in their way
+		// has the pivot try again.
+		s.pivot.blocked = extent(want)
 		s.pivot.err = err.Error()
 		want = []pivotCell{{v: ErrRef, bold: true}}
 		if c := s.cells.get(Addr{}); c != nil && !c.derived && !c.Blank() {
 			want = nil // never write over what the user typed
 		}
 	}
-	s.pivot.out = Rect{}
-	for _, pc := range want {
-		s.pivot.out = union(s.pivot.out, Rect{From: pc.a, To: pc.a})
-	}
+	s.pivot.out = extent(want)
 	changed := s.writeDerived(want)
 	if s.pivot.fit {
 		s.fitPivot(want)
@@ -292,6 +292,15 @@ func (w *Workbook) refreshPivot(s *Sheet) []loc {
 		OnPivot(info)
 	}
 	return changed
+}
+
+// extent is the range from A1 covering cells.
+func extent(cells []pivotCell) Rect {
+	r := Rect{}
+	for _, pc := range cells {
+		r = union(r, Rect{From: pc.a, To: pc.a})
+	}
+	return r
 }
 
 // groups counts the groups of the row fields, at every depth.
@@ -336,7 +345,7 @@ func (w *Workbook) computePivot(s *Sheet) ([]pivotCell, *pivotCalc, error) {
 	}
 	for _, pc := range l.cells {
 		if old := s.cells.get(pc.a); old != nil && !old.derived && !old.Blank() {
-			return nil, c, fmt.Errorf("The pivot table's results would overwrite data in %s", pc.a)
+			return l.cells, c, fmt.Errorf("The pivot table's results would overwrite data in %s", pc.a)
 		}
 	}
 	return l.cells, c, nil

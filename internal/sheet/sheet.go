@@ -302,7 +302,7 @@ func (c *Cell) setExpr(n Node) {
 func (s *Sheet) place(a Addr, c *Cell) {
 	s.version++
 	s.record(a)
-	if s.pivot.def != nil && s.pivot.out.Contains(a) {
+	if s.pivot.def != nil && (s.pivot.out.Contains(a) || s.pivot.err != "" && s.pivot.blocked.Contains(a)) {
 		s.pivot.stale = true
 	}
 	s.unlink(a)
