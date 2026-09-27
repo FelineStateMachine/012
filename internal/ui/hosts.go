@@ -46,6 +46,7 @@ var (
 	_ menuHost   = (*Model)(nil)
 	_ pivotHost  = (*Model)(nil)
 	_ macrosHost = (*Model)(nil)
+	_ namesHost  = (*Model)(nil)
 )
 
 // Components that stay in package ui are handed interfaces of their own

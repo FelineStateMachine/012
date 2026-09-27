@@ -101,6 +101,18 @@ func TestScriptAnswersSortBar(t *testing.T) {
 	}
 }
 
+func TestNamesPickerChangesAreNoted(t *testing.T) {
+	m := salesModel()
+	m.sheet.DefineName("Units", sheet.Rect{From: addr("B2"), To: addr("B5")})
+	got := recordDo(t, m, "Names", func() {
+		run(m, m.runCommand("data.named_ranges"))
+		press(t, m, "<down>", "<ctrl+d>", "<esc>")
+	})
+	if !strings.HasPrefix(got, "# Not recorded: ") || !strings.Contains(got, "Units") {
+		t.Fatalf("recorded:\n%s", got)
+	}
+}
+
 func TestRecordFilterPicker(t *testing.T) {
 	m := salesModel()
 	got := recordDo(t, m, "Filter", func() {
