@@ -41,7 +41,12 @@ func init() {
 func (m *Model) copy(cut bool) tea.Cmd {
 	clip := m.sheet.Copy(m.copyRange())
 	m.copied = clipboard{clip: clip, sheet: m.sheet, cut: cut, marked: true}
-	return tea.SetClipboard(formatTSV(clip.Text()))
+	text := clip.Text()
+	if text == nil {
+		m.note = "Copied; too many cells for the system clipboard, but Ctrl+V pastes them here"
+		return nil
+	}
+	return tea.SetClipboard(formatTSV(text))
 }
 
 // copyRange is the selection, trimmed to the data when whole rows or

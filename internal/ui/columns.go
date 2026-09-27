@@ -48,12 +48,15 @@ func (m *Model) openWidth() tea.Cmd {
 	return nil
 }
 
-// setWidths sets the width of every selected column.
+// setWidths sets the width of every selected column, as one step.
 func (m *Model) setWidths(w int) {
 	r := m.selection()
-	for c := r.From.Col; c <= r.To.Col; c++ {
-		m.sheet.SetColWidth(c, w)
-	}
+	m.sheet.Batch(sheet.Change{Label: "column width", Focus: r}, func() error {
+		for c := r.From.Col; c <= r.To.Col; c++ {
+			m.sheet.SetColWidth(c, w)
+		}
+		return nil
+	})
 }
 
 // autofit sizes column c to its widest content, as double-clicking a

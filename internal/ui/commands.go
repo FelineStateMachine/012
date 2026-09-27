@@ -200,9 +200,14 @@ func init() {
 		&command{id: "column.width", title: "Column width", desc: "Set the width of the selected columns", run: (*Model).openWidth},
 		&command{id: "column.reset", title: "Reset column width", desc: "Return the selected columns to the default width", run: func(m *Model) tea.Cmd {
 			r := m.selection()
-			for c := r.From.Col; c <= r.To.Col; c++ {
-				m.sheet.SetColWidth(c, 0)
-			}
+			m.sheet.Batch(sheet.Change{Label: "reset column widths", Focus: r}, func() error {
+				for c := range m.sheet.Widths() { // only the columns that have a width
+					if c >= r.From.Col && c <= r.To.Col {
+						m.sheet.SetColWidth(c, 0)
+					}
+				}
+				return nil
+			})
 			m.changed = true
 			return nil
 		}},
