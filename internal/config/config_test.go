@@ -280,6 +280,20 @@ func TestRegistry(t *testing.T) {
 	}
 }
 
+func TestServeOptions(t *testing.T) {
+	path := write(t, filepath.Join(t.TempDir(), "config"), "serve-max-sessions = 3\nserve-idle-timeout = 1h\nserve-listen = nope\nserve-max-sessions = 0\n")
+	c := Load(path, noEnv, nil)
+	if c.Int("serve-max-sessions") != 3 || c.Duration("serve-idle-timeout").Minutes() != 60 || c.String("serve-listen") != "127.0.0.1:2312" {
+		t.Errorf("serve: %d %v %q", c.Int("serve-max-sessions"), c.Duration("serve-idle-timeout"), c.String("serve-listen"))
+	}
+	if w := warnings(c); !strings.Contains(w, "isn't host:port") || !strings.Contains(w, "at least 1") {
+		t.Errorf("warnings:\n%s", w)
+	}
+	if home, _ := os.UserHomeDir(); c.String("serve-authorized-keys") != filepath.Join(home, ".ssh", "authorized_keys") {
+		t.Errorf("~ not expanded: %q", c.String("serve-authorized-keys"))
+	}
+}
+
 func TestDir(t *testing.T) {
 	x := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", x)

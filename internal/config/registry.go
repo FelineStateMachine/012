@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Kind is an option's type.
@@ -28,11 +29,14 @@ const (
 	Enum // one of Option.Values
 	Path // a file path; ~ is the home directory
 	URL
-	Command // a program and its arguments, run without a shell
+	Command  // a program and its arguments, run without a shell
+	Int      // a whole number, at least 1
+	Duration // e.g. 30m or 1h30m; 0 for never
+	Address  // host:port
 )
 
 func (k Kind) String() string {
-	return [...]string{"text", "true or false", "one of", "path", "URL", "command"}[k]
+	return [...]string{"text", "true or false", "one of", "path", "URL", "command", "number", "duration", "host:port"}[k]
 }
 
 // Option is one setting.
@@ -60,11 +64,12 @@ const (
 	GroupAppearance = "Appearance"
 	GroupJEV        = "JEV functions"
 	GroupTelemetry  = "Telemetry"
+	GroupServe      = "012 serve"
 	GroupFiles      = "Config files"
 )
 
 // Groups is the order groups are listed in.
-var Groups = []string{GroupAppearance, GroupJEV, GroupTelemetry, GroupFiles}
+var Groups = []string{GroupAppearance, GroupJEV, GroupTelemetry, GroupServe, GroupFiles}
 
 // Options is every setting. Add an option here and read it with
 // Config.String, Bool or List; parsing, `012 config`, docs/config.md
@@ -106,6 +111,19 @@ var Options = []Option{
 		Desc: "Send telemetry to this OTLP/HTTP collector, e.g. http://localhost:4318. " +
 			"The other OTEL_* variables still apply.",
 		Redact: redactURL},
+
+	{Name: "serve-listen", Kind: Address, Group: GroupServe, Default: "127.0.0.1:2312",
+		Desc: "The address 012 serve listens on. Anything but the loopback address lets other machines " +
+			"reach it (with an authorized key). See docs/ssh.md."},
+	{Name: "serve-authorized-keys", Kind: Path, Group: GroupServe, Default: "~/.ssh/authorized_keys",
+		Desc: "The public keys allowed to log in to 012 serve, in OpenSSH's authorized_keys format."},
+	{Name: "serve-host-key", Kind: Path, Group: GroupServe,
+		Desc: "012 serve's private host key, generated when missing; " +
+			"ssh_host_ed25519_key in the config directory when empty."},
+	{Name: "serve-idle-timeout", Kind: Duration, Group: GroupServe, Default: "30m",
+		Desc: "End a 012 serve session that has had no input for this long; 0 never does."},
+	{Name: "serve-max-sessions", Kind: Int, Group: GroupServe, Default: "8",
+		Desc: "How many 012 serve sessions may run at once; more are turned away."},
 
 	{Name: "config-file", Kind: Path, Group: GroupFiles, Repeat: true,
 		Desc: "Read another config file after this one, relative to this file's directory. " +
@@ -153,6 +171,18 @@ func (o *Option) validate(v string) error {
 	case Command:
 		if _, err := SplitCommand(v); err != nil {
 			return err
+		}
+	case Int:
+		if n, err := strconv.Atoi(v); err != nil || n < 1 {
+			return fmt.Errorf("%q isn't a whole number of at least 1", v)
+		}
+	case Duration:
+		if d, err := time.ParseDuration(v); err != nil || d < 0 {
+			return fmt.Errorf("%q isn't a duration like 30m or 1h", v)
+		}
+	case Address:
+		if _, _, err := net.SplitHostPort(v); err != nil {
+			return fmt.Errorf("%q isn't host:port", v)
 		}
 	}
 	if o.Check != nil {

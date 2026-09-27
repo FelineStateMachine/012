@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // SourceKind says where a value came from.
@@ -275,6 +276,18 @@ func (c *Config) String(name string) string {
 func (c *Config) Bool(name string) bool {
 	b, _ := strconv.ParseBool(c.Get(name).Raw)
 	return b
+}
+
+// Int returns a number option.
+func (c *Config) Int(name string) int {
+	n, _ := strconv.Atoi(c.Get(name).Raw)
+	return n
+}
+
+// Duration returns a duration option.
+func (c *Config) Duration(name string) time.Duration {
+	d, _ := time.ParseDuration(c.Get(name).Raw)
+	return d
 }
 
 // List returns every value of a repeatable option.

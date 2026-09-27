@@ -34,7 +34,7 @@ type Settings struct {
 // Settings, the theme picker and the API key prompt.
 type prefs struct {
 	Settings
-	dark    bool   // the terminal's background is dark
+	light   bool   // the terminal's background is light (dark until it says)
 	preview string // a theme being previewed by the picker
 }
 
@@ -65,9 +65,9 @@ func (m *Model) applyConfig() string {
 func (m *Model) applyTheme() string {
 	name := m.prefs.preview
 	if name == "" {
-		name = m.prefs.Config.Theme().Pick(m.prefs.dark)
+		name = m.prefs.Config.Theme().Pick(!m.prefs.light)
 	}
-	th, err := theme.Resolve(name, m.prefs.dark, m.prefs.ThemesDir)
+	th, err := theme.Resolve(name, !m.prefs.light, m.prefs.ThemesDir)
 	m.th = th
 	if err != nil {
 		return err.Error()
@@ -183,7 +183,7 @@ func (m *Model) keySaved(msg keySavedMsg) {
 func (m *Model) handlePrefs(msg tea.Msg) bool {
 	switch msg := msg.(type) {
 	case tea.BackgroundColorMsg:
-		m.prefs.dark = msg.IsDark()
+		m.prefs.light = !msg.IsDark()
 		if p := m.applyTheme(); p != "" && m.note == "" {
 			m.note = m.th.Warning.Render(p)
 		}

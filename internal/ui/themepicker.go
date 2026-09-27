@@ -19,7 +19,7 @@ type themePicker struct {
 }
 
 func newThemePicker(m *Model) *themePicker {
-	current := m.prefs.Config.Theme().Pick(m.prefs.dark)
+	current := m.prefs.Config.Theme().Pick(!m.prefs.light)
 	entries := theme.List(m.prefs.ThemesDir)
 	items := make([]pickItem, 0, len(entries))
 	sel := 0
@@ -103,7 +103,7 @@ func (m *Model) keepTheme(name string) {
 	m.closeOverlay()
 	m.prefs.preview = ""
 	choice := m.prefs.Config.Theme()
-	if choice.Light != choice.Dark && m.prefs.dark {
+	if choice.Light != choice.Dark && !m.prefs.light {
 		choice.Dark = name
 	} else if choice.Light != choice.Dark {
 		choice.Light = name

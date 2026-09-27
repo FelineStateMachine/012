@@ -177,6 +177,58 @@ Send telemetry to this OTLP/HTTP collector, e.g. http://localhost:4318. The othe
 | Flag | `--otlp` |
 | Applies | restart 012 |
 
+### 012 serve
+
+#### `serve-listen`
+
+The address 012 serve listens on. Anything but the loopback address lets other machines reach it (with an authorized key). See docs/ssh.md.
+
+| | |
+|---|---|
+| Type | host:port |
+| Default | `127.0.0.1:2312` |
+| Applies | restart 012 |
+
+#### `serve-authorized-keys`
+
+The public keys allowed to log in to 012 serve, in OpenSSH's authorized_keys format.
+
+| | |
+|---|---|
+| Type | path |
+| Default | `~/.ssh/authorized_keys` |
+| Applies | restart 012 |
+
+#### `serve-host-key`
+
+012 serve's private host key, generated when missing; ssh_host_ed25519_key in the config directory when empty.
+
+| | |
+|---|---|
+| Type | path |
+| Default | (empty) |
+| Applies | restart 012 |
+
+#### `serve-idle-timeout`
+
+End a 012 serve session that has had no input for this long; 0 never does.
+
+| | |
+|---|---|
+| Type | duration |
+| Default | `30m` |
+| Applies | restart 012 |
+
+#### `serve-max-sessions`
+
+How many 012 serve sessions may run at once; more are turned away.
+
+| | |
+|---|---|
+| Type | number |
+| Default | `8` |
+| Applies | restart 012 |
+
 ### Config files
 
 #### `config-file`

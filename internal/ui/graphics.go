@@ -26,18 +26,15 @@ import (
 // Images use the terminal's own palette, asked for with OSC 4 once
 // graphics are known to work, so bars match the text legend.
 type terminal struct {
+	noImages     bool // chart-images = false in the config
+	noNotify     bool // notifications = false in the config
 	kitty        bool // answers kitty graphics queries
 	tmux         bool // inside tmux: sequences for the outer terminal need passthrough
 	cellW, cellH int  // cell size in pixels, 0 until reported
 	palette      map[int]color.RGBA
 	sent         map[int]string // image id -> what was sent, to send only changes
 	blurred      bool           // the terminal window doesn't have focus
-	noImages     bool           // chart-images = false
-	noNotify     bool           // notifications = false
 }
-
-// images reports whether charts are drawn as images.
-func (t *terminal) images() bool { return t.kitty && !t.noImages }
 
 func newTerminal() terminal {
 	return terminal{tmux: os.Getenv("TMUX") != "", palette: map[int]color.RGBA{}, sent: map[int]string{}}
@@ -151,6 +148,9 @@ func (t *terminal) chartPalette(th *theme.Theme) chart.Palette {
 	p.Grid.A = 90
 	return p
 }
+
+// images reports whether charts are drawn as images.
+func (t *terminal) images() bool { return t.kitty && !t.noImages }
 
 // chartOptions are the drawing options for charts on this terminal.
 func (t *terminal) chartOptions() chart.Options {

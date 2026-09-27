@@ -91,8 +91,7 @@ type Model struct {
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	return &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(),
-		charts: chartState{last: -1}, prefs: prefs{dark: true}}
+	return &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(), charts: chartState{last: -1}}
 }
 
 // Init implements tea.Model. It asks the terminal for its background color
