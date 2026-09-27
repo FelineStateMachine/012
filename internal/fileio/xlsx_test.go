@@ -328,3 +328,32 @@ func TestXLSXWorkbookRoundTrip(t *testing.T) {
 		t.Errorf("name Rent: %v %s", ok, n.Ref())
 	}
 }
+
+// A formula naming a sheet the workbook doesn't have goes out as its
+// value (#REF!), with a note, since Excel would refuse the reference.
+func TestXLSXMissingSheetAsValue(t *testing.T) {
+	src := build(t, map[string]string{"A1": "2", "B1": "=Gone!A1+1", "B2": "=A1*2", "B3": "=SUM('Old plan'!A1:A3, gone!B1)"})
+	name := filepath.Join(t.TempDir(), "missing.xlsx")
+	res, err := Export(context.Background(), name, XLSX, SnapBook(src), ExportOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "2 formulas naming a sheet that doesn't exist saved as values, e.g. B1 (Gone)"
+	if len(res.Notes) != 1 || res.Notes[0] != want {
+		t.Errorf("notes %q, want %q", res.Notes, want)
+	}
+	x, err := excelize.OpenFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer x.Close()
+	ws := x.GetSheetName(0)
+	for cell, formula := range map[string]string{"B1": "", "B2": "A1*2", "B3": ""} {
+		if got, _ := x.GetCellFormula(ws, cell); got != formula {
+			t.Errorf("%s formula %q, want %q", cell, got, formula)
+		}
+	}
+	if got, _ := x.GetCellValue(ws, "B1"); got != "#REF!" {
+		t.Errorf("B1 value %q", got)
+	}
+}

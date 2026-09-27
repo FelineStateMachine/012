@@ -10,6 +10,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
+	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -230,7 +231,10 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 	if len(sheets) == 0 {
 		sheets = []*Snapshot{snap}
 	}
-	w := &xlsxWriter{x: x, styleIDs: map[xlsxStyle]int{}, multi: len(sheets) > 1}
+	w := &xlsxWriter{x: x, styleIDs: map[xlsxStyle]int{}, multi: len(sheets) > 1, known: map[string]bool{}}
+	for _, sn := range sheets {
+		w.known[formula.SheetKey(sn.Name)] = true
+	}
 	res := &ExportResult{}
 	for i, sn := range sheets {
 		ws := sheetName(sn.Name)
@@ -261,9 +265,13 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 	if err := x.SetCalcProps(&excelize.CalcPropsOptions{FullCalcOnLoad: &yes}); err != nil {
 		return nil, err
 	}
-	if w.values > 0 {
+	if w.values.n > 0 {
 		res.Notes = append(res.Notes, fmt.Sprintf("%s with no Excel equivalent saved as values, e.g. %s",
-			count(w.values, "formula", "formulas"), w.example))
+			count(w.values.n, "formula", "formulas"), w.values.example))
+	}
+	if w.missing.n > 0 {
+		res.Notes = append(res.Notes, fmt.Sprintf("%s naming a sheet that doesn't exist saved as values, e.g. %s (%s)",
+			count(w.missing.n, "formula", "formulas"), w.missing.example, sheet.QuoteSheet(w.missingSheet)))
 	}
 	return res, writeFile(name, func(w io.Writer) error { return x.Write(w) })
 }
@@ -272,9 +280,42 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 type xlsxWriter struct {
 	x        *excelize.File
 	styleIDs map[xlsxStyle]int
-	values   int    // formulas written as values
-	example  string // the first of them
-	multi    bool   // examples name their sheet
+	multi    bool // examples name their sheet
+
+	// Formulas are written as their values when Excel has no equivalent,
+	// or when they name a sheet the file doesn't have, which Excel would
+	// refuse.
+	values       valueCount
+	missing      valueCount
+	missingSheet string          // the sheet missing's example names
+	known        map[string]bool // keys of the sheets written
+}
+
+// valueCount counts formulas written as values, keeping the first one's
+// address as an example.
+type valueCount struct {
+	n       int
+	example string
+}
+
+func (v *valueCount) add(multi bool, ws string, a sheet.Addr) {
+	v.n++
+	if v.example == "" {
+		v.example = a.String()
+		if multi {
+			v.example = sheet.QuoteSheet(ws) + "!" + a.String()
+		}
+	}
+}
+
+// unknownSheet returns a sheet c's formula names that isn't written.
+func (w *xlsxWriter) unknownSheet(c SnapCell) (string, bool) {
+	for _, name := range c.Sheets {
+		if !w.known[formula.SheetKey(name)] {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 func (w *xlsxWriter) styleFor(f sheet.Format, st sheet.Style) (int, error) {
@@ -335,7 +376,8 @@ func (w *xlsxWriter) sheet(ws string, snap *Snapshot) (int, error) {
 }
 
 // cell is the snapshot cell c at a as excelize writes it. A formula with
-// no Excel equivalent is written as its value, and counted.
+// no Excel equivalent, or naming a sheet that isn't written, is written
+// as its value, and counted.
 func (w *xlsxWriter) cell(ws string, a sheet.Addr, c SnapCell) (excelize.Cell, error) {
 	// A formula's inferred format is written too, so its result shows
 	// the same in Excel.
@@ -350,17 +392,18 @@ func (w *xlsxWriter) cell(ws string, a sheet.Addr, c SnapCell) (excelize.Cell, e
 	if !c.Formula {
 		return xc, nil
 	}
+	if name, ok := w.unknownSheet(c); ok {
+		if w.missing.n == 0 {
+			w.missingSheet = name
+		}
+		w.missing.add(w.multi, ws, a)
+		return xc, nil
+	}
 	if fx, ok := toExcelFormula(c.Input); ok {
 		xc.Formula = fx
 		return xc, nil
 	}
-	w.values++
-	if w.example == "" {
-		w.example = a.String()
-		if w.multi {
-			w.example = sheet.QuoteSheet(ws) + "!" + a.String()
-		}
-	}
+	w.values.add(w.multi, ws, a)
 	return xc, nil
 }
 

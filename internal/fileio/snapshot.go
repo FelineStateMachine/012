@@ -34,6 +34,7 @@ type SnapCell struct {
 	Own     sheet.Format // the cell's own format
 	Style   sheet.Style
 	Formula bool
+	Sheets  []string // the sheets a formula names, as written
 }
 
 // Text is the cell as displayed, without a width limit.
@@ -60,6 +61,7 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 			Own:     c.Format,
 			Style:   c.Style,
 			Formula: c.IsFormula(),
+			Sheets:  s.NamedSheets(a),
 		}
 	}
 	return snap
