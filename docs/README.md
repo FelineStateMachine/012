@@ -15,4 +15,6 @@
 - [Architecture](architecture.md): how the engine and UI fit together
 - [UX and visual bar](UX.md): the rules every change follows
 - [Testing](testing.md): unit, end-to-end through libghostty, golden screens, the excelize oracle
+- [Limits](limits.md): measured bounds of support and known bottlenecks
+- [Observability](observability.md): event logs, DuckDB queries, the local telemetry stack
 - [Roadmap](../ROADMAP.md)

@@ -6,6 +6,7 @@ make fuzz     # fuzz the formula parser and the CSV and .wk1 readers
 make oracle   # compare formulas and number formats with excelize
 make e2e      # run the real binary in a terminal emulator (needs Zig and pkg-config)
 make screens  # rewrite the golden screens and build the review gallery
+make stress   # benchmarks on synthetic and real data (see limits.md)
 ```
 
 ## Unit tests
