@@ -215,6 +215,33 @@ func TestRecordingAnswersAndSkips(t *testing.T) {
 	}
 }
 
+func TestRecordingTheMouse(t *testing.T) {
+	for _, relative := range []bool{false, true} {
+		m := newModel()
+		press(t, m, "1", "<enter>", "2", "<enter>", "<up>", "<up>", "<shift+down>")
+		run(m, m.runCommand(map[bool]string{false: "macro.record", true: "macro.record_relative"}[relative]))
+		m.startFill() // drag the fill handle from A1:A2 down to A5
+		m.dragFillTo(addr("A5"))
+		m.finishFill()
+		m.autofit(1) // double-click column B's border
+		run(m, m.runCommand("macro.stop"))
+		press(t, m, "<enter>", "<enter>")
+		want := `fill(to="A1:A5")` + "\n" + `set_width("B", 3)`
+		if relative {
+			want = `fill(rows=3)` + "\n" + `set_width("B", 3)`
+		}
+		if got := body(mustMacro(t, m, "Macro 1").Source); got != want {
+			t.Errorf("relative %v: recorded\n%s\nwant\n%s", relative, got, want)
+		}
+		r := withMacro(t, m, "Macro 1")
+		press(t, r, "1", "<enter>", "2", "<enter>", "<up>", "<up>", "<shift+down>")
+		run(r, r.runMacro(mustMacro(t, r, "Macro 1")))
+		if input(r, "A5") != "5" || r.sheet.ColWidth(1) != 3 {
+			t.Errorf("relative %v: A5 %q, width %d, %q", relative, input(r, "A5"), r.sheet.ColWidth(1), r.warn)
+		}
+	}
+}
+
 func TestStopWithNothingRecorded(t *testing.T) {
 	m := newModel()
 	run(m, m.runCommand("macro.record"))
