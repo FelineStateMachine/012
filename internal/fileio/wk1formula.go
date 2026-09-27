@@ -212,150 +212,227 @@ func lotusRef(col, row uint16, at sheet.Addr, v wk1Version) (string, bool) {
 
 // lotusFormula decodes the bytecode of the formula in cell at.
 func lotusFormula(code []byte, at sheet.Addr, v wk1Version) (string, bool) {
-	var stack []expr
-	ok := true
-	pop := func() (expr, bool) {
-		if len(stack) == 0 {
-			return expr{}, false
-		}
-		e := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		return e, true
-	}
-	push := func(text string, power int) { stack = append(stack, expr{text, power}) }
-	u16 := func(i int) uint16 { return binary.LittleEndian.Uint16(code[i:]) }
-
-	for i := 0; i < len(code); {
-		op := code[i]
-		switch {
-		case op == 0x00: // number
-			if i+9 > len(code) {
-				return "", false
-			}
-			f := math.Float64frombits(binary.LittleEndian.Uint64(code[i+1:]))
-			if math.IsNaN(f) || math.IsInf(f, 0) {
-				return "", false
-			}
-			if f < 0 {
-				push(numInput(f), unaryPower)
-			} else {
-				push(numInput(f), atomPower)
-			}
-			i += 9
-		case op == 0x01: // cell
-			if i+5 > len(code) {
-				return "", false
-			}
-			ref, good := lotusRef(u16(i+1), u16(i+3), at, v)
-			ok = ok && good
-			push(ref, atomPower)
-			i += 5
-		case op == 0x02: // range
-			if i+9 > len(code) {
-				return "", false
-			}
-			from, good1 := lotusRef(u16(i+1), u16(i+3), at, v)
-			to, good2 := lotusRef(u16(i+5), u16(i+7), at, v)
-			ok = ok && good1 && good2
-			push(from+":"+to, atomPower)
-			i += 9
-		case op == 0x03: // end
-			i = len(code)
-		case op == 0x04: // parentheses, as written
-			e, good := pop()
-			if !good {
-				return "", false
-			}
-			push("("+e.text+")", atomPower)
-			i++
-		case op == 0x05: // integer
-			if i+3 > len(code) {
-				return "", false
-			}
-			n := int16(u16(i + 1))
-			if n < 0 {
-				push(strconv.Itoa(int(n)), unaryPower)
-			} else {
-				push(strconv.Itoa(int(n)), atomPower)
-			}
-			i += 3
-		case op == 0x06: // string
-			end := indexByte(code[i+1:], 0)
-			if end < 0 {
-				return "", false
-			}
-			s := lics(string(code[i+1 : i+1+end]))
-			push(`"`+strings.ReplaceAll(s, `"`, `""`)+`"`, atomPower)
-			i += end + 2
-		case op == 0x08 || op == 0x17 || op == 0x16: // - + #NOT#
-			x, good := pop()
-			if !good {
-				return "", false
-			}
-			sign, power := "-", unaryPower
-			switch op {
-			case 0x17:
-				sign = "+"
-			case 0x16:
-				sign, power = "#NOT#", notPower
-			}
-			if x.power < power {
-				x.text = "(" + x.text + ")"
-			}
-			push(sign+x.text, power)
-			i++
-		case lotusBinary[op].op != "":
-			bin := lotusBinary[op]
-			r, good1 := pop()
-			l, good2 := pop()
-			if !good1 || !good2 {
-				return "", false
-			}
-			if l.power < bin.power {
-				l.text = "(" + l.text + ")"
-			}
-			if r.power <= bin.power {
-				r.text = "(" + r.text + ")"
-			}
-			push(l.text+bin.op+r.text, bin.power)
-			i++
-		default:
-			fn, known := lotusFuncs[op]
-			if !known {
-				return "", false
-			}
-			n, size := fn.args, 1
-			if n < 0 {
-				if i+1 >= len(code) {
-					return "", false
-				}
-				n, size = int(code[i+1]), 2
-			}
-			if n > len(stack) {
-				return "", false
-			}
-			args := make([]string, n)
-			for k := range args {
-				args[k] = stack[len(stack)-n+k].text
-			}
-			stack = stack[:len(stack)-n]
-			text := ""
-			if fn.write != nil && (fn.args >= 0 || n > 0) {
-				text = fn.write(args)
-			}
-			if text == "" {
-				ok = false
-				text = "@" + fn.name
-				if n > 0 {
-					text += "(" + strings.Join(args, ",") + ")"
-				}
-			}
-			push(text, atomPower)
-			i += size
+	d := &lotusDecoder{code: code, at: at, version: v, ok: true}
+	for d.i < len(code) {
+		if !d.step() {
+			return "", false
 		}
 	}
-	if len(stack) != 1 {
+	if len(d.stack) != 1 {
 		return "", false
 	}
-	return stack[0].text, ok
+	return d.stack[0].text, d.ok
+}
+
+// lotusDecoder runs a formula's bytecode on a stack of subexpressions.
+// ok turns false when a part has no equivalent in 012; decoding goes on
+// so the formula can still be written in 1-2-3's spelling.
+type lotusDecoder struct {
+	code    []byte
+	i       int // the next opcode
+	at      sheet.Addr
+	version wk1Version
+	stack   []expr
+	ok      bool
+}
+
+// lotusOperands decode the opcodes that are neither binary operators nor
+// functions. Each reports false when the bytecode is malformed.
+var lotusOperands = map[byte]func(*lotusDecoder) bool{
+	0x00: (*lotusDecoder).number,
+	0x01: (*lotusDecoder).cell,
+	0x02: (*lotusDecoder).cellRange,
+	0x03: (*lotusDecoder).end,
+	0x04: (*lotusDecoder).parens,
+	0x05: (*lotusDecoder).integer,
+	0x06: (*lotusDecoder).str,
+	0x08: unary("-", unaryPower),
+	0x16: unary("#NOT#", notPower),
+	0x17: unary("+", unaryPower),
+}
+
+// step decodes the opcode at d.i, reporting false when the bytecode is
+// malformed.
+func (d *lotusDecoder) step() bool {
+	op := d.code[d.i]
+	if decode, ok := lotusOperands[op]; ok {
+		return decode(d)
+	}
+	if bin, ok := lotusBinary[op]; ok {
+		return d.binary(bin.op, bin.power)
+	}
+	if fn, ok := lotusFuncs[op]; ok {
+		return d.function(fn)
+	}
+	return false
+}
+
+func (d *lotusDecoder) push(text string, power int) {
+	d.stack = append(d.stack, expr{text, power})
+}
+
+func (d *lotusDecoder) pop() (expr, bool) {
+	if len(d.stack) == 0 {
+		return expr{}, false
+	}
+	e := d.stack[len(d.stack)-1]
+	d.stack = d.stack[:len(d.stack)-1]
+	return e, true
+}
+
+// has reports whether n bytes of operands follow the opcode.
+func (d *lotusDecoder) has(n int) bool { return d.i+1+n <= len(d.code) }
+
+func (d *lotusDecoder) u16(at int) uint16 { return binary.LittleEndian.Uint16(d.code[at:]) }
+
+// literal pushes a number; a negative one binds as a unary minus does.
+func (d *lotusDecoder) literal(text string, negative bool) {
+	if negative {
+		d.push(text, unaryPower)
+	} else {
+		d.push(text, atomPower)
+	}
+}
+
+func (d *lotusDecoder) number() bool {
+	if !d.has(8) {
+		return false
+	}
+	f := math.Float64frombits(binary.LittleEndian.Uint64(d.code[d.i+1:]))
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return false
+	}
+	d.literal(numInput(f), f < 0)
+	d.i += 9
+	return true
+}
+
+func (d *lotusDecoder) integer() bool {
+	if !d.has(2) {
+		return false
+	}
+	n := int16(d.u16(d.i + 1))
+	d.literal(strconv.Itoa(int(n)), n < 0)
+	d.i += 3
+	return true
+}
+
+// ref decodes the cell reference whose coordinates start at code[at].
+func (d *lotusDecoder) ref(at int) string {
+	ref, good := lotusRef(d.u16(at), d.u16(at+2), d.at, d.version)
+	d.ok = d.ok && good
+	return ref
+}
+
+func (d *lotusDecoder) cell() bool {
+	if !d.has(4) {
+		return false
+	}
+	d.push(d.ref(d.i+1), atomPower)
+	d.i += 5
+	return true
+}
+
+func (d *lotusDecoder) cellRange() bool {
+	if !d.has(8) {
+		return false
+	}
+	from, to := d.ref(d.i+1), d.ref(d.i+5)
+	d.push(from+":"+to, atomPower)
+	d.i += 9
+	return true
+}
+
+func (d *lotusDecoder) end() bool {
+	d.i = len(d.code)
+	return true
+}
+
+// parens are parentheses as the formula was written.
+func (d *lotusDecoder) parens() bool {
+	e, good := d.pop()
+	if !good {
+		return false
+	}
+	d.push("("+e.text+")", atomPower)
+	d.i++
+	return true
+}
+
+func (d *lotusDecoder) str() bool {
+	end := indexByte(d.code[d.i+1:], 0)
+	if end < 0 {
+		return false
+	}
+	s := lics(string(d.code[d.i+1 : d.i+1+end]))
+	d.push(`"`+strings.ReplaceAll(s, `"`, `""`)+`"`, atomPower)
+	d.i += end + 2
+	return true
+}
+
+// unary decodes a prefix operator that binds with the given power.
+func unary(sign string, power int) func(*lotusDecoder) bool {
+	return func(d *lotusDecoder) bool {
+		x, good := d.pop()
+		if !good {
+			return false
+		}
+		if x.power < power {
+			x.text = "(" + x.text + ")"
+		}
+		d.push(sign+x.text, power)
+		d.i++
+		return true
+	}
+}
+
+func (d *lotusDecoder) binary(op string, power int) bool {
+	r, good1 := d.pop()
+	l, good2 := d.pop()
+	if !good1 || !good2 {
+		return false
+	}
+	if l.power < power {
+		l.text = "(" + l.text + ")"
+	}
+	if r.power <= power {
+		r.text = "(" + r.text + ")"
+	}
+	d.push(l.text+op+r.text, power)
+	d.i++
+	return true
+}
+
+// function decodes a call whose arguments are on the stack. A function
+// with no equivalent is written as 1-2-3 spells it, clearing ok.
+func (d *lotusDecoder) function(fn lotusFunc) bool {
+	n, size := fn.args, 1
+	if n < 0 {
+		if !d.has(1) {
+			return false
+		}
+		n, size = int(d.code[d.i+1]), 2
+	}
+	if n > len(d.stack) {
+		return false
+	}
+	args := make([]string, n)
+	for k := range args {
+		args[k] = d.stack[len(d.stack)-n+k].text
+	}
+	d.stack = d.stack[:len(d.stack)-n]
+	text := ""
+	if fn.write != nil && (fn.args >= 0 || n > 0) {
+		text = fn.write(args)
+	}
+	if text == "" {
+		d.ok = false
+		text = "@" + fn.name
+		if n > 0 {
+			text += "(" + strings.Join(args, ",") + ")"
+		}
+	}
+	d.push(text, atomPower)
+	d.i += size
+	return true
 }
