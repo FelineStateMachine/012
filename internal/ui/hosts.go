@@ -35,6 +35,7 @@ func (m *Model) styles() *theme.Theme      { return &m.th }
 func (m *Model) size() (width, height int) { return m.width, m.height }
 func (m *Model) available(id string) bool  { return commands[id].available(m) }
 func (m *Model) sheetShown() *sheet.Sheet  { return m.sheet }
+func (m *Model) canEditScripts() bool      { return m.macros.editor }
 
 // syncChanged makes the modified flag follow the undo history.
 func (m *Model) syncChanged() { m.changed = m.sheet.StateID() != m.saved }

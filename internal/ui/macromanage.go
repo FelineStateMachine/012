@@ -14,6 +14,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // Managing macros, as Sheets' Extensions > Macros > Manage macros: a
@@ -22,9 +23,26 @@ import (
 // Ctrl+D deletes it. The first row writes a new one. Questions go on the
 // context line; the picker opens again after each.
 
+// macrosHost is what the macro manager acts on. The model implements it.
+// The manager stays in package ui: it is a few keys over a picker, and
+// what they do (run, rename, edit a script) is the model's macro
+// machinery.
+type macrosHost interface {
+	styles() *theme.Theme
+	size() (width, height int)
+	book() *sheet.Workbook
+	closeOverlay()
+	// canEditScripts reports whether this session may open an editor.
+	canEditScripts() bool
+	renameMacro(mc sheet.Macro)
+	setMacroShortcut(mc sheet.Macro)
+	editScript(name, src string, isNew bool) tea.Cmd
+	macroManageItems() []picker.Item
+}
+
 // macrosPicker is the picker of saved macros with its extra keys.
 type macrosPicker struct {
-	m *Model // the model it acts on
+	m macrosHost // the model, through what the manager needs of it
 	*picker.Picker
 	msg string // feedback on the last action, e.g. a deletion
 }
@@ -33,7 +51,7 @@ const writeMacroTitle = "+ Write a macro"
 
 // openMacros opens the manager with the macro named sel highlighted.
 func (m *Model) openMacros(sel string) {
-	p := m.newPicker("Macros", "Type a macro's name", 72, macroManageItems(m))
+	p := m.newPicker("Macros", "Type a macro's name", 72, m.macroManageItems())
 	p.Action = "run"
 	for i, pm := range p.Shown() {
 		if strings.EqualFold(pm.Item.Title, sel) {
@@ -44,7 +62,7 @@ func (m *Model) openMacros(sel string) {
 }
 
 // macroManageItems lists "Write a macro" and then every macro.
-func macroManageItems(m *Model) []picker.Item {
+func (m *Model) macroManageItems() []picker.Item {
 	var items []picker.Item
 	if m.macros.editor {
 		items = append(items, picker.Item{
@@ -70,7 +88,7 @@ func macroManageItems(m *Model) []picker.Item {
 }
 
 // current is the macro highlighted, if any.
-func (p *macrosPicker) current(m *Model) (sheet.Macro, bool) {
+func (p *macrosPicker) current(m macrosHost) (sheet.Macro, bool) {
 	if p.Picker.Sel >= len(p.Shown()) || p.Shown()[p.Picker.Sel].Item.Title == writeMacroTitle {
 		return sheet.Macro{}, false
 	}
@@ -97,7 +115,7 @@ func (p *macrosPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 		m.closeOverlay()
 		m.setMacroShortcut(mc)
 	case "f4":
-		if !m.macros.editor {
+		if !m.canEditScripts() {
 			p.msg = "No editor in this session"
 			return nil
 		}
@@ -106,7 +124,7 @@ func (p *macrosPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+d":
 		m.book().DeleteMacro(mc.Name)
 		p.msg = "Deleted " + mc.Name + "; Ctrl+Z brings it back"
-		p.Items = macroManageItems(m)
+		p.Items = m.macroManageItems()
 		sel := p.Picker.Sel
 		p.Changed()
 		p.Picker.Sel = max(min(sel, len(p.Shown())-1), 0)
@@ -117,16 +135,16 @@ func (p *macrosPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 func (p *macrosPicker) Status() (string, string) {
 	m := p.m
 	pairs := []string{"Enter", "run", "F2", "rename", "F3", "shortcut", "F4", "edit", "Ctrl+D", "delete", "Esc", "close"}
-	if !m.macros.editor {
+	if !m.canEditScripts() {
 		pairs = slices.Delete(pairs, 6, 8)
 	}
-	if m.width < 100 {
+	if width, _ := m.size(); width < 100 {
 		pairs = slices.DeleteFunc(pairs[:len(pairs)-2], func(s string) bool { return s == "shortcut" })
 		pairs = slices.Insert(pairs, slices.Index(pairs, "F3")+1, "key")
 	}
-	keys := m.th.KeyHints(pairs...)
+	keys := m.styles().KeyHints(pairs...)
 	if _, ok := p.current(m); !ok {
-		keys = m.th.KeyHints("Enter", "write", "Esc", "close")
+		keys = m.styles().KeyHints("Enter", "write", "Esc", "close")
 	}
 	if p.msg != "" {
 		return p.msg, keys
