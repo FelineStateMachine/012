@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/formula"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -78,16 +79,16 @@ func (a *assist) shown(m *Model) ([]suggestion, int) {
 	if (m.mode != modeEnter && m.mode != modeEdit) || !m.line.isFormula() || !a.active || m.overlay != nil {
 		return nil, 0
 	}
-	c := scanCaret(m.line.buf, m.line.pos)
-	if c.word == "" {
+	c := formula.ScanCaret(m.line.buf, m.line.pos)
+	if c.Word == "" {
 		return nil, 0
 	}
-	list := suggestions(m.sheet, c.word)
-	if len(list) == 0 || len(list) == 1 && !list[0].fn && strings.EqualFold(list[0].name, c.word) {
+	list := suggestions(m.sheet, c.Word)
+	if len(list) == 0 || len(list) == 1 && !list[0].fn && strings.EqualFold(list[0].name, c.Word) {
 		return nil, 0
 	}
 	a.sel = min(a.sel, len(list)-1)
-	return list, c.wordStart
+	return list, c.WordStart
 }
 
 // typeKey applies a line-editing key to the entry. Typing or deleting
@@ -225,7 +226,7 @@ func (a *assist) status(m *Model) (desc, keys string, ok bool) {
 // inFunction reports whether the caret is inside a known function's
 // parentheses.
 func (l *lineEdit) inFunction() bool {
-	_, ok := sheet.LookupFunc(scanCaret(l.buf, l.pos).fn)
+	_, ok := sheet.LookupFunc(formula.ScanCaret(l.buf, l.pos).Fn)
 	return ok
 }
 
@@ -250,13 +251,13 @@ func signatureLine(th *theme.Theme, width int, buf []rune, pos int, hints string
 // SUM(value1, [value2, ...]), with the current argument marked, and what
 // the function does. It is "" outside a function.
 func signature(th *theme.Theme, buf []rune, pos int) (sig, desc string) {
-	c := scanCaret(buf, pos)
-	f, ok := sheet.LookupFunc(c.fn)
-	if c.fn == "" || !ok {
+	c := formula.ScanCaret(buf, pos)
+	f, ok := sheet.LookupFunc(c.Fn)
+	if c.Fn == "" || !ok {
 		return "", ""
 	}
-	parts := splitArgs(f.Args)
-	cur := argPart(parts, c.arg, f.Max < 0)
+	parts := formula.SplitArgs(f.Args)
+	cur := formula.ArgPart(parts, c.Arg, f.Max < 0)
 	var b strings.Builder
 	b.WriteString(th.Key.Render(f.Name) + "(")
 	for i, p := range parts {

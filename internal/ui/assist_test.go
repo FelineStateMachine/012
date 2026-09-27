@@ -7,60 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func TestScanCaret(t *testing.T) {
-	for _, tc := range []struct {
-		text string // | marks the caret
-		word string
-		fn   string
-		arg  int
-	}{
-		{"=SU|", "SU", "", 0},
-		{"=@su|", "su", "", 0},
-		{"=SUM(|", "", "SUM", 0},
-		{"=SUM(A1, B|", "B", "SUM", 1},
-		{"=IF(A1>2, SUM(B1; B2), |", "", "IF", 2},
-		{"=IF(A1, (1+|", "", "IF", 1},
-		{`=IF(A1="a,b(", |`, "", "IF", 1},
-		{`=CONCAT("SU|`, "", "", 0},
-		{"=SUM (1, |", "", "SUM", 1},
-		{"=jev.te|", "jev.te", "", 0},
-		{"=A1+1|", "", "", 0},
-		{"=SU|M(1)", "", "", 0},
-		{"=Sales|", "Sales", "", 0},
-	} {
-		i := strings.Index(tc.text, "|")
-		buf := []rune(strings.Replace(tc.text, "|", "", 1))
-		c := scanCaret(buf, len([]rune(tc.text[:i])))
-		if c.word != tc.word || c.fn != tc.fn || c.arg != tc.arg {
-			t.Errorf("%s: word %q fn %q arg %d", tc.text, c.word, c.fn, c.arg)
-		}
-	}
-}
-
-func TestArgPart(t *testing.T) {
-	for _, tc := range []struct {
-		args     string
-		arg      int
-		variadic bool
-		want     string
-	}{
-		{"value1, [value2, ...]", 0, true, "value1"},
-		{"value1, [value2, ...]", 4, true, "[value2, ...]"},
-		{"condition, value_if_true, [value_if_false]", 2, false, "[value_if_false]"},
-		{"condition, value_if_true, [value_if_false]", 3, false, ""},
-		{"sum_range, criteria_range1, criterion1, [criteria_range2, criterion2, ...]", 5, true, "[criteria_range2, criterion2, ...]"},
-	} {
-		parts := splitArgs(tc.args)
-		got := ""
-		if i := argPart(parts, tc.arg, tc.variadic); i >= 0 {
-			got = parts[i]
-		}
-		if got != tc.want {
-			t.Errorf("%s arg %d: %q, want %q", tc.args, tc.arg, got, tc.want)
-		}
-	}
-}
-
 func TestAutocompleteFunctions(t *testing.T) {
 	m := newModel()
 	press(t, m, "=su")

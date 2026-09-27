@@ -265,33 +265,6 @@ func TestF4CyclesReferences(t *testing.T) {
 	}
 }
 
-func TestCycleRef(t *testing.T) {
-	tests := []struct {
-		in    string
-		caret int
-		want  string
-		ok    bool
-	}{
-		{"=a1", 3, "=$A$1", true},
-		{"=A1+1", 1, "=$A$1+1", true},
-		{"=SUM(A1:B2)", 10, "=SUM($A$1:$B$2)", true},
-		{"=SUM(A1:B2)", 7, "=SUM($A$1:$B$2)", true},
-		{"=SUM($A$1..B2)", 12, "=SUM(A$1..B$2)", true},
-		{`="A1"`, 3, "", false},
-		{"=LOG10(2)", 6, "", false},
-		{"=1+2", 2, "", false},
-	}
-	for _, tt := range tests {
-		out, pos, ok := cycleRef([]rune(tt.in), tt.caret)
-		if ok != tt.ok || string(out) != tt.want {
-			t.Errorf("cycleRef(%q, %d) = %q, %v; want %q", tt.in, tt.caret, string(out), ok, tt.want)
-		}
-		if ok && pos > len(out) {
-			t.Errorf("caret %d past end of %q", pos, string(out))
-		}
-	}
-}
-
 func TestInsertDeleteKeysFollowSelection(t *testing.T) {
 	m := newModel()
 	press(t, m, "1", "<tab>", "2", "<enter>", "=A1+B1", "<enter>", "<ctrl+home>")

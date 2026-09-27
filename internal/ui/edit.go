@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/formula"
 )
 
 // Undo and redo, fill, inserting and deleting rows and columns, and F4 in
@@ -173,7 +174,7 @@ func (m *Model) entryError(err error, input string) {
 // toggleAbsolute cycles the reference at the caret through A1, $A$1, A$1
 // and $A1, as F4 does in Sheets. A range cycles both corners.
 func (m *Model) toggleAbsolute() {
-	if buf, pos, ok := cycleRef(m.line.buf, m.line.pos); ok {
+	if buf, pos, ok := formula.CycleRef(m.line.buf, m.line.pos); ok {
 		m.line.buf, m.line.pos = buf, pos
 	}
 }

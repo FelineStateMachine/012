@@ -1,4 +1,8 @@
-package ui
+// Package formula reads the formula being typed in the UI: the
+// reference F4 cycles through absolute markers, and the word and function
+// call around the caret that formula assistance follows. It works on the
+// entry's runes alone.
+package formula
 
 import (
 	"slices"
@@ -8,14 +12,10 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// Reading the formula being typed: the reference F4 cycles, and the word
-// and function call around the caret that formula assistance follows.
-// These work on the entry's runes alone.
-
-// cycleRef finds the reference (or range) at or just before pos in a
+// CycleRef finds the reference (or range) at or just before pos in a
 // formula and returns the text with its absolute markers cycled, and the
 // caret moved to the reference's end.
-func cycleRef(buf []rune, pos int) ([]rune, int, bool) {
+func CycleRef(buf []rune, pos int) ([]rune, int, bool) {
 	corners, ok := newRefScan(buf).corners(pos)
 	if !ok {
 		return nil, 0, false
@@ -114,48 +114,48 @@ func (s refScan) corners(pos int) ([][2]int, bool) {
 	return [][2]int{{start, end}}, true
 }
 
-// caret describes the formula text before the caret: the word being
+// Caret describes the formula text before the caret: the word being
 // typed, if it may be a function or name, and the innermost function call
 // the caret is in.
-type caret struct {
-	word      string
-	wordStart int
-	fn        string // e.g. "SUM", or "" outside any function's parentheses
-	arg       int    // index of the argument the caret is in
+type Caret struct {
+	Word      string
+	WordStart int
+	Fn        string // e.g. "SUM", or "" outside any function's parentheses
+	Arg       int    // index of the argument the caret is in
 }
 
 func isWordRune(r rune) bool {
 	return r < unicode.MaxASCII && (unicode.IsLetter(r) || unicode.IsDigit(r)) || r == '_' || r == '.' || r == '$' || r == '@'
 }
 
-// scanCaret reads a formula up to pos the way the lexer does: strings are
+// ScanCaret reads a formula up to pos the way the lexer does: strings are
 // skipped, parentheses nest, and commas or semicolons at the innermost
 // level separate arguments.
-func scanCaret(buf []rune, pos int) caret {
+func ScanCaret(buf []rune, pos int) Caret {
 	s := caretScan{start: -1}
 	for i := 1; i < pos; i++ { // buf[0] is "=", "+" or "-"
 		s.step(buf, i)
 	}
 	if s.inStr {
-		return caret{}
+		return Caret{}
 	}
-	var c caret
+	var c Caret
 	for i := len(s.stack) - 1; i >= 0; i-- {
 		if s.stack[i].fn != "" {
-			c.fn, c.arg = s.stack[i].fn, s.stack[i].arg
+			c.Fn, c.Arg = s.stack[i].fn, s.stack[i].arg
 			break
 		}
 	}
 	if s.start >= 0 && (pos == len(buf) || !isWordRune(buf[pos])) {
 		w := []rune(strings.TrimPrefix(string(buf[s.start:pos]), "@"))
 		if len(w) > 0 && (unicode.IsLetter(w[0]) || w[0] == '_') {
-			c.word, c.wordStart = string(w), pos-len(w)
+			c.Word, c.WordStart = string(w), pos-len(w)
 		}
 	}
 	return c
 }
 
-// caretScan is scanCaret's state as it reads.
+// caretScan is ScanCaret's state as it reads.
 type caretScan struct {
 	stack []callFrame // the calls open at this point, innermost last
 	inStr bool
@@ -204,9 +204,9 @@ func (s *caretScan) step(buf []rune, i int) {
 	s.prev = ""
 }
 
-// splitArgs splits a signature's arguments at the top-level commas, so
+// SplitArgs splits a signature's arguments at the top-level commas, so
 // "[value2, ...]" stays one part.
-func splitArgs(args string) []string {
+func SplitArgs(args string) []string {
 	var out []string
 	depth, start := 0, 0
 	for i, r := range args {
@@ -228,10 +228,10 @@ func splitArgs(args string) []string {
 	return out
 }
 
-// argPart maps an argument index to the part of the signature that
+// ArgPart maps an argument index to the part of the signature that
 // describes it: a repeating part like "[value2, ...]" covers every
 // argument from its position on. It returns -1 past the last argument.
-func argPart(parts []string, arg int, variadic bool) int {
+func ArgPart(parts []string, arg int, variadic bool) int {
 	rep := slices.IndexFunc(parts, func(p string) bool { return strings.Contains(p, "...") })
 	switch {
 	case rep >= 0 && variadic && arg >= rep:
