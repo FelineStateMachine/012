@@ -7,3 +7,4 @@ e2e/testdata/screens/gallery.html
 .env
 .env.*
 demos/out/
+*.test
