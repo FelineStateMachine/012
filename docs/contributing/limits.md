@@ -564,7 +564,7 @@ computation.
 
 ## What would raise the bounds
 
-Sizes and scheduling are in the [roadmap](../../ROADMAP.md#3-scale).
+Sizes and scheduling are in the [roadmap](../../ROADMAP.md#1-scale).
 `max-cells` stands at ten million, as Google Sheets' limit does; the
 sheet itself would hold several times that in a few GB, and opening,
 saving and undoing cost about what the cells do ([Sheet size](#sheet-size),

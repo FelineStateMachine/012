@@ -14,19 +14,7 @@ one line.
 
 Sizes: S (a day or two), M (about a week), L (weeks).
 
-### 1. Harden what shipped
-
-| Item | Why | Size |
-|---|---|---|
-| Conditional formatting and validation, what's left: data bars and icon sets, "top 10", "duplicate values", date periods (this week, last month), rules moving with cells cut to another sheet, a dropdown's chip look, and custom checkbox values | Excel's other rule types come in as notes | M |
-
-### 2. Spreadsheet features Sheets users reach for
-
-| Item | Notes | Size |
-|---|---|---|
-| Locale, what's left: month and day names in the locale's language (`mmm`, `dddd`), Excel downloads with the locale's Currency and Date formats | The rest follows the locale: [Locale](docs/sheets/locale.md) | S |
-
-### 3. Scale
+### 1. Scale
 
 The grid is Excel's, 1,048,576 x 16,384, and memory is bounded by the
 `max-cells` budget (ten million cells) rather than the grid. The budget
@@ -59,11 +47,13 @@ by a gateway dialing the iroh ticket.
 - Copy, cut, paste and fill with relative and `$absolute` references; insert and delete rows and columns: [Editing](docs/sheets/editing.md#copy-paste-and-fill)
 - Entries detected as typed (currency, percent, dates, times) and number formats: [Formulas](docs/formulas/README.md#what-you-type)
 - Wrapped and clipped text, row heights, borders and merged cells, in `.012` files and XLSX both ways: [Formatting](docs/sheets/formatting.md#wrapping)
+- Vertical alignment, border colors, outlines along the sheet's edges, merged cells entered as wide as they are and centered by line: [Formatting](docs/sheets/formatting.md#vertical-alignment)
 - Named ranges; several sheets with references between them, hidden sheets: [References](docs/formulas/references.md)
 - Sheets' everyday, math, text, lookup, date and finance functions, checked against excelize: [Functions](docs/reference/functions.md), [Testing](docs/contributing/testing.md#the-excelize-oracle)
 - Dynamic arrays that spill (FILTER, SORT, UNIQUE, SEQUENCE and more, ARRAYFORMULA), LET and LAMBDA, SPLIT and the REGEX functions: [Arrays and spills](docs/formulas/arrays.md)
 - Opt-in decimal arithmetic for money: [Decimal arithmetic](docs/formulas/decimal.md)
 - A locale per file, as Sheets' File > Settings > Locale: decimal commas, date order, currency and `;` in formulas, typed and shown while files store en-US's form: [Locale](docs/sheets/locale.md)
+- Month and day names in the locale's language, Excel downloads in its Currency and Date formats, filters and parse errors in its rendering: [Locale](docs/sheets/locale.md#what-follows-the-locale)
 - An Excel-sized grid in compact column storage, with a ten-million-cell `max-cells` budget; operations cost the data, not the grid: [Bounds of support](docs/contributing/limits.md#sheet-size)
 - Undo steps in the compact form: clearing a full ten-million-cell sheet holds about what the sheet does, and a step past 1 GB asks first: [Bounds of support](docs/contributing/limits.md#undo)
 - Spilled cells and pivot results in the compact form, about 20 B each: [Bounds of support](docs/contributing/limits.md#sheet-size)
@@ -81,6 +71,7 @@ by a gateway dialing the iroh ticket.
 - Freeze, multi-column sort, filters with value pickers and conditions: [Freeze, sort and filter](docs/sheets/sort-filter.md#freeze)
 - Find and replace, with regular expressions, across sheets: [Find and replace](docs/sheets/find-replace.md)
 - Conditional formatting (single-color rules, color scales) and data validation (dropdowns, checkboxes, bounds), checked on pastes and fills and moving with cut and paste: [Conditional formatting and data validation](docs/sheets/rules.md#conditional-formatting)
+- Data bars, icon sets, top values, averages, duplicates and date periods, dropdown chips and checkboxes of their own values, in XLSX both ways; rules moving to other sheets, and macros' pastes and fills checked: [Conditional formatting and data validation](docs/sheets/rules.md#conditional-formatting)
 - Pivot tables and frequency tables, live, with subtotals and renamed values: [Pivot tables](docs/sheets/pivots.md)
 - Notes on cells: [Notes and protection](docs/sheets/notes-protection.md#notes)
 - Protected sheets and ranges that warn on edit: [Notes and protection](docs/sheets/notes-protection.md#protected-sheets-and-ranges)
