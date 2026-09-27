@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,7 @@ func uiShapes() []uiShape {
 			stress.Charts(s, 20)
 			return s
 		}},
+		{"sparse-1M", func() *sheet.Sheet { return stress.Sparse(10000, 100, 1000) }},
 	}
 }
 
@@ -126,6 +128,16 @@ func key(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
 	case "ctrl+a":
 		return tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl}
+	case "ctrl+down":
+		return tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModCtrl}
+	case "ctrl+up":
+		return tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModCtrl}
+	case "ctrl+space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Mod: tea.ModCtrl}
+	case "shift+right":
+		return tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}
+	case "shift+left":
+		return tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift}
 	case "enter":
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
@@ -159,6 +171,11 @@ func BenchmarkKeystroke(b *testing.B) {
 		{"type/fanin-1000", uiShape{"fanin", func() *sheet.Sheet { return stress.FanIn(stress.Rows, 1000) }},
 			nil, []string{"7", "enter", "up"}},
 		{"type/dense-8192x26", uiShapes()[1], nil, []string{"7", "enter", "up"}},
+		{"jump/sparse-1M", uiShapes()[6], nil, []string{"ctrl+down", "ctrl+down", "ctrl+up", "ctrl+up"}},
+		{"select-sheet/sparse-1M", uiShapes()[6], []string{"ctrl+a", "ctrl+a"}, nil},
+		{"extend-column/sparse-1M", uiShapes()[6], []string{"ctrl+space"}, []string{"shift+right", "shift+left"}},
+		{"type/sparse-1M", uiShapes()[6], nil, []string{"7", "enter", "up"}},
+		{"arrow/corner", uiShape{"corner", sheet.New}, []string{"@XFD1048576"}, []string{"up", "left", "down", "right"}},
 	}
 	for _, c := range cases {
 		s := lazy(c.shape.build)
@@ -167,6 +184,12 @@ func BenchmarkKeystroke(b *testing.B) {
 				m := sized(s(), sz.w, sz.h)
 				t := newFakeTerm(sz.w, sz.h)
 				for _, k := range c.setup {
+					if a, ok := strings.CutPrefix(k, "@"); ok { // go to a cell
+						cell, _ := sheet.ParseAddr(a)
+						m.cur = cell
+						m.scrollTo(cell)
+						continue
+					}
 					m.Update(key(k))
 				}
 				i := 0
