@@ -219,7 +219,7 @@ func TestFilterButtonClick(t *testing.T) {
 		t.Fatalf("button at %d in %q", x, line(m, headerLine))
 	}
 	click(m, x, headerLine, 0)
-	if p, ok := m.overlay.(*filterPicker); !ok || p.col != 1 {
+	if p, ok := m.overlay.(*filterPicker); !ok || !strings.HasPrefix(p.title, "Filter B") {
 		t.Fatalf("overlay %T", m.overlay)
 	}
 	// Clicking a value toggles it; clicking outside cancels.

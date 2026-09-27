@@ -37,6 +37,9 @@ type entry struct {
 }
 
 func (m *Model) startEntry(md mode, text string) {
+	if m.refusePivot(sheet.Rect{From: m.cur, To: m.cur}) {
+		return
+	}
 	m.mode = md
 	m.entry.home = nil
 	m.line.clear()
@@ -47,7 +50,7 @@ func (m *Model) startEntry(md mode, text string) {
 // startEdit edits the active cell's contents with the caret at the end.
 func (m *Model) startEdit() tea.Cmd {
 	m.startEntry(modeEdit, "")
-	if c := m.sheet.Cell(m.cur); c != nil {
+	if c := m.sheet.Cell(m.cur); c != nil && m.mode == modeEdit {
 		m.line.set(c.Input)
 	}
 	return nil
