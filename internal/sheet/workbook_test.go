@@ -2,6 +2,7 @@ package sheet
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -445,6 +446,38 @@ func TestDecimalIsWorkbookWide(t *testing.T) {
 	s, err := Read(strings.NewReader(`{"version": 3, "arithmetic": "decimal", "cells": {"A1": "=0.1+0.2"}}`))
 	if err != nil || !s.Decimal() || s.Value(Addr{}).String() != "0.3" {
 		t.Errorf("version 3: %v %v", s, err)
+	}
+}
+
+// BenchmarkCrossSheetEdit edits a cell that thousands of formulas on
+// another sheet read, the case the cross-sheet index scans for.
+func BenchmarkCrossSheetEdit(b *testing.B) {
+	w := NewBook()
+	one := w.Sheet(0)
+	data, _ := w.AddSheet("Data", 1)
+	for i := range 5000 {
+		a := Addr{Row: i}
+		data.put(a, strconv.Itoa(i))
+		one.put(a, "=Data!A"+strconv.Itoa(i+1)+"*2+SUM(Data!A1:A10)")
+	}
+	w.RecalcAll()
+	b.ResetTimer()
+	for i := range b.N {
+		data.Set(Addr{}, strconv.Itoa(i))
+	}
+}
+
+// BenchmarkSameSheetEdit is BenchmarkCrossSheetEdit on one sheet.
+func BenchmarkSameSheetEdit(b *testing.B) {
+	s := New()
+	for i := range 5000 {
+		s.put(Addr{Row: i}, strconv.Itoa(i))
+		s.put(Addr{Col: 1, Row: i}, "=A"+strconv.Itoa(i+1)+"*2+SUM(A1:A10)")
+	}
+	s.RecalcAll()
+	b.ResetTimer()
+	for i := range b.N {
+		s.Set(Addr{}, strconv.Itoa(i))
 	}
 }
 

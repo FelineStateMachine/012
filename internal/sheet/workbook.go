@@ -28,9 +28,11 @@ type Workbook struct {
 	nameUsers map[string]map[loc]struct{}
 
 	// crossUsers are the formulas that reference a sheet by name. Like
-	// range users, they are scanned when a cell changes; cross-sheet
-	// formulas are usually few, so this stays cheap.
+	// range users, they are scanned when a cell changes, but only for
+	// cells on sheets some formula names (crossKeys counts references by
+	// sheetKey), so sheets nobody reads by name cost nothing.
 	crossUsers map[loc]struct{}
+	crossKeys  map[string]int
 
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
@@ -66,6 +68,7 @@ func emptyBook() *Workbook {
 		names:      map[string]Name{},
 		nameUsers:  map[string]map[loc]struct{}{},
 		crossUsers: map[loc]struct{}{},
+		crossKeys:  map[string]int{},
 	}
 }
 
@@ -430,6 +433,9 @@ func (w *Workbook) index(l loc, c *Cell) {
 	if len(c.xrefs) > 0 {
 		w.crossUsers[l] = struct{}{}
 	}
+	for _, x := range c.xrefs {
+		w.crossKeys[x.key]++
+	}
 }
 
 func (w *Workbook) unindex(l loc, c *Cell) {
@@ -440,6 +446,11 @@ func (w *Workbook) unindex(l loc, c *Cell) {
 		}
 	}
 	delete(w.crossUsers, l)
+	for _, x := range c.xrefs {
+		if w.crossKeys[x.key]--; w.crossKeys[x.key] <= 0 {
+			delete(w.crossKeys, x.key)
+		}
+	}
 }
 
 // crossList returns the cross-sheet formulas, so callers may change them

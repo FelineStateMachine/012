@@ -451,6 +451,9 @@ func (w *Workbook) affected(changed []loc) map[loc]int {
 				}
 			}
 		}
+		if w.crossKeys[sheetKey(s.name)] == 0 {
+			continue // no formula names this sheet
+		}
 		for u := range w.crossUsers {
 			if w.crossReads(u, l) {
 				push(u)
