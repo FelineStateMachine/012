@@ -28,7 +28,7 @@ it lags, and past a second it stalls.
 | Sheet size | A grid of 1,048,576 x 16,384 (A..XFD), with up to `max-cells` cells (ten million by default): navigation, drawing and every command cost what the cells cost, not the grid; ten million numbers take 205 MB and build in 2.2 s | Opening a `.012` file of ten million cells: 8 s and 2.7 GB at its peak; saving it: 3.7 s | More than `max-cells` cells: imports keep whole rows up to it and say what they dropped; larger pastes and fills are refused | JSON file format, decoded whole; heap per cell (about 20 B for numbers, 20 to 60 B for real data, 750 B for formulas) |
 | Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1.3 to 1.9 ms); 1000 SUMs over a full column: 0.53 ms; 8192 running totals: 2.7 ms | 60 criteria functions (SUMIF, COUNTIFS, AVERAGEIF) over whole columns of 8192 rows: 29 ms an edit | | About 3 ns per cell read: an index into the column's block |
 | Full recalc | Any sheet: numbers and text hold their values and cost nothing; 1000 full-column SUMs 0.5 ms; 8192 running totals 1.8 ms | 60 whole-column criteria functions over 8192 rows: 44 ms | | Same as above |
-| Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms; a color scale on every cell shown adds 0.4 ms at 200 x 60 | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
+| Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms; a color scale on every cell shown adds 0.4 ms at 200 x 60, borders on every cell and wrapped text 0.4 ms | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
 | Selection statistics | Any selection: extending one over all 2.1 M cells of 8192 x 256 costs 0.3 ms a key | | | Per column with data, 1024 or 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
 | Imports | CSV, SQLite, Parquet: 2 to 4 M cells/s (a million cells in 0.25 to 0.4 s); XLSX numbers or text: 0.8 to 1.4 M cells/s | XLSX with formulas: 0.4 to 0.6 M cells/s | Data past `max-cells` or the grid (dropped, with a note); XLSX files past the reader's limits (refused) | Building cells one at a time; XML decoding; XLSX formula translation |
 | Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 280 MB | | Whole-cell before-images, about 300 B per cell per step |
@@ -107,6 +107,10 @@ What each part of 012 visits when given a range or selection:
 | Exports of a selection, script reads | trimmed to the data |
 | Row numbers, name box | 7 digits (the header widens past 9999), XFD |
 | Column width reset, set | one undo step; a reset touches only columns with a width |
+| Row heights set, fit | one undo step; kept per row, so more than 65,536 rows (whole columns) stop at the last row holding a cell; a fit touches only rows with a height |
+| Borders over whole columns or rows | their line formats, and the cells where formatted lines cross them; the facing edges of the neighbors along the outline |
+| Merging | the cells the range holds; one change makes at most 10,000 merged cells, so merging a whole column's rows is refused |
+| Drawing wrapped text, borders and merges | the rows on screen: the cells of each whose own style wraps or draws borders, from an index by row, and the merges crossing it |
 | XLSX column widths and styles | the data's width (at least 256), a style on A and XFD as the sheet's |
 
 A sheet of 10,000 numbers spread down a million rows under 3000
@@ -204,7 +208,23 @@ every cell on screen a shade), at 200 x 60 (`BenchmarkFrame`,
 | Typing a number and Enter, through to the frame | 0.89 ms | 2.3 ms (the scale's percentile over 213 k numbers) |
 
 Shades and rule colors keep their escape codes, so a plain cell on one
-costs a string concatenation, not a style render. A custom formula is
+costs a string concatenation, not a style render.
+
+Wrapped text, borders, row heights and merged cells cost what the
+screen shows too. A sheet with none of them is drawn a line per row
+without asking more; with them, each row drawn is measured once per
+change to the sheet (the text its cells wrap, from an index of the cells
+that wrap or draw borders, and whether a border lies along its top), and
+a frame keeps each border string it has drawn in a role for the rest of
+the frame. `laidout-8192x26` borders every cell of 8192 x 26 numbers,
+wraps a column of notes over three lines and merges a title across the
+top (`BenchmarkFrame`, `BenchmarkKeystroke`):
+
+| | 80 x 24 | 200 x 60 | 400 x 120 |
+|---|---|---|---|
+| 8192 x 26 numbers, a frame | 0.18 ms | 0.90 ms | 3.1 ms |
+| The same laid out, a frame | 0.24 ms | 1.28 ms | 4.3 ms |
+| The same laid out, an arrow key through to its frame | 0.25 ms | 1.25 ms | | A custom formula is
 evaluated for each cell drawn, once per recalculation, with its
 references moved for the cell.
 
