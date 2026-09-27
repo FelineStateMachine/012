@@ -80,7 +80,7 @@ func (e *evaluator) compute(s *Sheet, a Addr) Value {
 		return ErrRef
 	case st != dirty:
 		return c.Value
-	case c.derived: // a pivot's result, set when the pivot was computed
+	case c.derived || c.spilled: // a pivot's or an array's result, set when it was computed
 		s.calc[a] = done
 		return c.Value
 	case c.expr != nil && w.depth >= maxEvalDepth:
@@ -117,7 +117,9 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 	expr := s.bound(c)
 	outer := w.evaluating
 	w.evaluating = loc{s, a}
-	c.Value = functions.EvalAt(w.arith(expr), s.calcGet.lib, a)
+	v, arr := functions.EvalCell(w.arith(expr), s.calcGet.lib, a)
+	c.Value = v
+	w.noteSpill(loc{s, a}, arr, v)
 	w.evaluating = outer
 	c.auto = functions.InferFormat(expr, s.calcFmt)
 	w.depth--

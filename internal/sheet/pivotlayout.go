@@ -442,7 +442,7 @@ func derivedInput(v Value) string {
 // plain returns a copy of c as an ordinary cell: a pivot's result becomes
 // the constant it shows, so copying results pastes values.
 func (c *Cell) plain() *Cell {
-	if c == nil || !c.derived {
+	if c == nil || !c.derived && !c.spilled {
 		return c.clone()
 	}
 	p, err := newCell(valueInput(c.Value), c.Format, c.Style, false)

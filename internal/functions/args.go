@@ -13,7 +13,7 @@ import (
 // meet, as Sheets does.
 
 func numArg(n Node, get lookup) (float64, *Value) {
-	v := eval(n, get)
+	v := eval1(n, get)
 	if v.Kind == value.Error {
 		return 0, errOf(v)
 	}
@@ -51,7 +51,7 @@ func intArg(args []Node, i int, def float64, get lookup) (int, *Value) {
 }
 
 func textArg(n Node, get lookup) (string, *Value) {
-	v := eval(n, get)
+	v := eval1(n, get)
 	if v.Kind == value.Error {
 		return "", errOf(v)
 	}
@@ -99,14 +99,35 @@ func (m matrix) dataLen() int {
 }
 
 func matrixArg(n Node, get lookup) matrix {
-	switch n := n.(type) {
+	switch n := get.refOf(n).(type) {
 	case formula.Range:
 		return rectMatrix(n.Sheet, n.Rect, get)
 	case formula.Ref:
 		return rectMatrix(n.Sheet, Rect{From: n.Addr, To: n.Addr}, get)
 	}
-	v := evalArray(n, get)
+	v := wholeArg(n, get)
+	if a := get.arrayOf(v); a != nil {
+		return arrayMatrix(a)
+	}
+	if v.Kind == value.Array {
+		v = value.ErrValue // a LAMBDA
+	}
 	return matrix{rows: 1, cols: 1, cell: func(int, int) Value { return v }, dataRows: 1, dataCols: 1, blank: v}
+}
+
+// arrayMatrix is an array as a block of values.
+func arrayMatrix(a *Array) matrix {
+	return matrix{rows: a.Rows, cols: a.Cols, cell: a.At, dataRows: a.DRows, dataCols: a.DCols, blank: a.Fill}
+}
+
+// wholeArg evaluates an argument that takes ranges or arrays, in an
+// array context: the whole of an argument standing in for one being
+// mapped over (liftArg), not its entry.
+func wholeArg(n Node, get lookup) Value {
+	if a, ok := n.(liftArg); ok {
+		return a.value(get)
+	}
+	return evalArr(n, get)
 }
 
 func rectMatrix(sheet string, r Rect, get lookup) matrix {
@@ -129,6 +150,13 @@ func rectMatrix(sheet string, r Rect, get lookup) matrix {
 		}
 		return get.cell(sheet, Addr{Col: r.From.Col + col, Row: r.From.Row + row})
 	}
+	return m
+}
+
+// part is the top-left rows x cols of a block that isn't a range.
+func (m matrix) part(rows, cols int) matrix {
+	m.rows, m.cols = rows, cols
+	m.dataRows, m.dataCols = min(m.dataRows, rows), min(m.dataCols, cols)
 	return m
 }
 
@@ -188,7 +216,7 @@ func textsWithBlanks(args []Node, get lookup, limit int) ([]string, *Value) {
 		}
 	}
 	for _, arg := range args {
-		rn, ok := arg.(formula.Range)
+		rn, ok := get.refOf(arg).(formula.Range)
 		if !ok {
 			if e := eachOf(arg, get, func(v Value, _ bool) *Value {
 				if v.Kind == value.Error {

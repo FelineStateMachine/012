@@ -27,7 +27,7 @@ func TestLookupFunctions(t *testing.T) {
 		{"=INDEX(D1:D3, 3)", txt("Cherry")},
 		{"=INDEX(C1:E1, 2)", txt("Apple")}, // a single row counts across
 		{"=INDEX(D1:E3, 4, 1)", ErrRef},
-		{"=INDEX(D1:E3, 2)", ErrValue}, // a whole row
+		{"=INDEX(D1:E3, 2)", txt("Banana")}, // a whole row, spilled
 		{`=XLOOKUP("Cherry", D1:D3, E1:E3)`, num(3.5)},
 		{`=XLOOKUP("kiwi", D1:D3, E1:E3)`, ErrNA},
 		{`=XLOOKUP("kiwi", D1:D3, E1:E3, "none")`, txt("none")},

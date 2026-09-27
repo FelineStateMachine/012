@@ -35,6 +35,16 @@ func (s *Sheet) explain(a Addr, path []loc) string {
 	if c != nil && c.derived && v.Kind == Error && s.pivot.err != "" {
 		return s.pivot.err
 	}
+	if why := s.spillError(a); why != "" && v == ErrRef {
+		return why
+	}
+	if anchor, ok := s.SpillAnchor(a); ok && v.Kind == Error {
+		why := s.explain(anchor, path)
+		if why == "" {
+			return "Spilled from " + anchor.String()
+		}
+		return "Spilled from " + anchor.String() + ": " + strings.ToLower(why[:1]) + why[1:]
+	}
 	if c == nil || v.Kind != Error || !c.IsFormula() {
 		return ""
 	}

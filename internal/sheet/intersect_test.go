@@ -29,7 +29,7 @@ func TestImplicitIntersection(t *testing.T) {
 			"F2": "2800", "F3": "2900", "F4": "3000", "F5": "#VALUE!",
 			"G3": "1450", "G4": "1500", "G5": "1",
 			"H3": "4350", "H4": "4350", "H2": "2",
-			"H5": "#VALUE!", "H6": "#VALUE!", // array arguments: not intersected
+			"H5": "8700", "H6": "8700", // array arguments: computed over the whole range
 			"C7": "21", "E7": "#VALUE!", "A8": "#VALUE!",
 			"J3": "1450", "K3": "1450!", "L3": "2",
 		} {

@@ -86,7 +86,7 @@ func (s *Sheet) Replace(a Addr, query, repl string, o FindOptions) (bool, error)
 
 func (s *Sheet) replace(a Addr, f *finder, repl string) (bool, error) {
 	c := s.cells.get(a)
-	if c == nil || c.derived || (c.IsFormula() && !f.o.InFormulas) {
+	if c == nil || c.derived || c.spilled || (c.IsFormula() && !f.o.InFormulas) {
 		return false, nil
 	}
 	old := f.text(c)

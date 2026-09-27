@@ -303,14 +303,14 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 	}
 	addrs := make([]Addr, 0, s.cells.len())
 	for a, c := range s.cells.all() {
-		if !c.derived { // a pivot's results are computed, not saved
+		if c.saved() != nil {
 			addrs = append(addrs, a)
 		}
 	}
 	sortAddrs(addrs)
 	b.WriteString(indent + `"cells": {`)
 	for i, a := range addrs {
-		raw, err := encodeCell(s.cells.get(a))
+		raw, err := encodeCell(s.cells.get(a).saved())
 		if err != nil {
 			return err
 		}

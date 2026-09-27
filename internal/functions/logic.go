@@ -4,13 +4,13 @@ import "github.com/FelineStateMachine/012/internal/value"
 
 func init() {
 	define(
-		&FuncDef{Name: "IFS", Args: "condition1, value1, [condition2, value2, ...]", Desc: "The value of the first true condition", Min: 2, Max: -1, step: 2,
+		&FuncDef{Name: "IFS", Args: "condition1, value1, [condition2, value2, ...]", Desc: "The value of the first true condition", Min: 2, Max: -1, step: 2, arrays: liftPass,
 			eval: ifs, format: ifsFormat},
-		&FuncDef{Name: "SWITCH", Args: "expression, case1, value1, [case2, value2, ...], [default]", Desc: "The value for the first case equal to an expression", Min: 3, Max: -1,
+		&FuncDef{Name: "SWITCH", Args: "expression, case1, value1, [case2, value2, ...], [default]", Desc: "The value for the first case equal to an expression", Min: 3, Max: -1, arrays: liftPass,
 			eval: switchCase},
 		&FuncDef{Name: "XOR", Args: "logical1, [logical2, ...]", Desc: "TRUE if an odd number of arguments are true", Min: 1, Max: -1,
 			eval: logical(func(t, _ int) bool { return t%2 == 1 })},
-		&FuncDef{Name: "IFNA", Args: "value, value_if_na", Desc: "A fallback when a value is #N/A", Min: 2, Max: 2,
+		&FuncDef{Name: "IFNA", Args: "value, value_if_na", Desc: "A fallback when a value is #N/A", Min: 2, Max: 2, arrays: liftPass,
 			eval: ifNA, format: inherit},
 		&FuncDef{Name: "ISBLANK", Args: "value", Desc: "TRUE if a cell is empty", Min: 1, Max: 1,
 			eval: is(func(v Value) bool { return v.Kind == value.Empty })},
@@ -53,13 +53,13 @@ func ifsFormat(args []Node, infer func(Node) Format) Format {
 }
 
 func switchCase(args []Node, get lookup) Value {
-	x := eval(args[0], get)
+	x := eval1(args[0], get)
 	if x.Kind == value.Error {
 		return x
 	}
 	i := 1
 	for ; i+1 < len(args); i += 2 {
-		c := eval(args[i], get)
+		c := eval1(args[i], get)
 		if c.Kind == value.Error {
 			return c
 		}

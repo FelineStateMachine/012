@@ -22,7 +22,7 @@ type pos struct{ r, c int }
 // ask with denseReads).
 func (m matrix) storedPos(get lookup) ([]pos, bool) {
 	if !m.ref {
-		return []pos{{}}, true
+		return denseArea(m), true
 	}
 	if get.dense {
 		return nil, false

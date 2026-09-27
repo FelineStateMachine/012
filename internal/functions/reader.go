@@ -52,8 +52,27 @@ type Reader struct {
 	bufs  []*scanBuf
 	level int // how many of bufs are in use by range reads in progress
 
-	here   Addr // the cell whose formula is being evaluated; see EvalAt
-	arrays int  // how many arguments taking ranges enclose the operator being evaluated; see evalArray
+	evalState
+	// arena holds the arrays and LAMBDAs of the formulas being evaluated
+	// (array.go), emptied when the outermost is done; nest counts them.
+	arena []any
+	nest  int
+}
+
+// evalState is where a formula's evaluation is: saved while a cell it
+// reads is evaluated through the same Reader, and given back after.
+type evalState struct {
+	here Addr // the cell whose formula is being evaluated; see EvalAt
+	// wantArr is set when the expression being evaluated may compute an
+	// array: at the top of a cell's formula, in operands and in what
+	// IF-like functions return. Elsewhere an array reads as its first
+	// entry (Reader.reduce).
+	wantArr bool
+	// lift counts the array contexts enclosing the expression: ranges
+	// read whole and functions of one value are mapped over arrays.
+	lift int
+	// scope holds the names LET and LAMBDA bound, innermost last.
+	scope []binding
 }
 
 // lookup is the parameter every evaluator takes.

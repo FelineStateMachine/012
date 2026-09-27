@@ -39,7 +39,12 @@ type Cell struct {
 	names    []string // names in expr, as keys of Workbook.names
 	volatile bool     // expr calls TODAY, NOW, RAND...
 	derived  bool     // a pivot table's result, owned by the engine: see pivot.go
+	spilled  bool     // part of an array a formula spills, owned by it: see spill.go
 }
+
+// Spilled reports whether the cell shows part of an array another
+// cell's formula computed (see SpillAnchor).
+func (c *Cell) Spilled() bool { return c != nil && c.spilled }
 
 // IsFormula reports whether the cell holds a formula.
 func (c *Cell) IsFormula() bool {
@@ -86,6 +91,11 @@ type Sheet struct {
 
 	charts []Chart    // floating charts, bottom first; see chart.go
 	pivot  pivotState // the sheet's pivot table, if any; see pivot.go
+
+	// spills are the arrays formulas spill, by the anchor's address, and
+	// spillAt the anchors by the cells they cover; see spill.go.
+	spills  map[Addr]*spill
+	spillAt rangeIndex
 
 	view   viewState   // frozen panes and the filter, see view.go
 	hidden hiddenCache // rows the filter hides, see filter.go
@@ -216,6 +226,9 @@ func (s *Sheet) Set(a Addr, input string) error {
 	if s.InPivot(Rect{From: a, To: a}) {
 		return ErrPivotEdit
 	}
+	if _, ok := s.SpillAnchor(a); ok {
+		return ErrSpillEdit
+	}
 	var err error
 	s.change("edit "+a.String(), Rect{From: a, To: a}, func() { err = s.put(a, input) })
 	return err
@@ -306,14 +319,21 @@ func (c *Cell) setExpr(n Node) {
 
 // place stores c at a (nil blanks it), recording the old cell for undo and
 // keeping the dependency indexes current. Every cell mutation goes through
-// here, except a pivot table writing its results (setDerived). Anything
-// placed over those has the pivot recomputed, which reports it in the way.
+// here, except a pivot table or a spill writing its results (setDerived).
+// Anything placed over those has the pivot or the spill's formula
+// recomputed, which reports it in the way. A spilled cell placed (by undo,
+// a move or a format) places only its formatting: its value is its
+// anchor's to write.
 func (s *Sheet) place(a Addr, c *Cell) {
 	s.version++
 	s.record(a)
 	if s.pivot.def != nil && (s.pivot.out.Contains(a) || s.pivot.err != "" && s.pivot.blocked.Contains(a)) {
 		s.pivot.stale = true
 	}
+	if c.Spilled() {
+		c = formattingOnly(c.Format, c.Style)
+	}
+	s.spillTouched(a, c)
 	if c == nil {
 		s.unlink(a)
 		return

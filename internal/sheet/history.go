@@ -447,6 +447,8 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		s.view = *v
 		s.hidden.valid = false
 	}
+	changed = append(changed, h.dirty...) // anchors of spills the step touched
+	h.dirty = nil
 	if w.structural {
 		w.structural = false
 		w.recalcAll()

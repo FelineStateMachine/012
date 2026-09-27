@@ -29,13 +29,32 @@ type FuncDef struct {
 	format func(args []Node, infer func(Node) Format) Format
 	// remote builds the question a JEV function asks (functions_jev.go).
 	remote func(args []Node, get lookup) (RemoteCall, error)
+	// arrays is how the function meets arrays (array.go).
+	arrays arrayUse
+	// binds is how its arguments bind names, for LET and LAMBDA.
+	binds formula.Binding
 }
+
+// arrayUse is how a function meets arrays.
+type arrayUse uint8
+
+const (
+	// liftScalar takes and returns one value; in an array context it is
+	// applied to each entry of the arrays it's given (lift.go).
+	liftScalar arrayUse = iota
+	// liftPass is liftScalar, but what it returns may be an array one of
+	// its arguments computed (IF, IFERROR, CHOOSE, INDEX).
+	liftPass
+	// takesArrays reads arrays itself and may return one (FILTER, SORT,
+	// ARRAYFORMULA, LET): it is never mapped over arrays.
+	takesArrays
+)
 
 func (f *FuncDef) call(args []Node, get lookup) Value { return f.eval(args, get) }
 
 // Signature is how the parser checks calls to f.
 func (f *FuncDef) Signature() formula.Signature {
-	return formula.Signature{Name: f.Name, Args: f.Args, Min: f.Min, Max: f.Max, Step: f.step}
+	return formula.Signature{Name: f.Name, Args: f.Args, Min: f.Min, Max: f.Max, Step: f.step, Binds: f.binds}
 }
 
 // Remote reports whether f asks a remote question (JEV functions).
@@ -134,9 +153,9 @@ func init() {
 		&FuncDef{Name: "TRUE", Desc: "The logical value TRUE", Max: 0, eval: constant(boolean(true))},
 		&FuncDef{Name: "FALSE", Desc: "The logical value FALSE", Max: 0, eval: constant(boolean(false))},
 		&FuncDef{Name: "NA", Desc: "The #N/A error", Max: 0, eval: constant(value.ErrNA)},
-		&FuncDef{Name: "IF", Args: "condition, value_if_true, [value_if_false]", Desc: "Choose a value by a condition", Min: 2, Max: 3,
+		&FuncDef{Name: "IF", Args: "condition, value_if_true, [value_if_false]", Desc: "Choose a value by a condition", Min: 2, Max: 3, arrays: liftPass,
 			eval: func(args []Node, get lookup) Value {
-				c := eval(args[0], get)
+				c := eval1(args[0], get)
 				if c.Kind == value.Error {
 					return c
 				}
@@ -152,7 +171,7 @@ func init() {
 				}
 				return eval(args[2], get)
 			}, format: func(args []Node, infer func(Node) Format) Format { return inherit(args[1:], infer) }},
-		&FuncDef{Name: "IFERROR", Args: "value, [value_if_error]", Desc: "A fallback when a value is an error", Min: 1, Max: 2,
+		&FuncDef{Name: "IFERROR", Args: "value, [value_if_error]", Desc: "A fallback when a value is an error", Min: 1, Max: 2, arrays: liftPass,
 			eval: func(args []Node, get lookup) Value {
 				v := eval(args[0], get)
 				if v.Kind != value.Error {
@@ -199,7 +218,7 @@ func each(args []Node, get lookup, fn func(v Value, direct bool) *Value) *Value 
 }
 
 func eachOf(arg Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
-	switch arg := arg.(type) {
+	switch arg := get.refOf(arg).(type) {
 	case formula.Ref:
 		return fn(get.cell(arg.Sheet, arg.Addr), false)
 	case formula.Empty:
@@ -212,7 +231,36 @@ func eachOf(arg Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
 		})
 		return e
 	}
-	return fn(evalArray(arg, get), true)
+	v := wholeArg(arg, get)
+	if a := get.arrayOf(v); a != nil {
+		return eachEntry(a, fn)
+	}
+	if v.Kind == value.Array {
+		v = value.ErrValue // a LAMBDA
+	}
+	return fn(v, true)
+}
+
+// eachEntry calls fn with the entries of an array, as a range's cells:
+// those it stores, then the rest, all its fill, unless that is blank.
+func eachEntry(a *Array, fn func(v Value, direct bool) *Value) *Value {
+	for _, v := range a.V {
+		if v.Kind == value.Empty {
+			continue
+		}
+		if e := fn(v, false); e != nil {
+			return e
+		}
+	}
+	if a.Fill.Kind == value.Empty {
+		return nil
+	}
+	for range a.size() - len(a.V) {
+		if e := fn(a.Fill, false); e != nil {
+			return e
+		}
+	}
+	return nil
 }
 
 // Add counts v into the aggregate, with SUM's rules: blanks are skipped,
@@ -253,7 +301,7 @@ func aggregate(done func(Agg) Value) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
 		s := NewAgg()
 		for _, arg := range args {
-			if rn, ok := arg.(formula.Range); ok {
+			if rn, ok := get.refOf(arg).(formula.Range); ok {
 				var e *Value
 				if s, e = rangeAgg(rn, s, get); e != nil {
 					return *e

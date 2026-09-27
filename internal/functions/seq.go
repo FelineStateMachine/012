@@ -21,7 +21,12 @@ type seq struct {
 // searches it: through the cells it holds, when it is a range.
 func lineSeq(m matrix, get lookup, vertical bool) seq {
 	line := m
-	if m.ref {
+	switch {
+	case !m.ref && vertical && m.cols > 1:
+		line = m.part(m.rows, 1)
+	case !m.ref && !vertical && m.rows > 1:
+		line = m.part(1, m.cols)
+	case m.ref:
 		to := Addr{Col: m.origin.Col, Row: m.origin.Row + m.rows - 1}
 		if !vertical {
 			to = Addr{Col: m.origin.Col + m.cols - 1, Row: m.origin.Row}

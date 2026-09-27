@@ -22,6 +22,11 @@ const (
 	Text
 	Bool
 	Error
+	// Array marks an array or LAMBDA while a formula is evaluated
+	// (internal/functions keeps them; Num says which). No cell ever holds
+	// one: a formula computing an array shows its first value and spills
+	// the rest.
+	Array
 )
 
 // Value is the computed contents of a cell.

@@ -36,6 +36,7 @@ func (w *Workbook) recalcAll() {
 		n += len(s.calc)
 	}
 	w.evaluate()
+	w.settleSpills(nil)
 	w.refreshPivots(w.allPivots())
 	w.observe(true, start, n)
 }
@@ -60,7 +61,7 @@ func (w *Workbook) recalcFrom(changed []loc, volatiles bool) {
 	n := w.affected(changed, volatiles)
 	stale := w.stalePivots()
 	w.evaluate()
-	w.refreshPivots(stale)
+	w.refreshPivots(w.settleSpills(stale))
 	w.observe(false, start, n)
 }
 
@@ -68,6 +69,13 @@ func (w *Workbook) recalcFrom(changed []loc, volatiles bool) {
 // formulas if volatiles is set, and every formula that transitively reads
 // them, on any sheet, and returns how many it marked.
 func (w *Workbook) affected(changed []loc, volatiles bool) int {
+	return w.affectedBy(changed, nil, volatiles)
+}
+
+// affectedBy is affected, with the formulas reading the cells of
+// readers marked too, but not those cells: spilling changed what an
+// anchor shows (spill.go), not its formula.
+func (w *Workbook) affectedBy(changed, readers []loc, volatiles bool) int {
 	m := marking{w: w, queue: append([]loc(nil), changed...), named: w.namedInUse(), byName: map[*Sheet]bool{}}
 	for _, s := range w.sheets {
 		s.calc = make(map[Addr]int)
@@ -78,6 +86,9 @@ func (w *Workbook) affected(changed []loc, volatiles bool) int {
 		for a := range s.volatile {
 			m.queue = append(m.queue, loc{s, a})
 		}
+	}
+	for _, l := range readers {
+		m.readersOf(l)
 	}
 	n := 0
 	for len(m.queue) > 0 {

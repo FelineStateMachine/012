@@ -28,6 +28,7 @@ var categories = []struct{ file, title string }{
 	{"logic.go", "Logic and information"},
 	{"text.go", "Text"},
 	{"lookup.go", "Lookup"},
+	{"dynamic.go", "Arrays"},
 	{"date.go", "Date and time"},
 	{"finance.go", "Finance"},
 	{"link.go", "Links"},

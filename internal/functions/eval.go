@@ -7,22 +7,51 @@ import (
 	"github.com/FelineStateMachine/012/internal/value"
 )
 
-// Eval computes a formula, reading the cells it refers to through get.
-// A range where one value is wanted reads as the cell in the row or
-// column last given to EvalAt (see intersect).
-func Eval(n Node, get *Reader) Value { return eval(n, get) }
+// Eval computes a formula where one value is wanted, reading the cells
+// it refers to through get. A range where one value is wanted reads as
+// the cell in the row or column last given to EvalAt (see intersect),
+// and an array as its first entry.
+func Eval(n Node, get *Reader) Value { return EvalAt(n, get, get.here) }
 
-// EvalAt computes the formula in the cell at, so that a range used where
-// one value is wanted reads as the cell in at's row or column (implicit
-// intersection, as Sheets and Excel do). Evaluations nest, one cell's
-// formula reading another's through the same Reader, so the cell before
-// is given back afterwards.
+// EvalAt computes the formula in the cell at as one value, so that a
+// range used where one value is wanted reads as the cell in at's row or
+// column (implicit intersection, as Sheets and Excel do). Evaluations
+// nest, one cell's formula reading another's through the same Reader, so
+// the cell before is given back afterwards.
 func EvalAt(n Node, get *Reader, at Addr) Value {
-	outer := get.here
-	get.here = at
-	v := eval(n, get)
-	get.here = outer
+	v, _ := evalTop(n, get, at, false)
 	return v
+}
+
+// EvalCell computes the formula in the cell at, as EvalAt, and the array
+// it computes when that is several values: the cell shows the first, and
+// the engine spills the array from it. A 1x1 array is one value.
+func EvalCell(n Node, get *Reader, at Addr) (Value, *Array) {
+	return evalTop(n, get, at, true)
+}
+
+// evalTop evaluates a cell's formula with a fresh evaluation state,
+// saving the state of the formula it nests in (a cell read while another
+// is evaluated).
+func evalTop(n Node, get *Reader, at Addr, arrays bool) (Value, *Array) {
+	saved := get.evalState
+	get.evalState = evalState{here: at, wantArr: arrays}
+	get.nest++
+	// Deferred, so an evaluation the engine abandons part way (its
+	// evaluate.go) leaves the Reader as it found it.
+	defer get.leave(saved)
+	v := eval(n, get)
+	return get.first(v), get.arrayOf(v)
+}
+
+// leave gives back the evaluation state saved, emptying the arena when
+// the outermost formula is done.
+func (rd *Reader) leave(saved evalState) {
+	if rd.nest--; rd.nest == 0 {
+		clear(rd.arena)
+		rd.arena = rd.arena[:0]
+	}
+	rd.evalState = saved
 }
 
 func eval(n Node, get lookup) Value {
@@ -42,6 +71,9 @@ func eval(n Node, get lookup) Value {
 	case formula.Empty:
 		return Value{}
 	case formula.Range:
+		if get.lift > 0 {
+			return get.rangeArray(n.Sheet, n.Rect)
+		}
 		if a, ok := get.intersect(n.Rect); ok {
 			return get.cell(n.Sheet, a)
 		}
@@ -55,13 +87,44 @@ func eval(n Node, get lookup) Value {
 	case decBinary:
 		return evalBinary(formula.Binary(n), get, true)
 	case formula.Call:
-		*get.depth++ // see the engine's evaluate.go; operators count in theirs
-		arrays := get.arrays
-		get.arrays = 0 // a function's own arguments take one value again
-		v := funcOf(n).call(n.Args, get)
-		get.arrays = arrays
-		*get.depth--
-		return v
+		return evalCall(n, get)
+	}
+	return get.reduce(evalOther(n, get))
+}
+
+// evalCall calls a function. In an array context a function of one
+// value is mapped over the arrays it's given (lift.go); otherwise its
+// arguments are read as it reads them, and what it returns is one value
+// unless the caller asked for an array.
+func evalCall(n formula.Call, get lookup) Value {
+	*get.depth++ // see the engine's evaluate.go; operators count in theirs
+	f := funcOf(n)
+	var v Value
+	if get.lift > 0 && f.arrays != takesArrays {
+		v = liftCall(f, n.Args, get)
+	} else {
+		want := get.wantArr
+		get.wantArr = f.arrays != liftScalar
+		v = f.call(n.Args, get)
+		get.wantArr = want
+	}
+	*get.depth--
+	return get.reduce(v)
+}
+
+// evalOther evaluates what formulas rarely hold: array literals, names
+// LET and LAMBDA bind, LAMBDA calls, and arguments standing in for
+// arrays being mapped over.
+func evalOther(n Node, get lookup) Value {
+	switch n := n.(type) {
+	case formula.Array:
+		return get.literal(n)
+	case formula.Local:
+		return get.local(n.Name)
+	case formula.Invoke:
+		return get.invoke(n)
+	case liftArg:
+		return n.one(get)
 	}
 	return value.ErrValue
 }
@@ -72,10 +135,17 @@ func evalUnary(n formula.Unary, get lookup, dec bool) Value {
 	*get.depth++
 	x := eval(n.X, get)
 	*get.depth--
+	if x.Kind == value.Array {
+		return get.reduce(get.elementwise(x, Value{}, func(x, _ Value) Value { return unaryOp(n.Op, x, dec) }))
+	}
+	return unaryOp(n.Op, x, dec)
+}
+
+func unaryOp(op string, x Value, dec bool) Value {
 	if x.Kind == value.Error {
 		return x
 	}
-	switch n.Op {
+	switch op {
 	case "-":
 		f, err := toNum(x)
 		if err != nil {
@@ -109,30 +179,24 @@ func evalBinary(n formula.Binary, get lookup, dec bool) Value {
 	*get.depth++
 	l, r := eval(n.L, get), eval(n.R, get)
 	*get.depth--
+	if l.Kind == value.Array || r.Kind == value.Array {
+		return get.reduce(get.elementwise(l, r, func(l, r Value) Value { return binaryOp(n.Op, l, r, dec) }))
+	}
+	return binaryOp(n.Op, l, r, dec)
+}
+
+func binaryOp(op string, l, r Value, dec bool) Value {
 	if l.Kind == value.Error {
 		return l
 	}
 	if r.Kind == value.Error {
 		return r
 	}
-	switch n.Op {
+	switch op {
 	case "&":
 		return Value{Kind: value.Text, Str: text(l) + text(r)}
 	case "=", "<>", "<", ">", "<=", ">=":
-		c := compare(l, r)
-		switch n.Op {
-		case "=":
-			return boolean(c == 0)
-		case "<>":
-			return boolean(c != 0)
-		case "<":
-			return boolean(c < 0)
-		case ">":
-			return boolean(c > 0)
-		case "<=":
-			return boolean(c <= 0)
-		}
-		return boolean(c >= 0)
+		return boolean(cmpResult(op, compare(l, r)))
 	}
 	a, err := toNum(l)
 	if err != nil {
@@ -143,11 +207,11 @@ func evalBinary(n formula.Binary, get lookup, dec bool) Value {
 		return *err
 	}
 	if dec {
-		if v, ok := decArith(n.Op, a, b); ok {
+		if v, ok := decArith(op, a, b); ok {
 			return v
 		}
 	}
-	switch n.Op {
+	switch op {
 	case "+":
 		return num(a + b)
 	case "-":
@@ -170,12 +234,8 @@ func evalBinary(n formula.Binary, get lookup, dec bool) Value {
 }
 
 // intersect is the cell a range stands for where one value is wanted
-// (Intersect), in the formula being evaluated. Inside an argument that
-// takes ranges (evalArray) only a single cell does.
+// (Intersect), in the formula being evaluated.
 func (rd *Reader) intersect(r Rect) (Addr, bool) {
-	if rd.arrays > 0 && r.From != r.To {
-		return Addr{}, false
-	}
 	return Intersect(r, rd.here)
 }
 
@@ -194,15 +254,4 @@ func Intersect(r Rect, at Addr) (Addr, bool) {
 		return Addr{Col: at.Col, Row: r.From.Row}, true
 	}
 	return Addr{}, false
-}
-
-// evalArray computes an expression given to an argument that takes
-// ranges (SUM(B2:B4*2), SUMPRODUCT(A1:A3*B1:B3)). Sheets computes those
-// over whole arrays, which 012 doesn't, so ranges in them stay #VALUE!
-// rather than reading one cell each.
-func evalArray(n Node, get lookup) Value {
-	get.arrays++
-	v := eval(n, get)
-	get.arrays--
-	return v
 }

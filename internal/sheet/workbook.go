@@ -65,6 +65,9 @@ type Workbook struct {
 	// pivotDepth counts pivots refreshed because a pivot they read
 	// changed, to stop a loop; see pivotlayout.go.
 	pivotDepth int
+	// spillWork is the arrays an evaluation pass computed, to spill once
+	// it's done; see spill.go.
+	spillWork spillWork
 }
 
 // loc is a cell on a particular sheet.

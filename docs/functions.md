@@ -2,7 +2,7 @@
 
 <!-- Generated from the engine's function table by TestFunctionsDoc; do not edit. -->
 
-012 has 120 functions. They follow Google Sheets' names, arguments and
+012 has 130 functions. They follow Google Sheets' names, arguments and
 semantics; `[brackets]` mark optional arguments. Function names are
 case-insensitive, and 1-2-3's `@SUM(A1..A5)` spelling still works.
 
@@ -127,6 +127,21 @@ Aliases: `AVG` for `AVERAGE`.
 | `ROWS(range)` | Number of rows in a range |
 | `VLOOKUP(search_key, range, index, [is_sorted])` | Find a key in the first column and return a value from its row |
 | `XLOOKUP(search_key, lookup_range, result_range, [missing_value], [match_mode], [search_mode])` | Find a key and return the matching entry of another range |
+
+## Arrays
+
+| Function | Description |
+|---|---|
+| `ARRAYFORMULA(array_formula)` | Compute a formula over arrays: ranges read whole, and functions of one value applied to each entry |
+| `CHOOSECOLS(array, col_num1, [col_num2, ...])` | Columns of an array by position, negative from the end |
+| `CHOOSEROWS(array, row_num1, [row_num2, ...])` | Rows of an array by position, negative from the end |
+| `FILTER(range, condition1, [condition2, ...])` | The rows (or columns) of a range where every condition is true |
+| `FLATTEN(range1, [range2, ...])` | Every entry of ranges in one column, row by row |
+| `SEQUENCE(rows, [columns], [start], [step])` | An array of numbers counting up from start by step |
+| `SORT(range, [sort_column], [is_ascending], [sort_column2, is_ascending2, ...])` | The rows of a range sorted by columns |
+| `SORTN(range, [n], [display_ties_mode], [sort_column1, is_ascending1, ...])` | The first n rows of a range after sorting |
+| `TRANSPOSE(array_or_range)` | Rows as columns and columns as rows |
+| `UNIQUE(range, [by_column], [exactly_once])` | The distinct rows (or columns) of a range, in order |
 
 ## Date and time
 

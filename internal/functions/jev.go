@@ -82,7 +82,7 @@ func (e inputError) Error() string { return e.v.Str }
 // of more than jevWhole cells leaves off the blank rows and columns past
 // its data, so a whole column is its data.
 func jevState(n Node, get lookup) (any, error) {
-	if rn, ok := n.(formula.Range); ok {
+	if rn, ok := get.refOf(n).(formula.Range); ok {
 		m := rectMatrix(rn.Sheet, rn.Rect, get)
 		if m.blank.Kind == value.Error {
 			return nil, inputError{m.blank}
@@ -148,7 +148,7 @@ func jevQuestion(n Node, get lookup) (string, error) {
 // skipped.
 func jevList(n Node, get lookup) ([]string, error) {
 	var out []string
-	if rn, ok := n.(formula.Range); ok {
+	if rn, ok := get.refOf(n).(formula.Range); ok {
 		var err error
 		get.cells(rn.Sheet, rn.Rect, func(_ Addr, v Value) bool {
 			if v.Kind == value.Error {

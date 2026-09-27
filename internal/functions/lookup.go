@@ -18,7 +18,7 @@ func init() {
 			eval: index, format: inheritFrom(0)},
 		&FuncDef{Name: "XLOOKUP", Args: "search_key, lookup_range, result_range, [missing_value], [match_mode], [search_mode]", Desc: "Find a key and return the matching entry of another range", Min: 3, Max: 6,
 			eval: xlookup, format: inheritFrom(2)},
-		&FuncDef{Name: "CHOOSE", Args: "index, choice1, [choice2, ...]", Desc: "The choice at a position", Min: 2, Max: -1,
+		&FuncDef{Name: "CHOOSE", Args: "index, choice1, [choice2, ...]", Desc: "The choice at a position", Min: 2, Max: -1, arrays: liftPass,
 			eval: choose},
 		&FuncDef{Name: "ROWS", Args: "range", Desc: "Number of rows in a range", Min: 1, Max: 1,
 			eval: func(args []Node, get lookup) Value { return num(float64(matrixArg(args[0], get).rows)) }},
@@ -82,12 +82,35 @@ func index(args []Node, get lookup) Value {
 		col = 1
 	}
 	switch {
-	case row == 0 || col == 0:
-		return value.ErrValue // a whole row or column: an array we can't show
 	case row > m.rows || col > m.cols:
 		return value.ErrRef
+	case row == 0 || col == 0: // a whole column, row or both: an array
+		return get.arrayValue(m.slice(row, col))
 	}
 	return m.cell(row-1, col-1)
+}
+
+// slice is row (0 for all) and col (0 for all) of m as an array.
+func (m matrix) slice(row, col int) *Array {
+	r0, c0, rows, cols := row-1, col-1, 1, 1
+	if row == 0 {
+		r0, rows = 0, m.rows
+	}
+	if col == 0 {
+		c0, cols = 0, m.cols
+	}
+	a := &Array{Rows: rows, Cols: cols, Fill: m.blank,
+		DRows: min(rows, max(m.dataRows-r0, 0)), DCols: min(cols, max(m.dataCols-c0, 0))}
+	if tooBig(a.DRows, a.DCols) {
+		return &Array{Rows: 1, Cols: 1, Fill: value.ErrValue}
+	}
+	a.V = make([]Value, a.DRows*a.DCols)
+	for r := range a.DRows {
+		for c := range a.DCols {
+			a.Set(r, c, m.cell(r0+r, c0+c))
+		}
+	}
+	return a
 }
 
 func choose(args []Node, get lookup) Value {

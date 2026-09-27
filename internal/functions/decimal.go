@@ -304,15 +304,29 @@ func Decimalize(n Node) Node {
 		n.L, n.R = Decimalize(n.L), Decimalize(n.R)
 		return decBinary(n)
 	case formula.Call:
-		args := make([]Node, len(n.Args))
-		for i, a := range n.Args {
-			args[i] = Decimalize(a)
-		}
-		n.Args = args
+		n.Args = decimalizeAll(n.Args)
 		if twin, ok := decFuncs()[funcOf(n).Name]; ok {
 			n.Fn = twin
 		}
 		return n
+	case formula.Invoke:
+		n.Fn = Decimalize(n.Fn)
+		n.Args = decimalizeAll(n.Args)
+		return n
+	case formula.Array:
+		rows := make([][]Node, len(n.Rows))
+		for i, row := range n.Rows {
+			rows[i] = decimalizeAll(row)
+		}
+		return formula.Array{Rows: rows}
 	}
 	return n
+}
+
+func decimalizeAll(ns []Node) []Node {
+	out := make([]Node, len(ns))
+	for i, a := range ns {
+		out[i] = Decimalize(a)
+	}
+	return out
 }
