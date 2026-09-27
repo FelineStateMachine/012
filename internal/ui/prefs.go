@@ -189,8 +189,8 @@ func saveKeyCmd(store keyring.Store, connect func(string) (jev.Client, error), k
 }
 
 // keySaved turns JEV on with the new key and says how its check went.
-// A key whose check failed is kept and used: the service may only be
-// unreachable for now.
+// A key whose check failed is kept and used: a check can fail because
+// the service can't be reached, not the key.
 func (m *Model) keySaved(msg keySavedMsg) {
 	if msg.err != nil {
 		m.fail("Couldn't save the API key: " + msg.err.Error())

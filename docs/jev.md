@@ -36,8 +36,8 @@ line with the key masked and turns JEV on at once. It then checks the key
 with one test call, a fixed yes/no question about `2 + 2 = 4` that sends
 none of your data, and says "Key saved and checked" or "Key saved, but the
 check failed" with the reason (such as the service refusing the key). A
-key whose check failed is kept, since the service may only be unreachable
-for now; store the right one the same way. `012 config` says where the
+key whose check failed is kept, since a check can fail because the
+service can't be reached, not the key; store the right one the same way. `012 config` says where the
 key would come from, without showing it.
 
 012 looks for the key in this order:
