@@ -25,8 +25,8 @@ func writeFile(t *testing.T, name, text string) {
 
 func pickerTitles(t *testing.T, m *Model) []string {
 	var out []string
-	for _, pm := range openPicker(t, m).shown {
-		out = append(out, pm.item.title+" | "+pm.item.detail)
+	for _, pm := range openPicker(t, m).Shown() {
+		out = append(out, pm.Item.Title+" | "+pm.Item.Detail)
 	}
 	return out
 }

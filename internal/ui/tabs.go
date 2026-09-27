@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // Sheets work as in Google Sheets: Ctrl+PgDn and Ctrl+PgUp (or Alt+Right
@@ -286,7 +287,7 @@ func (m *Model) openRename() {
 // openSheetPicker lists the sheets, fzf style, with the one shown
 // highlighted.
 func (m *Model) openSheetPicker() {
-	var items []pickItem
+	var items []picker.Item
 	sel := 0
 	for i, s := range m.visibleSheets() {
 		if s == m.sheet {
@@ -296,9 +297,9 @@ func (m *Model) openSheetPicker() {
 		if used, ok := s.UsedRange(); ok {
 			detail = used.String() + ", " + cellCount(s.Len())
 		}
-		items = append(items, pickItem{
-			title: s.Name(), name: len(s.Name()), detail: detail, desc: "Show " + s.Name(),
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{
+			Title: s.Name(), Name: len(s.Name()), Detail: detail, Desc: "Show " + s.Name(),
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				m.showSheet(s)
 				return nil
@@ -306,7 +307,7 @@ func (m *Model) openSheetPicker() {
 		})
 	}
 	p := newPicker(m, "Go to sheet", "Type a sheet name", 60, items)
-	p.action = "show"
+	p.Action = "show"
 	p.Sel = sel
 	m.openOverlay(p)
 }

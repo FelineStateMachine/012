@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -25,7 +26,7 @@ func (f *findBar) parts(m *Model) []findPart {
 		if f.field == i {
 			style = m.th.Key
 		}
-		return style.Render(name) + m.th.Muted.Render(searchPrompt)
+		return style.Render(name) + m.th.Muted.Render(picker.SearchPrompt)
 	}
 	parts := []findPart{{text: label("Find", 0) + f.fieldText(m, 0), field: 0}}
 	if f.replace {

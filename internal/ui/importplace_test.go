@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // importInto runs File > Import on name and picks place in the location
@@ -16,8 +17,8 @@ func importInto(t *testing.T, m *Model, name, place string) {
 	t.Helper()
 	m.runCommand("file.import")
 	press(t, m, name, "<enter>")
-	p, ok := m.overlay.(*picker)
-	if !ok || !strings.HasPrefix(p.title, "Import ") {
+	p, ok := m.overlay.(*picker.Picker)
+	if !ok || !strings.HasPrefix(p.Title(), "Import ") {
 		t.Fatalf("no location picker: %T", m.overlay)
 	}
 	press(t, m, place, "<enter>")

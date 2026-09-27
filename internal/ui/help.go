@@ -12,6 +12,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -22,8 +23,8 @@ func init() {
 			return nil
 		}},
 		&command{id: "help.functions", macro: macroNever, title: "Function list", desc: "Search the functions formulas can use", run: func(m *Model) tea.Cmd {
-			p := newPicker(m, "Functions", "Type a function name, e.g. sum or if", 100, functionItems())
-			p.action = "insert"
+			p := newPicker(m, "Functions", "Type a function name, e.g. sum or if", 100, functionItems(m))
+			p.Action = "insert"
 			m.openOverlay(p)
 			return nil
 		}},
@@ -53,13 +54,13 @@ func version() string {
 
 // functionItems lists the spreadsheet functions for the function list;
 // picking one starts a formula with it.
-func functionItems() []pickItem {
+func functionItems(m *Model) []picker.Item {
 	fns := sheet.Funcs()
-	items := make([]pickItem, len(fns))
+	items := make([]picker.Item, len(fns))
 	for i, f := range fns {
-		items[i] = pickItem{
-			title: f.Name + "(" + f.Args + ")", name: len(f.Name), detail: f.Desc, desc: f.Desc,
-			pick: func(m *Model) tea.Cmd {
+		items[i] = picker.Item{
+			Title: f.Name + "(" + f.Args + ")", Name: len(f.Name), Detail: f.Desc, Desc: f.Desc,
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				m.startEntry(modeEnter, "="+f.Name+"(")
 				return nil

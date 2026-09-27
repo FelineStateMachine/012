@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // hiddenBook is a model of three sheets, Sheet1 reading Data, showing
@@ -84,8 +86,8 @@ func TestHiddenSheetsPicker(t *testing.T) {
 	}
 	run(m, m.runCommand("sheet.hide"))
 	run(m, m.runCommand("sheet.unhide"))
-	p, ok := m.overlay.(*picker)
-	if !ok || p.title != "Hidden sheets" || len(p.items) != 1 || p.items[0].title != "Data" {
+	p, ok := m.overlay.(*picker.Picker)
+	if !ok || p.Title() != "Hidden sheets" || len(p.Items) != 1 || p.Items[0].Title != "Data" {
 		t.Fatalf("overlay %#v", m.overlay)
 	}
 	if !strings.Contains(screen(m), "Hidden sheets") || !strings.Contains(screen(m), "A1, 1 cell") {

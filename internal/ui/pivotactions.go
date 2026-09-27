@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // What the pivot editor's keys do to the pivot, and how its fields read.
@@ -224,13 +225,13 @@ func (e *pivotEditor) addField(m *Model, sect int) {
 			used[f.Col] = true
 		}
 	}
-	var items []pickItem
+	var items []picker.Item
 	for col := p.Range.From.Col; col <= p.Range.To.Col && !p.Lost; col++ {
 		name := m.book().FieldName(p, col)
-		items = append(items, pickItem{
-			title: name, name: len(name), detail: "column " + sheet.ColName(col), off: used[col],
-			desc: "Add " + name + " to " + sectNames[sect],
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{
+			Title: name, Name: len(name), Detail: "column " + sheet.ColName(col), Off: used[col],
+			Desc: "Add " + name + " to " + sectNames[sect],
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				e.add(m, sect, col)
 				e.reopen(m)
@@ -239,8 +240,8 @@ func (e *pivotEditor) addField(m *Model, sect int) {
 		})
 	}
 	fp := newPicker(m, "Add to "+sectNames[sect], "Type a field name", 50, items)
-	fp.action = "add"
-	m.openOverlay(&fieldPicker{picker: fp, back: e})
+	fp.Action = "add"
+	m.openOverlay(&fieldPicker{m: m, Picker: fp, back: e})
 }
 
 // add puts the field in column col at the end of a section.
@@ -262,7 +263,8 @@ func (e *pivotEditor) add(m *Model, sect, col int) {
 
 // fieldPicker is the picker of fields to add; Esc returns to the editor.
 type fieldPicker struct {
-	*picker
+	m *Model // the model it acts on
+	*picker.Picker
 	back *pivotEditor
 }
 
@@ -273,17 +275,17 @@ func (f *fieldPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 		f.back.reopen(m)
 		return nil
 	}
-	return f.picker.Key(k)
+	return f.Picker.Key(k)
 }
 
 func (f *fieldPicker) Mouse(e overlay.MouseEvent) tea.Cmd {
 	m := f.m
-	if e.Box != pickerID && e.Kind == overlay.MousePress {
+	if e.Box != picker.ID && e.Kind == overlay.MousePress {
 		m.closeOverlay()
 		f.back.reopen(m)
 		return nil
 	}
-	return f.picker.Mouse(e)
+	return f.Picker.Mouse(e)
 }
 
 // editFilter opens the values list of filter i, in the manner of a

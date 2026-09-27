@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // Recording a macro, as Sheets' Extensions > Macros > Record macro: while
@@ -131,14 +132,14 @@ func (m *Model) recordingCommand(c *command) tea.Cmd {
 	cmd := c.run(m)
 	r.depth--
 	_, choosing := m.overlay.(*choiceBar)
-	if p, ok := m.overlay.(*picker); ok && p.answers {
+	if p, ok := m.overlay.(*picker.Picker); ok && p.Answers {
 		choosing = true
 	}
 	switch {
 	case m.mode == modePrompt || choosing:
 		r.pending = c.id // recorded once answered
 	case m.overlay != nil:
-		// A dialog or picker: what it does isn't recorded (see observe).
+		// A dialog or Picker: what it does isn't recorded (see observe).
 	case m.mode != modeError:
 		r.add(m, macro.Call("run", c.id))
 	}

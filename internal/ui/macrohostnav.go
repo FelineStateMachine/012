@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // What scripts do to the selection, the sheets and through commands; the
@@ -295,7 +296,7 @@ func (h scriptHost) answer(c *command, answer *string) error {
 // overlays (dialogs, pickers) can't be answered by a script.
 func (h scriptHost) choose(c *command, answer *string) error {
 	m := h.m
-	if p, ok := m.overlay.(*picker); ok && p.answers {
+	if p, ok := m.overlay.(*picker.Picker); ok && p.Answers {
 		return h.pickAnswer(c, p, answer)
 	}
 	bar, ok := m.overlay.(*choiceBar)
@@ -321,10 +322,10 @@ func (h scriptHost) choose(c *command, answer *string) error {
 
 // pickAnswer answers a picker that asks a command's question with the
 // title of one of its items.
-func (h scriptHost) pickAnswer(c *command, p *picker, answer *string) error {
+func (h scriptHost) pickAnswer(c *command, p *picker.Picker, answer *string) error {
 	m := h.m
 	if answer != nil {
-		if cmd, ok := p.answer(m, *answer); ok {
+		if cmd, ok := p.Answer(*answer); ok {
 			m.macros.cmds = append(m.macros.cmds, cmd)
 			if m.mode == modeError {
 				return h.failure()
@@ -334,8 +335,8 @@ func (h scriptHost) pickAnswer(c *command, p *picker, answer *string) error {
 	}
 	m.closeOverlay()
 	var titles []string
-	for _, it := range p.items {
-		titles = append(titles, it.title)
+	for _, it := range p.Items {
+		titles = append(titles, it.Title)
 	}
 	return fmt.Errorf("%s asks for one of %s: give run(%q, answer=...)", c.title, strings.Join(titles, ", "), c.id)
 }

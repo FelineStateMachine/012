@@ -307,7 +307,7 @@ func TestPaletteAndPickerRunMacros(t *testing.T) {
 	run(m, m.runCommand("macro.run"))
 	press(t, m, "<enter>")
 	if m.note != "Ran Stamp" || m.overlay != nil {
-		t.Errorf("picker: note %q", m.note)
+		t.Errorf("Picker: note %q", m.note)
 	}
 }
 

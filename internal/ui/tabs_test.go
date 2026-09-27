@@ -243,8 +243,8 @@ func TestSheetPicker(t *testing.T) {
 	}
 	press(t, m, "<alt+shift+k>")
 	p := openPicker(t, m)
-	if len(p.shown) != 4 || p.Sel != 3 {
-		t.Fatalf("picker: %d shown, %d selected", len(p.shown), p.Sel)
+	if len(p.Shown()) != 4 || p.Sel != 3 {
+		t.Fatalf("picker: %d shown, %d selected", len(p.Shown()), p.Sel)
 	}
 	press(t, m, "sheet2", "<enter>")
 	if m.overlay != nil || m.sheet.Name() != "Sheet2" {

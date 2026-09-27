@@ -15,6 +15,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/fileio"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -111,11 +112,11 @@ func importable(root confine.Root) ([]string, map[string]int64) {
 	return out, sizes
 }
 
-// openImport opens the import picker: the importable files here, with
+// openImport opens the import Picker: the importable files here, with
 // their type and size. A typed path that isn't listed can be imported
 // too.
 func (m *Model) openImport() tea.Cmd {
-	var items []pickItem
+	var items []picker.Item
 	names, sizes := importable(m.root)
 	lw := 0 // types line up, and sizes after them
 	for _, name := range names {
@@ -129,17 +130,17 @@ func (m *Model) openImport() tea.Cmd {
 			detail = fmt.Sprintf("%-*s %6s", lw, k.Label(), fileSize(size))
 			desc += ", " + fileSize(size)
 		}
-		items = append(items, pickItem{title: name, name: len(name), detail: detail, desc: desc,
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{Title: name, Name: len(name), Detail: detail, Desc: desc,
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				return m.askImportPlace(name)
 			}})
 	}
 	p := newPicker(m, "Import", "Type to filter, or a path", 72, items)
-	p.action = "import"
-	p.enter = func(m *Model, query string) (tea.Cmd, bool) {
+	p.Action = "import"
+	p.Enter = func(query string) (tea.Cmd, bool) {
 		// A path, or a name that matched nothing: import it by name.
-		if query == "" || !strings.ContainsRune(query, filepath.Separator) && len(p.shown) > 0 {
+		if query == "" || !strings.ContainsRune(query, filepath.Separator) && len(p.Shown()) > 0 {
 			return nil, false
 		}
 		m.closeOverlay()
@@ -342,15 +343,15 @@ func (m *Model) handleImported(msg importedMsg) tea.Cmd {
 // openTablePicker asks which table of a SQLite database to import, or
 // for a query.
 func (m *Model) openTablePicker(name string, tables []fileio.TableInfo, place importPlace) {
-	var items []pickItem
+	var items []picker.Item
 	for _, t := range tables {
 		detail := countRows(t.Rows) + ", " + plural(len(t.Cols), "1 column", fmt.Sprintf("%d columns", len(t.Cols)))
 		if t.View {
 			detail = "view, " + detail
 		}
 		desc := "Import " + t.Name + ": " + strings.Join(t.Cols, ", ")
-		items = append(items, pickItem{title: t.Name, name: len(t.Name), detail: detail, desc: desc,
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{Title: t.Name, Name: len(t.Name), Detail: detail, Desc: desc,
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				return m.startImport(name, fileio.Options{Table: t.Name}, place)
 			}})
@@ -359,9 +360,9 @@ func (m *Model) openTablePicker(name string, tables []fileio.TableInfo, place im
 	if len(tables) > 0 {
 		first = tables[0].Name
 	}
-	items = append(items, pickItem{title: "Run a query", name: len("Run a query"), detail: "SELECT …",
-		desc: "Type a SQL query and import its results",
-		pick: func(m *Model) tea.Cmd {
+	items = append(items, picker.Item{Title: "Run a query", Name: len("Run a query"), Detail: "SELECT …",
+		Desc: "Type a SQL query and import its results",
+		Pick: func() tea.Cmd {
 			m.closeOverlay()
 			m.openText("SQL query:", "SELECT * FROM "+quoteSQL(first), func(m *Model, text string) tea.Cmd {
 				if text == "" {
@@ -373,7 +374,7 @@ func (m *Model) openTablePicker(name string, tables []fileio.TableInfo, place im
 			return nil
 		}})
 	p := newPicker(m, "Import from "+filepath.Base(name), "Type to filter tables", 72, items)
-	p.action = "import"
+	p.Action = "import"
 	m.openOverlay(p)
 }
 

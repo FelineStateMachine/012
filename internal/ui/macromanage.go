@@ -13,6 +13,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // Managing macros, as Sheets' Extensions > Macros > Manage macros: a
@@ -23,7 +24,8 @@ import (
 
 // macrosPicker is the picker of saved macros with its extra keys.
 type macrosPicker struct {
-	*picker
+	m *Model // the model it acts on
+	*picker.Picker
 	msg string // feedback on the last action, e.g. a deletion
 }
 
@@ -32,22 +34,22 @@ const writeMacroTitle = "+ Write a macro"
 // openMacros opens the manager with the macro named sel highlighted.
 func (m *Model) openMacros(sel string) {
 	p := newPicker(m, "Macros", "Type a macro's name", 72, macroManageItems(m))
-	p.action = "run"
-	for i, pm := range p.shown {
-		if strings.EqualFold(pm.item.title, sel) {
+	p.Action = "run"
+	for i, pm := range p.Shown() {
+		if strings.EqualFold(pm.Item.Title, sel) {
 			p.Sel = i
 		}
 	}
-	m.openOverlay(&macrosPicker{picker: p})
+	m.openOverlay(&macrosPicker{m: m, Picker: p})
 }
 
 // macroManageItems lists "Write a macro" and then every macro.
-func macroManageItems(m *Model) []pickItem {
-	var items []pickItem
+func macroManageItems(m *Model) []picker.Item {
+	var items []picker.Item
 	if m.macros.editor {
-		items = append(items, pickItem{
-			title: writeMacroTitle, name: len(writeMacroTitle), desc: "Write a new macro script in your editor",
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{
+			Title: writeMacroTitle, Name: len(writeMacroTitle), Desc: "Write a new macro script in your editor",
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				return m.newMacro()
 			},
@@ -55,10 +57,10 @@ func macroManageItems(m *Model) []pickItem {
 	}
 	for _, mc := range m.book().Macros() {
 		lines := strings.Count(strings.TrimRight(mc.Source, "\n"), "\n") + 1
-		items = append(items, pickItem{
-			title: mc.Name, name: len(mc.Name), detail: strconv.Itoa(lines) + " lines", key: shortcutLabel(mc.Key),
-			desc: "Run " + mc.Name,
-			pick: func(m *Model) tea.Cmd {
+		items = append(items, picker.Item{
+			Title: mc.Name, Name: len(mc.Name), Detail: strconv.Itoa(lines) + " lines", Key: shortcutLabel(mc.Key),
+			Desc: "Run " + mc.Name,
+			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				return m.runMacro(mc)
 			},
@@ -69,10 +71,10 @@ func macroManageItems(m *Model) []pickItem {
 
 // current is the macro highlighted, if any.
 func (p *macrosPicker) current(m *Model) (sheet.Macro, bool) {
-	if p.picker.Sel >= len(p.shown) || p.shown[p.picker.Sel].item.title == writeMacroTitle {
+	if p.Picker.Sel >= len(p.Shown()) || p.Shown()[p.Picker.Sel].Item.Title == writeMacroTitle {
 		return sheet.Macro{}, false
 	}
-	return m.book().Macro(p.shown[p.picker.Sel].item.title)
+	return m.book().Macro(p.Shown()[p.Picker.Sel].Item.Title)
 }
 
 func (p *macrosPicker) Key(k tea.KeyPressMsg) tea.Cmd {
@@ -85,7 +87,7 @@ func (p *macrosPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 			return nil
 		}
 	default:
-		return p.picker.Key(k)
+		return p.Picker.Key(k)
 	}
 	switch k.String() {
 	case "f2":
@@ -104,10 +106,10 @@ func (p *macrosPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+d":
 		m.book().DeleteMacro(mc.Name)
 		p.msg = "Deleted " + mc.Name + "; Ctrl+Z brings it back"
-		p.items = macroManageItems(m)
-		sel := p.picker.Sel
+		p.Items = macroManageItems(m)
+		sel := p.Picker.Sel
 		p.Changed()
-		p.picker.Sel = max(min(sel, len(p.shown)-1), 0)
+		p.Picker.Sel = max(min(sel, len(p.Shown())-1), 0)
 	}
 	return nil
 }
@@ -129,7 +131,7 @@ func (p *macrosPicker) Status() (string, string) {
 	if p.msg != "" {
 		return p.msg, keys
 	}
-	desc, _ := p.picker.Status()
+	desc, _ := p.Picker.Status()
 	return desc, keys
 }
 

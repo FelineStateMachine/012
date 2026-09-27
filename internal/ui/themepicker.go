@@ -7,6 +7,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/config"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -15,14 +16,15 @@ import (
 // live; Enter keeps it and saves it to the config file, Esc goes back to
 // the theme there was.
 type themePicker struct {
-	*picker
+	m *Model // the model it acts on
+	*picker.Picker
 	shownName string // the theme being previewed
 }
 
 func newThemePicker(m *Model) *themePicker {
 	current := m.prefs.Config.Theme().Pick(!m.prefs.light)
 	entries := theme.List(m.prefs.ThemesDir)
-	items := make([]pickItem, 0, len(entries))
+	items := make([]picker.Item, 0, len(entries))
 	sel := 0
 	for _, e := range entries {
 		kind := "light"
@@ -40,11 +42,11 @@ func newThemePicker(m *Model) *themePicker {
 			sel = len(items)
 		}
 		name := e.Name
-		items = append(items, pickItem{title: name, name: len(name), detail: kind, desc: desc,
-			pick: func(m *Model) tea.Cmd { m.keepTheme(name); return nil }})
+		items = append(items, picker.Item{Title: name, Name: len(name), Detail: kind, Desc: desc,
+			Pick: func() tea.Cmd { m.keepTheme(name); return nil }})
 	}
-	tp := &themePicker{picker: newPicker(m, "Theme", "Type a name, dark or light", 64, items)}
-	tp.action = "keep"
+	tp := &themePicker{m: m, Picker: newPicker(m, "Theme", "Type a name, dark or light", 64, items)}
+	tp.Action = "keep"
 	tp.Sel = sel
 	tp.preview(m)
 	return tp
@@ -55,7 +57,7 @@ func (tp *themePicker) Key(k tea.KeyPressMsg) tea.Cmd {
 	if k.String() == "esc" {
 		tp.restore(m)
 	}
-	cmd := tp.picker.Key(k)
+	cmd := tp.Picker.Key(k)
 	if m.overlay == tp {
 		tp.preview(m)
 	}
@@ -64,10 +66,10 @@ func (tp *themePicker) Key(k tea.KeyPressMsg) tea.Cmd {
 
 func (tp *themePicker) Mouse(e overlay.MouseEvent) tea.Cmd {
 	m := tp.m
-	if e.Box != pickerID && e.Kind == overlay.MousePress {
+	if e.Box != picker.ID && e.Kind == overlay.MousePress {
 		tp.restore(m)
 	}
-	cmd := tp.picker.Mouse(e)
+	cmd := tp.Picker.Mouse(e)
 	if m.overlay == tp {
 		tp.preview(m)
 	}
@@ -76,16 +78,16 @@ func (tp *themePicker) Mouse(e overlay.MouseEvent) tea.Cmd {
 
 func (tp *themePicker) Changed() {
 	m := tp.m
-	tp.picker.Changed()
+	tp.Picker.Changed()
 	tp.preview(m)
 }
 
 // preview draws the highlighted theme.
 func (tp *themePicker) preview(m *Model) {
-	if tp.Sel >= len(tp.shown) {
+	if tp.Sel >= len(tp.Shown()) {
 		return
 	}
-	name := tp.shown[tp.Sel].item.title
+	name := tp.Shown()[tp.Sel].Item.Title
 	if name == tp.shownName {
 		return
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
 // Where File > Import puts what it reads, as Sheets' Import location:
@@ -44,13 +45,13 @@ func (m *Model) askImportPlace(name string) tea.Cmd {
 	if k.HoldsSheets() {
 		insert, as = "Insert new sheets", " as new sheets"
 	}
-	item := func(title, detail, desc string, run func(m *Model) tea.Cmd) pickItem {
-		return pickItem{title: title, name: len(title), detail: detail, desc: desc, pick: func(m *Model) tea.Cmd {
+	item := func(title, detail, desc string, run func(m *Model) tea.Cmd) picker.Item {
+		return picker.Item{Title: title, Name: len(title), Detail: detail, Desc: desc, Pick: func() tea.Cmd {
 			m.closeOverlay()
 			return run(m)
 		}}
 	}
-	items := []pickItem{item(insert, "after the others", "Add "+base+as,
+	items := []picker.Item{item(insert, "after the others", "Add "+base+as,
 		func(m *Model) tea.Cmd { return m.startImport(name, fileio.Options{}, placeNewSheets) })}
 	if !k.HoldsSheets() {
 		items = append(items, item("Replace current sheet", m.sheet.Name(), "Put "+base+" in place of "+m.sheet.Name()+", keeping its name",
@@ -63,7 +64,7 @@ func (m *Model) askImportPlace(name string) tea.Cmd {
 	items = append(items, item("Replace spreadsheet", detail, "Open "+base+" instead, as File > Open does",
 		func(m *Model) tea.Cmd { return m.confirmImport(name, fileio.Options{}) }))
 	p := newPicker(m, "Import "+base, "Import location", 60, items)
-	p.action = "import"
+	p.Action = "import"
 	m.openOverlay(p)
 	return nil
 }
