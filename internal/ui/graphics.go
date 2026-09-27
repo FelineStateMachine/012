@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"log/slog"
-	"os"
 	"strconv"
 	"strings"
 
@@ -34,8 +33,10 @@ type terminal struct {
 	blurred      bool           // the terminal window doesn't have focus
 }
 
-func newTerminal() terminal {
-	return terminal{tmux: os.Getenv("TMUX") != "", palette: map[int]color.RGBA{}, sent: map[int]string{}}
+// newTerminal starts with what getenv, the terminal's environment, says:
+// the process's own locally, the client's when served over SSH.
+func newTerminal(getenv func(string) string) terminal {
+	return terminal{tmux: getenv("TMUX") != "", palette: map[int]color.RGBA{}, sent: map[int]string{}}
 }
 
 // wrap prepares a sequence for the outer terminal.

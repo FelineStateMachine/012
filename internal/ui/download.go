@@ -85,13 +85,17 @@ func (m *Model) openDownload(k fileio.Kind) tea.Cmd {
 		if filepath.Ext(name) == "" {
 			name += k.Ext()
 		}
+		path, ok := m.path("download to", name)
+		if !ok {
+			return nil
+		}
 		if k.HasTables() {
-			m.openTableName(name, k, r)
+			m.openTableName(name, path, k, r)
 			return nil
 		}
 		return m.confirmReplace(filepath.Base(name)+" exists.", func(m *Model) tea.Cmd {
-			return m.download(name, k, r, "")
-		}, exists(name))
+			return m.download(name, path, k, r, "")
+		}, exists(path))
 	})
 	return nil
 }
@@ -101,15 +105,16 @@ func exists(name string) bool {
 	return err == nil
 }
 
-// openTableName asks for the table to write in a database of kind k.
-func (m *Model) openTableName(name string, k fileio.Kind, r sheet.Rect) {
+// openTableName asks for the table to write in a database of kind k,
+// name at path on disk.
+func (m *Model) openTableName(name, path string, k fileio.Kind, r sheet.Rect) {
 	m.openText("Table in "+filepath.Base(name)+":", fileio.TableName(filepath.Base(m.displayBase())), func(m *Model, table string) tea.Cmd {
 		if table == "" {
 			return nil
 		}
 		has := false
-		if exists(name) {
-			ts, err := fileio.Tables(context.Background(), name)
+		if exists(path) {
+			ts, err := fileio.Tables(context.Background(), path)
 			if err != nil {
 				m.fail(fmt.Sprintf("Couldn't open %s: %v", filepath.Base(name), err))
 				return nil
@@ -119,7 +124,7 @@ func (m *Model) openTableName(name string, k fileio.Kind, r sheet.Rect) {
 			}
 		}
 		return m.confirmReplace("Table "+table+" exists in "+filepath.Base(name)+".", func(m *Model) tea.Cmd {
-			return m.download(name, k, r, table)
+			return m.download(name, path, k, r, table)
 		}, has)
 	})
 }
@@ -141,14 +146,15 @@ func (m *Model) confirmReplace(msg string, do func(*Model) tea.Cmd, replaces boo
 	return nil
 }
 
-// download snapshots the sheet and writes it in the background.
-func (m *Model) download(name string, k fileio.Kind, r sheet.Rect, table string) tea.Cmd {
+// download snapshots the sheet and writes it, as name at path on disk,
+// in the background.
+func (m *Model) download(name, path string, k fileio.Kind, r sheet.Rect, table string) tea.Cmd {
 	snap := fileio.Snap(m.sheet, r, filepath.Base(m.displayBase()))
 	if k.HoldsSheets() && r == (sheet.Rect{}) {
 		snap = fileio.SnapBook(m.sheet) // every sheet, as Sheets' .xlsx download
 	}
 	return func() tea.Msg {
-		res, err := fileio.Export(context.Background(), name, k, snap, fileio.ExportOptions{Table: table})
+		res, err := fileio.Export(context.Background(), path, k, snap, fileio.ExportOptions{Table: table})
 		return exportedMsg{name: name, kind: k, res: res, err: err}
 	}
 }

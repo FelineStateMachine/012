@@ -4,10 +4,12 @@
 package ui
 
 import (
+	"os"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
@@ -59,8 +61,10 @@ type Model struct {
 	// The file.
 	filename      string
 	changed       bool
-	saved         int  // the sheet's StateID when last saved or loaded
-	quitAfterSave bool // "Save and quit" is waiting for the save to finish
+	saved         int          // the sheet's StateID when last saved or loaded
+	quitAfterSave bool         // "Save and quit" is waiting for the save to finish
+	disk          stamp        // the file on disk as last opened or saved here, to notice others' saves
+	root          confine.Root // where file names resolve; confined when served over SSH
 
 	mode   mode
 	note   string // feedback on the last action, e.g. "Undid: clear B3"
@@ -90,7 +94,11 @@ type Model struct {
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	return &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(), charts: chartState{last: -1}}
+	m := &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(os.Getenv), charts: chartState{last: -1}}
+	if filename != "" {
+		m.disk = diskStamp(filename)
+	}
+	return m
 }
 
 // Init implements tea.Model. It asks the terminal for its background color
@@ -138,10 +146,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		m.handleWheel(msg.Mouse())
 	case savedMsg:
-		cmd = m.handleSaved(msg)
-		if msg.err == nil {
+		if msg.err == nil && !msg.conflict {
 			m.saved = m.sheet.StateID()
 		}
+		cmd = m.handleSaved(msg)
 	case loadedMsg:
 		m.handleLoaded(msg)
 	case filesMsg:
@@ -305,7 +313,9 @@ func clampAddr(a sheet.Addr) sheet.Addr {
 	}
 }
 
+// fail shows msg in ERROR mode. A served session isn't told where its
+// directory is on the server: errors name its files relative to it.
 func (m *Model) fail(msg string) {
 	m.mode = modeError
-	m.errMsg = msg
+	m.errMsg = m.root.Scrub(msg)
 }
