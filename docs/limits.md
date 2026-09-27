@@ -414,6 +414,10 @@ ten visits. Formats of whole columns, rows and the sheet live on the
 lines. `TestCommandsCostTheDataNotTheGrid` (`internal/ui`) runs every
 command with the whole sheet, a whole column and a whole row selected on
 the full grid and fails past 250 ms or 8 MB; each takes 0.1 to 4 ms.
+Pasting whole columns or rows sets line formats; a pasted block whose
+source or destination has line formats gives its blank cells formatting
+of their own up to 65,536 cells, as formatting a block does, and past
+that only the cells stored.
 
 Code that cost the grid, and what it does now:
 

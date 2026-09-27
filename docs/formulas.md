@@ -61,6 +61,13 @@ caret on the problem and says what's wrong on the context line, e.g.
   the current argument marked, e.g. `SUMIF(range, criterion, [sum_range])`.
 - Alt+, and Alt+. trace precedents and dependents: the cells a formula reads
   and the formulas that read a cell. Press again to step through them.
+  Cells on hidden sheets are skipped; when that leaves nothing, the
+  context line names the hidden sheets ("Reads only Data, a hidden sheet;
+  View > Hidden sheets shows it").
+- A formula left Automatic shows the format of what it reads: `=B5*2` of
+  a currency cell shows currency, and so does `=SUM(B2:B9)`. A blank cell
+  counts with its column's, row's or sheet's format, and changing those
+  formats changes what the formulas show at once.
 
 ## Operators
 

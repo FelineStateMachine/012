@@ -93,6 +93,11 @@ style.
   which have contents, so a range of the million-row grid is read at the
   cost of what it holds. Formats of whole columns and rows, and of the
   whole sheet, live on the lines (`lines.go`); a cell falls back on them.
+  Copy, paste and move carry the formatting cells show (`clipfmt.go`):
+  whole lines as line formats, blocks as the cells' own. A line's format
+  changing recalculates the formulas reading any cell of it, found through
+  the dependency indexes (`linereaders.go`), so they infer their format
+  from blank cells too.
 - **Parsing.** `internal/formula`'s hand-written Pratt parser turns
   formulas into an AST, keeping absolute markers so references can be
   rewritten when cells move. Its printer turns ASTs back into text in

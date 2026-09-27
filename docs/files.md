@@ -12,8 +12,8 @@ File > Import asks where the data goes, as Sheets' Import location does
 
 | Location | Does |
 |---|---|
-| Insert new sheet(s) | Adds the file's sheets after the others: every sheet of an `.xlsx`, named after the file for other formats. A name already taken gets a number (`Sales 2`) and the file's formulas follow it; named ranges come along unless their name is taken. One undo step, and the spreadsheet stays the file you're editing |
-| Replace current sheet | Puts the data in place of the sheet shown, keeping its name and position, so formulas and named ranges that read it read the new data. One undo step. Not offered for `.xlsx`, which holds several sheets |
+| Insert new sheet(s) | Adds the file's sheets after the sheet shown: every sheet of an `.xlsx`, named after the file for other formats. A name already taken gets a number (`Sales 2`) and the file's formulas follow it; named ranges come along unless their name is taken. One undo step, and the spreadsheet stays the file you're editing |
+| Replace current sheet | Puts the data in place of the sheet shown, keeping its name and position, so formulas and named ranges that read it read the new data. Its charts stay: a chart that drew a whole table is re-pointed to the table the file has at the same corner when it has as many columns (rows for a chart by row), so last month's chart draws this month's rows; any other chart keeps its range. The context line says which chart was re-pointed, which kept its range, and which range is empty now. One undo step. Not offered for `.xlsx`, which holds several sheets |
 | Replace spreadsheet | Opens the file instead, as File > Open and the command line do, asking first when there are unsaved changes |
 
 | Format | Import | Download |

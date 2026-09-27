@@ -13,7 +13,20 @@ ones that don't fit on a narrow terminal.
 
 Ctrl+C, Ctrl+X and Ctrl+V work as in Sheets: relative references shift,
 absolute ones don't, cut and paste moves cells and the formulas that point
-at them follow. Ctrl+Shift+V pastes values only. Copies also go to the
+at them follow. Ctrl+Shift+V pastes values only, keeping the destination's
+formats.
+
+Formats travel with the cells. A pasted or moved cell shows what its
+source showed, whether the format was the cell's own or came from its
+row, its column or the whole sheet, and pasting plain cells into a
+currency column leaves them plain. Whole columns or rows (Ctrl+Space,
+Shift+Space) copied and pasted at the top of a column, or the start of a
+row, take their column or row formats along, so a pasted column is
+currency all the way down, not only where it had data; cut and pasted,
+they move them, leaving the source columns plain. Pasted anywhere else,
+they paste as a block of the cells that hold something. Formulas reading
+a column whose format changes, blank cells included, show the new format
+at once (`=B5*2` shows currency when column B becomes currency). Copies also go to the
 system clipboard as tab-separated text (OSC 52, so it works over SSH), and
 pasting tab-separated or multi-line text from the terminal fills a block.
 
