@@ -38,7 +38,7 @@ it lags, and past a second it stalls.
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
 | SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 8.7 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 120 fps pacing; per session, the terminal's cell buffers |
 | Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 0.8 to 2.5 ms | | Results past the grid (the pivot shows #REF!) | Grouping the source rows |
-| Arrays and spills | FILTER, SORT or UNIQUE over 8192 rows: about 0.1 ms each per edit; 1000 of them spilling 516 k cells, an edit recomputing 500: 52 ms | Full recalculation of those 1000: 217 ms | An array past `maxArray` values (2,097,152) stored: `#VALUE!`; a spill past the sheet's edge or `max-cells` cells: `#REF!` | Computing each array's values; writing only the spilled cells that changed |
+| Arrays and spills | FILTER, SORT or UNIQUE over 8192 rows: about 0.1 ms each per edit; 1000 of them spilling 516 k cells, an edit recomputing 500: 52 ms | Full recalculation of those 1000: 106 ms | An array past `maxArray` values (2,097,152) stored: `#VALUE!`; a spill past the sheet's edge or `max-cells` cells: `#REF!` | Computing each array's values; writing only the spilled cells that changed |
 
 ## Sheet size
 
@@ -48,9 +48,8 @@ ten million cells by default): imports keep whole rows up to it, pastes
 and fills write at most that many cells at once. WK1 files keep their own
 8192 x 256. The costs below grow with the cells; the grid itself costs
 nothing (see [The grid](#the-grid)). A `.012` file is read and written
-as a stream, cells straight into and out of the store ([The .012
-format](../files/format.md#reading-and-writing)), so opening costs about
-the memory the workbook then holds.
+as a stream, so opening costs about the memory the workbook then holds
+([The .012 file](#the-012-file)).
 
 | Measure | 8192 x 26 (213 k cells) | 8192 x 256 (2.1 M cells) | 1,000,000 x 10 (10 M cells) |
 |---|---|---|---|
@@ -71,12 +70,31 @@ B (the parsed tree and reference lists); imported CSV, SQLite and
 Parquet 21 to 63 B; text about 60 B plus its length, once per distinct string
 (a column of 90 texts repeated takes 27 B a cell). A plain cell (a
 number, boolean or text as typed, with a format and style) is a 16-byte
-slot in its column's block of 1024 rows; formulas, notes, and the
-results pivots and spills write are whole `Cell`s, about 300 B each with
-their entry and input (the `Cell` itself is 216 B). How the store lays
+slot in its column's block of 1024 rows, and so is a derived cell, what
+a pivot or a spill writes: a pivot's results take 20.6 B a cell and
+spilled numbers 20.5 B, plus the 32 B a value of the array the anchor
+keeps to compare with the next one (`BenchmarkMemoryDerived`). Formulas
+and notes are whole `Cell`s, about 300 B each with their entry and
+input (the `Cell` itself is 216 B). How the store lays
 them out is in [Architecture](architecture.md#the-engine). Reading a
 cell's value is an index into its column's block: 2.8 ns
 (`BenchmarkRead`), 8.6 ns a cell read by a SUM in a full recalculation.
+
+### The .012 file
+
+The reader and writer stream (`internal/sheet/fileread.go`,
+`filescan.go`): each cell goes into its sheet as its line is read, a
+number typed plainly straight into its 16-byte slot, and the other
+fields are small and decoded whole. Saving writes the cells in
+row-major order as it reads them from the sheet, straight into the
+file.
+
+There is one format. A binary one that stored the slots themselves
+would open ten million numbers in about 0.3 s at best (storing ten
+million slots alone takes 0.17 s) where the JSON takes 1.2 s: a second
+saved on sheets near `max-cells`, and nothing a smaller sheet would
+notice, for the loss of what the JSON gives, diffs, merges, and a file
+anyone can read and fix.
 
 ## The grid
 
@@ -210,7 +228,9 @@ every cell on screen a shade), at 200 x 60 (`BenchmarkFrame`,
 | Typing a number and Enter, through to the frame | 0.89 ms | 2.3 ms (the scale's percentile over 213 k numbers) |
 
 Shades and rule colors keep their escape codes, so a plain cell on one
-costs a string concatenation, not a style render.
+costs a string concatenation, not a style render. A custom formula is
+evaluated for each cell drawn, once per recalculation, with its
+references moved for the cell.
 
 Wrapped text, borders, row heights and merged cells cost what the
 screen shows too. A sheet with none of them is drawn a line per row
@@ -226,16 +246,17 @@ top (`BenchmarkFrame`, `BenchmarkKeystroke`):
 |---|---|---|---|
 | 8192 x 26 numbers, a frame | 0.18 ms | 0.90 ms | 3.1 ms |
 | The same laid out, a frame | 0.24 ms | 1.28 ms | 4.3 ms |
-| The same laid out, an arrow key through to its frame | 0.25 ms | 1.25 ms | | A custom formula is
-evaluated for each cell drawn, once per recalculation, with its
-references moved for the cell.
+| The same laid out, an arrow key through to its frame | 0.25 ms | 1.25 ms | |
 
 A chart drawn as text costs 4 to 50 us at 24 x 10 to 120 x 40 cells,
 whatever its data: only the categories that fit are drawn (a pie of 8192
 slices, 0.44 ms, is the worst). An image for kitty graphics is redrawn
 when its data, size or theme changes: 25 to 260 us at 24 x 10 cells and
 1 to 1.5 ms at 120 x 40, a pie 8.6 ms (`internal/chart`,
-`BenchmarkDraw`, `BenchmarkImage`). Key presses add little: an arrow key
+`BenchmarkDraw`, `BenchmarkImage`). A sixel image is encoded then too,
+in 0.07 to 0.3 ms at 24 x 10 cells and 3 to 7 ms at 120 x 40 (10 x 20
+pixel cells), 0.6 to 67 KB to send (`BenchmarkSixel`); it is sent again,
+without encoding, whenever the screen under it is redrawn. Key presses add little: an arrow key
 through to its frame is 0.19 ms at 80 x 24 and 0.9 ms at 200 x 60;
 Page Down 1.1 ms.
 
@@ -319,7 +340,7 @@ entities, so entity bombs fail as unknown entities.
 Each step keeps the cells it changed as they were, in the form the
 sheet keeps them (`historyimage.go`): a plain cell as its 16-byte slot
 in columns of blocks, its text and formatting in the step's own tables,
-and a whole `Cell` only for a formula, a note or a derived cell. A step
+and a whole `Cell` only for a formula or a note. A step
 of one cell or a few keeps them in a list. Undoing costs about what the
 change cost, since it recalculates the same cells. Clearing 213 k cells
 and undoing it takes 86 ms; clearing all ten million cells of a full
@@ -498,10 +519,10 @@ FILTERs, 63 of whose arrays change:
 
 | Measure | Time | Allocated |
 |---|---|---|
-| Edit a number | 52 ms | 161 MB, 7.9 k allocations |
-| Undo and redo it | 103 ms | |
-| Full recalculation | 217 ms | |
-| Build (load and recalculate) | 298 ms | |
+| Edit a number | 52 ms | 161 MB, 7.8 k allocations |
+| Undo and redo it | 106 ms | |
+| Full recalculation | 106 ms | |
+| Build (load and recalculate) | 181 ms | |
 
 Most of an edit is the FILTERs' own work: comparing 8192 categories each
 (`B1:B8192="alpha"`, about 20 ns a value) and picking the rows that
@@ -535,10 +556,10 @@ Sizes and scheduling are in the [roadmap](../../ROADMAP.md#3-scale).
 `max-cells` stands at ten million, as Google Sheets' limit does; the
 sheet itself would hold several times that in a few GB, and opening,
 saving and undoing cost about what the cells do ([Sheet size](#sheet-size),
-[Undo](#undo)). What stands in the way is derived cells: what arrays
-and pivots write is kept as whole `Cell`s (516 k of them in the arrays
-stress shape), where their values and inferred formats would fit in
-slots.
+[Undo](#undo)). Derived cells cost what plain cells cost, a slot each
+([Sheet size](#sheet-size)); what stays large is a formula, about 750 B
+with its parsed tree and reference lists, and the array a spilling
+formula keeps, 32 B a value.
 
 ## Measuring
 

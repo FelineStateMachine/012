@@ -104,7 +104,7 @@ Colors. `terminal` uses the terminal's own 16-color palette. `high-contrast` dra
 
 #### `chart-images`
 
-Draw charts as images on terminals with kitty graphics (kitty, Ghostty, WezTerm). When false, charts are always text.
+Draw charts as images on terminals with kitty graphics (kitty, Ghostty, WezTerm) or, outside tmux, sixel graphics (foot, xterm, mlterm, Windows Terminal). When false, charts are always text.
 
 | | |
 |---|---|

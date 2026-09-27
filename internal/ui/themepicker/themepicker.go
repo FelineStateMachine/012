@@ -28,6 +28,9 @@ type Host interface {
 	Preview(name string)
 	// Keep closes the picker and makes name the theme, saving it.
 	Keep(name string)
+	// KeyReleases reports whether the terminal says when a key is let
+	// go (the kitty keyboard protocol), so Space can be held to peek.
+	KeyReleases() bool
 }
 
 // Picker is the open theme picker.
@@ -36,6 +39,7 @@ type Picker struct {
 	h     Host
 	open  bool   // not yet closed or kept
 	shown string // the theme being previewed
+	peek  bool   // Space is held: the list is hidden to show the sheet
 }
 
 // New returns a picker of every theme with the current one highlighted
@@ -120,7 +124,57 @@ func (c closing) Close() {
 	c.Host.Close()
 }
 
+// Holding Space, on a terminal that reports key releases, hides the list
+// so the whole sheet shows in the highlighted theme; letting go brings
+// the list back. It needs an empty search, so a space can still be typed
+// into one. Elsewhere Space is typed, as any other key.
+
+// holdsSpace reports whether k, a press of Space, starts or continues a
+// hold rather than typing.
+func (tp *Picker) holdsSpace(k tea.KeyPressMsg) bool {
+	return k.String() == "space" && tp.h.KeyReleases() && (tp.peek || tp.h.Line().Text() == "")
+}
+
+// Release ends a hold of Space.
+func (tp *Picker) Release(k tea.KeyReleaseMsg) tea.Cmd {
+	if k.String() == "space" {
+		tp.peek = false
+	}
+	return nil
+}
+
+func (tp *Picker) Layout() []overlay.Box {
+	if tp.peek {
+		return nil
+	}
+	return tp.Picker.Layout()
+}
+
+func (tp *Picker) Cursor() (int, int) {
+	if tp.peek {
+		return -1, 0
+	}
+	return tp.Picker.Cursor()
+}
+
+func (tp *Picker) Status() (string, string) {
+	desc, keys := tp.Picker.Status()
+	th := tp.h.Theme()
+	switch {
+	case tp.peek:
+		return "Theme " + tp.shown, th.KeyHints("Space", "let go to go back")
+	case tp.h.KeyReleases() && tp.h.Line().Text() == "":
+		keys = th.KeyHints("Space", "hold to peek") + "  " + keys
+	}
+	return desc, keys
+}
+
 func (tp *Picker) Key(k tea.KeyPressMsg) tea.Cmd {
+	if tp.holdsSpace(k) {
+		tp.peek = true
+		return nil
+	}
+	tp.peek = false
 	if k.String() == "esc" {
 		tp.h.Preview("")
 	}

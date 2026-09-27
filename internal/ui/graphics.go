@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -21,24 +22,30 @@ import (
 // replies to queries sent at startup. It survives File New and Open.
 //
 // Charts become images when the terminal answers a kitty graphics query
-// (kitty, Ghostty, WezTerm and others); everywhere else they stay text.
-// Images use the terminal's own palette, asked for with OSC 4 once
-// graphics are known to work, so bars match the text legend.
+// (kitty, Ghostty, WezTerm and others), or else when its primary device
+// attributes (DA1) list sixel graphics (foot, xterm, mlterm, Windows
+// Terminal; see sixel.go); everywhere else they stay text. Images use
+// the terminal's own palette, asked for with OSC 4 at startup, so bars
+// match the text legend.
 type terminal struct {
 	noImages     bool // chart-images = false in the config
 	noNotify     bool // notifications = false in the config
 	kitty        bool // answers kitty graphics queries
+	sixel        bool // lists sixel in DA1, without kitty graphics, outside tmux
+	registers    int  // sixel color registers, as XTSMGRAPHICS reports them
 	tmux         bool // inside tmux: sequences for the outer terminal need passthrough
 	cellW, cellH int  // cell size in pixels, 0 until reported
 	palette      map[int]color.RGBA
+	bg           color.Color    // the terminal's background, nil until reported
 	sent         map[int]string // image id -> what was sent, to send only changes
+	six          sixelState     // the sixel images drawn and to draw
 	blurred      bool           // the terminal window doesn't have focus
 }
 
 // newTerminal starts with what getenv, the terminal's environment, says:
 // the process's own locally, the client's when served over SSH.
 func newTerminal(getenv func(string) string) terminal {
-	return terminal{tmux: getenv("TMUX") != "", palette: map[int]color.RGBA{}, sent: map[int]string{}}
+	return terminal{tmux: getenv("TMUX") != "", palette: map[int]color.RGBA{}, sent: map[int]string{}, registers: 256}
 }
 
 // wrap prepares a sequence for the outer terminal.
@@ -50,10 +57,13 @@ func (t *terminal) wrap(seq string) string {
 }
 
 // probes are the startup queries: kitty graphics support, live light
-// and dark changes (mode 2031), and the 16 palette colors (OSC 4), which
-// chart images and color scales draw with.
+// and dark changes (mode 2031), the 16 palette colors (OSC 4), which
+// chart images and color scales draw with, the sixel color registers
+// (XTSMGRAPHICS) and, last, the primary device attributes. Terminals
+// answer in order, so the kitty and XTSMGRAPHICS replies, if any, come
+// before DA1's, which then decides between kitty images, sixel and text.
 func (t *terminal) probes() tea.Cmd {
-	return tea.Raw(t.wrap(chart.Query()) + ansi.SetModeLightDark + paletteQuery())
+	return tea.Raw(t.wrap(chart.Query()) + ansi.SetModeLightDark + paletteQuery() + sixelRegistersQuery + ansi.RequestPrimaryDeviceAttributes)
 }
 
 // paletteQuery asks for the 16 ANSI colors; terminals that don't answer
@@ -83,6 +93,15 @@ func (t *terminal) handle(msg tea.Msg) tea.Cmd {
 			// Ask for the cell size, for image proportions; the palette
 			// was asked for at startup.
 			return tea.Raw(ansi.WindowOp(16)) // 16: report the cell size in pixels
+		}
+	case uv.PrimaryDeviceAttributesEvent:
+		if slices.Contains(msg, 4) && !t.kitty && !t.tmux && !t.sixel {
+			t.sixel = true
+			return tea.Raw(ansi.WindowOp(16)) // sixel images are drawn at the cell size
+		}
+	case uv.UnknownCsiEvent:
+		if n, ok := parseRegisters(string(msg)); ok {
+			t.registers = n
 		}
 	case uv.CellSizeEvent:
 		if msg.Width > 0 && msg.Height > 0 {
@@ -156,10 +175,12 @@ func (t *terminal) chartPalette(th *theme.Theme) chart.Palette {
 	return p
 }
 
-// images reports whether charts are drawn as images.
+// images reports whether charts are drawn as kitty images.
 func (t *terminal) images() bool { return t.kitty && !t.noImages }
 
-// chartOptions are the drawing options for charts on this terminal.
+// chartOptions are the drawing options for charts on this terminal. For
+// sixel, whether a chart is an image depends on where it is: see
+// Model.drawChart.
 func (t *terminal) chartOptions() chart.Options {
 	return chart.Options{Image: t.images(), CellW: t.cellW, CellH: t.cellH}
 }

@@ -385,7 +385,7 @@ func (s *Sheet) loadNum(a Addr, input []byte, f Format, st Style) bool {
 	if err != nil {
 		return false
 	}
-	lk, ok := s.cells.lookID(f, st)
+	lk, ok := s.cells.lookID(look{f: f, st: st})
 	if !ok {
 		return false
 	}

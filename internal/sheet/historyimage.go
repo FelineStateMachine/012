@@ -6,7 +6,7 @@ import "slices"
 // the form the sheet keeps them (store.go, slot.go): columns of blocks
 // of 16-byte slots, the text in a table of strings kept once each, the
 // formatting in a table of looks, and whole Cells only for rich cells
-// (formulas, notes, what pivots and spills write). A step that clears
+// (formulas, notes). A step that clears
 // or rewrites a whole sheet so holds about what the sheet does, 20 B
 // per number, rather than a Cell per cell. A cell that held nothing
 // before the step is a bit in blank.
@@ -178,7 +178,7 @@ func (img *image) look(src *cellStore, id uint16) (uint16, bool) {
 		return img.looks[id] - 1, true
 	}
 	l := src.looks[id]
-	lk, ok := img.store().lookID(l.f, l.st)
+	lk, ok := img.store().lookID(l)
 	if !ok {
 		return 0, false
 	}

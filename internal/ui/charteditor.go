@@ -39,6 +39,10 @@ type chartHost interface {
 	chartAt(x, y int) int
 	chartCellAt(x, y int) sheet.Addr
 	setShape(shape string) tea.Cmd
+	// holdsKeys reports whether keys can be held, and zoomed is chart c
+	// spread over the grid, as Space held shows it (keyboard.go).
+	holdsKeys() bool
+	zoomed(c sheet.Chart) sheet.Chart
 	showChartMenu(x, y int)
 	// say puts msg on the context line.
 	say(msg string)

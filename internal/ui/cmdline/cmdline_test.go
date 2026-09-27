@@ -19,6 +19,7 @@ type fakeHost struct {
 	closed int
 	ran    []string
 	failed string
+	hist   History
 }
 
 func newHost() *fakeHost { return &fakeHost{th: theme.New(true)} }
@@ -28,6 +29,7 @@ func (f *fakeHost) Size() (width, height int) { return 80, 24 }
 func (f *fakeHost) Line() *lineedit.Line      { return &f.line }
 func (f *fakeHost) Close()                    { f.closed++ }
 func (f *fakeHost) Fail(msg string)           { f.failed = msg }
+func (f *fakeHost) History() *History         { return &f.hist }
 
 func (f *fakeHost) Commands() []Item {
 	return []Item{
@@ -75,7 +77,7 @@ func TestCompletes(t *testing.T) {
 	}
 	h.line.Clear()
 	typeText(c, "w")
-	if got := words(c); !strings.HasPrefix(got, "w,wq,") {
+	if got := words(c); !strings.HasPrefix(got, "w,w!,wq,") {
 		t.Errorf("w completes %s", got)
 	}
 	typeText(c, " out.csv")
@@ -154,5 +156,37 @@ func TestLayoutStatusAndMouse(t *testing.T) {
 	c.Mouse(overlay.MouseEvent{Kind: overlay.MousePress, Button: tea.MouseLeft})
 	if h.closed != 1 {
 		t.Error("a click outside didn't close the line")
+	}
+}
+
+// Up and Down walk the history, among the lines starting with what was
+// typed; a line run goes to its end, once.
+func TestHistory(t *testing.T) {
+	h := newHost()
+	for _, l := range []string{"w", "B12", "edit.fill_down", "B12"} {
+		c := New(h)
+		typeText(c, l)
+		c.Key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	}
+	if got := strings.Join(h.hist.Lines(), ","); got != "w,edit.fill_down,B12" {
+		t.Fatalf("history %s", got)
+	}
+	c := New(h)
+	up, down := tea.KeyPressMsg{Code: tea.KeyUp}, tea.KeyPressMsg{Code: tea.KeyDown}
+	c.Key(up)
+	c.Key(up)
+	if h.line.Text() != "edit.fill_down" || words(c) != "edit.fill_down" {
+		t.Errorf("Up Up: %q, completions %s", h.line.Text(), words(c))
+	}
+	c.Key(down)
+	c.Key(down)
+	if h.line.Text() != "" {
+		t.Errorf("Down Down: %q", h.line.Text())
+	}
+	typeText(c, "e")
+	c.Key(up)
+	c.Key(up)
+	if h.line.Text() != "edit.fill_down" {
+		t.Errorf("e Up Up: %q", h.line.Text())
 	}
 }

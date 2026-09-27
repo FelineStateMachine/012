@@ -284,7 +284,7 @@ func (w *Workbook) refreshPivot(s *Sheet) []loc {
 		s.pivot.blocked = extent(want)
 		s.pivot.err = err.Error()
 		want = []pivotCell{{v: ErrRef, bold: true}}
-		if c := s.cells.get(Addr{}); c != nil && !c.derived && !c.Blank() {
+		if s.typedAt(Addr{}) {
 			want = nil // never write over what the user typed
 		}
 	}
@@ -353,7 +353,7 @@ func (w *Workbook) computePivot(s *Sheet) ([]pivotCell, *pivotCalc, error) {
 		return nil, c, fmt.Errorf("The pivot table doesn't fit on a sheet")
 	}
 	for _, pc := range l.cells {
-		if old := s.cells.get(pc.a); old != nil && !old.derived && !old.Blank() {
+		if s.typedAt(pc.a) {
 			return l.cells, c, fmt.Errorf("The pivot table's results would overwrite data in %s", pc.a)
 		}
 	}
@@ -387,21 +387,33 @@ func (s *Sheet) writeDerived(want []pivotCell) []loc {
 		next[pc.a] = c
 	}
 	var changed []loc
-	for a, c := range s.cells.richCells() {
-		if c.derived && next[a] == nil {
-			s.setDerived(a, nil)
-			changed = append(changed, loc{s, a})
+	var gone []Addr
+	for a := range s.cells.pivotKeys() {
+		if next[a] == nil {
+			gone = append(gone, a)
 		}
 	}
+	for _, a := range gone {
+		s.setDerived(a, nil)
+		changed = append(changed, loc{s, a})
+	}
 	for a, c := range next {
-		if old := s.cells.get(a); old != nil && old.derived && old.Input == c.Input && old.Value == c.Value &&
-			old.Format == c.Format && old.Style == c.Style {
-			continue
+		if v, l, kind := s.cells.derivedOf(a); kind == slotPivot && v == c.Value && l.f == c.Format && l.st == c.Style {
+			continue // its input is its value's
 		}
 		s.setDerived(a, c)
 		changed = append(changed, loc{s, a})
 	}
 	return changed
+}
+
+// typedAt reports whether the cell at a has contents that aren't the
+// pivot's results: what the pivot mustn't write over.
+func (s *Sheet) typedAt(a Addr) bool {
+	if !s.cells.filledAt(a) {
+		return false
+	}
+	return s.cells.derivedAt(a) != slotPivot
 }
 
 // setDerived stores or removes a derived cell without recording it for

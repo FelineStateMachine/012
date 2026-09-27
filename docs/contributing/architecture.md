@@ -123,7 +123,9 @@ style.
   its slot, with its text in a table of strings kept once each, its
   formatting in a table of looks, and its input only when that isn't
   the value's own text ("1.50" is kept as 1.5 printed with two
-  decimals). Formulas, notes, and what pivots and spills write are whole
+  decimals). What pivots and spills write is a slot too, marked as
+  derived, holding the value and, in its look, a spill's inferred
+  format; its entry is the value's text. Formulas and notes are whole
   `Cell`s in a side table, which recalculation updates in place. `get`
   hands out a plain cell as a `Cell` made for the caller, a copy whose
   changes reach nothing; `set` is the one way to change a cell. What
@@ -328,7 +330,7 @@ move without touching callers:
   the places functions read ranges.
 - **Files.** The `.012` reader and writer stream (`fileread.go`,
   `filescan.go`) and meet the store only through its methods, so another
-  encoding would sit beside them; [The .012 format](../files/format.md#reading-and-writing)
+  encoding would sit beside them; [Bounds of support](limits.md#the-012-file)
   says why there is one.
 - **Depth limits.** `internal/formula`'s parser caps nesting at
   `formula.MaxDepth` (1024 levels), so a pathological formula fails to
@@ -374,7 +376,7 @@ draw. The components:
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer.Transfer` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`) |
 | macros | `recorder`, `macroState` | a recording in progress (`macrorec.go`); a macro running, trust in the file's macros (`macrorun.go`); what scripts act on (`macrohost.go`, `macrohostnav.go`); Data > Macros and the manager (`macro.go`, `macromanage.go`) |
-| others | `clipboard`, `trace`, `chartState`, `jevRunner`, `terminal` | what Ctrl+V pastes, a trace being shown, chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it |
+| others | `clipboard`, `trace`, `chartState`, `jevRunner`, `terminal`, `session` | what Ctrl+V pastes, a trace being shown, chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it, what outlasts the file open (the `:` history, whether keys can be held: `keyboard.go`) |
 
 Overlays implement `overlay.Overlay` (package `overlay`): an indicator for
 the mode, `Key` and `Mouse` handlers, a `Layout` of boxes to draw, and
@@ -398,9 +400,9 @@ methods off `ui.Model`'s exported API:
 | `shortcuts` | `shortcuts.Host` | theme, size, close, the rows, built from the key bindings and the registry (4) |
 | `sortbar` | `sortbar.Host` | theme, size, the sheet, close, sort (recorded as the bar's command) (5) |
 | `filterpick` | `filterpick.Host` | theme, size, the edit line, close, the locale (5); what applying and cancelling do are callbacks, as the sheet's filter and a pivot's differ |
-| `cmdline` | `cmdline.Host` | theme, size, the edit line, close, the commands to complete, run a line, fail (7) |
+| `cmdline` | `cmdline.Host` | theme, size, the edit line, close, the commands to complete, run a line, fail, the session's history (8) |
 | `suggest` | `suggest.Host` | theme, size, the edit line, whether an entry is being typed, the entry's sheet, the formula as parsed, where the formula bar's text starts (7) |
-| `themepicker` | `themepicker.Host` | a picker's host, and the current theme, the themes directory, preview, keep (9) |
+| `themepicker` | `themepicker.Host` | a picker's host, and the current theme, the themes directory, preview, keep, whether keys can be held (10) |
 | `rules` | `rules.Host` | theme, size, the edit line, close, the sheet and selection, save a conditional format or a validation rule, follow a rule removed or moved (each recorded as the commands that do it), the terminal's palette colors (10) |
 | `findbar` | `findbar.Host` | theme, size, the edit line, the workbook, the trace, the sheet and cell shown, show a cell, note, run a replacement (recorded as Find and replace), leave keeping the search, pass a click to the grid (11) |
 | `tabstrip`, `transfer` | none | they're handed a view or messages and draw what they're given |
@@ -415,7 +417,7 @@ implements itself:
 | `menuHost` | menus | 9 | their items are the command registry and the menu bar's definitions |
 | `macrosHost` | the macro manager | 9 | a few keys over a picker; what they do is the macro machinery |
 | `pivotHost` | the pivot editor and its field picker | 16 | it opens the model's pickers, filter values and range prompt and comes back from them |
-| `chartHost` | the chart editor and a selected chart | 23 | besides the charts, the grid's geometry, the pointer shape, the chart menu and prompts, and passing keys and clicks on to the grid |
+| `chartHost` | the chart editor and a selected chart | 25 | besides the charts, the grid's geometry, the pointer shape, the chart menu, holding Space to zoom, and prompts, and passing keys and clicks on to the grid |
 
 The cell entry has no host: typing into a cell is the model's ENTER,
 EDIT and POINT modes, whose state is the model's edit line, active cell
@@ -526,8 +528,12 @@ the user's editor (`AllowEditor`), since that starts a program.
 `internal/chart` draws a chart in two layers that share one layout: text
 for any terminal (block elements for bars, braille for lines, half blocks
 for pies, eighths filled column by column for areas) and, on terminals
-with kitty graphics, an image of the plot area with the axes and legend
-still terminal text. Each chart type is a layout in the `types` table,
+with kitty or sixel graphics, an image of the plot area with the axes and
+legend still terminal text. A kitty image is placed by placeholder
+characters, which the renderer treats as text; a sixel image
+(`chart.Sixel`) is pixels Bubble Tea's renderer doesn't know of, so
+`internal/ui/sixel.go` keeps blank cells for it, draws it once the frame
+has settled, and clears the screen when it moves. Each chart type is a layout in the `types` table,
 returning a plan that draws it both ways, and the series its legend
 lists; `Draw` places the legend and gives the layout the room left. The
 type constants and their names, and the options of each chart

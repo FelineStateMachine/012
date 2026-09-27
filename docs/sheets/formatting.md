@@ -13,6 +13,8 @@ whole columns or rows, then pick a format from the Format menu, a key
 
 ## Number formats
 
+![Monthly spending in Currency rounded, a bold header row, and totals that take the currency format](../media/formats-budget.png)
+
 Format > Number, as Sheets names them:
 
 | Format | Shows |

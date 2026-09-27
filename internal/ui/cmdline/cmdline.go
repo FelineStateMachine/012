@@ -32,6 +32,8 @@ type Host interface {
 	Run(text string) (tea.Cmd, bool)
 	// Fail shows an error.
 	Fail(msg string)
+	// History is the lines run this session, for Up and Down.
+	History() *History
 }
 
 // Item is a completion: a file command or a registered command.
@@ -46,6 +48,7 @@ type Item struct {
 // FileWords are vim's file commands.
 var FileWords = []Item{
 	{Word: "w", Title: "Write", Desc: "Save the sheet; :w name saves it as name, :w name.csv downloads it"},
+	{Word: "w!", Title: "Write anyway", Desc: "Save even if the file changed on disk since it was opened; :w! name replaces name"},
 	{Word: "q", Title: "Quit", Desc: "Close 012, asking about unsaved changes"},
 	{Word: "q!", Title: "Quit without saving", Desc: "Close 012, discarding unsaved changes"},
 	{Word: "wq", Title: "Write and quit", Desc: "Save the sheet, then close 012"},
@@ -62,6 +65,7 @@ type Line struct {
 	overlay.List
 	shown  []Item
 	tabbed bool // the text is a completion Tab put there; Tab again moves on
+	hist   browse
 }
 
 // New returns a command line with the edit line cleared.
@@ -122,18 +126,36 @@ func (c *Line) Key(k tea.KeyPressMsg) tea.Cmd {
 		c.complete(1)
 	case key == "shift+tab":
 		c.complete(-1)
-	case key == "up", key == "ctrl+p":
+	case key == "up", key == "down":
+		c.recall(key)
+	case key == "ctrl+p":
 		c.Move(-1, len(c.shown))
-	case key == "down", key == "ctrl+n":
+	case key == "ctrl+n":
 		c.Move(1, len(c.shown))
 	default:
 		before := line.Text()
 		line.Key(k)
 		if line.Text() != before {
+			c.hist = browse{}
 			c.Changed()
 		}
 	}
 	return nil
+}
+
+// recall is Up and Down: an older or newer line from the history, among
+// those starting with what was typed.
+func (c *Line) recall(key string) {
+	d := -1
+	if key == "down" {
+		d = 1
+	}
+	text, ok := c.hist.step(c.h.History(), c.h.Line().Text(), d)
+	if !ok {
+		return
+	}
+	c.h.Line().Set(text)
+	c.Changed()
 }
 
 // complete puts the highlighted completion on the line; pressed again,
@@ -162,6 +184,7 @@ func (c *Line) run() tea.Cmd {
 	if text == "" {
 		return nil
 	}
+	c.h.History().Add(text)
 	if cmd, ok := c.h.Run(text); ok {
 		return cmd
 	}
@@ -183,7 +206,7 @@ func (c *Line) Cursor() (int, int) {
 }
 
 func (c *Line) Status() (string, string) {
-	keys := c.h.Theme().KeyHints("Tab", "complete", "Enter", "run", "Esc", "cancel")
+	keys := c.h.Theme().KeyHints("Tab", "complete", "Up", "history", "Enter", "run", "Esc", "cancel")
 	if c.Sel >= len(c.shown) {
 		return "", keys
 	}

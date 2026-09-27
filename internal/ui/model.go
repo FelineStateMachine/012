@@ -111,6 +111,7 @@ type Model struct {
 	jev     *jevRunner        // answers JEV functions; nil without an API key: jev.go
 	term    terminal          // what the terminal supports: graphics.go
 	prefs   prefs             // the settings in effect and the theme chosen: prefs.go
+	session session           // what outlasts the file open: the : history, the keyboard: keyboard.go
 
 	vim    vimState   // a vim key sequence in progress: vim.go
 	rec    *recorder  // a macro being recorded: macrorec.go
@@ -149,6 +150,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if _, key := msg.(tea.KeyPressMsg); key && m.keyAt.IsZero() && telemetry.Enabled() {
 		m.keyAt = time.Now()
 	}
+	if _, release := msg.(tea.KeyReleaseMsg); release && !m.held() {
+		return m, nil // a release matters only to a key held: keyboard.go
+	}
 	if cmd, ok := m.importing(msg); ok {
 		return m, cmd
 	}
@@ -160,6 +164,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	before, beforeMode := *m.focus(), m.mode
 	state := m.beginUpdate(msg)
+	m.vimCapture(msg)
 	var cmd tea.Cmd
 	if mouse, ok := msg.(tea.MouseMsg); ok {
 		var handled bool
@@ -210,6 +215,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.finishMacro(msg.r, msg.done)
 	case macroEditedMsg:
 		m.macroEdited(msg)
+	case tea.KeyReleaseMsg:
+		cmd = m.keyReleased(msg)
+	case tea.KeyboardEnhancementsMsg:
+		m.keyboard(msg)
+	case tea.ClipboardMsg:
+		if m.vim.clipPaste {
+			m.pasteClipboard(msg.Content)
+		}
 	default:
 		if !m.handlePrefs(msg) {
 			cmd = m.term.handle(msg)
@@ -217,6 +230,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	// Scroll only when the focus moves, so the mouse wheel can look around
 	// without the view snapping back, as in Sheets.
+	m.vimSettle()
 	m.endUpdate(state)
 	if f := *m.focus(); f != before || m.mode != beforeMode {
 		m.scrollTo(f)
@@ -224,7 +238,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.clampView()
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
-	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans))
+	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg))
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state
