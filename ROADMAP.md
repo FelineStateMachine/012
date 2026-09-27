@@ -80,6 +80,18 @@ Avoid in the main binary: DuckDB and automerge (both need cgo).
 - Decimal mode for currency (`cockroachdb/apd/v3`), opt-in. Done: File > Settings > Decimal arithmetic, boundary in the README.
 - Demos with VHS tapes. Done: `make demos` renders `demos/` locally and the README shows them. Not run in CI: the GitHub repo is hosting only.
 
+## Next: vast data
+
+The 8192 x 256 grid is 1-2-3's, not the engine's: cells are stored sparsely.
+Raise it in measured steps (see [docs/limits.md](docs/limits.md)):
+
+| Step | What | Result |
+|---|---|---|
+| A | Make every operation cost what the data costs, not the grid: clip whole-column and whole-row ranges to the used area, sparse range reads for aggregates, column and row formats instead of per-cell formatting, a range index sized to the used columns, three-letter columns (to XFD), wider row headers. Then raise the grid to 1,048,576 x 16,384 with a `max-cells` budget in the config file, and a stress test that fails when any command on an empty full-grid selection costs more than its data | Excel-sized grids, memory still bounded |
+| B | Compact column storage behind `cellStore`: typed value blocks, formulas and formats in side tables (about 20 to 40 B per cell instead of 300) | A budget of 10 M+ cells in a few hundred MB |
+| C | A streaming or binary file format next to the readable JSON one | Open and save scale with the data |
+| Later | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid |
+
 ## Suggested order
 
 1. Command log + undo, Copy/Move with ref adjustment, Range Format.
