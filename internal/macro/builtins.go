@@ -408,3 +408,13 @@ func offset(args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error
 	}
 	return starlark.String(out), nil
 }
+
+// Functions lists the names of the functions scripts can call, sorted.
+func Functions() []string {
+	names := make([]string, 0, len(predeclared))
+	for n := range predeclared {
+		names = append(names, n)
+	}
+	slices.Sort(names)
+	return names
+}

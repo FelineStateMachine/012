@@ -38,6 +38,11 @@ only written when a sheet uses one of them, so older builds of 012 can open
 everything else. Charts are an optional `charts` field that older builds
 ignore. Saves are atomic: 012 writes a temporary file and renames it.
 
+Macros are an optional `macros` list, one macro per line with its
+Starlark script as a string, and `macroOrigin`, the computer they were
+made or trusted on; neither raises the version, and older builds ignore
+them. Opening a file never runs its macros. See [macros.md](macros.md#in-the-file).
+
 Other formats import as one sheet named after the file (or the SQLite
 table); CSV and TSV downloads write the sheet shown, as Sheets' do.
 

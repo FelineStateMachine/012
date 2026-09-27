@@ -11,6 +11,7 @@ internal/numfmt  number formats, rounding, General, date serials
 internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1
 internal/chart   chart layout, text rendering and kitty image encoding
 internal/jev     JEV configuration, answer cache and TypeSafe client
+internal/macro   macros: the Starlark scripting API, recorded actions as scripts, step limits
 internal/telemetry  opt-in JSON log and OTLP export of spans, events and frame stats
 internal/stress  synthetic worst-case sheets for the -tags stress benchmarks
 internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
@@ -123,8 +124,8 @@ description (`commands.go`), reached from key bindings, the menu bar,
 context menus, the command palette, the help overlay and mouse gestures
 that stand for one (double-clicking a tab renames it through
 `sheet.rename`), so they can't disagree. `runCommand` is the one place a
-command runs: telemetry times it there, and a command log or macro
-recorder would attach there.
+command runs: telemetry times it there, and the macro recorder listens
+there (see [Macros](#macros)).
 
 **Model and components.** `Model` (`model.go`) is the root: it holds the
 file, the mode and the note on the context line, owns one component for
@@ -142,6 +143,7 @@ draw. The components:
 | sheet tabs | `tabStrip` | where each sheet was left, the tab strip's scroll, layout and clicks (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer` | the import in progress, its progress display and cancelling (`transfer.go`) |
+| macros | `recorder`, `macroState` | a recording in progress (`macrorec.go`); a macro running, trust in the file's macros (`macrorun.go`); what scripts act on (`macrohost.go`, `macrohostnav.go`); Data > Macros and the manager (`macro.go`, `macromanage.go`) |
 | others | `clipboard`, `trace`, `chartState`, `jevRunner`, `terminal` | what Ctrl+V pastes, a trace being shown, chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it |
 
 Overlays implement the `overlay` interface (`overlay.go`): an indicator
@@ -190,6 +192,37 @@ and TSV are written a row at a time. One package suits formats that share
 this much (the builder, number formats, serial dates and Excel formula
 translation); a format that grew its own dependencies would move to a
 subpackage behind the same table row.
+
+## Macros
+
+Macros are Starlark scripts (`go.starlark.net`, pure Go) kept in the
+workbook (`sheet.Macro`, saved in the file). `internal/macro` knows
+neither the engine nor the terminal: it defines the functions scripts call
+over a `Host` interface, turns a recording (a list of `Action`s, the
+command log) into a script, and runs scripts with a step limit, a cancel
+switch and errors placed at their line and column. Scripts have no
+`load`, and Starlark itself has no file, network, clock or random access,
+so the Host is the only way out.
+
+The UI implements the Host on the model (`scriptHost`), through the same
+paths keys take: entries go through `Sheet.Set`, the selection through
+the grid, commands through `runCommand`, with a question answered as if
+typed. A run's script executes on its own goroutine, and each call it
+makes comes back to the UI goroutine as a message (`macroCallMsg`), is
+run on the model, and releases the script; the UI keeps taking calls
+within one update for a few milliseconds, so a 1000-action replay costs
+about 2 ms, and gives the screen back when the script pauses, so Esc can
+stop a runaway. The whole run is one undo step opened with
+`Workbook.Begin`.
+
+Recording (`macrorec.go`) listens where actions happen: `runCommand` for
+commands (with the answer to a prompt or choice bar), the entry commit,
+pastes, the fill handle, column borders and tab drags. The selection is
+recorded lazily, as absolute `select()` or relative `move()`/`extend()`,
+just before something acts on it. Files record the computer their macros
+were made or trusted on (an id from `cmd/012`); a macro from elsewhere
+asks once before it runs. Only the local app lets scripts be edited in
+the user's editor (`AllowEditor`), since that starts a program.
 
 ## Charts
 

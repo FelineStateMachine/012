@@ -2,10 +2,10 @@ package ui
 
 import (
 	"cmp"
-	"slices"
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 

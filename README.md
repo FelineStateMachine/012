@@ -49,6 +49,10 @@ searches every command.
 - **Files.** A diff-friendly JSON format, plus import from CSV, TSV, XLSX,
   SQLite, Parquet and Lotus 1-2-3 `.wk1`, and export to CSV, TSV, XLSX and
   SQLite.
+- **Macros.** Record what you do with absolute or relative references and
+  replay it with Ctrl+Alt+Shift+digit, as one undo step; macros are readable
+  Starlark scripts saved in the file, with step limits and no file or
+  network access ([docs](docs/macros.md)).
 - **JEV functions.** `JEV.TEST`, `JEV.PROB`, `JEV.CLASSIFY` and `JEV.SCORE`
   ask TypeSafe's hosted JEV model about your data, answered in the background
   and cached ([docs](docs/jev.md)).
@@ -79,6 +83,7 @@ kitty, Ghostty and WezTerm they are real images.
 - [Charts, links and the terminal](docs/charts.md)
 - [Files](docs/files.md)
 - [JEV functions](docs/jev.md)
+- [Macros](docs/macros.md): recording, running, and the scripting API
 - [Architecture](docs/architecture.md), [UX bar](docs/UX.md) and [testing](docs/testing.md)
 - [Limits](docs/limits.md): how big a sheet 012 handles and where it slows down
 - [Observability](docs/observability.md): event logs, DuckDB, and a local Collector, ClickHouse and Grafana stack

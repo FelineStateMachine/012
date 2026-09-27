@@ -28,6 +28,10 @@ cursor position, window title, hyperlinks, which screen is active after
 quitting. A fake TypeSafe server answers JEV questions, and the harness
 clears `TYPESAFE_API_KEY` so tests never reach the real service.
 
+Each session keeps 012's configuration (the machine id that macros'
+trust uses, `O12_CONFIG_DIR`) in its working directory, so sessions that
+share a directory are one computer and tests never touch the real one's.
+
 `make e2e` builds libghostty-vt from source with Zig into `.deps/` on first
 use. It is its own Go module so cgo never reaches the main binary.
 

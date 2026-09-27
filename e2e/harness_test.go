@@ -67,15 +67,15 @@ type options struct {
 	cols, rows uint16   // defaults to 100x30
 	light      bool     // use the light reference palette
 	env        []string // extra environment, e.g. a fake JEV endpoint
-	// config is where 012 keeps its machine id for macros
-	// (O12_CONFIG_DIR); by default inside dir, so sessions sharing a
-	// directory are one computer and nothing touches the real one's.
-	config string
 	jev        bool     // answer JEV functions with a fake service (screens)
 	// graphics turns on the kitty graphics protocol, so charts become
 	// images; off by default, so screens show the text charts every
 	// terminal gets.
 	graphics bool
+	// config is where 012 keeps its machine id for macros
+	// (O12_CONFIG_DIR); by default inside dir, so sessions sharing a
+	// directory are one computer and nothing touches the real one's.
+	config string
 }
 
 // start launches 012 in dir (a fresh temp dir if empty) with args.

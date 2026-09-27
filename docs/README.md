@@ -9,6 +9,7 @@
 - [Charts, links and the terminal](charts.md): charts, hyperlinks, terminal features used
 - [Files](files.md): the `.012` format, import and export
 - [JEV functions](jev.md): asking a hosted model from formulas
+- [Macros](macros.md): recording, running and managing macros; the Starlark scripting API
 
 **Working on 012**
 

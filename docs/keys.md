@@ -50,6 +50,8 @@ Inside the grid, 012 works like Google Sheets.
 | Insert > Chart | Chart the selection (or the table around the active cell); the editor bar picks the type with Left/Right, S switches rows and columns, H and L toggle the header row and labels, R changes the range, T the title |
 | Click a chart, then Arrows / Shift+arrows / Del | Move, resize or delete it; drag the chart or its corner with the mouse; Enter edits it |
 | Cmd- or Ctrl-click a URL | Open it: cells holding a URL, and `=HYPERLINK(url, [label])`, are terminal hyperlinks |
+| Data > Macros | Record what you do as a macro (absolute or relative references), stop and save it with a name and shortcut, run or manage saved macros; see [macros.md](macros.md) |
+| Ctrl+Alt+Shift+0 ... 9 | Run the macro with that shortcut; Esc stops a macro while it runs (the indicator says CMD) |
 
 ## Mouse
 
@@ -75,7 +77,7 @@ restores that on exit.
 ## The screen
 
 The top three lines are the **menu bar** with the mode indicator on the
-right, the **formula bar** (name box, then the cell's contents or the entry
+right (and `REC` beside it while a macro is recorded), the **formula bar** (name box, then the cell's contents or the entry
 being typed) and the **context line**, which holds prompts, key hints,
 formula errors and explanations. The bottom line is the **status line**:
 the sheet tabs (as tmux lists its windows, the sheet shown highlighted),
