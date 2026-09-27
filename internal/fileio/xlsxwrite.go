@@ -66,6 +66,9 @@ func (w *xlsxWriter) unknownSheet(c SnapCell) (string, bool) {
 func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active bool) int {
 	r := snap.Range
 	bw.WriteString(xmlHead + `<worksheet xmlns="` + sheetMain + `" xmlns:r="` + officeRel + `">`)
+	if len(snap.HiddenRows) > 0 {
+		bw.WriteString(`<sheetPr filterMode="1"/>`) // a filter is hiding rows
+	}
 	fmt.Fprintf(bw, `<dimension ref="%s%d:%s%d"/>`, excelColName(r.From.Col+1), r.From.Row+1, excelColName(r.To.Col+1), r.To.Row+1)
 	writeSheetView(bw, snap, active)
 	bw.WriteString(`<sheetFormatPr defaultRowHeight="15"/>`)
