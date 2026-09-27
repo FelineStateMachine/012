@@ -46,6 +46,7 @@ func (bk *xlsxBook) importBook(ctx context.Context, opt Options) (*Result, error
 	b := newBuilder(ctx, opt.MaxCells)
 	book := b.s.Book()
 	done := 0
+	filters := make([]*xlsxAutoFilter, len(bk.sheets))
 	var err error
 	for i, info := range bk.sheets {
 		next := b.s
@@ -58,7 +59,7 @@ func (bk *xlsxBook) importBook(ctx context.Context, opt Options) (*Result, error
 			return nil, fmt.Errorf("sheet %s: %w", info.name, err)
 		}
 		b.nextSheet(next)
-		rows, err := bk.importSheet(ctx, b, i, func(row int) {
+		rows, err := bk.importSheet(ctx, b, i, &filters[i], func(row int) {
 			prog.setRows(done + row)
 			prog.setFrac(int64(done+row), int64(total))
 		})
@@ -78,17 +79,19 @@ func (bk *xlsxBook) importBook(ctx context.Context, opt Options) (*Result, error
 	b.s = active
 	prog.setRows(done)
 	s, notes := b.finish(notes)
-	return &Result{Sheet: s, Rows: done, Notes: notes}, nil
+	return &Result{Sheet: s, Rows: done, Notes: append(notes, applyFilters(book, filters)...)}, nil
 }
 
-// importSheet reads sheet i into b.s, reporting rows read, and returns
-// the number of its last row.
-func (bk *xlsxBook) importSheet(ctx context.Context, b *builder, i int, report func(int)) (int, error) {
+// importSheet reads sheet i into b.s, with its frozen panes, reporting
+// rows read, and returns the number of its last row. Its autoFilter, if
+// any, goes in af, to apply once values are computed.
+func (bk *xlsxBook) importSheet(ctx context.Context, b *builder, i int, af **xlsxAutoFilter, report func(int)) (int, error) {
 	r, err := bk.openSheet(i)
 	if err != nil {
 		return 0, err
 	}
 	defer r.close()
+	b.s.LoadFrozen(r.frozenRows, r.frozenCols)
 	last, width := 0, 0
 	for n := 0; ; n++ {
 		ok, err := r.next()
@@ -111,6 +114,9 @@ func (bk *xlsxBook) importSheet(ctx context.Context, b *builder, i int, report f
 		if n := len(r.row.cells); n > 0 {
 			width = max(width, r.row.cells[n-1].col)
 		}
+	}
+	if *af, err = r.readTail(); err != nil {
+		return 0, fmt.Errorf("sheet %s: %w", bk.sheets[i].name, err)
 	}
 	loadColStyles(b, width, func(c int) (xlsxStyle, bool) {
 		st := bk.styles.style(r.lineStyle(c + 1))

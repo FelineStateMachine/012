@@ -19,10 +19,34 @@ File > Import asks where the data goes, as Sheets' Import location does
 | Format | Import | Download |
 |---|---|---|
 | CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, as Sheets' Download does |
-| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths, column and row styles, shared formulas, dates in the 1904 system; sheets Excel hid stay hidden (unless it's the one Excel showed). Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed. Files past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) are refused with a message saying which | Every sheet, the same, with formulas in Excel's syntax and their results cached, and column and row formats as column and row styles. JEV functions and `#AND#` save as values, and so do formulas naming a sheet that doesn't exist (their `#REF!`; Excel would refuse the reference) or a sheet whose name Excel can't take as is (renamed in the file, e.g. `Plan (2)`), and pivot tables: Excel gets the results, not a pivot. The download's result counts the formulas saved as values, with an example |
+| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths, column and row styles, frozen panes, filters (see [Filters in XLSX](#filters-in-xlsx)), shared formulas, dates in the 1904 system; sheets Excel hid stay hidden (unless it's the one Excel showed). Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed. Files past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) are refused with a message saying which | Every sheet, the same, with formulas in Excel's syntax and their results cached, column and row formats as column and row styles, frozen rows and columns as frozen panes, and a filter as Excel's with the rows it hides hidden. A sheet whose name Excel can't take as is (spaces at its ends, or the same as another's but for them and case) gets one it can (without the spaces, with a number when two would clash, e.g. `Plan (2)`), and the formulas and named ranges naming it name that. JEV functions and `#AND#` save as values, and so do formulas naming a sheet that doesn't exist (their `#REF!`; Excel would refuse the reference), and pivot tables: Excel gets the results, not a pivot. The download's result counts the formulas saved as values, with an example |
 | SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet shown or the selection as a table, first row as column names; a table of that name is replaced |
 | Parquet | Every column, with dates and timestamps; lists joined with commas | |
 | Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
+
+## Filters in XLSX
+
+A sheet's filter goes out as Excel's AutoFilter over the same range, and
+an AutoFilter comes in as a filter:
+
+| 012 | Excel |
+|---|---|
+| Filter by values: the values unchecked | The list of values shown (Excel keeps those checked), with blanks when they're shown. Values are compared as displayed, ignoring case |
+| Is empty | Blanks only |
+| Is not empty | Custom filter: does not equal a space |
+| Text contains, does not contain, starts with, ends with, is exactly | Custom filter: equals or does not equal `*text*`, `text*`, `*text`, `text`, with Excel's wildcards in the text escaped (`~*`) |
+| Greater than, less than, is equal to, is not equal to (and or equal to) | Custom filter with that operator; numbers typed as `$1,200` or `12%` go out as the number |
+
+The rows the filter hides are written hidden, since Excel shows a file's
+rows as saved rather than filtering again. A column with both unchecked
+values and a condition goes out as the list of values both let through,
+and comes back as that list. What 012's filters can't do is left out,
+with a note saying how many criteria and which: two conditions in one
+column (`and`, `or`), wildcards other than at the ends of the text (`a?c`,
+`a*c`), top 10, dynamic filters (above average, this month), dates
+grouped by year or month, and filtering by color or icon. The filter
+itself still comes in over its range. Filters of Excel tables (as
+opposed to the sheet's AutoFilter) aren't read.
 
 ## The native format
 

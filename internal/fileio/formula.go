@@ -2,6 +2,8 @@ package fileio
 
 import (
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // 012 reads Sheets' formula syntax and some of 1-2-3's (@SUM, A1..B3,
@@ -17,11 +19,14 @@ var xlfn = map[string]bool{
 // toExcelFormula translates a formula entry to Excel's syntax, or
 // reports false when Excel has no equivalent (JEV functions, 1-2-3's
 // #AND# operators), in which case the value is exported instead.
-func toExcelFormula(input string) (string, bool) {
+//
+// renamed maps the key (formula.SheetKey) of each sheet written under
+// another name to that name: references to it are rewritten to name it.
+func toExcelFormula(input string, renamed map[string]string) (string, bool) {
 	src := strings.TrimPrefix(input, "=")
 	var b strings.Builder
 	for i := 0; i < len(src); {
-		next, ok := excelToken(&b, src, i)
+		next, ok := excelToken(&b, src, i, renamed)
 		if !ok {
 			return "", false
 		}
@@ -32,13 +37,15 @@ func toExcelFormula(input string) (string, bool) {
 
 // excelToken writes the token starting at src[i] in Excel's syntax and
 // returns the index just past it, or false when Excel has no equivalent.
-func excelToken(b *strings.Builder, src string, i int) (int, bool) {
+func excelToken(b *strings.Builder, src string, i int, renamed map[string]string) (int, bool) {
 	c := src[i]
 	switch {
 	case c == '\'':
-		// A quoted sheet name, 'Q3 plan'!A1, is the same in Excel.
+		// A quoted sheet name, 'Q3 plan'!A1, is the same in Excel, unless
+		// the sheet is written under another name.
 		j := quoteEnd(src, i)
-		b.WriteString(src[i:j])
+		name := strings.ReplaceAll(strings.TrimSuffix(src[i+1:j], "'"), "''", "'")
+		b.WriteString(excelSheetRef(src[i:j], name, j < len(src) && src[j] == '!', renamed))
 		return j, true
 	case c == '"':
 		j := stringEnd(src, i)
@@ -57,7 +64,7 @@ func excelToken(b *strings.Builder, src string, i int) (int, bool) {
 		b.WriteByte(':') // 1-2-3's A1..B3
 		return i + 2, true
 	case c == '@' || isIdentByte(c) && !isDigitByte(c) && c != '.':
-		return excelName(b, src, i)
+		return excelName(b, src, i, renamed)
 	}
 	b.WriteByte(c)
 	return i + 1, true
@@ -81,7 +88,7 @@ func stringEnd(s string, i int) int {
 // excelName writes the name starting at src[i]: a function name is
 // upper-cased and given Excel's _xlfn. prefix where it needs one, and
 // 1-2-3's @PI becomes PI(); references and named ranges stay as they are.
-func excelName(b *strings.Builder, src string, i int) (int, bool) {
+func excelName(b *strings.Builder, src string, i int, renamed map[string]string) (int, bool) {
 	at := src[i] == '@'
 	j := i
 	if at {
@@ -109,8 +116,21 @@ func excelName(b *strings.Builder, src string, i int) (int, bool) {
 			name += "()" // @PI
 		}
 	}
-	b.WriteString(name)
+	b.WriteString(excelSheetRef(name, name, !call && !at && j < len(src) && src[j] == '!', renamed))
 	return j, true
+}
+
+// excelSheetRef is text, a sheet name as written (name, unquoted) when
+// sheet says it is followed by !, with the name the sheet is written
+// under when that differs: always quoted, as Excel accepts.
+func excelSheetRef(text, name string, sheet bool, renamed map[string]string) string {
+	if !sheet {
+		return text
+	}
+	if to, ok := renamed[formula.SheetKey(name)]; ok {
+		return "'" + strings.ReplaceAll(to, "'", "''") + "'"
+	}
+	return text
 }
 
 // fromExcelFormula translates an Excel formula (without its =) to a 012

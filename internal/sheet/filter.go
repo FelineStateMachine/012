@@ -301,6 +301,10 @@ func (s *Sheet) ShownText(a Addr) string {
 	return FormatText(c.Value, s.DisplayFormat(a))
 }
 
+// Matches reports whether a cell with value v, shown as shown, meets the
+// condition, as the filter tests it.
+func (c Condition) Matches(v Value, shown string) bool { return c.test()(v, shown) }
+
 // test compiles the condition. Text conditions ignore case; comparisons
 // need a number for a number (entered as $1,200 or 12% too) and text for
 // text, and never match blanks.

@@ -29,8 +29,9 @@ type xlsxWriter struct {
 	// refuse.
 	values       valueCount
 	missing      valueCount
-	missingSheet string          // the sheet missing's example names
-	known        map[string]bool // keys of the sheets written
+	missingSheet string            // the sheet missing's example names
+	known        map[string]bool   // keys of the sheets written
+	renamed      map[string]string // the names of sheets written under another, by key
 }
 
 // valueCount counts formulas written as values, keeping the first one's
@@ -65,12 +66,12 @@ func (w *xlsxWriter) unknownSheet(c SnapCell) (string, bool) {
 func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active bool) int {
 	r := snap.Range
 	bw.WriteString(xmlHead + `<worksheet xmlns="` + sheetMain + `" xmlns:r="` + officeRel + `">`)
-	fmt.Fprintf(bw, `<dimension ref="%s%d:%s%d"/>`, excelColName(r.From.Col+1), r.From.Row+1, excelColName(r.To.Col+1), r.To.Row+1)
-	bw.WriteString(`<sheetViews><sheetView workbookViewId="0"`)
-	if active {
-		bw.WriteString(` tabSelected="1"`)
+	if len(snap.HiddenRows) > 0 {
+		bw.WriteString(`<sheetPr filterMode="1"/>`) // a filter is hiding rows
 	}
-	bw.WriteString(`/></sheetViews><sheetFormatPr defaultRowHeight="15"/>`)
+	fmt.Fprintf(bw, `<dimension ref="%s%d:%s%d"/>`, excelColName(r.From.Col+1), r.From.Row+1, excelColName(r.To.Col+1), r.To.Row+1)
+	writeSheetView(bw, snap, active)
+	bw.WriteString(`<sheetFormatPr defaultRowHeight="15"/>`)
 	w.writeCols(bw, snap)
 	bw.WriteString(`<sheetData>`)
 	styled := slices.Sorted(maps.Keys(snap.RowFormats)) // rows with a style of their own, written even without cells
@@ -87,7 +88,7 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 				b = w.cell(b, ws, a, c)
 			}
 		}
-		if len(b) > 0 || rowStyled {
+		if len(b) > 0 || rowStyled || snap.HiddenRows[row] {
 			w.rowStart(bw, snap, row)
 			bw.Write(b)
 			bw.WriteString(`</row>`)
@@ -95,7 +96,9 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 		w.buf = b
 	}
 	w.styledRows(bw, snap, styled, sheet.MaxRows)
-	bw.WriteString(`</sheetData></worksheet>`)
+	bw.WriteString(`</sheetData>`)
+	writeAutoFilter(bw, snap)
+	bw.WriteString(`</worksheet>`)
 	return r.To.Row - r.From.Row + 1
 }
 
@@ -157,7 +160,7 @@ func (w *xlsxWriter) formula(ws string, a sheet.Addr, c SnapCell) string {
 		w.missing.add(w.multi, ws, a)
 		return ""
 	}
-	fx, ok := toExcelFormula(c.Input)
+	fx, ok := toExcelFormula(c.Input, w.renamed)
 	if !ok {
 		w.values.add(w.multi, ws, a)
 	}
