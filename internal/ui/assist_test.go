@@ -5,18 +5,20 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/FelineStateMachine/012/internal/ui/suggest"
 )
 
 func TestAutocompleteFunctions(t *testing.T) {
 	m := newModel()
 	press(t, m, "=su")
-	list, _ := m.entry.assist.shown(m)
-	if len(list) == 0 || list[0].name != "SUBSTITUTE" && list[0].name != "SUM" {
+	list, _ := m.entry.assist.Shown(m.host())
+	if len(list) == 0 || list[0].Name != "SUBSTITUTE" && list[0].Name != "SUM" {
 		t.Fatalf("suggestions %v", list)
 	}
 	for _, s := range list {
-		if !strings.HasPrefix(s.name, "SU") && !strings.Contains(s.name, "SU") {
-			t.Errorf("unexpected %s", s.name)
+		if !strings.HasPrefix(s.Name, "SU") && !strings.Contains(s.Name, "SU") {
+			t.Errorf("unexpected %s", s.Name)
 		}
 	}
 	scr := screen(m)
@@ -27,7 +29,7 @@ func TestAutocompleteFunctions(t *testing.T) {
 		t.Errorf("status %q", st)
 	}
 	// Down moves the highlight rather than committing; Tab inserts.
-	for list[m.entry.assist.sel].name != "SUM" {
+	for list[m.entry.assist.Sel()].Name != "SUM" {
 		press(t, m, "<down>")
 	}
 	press(t, m, "<tab>")
@@ -38,7 +40,7 @@ func TestAutocompleteFunctions(t *testing.T) {
 		t.Errorf("signature %q", ctx)
 	}
 	press(t, m, "1,")
-	sig, _ := signature(&m.th, m.line.Buf, m.line.Pos, ',')
+	sig, _ := suggest.Signature(&m.th, m.line.Buf, m.line.Pos, ',')
 	if !strings.Contains(sig, m.th.Argument.Render("[value2, ...]")) {
 		t.Errorf("second argument not marked: %q", sig)
 	}
@@ -62,7 +64,7 @@ func TestAutocompleteKeys(t *testing.T) {
 	// Esc hides the list, a second Esc cancels the entry.
 	press(t, m, "=ro")
 	press(t, m, "<esc>")
-	if list, _ := m.entry.assist.shown(m); list != nil || m.mode != modeEnter {
+	if list, _ := m.entry.assist.Shown(m.host()); list != nil || m.mode != modeEnter {
 		t.Fatalf("esc: %v %v", list, m.mode)
 	}
 	press(t, m, "<esc>")
@@ -77,16 +79,16 @@ func TestAutocompleteKeys(t *testing.T) {
 	press(t, m, "<esc>", "<esc>")
 	// Moving the caret hides the list; a cell reference gets no list.
 	press(t, m, "=co", "<left>")
-	if list, _ := m.entry.assist.shown(m); list != nil {
+	if list, _ := m.entry.assist.Shown(m.host()); list != nil {
 		t.Error("list after moving the caret")
 	}
 	press(t, m, "<esc>", "=B2")
-	if list, _ := m.entry.assist.shown(m); list != nil {
+	if list, _ := m.entry.assist.Shown(m.host()); list != nil {
 		t.Errorf("list for a reference: %v", list)
 	}
 	// Plain text gets no list.
 	press(t, m, "<esc>", "su")
-	if list, _ := m.entry.assist.shown(m); list != nil {
+	if list, _ := m.entry.assist.Shown(m.host()); list != nil {
 		t.Error("list for text")
 	}
 }
@@ -95,12 +97,12 @@ func TestAutocompleteNamesAndMouse(t *testing.T) {
 	m := tallModel()
 	m.sheet.DefineName("Sales", rectOf("B1:B3"))
 	press(t, m, "=SUM(sa")
-	list, start := m.entry.assist.shown(m)
-	if list[0].name != "Sales" || list[0].fn {
+	list, start := m.entry.assist.Shown(m.host())
+	if list[0].Name != "Sales" || list[0].Fn {
 		t.Fatalf("names first: %v", list)
 	}
 	// Clicking a suggestion inserts it.
-	b, _ := m.entry.assist.box(m)
+	b, _ := m.entry.assist.Box(m.host())
 	send(m, tea.MouseClickMsg{X: b.X + 3, Y: b.Y + 1, Button: tea.MouseLeft})
 	if m.line.Text() != "=SUM(Sales" || m.line.Pos != start+5 {
 		t.Fatalf("click: %q", m.line.Text())

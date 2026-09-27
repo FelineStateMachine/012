@@ -15,6 +15,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/rules"
 	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
 	"github.com/FelineStateMachine/012/internal/ui/sortbar"
+	"github.com/FelineStateMachine/012/internal/ui/suggest"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/FelineStateMachine/012/internal/ui/themepicker"
 )
@@ -37,6 +38,7 @@ var (
 	_ sortbar.Host     = host{}
 	_ filterpick.Host  = host{}
 	_ shortcuts.Host   = host{}
+	_ suggest.Host     = host{}
 )
 
 // The in-package hosts the model implements itself.
