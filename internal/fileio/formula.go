@@ -20,74 +20,97 @@ var xlfn = map[string]bool{
 func toExcelFormula(input string) (string, bool) {
 	src := strings.TrimPrefix(input, "=")
 	var b strings.Builder
-	for i := 0; i < len(src); i++ {
-		c := src[i]
-		switch {
-		case c == '\'':
-			// A quoted sheet name, 'Q3 plan'!A1, is the same in Excel.
-			j := quoteEnd(src, i)
-			b.WriteString(src[i:j])
-			i = j - 1
-		case c == '"':
-			j := i + 1
-			for j < len(src) {
-				if src[j] == '"' {
-					if j+1 < len(src) && src[j+1] == '"' {
-						j += 2
-						continue
-					}
-					break
-				}
-				j++
-			}
-			if j >= len(src) {
-				return "", false
-			}
-			b.WriteString(src[i : j+1])
-			i = j
-		case c == '#':
-			if strings.HasPrefix(strings.ToUpper(src[i:]), "#REF!") {
-				b.WriteString("#REF!")
-				i += len("#REF!") - 1
-				continue
-			}
-			return "", false // #AND#, #OR#, #NOT#
-		case c == '.' && i+1 < len(src) && src[i+1] == '.':
-			b.WriteByte(':')
-			i++
-		case c == '@' || isIdentByte(c) && !isDigitByte(c) && c != '.':
-			j := i
-			if c == '@' {
-				j++
-			}
-			start := j
-			for j < len(src) && isIdentByte(src[j]) && !strings.HasPrefix(src[j:], "..") {
-				j++
-			}
-			name := src[start:j]
-			k := j
-			for k < len(src) && src[k] == ' ' {
-				k++
-			}
-			if k < len(src) && src[k] == '(' || c == '@' {
-				name = strings.ToUpper(name)
-				if strings.HasPrefix(name, "JEV.") {
-					return "", false
-				}
-				if xlfn[name] {
-					name = "_xlfn." + name
-				}
-				if c == '@' && (k >= len(src) || src[k] != '(') {
-					name += "()" // @PI
-				}
-			}
-			b.WriteString(name)
-			i = j - 1
-		default:
-			b.WriteByte(c)
+	for i := 0; i < len(src); {
+		next, ok := excelToken(&b, src, i)
+		if !ok {
+			return "", false
 		}
+		i = next
 	}
 	return b.String(), true
+}
+
+// excelToken writes the token starting at src[i] in Excel's syntax and
+// returns the index just past it, or false when Excel has no equivalent.
+func excelToken(b *strings.Builder, src string, i int) (int, bool) {
+	c := src[i]
+	switch {
+	case c == '\'':
+		// A quoted sheet name, 'Q3 plan'!A1, is the same in Excel.
+		j := quoteEnd(src, i)
+		b.WriteString(src[i:j])
+		return j, true
+	case c == '"':
+		j := stringEnd(src, i)
+		if j < 0 {
+			return 0, false
+		}
+		b.WriteString(src[i:j])
+		return j, true
+	case c == '#':
+		if p := prefixFold(src[i:], "#REF!"); p > 0 {
+			b.WriteString("#REF!")
+			return i + p, true
+		}
+		return 0, false // #AND#, #OR#, #NOT#
+	case c == '.' && i+1 < len(src) && src[i+1] == '.':
+		b.WriteByte(':') // 1-2-3's A1..B3
+		return i + 2, true
+	case c == '@' || isIdentByte(c) && !isDigitByte(c) && c != '.':
+		return excelName(b, src, i)
+	}
+	b.WriteByte(c)
+	return i + 1, true
+}
+
+// stringEnd returns the index just past the string literal starting at
+// s[i], where a quote inside is written twice, or -1 if it isn't closed.
+func stringEnd(s string, i int) int {
+	for j := i + 1; j < len(s); j++ {
+		if s[j] == '"' {
+			if j+1 < len(s) && s[j+1] == '"' {
+				j++
+				continue
+			}
+			return j + 1
+		}
+	}
+	return -1
+}
+
+// excelName writes the name starting at src[i]: a function name is
+// upper-cased and given Excel's _xlfn. prefix where it needs one, and
+// 1-2-3's @PI becomes PI(); references and named ranges stay as they are.
+func excelName(b *strings.Builder, src string, i int) (int, bool) {
+	at := src[i] == '@'
+	j := i
+	if at {
+		j++
+	}
+	start := j
+	for j < len(src) && isIdentByte(src[j]) && !strings.HasPrefix(src[j:], "..") {
+		j++
+	}
+	name := src[start:j]
+	k := j
+	for k < len(src) && src[k] == ' ' {
+		k++
+	}
+	call := k < len(src) && src[k] == '('
+	if call || at {
+		name = strings.ToUpper(name)
+		if strings.HasPrefix(name, "JEV.") {
+			return 0, false
+		}
+		if xlfn[name] {
+			name = "_xlfn." + name
+		}
+		if at && !call {
+			name += "()" // @PI
+		}
+	}
+	b.WriteString(name)
+	return j, true
 }
 
 // fromExcelFormula translates an Excel formula (without its =) to a 012
