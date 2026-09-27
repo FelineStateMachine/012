@@ -4,6 +4,7 @@
 #   - no function with cognitive complexity over 25 (gocognit)
 #   - no Go file over 500 lines
 #   - no docs or comments narrating history (scripts/doclint)
+#   - links, anchors, the docs index, media and tapes in step (scripts/doccheck)
 # The tools run with go run at pinned versions, so they never enter go.mod.
 set -eu
 cd "$(dirname "$0")/.."
@@ -44,6 +45,12 @@ fi
 
 # Docs and comments describe the code as it is, not how it got here.
 if ! go run ./scripts/doclint; then
+	fail=1
+fi
+
+# Links and anchors resolve, the index lists every doc, and every tape
+# records something a doc shows.
+if ! go run ./scripts/doccheck; then
 	fail=1
 fi
 
