@@ -53,8 +53,8 @@ func TestImportLocation(t *testing.T) {
 	if sheetNames(m) != "Sheet1,sales" || m.sheet.Name() != "sales" || input(m, "A2") != "North" {
 		t.Fatalf("inserted: %s on %s", sheetNames(m), m.sheet.Name())
 	}
-	if line(m, contextLine) != "Imported sales.csv as sales (2 rows)" || !m.changed || m.xfer.source != "" {
-		t.Errorf("context %q changed %v source %q", line(m, contextLine), m.changed, m.xfer.source)
+	if line(m, contextLine) != "Imported sales.csv as sales (2 rows)" || !m.changed || m.xfer.Source != "" {
+		t.Errorf("context %q changed %v source %q", line(m, contextLine), m.changed, m.xfer.Source)
 	}
 	if v := m.book().Sheet(0).Value(addr("A1")); v.Num != 24 {
 		t.Errorf("Sheet1!A1 reading the import = %v", v)

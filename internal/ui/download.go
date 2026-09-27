@@ -58,7 +58,7 @@ type exportedMsg struct {
 func (m *Model) displayBase() string {
 	name := m.filename
 	if name == "" {
-		name = m.xfer.source
+		name = m.xfer.Source
 	}
 	if name == "" {
 		return "SHEET1"
@@ -170,7 +170,7 @@ func (m *Model) download(name, path string, k fileio.Kind, r sheet.Rect, table s
 // saveImported is Save for a sheet imported from another format: save it
 // as a .012 file (keeping formulas and formatting), or export it back.
 func (m *Model) saveImported() tea.Cmd {
-	k := m.xfer.kind
+	k := m.xfer.Kind
 	choices := []choice{{key: "enter", label: "Save as " + filepath.Base(m.displayBase()) + sheet.FileExt, run: (*Model).openSave}}
 	if k.CanExport() {
 		choices = append(choices, choice{key: "e", label: "Download as " + k.String(), run: func(m *Model) tea.Cmd { return m.openDownload(k) }})
@@ -179,6 +179,6 @@ func (m *Model) saveImported() tea.Cmd {
 		m.quitAfterSave = false
 		return nil
 	}})
-	m.openOverlay(&choiceBar{m: m, msg: filepath.Base(m.xfer.source) + " was imported.", choices: choices})
+	m.openOverlay(&choiceBar{m: m, msg: filepath.Base(m.xfer.Source) + " was imported.", choices: choices})
 	return nil
 }

@@ -308,7 +308,7 @@ func (m *Model) handleLoaded(msg loadedMsg) {
 
 // save writes to the current file, asking for a name the first time.
 func (m *Model) save() tea.Cmd {
-	if m.filename == "" && m.xfer.source != "" {
+	if m.filename == "" && m.xfer.Source != "" {
 		return m.saveImported()
 	}
 	if m.filename == "" {

@@ -57,7 +57,7 @@ func (m *Model) View() tea.View {
 		// Terminals that support it (OSC 9;4) show activity in the tab.
 		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarIndeterminate, 0)
 	}
-	if bar := m.xfer.progressBar(); bar != nil {
+	if bar := m.xfer.ProgressBar(); bar != nil {
 		v.ProgressBar = bar
 	}
 	if m.changed {
@@ -121,8 +121,8 @@ func (m *Model) timeFrame(start time.Time) {
 }
 
 func (m *Model) displayName() string {
-	if m.filename == "" && m.xfer.source != "" {
-		return filepath.Base(m.xfer.source)
+	if m.filename == "" && m.xfer.Source != "" {
+		return filepath.Base(m.xfer.Source)
 	}
 	if m.filename == "" {
 		return "untitled"
@@ -133,7 +133,7 @@ func (m *Model) displayName() string {
 // indicator is the mode shown at the top right.
 func (m *Model) indicator() string {
 	switch {
-	case m.xfer.job != nil:
+	case m.xfer.Busy():
 		return "WAIT"
 	case m.macros.run != nil:
 		return "CMD" // 1-2-3's indicator while a macro runs
@@ -196,8 +196,8 @@ func (m *Model) formulaBar() string {
 func (m *Model) contextLineText() string {
 	var left, right string
 	switch {
-	case m.xfer.job != nil:
-		left = m.xfer.line(&m.th)
+	case m.xfer.Busy():
+		left = m.xfer.Line(&m.th)
 	case m.mouse.drag == dragResize:
 		left = m.th.Key.Render("Column "+sheet.ColName(m.mouse.resizeCol)) + m.th.Muted.Render(" width ") +
 			strconv.Itoa(m.sheet.ColWidth(m.mouse.resizeCol)) + m.th.Muted.Render("   double-click the border to fit")
@@ -286,8 +286,8 @@ func (m *Model) statusLayout() (string, []tabstrip.Span) {
 	if m.mode == modeError {
 		return m.th.Error.Render(m.errMsg) + m.th.Muted.Render("   press any key"), nil
 	}
-	if m.xfer.job != nil {
-		return m.spread(m.xfer.status(&m.th, m.width)), nil
+	if m.xfer.Busy() {
+		return m.spread(m.xfer.Status(&m.th, m.width)), nil
 	}
 	if line, ok := m.floatingStatus(); ok {
 		return line, nil

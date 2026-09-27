@@ -13,6 +13,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/transfer"
 )
 
 func writeFile(t *testing.T, name, text string) {
@@ -65,8 +66,8 @@ func TestImportPicker(t *testing.T) {
 	// A typed path imports a file that isn't listed.
 	m.runCommand("file.import")
 	press(t, m, "sub/deep.tsv", "<enter>", "Replace spreadsheet", "<enter>")
-	if input(m, "B1") != "b" || m.xfer.source != "sub/deep.tsv" {
-		t.Errorf("typed path: B1 %q source %q err %q", input(m, "B1"), m.xfer.source, m.errMsg)
+	if input(m, "B1") != "b" || m.xfer.Source != "sub/deep.tsv" {
+		t.Errorf("typed path: B1 %q source %q err %q", input(m, "B1"), m.xfer.Source, m.errMsg)
 	}
 	// Unknown types and broken files say what's wrong.
 	m.runCommand("file.import")
@@ -109,8 +110,8 @@ func TestOpenImportsOtherFormats(t *testing.T) {
 	writeFile(t, "data.tsv", "x\t2\n")
 	m := newModel()
 	press(t, m, "<ctrl+o>", "data.tsv", "<enter>")
-	if input(m, "B1") != "2" || m.filename != "" || m.xfer.source != "data.tsv" {
-		t.Errorf("open: B1 %q file %q source %q", input(m, "B1"), m.filename, m.xfer.source)
+	if input(m, "B1") != "2" || m.filename != "" || m.xfer.Source != "data.tsv" {
+		t.Errorf("open: B1 %q file %q source %q", input(m, "B1"), m.filename, m.xfer.Source)
 	}
 	// Save offers a .012 file or exporting back.
 	press(t, m, "<ctrl+s>")
@@ -242,7 +243,7 @@ func TestImportProgress(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 16})
 	cancelled := false
 	prog := fileio.NewProgress()
-	m.xfer.job = &importJob{id: 7, name: "data/big.csv", prog: prog, cancel: func() { cancelled = true }}
+	m.xfer.Begin("data/big.csv", prog, func() { cancelled = true }, transfer.Book)
 	prog.Report(1234, 0, 0)
 	if ind := m.indicator(); ind != "WAIT" {
 		t.Errorf("indicator %q", ind)
@@ -273,12 +274,12 @@ func TestImportProgress(t *testing.T) {
 	if !cancelled {
 		t.Error("Esc didn't cancel")
 	}
-	if m.xfer.job != nil || line(m, contextLine) != "Import of big.csv cancelled" {
+	if m.xfer.Busy() || line(m, contextLine) != "Import of big.csv cancelled" {
 		t.Errorf("after cancel: %q", line(m, contextLine))
 	}
 	// A stale result from an earlier import is ignored.
-	send(m, importedMsg{id: 3, name: "old.csv", res: &fileio.Result{Sheet: sheet.New()}})
-	if m.xfer.source != "" {
+	send(m, transfer.ImportedMsg{ID: 3, Name: "old.csv", Res: &fileio.Result{Sheet: sheet.New()}})
+	if m.xfer.Source != "" {
 		t.Errorf("stale import applied")
 	}
 }
@@ -299,8 +300,8 @@ func TestImportOnStart(t *testing.T) {
 func TestImportNotifiesWhenBlurred(t *testing.T) {
 	m := newModel()
 	send(m, tea.BlurMsg{})
-	m.xfer.job = &importJob{id: 5, name: "big.csv", prog: fileio.NewProgress(), cancel: func() {}}
-	_, cmd := m.Update(importedMsg{id: 5, name: "big.csv", res: &fileio.Result{Sheet: sheet.New(), Rows: 3}})
+	id := m.xfer.Begin("big.csv", fileio.NewProgress(), func() {}, transfer.Book)
+	_, cmd := m.Update(transfer.ImportedMsg{ID: id, Name: "big.csv", Res: &fileio.Result{Sheet: sheet.New(), Rows: 3}})
 	var notified bool
 	for _, msg := range flatten(cmd) {
 		if raw, ok := msg.(tea.RawMsg); ok && strings.Contains(fmt.Sprint(raw.Msg), "012: Imported big.csv") {
