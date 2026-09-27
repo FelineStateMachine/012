@@ -18,6 +18,7 @@ import (
 const (
 	MenuLine    = 0 // the menu bar; dropdowns and pickers open under it
 	ContextLine = 2 // prompts and bars; completions open under it
+	GridTop     = 4 // the grid's first row, under the column header; boxes over the grid start here
 )
 
 // SearchPrompt starts a search field, in pickers and bars.

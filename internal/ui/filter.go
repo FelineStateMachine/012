@@ -1,17 +1,17 @@
 package ui
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/sahilm/fuzzy"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"github.com/FelineStateMachine/012/internal/ui/filterpick"
 )
 
 // Filters follow Sheets' Data > Create a filter: the headers of the
@@ -31,6 +31,7 @@ func init() {
 				m.openFilterPicker(m.cur.Col)
 				return nil
 			},
+			answer: (*Model).answerFilter,
 			enabled: func(m *Model) bool {
 				r, on := m.sheet.FilterRange()
 				return on && m.cur.Col >= r.From.Col && m.cur.Col <= r.To.Col
@@ -93,160 +94,69 @@ func (g *grid) filterButtonX(c int) int {
 	return g.colStart(c) + (w-lw)/2 + lw - 1
 }
 
-// filterPicker is the values list and condition for one column: of the
-// sheet's filter, or of a pivot table's (pivoteditor.go), which set what
-// applying and cancelling do.
-type filterPicker struct {
-	m       *Model // the model it acts on
-	title   string
-	x       int // where the box goes, e.g. over its column
-	onApply func(m *Model, cr sheet.Criteria)
-	// onCancel, when set, runs after Esc or a click outside closes the
-	// picker.
-	onCancel     func(m *Model)
-	values       []sheet.FilterValue
-	checked      map[string]bool
-	cond         sheet.Condition
-	field        int       // 0 is the search, 1 the condition's value
-	fields       [2]string // the text of each field
-	shown        []int     // values matching the search, best first
-	overlay.List           // over the rows: "Select all", then shown
-}
-
-const filterID = "filter"
-
-// Rows of the box: the top border, the condition, a separator, the
-// search, a separator, then the list.
-const filterFirstRow = 5
-
 // openFilterPicker opens the picker for column col of the filter.
-func (m *Model) openFilterPicker(col int) {
+func (m *Model) openFilterPicker(col int) *filterpick.Picker {
 	r, on := m.sheet.FilterRange()
 	if !on || col < r.From.Col || col > r.To.Col {
-		return
+		return nil
 	}
 	title := "Filter " + sheet.ColName(col)
 	if h := m.sheet.ShownText(sheet.Addr{Col: col, Row: r.From.Row}); h != "" {
 		title += "  " + h
 	}
-	m.openValuesPicker(title, m.colStart(col), m.sheet.FilterValues(col), m.sheet.Filter().Cols[col].Cond,
-		func(m *Model, cr sheet.Criteria) { m.filterColumn(col, cr) })
+	return m.openValuesPicker(title, m.colStart(col), m.sheet.FilterValues(col), m.sheet.Filter().Cols[col].Cond,
+		func(cr sheet.Criteria) {
+			m.filterColumn(col, cr)
+			m.recordDialog("data.filter_column", filterAnswer(col, cr))
+		})
 }
 
 // openValuesPicker opens a filter picker titled title at screen column x
 // over values, with cond as the condition, calling apply with the
 // criteria chosen.
-func (m *Model) openValuesPicker(title string, x int, values []sheet.FilterValue, cond sheet.Condition, apply func(*Model, sheet.Criteria)) *filterPicker {
-	p := &filterPicker{m: m, title: title, x: x, onApply: apply, values: values, checked: map[string]bool{}, cond: cond}
-	for _, v := range p.values {
-		p.checked[v.Text] = v.Shown
-	}
-	p.fields[1] = sheet.LocalArg(p.cond.Arg, m.locale())
+func (m *Model) openValuesPicker(title string, x int, values []sheet.FilterValue, cond sheet.Condition, apply func(sheet.Criteria)) *filterpick.Picker {
+	p := filterpick.New(m.host(), title, x, values, cond, apply)
 	m.openOverlay(p)
-	m.line.Clear()
-	p.search()
+	p.Start()
 	return p
 }
 
-// close closes the picker without applying it.
-func (p *filterPicker) close(m *Model) {
-	m.closeOverlay()
-	if p.onCancel != nil {
-		p.onCancel(m)
+// filterAnswer is the answer to data.filter_column that sets column
+// col's criteria to cr: {"column": "B", "hidden": [...]}, the criteria
+// as a filter column's are written in the file.
+func filterAnswer(col int, cr sheet.Criteria) string {
+	rest := strings.TrimPrefix(cr.JSON(), "{")
+	if rest != "}" {
+		rest = "," + rest
 	}
+	return `{"column":"` + sheet.ColName(col) + `"` + rest
 }
 
-func (p *filterPicker) Indicator() string { return "FILTER" }
-
-// focus moves editing to field i, keeping the other field's text.
-func (p *filterPicker) focus(m *Model, i int) {
-	p.fields[p.field] = m.line.Text()
-	p.field = i
-	m.line.Set(p.fields[i])
-}
-
-func (p *filterPicker) Changed() {
-	m := p.m
-	p.fields[p.field] = m.line.Text()
-	if p.field == 0 {
-		p.search()
+// answerFilter sets a column's criteria from a macro's answer, as the
+// picker does: the column named, or the active one.
+func (m *Model) answerFilter(text string) (tea.Cmd, error) {
+	var a struct {
+		Column string `json:"column"`
 	}
-}
-
-// valueLabel is how a value shows in the list.
-func valueLabel(text string) string {
-	if text == "" {
-		return "(Blanks)"
+	if err := json.Unmarshal([]byte(text), &a); err != nil {
+		return nil, err
 	}
-	return text
-}
-
-// search narrows the list to the values matching the search.
-func (p *filterPicker) search() {
-	p.Sel, p.Top = 0, 0
-	p.shown = p.shown[:0]
-	q := strings.TrimSpace(p.fields[0])
-	if q == "" {
-		for i := range p.values {
-			p.shown = append(p.shown, i)
+	col := m.cur.Col
+	if a.Column != "" {
+		c, ok := sheet.ParseCol(strings.ToUpper(a.Column))
+		if !ok {
+			return nil, fmt.Errorf("no column %q", a.Column)
 		}
-		return
+		col = c
 	}
-	labels := make([]string, len(p.values))
-	for i, v := range p.values {
-		labels[i] = valueLabel(v.Text)
+	r, on := m.sheet.FilterRange()
+	switch {
+	case !on:
+		return nil, errors.New("the sheet has no filter: run(\"data.filter\") creates one")
+	case col < r.From.Col || col > r.To.Col:
+		return nil, fmt.Errorf("column %s isn't in the filter's range %s", sheet.ColName(col), r)
 	}
-	for _, mt := range fuzzy.Find(q, labels) {
-		p.shown = append(p.shown, mt.Index)
-	}
-}
-
-// toggle checks or unchecks list row i: "Select all" (row 0) checks every
-// shown value, or unchecks them if they all are.
-func (p *filterPicker) toggle(i int) {
-	if i > 0 {
-		t := p.values[p.shown[i-1]].Text
-		p.checked[t] = !p.checked[t]
-		return
-	}
-	all := p.allChecked()
-	for _, k := range p.shown {
-		p.checked[p.values[k].Text] = !all
-	}
-}
-
-func (p *filterPicker) allChecked() bool {
-	for _, k := range p.shown {
-		if !p.checked[p.values[k].Text] {
-			return false
-		}
-	}
-	return true
-}
-
-// cycle steps the condition through Sheets' list.
-func (p *filterPicker) cycle(d int) {
-	n := len(sheet.CondOps())
-	p.cond.Op = sheet.CondOp((int(p.cond.Op) + d + n) % n)
-}
-
-// apply sets the column's criteria and closes the picker.
-func (p *filterPicker) apply(m *Model) {
-	p.fields[p.field] = m.line.Text()
-	var cr sheet.Criteria
-	for _, v := range p.values {
-		if !p.checked[v.Text] {
-			cr.Hidden = append(cr.Hidden, v.Text)
-		}
-	}
-	cr.Cond = sheet.Condition{Op: p.cond.Op, Arg: sheet.CanonicalArg(strings.TrimSpace(p.fields[1]), m.locale())}
-	if !cr.Cond.Op.TakesArg() {
-		cr.Cond.Arg = ""
-	} else if cr.Cond.Arg == "" {
-		cr.Cond = sheet.Condition{}
-	}
-	m.closeOverlay()
-	p.onApply(m, cr)
+	return nil, m.openFilterPicker(col).Answer(text)
 }
 
 // filterColumn sets the criteria of column col of the sheet's filter.
@@ -267,197 +177,4 @@ func rowCount(n int) string {
 		return "1 row"
 	}
 	return strconv.Itoa(n) + " rows"
-}
-
-func (p *filterPicker) Key(k tea.KeyPressMsg) tea.Cmd {
-	m := p.m
-	n := len(p.shown) + 1
-	switch key := k.String(); {
-	case key == "esc":
-		p.close(m)
-	case key == "enter":
-		p.apply(m)
-	case key == "tab" || key == "shift+tab":
-		p.focus(m, 1-p.field)
-	case p.field == 1 && (key == "up" || key == "down"):
-		if key == "up" {
-			p.cycle(-1)
-		} else {
-			p.cycle(1)
-		}
-	case key == "up" || key == "ctrl+p":
-		p.Move(-1, n)
-	case key == "down" || key == "ctrl+n":
-		p.Move(1, n)
-	case key == "pgup":
-		p.Sel = max(p.Sel-p.rows(m), 0)
-	case key == "pgdown":
-		p.Sel = min(p.Sel+p.rows(m), n-1)
-	case p.field == 0 && key == "space":
-		p.toggle(p.Sel)
-	default:
-		before := m.line.Text()
-		m.line.Key(k)
-		if m.line.Text() != before {
-			p.Changed()
-		}
-	}
-	return nil
-}
-
-func (p *filterPicker) Mouse(e overlay.MouseEvent) tea.Cmd {
-	m := p.m
-	if e.Box != filterID {
-		if e.Kind == overlay.MousePress {
-			p.close(m)
-		}
-		return nil
-	}
-	n := len(p.shown) + 1
-	i := p.Top + e.Row - filterFirstRow
-	switch {
-	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelUp:
-		p.Move(-1, n)
-	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelDown:
-		p.Move(1, n)
-	case e.Kind != overlay.MousePress && e.Kind != overlay.MouseMotion:
-	case e.Row == 1 && e.Kind == overlay.MousePress:
-		if p.field != 1 {
-			p.focus(m, 1)
-		}
-		switch x := e.Col - 1 - len(" If "); {
-		case x == 0:
-			p.cycle(-1)
-		case x == ansi.StringWidth(p.condChip())-1:
-			p.cycle(1)
-		}
-	case e.Row == 3 && e.Kind == overlay.MousePress:
-		p.focus(m, 0)
-	case e.Row < filterFirstRow || i >= n || i >= p.Top+p.rows(m):
-	case e.Kind == overlay.MouseMotion:
-		p.Sel = i
-	case e.Button == tea.MouseLeft:
-		p.Sel = i
-		p.toggle(i)
-	}
-	return nil
-}
-
-func (p *filterPicker) Status() (string, string) {
-	m := p.m
-	if p.field == 1 {
-		return "Rows must also meet the condition", m.th.KeyHints("Up/Down", "condition", "Tab", "values", "Enter", "apply", "Esc", "cancel")
-	}
-	pairs := []string{"Space", "check", "Tab", "condition", "Enter", "apply", "Esc", "cancel"}
-	desc := "Type to search the values"
-	for {
-		keys := m.th.KeyHints(pairs...)
-		switch {
-		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
-			return m.th.Muted.Render(desc), keys
-		case desc != "":
-			desc = ""
-		case len(pairs) > 4:
-			pairs = append(pairs[:2], pairs[4:]...)
-		default:
-			return "", keys
-		}
-	}
-}
-
-// rows is how many list rows show: all of them if they fit above the
-// status line, at most twelve.
-func (p *filterPicker) rows(m *Model) int {
-	return max(min(len(p.shown)+1, 12, m.height-1-gridTop-filterFirstRow-1), 1)
-}
-
-func (p *filterPicker) box(m *Model) (x, y, inner int) {
-	w := 0
-	for _, v := range p.values {
-		w = max(w, ansi.StringWidth(valueLabel(v.Text))+len(strconv.Itoa(v.Count)))
-	}
-	inner = clamp(w+10, 36, 48)
-	inner = min(inner, m.width-2)
-	h := p.rows(m) + filterFirstRow + 1
-	x, y = m.clampBox(p.x, gridTop, inner+2, h)
-	return x, min(y, max(m.height-1-h, 0)), inner
-}
-
-func (p *filterPicker) Cursor() (int, int) {
-	m := p.m
-	x, y, _ := p.box(m)
-	caret := ansi.StringWidth(m.line.Head())
-	if p.field == 1 {
-		return x + 1 + len(" If ") + ansi.StringWidth(p.condChip()) + 2 + caret, y + 1
-	}
-	return x + 1 + ansi.StringWidth(overlay.SearchPrompt) + caret, y + 3
-}
-
-// condChip is the condition's name between arrows that change it.
-func (p *filterPicker) condChip() string {
-	return "‹ " + p.cond.Op.Title() + " ›"
-}
-
-func (p *filterPicker) Layout() []overlay.Box {
-	m := p.m
-	x, y, inner := p.box(m)
-	rows := p.rows(m)
-	p.Show(rows)
-
-	chipStyle := m.th.KeyChip
-	if p.field == 1 {
-		chipStyle = m.th.MenuSelected
-	}
-	cond := m.th.Muted.Render(" If ") + chipStyle.Render(p.condChip())
-	if p.cond.Op.TakesArg() {
-		arg := p.fields[1]
-		if p.field == 1 {
-			arg = m.line.Text()
-		}
-		if arg == "" && p.field != 1 {
-			arg = m.th.Muted.Render("value")
-		}
-		cond += "  " + arg
-	}
-	search := p.fields[0]
-	if p.field == 0 {
-		search = m.line.Text()
-	}
-	input := m.th.Title.Render(overlay.SearchPrompt) + search
-	if search == "" {
-		input += m.th.Muted.Render("Search values")
-	}
-	lines := []string{theme.Cells(m.th.MenuBar, cond, inner), theme.SepRow, theme.Cells(m.th.MenuBar, input, inner), theme.SepRow}
-
-	for r := range rows {
-		i := p.Top + r
-		if i > len(p.shown) {
-			lines = append(lines, theme.Cells(m.th.MenuBar, "", inner))
-			continue
-		}
-		label, count, checked := "Select all", "", p.allChecked()
-		dim := false
-		if i > 0 {
-			v := p.values[p.shown[i-1]]
-			label, count, checked, dim = valueLabel(v.Text), strconv.Itoa(v.Count), p.checked[v.Text], v.Text == ""
-		}
-		box := "[ ] "
-		if checked {
-			box = "[x] "
-		}
-		base, muted := m.th.MenuBar, m.th.Muted
-		if i == p.Sel {
-			base, muted = m.th.MenuSelected, m.th.MenuSelected
-		}
-		labelStyle := base
-		if dim {
-			labelStyle = muted
-		}
-		text := base.Render(" "+box) + theme.Cells(labelStyle, label, inner-6-len(count)-1)
-		text += muted.Render(theme.PadLeft(count, len(count)+1)) + base.Render(" ")
-		lines = append(lines, ansi.Truncate(text, inner, ""))
-	}
-	title := p.title
-	footer := strconv.Itoa(len(p.shown)) + " of " + strconv.Itoa(len(p.values))
-	return []overlay.Box{{ID: filterID, X: x, Y: y, Lines: m.th.Frame(inner, title, footer, lines)}}
 }

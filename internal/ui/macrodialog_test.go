@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Dialogs recorded as the commands that open them, answered with their
@@ -96,5 +98,50 @@ func TestScriptAnswersSortBar(t *testing.T) {
 	script(t, m, `run("data.sort_range", answer={"by": [{"column": "Z"}]})`)
 	if !strings.Contains(m.warn, `Sort range: column "Z" isn't in A1:C5`) || m.overlay != nil {
 		t.Fatalf("warn %q overlay %T", m.warn, m.overlay)
+	}
+}
+
+func TestRecordFilterPicker(t *testing.T) {
+	m := salesModel()
+	got := recordDo(t, m, "Filter", func() {
+		run(m, m.runCommand("data.filter"))
+		press(t, m, "<alt+down>", "<down>", "<down>", "<space>", "<enter>")
+		// The button of another column, with a condition.
+		press(t, m, "<right>")
+		click(m, m.filterButtonX(2), headerLine, 0)
+		press(t, m, "<tab>")
+		for range int(sheet.CondGreater) {
+			press(t, m, "<down>")
+		}
+		press(t, m, "3", "<enter>")
+	})
+	want := `run("data.filter")
+run("data.filter_column", answer={"column": "A", "hidden": ["North"]})
+select("B1")
+run("data.filter_column", answer={"column": "C", "condition": "gt", "value": "3"})`
+	if got != want {
+		t.Fatalf("recorded:\n%s\nwant:\n%s", got, want)
+	}
+	if m.sheet.HiddenRows() != 2 {
+		t.Fatalf("hidden %d", m.sheet.HiddenRows())
+	}
+	replays(t, m, "Filter", salesModel)
+}
+
+func TestScriptAnswersFilterPicker(t *testing.T) {
+	m := salesModel()
+	script(t, m, `run("data.filter_column", answer={"column": "B", "hidden": ["40"]})`)
+	if !strings.Contains(m.warn, "the sheet has no filter") {
+		t.Fatalf("warn %q", m.warn)
+	}
+	script(t, m, `run("data.filter")
+run("data.filter_column", answer={"column": "D", "hidden": ["40"]})`)
+	if !strings.Contains(m.warn, "column D isn't in the filter's range A1:C5") || m.overlay != nil {
+		t.Fatalf("warn %q overlay %T", m.warn, m.overlay)
+	}
+	script(t, m, `select("B2")
+run("data.filter_column", answer={"hidden": ["40", "7"]})`)
+	if m.sheet.HiddenRows() != 2 || m.note != "Ran S" {
+		t.Fatalf("hidden %d note %q warn %q", m.sheet.HiddenRows(), m.note, m.warn)
 	}
 }

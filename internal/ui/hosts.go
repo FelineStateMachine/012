@@ -3,10 +3,12 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 	"github.com/FelineStateMachine/012/internal/ui/cmdline"
+	"github.com/FelineStateMachine/012/internal/ui/filterpick"
 	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
@@ -32,6 +34,7 @@ var (
 	_ rules.Host       = host{}
 	_ choicebar.Host   = host{}
 	_ sortbar.Host     = host{}
+	_ filterpick.Host  = host{}
 )
 
 // The in-package hosts the model implements itself.
@@ -57,8 +60,8 @@ func (m *Model) syncChanged() { m.changed = m.sheet.StateID() != m.saved }
 // pickValues opens a filter's values list titled title at screen column
 // x; apply gets the criteria chosen, and cancel runs after Esc.
 func (m *Model) pickValues(title string, x int, values []sheet.FilterValue, cond sheet.Condition, apply func(sheet.Criteria), cancel func()) {
-	fp := m.openValuesPicker(title, x, values, cond, func(_ *Model, cr sheet.Criteria) { apply(cr) })
-	fp.onCancel = func(*Model) { cancel() }
+	fp := m.openValuesPicker(title, x, values, cond, apply)
+	fp.OnCancel = cancel
 }
 
 // pointRange asks for a range on the context line; done gets it, and
@@ -87,6 +90,7 @@ func (h host) Theme() *theme.Theme       { return &h.m.th }
 func (h host) Size() (width, height int) { return h.m.width, h.m.height }
 func (h host) Line() *lineedit.Line      { return &h.m.line }
 func (h host) Close()                    { h.m.closeOverlay() }
+func (h host) Locale() *locale.Locale    { return h.m.locale() }
 
 // The picker.
 

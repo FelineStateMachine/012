@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/filterpick"
 )
 
 // handleX is the screen x of the fill handle in column c (scrolled to A).
@@ -165,8 +166,7 @@ func TestFilterPicker(t *testing.T) {
 		t.Fatalf("filter %v %v", r, ok)
 	}
 	press(t, m, "<alt+down>")
-	p, ok := m.overlay.(*filterPicker)
-	if !ok {
+	if _, ok := m.overlay.(*filterpick.Picker); !ok {
 		t.Fatalf("overlay %T", m.overlay)
 	}
 	out := screen(m)
@@ -177,8 +177,8 @@ func TestFilterPicker(t *testing.T) {
 	}
 	// Uncheck 0 and 1; the search narrows the list.
 	press(t, m, "<down>", "<space>", "<down>", "<space>", "3")
-	if len(p.shown) != 1 || !strings.Contains(screen(m), "1 of 4") {
-		t.Errorf("search shows %d", len(p.shown))
+	if !strings.Contains(screen(m), "1 of 4") {
+		t.Errorf("search shows:\n%s", screen(m))
 	}
 	press(t, m, "<enter>")
 	if m.sheet.HiddenRows() != 4 || m.note != "Filtered column B: 4 rows hidden" {
@@ -219,12 +219,12 @@ func TestFilterButtonClick(t *testing.T) {
 		t.Fatalf("button at %d in %q", x, line(m, headerLine))
 	}
 	click(m, x, headerLine, 0)
-	if p, ok := m.overlay.(*filterPicker); !ok || !strings.HasPrefix(p.title, "Filter B") {
+	if _, ok := m.overlay.(*filterpick.Picker); !ok || !strings.Contains(screen(m), "Filter B") {
 		t.Fatalf("overlay %T", m.overlay)
 	}
 	// Clicking a value toggles it; clicking outside cancels.
-	click(m, x+4, gridTop+filterFirstRow+1, 0)
-	if p := m.overlay.(*filterPicker); p.checked["0"] {
+	click(m, x+4, gridTop+5+1, 0) // the list starts five rows into the box
+	if !strings.Contains(screen(m), "[ ] 0") {
 		t.Error("click didn't uncheck 0")
 	}
 	click(m, 70, 18, 0)
