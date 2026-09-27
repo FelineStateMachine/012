@@ -24,12 +24,12 @@ const barBlend = 0.12
 //   - a background role too close to the screen's is moved apart;
 //   - text that falls short of its contrast minimum (4.5:1 for text, 3:1
 //     for hints and lines, 2:1 for unavailable items) against its
-//     background is replaced by the scheme color nearest it in lightness
-//     that meets it, or nudged toward black or white.
+//     background is moved toward the scheme's text color just far enough
+//     to meet it, or toward black or white.
 func FromPalette(p Palette) Theme {
 	t := New(p.Dark)
 	t.Name, t.Palette = p.Name, &p
-	text := readable(p.Foreground, p.Background, &p, minText)
+	text := readable(p.Foreground, p.Background, nil, minText)
 	t.Screen = lipgloss.NewStyle().Background(p.Background).Foreground(text)
 	eachRole(&t, func(_ string, s *lipgloss.Style) { *s = mapStyle(*s, &p) })
 	if p.Selection != nil && contrast(p.Selection, p.Background) >= minDistinct {
@@ -119,11 +119,11 @@ func fixContrast(role string, s lipgloss.Style, text color.Color, p *Palette) li
 		}
 	}
 	if c := s.GetForeground(); !isNoColor(c) && role != "SeriesBg" {
-		s = s.Foreground(readable(c, bg, p, minContrast(role)))
+		s = s.Foreground(readable(c, bg, text, minContrast(role)))
 	} else if !isNoColor(s.GetBackground()) && role != "SeriesBg" {
 		// Text on a background role with no color of its own is drawn in
 		// the screen's text color.
-		s = s.Foreground(readable(text, bg, p, minContrast(role)))
+		s = s.Foreground(readable(text, bg, nil, minContrast(role)))
 	}
 	return s
 }

@@ -119,7 +119,7 @@ func (m *Model) reloadConfig() {
 	m.prefs.Config = c
 	var problems []string
 	for _, w := range c.Warnings {
-		problems = append(problems, w.String())
+		problems = append(problems, w.Short())
 	}
 	if p := m.applyConfig(); p != "" {
 		problems = append(problems, p)
@@ -128,7 +128,7 @@ func (m *Model) reloadConfig() {
 		m.note = m.th.Warning.Render("Config reloaded with problems: " + strings.Join(problems, "; "))
 		return
 	}
-	m.note = "Config reloaded from " + c.Path
+	m.note = "Config reloaded from " + config.Tilde(c.Path)
 }
 
 // keySavedMsg reports storing the API key, and the client made with it.

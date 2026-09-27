@@ -109,9 +109,9 @@ func configNotes(c *config.Config) []string {
 	case 0:
 		return nil
 	case 1:
-		return []string{"Config: " + c.Warnings[0].String()}
+		return []string{"Config: " + c.Warnings[0].Short()}
 	default:
-		return []string{fmt.Sprintf("Config: %s (and %d more; run 012 config)", c.Warnings[0], n-1)}
+		return []string{fmt.Sprintf("Config: %s (and %d more; run 012 config)", c.Warnings[0].Short(), n-1)}
 	}
 }
 

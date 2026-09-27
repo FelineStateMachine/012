@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // Editor returns the command that opens path in the user's editor:
@@ -40,4 +41,16 @@ func EnsureFile(path string) error {
 		return err
 	}
 	return os.WriteFile(path, []byte(DefaultFile()), 0o600)
+}
+
+// Tilde shortens a path in the home directory to ~/..., for messages.
+func Tilde(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return path
+	}
+	if rel, err := filepath.Rel(home, path); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+		return "~" + string(filepath.Separator) + rel
+	}
+	return path
 }

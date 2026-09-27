@@ -131,7 +131,7 @@ func (m *Model) keepTheme(name string) {
 		m.fail("Couldn't save the theme: " + err.Error())
 		return
 	}
-	m.note = "Theme " + name + ", saved in " + c.Path
+	m.note = "Theme " + name + ", saved in " + config.Tilde(c.Path)
 	if was.Kind == config.FromEnv || was.Kind == config.FromFlag {
 		m.note += " (" + was.String() + " overrides it at startup)"
 	}

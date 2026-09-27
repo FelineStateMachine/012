@@ -63,6 +63,21 @@ func (w Warning) String() string {
 	return w.Src.String() + ": " + w.Msg
 }
 
+// Short is the warning with a file in the config directory named
+// relative to it ("config:3: ..."), to fit on the context line.
+func (w Warning) Short() string {
+	if w.Src.Kind == FromFile {
+		if dir, err := Dir(); err == nil {
+			if rel, err := filepath.Rel(dir, w.Src.Name); err == nil && !strings.HasPrefix(rel, "..") {
+				s := w.Src
+				s.Name = rel
+				return Warning{Src: s, Msg: w.Msg}.String()
+			}
+		}
+	}
+	return w.String()
+}
+
 // Config is the effective configuration.
 type Config struct {
 	// Path is the main config file, which may not exist.

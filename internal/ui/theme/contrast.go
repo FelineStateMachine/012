@@ -6,9 +6,8 @@ import (
 )
 
 // Contrast correction for color schemes, adapted from puzzletea's theme
-// package (same author): WCAG 2 contrast, and a readable replacement for
-// a foreground that falls short, taken from the scheme's own colors when
-// one qualifies.
+// package (same author): WCAG 2 contrast, and a foreground that falls
+// short moved just far enough to be readable.
 
 // Contrast minimums.
 const (
@@ -39,25 +38,33 @@ func contrast(a, b color.Color) float64 {
 	return (la + 0.05) / (lb + 0.05)
 }
 
-// readable returns fg, or when it has less than min contrast with bg,
-// the scheme color closest to it in lightness that has enough, or failing
-// that the nearest color toward black or white that does.
-func readable(fg, bg color.Color, p *Palette, min float64) color.Color {
+// readable returns fg, or when it has less than min contrast with bg, fg
+// moved just far enough toward toward (the scheme's text color, which
+// keeps grays gray and hues close) to reach it, or failing that toward
+// black or white.
+func readable(fg, bg, toward color.Color, min float64) color.Color {
 	if contrast(fg, bg) >= min {
 		return fg
 	}
-	target := luminance(fg)
-	var best color.Color
-	bestDist := math.Inf(1)
-	for _, c := range append(p.ANSI[:], p.Foreground, p.Background) {
-		if d := math.Abs(luminance(c) - target); contrast(c, bg) >= min && d < bestDist {
-			best, bestDist = c, d
-		}
-	}
-	if best != nil {
-		return best
+	if toward != nil && contrast(toward, bg) >= min {
+		return blendUntil(fg, toward, bg, min)
 	}
 	return nudge(fg, bg, min)
+}
+
+// blendUntil moves fg toward end until it has min contrast with bg; end
+// itself must have it.
+func blendUntil(fg, end, bg color.Color, min float64) color.Color {
+	lo, hi := 0.0, 1.0
+	for range 24 {
+		mid := (lo + hi) / 2
+		if contrast(blend(fg, end, mid), bg) >= min {
+			hi = mid
+		} else {
+			lo = mid
+		}
+	}
+	return blend(fg, end, hi)
 }
 
 // nudge blends fg toward white or black, whichever moves it away from
@@ -74,16 +81,7 @@ func nudge(fg, bg color.Color, min float64) color.Color {
 			end = color.White
 		}
 	}
-	lo, hi := 0.0, 1.0
-	for range 24 {
-		mid := (lo + hi) / 2
-		if contrast(blend(fg, end, mid), bg) >= min {
-			hi = mid
-		} else {
-			lo = mid
-		}
-	}
-	return blend(fg, end, hi)
+	return blendUntil(fg, end, bg, min)
 }
 
 // distinct returns bg, or when it's too close to the screen to show, bg
