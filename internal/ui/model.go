@@ -41,7 +41,7 @@ const (
 	panelLines  = 3
 	headerLine  = panelLines
 	gridTop     = panelLines + 1
-	rowHdrW     = 6
+	minRowHdrW  = 6  // the row numbers up to 9999; see grid.hdrW
 	nameBoxW    = 11 // fits most ranges, e.g. "AA100:AB200", without jumping
 )
 

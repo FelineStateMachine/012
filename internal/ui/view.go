@@ -61,7 +61,7 @@ func (m *Model) screenCols() []int {
 
 func (m *Model) headerRow() string {
 	var b strings.Builder
-	b.WriteString(m.th.Header.Render(strings.Repeat(" ", rowHdrW)))
+	b.WriteString(m.th.Header.Render(strings.Repeat(" ", m.hdrW())))
 	focus := m.active()
 	sel, selecting := m.highlight()
 	for _, c := range m.screenCols() {
@@ -131,7 +131,7 @@ func (m *Model) gridRow(row int) string {
 		hdr = m.th.HeaderHover
 	}
 	var b strings.Builder
-	b.WriteString(hdr.Render(theme.PadLeft(strconv.Itoa(row+1), rowHdrW-1) + " "))
+	b.WriteString(hdr.Render(theme.PadLeft(strconv.Itoa(row+1), m.hdrW()-1) + " "))
 
 	_, fc := m.frozen()
 	if fc > 0 {
@@ -189,7 +189,7 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 // the frozen columns.
 func (m *Model) dividerRow() string {
 	var b strings.Builder
-	b.WriteString(strings.Repeat("─", rowHdrW))
+	b.WriteString(strings.Repeat("─", m.hdrW()))
 	for _, c := range m.screenCols() {
 		if c == divider {
 			b.WriteString("┼")

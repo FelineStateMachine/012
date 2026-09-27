@@ -13,6 +13,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/config"
 	"github.com/FelineStateMachine/012/internal/jev"
 	"github.com/FelineStateMachine/012/internal/keyring"
+	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -59,6 +60,7 @@ func (m *Model) applyConfig() string {
 	m.term.noImages = !c.Bool("chart-images")
 	m.term.noNotify = !c.Bool("notifications")
 	m.SetVimKeys(c.String("keymap") == "vim")
+	sheet.SetMaxCells(c.Int("max-cells"))
 	return m.applyTheme()
 }
 

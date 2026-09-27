@@ -15,7 +15,7 @@ import (
 func rowCells(m *Model, r, n int) []string {
 	l := line(m, gridTop+r-1)
 	out := make([]string, n)
-	x := rowHdrW
+	x := minRowHdrW
 	for i := range n {
 		w := m.sheet.ColWidth(m.left + i)
 		// Cut by display columns: cells may hold multi-byte text.
@@ -30,7 +30,7 @@ func raw(m *Model, r, n int) string {
 	l := line(m, gridTop+r-1)
 	l += strings.Repeat(" ", max(0, 400-len(l)))
 	var parts []string
-	x := rowHdrW
+	x := minRowHdrW
 	for i := range n {
 		w := m.sheet.ColWidth(m.left + i)
 		parts = append(parts, l[x:x+w])

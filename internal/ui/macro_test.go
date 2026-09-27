@@ -146,7 +146,7 @@ jump("down")`
 	if c := r.sheet.Cell(addr("E5")); c == nil || !c.Style.Italic {
 		t.Error("E5 isn't italic")
 	}
-	if r.cur != addr("D8192") {
+	if r.cur != addr("D1048576") {
 		t.Errorf("jump down ended at %v", r.cur)
 	}
 }

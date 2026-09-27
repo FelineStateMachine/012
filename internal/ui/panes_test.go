@@ -90,21 +90,21 @@ func TestMouseWithFrozenPanes(t *testing.T) {
 	table(t, m, 40)
 	m.sheet.SetFrozen(2, 1)
 	m.top, m.left = 20, 3
-	divX := rowHdrW + sheet.DefaultWidth // the column divider
+	divX := minRowHdrW + sheet.DefaultWidth // the column divider
 	tests := []struct {
 		x, y int
 		want hit
 	}{
-		{rowHdrW + 1, gridTop, hit{kind: hitCell, addr: addr("A1")}},
-		{rowHdrW + 1, gridTop + 1, hit{kind: hitCell, addr: addr("A2")}},
-		{rowHdrW + 1, gridTop + 2, hit{}}, // the divider line
-		{rowHdrW + 1, gridTop + 3, hit{kind: hitCell, addr: addr("A21")}},
+		{minRowHdrW + 1, gridTop, hit{kind: hitCell, addr: addr("A1")}},
+		{minRowHdrW + 1, gridTop + 1, hit{kind: hitCell, addr: addr("A2")}},
+		{minRowHdrW + 1, gridTop + 2, hit{}}, // the divider line
+		{minRowHdrW + 1, gridTop + 3, hit{kind: hitCell, addr: addr("A21")}},
 		{divX, gridTop + 3, hit{}},
 		{divX + 1, gridTop + 3, hit{kind: hitCell, addr: addr("D21")}},
 		{divX + 1, gridTop, hit{kind: hitCell, addr: addr("D1")}},
 		{2, gridTop + 3, hit{kind: hitRowHeader, addr: sheet.Addr{Col: 3, Row: 20}}},
 		{divX + sheet.DefaultWidth, headerLine, hit{kind: hitColBorder, addr: sheet.Addr{Col: 3, Row: 20}}},
-		{rowHdrW + sheet.DefaultWidth - 1, headerLine, hit{kind: hitColBorder, addr: sheet.Addr{Col: 0, Row: 20}}},
+		{minRowHdrW + sheet.DefaultWidth - 1, headerLine, hit{kind: hitColBorder, addr: sheet.Addr{Col: 0, Row: 20}}},
 	}
 	for _, tt := range tests {
 		if got := m.hitTest(tt.x, tt.y); got != tt.want {
@@ -200,9 +200,9 @@ func TestNavigationSkipsFilteredRows(t *testing.T) {
 
 func TestFilteredNavigationIsFast(t *testing.T) {
 	m := newModel()
-	table(t, m, sheet.MaxRows-2)
+	table(t, m, 8190)
 	m.sheet.SetFrozen(1, 1)
-	m.sheet.CreateFilter(sheet.Rect{To: sheet.Addr{Col: 1, Row: sheet.MaxRows - 1}})
+	m.sheet.CreateFilter(sheet.Rect{To: sheet.Addr{Col: 1, Row: sheet.MaxRows - 1}}) // whole columns
 	m.sheet.FilterColumn(1, sheet.Criteria{Hidden: []string{"1", "2", "3"}})
 	m.View()
 	start := time.Now()

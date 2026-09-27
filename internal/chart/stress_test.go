@@ -46,7 +46,7 @@ var stressSizes = []struct{ w, h int }{{24, 10}, {120, 40}}
 
 // BenchmarkDraw is a chart drawn as text, as every frame showing it does.
 func BenchmarkDraw(b *testing.B) {
-	for _, n := range []int{12, sheet.MaxRows} {
+	for _, n := range []int{12, 8192} {
 		d := stressData(n)
 		for _, ct := range stressTypes {
 			for _, sz := range stressSizes {

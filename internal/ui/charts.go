@@ -94,7 +94,7 @@ func (m *Model) insertChart() tea.Cmd {
 	}
 	start := m.sheet.StateID()
 	c := m.sheet.GuessChart(r)
-	c.W = clamp(newChartW, sheet.MinChartW, max(m.width-rowHdrW-2, sheet.MinChartW))
+	c.W = clamp(newChartW, sheet.MinChartW, max(m.width-m.hdrW()-2, sheet.MinChartW))
 	c.H = clamp(newChartH, sheet.MinChartH, max(m.visibleRows()-1, sheet.MinChartH))
 	// Next to the data when it fits on screen, as Sheets does; otherwise
 	// below it.
@@ -164,7 +164,7 @@ func (g *grid) chartScreen(c sheet.Chart) (x, y int) {
 
 // chartAt returns the topmost chart drawn under x, y, or -1.
 func (m *Model) chartAt(x, y int) int {
-	if y < gridTop || y >= gridTop+m.visibleRows() || x < rowHdrW {
+	if y < gridTop || y >= gridTop+m.visibleRows() || x < m.hdrW() {
 		return -1
 	}
 	charts := m.displayCharts()
@@ -196,12 +196,12 @@ func (m *Model) chartBoxes() []box {
 	top, bottom := gridTop, gridTop+m.visibleRows()
 	for i, c := range m.displayCharts() {
 		x, y := m.chartScreen(c)
-		if x >= m.width || y >= bottom || x+c.W <= rowHdrW || y+c.H <= top {
+		if x >= m.width || y >= bottom || x+c.W <= m.hdrW() || y+c.H <= top {
 			continue
 		}
 		lines := m.drawChart(i, c, i == sel)
 		// Clip to the grid: the headers and panel stay on top.
-		from, to := max(rowHdrW-x, 0), min(c.W, m.width-x)
+		from, to := max(m.hdrW()-x, 0), min(c.W, m.width-x)
 		b := box{id: chartBoxID(i), x: x + from, y: max(y, top)}
 		for k, l := range lines {
 			if y+k >= top && y+k < bottom {

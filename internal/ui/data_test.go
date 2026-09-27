@@ -11,7 +11,7 @@ import (
 )
 
 // handleX is the screen x of the fill handle in column c (scrolled to A).
-func handleX(c int) int { return rowHdrW + (c+1)*sheet.DefaultWidth - 1 }
+func handleX(c int) int { return minRowHdrW + (c+1)*sheet.DefaultWidth - 1 }
 
 func TestFillHandleDrag(t *testing.T) {
 	tests := []struct {

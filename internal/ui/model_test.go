@@ -286,7 +286,7 @@ func click(m *Model, x, y int, mod tea.KeyMod) {
 }
 
 // cellX returns a screen x inside column c when scrolled to column A.
-func cellX(c int) int { return rowHdrW + c*sheet.DefaultWidth + 2 }
+func cellX(c int) int { return minRowHdrW + c*sheet.DefaultWidth + 2 }
 
 func TestMouseSelection(t *testing.T) {
 	m := newModel()
@@ -307,7 +307,7 @@ func TestMouseSelection(t *testing.T) {
 	}
 
 	click(m, cellX(3), headerLine, 0)
-	if got := m.selection(); got.From != addr("D1") || got.To != addr("D8192") {
+	if got := m.selection(); got.From != addr("D1") || got.To != addr("D1048576") {
 		t.Errorf("column header selected %s", got)
 	}
 	click(m, 1, gridTop+3, 0)

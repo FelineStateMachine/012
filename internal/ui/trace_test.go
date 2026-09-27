@@ -55,7 +55,7 @@ func TestTraceDependents(t *testing.T) {
 	// A click ends it too.
 	m.cur = addr("B1")
 	press(t, m, "<alt+.>")
-	send(m, tea.MouseClickMsg{X: rowHdrW + 1, Y: gridTop + 4, Button: tea.MouseLeft})
+	send(m, tea.MouseClickMsg{X: minRowHdrW + 1, Y: gridTop + 4, Button: tea.MouseLeft})
 	if m.trace != nil {
 		t.Error("click kept the trace")
 	}

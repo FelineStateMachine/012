@@ -68,10 +68,7 @@ func init() {
 	for _, ts := range textStyles {
 		get, title := ts.get, ts.title
 		register(&command{id: ts.id, title: title, desc: ts.desc, edits: (*Model).selection, run: func(m *Model) tea.Cmd {
-			var cur sheet.Style
-			if c := m.sheet.Cell(m.cur); c != nil {
-				cur = c.Style
-			}
+			cur := m.sheet.CellStyle(m.cur)
 			on := !*get(&cur)
 			r := m.selection()
 			label := strings.ToLower(title) + " " + r.String()

@@ -23,6 +23,13 @@ type Shape struct {
 	Input string
 }
 
+// Rows and Cols are the size of the shapes: the grid of Lotus 1-2-3 that
+// 012 had before it grew to Excel's, so runs before and after compare.
+const (
+	Rows = 8192
+	Cols = 256
+)
+
 func at(col, row int) sheet.Addr { return sheet.Addr{Col: col, Row: row} }
 
 func load(s *sheet.Sheet, a sheet.Addr, input string) {
@@ -75,7 +82,7 @@ func FanOut(k int) *sheet.Sheet {
 	s := sheet.New()
 	load(s, at(0, 0), "1")
 	for i := range k {
-		load(s, at(1+i/sheet.MaxRows, i%sheet.MaxRows), fmt.Sprintf("=$A$1*%d", i))
+		load(s, at(1+i/Rows, i%Rows), fmt.Sprintf("=$A$1*%d", i))
 	}
 	s.RecalcAll()
 	return s
@@ -102,7 +109,7 @@ func Volatile(k int) *sheet.Sheet {
 		if i%2 == 1 {
 			f = "=TODAY()"
 		}
-		load(s, at(i/sheet.MaxRows, i%sheet.MaxRows), f)
+		load(s, at(i/Rows, i%Rows), f)
 	}
 	s.RecalcAll()
 	return s
@@ -148,16 +155,16 @@ func LongText(rows, n int) *sheet.Sheet {
 // formula using each: every changed cell is checked against every name.
 func Names(k int) *sheet.Sheet {
 	s := sheet.New()
-	for row := range sheet.MaxRows {
+	for row := range Rows {
 		load(s, at(0, row), fmt.Sprint(row%100))
 	}
 	for i := range k {
-		from := (i * 7) % (sheet.MaxRows - 100)
+		from := (i * 7) % (Rows - 100)
 		name := fmt.Sprintf("Region_%d", i)
 		if err := s.DefineName(name, sheet.NewRect(at(0, from), at(0, from+99))); err != nil {
 			panic(err)
 		}
-		load(s, at(1+i/sheet.MaxRows, i%sheet.MaxRows), "=SUM("+name+")")
+		load(s, at(1+i/Rows, i%Rows), "=SUM("+name+")")
 	}
 	s.RecalcAll()
 	return s
@@ -206,12 +213,12 @@ func Charts(s *sheet.Sheet, k int) {
 // Shapes are the edit-latency topologies at their stress sizes.
 func Shapes() []Shape {
 	return []Shape{
-		{"dense-8192x26", func() *sheet.Sheet { return Dense(sheet.MaxRows, 26) }, at(0, 0), "5"},
-		{"chain-8192", func() *sheet.Sheet { return Chain(sheet.MaxRows) }, at(0, 0), "2"},
-		{"fanin-1000xSUM8192", func() *sheet.Sheet { return FanIn(sheet.MaxRows, 1000) }, at(0, 4000), "7"},
-		{"fanout-8192", func() *sheet.Sheet { return FanOut(sheet.MaxRows) }, at(0, 0), "2"},
-		{"running-8192", func() *sheet.Sheet { return RunningTotals(sheet.MaxRows) }, at(0, 0), "3"},
-		{"volatile-8192", func() *sheet.Sheet { return Volatile(sheet.MaxRows) }, at(200, 0), "1"},
+		{"dense-8192x26", func() *sheet.Sheet { return Dense(Rows, 26) }, at(0, 0), "5"},
+		{"chain-8192", func() *sheet.Sheet { return Chain(Rows) }, at(0, 0), "2"},
+		{"fanin-1000xSUM8192", func() *sheet.Sheet { return FanIn(Rows, 1000) }, at(0, 4000), "7"},
+		{"fanout-8192", func() *sheet.Sheet { return FanOut(Rows) }, at(0, 0), "2"},
+		{"running-8192", func() *sheet.Sheet { return RunningTotals(Rows) }, at(0, 0), "3"},
+		{"volatile-8192", func() *sheet.Sheet { return Volatile(Rows) }, at(200, 0), "1"},
 		{"names-1000", func() *sheet.Sheet { return Names(1000) }, at(0, 50), "9"},
 	}
 }

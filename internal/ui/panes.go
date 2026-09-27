@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strconv"
+
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -22,7 +24,7 @@ func (g *grid) frozen() (rows, cols int) {
 	w := 0
 	for c := range cols {
 		w += g.sheet.ColWidth(c)
-		if rowHdrW+w+1+3 > g.width {
+		if g.hdrW()+w+1+3 > g.width {
 			cols = c
 			break
 		}
@@ -71,12 +73,33 @@ func (g *grid) screenRows() []int {
 	if fr > 0 {
 		out = append(out, divider)
 	}
-	for r := g.top; len(out) < n && r < sheet.MaxRows; r++ {
-		if !g.sheet.RowHidden(r) {
-			out = append(out, r)
-		}
+	r, ok := g.top, true
+	if g.sheet.RowHidden(r) {
+		r, ok = g.sheet.NextShownRow(r, 1)
+	}
+	for ; ok && len(out) < n; r, ok = g.sheet.NextShownRow(r, 1) {
+		out = append(out, r)
 	}
 	return out
+}
+
+// hdrW is the width of the row numbers: the widest number on screen with
+// a space either side, and at least minRowHdrW, so it widens past row
+// 9999 as Excel's does.
+func (g *grid) hdrW() int {
+	last := g.top + g.visibleRows()
+	if g.sheet.HiddenRows() > 0 {
+		last = g.top
+		for range g.visibleRows() {
+			r, ok := g.sheet.NextShownRow(last, 1)
+			if !ok {
+				break
+			}
+			last = r
+		}
+		last++
+	}
+	return max(minRowHdrW, len(strconv.Itoa(min(last, sheet.MaxRows)))+2)
 }
 
 // rowAt returns the row on screen line y, or false for the divider and
@@ -107,11 +130,8 @@ func (g *grid) stepRow(r, n int) int {
 		d, n = -1, -n
 	}
 	for ; n > 0; n-- {
-		next := r + d
-		for next >= 0 && next < sheet.MaxRows && g.sheet.RowHidden(next) {
-			next += d
-		}
-		if next < 0 || next >= sheet.MaxRows {
+		next, ok := g.sheet.NextShownRow(r, d)
+		if !ok {
 			break
 		}
 		r = next
@@ -136,7 +156,7 @@ func (g *grid) visibleRow(r int) int {
 // row numbers, the frozen columns and their divider.
 func (g *grid) scrollX() int {
 	_, fc := g.frozen()
-	x := rowHdrW
+	x := g.hdrW()
 	for c := range fc {
 		x += g.sheet.ColWidth(c)
 	}
@@ -206,7 +226,7 @@ func (g *grid) visibleCols(left int) int {
 // a frozen column or a scrolling one, but not the divider between them.
 func (g *grid) colSpan(x int) (col, start int, ok bool) {
 	_, fc := g.frozen()
-	cx := rowHdrW
+	cx := g.hdrW()
 	for c := 0; c < fc; c++ {
 		w := g.sheet.ColWidth(c)
 		if x >= cx && x < cx+w {
@@ -231,7 +251,7 @@ func (g *grid) colSpan(x int) (col, start int, ok bool) {
 func (g *grid) colStart(c int) int {
 	_, fc := g.frozen()
 	if c < fc {
-		x := rowHdrW
+		x := g.hdrW()
 		for k := range c {
 			x += g.sheet.ColWidth(k)
 		}
@@ -301,7 +321,7 @@ func (g *grid) dragTarget(x, y int, anchor sheet.Addr) (a sheet.Addr, dc, dr int
 		a.Col, dc = g.left+cols-1, 1
 	case ok && (col >= fc || !scrolledRight || anchor.Col < fc):
 		a.Col = col
-	case x >= rowHdrW && !scrolledRight:
+	case x >= g.hdrW() && !scrolledRight:
 		a.Col = g.left
 	case scrolledRight && anchor.Col >= fc:
 		a.Col, dc = g.left, -1

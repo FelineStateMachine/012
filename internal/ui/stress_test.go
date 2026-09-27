@@ -36,9 +36,9 @@ type uiShape struct {
 func uiShapes() []uiShape {
 	return []uiShape{
 		{"empty", sheet.New},
-		{"dense-8192x26", func() *sheet.Sheet { return stress.Dense(sheet.MaxRows, 26) }},
-		{"dense-8192x256", func() *sheet.Sheet { return stress.Dense(sheet.MaxRows, sheet.MaxCols) }},
-		{"longtext-8192x500", func() *sheet.Sheet { return stress.LongText(sheet.MaxRows, 500) }},
+		{"dense-8192x26", func() *sheet.Sheet { return stress.Dense(stress.Rows, 26) }},
+		{"dense-8192x256", func() *sheet.Sheet { return stress.Dense(stress.Rows, stress.Cols) }},
+		{"longtext-8192x500", func() *sheet.Sheet { return stress.LongText(stress.Rows, 500) }},
 		{"names-1000", func() *sheet.Sheet { return stress.Names(1000) }},
 		{"charts-20", func() *sheet.Sheet {
 			s := stress.Table(200, 3)
@@ -156,7 +156,7 @@ func BenchmarkKeystroke(b *testing.B) {
 		{"select-sheet/dense-8192x256", uiShapes()[2], []string{"ctrl+a", "ctrl+a"}, nil},
 		{"extend-data/dense-8192x256", uiShapes()[2], []string{"ctrl+a"}, []string{"shift+up", "shift+down"}},
 		{"extend/dense-8192x26", uiShapes()[1], []string{"shift+down"}, []string{"shift+down", "shift+up"}},
-		{"type/fanin-1000", uiShape{"fanin", func() *sheet.Sheet { return stress.FanIn(sheet.MaxRows, 1000) }},
+		{"type/fanin-1000", uiShape{"fanin", func() *sheet.Sheet { return stress.FanIn(stress.Rows, 1000) }},
 			nil, []string{"7", "enter", "up"}},
 		{"type/dense-8192x26", uiShapes()[1], nil, []string{"7", "enter", "up"}},
 	}
@@ -186,7 +186,7 @@ func BenchmarkKeystroke(b *testing.B) {
 // that recalculates, with telemetry off and on (a JSON log in a temp
 // file): what the instrumentation costs.
 func BenchmarkTelemetry(b *testing.B) {
-	s := lazy(func() *sheet.Sheet { return stress.Dense(sheet.MaxRows, 26) })
+	s := lazy(func() *sheet.Sheet { return stress.Dense(stress.Rows, 26) })
 	for _, on := range []bool{false, true} {
 		name := "off"
 		if on {

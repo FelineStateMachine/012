@@ -185,14 +185,14 @@ func (s *chartSel) release(m *Model) {
 func (g *grid) chartCellAt(x, y int) sheet.Addr {
 	a := sheet.Addr{Row: max(g.top+y-gridTop, 0), Col: g.left}
 	switch {
-	case x >= rowHdrW:
+	case x >= g.hdrW():
 		if col, _, ok := g.colSpan(x); ok {
 			a.Col = col
 		} else {
 			a.Col = g.left + g.visibleCols(g.left) - 1
 		}
 	default:
-		for cx := rowHdrW; cx > x && a.Col > 0; {
+		for cx := g.hdrW(); cx > x && a.Col > 0; {
 			a.Col--
 			cx -= g.sheet.ColWidth(a.Col)
 		}

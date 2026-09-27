@@ -80,7 +80,7 @@ func (m *Model) hitTest(x, y int) hit {
 			return hit{kind: hitFormulaBar, x: x - tx}
 		}
 		return hit{kind: hitPanel}
-	case y == headerLine && x < rowHdrW:
+	case y == headerLine && x < m.hdrW():
 		return hit{kind: hitCorner}
 	case y == headerLine:
 		col, start, ok := m.colSpan(x)
@@ -100,7 +100,7 @@ func (m *Model) hitTest(x, y int) hit {
 		if !ok {
 			return hit{}
 		}
-		if x < rowHdrW {
+		if x < m.hdrW() {
 			return hit{kind: hitRowHeader, addr: sheet.Addr{Col: m.left, Row: row}}
 		}
 		col, start, ok := m.colSpan(x)

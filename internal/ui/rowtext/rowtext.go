@@ -79,21 +79,21 @@ func (l *rowLayout) content(c int) *sheet.Cell {
 // col returns where column c starts and ends, relative to column first.
 func (l *rowLayout) col(c int) (int, int) { return l.x[c-l.first], l.x[c-l.first+1] }
 
+// maxReach is how many columns away text may run in from: 2,560
+// characters in default columns.
+const maxReach = 256
+
 // reach returns the nearest filled columns outside lo..hi, within minCol
-// and maxCol, whose text might run into view; lo and hi if there are none.
+// and maxCol and maxReach of the viewport, whose text might run into
+// view; lo and hi if there are none. The filled cells are found through
+// the sheet's index, not by looking at every column between.
 func (l *rowLayout) reach(minCol, maxCol int) (first, last int) {
 	first, last = l.lo, l.hi
-	for c := l.lo - 1; c >= minCol; c-- {
-		if l.content(c) != nil {
-			first = c
-			break
-		}
+	if c, ok := l.s.NextFilledCol(l.row, l.lo-1, -1, max(minCol, l.lo-maxReach)); ok {
+		first = c
 	}
-	for c := l.hi + 1; c <= maxCol; c++ {
-		if l.content(c) != nil {
-			last = c
-			break
-		}
+	if c, ok := l.s.NextFilledCol(l.row, l.hi+1, 1, min(maxCol, l.hi+maxReach)); ok {
+		last = c
 	}
 	return first, last
 }
@@ -116,12 +116,13 @@ func (l *rowLayout) place(c int, cell *sheet.Cell) {
 	from, to := l.room(c, cell, start, tw)
 	l.claimed = to
 	cut := textCutter{s: text}
+	style := l.s.CellStyle(sheet.Addr{Col: c, Row: l.row})
 	for k := max(l.first, l.lo); k <= min(l.last, l.hi); k++ {
 		kx0, kx1 := l.col(k)
 		if kx1 <= from || kx0 >= to {
 			continue
 		}
-		sp := Span{Trail: kx1 - kx0, Style: cell.Style, Owner: c}
+		sp := Span{Trail: kx1 - kx0, Style: style, Owner: c}
 		if seg0, seg1 := max(start, kx0, from), min(start+tw, kx1, to); seg1 > seg0 {
 			sp.Lead, sp.Text, sp.Trail = seg0-kx0, cut.cut(seg0-start, seg1-start), kx1-seg1
 		}
@@ -143,7 +144,7 @@ func (l *rowLayout) display(c int, cell *sheet.Cell, w int) (string, sheet.Align
 			text, pad = wider, 0
 		}
 	}
-	if a := cell.Style.Align; a != sheet.AlignAuto && align != sheet.AlignFill {
+	if a := l.s.CellStyle(sheet.Addr{Col: c, Row: l.row}).Align; a != sheet.AlignAuto && align != sheet.AlignFill {
 		align = a
 	}
 	return text, align, pad

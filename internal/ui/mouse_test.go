@@ -67,7 +67,7 @@ func TestClickFormulaBarEdits(t *testing.T) {
 
 func TestResizeColumnByDragging(t *testing.T) {
 	m := newModel()
-	border := rowHdrW + sheet.DefaultWidth - 1
+	border := minRowHdrW + sheet.DefaultWidth - 1
 	send(m, tea.MouseMotionMsg{X: border, Y: headerLine})
 	if m.mouse.hover.kind != hitColBorder || !strings.Contains(line(m, headerLine), "▐") {
 		t.Fatalf("hover %v header %q", m.mouse.hover.kind, line(m, headerLine))
@@ -89,7 +89,7 @@ func TestResizeColumnByDragging(t *testing.T) {
 func TestDoubleClickBorderAutofits(t *testing.T) {
 	m := newModel()
 	press(t, m, "A much longer label", "<enter>")
-	border := rowHdrW + sheet.DefaultWidth - 1
+	border := minRowHdrW + sheet.DefaultWidth - 1
 	click(m, border, headerLine, 0)
 	click(m, border, headerLine, 0)
 	if w := m.sheet.ColWidth(0); w != len("A much longer label")+2 {
@@ -125,7 +125,7 @@ func TestPointerShapes(t *testing.T) {
 		want string
 	}{
 		{cellX(1), gridTop + 1, "cell"},
-		{rowHdrW + sheet.DefaultWidth - 1, headerLine, "col-resize"},
+		{minRowHdrW + sheet.DefaultWidth - 1, headerLine, "col-resize"},
 		{cellX(1), headerLine, "pointer"},
 		{formulaBarTextX() + 1, formulaLine, "text"},
 		{m.width - 1, m.height - 1, "default"},
