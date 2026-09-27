@@ -31,7 +31,7 @@ func (s *Sheet) Dependents(a Addr) []Addr {
 	for d := range s.dependents[a] {
 		seen[d] = true
 	}
-	for u := range s.rangeUsers {
+	for u := range s.rangeUsers.candidates(a.Col) {
 		for _, r := range s.cells[u].ranges {
 			if r.Contains(a) {
 				seen[u] = true

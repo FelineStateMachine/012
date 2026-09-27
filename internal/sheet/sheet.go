@@ -52,9 +52,10 @@ type Sheet struct {
 
 	// dependents maps a cell to the formula cells that reference it
 	// directly. Range references are kept on the formula cell itself and
-	// scanned separately, so a huge range doesn't create millions of edges.
+	// found through rangeUsers, by column, so a huge range doesn't create
+	// millions of edges.
 	dependents map[Addr]map[Addr]struct{}
-	rangeUsers map[Addr]struct{}
+	rangeUsers rangeIndex
 	volatile   map[Addr]struct{} // formulas recalculated on every change
 
 	// names are the named ranges by upper-case name (see names.go), and
@@ -80,7 +81,6 @@ func New() *Sheet {
 		cells:      make(map[Addr]*Cell),
 		widths:     make(map[int]int),
 		dependents: make(map[Addr]map[Addr]struct{}),
-		rangeUsers: make(map[Addr]struct{}),
 		volatile:   make(map[Addr]struct{}),
 		names:      make(map[string]Name),
 		nameUsers:  make(map[string]map[Addr]struct{}),
@@ -292,9 +292,7 @@ func (s *Sheet) place(a Addr, c *Cell) {
 		}
 		s.dependents[r][a] = struct{}{}
 	}
-	if len(c.ranges) > 0 {
-		s.rangeUsers[a] = struct{}{}
-	}
+	s.rangeUsers.add(a, c.ranges)
 	if c.volatile {
 		s.volatile[a] = struct{}{}
 	}
@@ -347,7 +345,7 @@ func (s *Sheet) unlink(a Addr) {
 			delete(s.nameUsers, k)
 		}
 	}
-	delete(s.rangeUsers, a)
+	s.rangeUsers.remove(a, old.ranges)
 	delete(s.volatile, a)
 	delete(s.cells, a)
 }
@@ -355,25 +353,53 @@ func (s *Sheet) unlink(a Addr) {
 // RecalcAll recomputes every formula. Loaders call it once the sheet is
 // built, so it also starts a fresh undo history: loading isn't undoable.
 func (s *Sheet) RecalcAll() {
-	s.recalc(s.Addrs())
+	// Every cell is dirty, so there is nothing to propagate: tracing
+	// dependents from each cell cost O(cells x range users).
+	state := make(map[Addr]int, len(s.cells))
+	for a := range s.cells {
+		state[a] = dirty
+	}
+	s.evaluate(state)
 	s.ClearHistory()
 }
 
+// Recalculation states of a cell.
+const (
+	dirty = iota + 1
+	visiting
+	done
+)
+
 // recalc recomputes the changed cells, volatile formulas, and everything
-// that transitively depends on them. Cells are evaluated lazily in
-// dependency order: reading a dirty cell evaluates it first. A cell that
-// is reached again while it is still being evaluated is part of a cycle
-// and becomes ERR.
+// that transitively depends on them.
 func (s *Sheet) recalc(changed []Addr) {
-	const (
-		dirty = iota + 1
-		visiting
-		done
-	)
+	s.evaluate(s.affected(changed))
+}
+
+// affected marks dirty the changed cells, volatile formulas, and every
+// formula that transitively reads them.
+func (s *Sheet) affected(changed []Addr) map[Addr]int {
 	state := make(map[Addr]int)
 	queue := append([]Addr(nil), changed...)
 	for a := range s.volatile {
 		queue = append(queue, a)
+	}
+	// The named ranges in use, looked up once rather than for every cell.
+	type namedUsers struct {
+		r     Rect
+		users map[Addr]struct{}
+	}
+	var named []namedUsers
+	for k, users := range s.nameUsers {
+		if nm, ok := s.names[k]; ok && !nm.Lost {
+			named = append(named, namedUsers{nm.Range, users})
+		}
+	}
+	// Queue each formula once, not once per changed cell it reads.
+	push := func(u Addr) {
+		if state[u] != dirty {
+			queue = append(queue, u)
+		}
 	}
 	for len(queue) > 0 {
 		a := queue[0]
@@ -383,37 +409,46 @@ func (s *Sheet) recalc(changed []Addr) {
 		}
 		state[a] = dirty
 		for d := range s.dependents[a] {
-			queue = append(queue, d)
+			push(d)
 		}
-		for u := range s.rangeUsers {
+		for u := range s.rangeUsers.candidates(a.Col) {
 			for _, r := range s.cells[u].ranges {
 				if r.Contains(a) {
-					queue = append(queue, u)
+					push(u)
 					break
 				}
 			}
 		}
-		for k, users := range s.nameUsers {
-			if nm, ok := s.names[k]; ok && !nm.Lost && nm.Range.Contains(a) {
-				for u := range users {
-					queue = append(queue, u)
+		for _, n := range named {
+			if n.r.Contains(a) {
+				for u := range n.users {
+					push(u)
 				}
 			}
 		}
 	}
+	return state
+}
 
+// evaluate computes the cells marked dirty in state. Cells are evaluated
+// lazily in dependency order: reading a dirty cell evaluates it first. A
+// cell that is reached again while it is still being evaluated is part of
+// a cycle and becomes ERR.
+func (s *Sheet) evaluate(state map[Addr]int) {
 	s.Circular = false
 	s.hidden.valid = false // values may have changed what the filter hides
 	var compute func(Addr) Value
 	compute = func(a Addr) Value {
+		// Every cell a formula reads comes through here, so it looks
+		// each map up once: a SUM over 8192 cells makes 8192 calls.
 		c := s.cells[a]
-		switch {
+		switch st := state[a]; {
 		case c == nil:
 			return Value{}
-		case state[a] == visiting:
+		case st == visiting:
 			s.Circular = true
 			return ErrRef
-		case state[a] != dirty:
+		case st != dirty:
 			return c.Value
 		}
 		state[a] = visiting
