@@ -55,7 +55,7 @@ func TestRightClickColumnMenu(t *testing.T) {
 	x := 6 + 2*10 + 4
 	s.click(ghostty.MouseButtonRight, x, 3)
 	s.waitFor("│ Resize column")
-	s.waitFor("C1:C8192")
+	s.waitFor(" C:C")
 	s.keys("<esc>")
 	s.waitFor("READY")
 
