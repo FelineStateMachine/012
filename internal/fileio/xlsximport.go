@@ -159,12 +159,7 @@ func (bk *xlsxBook) importRow(b *builder, r *xlsxSheetReader) error {
 	if !slices.IsSortedFunc(cells, func(a, b xlsxCell) int { return a.col - b.col }) {
 		slices.SortStableFunc(cells, func(a, b xlsxCell) int { return a.col - b.col })
 	}
-	lastCol := 0
-	for i := range cells {
-		if cells[i].kept() || !bk.styles.style(cells[i].style).style.Borders.IsZero() {
-			lastCol = cells[i].col
-		}
-	}
+	lastCol := bk.lastKept(cells)
 	if lastCol == 0 || !b.fits(sheet.Addr{Col: lastCol - 1, Row: row.num - 1}) && row.num > sheet.MaxRows {
 		return nil
 	}
@@ -192,6 +187,18 @@ func (bk *xlsxBook) importRow(b *builder, r *xlsxSheetReader) error {
 		}
 	}
 	return nil
+}
+
+// lastKept is the column of a row's last cell that is kept: one with a
+// value or a formula, or drawing borders.
+func (bk *xlsxBook) lastKept(cells []xlsxCell) int {
+	last := 0
+	for i := range cells {
+		if cells[i].kept() || !bk.styles.style(cells[i].style).style.Borders.IsZero() {
+			last = cells[i].col
+		}
+	}
+	return last
 }
 
 // importCell stores a cell, reporting whether it stored a formula.

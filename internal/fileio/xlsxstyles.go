@@ -126,50 +126,45 @@ func (s *xlsxStyles) read(p *xlsxPackage, part string) error {
 	}
 }
 
+// styleLists name what each list of the styles part holds, by section
+// and element, for the error when one is too long.
+var styleLists = map[[2]string]string{
+	{"dxfs", "dxf"}: "styles", {"numFmts", "numFmt"}: "styles", {"fonts", "font"}: "fonts",
+	{"borders", "border"}: "borders", {"cellXfs", "xf"}: "cell formats",
+}
+
 // element reads one element inside a section of the styles part.
 func (s *xlsxStyles) element(x *xmlStream, se xml.StartElement, section string, cur *xlsxXf) (*xlsxXf, error) {
 	full := len(s.numFmts) >= x.g.p.lim.styles || len(s.fonts) >= x.g.p.lim.styles || len(s.xfs) >= x.g.p.lim.styles ||
 		len(s.dxfs) >= x.g.p.lim.styles || len(s.borders) >= x.g.p.lim.styles
+	if what, listed := styleLists[[2]string{section, se.Name.Local}]; listed && full && x.depth == 3 {
+		return nil, fmt.Errorf("the workbook has more than %d %s: %w", x.g.p.lim.styles, what, errXLSXLimit)
+	}
 	switch {
 	case section == "dxfs" && se.Name.Local == "dxf" && x.depth == 3:
-		if full {
-			return nil, fmt.Errorf("the workbook has more than %d styles: %w", x.g.p.lim.styles, errXLSXLimit)
-		}
 		st, err := readDxf(x)
 		if err != nil {
 			return nil, err
 		}
 		s.dxfs = append(s.dxfs, st)
 	case section == "numFmts" && se.Name.Local == "numFmt" && x.depth == 3:
-		if full {
-			return nil, fmt.Errorf("the workbook has more than %d styles: %w", x.g.p.lim.styles, errXLSXLimit)
-		}
 		id, err := strconv.Atoi(attrOr(se, "numFmtId", ""))
 		if err == nil {
 			s.numFmts[id], _ = attr(se, "formatCode")
 		}
 	case section == "fonts" && se.Name.Local == "font" && x.depth == 3:
-		if full {
-			return nil, fmt.Errorf("the workbook has more than %d fonts: %w", x.g.p.lim.styles, errXLSXLimit)
-		}
 		f, err := readFont(x)
 		if err != nil {
 			return nil, err
 		}
 		s.fonts = append(s.fonts, f)
 	case section == "borders" && se.Name.Local == "border" && x.depth == 3:
-		if full {
-			return nil, fmt.Errorf("the workbook has more than %d borders: %w", x.g.p.lim.styles, errXLSXLimit)
-		}
 		b, err := readBorder(x)
 		if err != nil {
 			return nil, err
 		}
 		s.borders = append(s.borders, b)
 	case section == "cellXfs" && se.Name.Local == "xf" && x.depth == 3:
-		if full {
-			return nil, fmt.Errorf("the workbook has more than %d cell formats: %w", x.g.p.lim.styles, errXLSXLimit)
-		}
 		s.xfs = append(s.xfs, xlsxXf{
 			numFmt: intAttr(se, "numFmtId", -1), font: intAttr(se, "fontId", -1), border: intAttr(se, "borderId", -1),
 			applyFont: boolAttr(se, "applyFont", true), applyAlign: boolAttr(se, "applyAlignment", true),

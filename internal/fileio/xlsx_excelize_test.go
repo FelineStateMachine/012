@@ -75,11 +75,7 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 	if err != nil {
 		return nil, err
 	}
-	for i, hs := range heights {
-		for row, h := range hs {
-			book.Sheet(i).LoadRowHeight(row, h)
-		}
-	}
+	loadHeights(book, heights)
 	notes = append(notes, excelizeNames(x, book)...)
 	notes = append(notes, (&xlsxBook{protected: protected}).protectionNote()...)
 	active := book.Sheet(clamp(x.GetActiveSheetIndex(), 0, book.Len()-1))
@@ -93,6 +89,15 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 	prog.setRows(done)
 	s, notes := b.finish(notes)
 	return &Result{Sheet: s, Rows: done, Notes: append(notes, applyFilters(book, filters)...)}, nil
+}
+
+// loadHeights gives each sheet of book its rows' heights.
+func loadHeights(book *sheet.Workbook, heights []map[int]int) {
+	for i, hs := range heights {
+		for row, h := range hs {
+			book.Sheet(i).LoadRowHeight(row, h)
+		}
+	}
 }
 
 // excelizeView freezes s as sheet ws is frozen and loads its notes.
@@ -265,11 +270,7 @@ func excelizeSheet(ctx context.Context, x *excelize.File, b *builder, ws string,
 		return 0, err
 	}
 	defer rows.Close()
-	dimCols := 0
-	if dim, err := x.GetSheetDimension(ws); err == nil {
-		_, to, _ := strings.Cut(dim, ":")
-		dimCols, _, _ = excelize.CellNameToCoordinates(cmp.Or(to, dim))
-	}
+	dimCols := excelizeDimCols(x, ws)
 	row, width := 0, 0
 	for ; rows.Next(); row++ {
 		if row%128 == 0 {
@@ -315,14 +316,32 @@ func excelizeSheet(ctx context.Context, x *excelize.File, b *builder, ws string,
 		}
 		b.s.LoadColWidth(c, max(int(math.Round(w))+excelPadding, 1))
 	}
-	if merges, err := x.GetMergeCells(ws, true); err == nil {
-		for _, mc := range merges {
-			if r, ok := sheet.ParseRange(mc.GetStartAxis() + ":" + mc.GetEndAxis()); ok {
-				b.s.LoadMerge(r)
-			}
+	excelizeMerges(x, ws, b.s)
+	return row, excelizeView(x, ws, b.s)
+}
+
+// excelizeDimCols is the last column of sheet ws's dimension.
+func excelizeDimCols(x *excelize.File, ws string) int {
+	dim, err := x.GetSheetDimension(ws)
+	if err != nil {
+		return 0
+	}
+	_, to, _ := strings.Cut(dim, ":")
+	cols, _, _ := excelize.CellNameToCoordinates(cmp.Or(to, dim))
+	return cols
+}
+
+// excelizeMerges merges the cells sheet ws merges.
+func excelizeMerges(x *excelize.File, ws string, s *sheet.Sheet) {
+	merges, err := x.GetMergeCells(ws, true)
+	if err != nil {
+		return
+	}
+	for _, mc := range merges {
+		if r, ok := sheet.ParseRange(mc.GetStartAxis() + ":" + mc.GetEndAxis()); ok {
+			s.LoadMerge(r)
 		}
 	}
-	return row, excelizeView(x, ws, b.s)
 }
 
 // excelizeNames defines the workbook's named ranges that are a range on

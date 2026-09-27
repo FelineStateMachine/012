@@ -99,19 +99,7 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true), Filter: s.Filter(),
 		CondFormats: s.CondFormats(), Validations: s.Validations()}
 	snap.FrozenRows, snap.FrozenCols = s.Frozen()
-	for row, h := range s.Heights() {
-		if row >= r.From.Row && row <= r.To.Row {
-			if snap.Heights == nil {
-				snap.Heights = map[int]int{}
-			}
-			snap.Heights[row] = h
-		}
-	}
-	for _, m := range s.Merges() {
-		if r.Contains(m.From) && r.Contains(m.To) {
-			snap.Merges = append(snap.Merges, m)
-		}
-	}
+	snap.Heights, snap.Merges = heightsMergesIn(s, r)
 	for _, a := range s.NotesIn(notes) {
 		if snap.Notes == nil {
 			snap.Notes = map[sheet.Addr]string{}
@@ -148,6 +136,27 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		}
 	}
 	return snap
+}
+
+// heightsMergesIn are the heights of the rows of r and the merges inside
+// it.
+func heightsMergesIn(s *sheet.Sheet, r sheet.Rect) (map[int]int, []sheet.Rect) {
+	var heights map[int]int
+	for row, h := range s.Heights() {
+		if row >= r.From.Row && row <= r.To.Row {
+			if heights == nil {
+				heights = map[int]int{}
+			}
+			heights[row] = h
+		}
+	}
+	var merges []sheet.Rect
+	for _, m := range s.Merges() {
+		if r.Contains(m.From) && r.Contains(m.To) {
+			merges = append(merges, m)
+		}
+	}
+	return heights, merges
 }
 
 // snapLayout adds to a whole sheet's snapshot what its layout needs in
