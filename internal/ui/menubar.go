@@ -5,8 +5,9 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // The menu bar follows Google Sheets: File Edit View Insert Format Data

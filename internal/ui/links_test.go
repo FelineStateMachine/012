@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 func TestLinksRenderAsHyperlinks(t *testing.T) {

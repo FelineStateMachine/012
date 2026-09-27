@@ -4,8 +4,9 @@ import (
 	"strconv"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Column widths: typed on the context line with a live preview, dragged

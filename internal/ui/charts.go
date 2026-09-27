@@ -10,6 +10,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/chart"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // Charts follow Sheets: Insert > Chart charts the selection (or the block
@@ -238,7 +239,7 @@ func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 	lines = append(lines, border.Render("┌─")+m.th.Title.Render(title)+
 		border.Render(strings.Repeat("─", max(c.W-3-ansi.StringWidth(title), 0))+"┐"))
 	for y := range h {
-		lines = append(lines, border.Render("│")+" "+m.chartRow(g, y, firstImageID+i, o.Image)+" "+border.Render("│"))
+		lines = append(lines, border.Render("│")+" "+chartRow(&m.th, g, y, firstImageID+i, o.Image)+" "+border.Render("│"))
 	}
 	corner := "┘"
 	if selected {
@@ -255,7 +256,7 @@ func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 
 // chartRow renders row y of a drawn chart with the theme; with images,
 // the plot area is the image's placeholders.
-func (m *Model) chartRow(g *chart.Grid, y, imageID int, image bool) string {
+func chartRow(th *theme.Theme, g *chart.Grid, y, imageID int, image bool) string {
 	var b, run strings.Builder
 	var style lipgloss.Style
 	styled := false
@@ -277,15 +278,15 @@ func (m *Model) chartRow(g *chart.Grid, y, imageID int, image bool) string {
 		text := c.Text
 		switch {
 		case image && y >= g.Plot.Min.Y && y < g.Plot.Max.Y && x >= g.Plot.Min.X && x < g.Plot.Max.X:
-			key, st = 1, m.th.ImageID(imageID)
+			key, st = 1, th.ImageID(imageID)
 			text = chart.Placeholder(y-g.Plot.Min.Y, x-g.Plot.Min.X)
 		case c.Fg == chart.None && c.Bg == chart.None:
 			key, isStyled = 2, false
 		default:
 			key = 3 + int(c.Fg)*32 + int(c.Bg)
-			st = m.chartRole(c.Fg)
+			st = chartRole(th, c.Fg)
 			if c.Bg >= chart.Series {
-				st = st.Inherit(m.th.SeriesBg[int(c.Bg-chart.Series)%chart.Colors])
+				st = st.Inherit(th.SeriesBg[int(c.Bg-chart.Series)%chart.Colors])
 			}
 		}
 		if key != prev {
@@ -298,18 +299,18 @@ func (m *Model) chartRow(g *chart.Grid, y, imageID int, image bool) string {
 	return b.String()
 }
 
-func (m *Model) chartRole(r chart.Role) lipgloss.Style {
+func chartRole(th *theme.Theme, r chart.Role) lipgloss.Style {
 	switch {
 	case r == chart.Axis:
-		return m.th.ChartAxis
+		return th.ChartAxis
 	case r == chart.Label:
-		return m.th.ChartLabel
+		return th.ChartLabel
 	case r == chart.Muted:
-		return m.th.Muted
+		return th.Muted
 	case r >= chart.Series:
-		return m.th.Series[int(r-chart.Series)%chart.Colors]
+		return th.Series[int(r-chart.Series)%chart.Colors]
 	}
-	return m.th.Cell
+	return th.Cell
 }
 
 // chartClick handles a press on the grid in READY: pressing a chart
@@ -345,433 +346,4 @@ func (m *Model) setShape(shape string) tea.Cmd {
 	}
 	m.mouse.shape = shape
 	return tea.Raw(ansi.SetPointerShape(shape))
-}
-
-// chartSel is a selected chart. Arrows move it a cell at a time, Shift
-// and arrows resize it, Enter edits it and Del deletes it; the mouse
-// drags it or its corner. Other keys deselect it and act as usual.
-type chartSel struct {
-	i       int
-	drag    int // chartDragNone, chartDragMove or chartDragResize
-	grabX   int // where the chart was grabbed, relative to its corner
-	grabY   int
-	preview *sheet.Chart // the chart while being dragged
-}
-
-const (
-	chartDragNone = iota
-	chartDragMove
-	chartDragResize
-)
-
-func (s *chartSel) indicator() string { return "CHART" }
-func (s *chartSel) layout(*Model) []box {
-	return nil // drawn with the other charts, see chartBoxes
-}
-
-func (s *chartSel) chart(m *Model) (sheet.Chart, bool) {
-	charts := m.sheet.Charts()
-	if s.i < 0 || s.i >= len(charts) {
-		return sheet.Chart{}, false
-	}
-	return charts[s.i], true
-}
-
-func (s *chartSel) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
-	c, ok := s.chart(m)
-	if !ok {
-		m.closeOverlay()
-		return nil
-	}
-	moved := c
-	switch k.String() {
-	case "esc":
-		m.closeOverlay()
-		return nil
-	case "enter":
-		m.openChartEditor(s.i, false, m.sheet.StateID())
-		return nil
-	case "delete", "backspace":
-		m.deleteChart(s.i)
-		return nil
-	case "tab":
-		m.selectChart((s.i + 1) % len(m.sheet.Charts()))
-		return nil
-	case "up":
-		moved.At.Row--
-	case "down":
-		moved.At.Row++
-	case "left":
-		moved.At.Col--
-	case "right":
-		moved.At.Col++
-	case "shift+up":
-		moved.H--
-	case "shift+down":
-		moved.H++
-	case "shift+left":
-		moved.W -= 2
-	case "shift+right":
-		moved.W += 2
-	default:
-		m.closeOverlay()
-		return m.handleKey(k)
-	}
-	label := "move chart"
-	if moved.W != c.W || moved.H != c.H {
-		label = "resize chart"
-	}
-	m.sheet.SetChart(s.i, moved, label)
-	m.changed = true
-	m.showChart(s.i)
-	return nil
-}
-
-// press starts a drag at x, y: the corner resizes, anywhere else moves.
-func (s *chartSel) press(m *Model, x, y int) {
-	c, ok := s.chart(m)
-	if !ok {
-		return
-	}
-	cx, cy := m.chartScreen(c)
-	s.grabX, s.grabY = x-cx, y-cy
-	s.drag = chartDragMove
-	if x >= cx+c.W-2 && y == cy+c.H-1 {
-		s.drag = chartDragResize
-	}
-	s.preview = &c
-}
-
-func (s *chartSel) mouse(m *Model, e mouseEvent) tea.Cmd {
-	switch e.kind {
-	case mousePress:
-		i := m.chartAt(e.x, e.y)
-		switch {
-		case i < 0:
-			m.closeOverlay()
-			return m.handlePress(tea.Mouse{X: e.x, Y: e.y, Button: e.button})
-		case e.button == tea.MouseRight:
-			m.selectChart(i)
-			m.showContextMenu(chartMenu, e.x, e.y+1)
-		case e.button == tea.MouseLeft:
-			if i != s.i {
-				m.selectChart(i)
-				s = m.overlay.(*chartSel)
-			}
-			s.press(m, e.x, e.y)
-		}
-	case mouseMotion:
-		if s.drag == chartDragNone || s.preview == nil {
-			shape := "default"
-			if i := m.chartAt(e.x, e.y); i >= 0 {
-				shape = "move"
-				if c := m.displayCharts()[i]; i == s.i {
-					cx, cy := m.chartScreen(c)
-					if e.x >= cx+c.W-2 && e.y == cy+c.H-1 {
-						shape = "nwse-resize"
-					}
-				}
-			}
-			return m.setShape(shape)
-		}
-		p := *s.preview
-		if s.drag == chartDragResize {
-			cx, cy := m.chartScreen(p)
-			p.W = clamp(e.x-cx+1, sheet.MinChartW, sheet.MaxChartW)
-			p.H = clamp(e.y-cy+1, sheet.MinChartH, sheet.MaxChartH)
-		} else {
-			p.At = m.chartCellAt(e.x-s.grabX, e.y-s.grabY)
-		}
-		s.preview = &p
-	case mouseRelease:
-		if s.preview != nil && s.drag != chartDragNone {
-			label := "move chart"
-			if s.drag == chartDragResize {
-				label = "resize chart"
-			}
-			before := m.sheet.StateID()
-			m.sheet.SetChart(s.i, *s.preview, label)
-			if m.sheet.StateID() != before {
-				m.changed = true
-			}
-		}
-		s.drag, s.preview = chartDragNone, nil
-	case mouseWheel:
-		m.handleWheel(tea.Mouse{X: e.x, Y: e.y, Button: e.button})
-	}
-	return nil
-}
-
-// chartCellAt returns the cell a chart's corner snaps to when dragged to
-// screen position x, y, which may be past the grid's edges.
-func (g *grid) chartCellAt(x, y int) sheet.Addr {
-	a := sheet.Addr{Row: max(g.top+y-gridTop, 0), Col: g.left}
-	switch {
-	case x >= rowHdrW:
-		if col, _, ok := g.colSpan(x); ok {
-			a.Col = col
-		} else {
-			a.Col = g.left + g.visibleCols(g.left) - 1
-		}
-	default:
-		for cx := rowHdrW; cx > x && a.Col > 0; {
-			a.Col--
-			cx -= g.sheet.ColWidth(a.Col)
-		}
-	}
-	return clampAddr(a)
-}
-
-func (s *chartSel) status(m *Model) (string, string) {
-	c, ok := s.chart(m)
-	if !ok {
-		return "", ""
-	}
-	desc := m.th.Muted.Render("Chart of " + c.Data.String())
-	pairs := []string{"Enter", "edit", "Del", "delete", "Arrows", "move", "Shift+arrows", "resize", "Esc", "done"}
-	for {
-		keys := m.th.KeyHints(pairs...)
-		switch {
-		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
-			return desc, keys
-		case desc != "":
-			desc = ""
-		case len(pairs) > 4:
-			pairs = append(pairs[:len(pairs)-4], pairs[len(pairs)-2:]...) // keep Esc
-		default:
-			return "", keys
-		}
-	}
-}
-
-// contextLine says what's selected and how to change it.
-func (s *chartSel) contextLine(m *Model) (string, string) {
-	c, ok := s.chart(m)
-	if !ok {
-		return "", ""
-	}
-	return m.th.Key.Render(c.Type.Title()+" chart") + m.th.Muted.Render(" of ") + c.Data.String() +
-		m.th.Muted.Render("   drag to move, drag the corner to resize"), ""
-}
-
-// chartEditor is the chart editor: a bar on the context line, in the
-// spirit of the find bar, with the type as a row of chips and the options
-// as toggles. Changes show at once; Enter keeps them and Esc undoes them,
-// removing a chart that was just inserted.
-type chartEditor struct {
-	i     int
-	start int // the sheet's state before editing, to undo back to
-	isNew bool
-}
-
-// openChartEditor edits chart i. start is the sheet's state to return to
-// on Esc.
-func (m *Model) openChartEditor(i int, isNew bool, start int) {
-	if i < 0 || i >= len(m.sheet.Charts()) {
-		return
-	}
-	m.charts.last = i
-	m.openOverlay(&chartEditor{i: i, start: start, isNew: isNew})
-}
-
-func (e *chartEditor) indicator() string   { return "CHART" }
-func (e *chartEditor) layout(*Model) []box { return nil }
-
-func (e *chartEditor) chart(m *Model) sheet.Chart { return m.sheet.Charts()[e.i] }
-
-// set applies a change to the chart as its own undo step.
-func (e *chartEditor) set(m *Model, fn func(c *sheet.Chart)) {
-	c := e.chart(m)
-	fn(&c)
-	m.sheet.SetChart(e.i, c, "edit chart")
-	m.changed = m.sheet.StateID() != m.saved
-}
-
-// Editor keys, also the toggles' mouse targets.
-const (
-	editorSwitch = "s"
-	editorHeader = "h"
-	editorLabels = "l"
-	editorRange  = "r"
-	editorTitle  = "t"
-)
-
-func (e *chartEditor) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
-	if e.i >= len(m.sheet.Charts()) {
-		m.closeOverlay()
-		return nil
-	}
-	switch key := strings.ToLower(k.String()); key {
-	case "enter":
-		m.selectChart(e.i)
-		if e.isNew {
-			m.note = "Inserted a chart of " + e.chart(m).Data.String()
-		}
-	case "esc":
-		for m.sheet.StateID() != e.start && m.sheet.CanUndo() {
-			m.sheet.Undo()
-		}
-		m.changed = m.sheet.StateID() != m.saved
-		m.closeOverlay()
-		m.charts.last = -1
-	case "left", "right", "shift+tab", "tab":
-		d := 1
-		if key == "left" || key == "shift+tab" {
-			d = -1
-		}
-		e.set(m, func(c *sheet.Chart) {
-			n := len(sheet.ChartTypes)
-			c.Type = sheet.ChartTypes[((int(c.Type)+d)%n+n)%n]
-		})
-	case "1", "2", "3", "4":
-		e.set(m, func(c *sheet.Chart) { c.Type = sheet.ChartTypes[key[0]-'1'] })
-	case editorSwitch:
-		e.set(m, func(c *sheet.Chart) { c.ByRow = !c.ByRow })
-	case editorHeader:
-		e.set(m, func(c *sheet.Chart) { c.Header = !c.Header })
-	case editorLabels:
-		e.set(m, func(c *sheet.Chart) { c.Labels = !c.Labels })
-	case editorRange:
-		e.editRange(m)
-	case editorTitle:
-		e.editTitle(m)
-	}
-	return nil
-}
-
-// reopen returns to the editor after a prompt.
-func (e *chartEditor) reopen(m *Model) {
-	m.openOverlay(e)
-}
-
-// editRange asks for the data range by pointing, starting from the
-// current one.
-func (e *chartEditor) editRange(m *Model) {
-	d := e.chart(m).Data
-	m.closeOverlay()
-	m.cur, m.ext, m.selecting, m.whole = d.From, d.To, true, wholeNone
-	m.openRange("Chart data:", func(m *Model, r sheet.Rect) tea.Cmd {
-		m.clearSelection()
-		e.set(m, func(c *sheet.Chart) { c.Data = r })
-		e.reopen(m)
-		return nil
-	})
-	m.prompt.onCancel = func(m *Model) {
-		m.clearSelection()
-		e.reopen(m)
-	}
-}
-
-func (e *chartEditor) editTitle(m *Model) {
-	title := e.chart(m).Title
-	m.closeOverlay()
-	m.openText("Chart title:", title, func(m *Model, text string) tea.Cmd {
-		e.set(m, func(c *sheet.Chart) { c.Title = text })
-		e.reopen(m)
-		return nil
-	})
-	m.prompt.onCancel = e.reopen
-}
-
-// editorPart is a piece of the editor bar: a type chip or a toggle.
-type editorPart struct {
-	text string
-	key  string // the key it stands for
-}
-
-func (e *chartEditor) parts(m *Model) []editorPart {
-	c := e.chart(m)
-	chip := func(on bool, name, key string) editorPart {
-		style := m.th.Muted
-		if on {
-			style = m.th.MenuSelected
-		}
-		return editorPart{text: style.Render(" " + name + " "), key: key}
-	}
-	var parts []editorPart
-	for i, t := range sheet.ChartTypes {
-		parts = append(parts, chip(t == c.Type, t.Title(), strconv.Itoa(i+1)))
-	}
-	series := "Series in columns"
-	if c.ByRow {
-		series = "Series in rows"
-	}
-	header, labels := "Header row", "Labels in column"
-	if c.ByRow {
-		header, labels = "Header column", "Labels in row"
-	}
-	return append(parts,
-		editorPart{text: m.th.Key.Render(c.Data.String()), key: editorRange},
-		chip(true, series, editorSwitch),
-		chip(c.Header, header, editorHeader),
-		chip(c.Labels, labels, editorLabels))
-}
-
-// spans lays the parts out on the context line, dropping options from the
-// right on narrow screens, and returns each part's x.
-func (e *chartEditor) spans(m *Model) ([]editorPart, []int) {
-	parts := e.parts(m)
-	for {
-		xs := make([]int, len(parts))
-		x := 0
-		for i, p := range parts {
-			if i == len(sheet.ChartTypes) {
-				x += 2 // a wider gap between the types and the options
-			}
-			xs[i] = x
-			x += ansi.StringWidth(p.text) + 1
-		}
-		if x-1 <= m.width || len(parts) <= len(sheet.ChartTypes) {
-			return parts, xs
-		}
-		parts = parts[:len(parts)-1]
-	}
-}
-
-func (e *chartEditor) contextLine(m *Model) (string, string) {
-	if e.i >= len(m.sheet.Charts()) {
-		return "", ""
-	}
-	parts, xs := e.spans(m)
-	var b strings.Builder
-	for i, p := range parts {
-		b.WriteString(strings.Repeat(" ", xs[i]-ansi.StringWidth(b.String())))
-		b.WriteString(p.text)
-	}
-	return b.String(), ""
-}
-
-func (e *chartEditor) mouse(m *Model, ev mouseEvent) tea.Cmd {
-	if ev.kind != mousePress {
-		return nil
-	}
-	if ev.y != contextLine {
-		// A click elsewhere keeps the changes and acts as usual.
-		m.closeOverlay()
-		return m.handlePress(tea.Mouse{X: ev.x, Y: ev.y, Button: ev.button})
-	}
-	parts, xs := e.spans(m)
-	for i, p := range parts {
-		if ev.x >= xs[i] && ev.x < xs[i]+ansi.StringWidth(p.text) {
-			return e.key(m, tea.KeyPressMsg{Code: rune(p.key[0]), Text: p.key})
-		}
-	}
-	return nil
-}
-
-func (e *chartEditor) status(m *Model) (string, string) {
-	pairs := []string{"←/→", "type", "S", "switch rows/columns", "H", "header", "L", "labels", "R", "range", "T", "title", "Enter", "done", "Esc", "cancel"}
-	for {
-		keys := m.th.KeyHints(pairs...)
-		if ansi.StringWidth(keys) <= m.width || len(pairs) <= 4 {
-			return "", keys
-		}
-		pairs = append(pairs[:len(pairs)-6], pairs[len(pairs)-4:]...) // keep Enter and Esc
-	}
-}
-
-// contextLiner is an overlay drawn on the context line, like the chart
-// editor.
-type contextLiner interface {
-	contextLine(m *Model) (left, right string)
 }

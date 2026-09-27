@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
+
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // The command palette ("Search the menus" in Sheets, Alt+/) finds any

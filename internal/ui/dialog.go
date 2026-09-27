@@ -4,8 +4,9 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // choiceBar is a small question asked on the context line and answered
