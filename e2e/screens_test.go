@@ -21,6 +21,7 @@ var update = flag.Bool("update", false, "rewrite golden screens in testdata/scre
 type screen struct {
 	name  string
 	opts  options
+	files func(t *testing.T, dir string) // fills the working directory first
 	setup func(s *session)
 }
 
@@ -125,7 +126,7 @@ var screens = []screen{
 	}},
 	{name: "menu", setup: func(s *session) {
 		budget(s)
-		s.keys("<alt+f>", "<down>", "<down>")
+		s.keys("<alt+f>", "<down>", "<down>", "<down>")
 		s.waitFor("Save the sheet")
 	}},
 	{name: "palette", setup: func(s *session) {
@@ -387,6 +388,26 @@ var screens = []screen{
 		s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonLeft, 6+25, gridRow1+6, 0)
 		s.waitFor("Fill A2:C7")
 	}},
+	{name: "import-picker", files: importDir, setup: openImportPicker},
+	{name: "import-picker-narrow", opts: options{cols: 60, rows: 16}, files: importDir, setup: openImportPicker},
+	{name: "import-progress", setup: slowCSV},
+	{name: "import-xlsx", files: importDir, setup: func(s *session) {
+		openImportPicker(s)
+		s.keys("q3", "<enter>")
+		s.waitFor("Imported q3.xlsx")
+	}},
+	{name: "save-imported", files: importDir, setup: func(s *session) {
+		openImportPicker(s)
+		s.keys("q3", "<enter>")
+		s.waitFor("Imported q3.xlsx")
+		s.keys("<ctrl+s>")
+		s.waitFor("q3.xlsx was imported.")
+	}},
+	{name: "menu-download", setup: func(s *session) {
+		budget(s)
+		s.keys("<alt+f>", "<down>", "<down>", "<down>", "<down>", "<down>", "<right>")
+		s.waitFor("SQLite database (.sqlite)")
+	}},
 }
 
 // named is the budget with its expenses named and a formula using the
@@ -416,10 +437,15 @@ func chartOfType(s *session, n int, title string) {
 	s.waitFor("READY")
 }
 
+func openImportPicker(s *session) {
+	s.keys("<alt+f>", "<down>", "<down>", "<enter>")
+	s.waitFor("6 of 6")
+}
+
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
@@ -441,6 +467,10 @@ func TestScreens(t *testing.T) {
 			if opts.jev {
 				srv, _ := fakeTypeSafe(t)
 				opts.env = []string{"TYPESAFE_API_KEY=test-key", "TYPESAFE_BASE_URL=" + srv.URL}
+			}
+			if sc.files != nil {
+				opts.dir = t.TempDir()
+				sc.files(t, opts.dir)
 			}
 			s := startWith(t, opts)
 			sc.setup(s)
