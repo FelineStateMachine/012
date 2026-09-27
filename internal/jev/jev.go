@@ -7,7 +7,6 @@ package jev
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -87,15 +86,6 @@ func NewClient(c Config) (Client, error) {
 		opts = append(opts, typesafe.WithModel(c.Model))
 	}
 	return typesafe.NewClient(opts...)
-}
-
-// Key identifies a question by its content.
-func Key(c sheet.RemoteCall) string {
-	b, err := json.Marshal(c)
-	if err != nil {
-		return fmt.Sprintf("%#v", c)
-	}
-	return string(b)
 }
 
 // Cache holds answers and the questions still to ask. It implements
