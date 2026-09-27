@@ -34,6 +34,8 @@ the app uses, so it never drifts from what the keys do.
 | Typing a function, range or sheet name | Suggestions drop down: Up/Down pick, Tab or Enter insert (a sheet as `Summary!`, then arrows point into it), Esc hides them; inside a function's parentheses the context line shows its arguments with the current one marked |
 | Alt+, / Alt+. | Trace precedents / dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; press again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) |
 | Data > Named ranges | Name ranges for formulas (`=SUM(Sales)`): Enter goes to one, F2 renames or repoints it, Ctrl+D deletes it; Data > Define named range names the selection |
+| Shift+F2, Insert > Note | Add or edit the active cell's note on the context line (Alt+Enter or Shift+Enter starts a new line); see [data.md](data.md#notes) |
+| Data > Protect sheets and ranges | Protect a range or the sheet so edits to it ask first; Enter goes to a protection, Ctrl+D removes it; see [data.md](data.md#protected-sheets-and-ranges) |
 | Ctrl+Shift+1 ... 6 | Number, time, date, currency, percent, scientific format |
 | Ctrl+B, Ctrl+I, Ctrl+U, Alt+Shift+5 | Bold, italic, underline, strikethrough |
 | Ctrl+Shift+L / E / R | Align left, center, right |

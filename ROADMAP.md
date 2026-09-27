@@ -124,11 +124,11 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 | Conditional formatting (color scales, rules on values and formulas), drawn in theme roles | Visual; must read under all 349 schemes | M |
 | Data validation: dropdown lists (a picker in the cell), number and date rules, checkboxes | Pairs with the filter picker | M |
 | Wrap text, row heights, borders, merged cells | Layout changes in the grid renderer | M to L |
-| Notes on cells (shown on hover and in the context line) | | S |
+| Notes on cells (shown on hover and in the context line). Done: Insert > Note (Shift+F2), a corner mark, the context line and a hover box, saved and in XLSX as Excel's notes; see [data.md](docs/data.md#notes) | | S |
 | Locale: decimal comma, date order, list separator in formulas | Sheets' File > Settings > Locale | M |
 | Charts: scatter, area, stacked columns and bars, axis options, a legend position | Registry entries in `internal/chart` | M |
 | Pivot tables: column subtotals, renaming value columns, check the "(blank)" label against Sheets | Left open by pivots | S |
-| Protected ranges and sheets (warn on edit) | | S |
+| Protected ranges and sheets (warn on edit). Done: Data > Protect sheets and ranges, edits ask on the context line; an XLSX sheet's protection is noted on import; see [data.md](docs/data.md#protected-sheets-and-ranges) | | S |
 
 ### 3. Scale (see "Next: vast data" above and docs/limits.md)
 
