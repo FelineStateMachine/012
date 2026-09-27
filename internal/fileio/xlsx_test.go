@@ -233,8 +233,10 @@ func TestExcelFormulas(t *testing.T) {
 		{"=#REF!+1", "#REF!+1", true},
 		{"='Q3 #1'!A1..B2", "'Q3 #1'!A1:B2", true},
 		{"=SUM('Bob''s'!A1)", "SUM('Bob''s'!A1)", true},
+		{"='q3/q4'!A1+plan!B2:B3+Plan+'Plan'", "'Q3_Q4'!A1+'Plan (2)'!B2:B3+Plan+'Plan'", true},
+		{`=PLAN(1)&"plan!"&Other!A1`, `PLAN(1)&"plan!"&Other!A1`, true},
 	} {
-		got, ok := toExcelFormula(tc.in)
+		got, ok := toExcelFormula(tc.in, map[string]string{"Q3/Q4": "Q3_Q4", "PLAN": "Plan (2)"})
 		if ok != tc.ok || ok && got != tc.want {
 			t.Errorf("toExcelFormula(%q) = %q, %v, want %q, %v", tc.in, got, ok, tc.want, tc.ok)
 		}
@@ -372,28 +374,6 @@ func TestXLSXWriteText(t *testing.T) {
 		if got := input(back, addr(t, cell)); got != flatten(text) {
 			t.Errorf("012 reads %s as %q, want %q", cell, trim(got), trim(text))
 		}
-	}
-}
-
-// A sheet whose name Excel can't take as is gets another; formulas
-// naming it go out as values, like formulas naming a missing sheet.
-func TestXLSXRenamedSheetAsValue(t *testing.T) {
-	src := build(t, map[string]string{"A1": "1"})
-	book := src.Book()
-	book.RenameSheet(src, "Plan")
-	spaced, err := book.AddSheet(" Plan", 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	spaced.Set(addr(t, "A1"), "=' Plan'!A2+Plan!A1")
-	name := filepath.Join(t.TempDir(), "renamed.xlsx")
-	res, err := Export(context.Background(), name, XLSX, SnapBook(src), ExportOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := "1 formula naming a sheet that doesn't exist saved as values, e.g. 'Plan (2)'!A1 (' Plan')"
-	if len(res.Notes) != 1 || res.Notes[0] != want {
-		t.Errorf("notes %q, want %q", res.Notes, want)
 	}
 }
 

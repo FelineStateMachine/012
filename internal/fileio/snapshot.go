@@ -25,9 +25,9 @@ type Snapshot struct {
 	// Sheets are every sheet of the workbook, in order, for formats that
 	// hold several (XLSX); the snapshot itself is one of them, the one
 	// shown. Nil exports just this snapshot. Names are the workbook's
-	// named ranges as name and Excel reference, e.g. Q3!$B$2:$B$9.
+	// named ranges.
 	Sheets []*Snapshot
-	Names  [][2]string
+	Names  []SnapName
 	Hidden bool // a hidden sheet of Sheets, written hidden
 
 	// FrozenRows and FrozenCols are the frozen panes; Filter is the
@@ -36,6 +36,13 @@ type Snapshot struct {
 	FrozenRows, FrozenCols int
 	Filter                 *sheet.Filter
 	HiddenRows             map[int]bool
+}
+
+// SnapName is a named range: its name, and the range on the sheet
+// named Sheet.
+type SnapName struct {
+	Name, Sheet string
+	Range       sheet.Rect
 }
 
 // SnapCell is one non-blank cell of a snapshot.
@@ -112,7 +119,7 @@ func SnapBook(s *sheet.Sheet) *Snapshot {
 	out.Sheets = all
 	for _, n := range s.Book().Names() {
 		if !n.Gone() {
-			out.Names = append(out.Names, [2]string{n.Name, excelRange(n.Sheet.Name(), n.Range)})
+			out.Names = append(out.Names, SnapName{Name: n.Name, Sheet: n.Sheet.Name(), Range: n.Range})
 		}
 	}
 	return out

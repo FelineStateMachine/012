@@ -29,8 +29,9 @@ type xlsxWriter struct {
 	// refuse.
 	values       valueCount
 	missing      valueCount
-	missingSheet string          // the sheet missing's example names
-	known        map[string]bool // keys of the sheets written
+	missingSheet string            // the sheet missing's example names
+	known        map[string]bool   // keys of the sheets written
+	renamed      map[string]string // the names of sheets written under another, by key
 }
 
 // valueCount counts formulas written as values, keeping the first one's
@@ -166,7 +167,7 @@ func (w *xlsxWriter) formula(ws string, a sheet.Addr, c SnapCell) string {
 		w.missing.add(w.multi, ws, a)
 		return ""
 	}
-	fx, ok := toExcelFormula(c.Input)
+	fx, ok := toExcelFormula(c.Input, w.renamed)
 	if !ok {
 		w.values.add(w.multi, ws, a)
 	}
