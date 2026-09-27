@@ -79,3 +79,99 @@ func TestSixelChart(t *testing.T) {
 		t.Error("an empty image drew something")
 	}
 }
+
+// A chart's sixel image decodes to the image composited over the
+// background, each channel within sixel's percent steps, and pixels
+// without coverage unset.
+func TestSixelDecodes(t *testing.T) {
+	bg := color.RGBA{250, 250, 245, 255}
+	for _, ct := range []sheet.ChartType{sheet.ChartLine, sheet.ChartPie, sheet.ChartArea} {
+		img := Image(ct, budget, 40, 12, Options{CellW: 7, CellH: 15}, testPalette)
+		got := decodeSixel(t, Sixel(img, bg, 256))
+		b := img.Bounds()
+		for y := range b.Dy() {
+			for x := range b.Dx() {
+				want := over(img, x, y, bg)
+				c, set := got[image.Pt(x, y)]
+				if set != (want.A != 0) || set && (diff(c.R, want.R) > 3 || diff(c.G, want.G) > 3 || diff(c.B, want.B) > 3) {
+					t.Fatalf("%v at %d,%d: %v %v, want %v", ct, x, y, c, set, want)
+				}
+			}
+		}
+	}
+}
+
+func diff(a, b uint8) int { return max(int(a)-int(b), int(b)-int(a)) }
+
+// decodeSixel reads what Sixel writes: color definitions, "#n"
+// selections, sixels and their runs, "$" and "-".
+func decodeSixel(t *testing.T, s string) map[image.Point]color.RGBA {
+	t.Helper()
+	body, ok := strings.CutPrefix(s, "\x1bP0;1;0q")
+	body, ok2 := strings.CutSuffix(body, "\x1b\\")
+	if !ok || !ok2 {
+		t.Fatalf("not a sixel sequence: %.30q", s)
+	}
+	d := sixelDecoder{body: body, pal: map[int]color.RGBA{}, out: map[image.Point]color.RGBA{}}
+	for d.i < len(body) {
+		d.step()
+	}
+	return d.out
+}
+
+type sixelDecoder struct {
+	body      string
+	i         int
+	x, y, cur int
+	pal       map[int]color.RGBA
+	out       map[image.Point]color.RGBA
+}
+
+func (d *sixelDecoder) num() int {
+	n := 0
+	for ; d.i < len(d.body) && d.body[d.i] >= '0' && d.body[d.i] <= '9'; d.i++ {
+		n = n*10 + int(d.body[d.i]-'0')
+	}
+	return n
+}
+
+func (d *sixelDecoder) step() {
+	ch := d.body[d.i]
+	d.i++
+	switch ch {
+	case '"':
+		for d.i < len(d.body) && (d.body[d.i] >= '0' && d.body[d.i] <= '9' || d.body[d.i] == ';') {
+			d.i++
+		}
+	case '#':
+		d.cur = d.num()
+		if d.i < len(d.body) && d.body[d.i] == ';' {
+			var c [4]int
+			for k := range c {
+				d.i++
+				c[k] = d.num()
+			}
+			pc := func(v int) uint8 { return uint8((v*255 + 50) / 100) }
+			d.pal[d.cur] = color.RGBA{pc(c[1]), pc(c[2]), pc(c[3]), 255}
+		}
+	case '$':
+		d.x = 0
+	case '-':
+		d.x, d.y = 0, d.y+6
+	default:
+		run := 1
+		if ch == '!' {
+			run = d.num()
+			ch = d.body[d.i]
+			d.i++
+		}
+		for range run {
+			for dy := range 6 {
+				if (ch-'?')&(1<<dy) != 0 {
+					d.out[image.Pt(d.x, d.y+dy)] = d.pal[d.cur]
+				}
+			}
+			d.x++
+		}
+	}
+}
