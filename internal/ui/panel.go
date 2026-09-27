@@ -224,10 +224,10 @@ func (m *Model) statusLine() string {
 }
 
 // statusLayout is the status line and where its sheet tabs are. From the
-// left: the tabs, a divider, the file name and its state, then selection statistics
-// or the ways in to everything else on the right. When space runs out,
-// the right side gives up detail first, then the file name, then tabs
-// scroll.
+// left: the tabs, a divider, the file name and its state, then selection
+// statistics or the ways in to everything else on the right. While a
+// menu, picker or suggestion list is open, it says what the highlighted
+// item does instead.
 func (m *Model) statusLayout() (string, []tabSpan) {
 	if m.mode == modeError {
 		return m.th.Error.Render(m.errMsg) + m.th.Muted.Render("   press any key"), nil
@@ -235,45 +235,68 @@ func (m *Model) statusLayout() (string, []tabSpan) {
 	if m.xfer.job != nil {
 		return m.importStatus(), nil
 	}
+	if line, ok := m.floatingStatus(); ok {
+		return line, nil
+	}
+	return m.fileStatus()
+}
+
+// floatingStatus is what the highlighted item of the open overlay or the
+// formula suggestions does, and the keys that apply.
+func (m *Model) floatingStatus() (string, bool) {
 	desc, keys, floating := m.assistStatus()
 	if m.overlay != nil {
-		desc, keys, floating = "", "", true
 		desc, keys = m.overlay.status(m)
+		floating = true
 	}
-	if floating {
-		// What the highlighted item does and the keys that apply.
-		if desc != "" || keys != "" {
-			if room := m.width - ansi.StringWidth(keys) - 3; room >= 12 {
-				desc = ansi.Truncate(desc, room, "…")
-			}
-			return m.spread(desc, keys), nil
-		}
+	if !floating || desc == "" && keys == "" {
+		return "", false
 	}
-	name, state := m.displayName(), m.statusState()
-	infos := []string{name + state, strings.TrimPrefix(state, "  ")}
-	// First try to show every tab, then half the line of them, then just
-	// the one shown.
-	for _, need := range []int{m.allTabs(), min(m.allTabs(), m.width/2), m.minTabs()} {
+	if room := m.width - ansi.StringWidth(keys) - 3; room >= 12 {
+		desc = ansi.Truncate(desc, room, "…")
+	}
+	return m.spread(desc, keys), true
+}
+
+// fileStatus is the tabs, the file and the right side. When space runs
+// out, the right side gives up detail first, then the file name, then
+// tabs scroll: first every tab is tried, then half the line of them, then
+// just the one shown.
+func (m *Model) fileStatus() (string, []tabSpan) {
+	v := m.tabView()
+	state := m.statusState()
+	infos := []string{m.displayName() + state, strings.TrimPrefix(state, "  ")}
+	rights := m.statusRights()
+	for _, need := range []int{v.fullWidth(), min(v.fullWidth(), m.width/2), v.minWidth()} {
 		for _, info := range infos {
 			if info != "" {
 				info = m.th.FrozenLine.Render(" │ ") + info // like a tmux pane border
 			}
-			for _, right := range m.statusRights() {
-				room := m.width - ansi.StringWidth(info)
-				if right != "" {
-					room -= ansi.StringWidth(right) + 3
-				}
-				if room < need && (right != "" || info != "") {
-					continue
-				}
-				tabs, spans := m.tabStrip(room)
-				left := tabs + info
-				gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
-				return left + strings.Repeat(" ", gap) + right, spans
+			if line, spans, ok := m.statusFits(v, need, info, rights); ok {
+				return line, spans
 			}
 		}
 	}
 	return "", nil // not reached: the last choice has no right side or info
+}
+
+// statusFits lays out the status line with info after the tabs and the
+// most detailed of rights that leaves the tabs need columns.
+func (m *Model) statusFits(v tabView, need int, info string, rights []string) (string, []tabSpan, bool) {
+	for _, right := range rights {
+		room := m.width - ansi.StringWidth(info)
+		if right != "" {
+			room -= ansi.StringWidth(right) + 3
+		}
+		if room < need && (right != "" || info != "") {
+			continue
+		}
+		tabs, spans := m.tabs.layout(&m.th, v, room)
+		left := tabs + info
+		gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
+		return left + strings.Repeat(" ", gap) + right, spans, true
+	}
+	return "", nil, false
 }
 
 // statusState is what the status line says about the file after its
