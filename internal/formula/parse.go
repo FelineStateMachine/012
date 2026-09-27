@@ -23,11 +23,21 @@ const (
 	percentPower = 80
 )
 
+// MaxDepth is how deeply a formula may nest: parentheses, function calls
+// and prefix operators each open a level (an operator of higher
+// precedence may add one or two). Excel allows 64 nested functions; this
+// is far more than a formula written by hand needs, and it bounds the
+// recursion of everything that walks a formula (the parser, printer,
+// evaluator and reference rewriting), so a pathological file fails to
+// parse rather than exhausting the stack.
+const MaxDepth = 1024
+
 type parser struct {
 	src   string // the formula without its "=", for names' original spelling
 	toks  []token
 	pos   int
 	funcs Funcs
+	depth int // of expr calls, see MaxDepth
 }
 
 // Parse parses a formula, finding the functions it calls with funcs. src
@@ -73,7 +83,21 @@ func (p *parser) isOp(op string) bool {
 	return t.kind == tokOp && t.text == op
 }
 
+// expr parses an expression whose operators bind tighter than minPower.
+// Every level of nesting passes through here, so here it's counted.
 func (p *parser) expr(minPower int) (Node, error) {
+	if p.depth >= MaxDepth {
+		return nil, &ParseError{p.peek().pos, fmt.Sprintf("Formula is nested too deeply (more than %d levels)", MaxDepth)}
+	}
+	p.depth++
+	n, err := p.climb(minPower)
+	p.depth--
+	return n, err
+}
+
+// climb parses by precedence climbing: a prefix, then infix and postfix
+// operators binding tighter than minPower.
+func (p *parser) climb(minPower int) (Node, error) {
 	left, err := p.prefix()
 	if err != nil {
 		return nil, err

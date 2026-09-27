@@ -2,6 +2,7 @@ package formula
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -249,6 +250,10 @@ func FuzzPrint(f *testing.F) {
 	for _, s := range []string{
 		"=A1*2", "=$A$1+A$2-$B3", "=SUM($A1:B$3)", "=-2^-2%", "=1-(2-3)", "=#NOT#A1=1#OR#B1",
 		"=2^(3^2)", `=IF(A1>2,"x""y",#REF!)`, "=1.5E-3^2", "=@SUM(A1..B3)", "=(1+2)%*-A1",
+		// At and past the nesting cap.
+		"=" + strings.Repeat("(", MaxDepth-1) + "1" + strings.Repeat(")", MaxDepth-1),
+		"=" + strings.Repeat("-(", MaxDepth/2) + "1" + strings.Repeat(")", MaxDepth/2),
+		"=" + strings.Repeat("(", MaxDepth+1) + "1" + strings.Repeat(")", MaxDepth+1),
 	} {
 		f.Add(s)
 	}
@@ -266,6 +271,34 @@ func FuzzPrint(f *testing.F) {
 			t.Fatalf("%q printed as %q parses differently:\n%#v\n%#v", in, text, n, back)
 		}
 	})
+}
+
+// Nesting is capped at MaxDepth levels, with the error at the level
+// past it; anything within the cap parses.
+func TestParseDepth(t *testing.T) {
+	nested := func(n int) string {
+		return "=" + strings.Repeat("(", n) + "1" + strings.Repeat(")", n)
+	}
+	if _, err := Parse(nested(MaxDepth-1), testFuncs); err != nil {
+		t.Errorf("%d parentheses: %v", MaxDepth-1, err)
+	}
+	for _, in := range []string{
+		nested(MaxDepth),
+		nested(100_000),
+		"=" + strings.Repeat("-", 5000) + "1",
+		"=" + strings.Repeat("SUM(", 2000) + "1" + strings.Repeat(")", 2000),
+		"=" + strings.Repeat("(", 5000),
+	} {
+		_, err := Parse(in, testFuncs)
+		pe, ok := err.(*ParseError)
+		if !ok || !strings.HasPrefix(pe.Msg, "Formula is nested too deeply") {
+			t.Errorf("Parse(%.20q...) error = %v", in, err)
+			continue
+		}
+		if pe.Pos < MaxDepth || pe.Pos > len(in) {
+			t.Errorf("Parse(%.20q...) error at %d", in, pe.Pos)
+		}
+	}
 }
 
 func TestParseErrors(t *testing.T) {
