@@ -58,7 +58,7 @@ screens: $(GHOSTTY_STAMP)
 # Stress: fetch real datasets into .deps/stress, run the benchmarks built
 # with -tags stress, print a summary and record the run in
 # .deps/stress/results/runs.jsonl. BENCH, BENCHTIME and PKGS narrow it;
-# see docs/limits.md. Plain `go test ./...` never runs these.
+# see docs/contributing/limits.md. Plain `go test ./...` never runs these.
 stress:
 	scripts/stress/run.sh
 
@@ -72,7 +72,7 @@ stress-report:
 	scripts/stress/report.sh
 
 # The observability stack (deploy/observability): an OpenTelemetry
-# Collector, ClickHouse and Grafana in Docker. See docs/observability.md.
+# Collector, ClickHouse and Grafana in Docker. See docs/contributing/observability.md.
 obs-up:
 	scripts/obs.sh up
 

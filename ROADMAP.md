@@ -39,6 +39,7 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 |---|---|---|
 | A streaming or binary `.012` format next to the readable JSON one | Open and save scale with the data | M |
 | Smaller undo steps: plain cells' before-images as slots, formatting changes as diffs | More history in the same memory; clearing a full sheet costs what the sheet does | S to M |
+| Compact spilled and pivot cells: derived cells in the compact slot form instead of whole `Cell`s | Large spills and pivots cost what plain cells cost ([Bounds of support](docs/contributing/limits.md#what-would-raise-the-bounds)) | M |
 | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid | L |
 
 ### 4. Macros, keys and the terminal
@@ -77,7 +78,7 @@ by a gateway dialing the iroh ticket.
 - Dynamic arrays that spill (FILTER, SORT, UNIQUE, SEQUENCE and more, ARRAYFORMULA), LET and LAMBDA, SPLIT and the REGEX functions: [Arrays and spills](docs/formulas/arrays.md)
 - Opt-in decimal arithmetic for money: [Decimal arithmetic](docs/formulas/decimal.md)
 - An Excel-sized grid with a `max-cells` budget; operations cost the data, not the grid: [Bounds of support](docs/contributing/limits.md#sheet-size)
-- Compact column storage: 20 B a number, a ten-million-cell `max-cells` budget, 3 ns cell reads: [Bounds of support](docs/contributing/limits.md#sheet-size)
+- Compact column storage and a ten-million-cell `max-cells` budget: [Bounds of support](docs/contributing/limits.md#sheet-size)
 
 **Finding and using features**
 

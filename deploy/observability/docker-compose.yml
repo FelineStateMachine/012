@@ -1,5 +1,5 @@
 # Local observability stack for 012: an OpenTelemetry Collector feeding
-# ClickHouse, and Grafana on top. See docs/observability.md.
+# ClickHouse, and Grafana on top. See docs/contributing/observability.md.
 #
 #   make obs-up      start it and print the environment for 012
 #   make obs-status  containers, endpoints and row counts
