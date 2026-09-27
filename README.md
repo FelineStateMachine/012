@@ -60,6 +60,8 @@ searches every command.
 - [Files](docs/files.md)
 - [JEV functions](docs/jev.md)
 - [Architecture](docs/architecture.md), [UX bar](docs/UX.md) and [testing](docs/testing.md)
+- [Limits](docs/limits.md): how big a sheet 012 handles and where it slows down
+- [Observability](docs/observability.md): event logs, DuckDB, and a local Collector, ClickHouse and Grafana stack
 - [Roadmap](ROADMAP.md)
 
 ## Development
@@ -70,6 +72,7 @@ make test     # unit tests
 make e2e      # the real binary in libghostty, Ghostty's terminal core (needs Zig 0.16+ and pkg-config)
 make screens  # golden screens and the review gallery
 make oracle   # formulas and formats against excelize
+make stress   # benchmarks on synthetic and real data; make stress-report compares runs
 ```
 
 See [docs/testing.md](docs/testing.md).

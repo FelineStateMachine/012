@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Key identifies a question by its content. JEV cells are volatile, so
