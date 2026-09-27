@@ -64,7 +64,7 @@ func TestArgPart(t *testing.T) {
 func TestAutocompleteFunctions(t *testing.T) {
 	m := newModel()
 	press(t, m, "=su")
-	list, _ := m.shownSuggestions()
+	list, _ := m.entry.assist.shown(m)
 	if len(list) == 0 || list[0].name != "SUBSTITUTE" && list[0].name != "SUM" {
 		t.Fatalf("suggestions %v", list)
 	}
@@ -92,7 +92,7 @@ func TestAutocompleteFunctions(t *testing.T) {
 		t.Errorf("signature %q", ctx)
 	}
 	press(t, m, "1,")
-	sig, _ := m.signature(m.line.buf, m.line.pos)
+	sig, _ := signature(&m.th, m.line.buf, m.line.pos)
 	if !strings.Contains(sig, m.th.Argument.Render("[value2, ...]")) {
 		t.Errorf("second argument not marked: %q", sig)
 	}
@@ -116,7 +116,7 @@ func TestAutocompleteKeys(t *testing.T) {
 	// Esc hides the list, a second Esc cancels the entry.
 	press(t, m, "=ro")
 	press(t, m, "<esc>")
-	if list, _ := m.shownSuggestions(); list != nil || m.mode != modeEnter {
+	if list, _ := m.entry.assist.shown(m); list != nil || m.mode != modeEnter {
 		t.Fatalf("esc: %v %v", list, m.mode)
 	}
 	press(t, m, "<esc>")
@@ -131,16 +131,16 @@ func TestAutocompleteKeys(t *testing.T) {
 	press(t, m, "<esc>", "<esc>")
 	// Moving the caret hides the list; a cell reference gets no list.
 	press(t, m, "=co", "<left>")
-	if list, _ := m.shownSuggestions(); list != nil {
+	if list, _ := m.entry.assist.shown(m); list != nil {
 		t.Error("list after moving the caret")
 	}
 	press(t, m, "<esc>", "=B2")
-	if list, _ := m.shownSuggestions(); list != nil {
+	if list, _ := m.entry.assist.shown(m); list != nil {
 		t.Errorf("list for a reference: %v", list)
 	}
 	// Plain text gets no list.
 	press(t, m, "<esc>", "su")
-	if list, _ := m.shownSuggestions(); list != nil {
+	if list, _ := m.entry.assist.shown(m); list != nil {
 		t.Error("list for text")
 	}
 }
@@ -149,12 +149,12 @@ func TestAutocompleteNamesAndMouse(t *testing.T) {
 	m := tallModel()
 	m.sheet.DefineName("Sales", rectOf("B1:B3"))
 	press(t, m, "=SUM(sa")
-	list, start := m.shownSuggestions()
+	list, start := m.entry.assist.shown(m)
 	if list[0].name != "Sales" || list[0].fn {
 		t.Fatalf("names first: %v", list)
 	}
 	// Clicking a suggestion inserts it.
-	b, _ := m.assistBox()
+	b, _ := m.entry.assist.box(m)
 	send(m, tea.MouseClickMsg{X: b.x + 3, Y: b.y + 1, Button: tea.MouseLeft})
 	if m.line.text() != "=SUM(Sales" || m.line.pos != start+5 {
 		t.Fatalf("click: %q", m.line.text())

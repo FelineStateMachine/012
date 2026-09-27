@@ -57,7 +57,7 @@ func (m *Model) startEdit() tea.Cmd {
 // in a formula where a reference may follow the caret: then they point.
 func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
-	if m.assistKey(key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
+	if m.entry.assist.key(m, key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
 	if key == "f2" {
@@ -88,7 +88,7 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 // editKey handles EDIT mode, where left and right move the caret.
 func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
-	if m.assistKey(key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
+	if m.entry.assist.key(m, key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
 	if m.line.isFormula() && m.line.canPoint() && strings.HasPrefix(key, "shift+") && m.startPoint(key) {
