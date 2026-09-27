@@ -38,7 +38,7 @@ func TestUndoRedo(t *testing.T) {
 		t.Fatalf("len %d state %d", s.Len(), s.StateID())
 	}
 	c, ok := s.Undo()
-	if !ok || c != (Change{"clear A1:A2", NewRect(at("A1"), at("A2")), s, false}) || s.Value(at("A2")).Num != 20 {
+	if !ok || c != (Change{Label: "clear A1:A2", Focus: NewRect(at("A1"), at("A2")), Sheet: s}) || s.Value(at("A2")).Num != 20 {
 		t.Fatalf("undo erase: %v %v A2=%+v", c, ok, s.Value(at("A2")))
 	}
 	s.Undo()

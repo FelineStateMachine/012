@@ -48,6 +48,8 @@ type step struct {
 	sheets *sheetList
 	// decimal is the arithmetic setting before the step, when it changed.
 	decimal *bool
+	// macros is the macro list before the step, when it changed.
+	macros *[]Macro
 }
 
 // colKey is a column of a sheet.
@@ -73,7 +75,8 @@ func (st *step) empty() bool {
 
 // widthOnly reports whether the step changed nothing but column widths.
 func (st *step) widthOnly() bool {
-	return len(st.cells) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && st.sheets == nil && st.decimal == nil
+	return len(st.cells) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && st.sheets == nil &&
+		st.decimal == nil && st.macros == nil
 }
 
 func (c *Cell) clone() *Cell {
@@ -94,6 +97,9 @@ type Change struct {
 	// Tabs is set when the step added, deleted, renamed or moved sheets;
 	// Focus means nothing then.
 	Tabs bool
+	// Macros is set when the step changed nothing but the macros; Focus
+	// means nothing then either.
+	Macros bool
 }
 
 // Batch runs fn as a single undo step: everything it changes is undone
@@ -113,28 +119,38 @@ func (s *Sheet) change(label string, focus Rect, fn func()) {
 // change opens a step (unless one is open), runs fn, and on the way out
 // of the outermost call recalculates what changed and pushes the step.
 func (w *Workbook) change(s *Sheet, label string, focus Rect, fn func()) {
+	w.begin(s, label, focus)
+	defer w.finish()
+	fn()
+}
+
+// begin opens a step unless one is open, and nests into it.
+func (w *Workbook) begin(s *Sheet, label string, focus Rect) {
 	h := &w.hist
 	if h.depth == 0 {
 		h.open = newStep(label, s, focus)
 		w.structural = false
 	}
 	h.depth++
-	defer func() {
-		h.depth--
-		if h.depth > 0 {
-			return
-		}
-		st, dirty := h.open, h.dirty
-		h.open, h.dirty = nil, nil
-		if w.structural {
-			w.structural = false
-			w.recalcAll()
-		} else {
-			w.recalc(dirty)
-		}
-		w.push(st)
-	}()
-	fn()
+}
+
+// finish leaves a nesting level; the outermost recalculates what changed
+// and pushes the step.
+func (w *Workbook) finish() {
+	h := &w.hist
+	h.depth--
+	if h.depth > 0 {
+		return
+	}
+	st, dirty := h.open, h.dirty
+	h.open, h.dirty = nil, nil
+	if w.structural {
+		w.structural = false
+		w.recalcAll()
+	} else {
+		w.recalc(dirty)
+	}
+	w.push(st)
 }
 
 // record saves the cell at a before its first change in the open step.
@@ -292,6 +308,9 @@ func (w *Workbook) dropUnchanged(st *step) {
 	if st.decimal != nil && *st.decimal == w.decimal {
 		st.decimal = nil
 	}
+	if st.macros != nil && slices.Equal(*st.macros, w.macros) {
+		st.macros = nil
+	}
 }
 
 // sameName reports whether two named ranges (nil for undefined) are the
@@ -408,6 +427,10 @@ func (w *Workbook) swap(from, to *[]*step) (Change, bool) {
 		inv.decimal, w.decimal = &cur, *st.decimal
 		w.structural = true // every formula computes differently
 	}
+	if st.macros != nil {
+		cur := w.macros
+		inv.macros, w.macros = &cur, slices.Clone(*st.macros)
+	}
 	for s, v := range st.views {
 		cur := s.view
 		inv.views[s] = &cur
@@ -422,7 +445,8 @@ func (w *Workbook) swap(from, to *[]*step) (Change, bool) {
 	}
 	*to = append(*to, inv)
 	w.hist.mergeWidths = false
-	return Change{st.label, st.focus, st.sheet, st.sheets != nil}, true
+	macrosOnly := st.macros != nil && len(st.cells) == 0 && len(st.names) == 0 && len(st.charts) == 0 && st.sheets == nil
+	return Change{Label: st.label, Focus: st.focus, Sheet: st.sheet, Tabs: st.sheets != nil, Macros: macrosOnly}, true
 }
 
 // colRect is the range covering whole columns from..to.
