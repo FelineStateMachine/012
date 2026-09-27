@@ -104,7 +104,7 @@ func TestMacroFromAnotherComputerAsks(t *testing.T) {
 func TestMacroRecordsTheSortBar(t *testing.T) {
 	dir := t.TempDir()
 	s := start(t, dir, "book.012")
-	s.keys("Month", "<tab>", "Sales", "<enter>", "Jan", "<tab>", "30", "<enter>", "Feb", "<tab>", "10", "<enter>", "Mar", "<tab>", "20", "<enter>")
+	s.keys("Month", "<tab>", "Sales", "<enter>", "Jan", "<tab>", "10", "<enter>", "Feb", "<tab>", "30", "<enter>", "Mar", "<tab>", "20", "<enter>")
 	s.keys("<ctrl+home>", "<ctrl+k>", "record macro")
 	s.waitFor("Record macro")
 	s.keys("<enter>")
@@ -113,18 +113,19 @@ func TestMacroRecordsTheSortBar(t *testing.T) {
 	s.waitFor("Sort A2:B4 by  A Month  A→Z")
 	s.keys("<right>", "<space>", "<enter>")
 	s.waitFor("Sorted A2:B4 by B Z→A")
-	s.waitForLine(gridRow1+1, "    2  Jan             30")
+	s.waitForLine(gridRow1+1, "    2  Feb             30")
 	s.keys("<ctrl+k>", "stop and save", "<enter>")
 	s.waitFor("Save macro as: Macro 1")
 	s.keys("Sort", "<enter>", "<enter>")
 	s.waitFor("Saved macro Sort")
 
-	// Undone, then replayed from the palette.
-	s.keys("<ctrl+z>")
-	s.waitForLine(gridRow1+1, "    2  Feb             10")
+	// Sorted back by Sales A to Z, then replayed from the palette.
+	s.keys("<right>", "<ctrl+k>", "sort range a to z", "<enter>")
+	s.waitForLine(gridRow1+1, "    2  Jan             10")
+	s.keys("<left>")
 	s.keys("<ctrl+k>", "sort", "<enter>")
 	s.waitFor("Ran Sort")
-	s.waitForLine(gridRow1+1, "    2  Jan             30")
+	s.waitForLine(gridRow1+1, "    2  Feb             30")
 	s.keys("<ctrl+s>")
 	s.eventually("saved", func() bool {
 		data, err := os.ReadFile(filepath.Join(dir, "book.012"))
