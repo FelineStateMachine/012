@@ -15,6 +15,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/keyring"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"github.com/FelineStateMachine/012/internal/ui/themepicker"
 )
 
 // Settings are what the app takes from outside the workbook: the config
@@ -83,7 +84,7 @@ func init() {
 	register(
 		&command{id: "settings.theme", macro: macroNever, title: "Theme",
 			desc: "Pick a color theme, previewing each as you move; Esc keeps the one you had",
-			run:  func(m *Model) tea.Cmd { m.openOverlay(newThemePicker(m)); return nil }},
+			run:  func(m *Model) tea.Cmd { m.openOverlay(themepicker.New(m.host())); return nil }},
 		&command{id: "settings.config_edit", macro: macroNever, title: "Open config file",
 			desc:    "Edit the settings file in $VISUAL or $EDITOR; 012 reloads it when you close the editor",
 			enabled: func(m *Model) bool { return m.prefs.Config != nil && m.prefs.Config.Path != "" },

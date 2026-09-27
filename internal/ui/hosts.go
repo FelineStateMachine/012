@@ -9,6 +9,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"github.com/FelineStateMachine/012/internal/ui/themepicker"
 )
 
 // host is how components in packages of their own reach the model. It
@@ -20,10 +21,19 @@ type host struct{ m *Model }
 func (m *Model) host() host { return host{m} }
 
 var (
-	_ picker.Host  = host{}
-	_ cmdline.Host = host{}
-	_ findbar.Host = host{}
+	_ picker.Host      = host{}
+	_ cmdline.Host     = host{}
+	_ findbar.Host     = host{}
+	_ themepicker.Host = host{}
 )
+
+// Components that stay in package ui are handed interfaces of their own
+// (menuHost and the like), which the model implements with unexported
+// methods, these among them.
+
+func (m *Model) styles() *theme.Theme      { return &m.th }
+func (m *Model) size() (width, height int) { return m.width, m.height }
+func (m *Model) available(id string) bool  { return commands[id].available(m) }
 
 // What every component with a text field needs.
 
@@ -60,6 +70,17 @@ func (h host) Commands() []cmdline.Item {
 
 func (h host) Run(text string) (tea.Cmd, bool) { return h.m.runCmdLine(text) }
 func (h host) Fail(msg string)                 { h.m.fail(msg) }
+
+// The theme picker.
+
+func (h host) Current() string   { return h.m.prefs.Config.Theme().Pick(!h.m.prefs.light) }
+func (h host) ThemesDir() string { return h.m.prefs.ThemesDir }
+func (h host) Keep(name string)  { h.m.keepTheme(name) }
+
+func (h host) Preview(name string) {
+	h.m.prefs.preview = name
+	h.m.applyTheme()
+}
 
 // The find bar.
 
