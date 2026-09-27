@@ -26,13 +26,18 @@ type history struct {
 
 type step struct {
 	id     int
-	label  string         // what the step did, e.g. "clear B3:B5"
-	focus  Rect           // what the UI selects when the step is undone or redone
-	cells  map[Addr]*Cell // before the step; nil for blank
-	widths map[int]int    // before the step; 0 for the default width
+	label  string           // what the step did, e.g. "clear B3:B5"
+	focus  Rect             // what the UI selects when the step is undone or redone
+	cells  map[Addr]*Cell   // before the step; nil for blank
+	widths map[int]int      // before the step; 0 for the default width
+	names  map[string]*Name // before the step, by key; nil for undefined
 }
 
-func (st *step) empty() bool { return len(st.cells) == 0 && len(st.widths) == 0 }
+func newStep(label string, focus Rect) *step {
+	return &step{label: label, focus: focus, cells: map[Addr]*Cell{}, widths: map[int]int{}, names: map[string]*Name{}}
+}
+
+func (st *step) empty() bool { return len(st.cells) == 0 && len(st.widths) == 0 && len(st.names) == 0 }
 
 func (c *Cell) clone() *Cell {
 	if c == nil {
@@ -63,7 +68,7 @@ func (s *Sheet) Batch(c Change, fn func() error) error {
 func (s *Sheet) change(label string, focus Rect, fn func()) {
 	h := &s.hist
 	if h.depth == 0 {
-		h.open = &step{label: label, focus: focus, cells: map[Addr]*Cell{}, widths: map[int]int{}}
+		h.open = newStep(label, focus)
 	}
 	h.depth++
 	defer func() {
@@ -103,6 +108,18 @@ func (s *Sheet) recordWidth(c int) {
 	}
 }
 
+// recordName saves the named range with key k before its first change in
+// the open step.
+func (s *Sheet) recordName(k string) {
+	st := s.hist.open
+	if st == nil {
+		return
+	}
+	if _, seen := st.names[k]; !seen {
+		st.names[k] = s.namePtr(k)
+	}
+}
+
 // push adds a finished step to the undo stack and clears redo, dropping
 // no-op changes.
 func (s *Sheet) push(st *step) {
@@ -117,13 +134,18 @@ func (s *Sheet) push(st *step) {
 			delete(st.cells, a)
 		}
 	}
+	for k, n := range st.names {
+		if cur := s.namePtr(k); n == nil && cur == nil || n != nil && cur != nil && *n == *cur {
+			delete(st.names, k)
+		}
+	}
 	if st.empty() {
 		return
 	}
 	h.redo = nil
 	h.lastID++
-	widthOnly := len(st.cells) == 0
-	if top := h.top(); widthOnly && h.mergeWidths && top != nil && len(top.cells) == 0 {
+	widthOnly := len(st.cells) == 0 && len(st.names) == 0
+	if top := h.top(); widthOnly && h.mergeWidths && top != nil && len(top.cells) == 0 && len(top.names) == 0 {
 		for c, w := range st.widths {
 			if _, ok := top.widths[c]; !ok {
 				top.widths[c] = w
@@ -193,7 +215,8 @@ func (s *Sheet) swap(from, to *[]*step) (Change, bool) {
 	*from = (*from)[:len(*from)-1]
 	// The inverse keeps the step's ID: on the redo stack, an ID names the
 	// state the step leads back to.
-	inv := &step{id: st.id, label: st.label, focus: st.focus, cells: make(map[Addr]*Cell, len(st.cells)), widths: map[int]int{}}
+	inv := newStep(st.label, st.focus)
+	inv.id = st.id
 	changed := make([]Addr, 0, len(st.cells))
 	for a, c := range st.cells {
 		inv.cells[a] = s.cells[a].clone()
@@ -203,6 +226,10 @@ func (s *Sheet) swap(from, to *[]*step) (Change, bool) {
 	for c, w := range st.widths {
 		inv.widths[c] = s.widths[c]
 		s.setWidth(c, w)
+	}
+	for k, n := range st.names {
+		inv.names[k] = s.namePtr(k)
+		changed = append(changed, s.putName(k, n)...)
 	}
 	s.recalc(changed)
 	*to = append(*to, inv)

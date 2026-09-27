@@ -5,11 +5,12 @@ package sheet
 // the cells that moved, as Sheets does. A reference that can't be kept
 // becomes #REF!.
 
-// refRewrite maps the references in a formula. Either function may return
-// refErrNode.
+// refRewrite maps the references in a formula. Any function may return
+// refErrNode; a nil function leaves those nodes alone.
 type refRewrite struct {
-	ref func(refNode) Node
-	rng func(rangeNode) Node
+	ref  func(refNode) Node
+	rng  func(rangeNode) Node
+	name func(nameNode) Node
 }
 
 // rewrite returns n with its references mapped, and whether anything
@@ -17,10 +18,22 @@ type refRewrite struct {
 func rewrite(n Node, rw refRewrite) (Node, bool) {
 	switch n := n.(type) {
 	case refNode:
+		if rw.ref == nil {
+			return n, false
+		}
 		out := rw.ref(n)
 		return out, out != Node(n)
 	case rangeNode:
+		if rw.rng == nil {
+			return n, false
+		}
 		out := rw.rng(n)
+		return out, out != Node(n)
+	case nameNode:
+		if rw.name == nil {
+			return n, false
+		}
+		out := rw.name(n)
 		return out, out != Node(n)
 	case unaryNode:
 		x, ok := rewrite(n.x, rw)
@@ -119,7 +132,7 @@ func (c *Cell) withFormula(n Node) *Cell {
 // rewritten returns c with its references rewritten, or c itself if none
 // changed.
 func (c *Cell) rewritten(rw refRewrite) *Cell {
-	if c.expr == nil || (len(c.refs) == 0 && len(c.ranges) == 0) {
+	if c.expr == nil || (len(c.refs) == 0 && len(c.ranges) == 0 && len(c.names) == 0) {
 		return c
 	}
 	n, changed := rewrite(c.expr, rw)

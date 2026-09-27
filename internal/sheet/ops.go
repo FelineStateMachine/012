@@ -100,6 +100,7 @@ func (s *Sheet) restructure(rows bool, sp span) {
 	}
 	s.change(label, focus, func() {
 		s.remap(label, focus, cell, relocate(cell, rng))
+		s.remapNames(rng)
 		if !rows {
 			s.shiftWidths(sp)
 		}
@@ -152,7 +153,11 @@ func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
 		}
 		return r, true
 	}
-	s.remap("move "+src.String()+" to "+dst.String(), dst, cell, relocate(cell, rng))
+	label := "move " + src.String() + " to " + dst.String()
+	s.change(label, dst, func() {
+		s.remap(label, dst, cell, relocate(cell, rng))
+		s.remapNames(rng) // a name for exactly the moved cells follows them
+	})
 	return dst, nil
 }
 

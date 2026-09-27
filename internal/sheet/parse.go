@@ -24,7 +24,7 @@ type (
 		abs [2]absFlags
 	}
 	refErrNode struct{}              // a reference to deleted cells: #REF!
-	nameNode   struct{ name string } // an identifier that isn't a cell; #NAME? until names exist
+	nameNode   struct{ name string } // a named range as spelled in the formula; #NAME? if undefined
 	emptyArg   struct{}              // an omitted argument, as in XLOOKUP(a, b, c, , 1)
 	unaryNode  struct {
 		op string
@@ -188,6 +188,7 @@ const (
 )
 
 type parser struct {
+	src  string // the formula without its "=", for names' original spelling
 	toks []token
 	pos  int
 }
@@ -201,7 +202,7 @@ func Parse(src string) (Node, error) {
 	if err != nil {
 		return nil, shift(err, offset)
 	}
-	p := &parser{toks: toks}
+	p := &parser{src: body, toks: toks}
 	n, err := p.expr(0)
 	if err == nil && p.peek().kind != tokEOF {
 		err = &ParseError{p.peek().pos, "Unexpected " + p.peek().text}
@@ -316,7 +317,8 @@ func (p *parser) ident(t token) (Node, error) {
 		case "FALSE":
 			return boolLit{false}, nil
 		}
-		return nameNode{t.text}, nil
+		// Names match case-insensitively but print as written.
+		return nameNode{p.src[t.pos : t.pos+len(t.text)]}, nil
 	}
 	if p.isOp(":") || p.isOp("..") {
 		sep := p.next()
@@ -384,6 +386,23 @@ func (p *parser) call(t token) (Node, error) {
 		return nil, &ParseError{t.pos, fmt.Sprintf("Wrong number of arguments to %s(%s)", fn.Name, fn.Args)}
 	}
 	return n, nil
+}
+
+// walkNames calls fn for every name in n.
+func walkNames(n Node, fn func(nameNode)) {
+	switch n := n.(type) {
+	case nameNode:
+		fn(n)
+	case unaryNode:
+		walkNames(n.x, fn)
+	case binaryNode:
+		walkNames(n.l, fn)
+		walkNames(n.r, fn)
+	case callNode:
+		for _, a := range n.args {
+			walkNames(a, fn)
+		}
+	}
 }
 
 // walkRefs calls fn for every single-cell reference and range in n.

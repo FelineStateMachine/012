@@ -12,9 +12,11 @@ import (
 // FileExt is the extension of the native worksheet format.
 const FileExt = ".012"
 
-// fileVersion is the version Write produces. Version 1 files (cells as
-// plain strings, no formatting) still load.
-const fileVersion = 2
+// fileVersion is the newest version Write produces and Read accepts.
+// Version 1 files (cells as plain strings, no formatting) still load.
+// Version 3 adds named ranges; a sheet without them is written as version
+// 2, so earlier builds can still open it.
+const fileVersion = 3
 
 // The file is JSON with one entry per cell, keyed by address. A cell
 // without formatting is just its input, as in version 1; a formatted cell
@@ -22,9 +24,13 @@ const fileVersion = 2
 //
 //	"B2": "Rent",
 //	"C2": {"input": "1450", "format": "currency", "decimals": 2, "bold": true}
+//
+// Named ranges map each name to its range, or to "#REF!" once its cells
+// were deleted: "names": {"Sales": "B2:B20"}.
 type fileFormat struct {
 	Version int                        `json:"version"`
 	Widths  map[string]int             `json:"widths,omitempty"`
+	Names   map[string]string          `json:"names,omitempty"`
 	Cells   map[string]json.RawMessage `json:"cells"`
 }
 
@@ -96,7 +102,11 @@ func decodeCell(raw json.RawMessage) (string, Format, Style, error) {
 // read naturally.
 func (s *Sheet) Write(w io.Writer) error {
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "{\n  \"version\": %d,\n", fileVersion)
+	version := 2
+	if len(s.names) > 0 {
+		version = 3
+	}
+	fmt.Fprintf(&b, "{\n  \"version\": %d,\n", version)
 	if len(s.widths) > 0 {
 		b.WriteString(`  "widths": {`)
 		for i, c := range slices.Sorted(maps.Keys(s.widths)) {
@@ -104,6 +114,16 @@ func (s *Sheet) Write(w io.Writer) error {
 				b.WriteString(", ")
 			}
 			fmt.Fprintf(&b, "%q: %d", ColName(c), s.widths[c])
+		}
+		b.WriteString("},\n")
+	}
+	if names := s.Names(); len(names) > 0 {
+		b.WriteString(`  "names": {`)
+		for i, n := range names {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			fmt.Fprintf(&b, "%q: %q", n.Name, n.Ref())
 		}
 		b.WriteString("},\n")
 	}
@@ -147,6 +167,23 @@ func Read(r io.Reader) (*Sheet, error) {
 			return nil, fmt.Errorf("invalid column %q", name)
 		}
 		s.SetColWidth(c, width)
+	}
+	for name, ref := range f.Names {
+		if err := ValidName(name); err != nil {
+			return nil, fmt.Errorf("name %q: %w", name, err)
+		}
+		if _, dup := s.LookupName(name); dup {
+			return nil, fmt.Errorf("name %q is defined twice", name)
+		}
+		n := Name{Name: name, Lost: ref == "#REF!"}
+		if !n.Lost {
+			r, ok := ParseRange(ref)
+			if !ok {
+				return nil, fmt.Errorf("name %q: invalid range %q", name, ref)
+			}
+			n.Range = r
+		}
+		s.putName(nameKey(name), &n)
 	}
 	for name, raw := range f.Cells {
 		a, ok := ParseAddr(name)

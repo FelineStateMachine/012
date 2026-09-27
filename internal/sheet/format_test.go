@@ -341,7 +341,7 @@ func TestFileV1StillLoads(t *testing.T) {
 		t.Errorf("B2 format %+v", f)
 	}
 	for _, bad := range []string{
-		`{"version": 3, "cells": {}}`,
+		`{"version": 4, "cells": {}}`,
 		`{"version": 2, "cells": {"A1": {"format": "sparkly"}}}`,
 		`{"version": 2, "cells": {"A1": {"align": "diagonal"}}}`,
 		`{"version": 2, "cells": {"A1": 5}}`,

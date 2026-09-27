@@ -52,7 +52,7 @@ func TestPrintFormula(t *testing.T) {
 		{`="say ""hi"""&A1`, `="say ""hi"""&A1`},
 		{"=1.5E3+1e-9+2E21", "=1500+1E-09+2E+21"},
 		{"=@PI", "=PI()"},
-		{"=IF(A1>=2,TRUE,profit)", "=IF(A1>=2,TRUE,PROFIT)"},
+		{"=IF(A1>=2,TRUE,profit)", "=IF(A1>=2,TRUE,profit)"},
 		{"=SUM(#REF!)", "=SUM(#REF!)"},
 		{"+A1", "=+A1"},
 	}

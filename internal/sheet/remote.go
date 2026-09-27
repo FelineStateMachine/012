@@ -80,6 +80,6 @@ func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
 			}
 		}
 	}
-	walk(c.expr)
+	walk(s.bound(c))
 	return calls
 }

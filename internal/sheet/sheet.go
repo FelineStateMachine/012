@@ -28,11 +28,12 @@ type Cell struct {
 	Format Format
 	Style  Style
 
-	auto     Format // format inferred from a formula, shown when Format is Automatic
-	expr     Node   // nil for text
-	refs     []Addr // single-cell references in expr
-	ranges   []Rect // range references in expr
-	volatile bool   // expr calls TODAY, NOW, RAND...
+	auto     Format   // format inferred from a formula, shown when Format is Automatic
+	expr     Node     // nil for text
+	refs     []Addr   // single-cell references in expr
+	ranges   []Rect   // range references in expr
+	names    []string // names in expr, as keys of Sheet.names
+	volatile bool     // expr calls TODAY, NOW, RAND...
 }
 
 // IsFormula reports whether the cell holds a formula.
@@ -56,6 +57,12 @@ type Sheet struct {
 	rangeUsers map[Addr]struct{}
 	volatile   map[Addr]struct{} // formulas recalculated on every change
 
+	// names are the named ranges by upper-case name (see names.go), and
+	// nameUsers the formula cells that mention each name, defined or not,
+	// so defining a name recalculates the formulas waiting for it.
+	names     map[string]Name
+	nameUsers map[string]map[Addr]struct{}
+
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
 
@@ -70,6 +77,8 @@ func New() *Sheet {
 		dependents: make(map[Addr]map[Addr]struct{}),
 		rangeUsers: make(map[Addr]struct{}),
 		volatile:   make(map[Addr]struct{}),
+		names:      make(map[string]Name),
+		nameUsers:  make(map[string]map[Addr]struct{}),
 	}
 }
 
@@ -252,11 +261,12 @@ func formattingOnly(f Format, st Style) *Cell {
 
 // setExpr sets c's expression and the references indexed from it.
 func (c *Cell) setExpr(n Node) {
-	c.expr, c.refs, c.ranges, c.volatile = n, nil, nil, false
+	c.expr, c.refs, c.ranges, c.names, c.volatile = n, nil, nil, nil, false
 	if n != nil {
 		walkRefs(n,
 			func(r Addr) { c.refs = append(c.refs, r) },
 			func(r Rect) { c.ranges = append(c.ranges, r) })
+		walkNames(n, func(nn nameNode) { c.names = append(c.names, nameKey(nn.name)) })
 		c.volatile = isVolatile(n)
 	}
 }
@@ -282,6 +292,12 @@ func (s *Sheet) place(a Addr, c *Cell) {
 	}
 	if c.volatile {
 		s.volatile[a] = struct{}{}
+	}
+	for _, k := range c.names {
+		if s.nameUsers[k] == nil {
+			s.nameUsers[k] = make(map[Addr]struct{})
+		}
+		s.nameUsers[k][a] = struct{}{}
 	}
 }
 
@@ -318,6 +334,12 @@ func (s *Sheet) unlink(a Addr) {
 		delete(s.dependents[r], a)
 		if len(s.dependents[r]) == 0 {
 			delete(s.dependents, r)
+		}
+	}
+	for _, k := range old.names {
+		delete(s.nameUsers[k], a)
+		if len(s.nameUsers[k]) == 0 {
+			delete(s.nameUsers, k)
 		}
 	}
 	delete(s.rangeUsers, a)
@@ -366,6 +388,13 @@ func (s *Sheet) recalc(changed []Addr) {
 				}
 			}
 		}
+		for k, users := range s.nameUsers {
+			if nm, ok := s.names[k]; ok && !nm.Lost && nm.Range.Contains(a) {
+				for u := range users {
+					queue = append(queue, u)
+				}
+			}
+		}
 	}
 
 	s.Circular = false
@@ -391,9 +420,10 @@ func (s *Sheet) recalc(changed []Addr) {
 		case c.expr == nil:
 			c.Value = Value{Kind: Text, Str: strings.TrimPrefix(c.Input, "'")}
 		default:
-			c.Value = eval(c.expr, compute)
-			if _, lit := c.expr.(numLit); !lit {
-				c.auto = inferFormat(c.expr, s.DisplayFormat)
+			expr := s.bound(c)
+			c.Value = eval(expr, compute)
+			if _, lit := expr.(numLit); !lit {
+				c.auto = inferFormat(expr, s.DisplayFormat)
 			}
 		}
 		state[a] = done
