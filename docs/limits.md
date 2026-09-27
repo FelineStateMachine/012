@@ -23,7 +23,7 @@ it lags, and past a second it stalls.
 | Sheet size | A grid of 1,048,576 x 16,384 (A..XFD), with up to `max-cells` cells (two million by default): navigation, drawing and every command cost what the cells cost, not the grid | Loading and saving two million cells: 1 to 2 s; 600 MB of heap | More than `max-cells` cells: imports keep whole rows up to it and say what they dropped; larger pastes and fills are refused | Heap per cell (about 300 B), JSON file format |
 | Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1 to 2 ms); 1000 SUMs over a full column: 0.75 ms; 8192 running totals: 2.8 ms | 60 criteria functions (SUMIF, COUNTIFS, AVERAGEIF) over whole columns of 8192 rows: 37 ms an edit | | About 20 ns per cell read: two map lookups |
 | Full recalc | Any sheet: under 40 ms for 213 k numbers; 1000 full-column SUMs 1 ms; 8192 running totals 2.5 ms | 60 whole-column criteria functions over 8192 rows: 59 ms | | Same as above |
-| Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
+| Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms; a color scale on every cell shown adds 0.4 ms at 200 x 60 | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
 | Selection statistics | Any selection: extending one over all 2 M cells costs 0.4 ms a key | | | Per column with data, 1024 or 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
 | Imports | CSV, SQLite, Parquet: 1 to 3 M cells/s (two million cells in about 1 s); XLSX numbers or text: 0.7 to 1.1 M cells/s | XLSX with formulas: 0.4 to 0.6 M cells/s | Data past `max-cells` or the grid (dropped, with a note); XLSX files past the reader's limits (refused) | Building cells one at a time; XML decoding; XLSX formula translation |
 | Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 250 MB | | Whole-cell before-images, about 300 B per cell per step |
@@ -170,6 +170,25 @@ terminal (`BenchmarkFrame`).
 
 About half of a frame at 400 x 120 is Bubble Tea's parse and diff of the
 view string.
+
+Conditional formats and validation cost what the screen shows. A cell's
+look is worked out when it's drawn and kept until the next
+recalculation (at most 65,536 cells, then the cache starts over), and a
+color scale reads its range's numbers once per recalculation: its
+lowest and highest, and a percentile by selection, not by sorting.
+With a 3-point color scale over all of 8192 x 26 numbers (213 k cells,
+every cell on screen a shade), at 200 x 60 (`BenchmarkFrame`,
+`BenchmarkKeystroke`, `scale-8192x26`):
+
+| | Without rules | With the scale |
+|---|---|---|
+| A frame, or an arrow key through to it | 0.89 ms | 1.28 ms |
+| Typing a number and Enter, through to the frame | 0.91 ms | 2.9 ms (the scale's percentile over 213 k numbers) |
+
+Shades and rule colors keep their escape codes, so a plain cell on one
+costs a string concatenation, not a style render. A custom formula is
+evaluated for each cell drawn, once per recalculation, with its
+references moved for the cell.
 
 A chart drawn as text costs 4 to 50 us at 24 x 10 to 120 x 40 cells,
 whatever its data: only the categories that fit are drawn (a pie of 8192
