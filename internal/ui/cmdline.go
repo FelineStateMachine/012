@@ -307,7 +307,6 @@ func (c *cmdLine) layout(m *Model) []box {
 		return nil
 	}
 	c.show(rows)
-	inner := min(m.width-2, 72)
 	tw, ww, kw := 0, 0, 0
 	for _, it := range c.shown {
 		tw = max(tw, ansi.StringWidth(it.title))
@@ -316,6 +315,8 @@ func (c *cmdLine) layout(m *Model) []box {
 			kw = max(kw, ansi.StringWidth(it.key)+2)
 		}
 	}
+	// As wide as the completions, within the screen and a line's reach.
+	inner := min(max(1+tw+2+ww+2+kw+1, 40), 72, m.width-2)
 	tw = min(tw, inner/2)
 	ww = max(min(ww, inner-1-tw-2-kw-2), 0)
 	lines := make([]string, rows)

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -250,15 +251,47 @@ var vimMotions = map[string]motion{
 }
 
 // vimLine is the context line while a sequence is being typed (the keys
-// so far, as vim's showcmd) or in VISUAL mode (what applies).
+// so far, as vim's showcmd, and the keys that finish it) or in VISUAL
+// mode (what applies).
 func (m *Model) vimLine() string {
 	if p := m.vim.pending(); p != "" {
-		return m.th.Key.Render(p) + m.th.Muted.Render("   ") + m.th.KeyHints("Esc", "cancel")
+		return m.th.Key.Render(p) + "   " + m.th.KeyHints(append(m.vimNext(), "Esc", "cancel")...)
 	}
 	if m.vim.visual == visualRows {
 		return m.th.KeyHints("d", "delete rows", "y", "copy rows", "o", "other end", ":", "command", "Esc", "back")
 	}
 	return m.th.KeyHints("d", "delete", "y", "copy", "p", "paste", "o", "other corner", "V", "rows", "Esc", "back")
+}
+
+// vimNext lists the keys that finish the sequence begun, and what they
+// do, as pairs for KeyHints: after d, "d" and "cut rows".
+func (m *Model) vimNext() []string {
+	if m.vim.keys == "" {
+		return nil // just a count: anything may follow
+	}
+	table := vimNormal
+	if m.visual() != visualNone {
+		table = vimVisual
+	}
+	var seqs []string
+	for seq := range table {
+		if len(seq) > len(m.vim.keys) && strings.HasPrefix(seq, m.vim.keys) {
+			seqs = append(seqs, seq)
+		}
+	}
+	if m.vim.keys == "g" {
+		seqs = append(seqs, "gg")
+	}
+	slices.Sort(seqs)
+	var out []string
+	for _, seq := range seqs {
+		what := "first row"
+		if b, ok := table[seq]; ok {
+			what = strings.ToLower(commands[b.id].title)
+		}
+		out = append(out, seq[len(m.vim.keys):], what)
+	}
+	return out
 }
 
 // startVisual selects from the active cell: cells, or whole rows.
