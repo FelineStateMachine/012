@@ -68,6 +68,10 @@ type options struct {
 	light      bool     // use the light reference palette
 	env        []string // extra environment, e.g. a fake JEV endpoint
 	jev        bool     // answer JEV functions with a fake service (screens)
+	// graphics turns on the kitty graphics protocol, so charts become
+	// images; off by default, so screens show the text charts every
+	// terminal gets.
+	graphics bool
 }
 
 // start launches 012 in dir (a fresh temp dir if empty) with args.
@@ -91,6 +95,16 @@ func startWith(t *testing.T, o options, args ...string) *session {
 		t.Fatal(err)
 	}
 	applyPalette(t, s.vt, o.light)
+	limit := uint64(0)
+	if o.graphics {
+		limit = 64 << 20
+		if err := s.vt.Resize(s.cols, s.rows, cellW, cellH); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.vt.SetKittyImageStorageLimit(&limit); err != nil {
+		t.Fatal(err)
+	}
 	if s.enc, err = ghostty.NewKeyEncoder(); err != nil {
 		t.Fatal(err)
 	}

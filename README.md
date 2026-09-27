@@ -44,6 +44,18 @@ Inside the grid, 012 works like Google Sheets.
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
 | Right-click, Shift+F10 | Cell, column or row menu |
 | F1 or Ctrl+/ | Keyboard shortcuts |
+| Insert > Chart | Chart the selection (or the table around the active cell); the editor bar picks the type with Left/Right, S switches rows and columns, H and L toggle the header row and labels, R changes the range, T the title |
+| Click a chart, then Arrows / Shift+arrows / Del | Move, resize or delete it; drag the chart or its corner with the mouse; Enter edits it |
+| Cmd- or Ctrl-click a URL | Open it: cells holding a URL, and `=HYPERLINK(url, [label])`, are terminal hyperlinks |
+
+Charts float over the grid and redraw as their data changes. In terminals
+with the kitty graphics protocol (kitty, Ghostty, WezTerm; detected by
+asking the terminal at startup) the plot is a real image, drawn in the
+terminal's own palette; elsewhere, and in tmux without passthrough, it is
+drawn with block and braille characters. Error cells get a curly underline
+and the context line explains them, e.g. `#DIV/0!  Division by zero in
+B3/0`. When a long job such as JEV answers finishes while the window is in
+the background, 012 sends a desktop notification (OSC 9).
 
 The top three lines are the menu bar and mode indicator, the formula bar
 (name box, then the cell's contents or the entry being typed) and the

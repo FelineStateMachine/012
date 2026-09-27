@@ -262,6 +262,43 @@ var screens = []screen{
 		s.keys("<alt+,>")
 		s.waitFor("precedents of B8")
 	}},
+	{name: "chart", setup: func(s *session) {
+		spending(s)
+		insertChart(s)
+		s.keys("<enter>", "<esc>")
+		s.waitFor("READY")
+	}},
+	{name: "chart-editor", setup: func(s *session) {
+		spending(s)
+		insertChart(s)
+	}},
+	{name: "chart-selected", setup: func(s *session) {
+		spending(s)
+		insertChart(s)
+		s.keys("<enter>")
+		s.waitFor("Column chart of A1:C5")
+	}},
+	{name: "chart-bar", setup: func(s *session) { chartOfType(s, 1, "Bar chart") }},
+	{name: "chart-line", setup: func(s *session) { chartOfType(s, 2, "Line chart") }},
+	{name: "chart-pie", setup: func(s *session) { chartOfType(s, 3, "Pie chart") }},
+	{name: "chart-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		spending(s)
+		insertChart(s)
+	}},
+	{name: "chart-wide", opts: options{cols: 200, rows: 30}, setup: func(s *session) {
+		spending(s)
+		insertChart(s)
+		s.keys("<enter>", "<esc>")
+		s.waitFor("READY")
+	}},
+	{name: "links-errors", setup: func(s *session) {
+		s.keys("Docs", "<tab>", "https://example.com/docs", "<enter>")
+		s.keys("Help", "<tab>", `=HYPERLINK("example.org/help", "Help center")`, "<enter>")
+		s.keys("Ratio", "<tab>", "=B5/0", "<enter>")
+		s.keys("Total", "<tab>", "=B3*2", "<enter>")
+		s.keys("<up>", "<right>")
+		s.waitFor("From B3: division by zero in B5/0")
+	}},
 }
 
 // named is the budget with its expenses named and a formula using the
@@ -277,10 +314,24 @@ func named(s *session) {
 	s.waitForBar("B8", "=AVERAGE(Expenses)*C2")
 }
 
+// chartOfType inserts a chart, picks the type n steps right of Column in
+// the editor and keeps it, leaving the chart deselected.
+func chartOfType(s *session, n int, title string) {
+	spending(s)
+	insertChart(s)
+	for range n {
+		s.keys("<right>")
+	}
+	s.keys("<enter>")
+	s.waitFor(title + " of A1:C5")
+	s.keys("<esc>")
+	s.waitFor("READY")
+}
+
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "autocomplete", "signature", "named-ranges", "trace-precedents"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
