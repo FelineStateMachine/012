@@ -106,7 +106,7 @@ const noteMaxRows = 8
 // cell, while nothing else is going on.
 func (m *Model) noteBox() (overlay.Box, bool) {
 	h := m.mouse.hover
-	if h.kind != hitCell || m.mode != modeReady || m.mouse.drag != dragNone {
+	if h.kind != hitCell && h.kind != hitCheckbox && h.kind != hitDropdown || m.mode != modeReady || m.mouse.drag != dragNone {
 		return overlay.Box{}, false
 	}
 	note := m.sheet.Note(h.addr)
