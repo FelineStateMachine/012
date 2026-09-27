@@ -84,7 +84,7 @@ func TestFindOptions(t *testing.T) {
 		t.Errorf("match case: %v", f.matches)
 	}
 	press(t, m, "<alt+c>", "<alt+w>")
-	if len(f.matches) != 1 || f.matches[0] != addr("A1") {
+	if len(f.matches) != 1 || f.matches[0].a != addr("A1") {
 		t.Errorf("whole cell: %v", f.matches)
 	}
 	press(t, m, "<alt+w>")

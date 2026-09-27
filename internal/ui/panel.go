@@ -114,18 +114,21 @@ func formulaBarTextX() int { return nameBoxW + 1 }
 // edited here with the terminal cursor, and shown in the cell too.
 func (m *Model) formulaBar() string {
 	name := m.cur.String()
+	if m.away() {
+		name = sheet.Qualified(m.home.Name(), sheet.Rect{From: m.cur, To: m.cur})
+	}
 	if m.hasRange() && (m.mode == modeReady || m.mode == modeMenu) {
 		name = m.selection().String()
 	}
 	if n, ok := m.namedSelection(); ok && (m.mode == modeReady || m.mode == modeMenu) {
 		name = ansi.Truncate(n, nameBoxW-1, "…")
 	}
-	box := m.th.header.Render(padRight(" "+name, nameBoxW)) + " "
+	box := m.th.header.Render(padRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
 	switch m.mode {
 	case modeEnter, modeEdit:
 		return box + string(m.buf)
 	case modePoint:
-		return box + m.pointPrefix + m.th.selection.Render(m.point.text()) + m.pointSuffix
+		return box + m.pointPrefix + m.th.selection.Render(m.pointRef()) + m.pointSuffix
 	}
 	if c := m.sheet.Cell(m.cur); c != nil {
 		return box + c.Input
@@ -249,11 +252,21 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 }
 
 func (m *Model) statusLine() string {
+	line, _ := m.statusLayout()
+	return line
+}
+
+// statusLayout is the status line and where its sheet tabs are. From the
+// left: the tabs, the file name and its state, then selection statistics
+// or the ways in to everything else on the right. When space runs out,
+// the right side gives up detail first, then the file name, then tabs
+// scroll.
+func (m *Model) statusLayout() (string, []tabSpan) {
 	if m.mode == modeError {
-		return m.th.error.Render(m.errMsg) + m.th.muted.Render("   press any key")
+		return m.th.error.Render(m.errMsg) + m.th.muted.Render("   press any key"), nil
 	}
 	if m.xfer.job != nil {
-		return m.importStatus()
+		return m.importStatus(), nil
 	}
 	desc, keys, floating := m.assistStatus()
 	if m.overlay != nil {
@@ -266,26 +279,64 @@ func (m *Model) statusLine() string {
 			if room := m.width - ansi.StringWidth(keys) - 3; room >= 12 {
 				desc = ansi.Truncate(desc, room, "…")
 			}
-			return m.spread(desc, keys)
+			return m.spread(desc, keys), nil
 		}
 	}
-	left := m.displayName()
+	name, state := m.displayName(), m.statusState()
+	infos := []string{name + state, strings.TrimPrefix(state, "  ")}
+	// First try to show every tab, then half the line of them, then just
+	// the one shown.
+	for _, need := range []int{m.allTabs(), min(m.allTabs(), m.width/2), m.minTabs()} {
+		for _, info := range infos {
+			if info != "" {
+				info = "  " + info
+			}
+			for _, right := range m.statusRights() {
+				room := m.width - ansi.StringWidth(info)
+				if right != "" {
+					room -= ansi.StringWidth(right) + 3
+				}
+				if room < need && (right != "" || info != "") {
+					continue
+				}
+				tabs, spans := m.tabStrip(room)
+				left := tabs + info
+				gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
+				return left + strings.Repeat(" ", gap) + right, spans
+			}
+		}
+	}
+	return "", nil // not reached: the last choice has no right side or info
+}
+
+// statusState is what the status line says about the file after its
+// name: modified, decimal arithmetic, a circular reference, rows hidden
+// by the filter, JEV at work. Each part starts with two spaces.
+func (m *Model) statusState() string {
+	var b strings.Builder
 	if m.changed {
-		left += m.th.muted.Render("  modified")
+		b.WriteString(m.th.muted.Render("  modified"))
 	}
-	if m.sheet.Book().Decimal() {
-		left += m.th.muted.Render("  decimal")
+	if m.book().Decimal() {
+		b.WriteString(m.th.muted.Render("  decimal"))
 	}
-	if m.sheet.Book().Circular {
-		left += "  " + m.th.warning.Render("Circular reference")
+	if m.book().Circular {
+		b.WriteString("  " + m.th.warning.Render("Circular reference"))
 	}
 	if n := m.sheet.HiddenRows(); n > 0 {
-		left += "  " + m.th.hint.Render("Filter hides "+rowCount(n))
+		b.WriteString("  " + m.th.hint.Render("Filter hides "+rowCount(n)))
 	}
 	if busy := m.jevBusy(); busy != "" {
-		left += "  " + m.th.hint.Render(busy)
+		b.WriteString("  " + m.th.hint.Render(busy))
 	}
-	var right string
+	return b.String()
+}
+
+// statusRights are the choices for the right of the status line, most
+// detailed first, ending with nothing: statistics of the selection, or
+// the keys that open the palette, the shortcuts and the menu.
+func (m *Model) statusRights() []string {
+	var out []string
 	if m.hasRange() && m.mode == modeReady {
 		r := m.selection()
 		st := m.sheet.RangeStats(r)
@@ -298,24 +349,15 @@ func (m *Model) statusLine() string {
 		count := m.th.muted.Render("Count ") + strconv.Itoa(st.Count)
 		// As many stats as fit: Avg goes first, then Sum, then Count.
 		for _, parts := range [][]string{{rng, sum, avg, count}, {rng, sum, count}, {rng, count}, {rng}} {
-			right = strings.Join(slices.DeleteFunc(parts, func(p string) bool { return p == "" }), "   ")
-			if ansi.StringWidth(left)+3+ansi.StringWidth(right) <= m.width {
-				break
-			}
+			out = append(out, strings.Join(slices.DeleteFunc(parts, func(p string) bool { return p == "" }), "   "))
 		}
-	} else {
-		// The ways in to everything else, as many as fit.
-		pairs := []string{shortcut("palette"), "search", shortcut("help"), "shortcuts", shortcut("menu"), "menu"}
-		for len(pairs) > 0 {
-			right = m.keyHints(pairs...)
-			if ansi.StringWidth(left)+3+ansi.StringWidth(right) <= m.width {
-				break
-			}
-			pairs, right = pairs[:len(pairs)-2], ""
-		}
+		return append(out, "")
 	}
-	gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
-	return left + strings.Repeat(" ", gap) + right
+	pairs := []string{shortcut("palette"), "search", shortcut("help"), "shortcuts", shortcut("menu"), "menu"}
+	for ; len(pairs) > 0; pairs = pairs[:len(pairs)-2] {
+		out = append(out, m.keyHints(pairs...))
+	}
+	return append(out, "")
 }
 
 // fmtStat formats a status line statistic with at most two decimals, as

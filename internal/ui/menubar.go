@@ -50,7 +50,12 @@ var menuBar = []menuDef{
 		{cmd: "edit.fill_down", title: "Fill down"}, {cmd: "edit.fill_right", title: "Fill right"}, sep,
 		{cmd: "edit.find"}, {cmd: "edit.replace"}, sep,
 		{cmd: "clear"}, {cmd: "select.all"}, {cmd: "goto"}, sep,
-		{cmd: "delete.row", title: "Delete row"}, {cmd: "delete.col", title: "Delete column"}, {cmd: "delete.selection"},
+		{cmd: "delete.row", title: "Delete row"}, {cmd: "delete.col", title: "Delete column"}, {cmd: "delete.selection"}, sep,
+		{title: "Sheet", items: []menuItem{
+			{cmd: "sheet.rename", title: "Rename"}, {cmd: "sheet.duplicate", title: "Duplicate"}, {cmd: "sheet.delete", title: "Delete"}, sep,
+			{cmd: "sheet.move_left", title: "Move left"}, {cmd: "sheet.move_right", title: "Move right"}, sep,
+			{cmd: "sheet.next"}, {cmd: "sheet.prev"}, {cmd: "sheet.goto"},
+		}},
 	}},
 	{title: "View", accel: 'v', items: []menuItem{
 		{title: "Freeze", items: []menuItem{
@@ -65,6 +70,7 @@ var menuBar = []menuDef{
 		{cmd: "insert.row_above", title: "Row above"}, {cmd: "insert.row_below", title: "Row below"}, sep,
 		{cmd: "insert.col_left", title: "Column left"}, {cmd: "insert.col_right", title: "Column right"}, sep,
 		{cmd: "insert.selection"}, sep,
+		{cmd: "sheet.new", title: "Sheet"}, sep,
 		{cmd: "insert.chart"},
 	}},
 	{title: "Format", accel: 'o', items: []menuItem{

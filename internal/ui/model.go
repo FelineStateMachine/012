@@ -47,7 +47,7 @@ const doubleClick = 400 * time.Millisecond
 
 // Model is the whole application state.
 type Model struct {
-	sheet    *sheet.Sheet
+	sheet    *sheet.Sheet // the sheet shown; its workbook is the file
 	filename string
 	changed  bool
 	saved    int // the sheet's StateID when last saved or loaded
@@ -77,6 +77,11 @@ type Model struct {
 	fillAt         sheet.Addr // where a fill handle drag points, see fill.go
 	fillTo         sheet.Rect // the range that drag would fill
 	shape          string     // pointer shape last sent to the terminal
+
+	// Sheets: see tabs.go.
+	home    *sheet.Sheet           // while pointing into another sheet, the entry's sheet
+	places  map[*sheet.Sheet]place // where each sheet's cursor and scroll were left
+	tabLeft int                    // the first tab shown when they don't all fit
 
 	// tabStart remembers where a run of Tab-committed entries began, so
 	// Enter returns to that column on the next row, as in Sheets.
@@ -372,7 +377,7 @@ func (m *Model) handleWheel(mouse tea.Mouse) {
 // moving corner while extending a selection, otherwise the active cell.
 func (m *Model) focus() *sheet.Addr {
 	switch {
-	case m.mode == modePoint || m.pointing():
+	case m.mode == modePoint || m.pointing() || m.away():
 		return &m.point.at
 	case m.drag == dragFill:
 		return &m.fillAt

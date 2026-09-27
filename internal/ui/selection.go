@@ -32,6 +32,7 @@ const (
 	dragPoint  // dragging out a range in POINT mode or a range prompt
 	dragResize // dragging a column header border
 	dragFill   // dragging the fill handle
+	dragTab    // dragging a sheet's tab to move it
 )
 
 // selection returns the selected range; just the active cell when nothing

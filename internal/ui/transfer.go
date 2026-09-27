@@ -505,6 +505,9 @@ func (m *Model) confirmReplace(msg string, do func(*Model) tea.Cmd, replaces boo
 // download snapshots the sheet and writes it in the background.
 func (m *Model) download(name string, k fileio.Kind, r sheet.Rect, table string) tea.Cmd {
 	snap := fileio.Snap(m.sheet, r, filepath.Base(m.displayBase()))
+	if k == fileio.XLSX && r == (sheet.Rect{}) {
+		snap = fileio.SnapBook(m.sheet) // every sheet, as Sheets' .xlsx download
+	}
 	return func() tea.Msg {
 		res, err := fileio.Export(context.Background(), name, k, snap, fileio.ExportOptions{Table: table})
 		return exportedMsg{name: name, kind: k, res: res, err: err}

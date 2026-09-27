@@ -18,9 +18,10 @@ import (
 // clipboard is what Ctrl+V pastes.
 type clipboard struct {
 	clip   *sheet.Clip
-	cut    bool // pasting moves the cells rather than copying them
-	marked bool // the source shows the copy marker
-	keep   bool // the last edit was a paste, which keeps the marker
+	sheet  *sheet.Sheet // where the clip was copied from
+	cut    bool         // pasting moves the cells rather than copying them
+	marked bool         // the source shows the copy marker
+	keep   bool         // the last edit was a paste, which keeps the marker
 }
 
 func init() {
@@ -39,7 +40,7 @@ func init() {
 // copy puts the selection on the clipboard and the system clipboard.
 func (m *Model) copy(cut bool) tea.Cmd {
 	clip := m.sheet.Copy(m.copyRange())
-	m.copied = clipboard{clip: clip, cut: cut, marked: true}
+	m.copied = clipboard{clip: clip, sheet: m.sheet, cut: cut, marked: true}
 	return tea.SetClipboard(formatTSV(clip.Text()))
 }
 
@@ -69,7 +70,12 @@ func (m *Model) paste(values bool) tea.Cmd {
 	var r sheet.Rect
 	var err error
 	if c.cut && !values {
-		r, err = m.sheet.Move(c.clip.Src, m.cur)
+		if !c.sheet.Live() {
+			m.copied = clipboard{}
+			m.note = "Nothing to move: the cut cells' sheet was deleted"
+			return nil
+		}
+		r, err = c.sheet.MoveTo(m.sheet, c.clip.Src, m.cur)
 		m.copied = clipboard{}
 	} else {
 		r, err = m.sheet.Paste(c.clip, m.selection(), values)
@@ -82,7 +88,7 @@ func (m *Model) paste(values bool) tea.Cmd {
 	m.selectRect(r)
 	switch {
 	case c.cut && !values:
-		m.note = "Moved " + c.clip.Src.String() + " to " + r.String()
+		m.note = "Moved " + m.clipLabel(c) + " to " + r.String()
 	case values:
 		m.note = "Pasted values into " + countCells(r) + " at " + r.String()
 	default:
@@ -93,7 +99,16 @@ func (m *Model) paste(values bool) tea.Cmd {
 
 // copyMarked reports whether a shows the copy marker.
 func (m *Model) copyMarked(a sheet.Addr) bool {
-	return m.copied.marked && m.copied.clip.Src.Contains(a)
+	return m.copied.marked && m.copied.sheet == m.sheet && m.copied.clip.Src.Contains(a)
+}
+
+// clipLabel names the copied range, with its sheet when that isn't the
+// one shown: A1:B3, or Sheet1!A1:B3.
+func (m *Model) clipLabel(c clipboard) string {
+	if c.sheet != m.sheet {
+		return sheet.Qualified(c.sheet.Name(), c.clip.Src)
+	}
+	return c.clip.Src.String()
 }
 
 // clearCopyMark hides the copy marker; a pending cut is cancelled, as in
@@ -210,9 +225,9 @@ func (m *Model) readyLine() string {
 	case m.note != "":
 		return m.note
 	case m.copied.marked && m.copied.cut:
-		return "Cut " + m.copied.clip.Src.String() + "   " + m.keyHints("Ctrl+V", "move here", "Esc", "cancel")
+		return "Cut " + m.clipLabel(m.copied) + "   " + m.keyHints("Ctrl+V", "move here", "Esc", "cancel")
 	case m.copied.marked:
-		text := "Copied " + m.copied.clip.Src.String() + "   "
+		text := "Copied " + m.clipLabel(m.copied) + "   "
 		full := text + m.keyHints("Ctrl+V", "paste", "Ctrl+Shift+V", "paste values", "Esc", "clear")
 		if ansi.StringWidth(full) <= m.width {
 			return full

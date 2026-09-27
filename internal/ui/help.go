@@ -120,6 +120,9 @@ func helpRows() []helpRow {
 		{keys: []string{"Home", "Ctrl+Home"}, action: "Column A, cell A1"},
 		{keys: []string{"Ctrl+End"}, action: "Last used cell"},
 	}, "goto")
+	group("Sheets", []helpRow{
+		{keys: []string{"Click a tab"}, action: "Show it; double-click renames"},
+	}, "sheet.next", "sheet.prev", "sheet.new", "sheet.goto")
 	group("Selecting", []helpRow{
 		{keys: []string{"Shift+arrows"}, action: "Extend the selection"},
 		{keys: []string{"Ctrl+Shift+arrows"}, action: "Extend to the edge of the data"},

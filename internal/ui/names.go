@@ -58,15 +58,18 @@ func namesItems(m *Model, sel sheet.Rect) []pickItem {
 		switch users := m.sheet.NameUsers(n.Name); {
 		case n.Lost:
 			desc = "Its cells were deleted; formulas using it show #REF!"
+		case n.Gone():
+			desc = "Its sheet was deleted; formulas using it show #REF!"
 		case users == 1:
 			desc += ", used in 1 formula"
 		case users > 1:
 			desc += ", used in " + strconv.Itoa(users) + " formulas"
 		}
 		items = append(items, pickItem{
-			title: n.Name, name: len(n.Name), detail: n.Ref(), desc: desc, off: n.Lost,
+			title: n.Name, name: len(n.Name), detail: n.Ref(), desc: desc, off: n.Gone(),
 			pick: func(m *Model) tea.Cmd {
 				m.closeOverlay()
+				m.showSheet(n.Sheet)
 				m.selectRect(n.Range)
 				return nil
 			},

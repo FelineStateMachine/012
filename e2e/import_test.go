@@ -58,8 +58,15 @@ func TestOpenXLSXFromCommandLine(t *testing.T) {
 	dir := t.TempDir()
 	writeXLSX(t, filepath.Join(dir, "q3.xlsx"))
 	s := start(t, dir, "q3.xlsx")
-	s.waitFor("Imported q3.xlsx (5 rows); first sheet only, Q3; not imported: Q4")
+	s.waitFor("Imported q3.xlsx (6 rows)")
 	s.waitFor("$1,200.50")
+	// Every sheet comes in, each with its tab.
+	if !strings.HasPrefix(s.line(29), " Q3   Q4   +") {
+		t.Errorf("tabs %q", s.line(29))
+	}
+	s.keys("<ctrl+pgdown>")
+	s.waitForBar("A1", "later")
+	s.keys("<ctrl+pgup>")
 	s.keys("<f5>", "D5", "<enter>")
 	s.waitForBar("D5", "=SUM(D2:D4)")
 	s.waitFor("$2,814.75")

@@ -1,7 +1,6 @@
 package sheet
 
 import (
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -223,21 +222,34 @@ func TestPrecedentsAndDependents(t *testing.T) {
 		"C1": "=A1+SUM(A1:A2)+Both+A1", "C2": "=A2*2", "C3": "=C1", "D1": "text",
 	})
 	s.DefineName("Both", rect("A2:B2"))
-	if got, want := s.Precedents(at("C1")), []Rect{rect("A1"), rect("A1:A2"), rect("A2:B2")}; !reflect.DeepEqual(got, want) {
+	if got, want := targets(s, s.Precedents(at("C1"))), "A1 A1:A2 A2:B2"; got != want {
 		t.Errorf("precedents of C1 = %v, want %v", got, want)
 	}
 	if got := s.Precedents(at("D1")); got != nil {
 		t.Errorf("precedents of text: %v", got)
 	}
-	if got, want := s.Dependents(at("A2")), []Addr{at("C1"), at("C2")}; !reflect.DeepEqual(got, want) {
+	if got, want := targets(s, s.Dependents(at("A2"))), "C1 C2"; got != want {
 		t.Errorf("dependents of A2 = %v, want %v", got, want)
 	}
-	if got, want := s.Dependents(at("B2")), []Addr{at("C1")}; !reflect.DeepEqual(got, want) {
+	if got, want := targets(s, s.Dependents(at("B2"))), "C1"; got != want {
 		t.Errorf("dependents of B2 through a name = %v, want %v", got, want)
 	}
 	if got := s.Dependents(at("B1")); len(got) != 0 {
 		t.Errorf("dependents of B1 = %v", got)
 	}
+}
+
+// targets writes traced ranges as seen from s, e.g. "A1 Data!B2:B3".
+func targets(s *Sheet, ts []Target) string {
+	var out []string
+	for _, t := range ts {
+		ref := t.Range.String()
+		if t.Sheet != s {
+			ref = Qualified(t.Sheet.Name(), t.Range)
+		}
+		out = append(out, ref)
+	}
+	return strings.Join(out, " ")
 }
 
 // nameRefs lists a workbook's names and what they stand for, to compare

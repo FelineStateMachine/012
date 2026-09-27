@@ -2,6 +2,7 @@ package ui
 
 import (
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -15,21 +16,40 @@ import (
 // Find and replace is a bar on the context line rather than a dialog, in
 // the spirit of less and vim: matches highlight in the grid as you type
 // and the active cell follows the current one. Options are toggles shown
-// as chips and switched with Alt keys, as in VS Code's find widget.
+// as chips and switched with Alt keys, as in VS Code's find widget. The
+// scope chip says where to search, as Sheets' "Search" choice: this
+// sheet, all sheets, or the range selected when the bar opened; Alt+S
+// goes through them.
 
 type findBar struct {
 	replace bool // Ctrl+H: a replacement field follows the query
 	field   int  // 0 is the query, 1 the replacement
 	fields  [2]string
 	opts    sheet.FindOptions
-	scope   *sheet.Rect // the selection when the bar opened, if any
-	scoped  bool        // search only within scope
+	scope   *sheet.Rect  // the selection when the bar opened, if any
+	home    *sheet.Sheet // the sheet scope is on
+	where   findScope
 
-	matches []sheet.Addr
-	index   map[sheet.Addr]int
+	matches []cellOn
+	index   map[cellOn]int
 	cur     int    // index of the current match, -1 when none
 	err     string // e.g. an invalid regular expression
-	from    sheet.Addr
+	from    cellOn // where the search goes on from
+}
+
+// findScope is where the find bar searches.
+type findScope int
+
+const (
+	inSheet findScope = iota // the sheet shown
+	inAll                    // every sheet, in tab order
+	inRange                  // the range selected when the bar opened
+)
+
+// cellOn is a cell on a particular sheet.
+type cellOn struct {
+	s *sheet.Sheet
+	a sheet.Addr
 }
 
 const findID = "find"
@@ -58,12 +78,15 @@ func (m *Model) openFind(replace bool) {
 		if f == nil {
 			f = &findBar{cur: -1}
 		}
-		f.scope, f.scoped = nil, false
+		f.scope, f.home = nil, m.sheet
+		if f.where == inRange || f.where == inAll && m.book().Len() == 1 {
+			f.where = inSheet
+		}
 		if m.hasRange() {
 			r := m.selection()
-			f.scope, f.scoped = &r, true
+			f.scope, f.where = &r, inRange
 		}
-		f.from = m.cur
+		f.from = cellOn{m.sheet, m.cur}
 		m.clearSelection()
 		m.openOverlay(f)
 		// Load the kept query so focus doesn't overwrite it.
@@ -102,10 +125,23 @@ func (f *findBar) changed(m *Model) {
 func (f *findBar) options() sheet.FindOptions {
 	o := f.opts
 	o.Within = nil
-	if f.scoped {
+	if f.where == inRange {
 		o.Within = f.scope
 	}
 	return o
+}
+
+// sheets are the sheets searched, in order.
+func (f *findBar) sheets(m *Model) []*sheet.Sheet {
+	switch f.where {
+	case inAll:
+		return m.book().Sheets()
+	case inRange:
+		if f.home.Live() {
+			return []*sheet.Sheet{f.home}
+		}
+	}
+	return []*sheet.Sheet{m.sheet}
 }
 
 // search finds all matches and makes the first one at or after where the
@@ -114,28 +150,42 @@ func (f *findBar) options() sheet.FindOptions {
 func (f *findBar) search(m *Model) {
 	f.err, f.matches, f.index, f.cur = "", nil, nil, -1
 	span := telemetry.Start("find")
-	found, err := m.sheet.Find(f.fields[0], f.options())
-	span.End(slog.Int("matches", len(found)))
-	if err != nil {
-		f.err = "Invalid regular expression"
+	sheets := f.sheets(m)
+	for _, s := range sheets {
+		found, err := s.Find(f.fields[0], f.options())
+		if err != nil {
+			span.End(slog.Int("matches", 0))
+			f.err = "Invalid regular expression"
+			return
+		}
+		for _, a := range found {
+			f.matches = append(f.matches, cellOn{s, a})
+		}
+	}
+	span.End(slog.Int("matches", len(f.matches)), slog.Int("sheets", len(sheets)))
+	f.index = make(map[cellOn]int, len(f.matches))
+	for i, c := range f.matches {
+		f.index[c] = i
+	}
+	if len(f.matches) == 0 {
 		return
 	}
-	f.matches = found
-	f.index = make(map[sheet.Addr]int, len(found))
-	for i, a := range found {
-		f.index[a] = i
-	}
-	if len(found) == 0 {
-		return
-	}
+	order := func(s *sheet.Sheet) int { return slices.Index(sheets, s) }
 	f.cur = 0
-	for i, a := range found {
-		if a.Row > f.from.Row || a.Row == f.from.Row && a.Col >= f.from.Col {
+	for i, c := range f.matches {
+		if d := order(c.s) - order(f.from.s); d > 0 || d == 0 && (c.a.Row > f.from.a.Row || c.a.Row == f.from.a.Row && c.a.Col >= f.from.a.Col) {
 			f.cur = i
 			break
 		}
 	}
-	m.cur = found[f.cur]
+	f.show(m)
+}
+
+// show makes the current match the active cell, on its sheet.
+func (f *findBar) show(m *Model) {
+	c := f.matches[f.cur]
+	m.showSheet(c.s)
+	m.cur = c.a
 }
 
 // step moves to the next (+1) or previous (-1) match, wrapping around.
@@ -144,8 +194,21 @@ func (f *findBar) step(m *Model, d int) {
 		return
 	}
 	f.cur = (f.cur + d + len(f.matches)) % len(f.matches)
-	m.cur = f.matches[f.cur]
-	f.from = m.cur
+	f.show(m)
+	f.from = f.matches[f.cur]
+}
+
+// nextScope is where Alt+S goes from where: the range (if there is one),
+// the sheet, then all sheets (if there are several).
+func (f *findBar) nextScope(m *Model) findScope {
+	order := []findScope{inSheet}
+	if m.book().Len() > 1 {
+		order = append(order, inAll)
+	}
+	if f.scope != nil {
+		order = append([]findScope{inRange}, order...)
+	}
+	return order[(slices.Index(order, f.where)+1)%len(order)]
 }
 
 func (f *findBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
@@ -189,8 +252,9 @@ func (f *findBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 		f.opts.InFormulas = !f.opts.InFormulas
 		f.search(m)
 	case "alt+s":
-		if f.scope != nil {
-			f.scoped = !f.scoped
+		if next := f.nextScope(m); next != f.where {
+			f.where = next
+			f.from = cellOn{m.sheet, m.cur}
 			f.search(m)
 		}
 	default:
@@ -208,8 +272,9 @@ func (f *findBar) replaceOne(m *Model) {
 	if f.cur < 0 {
 		return
 	}
-	a := f.matches[f.cur]
-	changed, err := m.sheet.Replace(a, f.fields[0], f.fields[1], f.options())
+	c := f.matches[f.cur]
+	a := c.a
+	changed, err := c.s.Replace(a, f.fields[0], f.fields[1], f.options())
 	switch {
 	case err != nil:
 		m.note = "Can't replace in " + a.String() + ": " + err.Error()
@@ -219,16 +284,27 @@ func (f *findBar) replaceOne(m *Model) {
 	default:
 		m.changed = true
 	}
-	f.from = a
+	f.from = c
 	f.search(m)
-	if changed && f.cur >= 0 && f.matches[f.cur] == a {
+	if changed && f.cur >= 0 && f.matches[f.cur] == c {
 		f.step(m, 1) // the cell still matches; move past it
 	}
 }
 
 func (f *findBar) replaceAll(m *Model) {
+	// Across sheets, still one undo step.
 	span := telemetry.Start("replace")
-	n, err := m.sheet.ReplaceAll(f.fields[0], f.fields[1], f.options())
+	n := 0
+	err := m.book().Batch(sheet.Change{Label: "replace all", Sheet: m.sheet}, func() error {
+		for _, s := range f.sheets(m) {
+			k, err := s.ReplaceAll(f.fields[0], f.fields[1], f.options())
+			n += k
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	span.End(slog.Int("replaced", n))
 	if n > 0 {
 		m.changed = true
@@ -282,8 +358,13 @@ func (f *findBar) parts(m *Model) []findPart {
 		chip(f.opts.WholeCell, "Whole", "alt+w"),
 		chip(f.opts.Regex, ".*", "alt+r"),
 		chip(f.opts.InFormulas, "=", "alt+="))
-	if f.scope != nil {
-		parts = append(parts, chip(f.scoped, "in "+f.scope.String(), "alt+s"))
+	switch {
+	case f.where == inRange:
+		parts = append(parts, chip(true, "in "+f.scope.String(), "alt+s"))
+	case f.where == inAll:
+		parts = append(parts, chip(true, "in all sheets", "alt+s"))
+	case f.scope != nil || m.book().Len() > 1:
+		parts = append(parts, chip(false, "in "+m.sheet.Name(), "alt+s"))
 	}
 	return parts
 }
@@ -335,7 +416,11 @@ func (f *findBar) line(m *Model) (left, right string) {
 	case len(f.matches) == 0:
 		right = m.th.warning.Render("No matches")
 	default:
-		right = m.th.muted.Render(strconv.Itoa(f.cur+1) + " of " + strconv.Itoa(len(f.matches)))
+		where := ""
+		if f.where == inAll {
+			where = " on " + f.matches[f.cur].s.Name()
+		}
+		right = m.th.muted.Render(strconv.Itoa(f.cur+1) + " of " + strconv.Itoa(len(f.matches)) + where)
 	}
 	return b.String(), right
 }
@@ -397,7 +482,7 @@ func (f *findBar) status(m *Model) (string, string) {
 		pairs = []string{"Enter", "replace", "Ctrl+Enter", "all", "Tab", "field", "Esc", "close"}
 	}
 	desc := "Alt+C/W/R/= options"
-	if f.scope != nil {
+	if f.scope != nil || m.book().Len() > 1 {
 		desc = "Alt+C/W/R/=/S options"
 	}
 	for {
@@ -421,6 +506,6 @@ func (m *Model) found(a sheet.Addr) bool {
 	if !ok {
 		return false
 	}
-	_, hit := f.index[a]
+	_, hit := f.index[cellOn{m.sheet, a}]
 	return hit
 }

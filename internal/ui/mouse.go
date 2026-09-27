@@ -31,6 +31,10 @@ const (
 	hitStatus
 	hitFilterButton // the filter mark in a column header
 	hitFillHandle   // the corner of the selection that drags out a fill
+	hitTab          // a sheet's tab on the status line; addr.Col is its index
+	hitTabAdd       // the + after the tabs
+	hitTabPrev      // the ‹ before tabs scrolled off to the left
+	hitTabNext      // the › after tabs scrolled off to the right
 )
 
 type hit struct {
@@ -91,6 +95,9 @@ func (m *Model) hitTest(x, y int) hit {
 		}
 		return hit{kind: hitCell, addr: a}
 	case y == m.height-1:
+		if sp, ok := m.tabAt(x); ok {
+			return hit{kind: sp.kind, addr: sheet.Addr{Col: sp.index}}
+		}
 		return hit{kind: hitStatus}
 	}
 	return hit{}
@@ -224,6 +231,12 @@ func (m *Model) handlePress(mouse tea.Mouse) tea.Cmd {
 }
 
 func (m *Model) leftPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
+	if isTabHit(h.kind) && m.mode != modeMenu && m.mode != modePrompt {
+		if m.mode == modeError {
+			m.errMsg, m.mode = "", modeReady
+		}
+		return m.tabPress(h, double)
+	}
 	switch m.mode {
 	case modeError:
 		m.errMsg, m.mode = "", modeReady
@@ -242,7 +255,7 @@ func (m *Model) leftPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 			m.point = pointer{at: h.addr, anchor: h.addr}
 			m.drag = dragPoint
 		case hitEditLine:
-			m.resumeEntry(m.point.text())
+			m.resumeEntry(m.pointRef())
 			m.setCaret(h.x)
 		}
 		return nil
@@ -260,8 +273,10 @@ func (m *Model) leftPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 		case h.kind == hitNone, h.kind == hitPanel, h.kind == hitStatus:
 			return nil
 		}
-		// Clicking elsewhere accepts the entry, then acts as in READY.
-		if !m.commit() {
+		// Clicking elsewhere accepts the entry, then acts as in READY:
+		// on the entry's sheet, unless the click was on another.
+		away := m.away()
+		if !m.commit() || away {
 			return nil
 		}
 		m.tabbing = false
@@ -315,6 +330,11 @@ func (m *Model) readyPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 	return nil
 }
 
+// isTabHit reports whether k is a part of the tab strip.
+func isTabHit(k hitKind) bool {
+	return k == hitTab || k == hitTabAdd || k == hitTabPrev || k == hitTabNext
+}
+
 // setCaret puts the edit caret at display column x of the entry.
 func (m *Model) setCaret(x int) {
 	w := 0
@@ -341,10 +361,13 @@ func (m *Model) handleMotion(mouse tea.Mouse) tea.Cmd {
 // dragTo extends the drag in progress to (x, y), starting autoscroll when
 // the mouse is past the edge of the grid.
 func (m *Model) dragTo(x, y int) tea.Cmd {
-	if m.drag == dragResize {
+	switch m.drag {
+	case dragResize:
 		m.sheet.SetColWidth(m.resizeCol, clamp(x-m.colStart(m.resizeCol)+1, 1, 240))
 		m.changed = true
 		return nil
+	case dragTab:
+		return nil // handleMotion tracks the tab under the mouse
 	}
 	a, dc, dr := m.dragTarget(x, y)
 	switch m.drag {
@@ -375,7 +398,7 @@ func autoscrollTick() tea.Cmd {
 // handleAutoscroll moves a drag that's past the edge of the grid one more
 // step and keeps ticking until the mouse comes back or is released.
 func (m *Model) handleAutoscroll() tea.Cmd {
-	if m.drag == dragNone || m.drag == dragResize {
+	if m.drag == dragNone || m.drag == dragResize || m.drag == dragTab {
 		m.autoscrolling = false
 		return nil
 	}
@@ -403,8 +426,11 @@ func (m *Model) handleAutoscroll() tea.Cmd {
 }
 
 func (m *Model) handleRelease() tea.Cmd {
-	if m.drag == dragFill {
+	switch m.drag {
+	case dragFill:
 		m.finishFill()
+	case dragTab:
+		m.dropTab()
 	}
 	m.drag, m.autoscrolling = dragNone, false
 	if m.selecting && m.whole == wholeNone && m.ext == m.cur {
@@ -453,7 +479,8 @@ func (m *Model) pointerShape() tea.Cmd {
 		shape = "cell"
 	case m.hover.kind == hitFormulaBar, m.hover.kind == hitEditLine:
 		shape = "text"
-	case m.hover.kind == hitColHeader, m.hover.kind == hitRowHeader, m.hover.kind == hitCorner, m.hover.kind == hitFilterButton:
+	case m.hover.kind == hitColHeader, m.hover.kind == hitRowHeader, m.hover.kind == hitCorner, m.hover.kind == hitFilterButton,
+		isTabHit(m.hover.kind):
 		shape = "pointer"
 	}
 	if shape == m.shape {

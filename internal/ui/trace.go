@@ -20,9 +20,10 @@ import (
 
 type trace struct {
 	dependents bool
+	home       *sheet.Sheet // the traced cell's sheet
 	origin     sheet.Addr
-	targets    []sheet.Rect
-	at         int // the target the active cell is on
+	targets    []sheet.Target // on any sheet: stepping to one shows its sheet
+	at         int            // the target the active cell is on
 }
 
 func init() {
@@ -45,11 +46,9 @@ func init() {
 func (m *Model) stepTrace(dependents bool) {
 	t := m.trace
 	if t == nil || t.dependents != dependents {
-		t = &trace{dependents: dependents, origin: m.cur, at: -1}
+		t = &trace{dependents: dependents, home: m.sheet, origin: m.cur, at: -1}
 		if dependents {
-			for _, a := range m.sheet.Dependents(m.cur) {
-				t.targets = append(t.targets, sheet.Rect{From: a, To: a})
-			}
+			t.targets = m.sheet.Dependents(m.cur)
 		} else {
 			t.targets = m.sheet.Precedents(m.cur)
 		}
@@ -64,8 +63,9 @@ func (m *Model) stepTrace(dependents bool) {
 		m.trace = t
 	}
 	t.at = (t.at + 1) % len(t.targets)
+	m.showSheet(t.targets[t.at].Sheet)
 	m.clearSelection()
-	m.cur = t.targets[t.at].From
+	m.cur = t.targets[t.at].Range.From
 }
 
 // traceKey ends the trace on any key but the trace commands, and returns
@@ -78,10 +78,11 @@ func (m *Model) traceKey(k tea.KeyPressMsg) bool {
 	if m.mode == modeReady && (id == "data.precedents" || id == "data.dependents") {
 		return false
 	}
-	origin := m.trace.origin
+	t := m.trace
 	m.trace = nil
 	if m.mode == modeReady && k.String() == "esc" {
-		m.cur = origin
+		m.showSheet(t.home)
+		m.cur = t.origin
 		return true
 	}
 	return false
@@ -92,8 +93,8 @@ func (m *Model) traced(a sheet.Addr) bool {
 	if m.trace == nil {
 		return false
 	}
-	for _, r := range m.trace.targets {
-		if r.Contains(a) {
+	for _, t := range m.trace.targets {
+		if t.Sheet == m.sheet && t.Range.Contains(a) {
 			return true
 		}
 	}
@@ -112,15 +113,19 @@ func (m *Model) traceLine() (left, right string) {
 		noun += "s"
 	}
 	right = m.keyHints(shortcut(id), "next", "Esc", "back")
-	left = strconv.Itoa(len(t.targets)) + " " + noun + " of " + t.origin.String() + ": "
+	origin := t.origin.String()
+	if t.home != m.sheet {
+		origin = sheet.Qualified(t.home.Name(), sheet.Rect{From: t.origin, To: t.origin})
+	}
+	left = strconv.Itoa(len(t.targets)) + " " + noun + " of " + origin + ": "
 	room := m.width - ansi.StringWidth(right) - 3
 	if room < ansi.StringWidth(left)+12 {
 		right, room = "", m.width
 	}
 	var b strings.Builder
 	b.WriteString(left)
-	for i, r := range t.targets {
-		part := m.rangeLabel(r)
+	for i, tg := range t.targets {
+		part := m.rangeLabel(tg, t.home)
 		if i == t.at {
 			part = m.th.key.Render(part)
 		}
@@ -137,13 +142,16 @@ func (m *Model) traceLine() (left, right string) {
 	return b.String(), right
 }
 
-// rangeLabel names a range the way formulas refer to it: by its name if
-// it has one.
-func (m *Model) rangeLabel(r sheet.Rect) string {
+// rangeLabel names a range the way a formula on from refers to it: by
+// its name if it has one, with its sheet if it's on another.
+func (m *Model) rangeLabel(t sheet.Target, from *sheet.Sheet) string {
 	for _, n := range m.sheet.Names() {
-		if !n.Lost && n.Range == r && r.From != r.To {
+		if !n.Gone() && n.Sheet == t.Sheet && n.Range == t.Range && t.Range.From != t.Range.To {
 			return n.Name
 		}
 	}
-	return r.String()
+	if t.Sheet != from {
+		return sheet.Qualified(t.Sheet.Name(), t.Range)
+	}
+	return t.Range.String()
 }

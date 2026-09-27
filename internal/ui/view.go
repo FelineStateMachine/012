@@ -14,7 +14,7 @@ import (
 // pointing, otherwise the active cell (which stays put while a selection is
 // extended, as in Sheets).
 func (m *Model) active() sheet.Addr {
-	if m.mode == modePoint || m.pointing() {
+	if m.mode == modePoint || m.pointing() || m.away() {
 		return m.point.at
 	}
 	if a, ok := m.barActive(); ok {
@@ -29,6 +29,8 @@ func (m *Model) highlight() (sheet.Rect, bool) {
 	switch {
 	case m.mode == modePoint || m.pointing():
 		return m.point.rect(), true
+	case m.away(): // the selection is on the entry's sheet
+		return sheet.Rect{}, false
 	case m.drag == dragFill:
 		return m.fillTo, true
 	}
@@ -166,7 +168,7 @@ func (m *Model) cellsText(row, first int, spans []span, focus sheet.Addr, sel sh
 		if m.copyMarked(a) {
 			base, colored = base.Inherit(m.th.copied), true
 		}
-		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) {
+		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() {
 			sp = span{text: m.inCellText(m.sheet.ColWidth(a.Col))}
 		} else {
 			m.decorate(&sp, row) // links and error marks, see links.go
@@ -403,6 +405,7 @@ func keyLabel(k string) string {
 	case "esc":
 		return "Esc"
 	}
+	k = strings.NewReplacer("pgdown", "PgDn", "pgup", "PgUp").Replace(k)
 	parts := strings.Split(k, "+")
 	for i, p := range parts {
 		switch {

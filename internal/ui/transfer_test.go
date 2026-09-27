@@ -58,7 +58,7 @@ func TestImportPicker(t *testing.T) {
 	if l := line(m, contextLine); l != "Imported sales.csv (2 rows)" {
 		t.Errorf("context line %q", l)
 	}
-	if !strings.HasPrefix(line(m, m.height-1), "sales.csv") || m.changed {
+	if l := line(m, m.height-1); !strings.HasPrefix(l, " sales ") || !strings.Contains(l, "sales.csv") || m.changed {
 		t.Errorf("status %q changed %v", line(m, m.height-1), m.changed)
 	}
 

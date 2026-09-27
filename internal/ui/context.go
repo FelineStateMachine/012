@@ -58,6 +58,8 @@ func (m *Model) rightClick(x, y int) {
 	h := m.hitTest(x, y)
 	sel := m.selection()
 	switch h.kind {
+	case hitTab, hitTabAdd:
+		m.tabRightClick(h, x, y)
 	case hitCell:
 		if !m.hasRange() || !sel.Contains(h.addr) {
 			m.cur = h.addr

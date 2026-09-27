@@ -89,6 +89,9 @@ type Change struct {
 	Label string
 	Focus Rect
 	Sheet *Sheet
+	// Tabs is set when the step added, deleted, renamed or moved sheets;
+	// Focus means nothing then.
+	Tabs bool
 }
 
 // Batch runs fn as a single undo step: everything it changes is undone
@@ -396,7 +399,7 @@ func (w *Workbook) swap(from, to *[]*step) (Change, bool) {
 	}
 	*to = append(*to, inv)
 	w.hist.mergeWidths = false
-	return Change{st.label, st.focus, st.sheet}, true
+	return Change{st.label, st.focus, st.sheet, st.sheets != nil}, true
 }
 
 // colRect is the range covering whole columns from..to.

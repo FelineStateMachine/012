@@ -73,7 +73,7 @@ Avoid in the main binary: DuckDB and automerge (both need cgo).
 
 ## Phase 5: beyond
 
-- Multiple sheets with `B:A1` style references (1-2-3 R3), sheet tabs. Engine gets a sheet dimension. L.
+- Multiple sheets with references between them, in Sheets' style (`Sheet2!A1`) rather than 1-2-3 R3's `B:A1`, and sheet tabs. Done.
 - Pivot tables as derived sheets. L.
 - Macros: replay the command log; Starlark (`go.starlark.net`) for scripts, with step limits.
 - Serve over SSH with `charm.land/wish/v2`.

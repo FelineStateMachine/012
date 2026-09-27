@@ -91,7 +91,10 @@ func TestPaletteTitleMatchesFirst(t *testing.T) {
 	seenPathOnly := false
 	for _, pm := range shown {
 		inTitle := strings.Contains(strings.ToLower(pm.item.title), "sel")
-		if !inTitle && pm.item.title != "Select all" {
+		// Titles matching letter by letter ("Move sheet left") are
+		// title matches too, just not literal ones.
+		pathOnly := len(pm.inTitle) < len("sel")
+		if pathOnly && pm.item.title != "Select all" {
 			seenPathOnly = true
 		} else if seenPathOnly && inTitle {
 			t.Errorf("%q ranked after a path-only match", pm.item.title)

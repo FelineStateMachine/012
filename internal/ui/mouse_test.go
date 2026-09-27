@@ -128,7 +128,8 @@ func TestPointerShapes(t *testing.T) {
 		{rowHdrW + sheet.DefaultWidth - 1, headerLine, "col-resize"},
 		{cellX(1), headerLine, "pointer"},
 		{formulaBarTextX() + 1, formulaLine, "text"},
-		{1, m.height - 1, "default"},
+		{m.width - 1, m.height - 1, "default"},
+		{1, m.height - 1, "pointer"}, // the sheet tab
 	} {
 		send(m, tea.MouseMotionMsg{X: tt.x, Y: tt.y})
 		if m.shape != tt.want {

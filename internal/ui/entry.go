@@ -19,6 +19,7 @@ import (
 
 func (m *Model) startEntry(md mode, text string) {
 	m.mode = md
+	m.home = nil
 	m.buf, m.bufPos, m.hint, m.assist = nil, 0, "", assist{}
 	m.insert(text)
 }
@@ -42,7 +43,7 @@ func (m *Model) isFormula() bool {
 // in a formula where a reference may follow the caret: then they point.
 func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
-	if m.assistKey(key) || m.commitKey(key) || m.cancelKey(key) {
+	if m.assistKey(key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
 	if key == "f2" {
@@ -73,7 +74,7 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 // editKey handles EDIT mode, where left and right move the caret.
 func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
-	if m.assistKey(key) || m.commitKey(key) || m.cancelKey(key) {
+	if m.assistKey(key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
 	if m.isFormula() && m.canPoint() && strings.HasPrefix(key, "shift+") && m.startPoint(key) {
@@ -171,13 +172,17 @@ func (m *Model) canPoint() bool {
 }
 
 // startPoint enters POINT mode if key moves (Shift extends). The pointer
-// starts at the active cell.
+// starts at the active cell, or on another sheet where it last pointed.
 func (m *Model) startPoint(key string) bool {
+	from := m.cur
+	if m.away() {
+		from = m.point.at
+	}
 	if base, ok := extendKey(key); ok {
 		key = base
-		m.point = pointer{at: m.cur, anchor: m.cur, anchored: true}
+		m.point = pointer{at: from, anchor: from, anchored: true}
 	} else if isMoveKey(key) && key != "tab" && key != "shift+tab" {
-		m.point = pointer{at: m.cur}
+		m.point = pointer{at: from}
 	} else {
 		return false
 	}
@@ -193,7 +198,7 @@ func (m *Model) startPoint(key string) bool {
 // formula and carries on typing.
 func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
-	if m.pointMoveKey(key) {
+	if m.pointMoveKey(key) || m.sheetKey(key) {
 		return nil
 	}
 	switch key {
@@ -201,11 +206,11 @@ func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 		m.resumeEntry("")
 		return nil
 	case "f4":
-		m.resumeEntry(m.point.text())
+		m.resumeEntry(m.pointRef())
 		m.toggleAbsolute()
 		return nil
 	case "enter", "shift+enter", "tab", "shift+tab", "ctrl+enter":
-		m.resumeEntry(m.point.text())
+		m.resumeEntry(m.pointRef())
 		m.commitKey(key)
 		return nil
 	case ":":
@@ -215,7 +220,7 @@ func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 		}
 	}
 	if text := typed(k); text != "" {
-		m.resumeEntry(m.point.text())
+		m.resumeEntry(m.pointRef())
 		m.insert(text)
 		m.assist = assist{active: true}
 	}
@@ -243,14 +248,17 @@ func (m *Model) commit() bool {
 }
 
 func (m *Model) set(a sheet.Addr, input string) error {
-	if err := m.sheet.Set(a, input); err != nil {
+	if err := m.entrySheet().Set(a, input); err != nil {
 		return err
 	}
 	m.changed = true
 	return nil
 }
 
+// cancelEntry ends the entry, showing its sheet again if the pointer
+// went into another.
 func (m *Model) cancelEntry() {
+	m.returnHome()
 	m.mode = modeReady
 	m.buf, m.bufPos, m.hint, m.assist = nil, 0, "", assist{}
 }

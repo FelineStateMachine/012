@@ -462,3 +462,26 @@ func TestSplitSheet(t *testing.T) {
 		}
 	}
 }
+
+func TestTraceAcrossSheets(t *testing.T) {
+	w := bookOf(t,
+		page{"Sheet1", map[string]string{"A1": "1", "B1": "=A1+Data!A1+SUM('Q3 plan'!A1:A2)+Gone!A1", "B2": "=Plan"}},
+		page{"Data", map[string]string{"A1": "2", "B1": "=Sheet1!A1", "B2": "=A1"}},
+		page{"Q3 plan", map[string]string{"A1": "=Sheet1!A1*2"}},
+	)
+	one := w.Sheet(0)
+	w.DefineName("Plan", w.Sheet(2), NewRect(at("A1"), at("A1")))
+	if got, want := targets(one, one.Precedents(at("B1"))), "A1 Data!A1 'Q3 plan'!A1:A2"; got != want {
+		t.Errorf("precedents %q, want %q", got, want)
+	}
+	if got, want := targets(one, one.Precedents(at("B2"))), "'Q3 plan'!A1"; got != want {
+		t.Errorf("precedents through a name %q, want %q", got, want)
+	}
+	if got, want := targets(one, one.Dependents(at("A1"))), "B1 Data!B1 'Q3 plan'!A1"; got != want {
+		t.Errorf("dependents %q, want %q", got, want)
+	}
+	plan := w.Sheet(2)
+	if got, want := targets(plan, plan.Dependents(at("A1"))), "Sheet1!B1 Sheet1!B2"; got != want {
+		t.Errorf("dependents of Q3 plan!A1 %q, want %q", got, want)
+	}
+}

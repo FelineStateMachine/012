@@ -103,7 +103,14 @@ func (m *Model) afterHistory(verb, none string, c sheet.Change, ok bool) {
 		return
 	}
 	m.note = verb + ": " + c.Label
-	m.selectRect(c.Focus)
+	i := m.book().Index(m.sheet)
+	if i < 0 {
+		i = m.book().Active()
+	}
+	m.afterSheetsChange(c.Sheet, i)
+	if !c.Tabs {
+		m.selectRect(c.Focus)
+	}
 }
 
 // selectRect selects r, as whole columns or rows when it spans the sheet.
@@ -146,7 +153,7 @@ func (m *Model) structural(err error) tea.Cmd {
 // references as if it were copied from the active cell (Ctrl+Enter).
 func (m *Model) fillEntry() bool {
 	input := string(m.buf)
-	if err := m.sheet.FillEntry(m.selection(), m.cur, input); err != nil {
+	if err := m.entrySheet().FillEntry(m.selection(), m.cur, input); err != nil {
 		m.entryError(err, input)
 		return false
 	}

@@ -64,17 +64,30 @@ func (m *Model) openRange(label string, onRange func(*Model, sheet.Rect) tea.Cmd
 func (m *Model) openGoto() {
 	m.openText("Go to:", m.cur.String(), func(m *Model, text string) tea.Cmd {
 		text = strings.TrimSpace(text)
-		if a, ok := sheet.ParseAddr(text); ok {
-			m.clearSelection()
-			m.cur = a
-			return nil
+		// A sheet may lead: Sheet2!A1, 'Q3 plan'!B2:C9, or just Sheet2!.
+		target := m.sheet
+		if name, rest := sheet.SplitSheet(text); name != "" {
+			if target = m.book().Lookup(name); target == nil {
+				m.fail("There's no sheet named " + name)
+				return nil
+			}
+			if text = rest; text == "" {
+				m.showSheet(target)
+				return nil
+			}
 		}
 		r, ok := sheet.ParseRange(text)
-		if n, named := m.sheet.LookupName(text); named && !n.Lost {
-			r, ok = n.Range, true
+		if n, named := m.sheet.LookupName(text); named && !n.Gone() && target == m.sheet {
+			r, ok, target = n.Range, true, n.Sheet
 		}
 		if !ok {
 			m.fail("Not a cell, range or named range: " + text)
+			return nil
+		}
+		m.showSheet(target)
+		if r.From == r.To {
+			m.clearSelection()
+			m.cur = r.From
 			return nil
 		}
 		m.selectRect(r)
