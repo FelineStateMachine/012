@@ -1,3 +1,8 @@
+---
+title: "Observability"
+sidebar_position: 7
+---
+
 # Observability
 
 How to see what 012 spends its time on, in a session or across stress

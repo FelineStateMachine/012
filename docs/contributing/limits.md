@@ -1,3 +1,8 @@
+---
+title: "Bounds of support"
+sidebar_position: 6
+---
+
 # Bounds of support
 
 What 012 handles well, where it degrades, and why, measured. Numbers come

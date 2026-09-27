@@ -1,3 +1,8 @@
+---
+title: "Functions"
+sidebar_position: 3
+---
+
 # Functions
 
 <!-- Generated from the engine's function table by TestFunctionsDoc; do not edit. -->

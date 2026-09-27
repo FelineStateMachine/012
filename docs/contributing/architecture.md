@@ -1,3 +1,8 @@
+---
+title: "Architecture"
+sidebar_position: 2
+---
+
 # Architecture
 
 012 is a single pure-Go binary (`CGO_ENABLED=0`) built on Bubble Tea v2 and

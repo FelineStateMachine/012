@@ -1,3 +1,8 @@
+---
+title: "Configuration"
+sidebar_position: 4
+---
+
 # Configuration
 
 012 reads one settings file, in the style of Ghostty's:

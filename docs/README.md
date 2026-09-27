@@ -1,25 +1,20 @@
+---
+title: "012 documentation"
+sidebar_position: 1
+---
+
 # 012 documentation
 
-**Using 012**
+| Section | For |
+|---|---|
+| [Getting started](@/getting-started/README.md) | Installing and running 012, and the screen |
+| [Working with sheets](@/sheets/README.md) | Editing, formatting, sheets, sort and filter, find, rules, pivot tables, notes, charts, macros |
+| [Formulas](@/formulas/README.md) | Entries, references, building formulas, arrays, decimal arithmetic, JEV functions |
+| [Files](@/files/README.md) | Import and download, Excel files, saving, the `.012` format |
+| [The terminal](@/terminal/README.md) | Terminal features, themes, serving over SSH |
+| [Reference](@/reference/README.md) | Keys, functions, configuration, the macro API |
+| [Contributing](@/contributing/README.md) | Architecture, extending, the UX bar, testing, limits, observability |
 
-- [Keys and mouse](keys.md): every shortcut, the mouse, and what's on screen
-- [Entries and formulas](formulas.md): what you type, references, names, errors
-- [Functions](functions.md): all of them, generated from the engine
-- [Working with data](data.md): selection, copy and fill, undo, freeze, sort, filter, conditional formatting, data validation, pivot tables, find, notes, protection
-- [Charts, links and the terminal](charts.md): charts, hyperlinks, terminal features used
-- [Files](files.md): import and download, Excel files, saving, the `.012` format
-- [JEV functions](jev.md): asking a hosted model from formulas, and storing the API key
-- [Serving over SSH](ssh.md): `012 serve`, setup, the security model and limits
-- [Configuration](config.md): the config file, `012 config` and every option
-- [Themes](themes.md): terminal color schemes, built in or your own
-- [Macros](macros.md): recording, running and managing macros; the Starlark scripting API
-
-**Working on 012**
-
-- [Architecture](architecture.md): how the engine and UI fit together
-- [Extending 012](extending.md): the patterns new features and scale follow
-- [UX and visual bar](UX.md): the rules every change follows
-- [Testing](testing.md): unit, end-to-end through libghostty, golden screens, the excelize oracle
-- [Limits](limits.md): measured bounds of support and known bottlenecks
-- [Observability](observability.md): event logs, OTLP export, DuckDB queries, the local telemetry stack
-- [Roadmap](../ROADMAP.md)
+The [roadmap](@@/ROADMAP.md) says what's ahead. The docs are Markdown that
+reads on GitHub and builds with Docusaurus: each folder has a
+`README.md` and a `_category_.json`, and each page front matter.

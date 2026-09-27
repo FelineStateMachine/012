@@ -1,3 +1,8 @@
+---
+title: "Themes"
+sidebar_position: 2
+---
+
 # Themes
 
 A theme is a terminal color scheme: the 16 ANSI colors plus a background,

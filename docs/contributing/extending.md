@@ -1,3 +1,8 @@
+---
+title: "Extending 012"
+sidebar_position: 3
+---
+
 # Extending 012
 
 012 grows along two axes: **breadth** (more functions, commands, formats,

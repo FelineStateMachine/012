@@ -1,3 +1,8 @@
+---
+title: "JEV functions"
+sidebar_position: 7
+---
+
 # JEV functions
 
 With a TypeSafe API key, four functions ask the hosted JEV model about a

@@ -1,3 +1,8 @@
+---
+title: "UX and visual bar"
+sidebar_position: 4
+---
+
 # UX and visual bar
 
 Features don't merge unless they meet this bar. Visual quality is not a

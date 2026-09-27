@@ -1,3 +1,8 @@
+---
+title: "Serving over SSH"
+sidebar_position: 3
+---
+
 # Serving over SSH
 
 `012 serve` runs an SSH server that gives every session its own 012, in

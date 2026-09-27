@@ -1,3 +1,8 @@
+---
+title: "Keys and mouse"
+sidebar_position: 2
+---
+
 # Keys and mouse
 
 Inside the grid, 012 behaves like Google Sheets: if you know a Sheets
@@ -210,12 +215,3 @@ The pointer changes shape over cells, resize handles and the formula bar
 in terminals that support it (OSC 22). In Ghostty and xterm, Shift+click
 normally starts the terminal's own text selection; 012 asks the terminal
 to pass it through (XTSHIFTESCAPE) and restores that on exit.
-
-## The screen
-
-| Line | Shows |
-|---|---|
-| Menu bar (top) | The menus, and the mode indicator on the right (`REC` beside it while a macro records) |
-| Formula bar | The name box, then the cell's contents or the entry being typed |
-| Context line | Prompts, key hints, formula errors and explanations, and bars such as find and the chart editor |
-| Status line (bottom) | The sheet tabs (the one shown highlighted), the file name, whether it's modified, and Sum, Avg and Count for a selection |
