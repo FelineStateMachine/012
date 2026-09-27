@@ -50,6 +50,12 @@ func excelBorderStyle(l sheet.Line) string {
 	return "thin"
 }
 
+// xlsxEdges are a <border>'s elements for each edge; start and end are
+// left and right in left-to-right sheets.
+var xlsxEdges = map[string]sheet.Edge{
+	"top": sheet.EdgeTop, "bottom": sheet.EdgeBottom, "left": sheet.EdgeLeft, "start": sheet.EdgeLeft, "right": sheet.EdgeRight, "end": sheet.EdgeRight,
+}
+
 // readBorder reads the rest of a <border>: its four edges.
 func readBorder(x *xmlStream) (sheet.Borders, error) {
 	var b sheet.Borders
@@ -64,16 +70,8 @@ func readBorder(x *xmlStream) (sheet.Borders, error) {
 			if x.depth != depth+1 {
 				continue
 			}
-			l := borderLine(attrOr(t, "style", ""))
-			switch t.Name.Local {
-			case "top":
-				b.Top = l
-			case "bottom":
-				b.Bottom = l
-			case "left", "start":
-				b.Left = l
-			case "right", "end":
-				b.Right = l
+			if e, ok := xlsxEdges[t.Name.Local]; ok {
+				b = b.With(e, borderLine(attrOr(t, "style", "")))
 			}
 		case xml.EndElement:
 			if x.depth < depth {
@@ -101,7 +99,7 @@ func (t *xlsxStyleTable) bordersXML() string {
 		for _, e := range [...]struct {
 			tag string
 			l   sheet.Line
-		}{{"left", br.Left}, {"right", br.Right}, {"top", br.Top}, {"bottom", br.Bottom}} {
+		}{{"left", br.Left()}, {"right", br.Right()}, {"top", br.Top()}, {"bottom", br.Bottom()}} {
 			if e.l == sheet.LineNone {
 				fmt.Fprintf(&b, `<%s/>`, e.tag)
 				continue

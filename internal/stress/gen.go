@@ -350,7 +350,7 @@ func Shapes() []Shape {
 func Laidout(rows, cols int) *sheet.Sheet {
 	s := sheet.New()
 	r := rand.New(rand.NewPCG(5, 6))
-	lines := sheet.Style{Borders: sheet.Borders{Top: sheet.LineThin, Bottom: sheet.LineThin, Left: sheet.LineThin, Right: sheet.LineThin}}
+	lines := sheet.Style{Borders: sheet.BordersOf(sheet.LineThin, sheet.LineThin, sheet.LineThin, sheet.LineThin)}
 	notes := lines
 	notes.Wrap = sheet.WrapOn
 	put := func(a sheet.Addr, input string, st sheet.Style) {

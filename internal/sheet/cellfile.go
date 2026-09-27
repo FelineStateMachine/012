@@ -118,7 +118,7 @@ func encodeBorders(b Borders) *fileBorders {
 	if b.IsZero() {
 		return nil
 	}
-	return &fileBorders{Top: b.Top.String(), Bottom: b.Bottom.String(), Left: b.Left.String(), Right: b.Right.String()}
+	return &fileBorders{Top: b.Top().String(), Bottom: b.Bottom().String(), Left: b.Left().String(), Right: b.Right().String()}
 }
 
 func decodeBorders(fb *fileBorders) (Borders, error) {
@@ -126,15 +126,12 @@ func decodeBorders(fb *fileBorders) (Borders, error) {
 	if fb == nil {
 		return b, nil
 	}
-	for _, e := range [...]struct {
-		name string
-		to   *Line
-	}{{fb.Top, &b.Top}, {fb.Bottom, &b.Bottom}, {fb.Left, &b.Left}, {fb.Right, &b.Right}} {
-		l, ok := ParseLine(e.name)
+	for edge, name := range [...]string{EdgeTop: fb.Top, EdgeBottom: fb.Bottom, EdgeLeft: fb.Left, EdgeRight: fb.Right} {
+		l, ok := ParseLine(name)
 		if !ok {
-			return Borders{}, fmt.Errorf("unknown border line %q", e.name)
+			return 0, fmt.Errorf("unknown border line %q", name)
 		}
-		*e.to = l
+		b = b.With(Edge(edge), l)
 	}
 	return b, nil
 }

@@ -94,11 +94,11 @@ func TestXLSXLayoutImport(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := res.Sheet
-	want := sheet.Borders{Left: sheet.LineThin, Right: sheet.LineThick, Top: sheet.LineDouble, Bottom: sheet.LineThick}
+	want := sheet.BordersOf(sheet.LineDouble, sheet.LineThick, sheet.LineThin, sheet.LineThick)
 	if got := s.CellStyle(addr(t, "A1")).Borders; got != want {
 		t.Errorf("A1 borders %+v, want %+v", got, want)
 	}
-	if got := s.CellStyle(addr(t, "B1")).Borders.Left; got != sheet.LineThin {
+	if got := s.CellStyle(addr(t, "B1")).Borders.Left(); got != sheet.LineThin {
 		t.Errorf("a blank cell's border after the row's values: %v", got)
 	}
 	if s.CellStyle(addr(t, "A2")).Wrap != sheet.WrapOn {

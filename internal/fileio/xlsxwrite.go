@@ -336,7 +336,7 @@ func (t *xlsxStyleTable) dxfsXML() string {
 }
 
 func newXLSXStyleTable() *xlsxStyleTable {
-	return &xlsxStyleTable{ids: map[xlsxStyle]int{{}: 0}, xfs: []xlsxStyle{{}}, fonts: []sheet.Style{{}}, borders: []sheet.Borders{{}}}
+	return &xlsxStyleTable{ids: map[xlsxStyle]int{{}: 0}, xfs: []xlsxStyle{{}}, fonts: []sheet.Style{{}}, borders: []sheet.Borders{0}}
 }
 
 // id is the index of the cell format for f and st.

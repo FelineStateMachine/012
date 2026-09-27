@@ -376,15 +376,8 @@ func excelizeStyleOf(x *excelize.File, id int, cache map[int]xlsxStyle) xlsxStyl
 			if br.Style > 0 && br.Style < len(excelizeBorderStyles) {
 				l = borderLine(excelizeBorderStyles[br.Style])
 			}
-			switch br.Type {
-			case "left":
-				out.style.Borders.Left = l
-			case "right":
-				out.style.Borders.Right = l
-			case "top":
-				out.style.Borders.Top = l
-			case "bottom":
-				out.style.Borders.Bottom = l
+			if e, ok := xlsxEdges[br.Type]; ok {
+				out.style.Borders = out.style.Borders.With(e, l)
 			}
 		}
 		if al := st.Alignment; al != nil {

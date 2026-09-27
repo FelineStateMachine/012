@@ -41,13 +41,40 @@ func ParseLine(s string) (Line, bool) {
 // thin.
 func Heavier(a, b Line) Line { return max(a, b) }
 
-// Borders are the lines on a cell's four edges.
-type Borders struct {
-	Top, Bottom, Left, Right Line
+// Borders are the lines on a cell's four edges, two bits each, so a
+// style stays eight bytes and a cell fits its allocation size class.
+type Borders uint8
+
+// Edge is one of a cell's edges.
+type Edge uint8
+
+const (
+	EdgeTop Edge = iota
+	EdgeBottom
+	EdgeLeft
+	EdgeRight
+)
+
+// BordersOf is the borders with these lines.
+func BordersOf(top, bottom, left, right Line) Borders {
+	return Borders(0).With(EdgeTop, top).With(EdgeBottom, bottom).With(EdgeLeft, left).With(EdgeRight, right)
 }
 
+// Line is the line on edge e.
+func (b Borders) Line(e Edge) Line { return Line(b >> (2 * e) & 3) }
+
+// With is b with edge e drawn with l.
+func (b Borders) With(e Edge, l Line) Borders {
+	return b&^(3<<(2*e)) | Borders(l&3)<<(2*e)
+}
+
+func (b Borders) Top() Line    { return b.Line(EdgeTop) }
+func (b Borders) Bottom() Line { return b.Line(EdgeBottom) }
+func (b Borders) Left() Line   { return b.Line(EdgeLeft) }
+func (b Borders) Right() Line  { return b.Line(EdgeRight) }
+
 // IsZero reports whether no edge has a line.
-func (b Borders) IsZero() bool { return b == Borders{} }
+func (b Borders) IsZero() bool { return b == 0 }
 
 // BorderKind is which edges of a range Format > Borders sets.
 type BorderKind uint8
@@ -117,12 +144,9 @@ func (k BorderKind) edges(r Rect, a Addr) edgeSet {
 
 // apply sets the edges of e on b to l.
 func (e edgeSet) apply(b *Borders, l Line) {
-	for _, on := range [...]struct {
-		set  bool
-		edge *Line
-	}{{e.top, &b.Top}, {e.bottom, &b.Bottom}, {e.left, &b.Left}, {e.right, &b.Right}} {
-		if on.set {
-			*on.edge = l
+	for edge, set := range [...]bool{EdgeTop: e.top, EdgeBottom: e.bottom, EdgeLeft: e.left, EdgeRight: e.right} {
+		if set {
+			*b = b.With(Edge(edge), l)
 		}
 	}
 }
@@ -173,9 +197,9 @@ func (s *Sheet) clearFacing(r Rect, k BorderKind) {
 // EdgeAbove is the line on the edge between the cell at a and the one
 // above it: the heavier of their facing lines.
 func (s *Sheet) EdgeAbove(a Addr) Line {
-	l := s.CellStyle(a).Borders.Top
+	l := s.CellStyle(a).Borders.Top()
 	if a.Row > 0 {
-		l = Heavier(l, s.CellStyle(Addr{Col: a.Col, Row: a.Row - 1}).Borders.Bottom)
+		l = Heavier(l, s.CellStyle(Addr{Col: a.Col, Row: a.Row - 1}).Borders.Bottom())
 	}
 	return l
 }
@@ -183,9 +207,9 @@ func (s *Sheet) EdgeAbove(a Addr) Line {
 // EdgeLeft is the line on the edge between the cell at a and the one to
 // its left.
 func (s *Sheet) EdgeLeft(a Addr) Line {
-	l := s.CellStyle(a).Borders.Left
+	l := s.CellStyle(a).Borders.Left()
 	if a.Col > 0 {
-		l = Heavier(l, s.CellStyle(Addr{Col: a.Col - 1, Row: a.Row}).Borders.Right)
+		l = Heavier(l, s.CellStyle(Addr{Col: a.Col - 1, Row: a.Row}).Borders.Right())
 	}
 	return l
 }

@@ -28,10 +28,10 @@ func TestBorders(t *testing.T) {
 		cell string
 		want Borders
 	}{
-		{"B2", Borders{Top: LineThin, Left: LineThin}},
-		{"C2", Borders{Top: LineThin, Right: LineThin}},
-		{"B3", Borders{Bottom: LineThin, Left: LineThin}},
-		{"C3", Borders{Bottom: LineThin, Right: LineThin}},
+		{"B2", BordersOf(LineThin, LineNone, LineThin, LineNone)},
+		{"C2", BordersOf(LineThin, LineNone, LineNone, LineThin)},
+		{"B3", BordersOf(LineNone, LineThin, LineThin, LineNone)},
+		{"C3", BordersOf(LineNone, LineThin, LineNone, LineThin)},
 	} {
 		if got := s.CellStyle(at(c.cell)).Borders; got != c.want {
 			t.Errorf("outer: %s = %+v, want %+v", c.cell, got, c.want)
@@ -44,12 +44,12 @@ func TestBorders(t *testing.T) {
 	// Inner draws between the cells only; a later thick top clears the
 	// neighbor's facing bottom, so the last change shows.
 	s.SetBorders(rng("B2:C3"), BorderInner, LineDouble)
-	if got := s.CellStyle(at("B2")).Borders; got != (Borders{Top: LineThin, Left: LineThin, Bottom: LineDouble, Right: LineDouble}) {
+	if got := s.CellStyle(at("B2")).Borders; got != BordersOf(LineThin, LineDouble, LineThin, LineDouble) {
 		t.Errorf("inner B2 = %+v", got)
 	}
 	s.SetBorders(rng("B1"), BorderBottom, LineThin)
 	s.SetBorders(rng("B2"), BorderTop, LineThick)
-	if got := s.CellStyle(at("B1")).Borders.Bottom; got != LineNone {
+	if got := s.CellStyle(at("B1")).Borders.Bottom(); got != LineNone {
 		t.Errorf("facing bottom kept: %v", got)
 	}
 	if s.EdgeAbove(at("B2")) != LineThick {
@@ -66,7 +66,7 @@ func TestBorders(t *testing.T) {
 		t.Errorf("formatting-only cells left: %d", s.cells.len())
 	}
 	s.Undo()
-	if s.CellStyle(at("C3")).Borders.Right != LineThin {
+	if s.CellStyle(at("C3")).Borders.Right() != LineThin {
 		t.Error("undo none")
 	}
 	// Whole columns keep borders on the column.

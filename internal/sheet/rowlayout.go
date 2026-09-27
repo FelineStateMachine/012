@@ -74,7 +74,7 @@ func (s *Sheet) linesShape() bool {
 }
 
 // horizontal reports whether b draws its top or bottom edge.
-func (b Borders) horizontal() bool { return b.Top != LineNone || b.Bottom != LineNone }
+func (b Borders) horizontal() bool { return b.Top() != LineNone || b.Bottom() != LineNone }
 
 // Shaped reports whether any row may be other than one line of text
 // under the one above: something wraps or draws borders, a row has a
@@ -154,16 +154,16 @@ func (s *Sheet) WrappedIn(row int) []int {
 // column's, row's or the sheet's format drawing either.
 func (s *Sheet) RuleAbove(row int) bool {
 	if s.linesShape() && (s.shapers.colRules || s.lines.sheet.Style.Borders.horizontal() ||
-		s.lines.rows[row].Style.Borders.Top != LineNone || row > 0 && s.lines.rows[row-1].Style.Borders.Bottom != LineNone) {
+		s.lines.rows[row].Style.Borders.Top() != LineNone || row > 0 && s.lines.rows[row-1].Style.Borders.Bottom() != LineNone) {
 		return true
 	}
 	found := false
 	s.shapersIn(row, func(c int) {
-		found = found || s.CellStyle(Addr{Col: c, Row: row}).Borders.Top != LineNone
+		found = found || s.CellStyle(Addr{Col: c, Row: row}).Borders.Top() != LineNone
 	})
 	if row > 0 && !found {
 		s.shapersIn(row-1, func(c int) {
-			found = found || s.CellStyle(Addr{Col: c, Row: row - 1}).Borders.Bottom != LineNone
+			found = found || s.CellStyle(Addr{Col: c, Row: row - 1}).Borders.Bottom() != LineNone
 		})
 	}
 	return found
