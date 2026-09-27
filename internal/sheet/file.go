@@ -111,71 +111,6 @@ func decodeChart(fc fileChart) (Chart, error) {
 	return c.clamped(), nil
 }
 
-type fileCell struct {
-	Input         string `json:"input,omitempty"`
-	Format        string `json:"format,omitempty"`
-	Decimals      *int   `json:"decimals,omitempty"`
-	Pattern       string `json:"pattern,omitempty"`
-	Bold          bool   `json:"bold,omitempty"`
-	Italic        bool   `json:"italic,omitempty"`
-	Underline     bool   `json:"underline,omitempty"`
-	Strikethrough bool   `json:"strikethrough,omitempty"`
-	Align         string `json:"align,omitempty"`
-	Own           bool   `json:"own,omitempty"` // not taking its column's or row's formatting
-}
-
-func encodeCell(c *Cell) (json.RawMessage, error) {
-	if c.Format.IsZero() && c.Style.IsZero() {
-		return json.Marshal(c.Input)
-	}
-	fc := fileCell{
-		Input:         c.Input,
-		Pattern:       c.Format.Pattern,
-		Bold:          c.Style.Bold,
-		Italic:        c.Style.Italic,
-		Underline:     c.Style.Underline,
-		Strikethrough: c.Style.Strikethrough,
-		Align:         c.Style.Align.String(),
-		Own:           c.Style.own,
-	}
-	if !c.Format.IsZero() {
-		fc.Format = c.Format.Kind.String()
-	}
-	if c.Format.Kind.HasDecimals() {
-		d := c.Format.Decimals
-		fc.Decimals = &d
-	}
-	return json.Marshal(fc)
-}
-
-func decodeCell(raw json.RawMessage) (string, Format, Style, error) {
-	var input string
-	if err := json.Unmarshal(raw, &input); err == nil {
-		return input, Format{}, Style{}, nil
-	}
-	var fc fileCell
-	if err := json.Unmarshal(raw, &fc); err != nil {
-		return "", Format{}, Style{}, err
-	}
-	var f Format
-	if fc.Format != "" {
-		k, ok := ParseFormatKind(fc.Format)
-		if !ok {
-			return "", Format{}, Style{}, fmt.Errorf("unknown format %q", fc.Format)
-		}
-		f = Format{Kind: k, Pattern: fc.Pattern}
-		if fc.Decimals != nil {
-			f.Decimals = clampInt(*fc.Decimals, 0, MaxDecimals)
-		}
-	}
-	al, ok := ParseAlign(fc.Align)
-	if !ok {
-		return "", Format{}, Style{}, fmt.Errorf("unknown alignment %q", fc.Align)
-	}
-	st := Style{Bold: fc.Bold, Italic: fc.Italic, Underline: fc.Underline, Strikethrough: fc.Strikethrough, Align: al, own: fc.Own}
-	return fc.Input, f, st, nil
-}
-
 // Write saves the workbook the sheet belongs to; see Workbook.Write.
 func (s *Sheet) Write(w io.Writer) error { return s.wb.Write(w) }
 
@@ -468,7 +403,7 @@ func (s *Sheet) read(f fileSheet, version int) error {
 		if !ok {
 			return fmt.Errorf("invalid cell %q", name)
 		}
-		input, fm, st, err := decodeCell(raw)
+		input, fm, st, note, err := decodeNoted(raw)
 		if err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
@@ -478,7 +413,9 @@ func (s *Sheet) read(f fileSheet, version int) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
-		s.place(a, c)
+		if c = c.withNote(CleanNote(note)); c != nil {
+			s.place(a, c)
+		}
 	}
 	for i, fc := range f.Charts {
 		c, err := decodeChart(fc)
