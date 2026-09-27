@@ -127,11 +127,7 @@ func (m *marking) readersOf(l loc) {
 	for d := range s.dependents[a] {
 		m.push(loc{s, d})
 	}
-	for u := range s.rangeUsers.candidates(a.Col) {
-		if s.cells.get(u).rangeHas(a) {
-			m.push(loc{s, u})
-		}
-	}
+	s.rangeUsers.readers(a, func(u Addr) { m.push(loc{s, u}) })
 	for _, nu := range m.named {
 		if nu.s == s && nu.r.Contains(a) {
 			for u := range nu.users {
@@ -147,17 +143,6 @@ func (m *marking) readersOf(l loc) {
 			m.push(u)
 		}
 	}
-}
-
-// rangeHas reports whether one of the ranges the formula reads on its own
-// sheet contains a.
-func (c *Cell) rangeHas(a Addr) bool {
-	for _, r := range c.ranges {
-		if r.Contains(a) {
-			return true
-		}
-	}
-	return false
 }
 
 // evaluate computes the cells marked dirty in each sheet's calc. Cells
@@ -204,10 +189,12 @@ func (w *Workbook) evaluate() {
 		s.calc[a] = done
 		return c.Value
 	}
+	memo := &aggMemo{w: w, m: map[aggKey]*runAgg{}}
 	for _, s := range w.sheets {
 		s.version++
 		s.hidden.valid = false // values may have changed what the filter hides
 		s.calcGet = w.lookupOn(s, compute)
+		s.calcGet.memo = memo
 		s.calcFmt = w.formatFrom(s)
 	}
 	for _, s := range w.sheets {
@@ -243,6 +230,7 @@ type reader struct {
 	w        *Workbook
 	s        *Sheet
 	read     func(*Sheet, Addr) Value
+	memo     *aggMemo // running aggregates shared by a recalculation; nil otherwise
 	lastName string
 	last     *Sheet
 }
@@ -271,22 +259,41 @@ func (rd *reader) cell(sheet string, a Addr) Value {
 	return rd.read(t, a)
 }
 
-// cells calls fn with the value of every cell of r, row by row, until fn
-// returns false.
-func (rd *reader) cells(sheet string, r Rect, fn func(Value) bool) {
+// cells calls fn with the address and value of every cell of r that
+// holds something, row by row, until fn returns false: blank cells are
+// skipped without being visited, so a whole column costs what it holds.
+// A range on a sheet that doesn't exist reads as one #REF!.
+func (rd *reader) cells(sheet string, r Rect, fn func(Addr, Value) bool) {
 	t := rd.sheet(sheet)
-	for row := r.From.Row; row <= r.To.Row; row++ {
-		for col := r.From.Col; col <= r.To.Col; col++ {
-			v := ErrRef
-			if t != nil {
-				v = rd.read(t, Addr{Col: col, Row: row})
+	switch {
+	case t == nil:
+		fn(r.From, ErrRef)
+	case denseReads:
+		for row := r.From.Row; row <= r.To.Row; row++ {
+			for col := r.From.Col; col <= r.To.Col; col++ {
+				if a := (Addr{Col: col, Row: row}); !fn(a, rd.read(t, a)) {
+					return
+				}
 			}
-			if !fn(v) {
+		}
+	case r.From.Col == r.To.Col:
+		t.cells.colScan(r.From.Col, r.From.Row, r.To.Row, func(row int) bool {
+			a := Addr{Col: r.From.Col, Row: row}
+			return fn(a, rd.read(t, a))
+		})
+	default:
+		for a := range t.cells.inRange(r) {
+			if !fn(a, rd.read(t, a)) {
 				return
 			}
 		}
 	}
 }
+
+// denseReads makes formulas read every address of their ranges, as they
+// did before ranges were clipped to what they hold, so tests can check
+// that the two agree.
+var denseReads bool
 
 // values reads current values for formulas on s, across sheets.
 func (w *Workbook) values(s *Sheet) lookup {

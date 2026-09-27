@@ -66,13 +66,20 @@ func boolArg(args []Node, i int, def bool, get lookup) (bool, *Value) {
 }
 
 // matrix is a rectangular block of values: a range, or a single value
-// treated as a 1x1 block.
+// treated as a 1x1 block. Only its top-left dataRows x dataCols may hold
+// data: every cell past them is blank, so functions that walk a range
+// (SUMIF(A:A, ...), MATCH, COUNTBLANK) visit what the sheet holds rather
+// than the million rows of a whole column, while ROWS, INDEX and the
+// positions they return keep the range's full size.
 type matrix struct {
 	rows, cols int
 	cell       func(r, c int) Value
 	origin     Addr   // top-left cell when the block is a reference
 	sheet      string // the reference's sheet, as written
 	ref        bool
+
+	dataRows, dataCols int
+	blank              Value // every cell outside the data: blank, or #REF! for a missing sheet
 }
 
 func (m matrix) at(i int) Value { return m.cell(i/m.cols, i%m.cols) }
@@ -82,6 +89,14 @@ func (m matrix) size() int { return m.rows * m.cols }
 // vector reports whether m is a single row or column.
 func (m matrix) vector() bool { return m.rows == 1 || m.cols == 1 }
 
+// dataLen is how many of a vector's leading entries may hold data.
+func (m matrix) dataLen() int {
+	if m.cols == 1 {
+		return m.dataRows
+	}
+	return m.dataCols
+}
+
 func matrixArg(n Node, get lookup) matrix {
 	switch n := n.(type) {
 	case formula.Range:
@@ -90,17 +105,32 @@ func matrixArg(n Node, get lookup) matrix {
 		return rectMatrix(n.Sheet, Rect{From: n.Addr, To: n.Addr}, get)
 	}
 	v := eval(n, get)
-	return matrix{rows: 1, cols: 1, cell: func(int, int) Value { return v }}
+	return matrix{rows: 1, cols: 1, cell: func(int, int) Value { return v }, dataRows: 1, dataCols: 1, blank: v}
 }
 
 func rectMatrix(sheet string, r Rect, get lookup) matrix {
-	return matrix{
+	m := matrix{
 		rows: r.To.Row - r.From.Row + 1, cols: r.To.Col - r.From.Col + 1,
-		cell: func(row, col int) Value {
-			return get.cell(sheet, Addr{Col: r.From.Col + col, Row: r.From.Row + row})
-		},
 		origin: r.From, sheet: sheet, ref: true,
 	}
+	switch t := get.sheet(sheet); {
+	case t == nil:
+		m.blank = ErrRef
+	case denseReads:
+		m.dataRows, m.dataCols = m.rows, m.cols
+	default:
+		if b, ok := t.cells.bounds(r); ok {
+			m.dataRows, m.dataCols = b.To.Row-r.From.Row+1, b.To.Col-r.From.Col+1
+		}
+	}
+	rows, cols, blank := m.dataRows, m.dataCols, m.blank
+	m.cell = func(row, col int) Value {
+		if row >= rows || col >= cols {
+			return blank
+		}
+		return get.cell(sheet, Addr{Col: r.From.Col + col, Row: r.From.Row + row})
+	}
+	return m
 }
 
 // resized returns a block of rows x cols from the same top-left cell, as
@@ -134,8 +164,8 @@ func nums(args []Node, get lookup) ([]float64, *Value) {
 	return out, e
 }
 
-// texts flattens args to strings for CONCATENATE and TEXTJOIN: every cell
-// of a range, blanks as "".
+// texts flattens args to strings for CONCATENATE and TEXTJOIN: the cells
+// of ranges that hold something, and any other argument, blank or not.
 func texts(args []Node, get lookup) ([]string, *Value) {
 	var out []string
 	e := each(args, get, func(v Value, _ bool) *Value {
@@ -146,6 +176,51 @@ func texts(args []Node, get lookup) ([]string, *Value) {
 		return nil
 	})
 	return out, e
+}
+
+// textsWithBlanks is texts with every blank cell of a range as "", as
+// TEXTJOIN keeping empty entries needs, but at most limit of them in all:
+// past that many the joined text is too long anyway.
+func textsWithBlanks(args []Node, get lookup, limit int) ([]string, *Value) {
+	var out []string
+	blanks := func(n int) {
+		for ; n > 0 && len(out) < limit; n-- {
+			out = append(out, "")
+		}
+	}
+	for _, arg := range args {
+		rn, ok := arg.(formula.Range)
+		if !ok {
+			if e := eachOf(arg, get, func(v Value, _ bool) *Value {
+				if v.Kind == Error {
+					return errOf(v)
+				}
+				out = append(out, text(v))
+				return nil
+			}); e != nil {
+				return nil, e
+			}
+			continue
+		}
+		r, last := rn.Rect, -1
+		width := r.To.Col - r.From.Col + 1
+		var e *Value
+		get.cells(rn.Sheet, r, func(a Addr, v Value) bool {
+			if v.Kind == Error {
+				e = errOf(v)
+				return false
+			}
+			p := (a.Row-r.From.Row)*width + a.Col - r.From.Col
+			blanks(p - last - 1)
+			out, last = append(out, text(v)), p
+			return true
+		})
+		if e != nil {
+			return nil, e
+		}
+		blanks(width*(r.To.Row-r.From.Row+1) - last - 1)
+	}
+	return out, nil
 }
 
 func str(s string) Value { return Value{Kind: Text, Str: s} }
@@ -275,31 +350,21 @@ func cmpResult(op string, d int) bool {
 	return d >= 0
 }
 
-// criteriaMask evaluates (range, criterion) pairs starting at args[i],
-// returning which cells of the first range satisfy all of them. All
-// ranges must be the same size.
-func criteriaMask(args []Node, i int, get lookup) (rows, cols int, mask []bool, err *Value) {
+// criteriaArgs reads the (range, criterion) pairs starting at args[i].
+// All ranges must be the same size.
+func criteriaArgs(args []Node, i int, get lookup) ([]matrix, []criterion, *Value) {
+	var ms []matrix
+	var cs []criterion
 	for ; i+1 < len(args); i += 2 {
 		m := matrixArg(args[i], get)
 		cv := eval(args[i+1], get)
 		if cv.Kind == Error {
-			return 0, 0, nil, &cv
+			return nil, nil, &cv
 		}
-		c := newCriterion(cv)
-		if mask == nil {
-			rows, cols = m.rows, m.cols
-			mask = make([]bool, m.size())
-			for k := range mask {
-				mask[k] = true
-			}
-		} else if m.rows != rows || m.cols != cols {
-			return 0, 0, nil, &ErrValue
+		if len(ms) > 0 && (m.rows != ms[0].rows || m.cols != ms[0].cols) {
+			return nil, nil, &ErrValue
 		}
-		for k := range mask {
-			if mask[k] && !c.test(m.at(k)) {
-				mask[k] = false
-			}
-		}
+		ms, cs = append(ms, m), append(cs, newCriterion(cv))
 	}
-	return rows, cols, mask, nil
+	return ms, cs, nil
 }

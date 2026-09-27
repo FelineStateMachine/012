@@ -45,7 +45,7 @@ func TestRangeUsersByColumn(t *testing.T) {
 	s := New()
 	s.Set(at("E1"), "=SUM(A1:A5)")
 	s.Set(at("E1"), "=SUM(B1:B5)")
-	if n := len(s.rangeUsers.candidates(0)); n != 0 {
-		t.Errorf("%d stale range users in column A", n)
+	if iv := s.rangeUsers.byCol[0]; iv != nil {
+		t.Errorf("%d stale range users in column A", len(iv.users))
 	}
 }

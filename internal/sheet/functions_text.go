@@ -82,7 +82,12 @@ func textJoin(args []Node, get lookup) Value {
 	if err != nil {
 		return *err
 	}
-	parts, err := texts(args[2:], get)
+	var parts []string
+	if skip || delim == "" {
+		parts, err = texts(args[2:], get)
+	} else {
+		parts, err = textsWithBlanks(args[2:], get, maxText+2)
+	}
 	if err != nil {
 		return *err
 	}

@@ -40,47 +40,6 @@ func init() {
 
 // Evaluators for the table above, in its order.
 
-func averageIf(args []Node, get lookup) Value {
-	rng := matrixArg(args[0], get)
-	cv := eval(args[1], get)
-	if cv.Kind == Error {
-		return cv
-	}
-	c := newCriterion(cv)
-	avg := rng
-	if len(args) > 2 {
-		avg = matrixArg(args[2], get).resized(rng.rows, rng.cols, get)
-	}
-	mask := make([]bool, rng.size())
-	for i := range mask {
-		mask[i] = c.test(rng.at(i))
-	}
-	return averageMasked(avg, mask)
-}
-
-func averageIfs(args []Node, get lookup) Value {
-	avg := matrixArg(args[0], get)
-	rows, cols, mask, err := criteriaMask(args, 1, get)
-	switch {
-	case err != nil:
-		return *err
-	case rows != avg.rows || cols != avg.cols:
-		return ErrValue
-	}
-	return averageMasked(avg, mask)
-}
-
-func countBlank(args []Node, get lookup) Value {
-	m := matrixArg(args[0], get)
-	n := 0
-	for i := range m.size() {
-		if v := m.at(i); v.Kind == Empty || v.Kind == Text && v.Str == "" {
-			n++
-		}
-	}
-	return num(float64(n))
-}
-
 func median(x []float64) Value {
 	if len(x) == 0 {
 		return ErrNum
@@ -138,42 +97,6 @@ func rank(args []Node, get lookup) Value {
 		return ErrNA
 	}
 	return num(float64(rank))
-}
-
-func countIfs(args []Node, get lookup) Value {
-	_, _, mask, err := criteriaMask(args, 0, get)
-	if err != nil {
-		return *err
-	}
-	n := 0
-	for _, ok := range mask {
-		if ok {
-			n++
-		}
-	}
-	return num(float64(n))
-}
-
-// averageMasked averages the numbers of m where mask is set.
-func averageMasked(m matrix, mask []bool) Value {
-	sum, n := 0.0, 0
-	for i, ok := range mask {
-		if !ok {
-			continue
-		}
-		v := m.at(i)
-		switch v.Kind {
-		case Error:
-			return v
-		case Number:
-			sum += v.Num
-			n++
-		}
-	}
-	if n == 0 {
-		return ErrDiv0
-	}
-	return num(sum / float64(n))
 }
 
 // withNums passes the numbers of all arguments, with aggregate

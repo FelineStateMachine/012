@@ -159,68 +159,84 @@ type agg struct {
 	min, max float64
 }
 
-// each calls fn for every value in args: every cell of a range, or the
-// value of any other argument. direct is false for cells of a range or a
-// reference: as in Sheets, SUM(A1) ignores text in A1 but SUM("a") is
-// #VALUE!.
+// each calls fn for every value in args: every cell of a range that
+// holds something (blank cells, which every caller skips, aren't
+// visited), or the value of any other argument. direct is false for cells
+// of a range or a reference: as in Sheets, SUM(A1) ignores text in A1 but
+// SUM("a") is #VALUE!.
 func each(args []Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
 	for _, arg := range args {
-		if ref, ok := arg.(formula.Ref); ok {
-			if e := fn(get.cell(ref.Sheet, ref.Addr), false); e != nil {
-				return e
-			}
-			continue
-		}
-		if _, ok := arg.(formula.Empty); ok {
-			continue
-		}
-		if rn, ok := arg.(formula.Range); ok {
-			var e *Value
-			get.cells(rn.Sheet, rn.Rect, func(v Value) bool {
-				e = fn(v, false)
-				return e == nil
-			})
-			if e != nil {
-				return e
-			}
-			continue
-		}
-		if e := fn(eval(arg, get), true); e != nil {
+		if e := eachOf(arg, get, fn); e != nil {
 			return e
 		}
 	}
 	return nil
 }
 
+func eachOf(arg Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
+	switch arg := arg.(type) {
+	case formula.Ref:
+		return fn(get.cell(arg.Sheet, arg.Addr), false)
+	case formula.Empty:
+		return nil
+	case formula.Range:
+		var e *Value
+		get.cells(arg.Sheet, arg.Rect, func(_ Addr, v Value) bool {
+			e = fn(v, false)
+			return e == nil
+		})
+		return e
+	}
+	return fn(eval(arg, get), true)
+}
+
+// add counts v into the aggregate, with SUM's rules: blanks are skipped,
+// errors returned, and text counts only when given directly.
+func (s *agg) add(v Value, direct bool) *Value {
+	switch v.Kind {
+	case Error:
+		return errOf(v)
+	case Empty:
+		return nil
+	}
+	s.count++
+	if v.Kind != Number && !direct {
+		return nil
+	}
+	f, err := toNum(v)
+	if err != nil {
+		return err
+	}
+	s.nums++
+	s.sum += f
+	s.prod *= f
+	s.min, s.max = math.Min(s.min, f), math.Max(s.max, f)
+	return nil
+}
+
+func newAgg() agg { return agg{prod: 1, min: math.Inf(1), max: math.Inf(-1)} }
+
 // aggregate builds SUM-like functions with Sheets semantics: in ranges only
 // numbers count and text is ignored; direct arguments are coerced, so
-// SUM("a") is #VALUE!.
+// SUM("a") is #VALUE!. A range read first is served from the running
+// aggregates shared by the recalculation (rangememo.go), so a thousand
+// SUM(A:A) or a column of running totals read each cell once.
 func aggregate(done func(agg) Value) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
-		s := agg{prod: 1, min: math.Inf(1), max: math.Inf(-1)}
-		e := each(args, get, func(v Value, direct bool) *Value {
-			switch v.Kind {
-			case Error:
-				return errOf(v)
-			case Empty:
-				return nil
+		s := newAgg()
+		for _, arg := range args {
+			if rn, ok := arg.(formula.Range); ok && s.count == 0 {
+				if a, e, ok := get.rangeAgg(rn.Sheet, rn.Rect); ok {
+					if e != nil {
+						return *e
+					}
+					s = a
+					continue
+				}
 			}
-			s.count++
-			if v.Kind != Number && !direct {
-				return nil
+			if e := eachOf(arg, get, s.add); e != nil {
+				return *e
 			}
-			f, err := toNum(v)
-			if err != nil {
-				return err
-			}
-			s.nums++
-			s.sum += f
-			s.prod *= f
-			s.min, s.max = math.Min(s.min, f), math.Max(s.max, f)
-			return nil
-		})
-		if e != nil {
-			return *e
 		}
 		return done(s)
 	}

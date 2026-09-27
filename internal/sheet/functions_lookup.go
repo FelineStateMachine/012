@@ -1,6 +1,7 @@
 package sheet
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -40,14 +41,15 @@ func match(args []Node, get lookup) Value {
 	case !m.vector():
 		return ErrNA
 	}
+	q := seq{n: m.size(), data: min(m.dataLen(), m.size()), at: m.at, blank: m.blank}
 	var i int
 	switch {
 	case kind == 0:
-		i = findExact(key, m.size(), m.at, true)
+		i = q.findExact(key, true)
 	case kind > 0:
-		i = findSorted(key, m.size(), m.at, 1)
+		i = q.findSorted(key, 1)
 	default:
-		i = findSorted(key, m.size(), m.at, -1)
+		i = q.findSorted(key, -1)
 	}
 	if i < 0 {
 		return ErrNA
@@ -114,11 +116,11 @@ func tableLookup(args []Node, get lookup, vertical bool) Value {
 	if err != nil {
 		return *err
 	}
-	n, across := m.rows, m.cols
-	at := func(i int) Value { return m.cell(i, 0) }
+	q := seq{n: m.rows, data: min(m.dataRows, m.rows), at: func(i int) Value { return m.cell(i, 0) }, blank: m.blank}
+	across := m.cols
 	if !vertical {
-		n, across = m.cols, m.rows
-		at = func(i int) Value { return m.cell(0, i) }
+		q = seq{n: m.cols, data: min(m.dataCols, m.cols), at: func(i int) Value { return m.cell(0, i) }, blank: m.blank}
+		across = m.rows
 	}
 	switch {
 	case idx < 1:
@@ -128,9 +130,9 @@ func tableLookup(args []Node, get lookup, vertical bool) Value {
 	}
 	var i int
 	if sorted {
-		i = findSorted(key, n, at, 1)
+		i = q.findSorted(key, 1)
 	} else {
-		i = findExact(key, n, at, true)
+		i = q.findExact(key, true)
 	}
 	if i < 0 {
 		return ErrNA
@@ -156,12 +158,23 @@ func lookupEqual(key, v Value, wild bool) bool {
 	return key.Num == v.Num
 }
 
+// seq is the entries of a row or column searched by a lookup: n of them,
+// of which only the first data may hold data; the rest are all blank.
+type seq struct {
+	n, data int
+	at      func(int) Value
+	blank   Value
+}
+
 // findExact returns the first index whose value equals key, or -1.
-func findExact(key Value, n int, at func(int) Value, wild bool) int {
-	for i := range n {
-		if lookupEqual(key, at(i), wild) {
+func (q seq) findExact(key Value, wild bool) int {
+	for i := range q.data {
+		if lookupEqual(key, q.at(i), wild) {
 			return i
 		}
+	}
+	if q.data < q.n && lookupEqual(key, q.blank, wild) {
+		return q.data
 	}
 	return -1
 }
@@ -169,17 +182,20 @@ func findExact(key Value, n int, at func(int) Value, wild bool) int {
 // findSorted is the approximate match of sorted lookups: with dir 1 the
 // last value <= key in ascending data, with dir -1 the last value >= key
 // in descending data. Values of another kind are skipped.
-func findSorted(key Value, n int, at func(int) Value, dir int) int {
+func (q seq) findSorted(key Value, dir int) int {
 	found := -1
-	for i := range n {
-		v := at(i)
+	for i := range q.data {
+		v := q.at(i)
 		if v.Kind != key.Kind {
 			continue
 		}
 		if c := compare(v, key) * dir; c > 0 {
-			break
+			return found
 		}
 		found = i
+	}
+	if v := q.blank; q.data < q.n && v.Kind == key.Kind && compare(v, key)*dir <= 0 {
+		found = q.n - 1 // the blanks past the data all match; the last wins
 	}
 	return found
 }
@@ -216,11 +232,20 @@ func xlookup(args []Node, get lookup) Value {
 	default:
 		return ErrValue
 	}
-	order := make([]int, n)
-	for i := range order {
-		order[i] = i
-		if search < 0 {
-			order[i] = n - 1 - i
+	// The entries past the data are all blank, so only the first of them
+	// in search order can be the answer.
+	data := min(look.dataLen(), n)
+	order := make([]int, 0, data+1)
+	for i := range data {
+		order = append(order, i)
+	}
+	if data < n {
+		order = append(order, data)
+	}
+	if search < 0 {
+		slices.Reverse(order)
+		if data < n {
+			order[0] = n - 1
 		}
 	}
 	best := -1

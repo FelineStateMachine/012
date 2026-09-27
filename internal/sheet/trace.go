@@ -47,13 +47,7 @@ func (s *Sheet) Dependents(a Addr) []Target {
 	for d := range s.dependents[a] {
 		seen[loc{s, d}] = true
 	}
-	for u := range s.rangeUsers.candidates(a.Col) {
-		for _, r := range s.cells.get(u).ranges {
-			if r.Contains(a) {
-				seen[loc{s, u}] = true
-			}
-		}
-	}
+	s.rangeUsers.readers(a, func(u Addr) { seen[loc{s, u}] = true })
 	for k, users := range w.nameUsers {
 		if n, ok := w.names[k]; ok && !n.Lost && n.Sheet == s && n.Range.Contains(a) {
 			for u := range users {
