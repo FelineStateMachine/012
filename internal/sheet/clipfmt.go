@@ -233,8 +233,9 @@ func (s *Sheet) formatAreas(f *clipFormats, p pasteLayout) []Rect {
 	return out
 }
 
-// moveFormats has what moved from src on sheet from to dst on s show
-// what it showed there, f, moving whole lines' formats with them.
+// moveFormats gives dst on s, where the cells of src on sheet from land,
+// the formatting f they showed at src; whole lines take their line
+// formats along, leaving the source lines plain.
 func (s *Sheet) moveFormats(from *Sheet, f *clipFormats, src, dst Rect) {
 	p := pasteLayout{mode: f.mode(), dst: dst, across: 1, down: 1,
 		tw: src.To.Col - src.From.Col + 1, th: src.To.Row - src.From.Row + 1}
