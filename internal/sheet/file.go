@@ -8,6 +8,8 @@ import (
 	"maps"
 	"slices"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // FileExt is the extension of the native worksheet format.
@@ -49,6 +51,10 @@ type fileFormat struct {
 	// version bump: earlier builds ignore it and compute in binary, as
 	// Sheets would. It is for the whole workbook, so it stays at the top.
 	Arithmetic string `json:"arithmetic,omitempty"`
+	// Locale is the tag of the workbook's locale ("de-DE"), when it
+	// names one. It only changes how entries are typed and shown (cells
+	// are stored in en-US's form), so it needs no version bump either.
+	Locale string `json:"locale,omitempty"`
 	// Macros and where they were made need no version bump either:
 	// earlier builds ignore them, and the sheets read the same.
 	MacroOrigin string      `json:"macroOrigin,omitempty"`
@@ -138,7 +144,7 @@ func jsonString(s string) string {
 }
 
 // headLines are the workbook's fields before the sheets: the named ranges
-// and the arithmetic setting, separated as the lines of the file.
+// and the settings, separated as the lines of the file.
 func (w *Workbook) headLines() string {
 	var lines []string
 	if names := w.namesLine(); names != "" {
@@ -146,6 +152,9 @@ func (w *Workbook) headLines() string {
 	}
 	if w.decimal {
 		lines = append(lines, `"arithmetic": "decimal"`)
+	}
+	if w.locale != nil {
+		lines = append(lines, `"locale": `+jsonString(w.locale.Tag))
 	}
 	if len(w.macros) > 0 {
 		if w.macroOrigin != "" {
@@ -310,6 +319,10 @@ func readBook(r io.Reader, trace any) (*Workbook, error) {
 	// Anything but "decimal" (say, a mode from a later build) computes in
 	// binary, as the file would in a build without the setting.
 	w.decimal = f.Arithmetic == "decimal"
+	// A locale this build doesn't know follows the default.
+	if l, ok := locale.Lookup(f.Locale); ok {
+		w.locale = l
+	}
 	if err := w.readMacros(f.Macros); err != nil {
 		return nil, err
 	}

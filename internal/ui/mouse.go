@@ -181,7 +181,7 @@ func (m *Model) leftPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 		case h.kind == hitEditLine:
 			m.line.SetCaret(h.x)
 			return nil
-		case h.kind == hitCell && m.line.IsFormula() && m.line.CanPoint():
+		case h.kind == hitCell && m.line.IsFormula() && m.canPoint():
 			m.entry.prefix = m.line.Head()
 			m.entry.suffix = m.line.Tail()
 			m.point = pointer{at: h.addr, anchor: h.addr}

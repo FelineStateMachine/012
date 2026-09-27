@@ -1,6 +1,9 @@
 package value_test
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/FelineStateMachine/012/internal/locale"
@@ -150,17 +153,17 @@ func TestDisplayInLocales(t *testing.T) {
 		{"de-DE", value.Preset(value.FmtPercent), 0.125, "12,50%"},
 		{"de-DE", value.Preset(value.FmtScientific), v, "1,23E+03"},
 		{"de-DE", value.Preset(value.FmtCurrency), -v, "-1.234,50 €"},
-		{"de-DE", value.Preset(value.FmtDate), date, "26.09.2026"},
+		{"de-DE", value.Preset(value.FmtDate), date, "26.9.2026"},
 		{"de-DE", value.Preset(value.FmtTime), date, "14:05:00"},
-		{"de-DE", value.Preset(value.FmtDateTime), date, "26.09.2026 14:05:00"},
+		{"de-DE", value.Preset(value.FmtDateTime), date, "26.9.2026 14:05:00"},
 		{"de-DE", value.Format{Kind: value.FmtDate, Pattern: "yyyy-mm-dd"}, date, "2026-09-26"},
 		{"de-DE", value.Format{Kind: value.FmtCustom, Pattern: `"$"#,##0.0`}, v, "$1.234,5"},
 		{"fr-FR", value.Preset(value.FmtNumber), v, "1 234,50"},
 		{"en-GB", value.Preset(value.FmtCurrency), v, "£1,234.50"},
-		{"en-GB", value.Preset(value.FmtDate), date, "26/09/2026"},
+		{"en-GB", value.Preset(value.FmtDate), date, "26/9/2026"},
 		{"pt-BR", value.Preset(value.FmtCurrency), v, "R$ 1.234,50"},
 		{"sv-SE", value.Preset(value.FmtDate), date, "2026-09-26"},
-		{"ja-JP", value.Preset(value.FmtDate), date, "2026/09/26"},
+		{"ja-JP", value.Preset(value.FmtDate), date, "2026/9/26"},
 		{"de-CH", value.Preset(value.FmtNumber), v, "1’234.50"},
 	}
 	for _, c := range cases {
@@ -188,5 +191,25 @@ func TestAccountingInLocales(t *testing.T) {
 		if !ok || got != c.want {
 			t.Errorf("%s %v: %q %v, want %q", c.tag, c.v, got, ok, c.want)
 		}
+	}
+}
+
+// TestLocaleDocTable checks the table of locales in docs/sheets/locale.md
+// shows each as it renders.
+func TestLocaleDocTable(t *testing.T) {
+	doc, err := os.ReadFile("../../docs/sheets/locale.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want strings.Builder
+	date := numfmt.DateSerial(2026, 9, 26)
+	for _, l := range locale.All() {
+		fmt.Fprintf(&want, "| `%s` | %s | %s | %s | %s |\n", l.Tag, l.Name,
+			numfmt.FormatIn(1234.56, "#,##0.00", l),
+			numfmt.FormatIn(date, value.Preset(value.FmtDate).CodeIn(l), l),
+			numfmt.FormatIn(1234.56, value.Preset(value.FmtCurrency).CodeIn(l), l))
+	}
+	if !strings.Contains(string(doc), want.String()) {
+		t.Errorf("docs/sheets/locale.md's table isn't:\n%s", want.String())
 	}
 }

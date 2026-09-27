@@ -136,6 +136,7 @@ func Load(path string, getenv func(string) string, flags map[string]string) *Con
 					break
 				}
 			}
+			c.fallBack(o, getenv)
 		}
 	}
 	for name, v := range flags {
@@ -144,6 +145,20 @@ func Load(path string, getenv func(string) string, flags map[string]string) *Con
 		}
 	}
 	return c
+}
+
+// fallBack sets an option nothing else set from the first of its
+// Fallback variables that Adopt makes a value of.
+func (c *Config) fallBack(o *Option, getenv func(string) string) {
+	if len(c.vals[o.Name]) > 0 {
+		return
+	}
+	for _, env := range o.Fallback {
+		if v := o.Adopt(strings.TrimSpace(getenv(env))); v != "" {
+			c.set(o, v, Source{Kind: FromEnv, Name: env})
+			return
+		}
+	}
 }
 
 // readFile reads one file and then the files it includes. seen holds the

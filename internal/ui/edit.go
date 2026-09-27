@@ -151,7 +151,7 @@ func (m *Model) structural(err error) tea.Cmd {
 // fillEntry stores the entry being typed in every selected cell, adjusting
 // references as if it were copied from the active cell (Ctrl+Enter).
 func (m *Model) fillEntry() bool {
-	input := m.line.Text()
+	input := m.storedEntry(m.line.Text())
 	if err := m.entrySheet().FillEntry(m.selection(), m.cur, input); err != nil {
 		m.entryError(err, input)
 		return false

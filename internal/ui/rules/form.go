@@ -6,6 +6,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/locale"
+	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -109,3 +111,14 @@ func (r row) cycle(d int) {
 
 // textX is where a text row's value starts, from the box's inner left.
 func textX() int { return labelW + 1 }
+
+// canonicalArgs are a rule's two arguments typed in loc, trimmed, as the
+// rule stores them (see sheet.CanonicalArg).
+func canonicalArgs(args [2]string, loc *locale.Locale) [2]string {
+	return [2]string{sheet.CanonicalArg(strings.TrimSpace(args[0]), loc), sheet.CanonicalArg(strings.TrimSpace(args[1]), loc)}
+}
+
+// localArgs are a rule's two arguments as typed in loc.
+func localArgs(args [2]string, loc *locale.Locale) [2]string {
+	return [2]string{sheet.LocalArg(args[0], loc), sheet.LocalArg(args[1], loc)}
+}

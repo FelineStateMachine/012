@@ -28,7 +28,7 @@ func (w *Workbook) SetDecimal(on bool) {
 		label = "turn on decimal arithmetic"
 	}
 	w.change(w.sheets[w.Active()], label, Rect{}, func() {
-		w.recordDecimal()
+		w.recordSettings()
 		w.decimal = on
 		w.structural = true // every formula computes differently
 	})

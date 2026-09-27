@@ -51,33 +51,34 @@ const (
 	nnbsp = " "
 )
 
-// table lists the locales, en-US first. Each sticks to what Sheets shows
-// by default: Date, Time and Currency are the formats of Format > Number
-// in that locale.
+// table lists the locales, en-US first. Date, Time and Currency are the
+// formats of Format > Number in each. Dates show day and month without
+// leading zeros, as en-US's m/d/yyyy does, so most fit a default column
+// (26.9.2026); where a country writes ISO dates they keep theirs.
 var table = []Locale{
 	{Tag: "en-US", Name: "English (United States)", Decimal: '.', Group: ",", Order: MDY, DateSep: '/', Date: "m/d/yyyy", Time: "h:mm:ss am/pm", Currency: "$"},
-	{Tag: "en-GB", Name: "English (United Kingdom)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "dd/mm/yyyy", Time: "hh:mm:ss", Currency: "£"},
+	{Tag: "en-GB", Name: "English (United Kingdom)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "£"},
 	{Tag: "en-CA", Name: "English (Canada)", Decimal: '.', Group: ",", Order: YMD, DateSep: '-', Date: "yyyy-mm-dd", Time: "h:mm:ss am/pm", Currency: "$"},
-	{Tag: "en-AU", Name: "English (Australia)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/mm/yyyy", Time: "h:mm:ss am/pm", Currency: "$"},
-	{Tag: "de-DE", Name: "German (Germany)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "dd.mm.yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "de-CH", Name: "German (Switzerland)", Decimal: '.', Group: "’", Order: DMY, DateSep: '.', Date: "dd.mm.yyyy", Time: "hh:mm:ss", Currency: "CHF", Space: true},
-	{Tag: "fr-FR", Name: "French (France)", Decimal: ',', Group: nnbsp, Order: DMY, DateSep: '/', Date: "dd/mm/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "en-AU", Name: "English (Australia)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "h:mm:ss am/pm", Currency: "$"},
+	{Tag: "de-DE", Name: "German (Germany)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "de-CH", Name: "German (Switzerland)", Decimal: '.', Group: "’", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "CHF", Space: true},
+	{Tag: "fr-FR", Name: "French (France)", Decimal: ',', Group: nnbsp, Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
 	{Tag: "fr-CA", Name: "French (Canada)", Decimal: ',', Group: nbsp, Order: YMD, DateSep: '-', Date: "yyyy-mm-dd", Time: "hh:mm:ss", Currency: "$", After: true, Space: true},
-	{Tag: "es-ES", Name: "Spanish (Spain)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "dd/mm/yyyy", Time: "h:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "es-MX", Name: "Spanish (Mexico)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "dd/mm/yyyy", Time: "hh:mm:ss", Currency: "$"},
-	{Tag: "it-IT", Name: "Italian (Italy)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "dd/mm/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "pt-BR", Name: "Portuguese (Brazil)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "dd/mm/yyyy", Time: "hh:mm:ss", Currency: "R$", Space: true},
-	{Tag: "pt-PT", Name: "Portuguese (Portugal)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '/', Date: "dd/mm/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "es-ES", Name: "Spanish (Spain)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "h:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "es-MX", Name: "Spanish (Mexico)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "$"},
+	{Tag: "it-IT", Name: "Italian (Italy)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "pt-BR", Name: "Portuguese (Brazil)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "R$", Space: true},
+	{Tag: "pt-PT", Name: "Portuguese (Portugal)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
 	{Tag: "nl-NL", Name: "Dutch (Netherlands)", Decimal: ',', Group: ".", Order: DMY, DateSep: '-', Date: "d-m-yyyy", Time: "hh:mm:ss", Currency: "€", Space: true},
 	{Tag: "sv-SE", Name: "Swedish (Sweden)", Decimal: ',', Group: nbsp, Order: YMD, DateSep: '-', Date: "yyyy-mm-dd", Time: "hh:mm:ss", Currency: "kr", After: true, Space: true},
-	{Tag: "da-DK", Name: "Danish (Denmark)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "dd.mm.yyyy", Time: "hh:mm:ss", Currency: "kr.", After: true, Space: true},
-	{Tag: "nb-NO", Name: "Norwegian (Norway)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "dd.mm.yyyy", Time: "hh:mm:ss", Currency: "kr", Space: true},
+	{Tag: "da-DK", Name: "Danish (Denmark)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "kr.", After: true, Space: true},
+	{Tag: "nb-NO", Name: "Norwegian (Norway)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "kr", Space: true},
 	{Tag: "fi-FI", Name: "Finnish (Finland)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "h:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "pl-PL", Name: "Polish (Poland)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "dd.mm.yyyy", Time: "hh:mm:ss", Currency: "zł", After: true, Space: true},
-	{Tag: "cs-CZ", Name: "Czech (Czechia)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "dd.mm.yyyy", Time: "h:mm:ss", Currency: "Kč", After: true, Space: true},
-	{Tag: "ru-RU", Name: "Russian (Russia)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "dd.mm.yyyy", Time: "h:mm:ss", Currency: "₽", After: true, Space: true},
-	{Tag: "tr-TR", Name: "Turkish (Türkiye)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "dd.mm.yyyy", Time: "hh:mm:ss", Currency: "₺"},
-	{Tag: "ja-JP", Name: "Japanese (Japan)", Decimal: '.', Group: ",", Order: YMD, DateSep: '/', Date: "yyyy/mm/dd", Time: "h:mm:ss", Currency: "¥"},
+	{Tag: "pl-PL", Name: "Polish (Poland)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "zł", After: true, Space: true},
+	{Tag: "cs-CZ", Name: "Czech (Czechia)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "h:mm:ss", Currency: "Kč", After: true, Space: true},
+	{Tag: "ru-RU", Name: "Russian (Russia)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "h:mm:ss", Currency: "₽", After: true, Space: true},
+	{Tag: "tr-TR", Name: "Turkish (Türkiye)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "₺"},
+	{Tag: "ja-JP", Name: "Japanese (Japan)", Decimal: '.', Group: ",", Order: YMD, DateSep: '/', Date: "yyyy/m/d", Time: "h:mm:ss", Currency: "¥"},
 	{Tag: "zh-CN", Name: "Chinese (China)", Decimal: '.', Group: ",", Order: YMD, DateSep: '/', Date: "yyyy/m/d", Time: "h:mm:ss", Currency: "¥"},
 }
 

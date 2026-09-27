@@ -13,6 +13,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/config"
 	"github.com/FelineStateMachine/012/internal/jev"
 	"github.com/FelineStateMachine/012/internal/keyring"
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/FelineStateMachine/012/internal/ui/themepicker"
@@ -62,6 +63,9 @@ func (m *Model) applyConfig() string {
 	m.term.noNotify = !c.Bool("notifications")
 	m.SetVimKeys(c.String("keymap") == "vim")
 	sheet.SetMaxCells(c.Int("max-cells"))
+	if l, ok := locale.Lookup(c.String("locale")); ok {
+		sheet.SetDefaultLocale(l)
+	}
 	return m.applyTheme()
 }
 

@@ -169,7 +169,7 @@ func (m *Model) pointInto(s *sheet.Sheet) {
 		return
 	}
 	if m.mode != modePoint {
-		if !m.line.IsFormula() || !m.line.CanPoint() {
+		if !m.line.IsFormula() || !m.canPoint() {
 			if m.commit() {
 				m.showSheet(s)
 			}

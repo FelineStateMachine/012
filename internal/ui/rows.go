@@ -50,7 +50,7 @@ func (m *Model) copyRows(r sheet.Rect) tea.Cmd {
 	clip := m.sheet.Copy(r)
 	m.copied = clipboard{clip: clip, sheet: m.sheet}
 	m.vim.rows = clip
-	return tea.SetClipboard(formatTSV(clip.Text()))
+	return tea.SetClipboard(formatTSV(clip.TextIn(m.locale())))
 }
 
 // rowsCopied reports whether the clipboard holds whole rows.

@@ -10,7 +10,6 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/formula"
-	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -88,7 +87,7 @@ func (a *assist) shown(m *Model) ([]suggestion, int) {
 	if (m.mode != modeEnter && m.mode != modeEdit) || !m.line.IsFormula() || !a.active || m.overlay != nil {
 		return nil, 0
 	}
-	c := formula.ScanCaret(m.line.Buf, m.line.Pos)
+	c := formula.ScanCaret(m.storedFormula(m.line.Buf), m.line.Pos)
 	if c.Word == "" {
 		return nil, 0
 	}
@@ -237,16 +236,16 @@ func (a *assist) status(m *Model) (desc, keys string, ok bool) {
 
 // inFunction reports whether the caret is inside a known function's
 // parentheses.
-func inFunction(l *lineedit.Line) bool {
-	_, ok := sheet.LookupFunc(formula.ScanCaret(l.Buf, l.Pos).Fn)
+func (m *Model) inFunction() bool {
+	_, ok := sheet.LookupFunc(formula.ScanCaret(m.storedFormula(m.line.Buf), m.line.Pos).Fn)
 	return ok
 }
 
 // signatureLine puts the signature of the function around the caret on
 // the context line, with what the function does and the keys that apply
 // (hints) as room allows. It reports false outside a function.
-func signatureLine(th *theme.Theme, width int, buf []rune, pos int, hints string) (left, right string, ok bool) {
-	sig, desc := signature(th, buf, pos)
+func signatureLine(th *theme.Theme, width int, buf []rune, pos int, sep byte, hints string) (left, right string, ok bool) {
+	sig, desc := signature(th, buf, pos, sep)
 	if sig == "" {
 		return "", "", false
 	}
@@ -261,8 +260,10 @@ func signatureLine(th *theme.Theme, width int, buf []rune, pos int, hints string
 
 // signature renders the signature of the function around the caret, e.g.
 // SUM(value1, [value2, ...]), with the current argument marked, and what
-// the function does. It is "" outside a function.
-func signature(th *theme.Theme, buf []rune, pos int) (sig, desc string) {
+// the function does. It is "" outside a function. buf is the formula in
+// the syntax it's parsed in (see Model.storedFormula); sep separates the
+// arguments shown, ; in a locale with a decimal comma.
+func signature(th *theme.Theme, buf []rune, pos int, sep byte) (sig, desc string) {
 	c := formula.ScanCaret(buf, pos)
 	f, ok := sheet.LookupFunc(c.Fn)
 	if c.Fn == "" || !ok {
@@ -274,7 +275,10 @@ func signature(th *theme.Theme, buf []rune, pos int) (sig, desc string) {
 	b.WriteString(th.Key.Render(f.Name) + "(")
 	for i, p := range parts {
 		if i > 0 {
-			b.WriteString(", ")
+			b.WriteString(string(sep) + " ")
+		}
+		if sep != ',' {
+			p = strings.ReplaceAll(p, ",", string(sep)) // [value2; ...]
 		}
 		if i == cur {
 			b.WriteString(th.Argument.Render(p))

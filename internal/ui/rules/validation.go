@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -55,10 +56,11 @@ type dvForm struct {
 	formula string
 	reject  int // 0 warns, 1 rejects
 	help    string
+	loc     *locale.Locale // what args are typed in
 }
 
 func (dvKind) form(h Host, i int, sel sheet.Rect) form {
-	f := &dvForm{i: i, ranges: sel.String(), kind: int(sheet.ValidList)}
+	f := &dvForm{i: i, ranges: sel.String(), kind: int(sheet.ValidList), loc: h.Sheet().Locale()}
 	if i < 0 {
 		return f
 	}
@@ -70,9 +72,9 @@ func (dvKind) form(h Host, i int, sel sheet.Rect) form {
 	}
 	switch {
 	case v.Kind == sheet.ValidFormula:
-		f.formula = v.Args[0]
+		f.formula = sheet.LocalArg(v.Args[0], f.loc)
 	case v.Kind.Compares():
-		f.op, f.args = max(indexOf(f.ops(), v.Op), 0), v.Args
+		f.op, f.args = max(indexOf(f.ops(), v.Op), 0), localArgs(v.Args, f.loc)
 	}
 	return f
 }
@@ -124,11 +126,11 @@ func (f *dvForm) rule() (sheet.Validation, error) {
 	case k == sheet.ValidRange:
 		v.Source = strings.TrimSpace(f.source)
 	case k == sheet.ValidFormula:
-		v.Args[0] = strings.TrimSpace(f.formula)
+		v.Args[0] = sheet.CanonicalArg(strings.TrimSpace(f.formula), f.loc)
 	case k.Compares():
 		ops := f.ops()
 		v.Op = ops[min(f.op, len(ops)-1)]
-		v.Args = [2]string{strings.TrimSpace(f.args[0]), strings.TrimSpace(f.args[1])}
+		v.Args = canonicalArgs(f.args, f.loc)
 	}
 	return v, nil
 }

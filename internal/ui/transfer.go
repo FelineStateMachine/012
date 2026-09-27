@@ -168,6 +168,9 @@ func (m *Model) startImport(name string, opt fileio.Options, place transfer.Plac
 	if !ok {
 		return nil
 	}
+	if opt.Locale == nil {
+		opt.Locale = m.locale()
+	}
 	return m.xfer.Start(name, path, opt, place, m.spans.Parent())
 }
 
