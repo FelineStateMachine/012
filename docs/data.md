@@ -27,8 +27,8 @@ while typing enters the same entry into every selected cell.
 Ctrl+Z undoes and Ctrl+Y or Ctrl+Shift+Z redoes, 100 steps deep, across
 every sheet: undo shows the sheet a step changed. Every change is covered:
 typing, clearing, paste, fill, sort, insert and delete, formats, widths,
-names, charts, freeze, filters, and adding, deleting, renaming, moving and
-duplicating sheets. A multi-cell change is one step,
+names, charts, freeze, filters, pivot tables, and adding, deleting,
+renaming, moving and duplicating sheets. A multi-cell change is one step,
 and the context line says what was undone, e.g. `Undid: clear B3:B5`.
 
 ## Rows and columns
@@ -61,6 +61,67 @@ column's filter: check values in a searchable list, or pick a condition such
 as "greater than" or "text contains". Filtered-out rows are hidden, not
 deleted: row numbers show the gap, navigation skips them, formulas still
 count them, and the status line says how many rows are hidden.
+
+## Pivot tables
+
+Data > Pivot table summarizes the selection, or the table around the
+active cell, on a new sheet named `Pivot Table 1`, as Sheets' Insert >
+Pivot table does. The data's first row names the fields. The pivot editor
+opens docked at the right of the grid, with the results updating behind it:
+
+- **Rows** group the data by a field's values, one row per value; with two
+  or more, the groups nest and each outer group gets a subtotal row.
+- **Columns** spread the groups across columns by a field's values.
+- **Values** summarize a field for each group: SUM, COUNTA, COUNT,
+  COUNTUNIQUE, AVERAGE, MAX or MIN (Sheets' "Summarize by"), shown as they
+  are or as a share of their row, column or grand total ("Show as").
+  A new value is summed when its field holds numbers, and counted
+  otherwise.
+- **Filters** leave out rows by a field's values or a condition, in the
+  same picker as a filter's column.
+- **Grand total row** and **Grand total column** add Sheets' totals.
+
+Up and Down pick a line. Space adds a field to the section it's on (pick
+it from the fields of the data, type to narrow the list), opens a filter's
+values, or flips a toggle; Space on the data range points at a new one on
+its sheet. On a row or column field, Left and Right order its groups A to
+Z, Z to A, or by a value's total, smallest or largest first, and
+Shift+Up and Shift+Down move it before or after the others, which changes
+how the groups nest. On a value, Left and Right change how it's
+summarized and S how it's shown. Del removes a field. Every change is an
+undo step; Enter keeps them, Esc undoes them, and removes a pivot just
+created. Data > Edit pivot table opens the editor again.
+
+Groups follow Sheets: text ignoring case (`east` joins `East`), numbers
+and dates by value, with the source's format, so dates show as dates.
+Numbers and text never share a group: `1` and the text `'1` are two.
+Groups sort numbers first, then text, booleans and errors, and blank
+cells, shown as `(blank)`, last. Rows blank across the whole range are
+left out, so a range can reach past the data. SUM, AVERAGE, MIN and MAX
+keep the column's number format; an error in a summed column shows as that
+error, as SUM would.
+
+The results are live: any change to the data, typed, pasted, filled or
+computed by a formula, recomputes the pivot, and rows or columns inserted
+inside the range widen it. Formulas can read the results (`='Pivot Table
+1'!B5`), and copying them pastes their values. The results themselves
+can't be edited, as in Sheets: typing, pasting, clearing, formatting,
+sorting or inserting rows or columns over them is refused with a note on
+the context line. A pivot shows `#REF!` in A1, explained on the context
+line, when its data's sheet is deleted or when its results would
+overwrite a cell typed next to them; undo or moving the cell brings it
+back. The sheet's columns widen to fit the results until you set a width
+yourself.
+
+## Frequency tables
+
+Data > Frequency table (column stats), or Alt+Shift+F (VisiData's
+Shift+F; plain Shift+F types an F), counts each value of the active
+column of the table around the active cell on a new sheet, `Frequency of
+<field>`: the value, how many rows have it and their percentage, most
+frequent first, with a Grand Total. Blank cells are counted too. It is a
+pivot table like any other, so it stays live, and the pivot editor
+changes it.
 
 ## Find and replace
 

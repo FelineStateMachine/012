@@ -10,7 +10,7 @@ bar; Esc cancels. Saving an imported sheet asks whether to save it as a
 | Format | Import | Download |
 |---|---|---|
 | CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, as Sheets' Download does |
-| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths. Formulas 012 can't read (unknown functions) keep their values | Every sheet, the same, with formulas in Excel's syntax and their results cached. JEV functions and `#AND#` save as values |
+| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths. Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed | Every sheet, the same, with formulas in Excel's syntax and their results cached. JEV functions and `#AND#` save as values, and so do pivot tables: Excel gets the results, not a pivot |
 | SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet shown or the selection as a table, first row as column names; a table of that name is replaced |
 | Parquet | Every column, with dates and timestamps; lists joined with commas | |
 | Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
@@ -35,7 +35,8 @@ read naturally and files merge reasonably in version control:
 A cell without formatting is just what was typed; a formatted cell is a
 small object. Version 3 adds named ranges, frozen panes and a filter, and is
 only written when a sheet uses one of them, so older builds of 012 can open
-everything else. Charts are an optional `charts` field that older builds
+everything else (version 4 adds several sheets and version 5 pivot tables,
+below). Charts are an optional `charts` field that older builds
 ignore. Saves are atomic: 012 writes a temporary file and renames it.
 
 Other formats import as one sheet named after the file (or the SQLite
@@ -74,3 +75,33 @@ arithmetic, the sheet shown when saved) stay at the top:
 ```
 
 Older builds refuse version 4 files rather than lose sheets.
+
+## Pivot tables
+
+A workbook with a pivot table is version 5: version 4 with a `pivot`
+field, on one line after the cells of the pivot's sheet, holding its
+definition. The results are never saved; they are computed again when
+the file opens, so the file stays small and can't disagree with its
+data. Builds that know only version 4 refuse the file rather than show an
+empty sheet; a workbook without pivots is still written as version 4.
+
+```json
+{
+  "name": "Pivot Table 1",
+  "cells": {},
+  "pivot": {"source":"Sales!A1:D200","rows":[{"column":"B"},{"column":"A","order":"desc","sortBy":1}],"columns":[{"column":"C"}],"values":[{"column":"D","summarize":"sum"},{"column":"D","summarize":"counta","showAs":"percent_of_total","name":"Share"}],"filters":[{"column":"A","hidden":["North"]}],"rowTotals":true,"columnTotals":false}
+}
+```
+
+- `source` is the data, with its sheet; `Sales!#REF!` once the range was
+  deleted. The sheet is by name, as in formulas, and follows renames.
+- `rows` and `columns` are fields by column letter on the source sheet,
+  with `order` `desc` for Z to A and `sortBy` the value, counting from 1,
+  whose totals order the groups.
+- `values` summarize a column: `sum`, `counta`, `count`, `countunique`,
+  `average`, `max`, `min`, or `rows` (every row, blank or not, which
+  frequency tables use); `showAs` is `percent_of_row`,
+  `percent_of_column` or `percent_of_total`; `name` replaces the header.
+- `filters` take a filter column's criteria: `hidden` values and a
+  `condition` with its `value`.
+- `rowTotals` and `columnTotals` are the grand total row and column.
