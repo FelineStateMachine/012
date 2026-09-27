@@ -243,6 +243,9 @@ func (sc *scanner) raw() (json.RawMessage, error) {
 		}
 		switch c {
 		case ',', '}', ']', ' ', '\t', '\n', '\r':
+			if len(out) == 0 { // a key without its value: "sheets":,
+				return nil, syntax(c, "a value")
+			}
 			return out, sc.r.UnreadByte()
 		}
 		out = append(out, c)
