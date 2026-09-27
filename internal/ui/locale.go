@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/formula"
@@ -56,7 +58,8 @@ func (m *Model) canPoint() bool {
 func (m *Model) openLocalePicker() {
 	cur := m.book().LocaleTag()
 	def := sheet.DefaultLocale()
-	items := []picker.Item{m.localeItem("Default: "+def.Name, "", def)}
+	items := []picker.Item{m.localeItem("Default", "", def)}
+	items[0].Desc = "Follow the locale setting, " + def.Name + ". " + localeDesc(def)
 	sel := 0
 	for i, l := range locale.All() {
 		if l.Tag == cur {
@@ -64,11 +67,28 @@ func (m *Model) openLocalePicker() {
 		}
 		items = append(items, m.localeItem(l.Name, l.Tag, l))
 	}
-	p := m.newPicker("Locale", "Type a language, country or tag", 72, items)
+	p := m.newPicker("Locale", "Type a language, country or tag", 80, items)
 	p.Action = "set"
 	p.Answers = true
 	p.Sel = sel
+	p.Narrow = narrowTags
 	m.openOverlay(p)
+}
+
+// narrowTags keeps the locales whose tag starts with the search, when
+// any does: "de" lists German ones rather than Denmark first.
+func narrowTags(query string) (string, func(*picker.Item) bool) {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if len(q) < 2 {
+		return query, nil
+	}
+	tagged := func(it *picker.Item) bool { return strings.HasPrefix(strings.ToLower(it.Detail), q) }
+	for _, tag := range locale.Tags() {
+		if strings.HasPrefix(strings.ToLower(tag), q) {
+			return "", tagged
+		}
+	}
+	return query, nil
 }
 
 // localeItem is the picker's row for l, which picking sets as tag.
@@ -83,16 +103,19 @@ func (m *Model) localeItem(title, tag string, l *locale.Locale) picker.Item {
 	}
 }
 
-// localeSample shows a number, a date and the argument separator in l.
+// localeSample shows a number, a date and a formula in l.
 func localeSample(l *locale.Locale) string {
-	return numfmt.FormatIn(1234.56, "#,##0.00", l) + "   " + numfmt.FormatIn(sampleDate, l.Date, l) + "   " + string(l.ArgSep())
+	return numfmt.FormatIn(1234.56, "#,##0.00", l) + "   " + numfmt.FormatIn(sampleDate, l.Date, l) + "   " + sampleFormula(l)
 }
 
 // localeDesc says how l writes currency, dates and formulas.
 func localeDesc(l *locale.Locale) string {
 	return "Numbers " + numfmt.FormatIn(1234.56, sheet.Preset(sheet.FmtCurrency).CodeIn(l), l) +
-		", dates " + numfmt.FormatIn(sampleDate, l.Date, l) + ", formulas =ROUND(A1" + string(l.ArgSep()) + " 2)"
+		", dates " + numfmt.FormatIn(sampleDate, l.Date, l) + ", formulas " + sampleFormula(l)
 }
+
+// sampleFormula is a formula with a decimal and two arguments, in l.
+func sampleFormula(l *locale.Locale) string { return formula.Localize("=ROUND(1.5, 1)", l) }
 
 // sampleDate is the date locales are shown with.
 var sampleDate = numfmt.DateSerial(2026, 9, 26)
