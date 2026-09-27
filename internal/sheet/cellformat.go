@@ -19,7 +19,7 @@ func (s *Sheet) DisplayFormat(a Addr) Format {
 	switch {
 	case c != nil && !c.Format.IsZero():
 		return c.Format
-	case s.lines.cols == nil && s.lines.rows == nil:
+	case s.lines.none():
 	case c != nil && c.Style.own:
 	default:
 		if f := s.inherited(a).Format; !f.IsZero() {

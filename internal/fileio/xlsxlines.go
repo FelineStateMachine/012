@@ -19,13 +19,20 @@ type LineFormat struct {
 	Style  sheet.Style
 }
 
-// snapLines copies a sheet's column (row false) or row formats.
+// snapLines copies a sheet's column (row false) or row formats. Excel
+// has no format for the whole sheet, so with one every column gets it,
+// under its own.
 func snapLines(s *sheet.Sheet, row bool) map[int]LineFormat {
 	fs, ss := s.ColFormats(), s.ColStyles()
 	if row {
 		fs, ss = s.RowFormats(), s.RowStyles()
 	}
 	out := map[int]LineFormat{}
+	if f, st := s.SheetFormat(); !row && (!f.IsZero() || !st.IsZero()) {
+		for c := range sheet.MaxCols {
+			out[c] = LineFormat{f, st}
+		}
+	}
 	for n, f := range fs {
 		l := out[n]
 		l.Format = f
@@ -39,8 +46,10 @@ func snapLines(s *sheet.Sheet, row bool) map[int]LineFormat {
 	return out
 }
 
-// importXLSXColumns reads the sheet's column widths and styles.
+// importXLSXColumns reads the sheet's column widths and styles; a style
+// on every column is the sheet's.
 func importXLSXColumns(x *excelize.File, b *builder, ws string, styles map[int]xlsxStyle) {
+	cols := map[int]xlsxStyle{}
 	for c := range sheet.MaxCols {
 		colName, _ := excelize.ColumnNumberToName(c + 1)
 		if w, err := x.GetColWidth(ws, colName); err == nil && math.Abs(w-excelDefaultWidth) >= 0.01 && math.Abs(w-9.140625) >= 0.01 {
@@ -48,9 +57,16 @@ func importXLSXColumns(x *excelize.File, b *builder, ws string, styles map[int]x
 		}
 		if id, err := x.GetColStyle(ws, colName); err == nil && id != 0 {
 			if st := styleOf(x, id, styles); st != (xlsxStyle{}) {
-				b.s.LoadLineFormat(false, c, st.format, st.style)
+				cols[c] = st
 			}
 		}
+	}
+	if st := cols[0]; len(cols) == sheet.MaxCols && !slices.ContainsFunc(slices.Collect(maps.Values(cols)), func(o xlsxStyle) bool { return o != st }) {
+		b.s.LoadLineFormat(false, -1, st.format, st.style)
+		return
+	}
+	for c, st := range cols {
+		b.s.LoadLineFormat(false, c, st.format, st.style)
 	}
 }
 

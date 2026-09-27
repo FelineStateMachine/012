@@ -191,13 +191,18 @@ func (c *Clip) Size() (cols, rows int) {
 
 // Text returns the clip's values as displayed in General format, row by
 // row, for the system clipboard. Blank rows and columns past the last
-// value are left off, so copying whole columns gives their data.
+// value are left off, so copying whole columns gives their data; a block
+// of more than MaxCells cells, blanks between values included, is too
+// big for text, and Text returns nil.
 func (c *Clip) Text() [][]string {
 	cols, rows := 0, 0
 	for off, cell := range c.cells {
 		if !cell.Blank() {
 			cols, rows = max(cols, off.Col+1), max(rows, off.Row+1)
 		}
+	}
+	if cols*rows > MaxCells() {
+		return nil
 	}
 	out := make([][]string, rows)
 	for r := range out {

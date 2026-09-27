@@ -102,26 +102,42 @@ func TestLineFormatsUndoAndInsert(t *testing.T) {
 	}
 }
 
-// Formatting the whole sheet formats each column once and makes no
-// cells.
+// Formatting the whole sheet sets the sheet's own format, once, and
+// changes the columns and rows that have one so they show it too.
 func TestWholeSheetFormat(t *testing.T) {
 	s := New()
 	s.Set(at("XFD1048576"), "1")
+	s.SetStyle(col(3), func(st *Style) { st.Italic = true })
 	all := Rect{To: Addr{Col: MaxCols - 1, Row: MaxRows - 1}}
 	s.SetStyle(all, func(st *Style) { st.Bold = true })
-	if len(s.lines.cols) != MaxCols || s.cells.len() != 1 {
-		t.Errorf("%d column formats, %d cells", len(s.lines.cols), s.cells.len())
+	if len(s.lines.cols) != 1 || s.cells.len() != 1 || !s.lines.sheet.Style.Bold {
+		t.Errorf("%d column formats, %d cells, sheet %+v", len(s.lines.cols), s.cells.len(), s.lines.sheet)
 	}
 	if !s.CellStyle(at("XFD1048576")).Bold || !s.CellStyle(at("Q77")).Bold {
 		t.Error("not bold everywhere")
 	}
+	if st := s.CellStyle(at("D9")); !st.Bold || !st.Italic {
+		t.Errorf("D9 = %+v, want column D's italic and the sheet's bold", st)
+	}
 	var buf bytes.Buffer
 	s.Write(&buf)
 	if !bytes.Contains(buf.Bytes(), []byte(`"A:XFD": {"bold":true}`)) {
-		t.Errorf("the columns aren't written as one run:\n%.300s", buf.String())
+		t.Errorf("the sheet's format isn't written:\n%.300s", buf.String())
 	}
+	back, err := Read(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !back.CellStyle(at("Q77")).Bold || !back.CellStyle(at("D9")).Italic || len(back.lines.cols) != 1 {
+		t.Error("the sheet's format didn't load")
+	}
+	s.Undo()
+	if s.CellStyle(at("Q77")).Bold || s.CellStyle(at("D9")).Bold {
+		t.Error("undo left bold")
+	}
+	s.Redo()
 	s.ClearFormatting(all)
-	if len(s.lines.cols) != 0 {
+	if len(s.lines.cols) != 0 || !s.lines.sheet.IsZero() {
 		t.Errorf("%d column formats after clearing", len(s.lines.cols))
 	}
 }

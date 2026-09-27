@@ -15,18 +15,28 @@ import (
 // keyed by columns or rows as a range writes them, runs of lines with the
 // same formatting together, each value a formatted blank cell:
 //
-//	"lines": {"B:B": {"format": "currency", "decimals": 2}, "D:F": {"bold": true}, "1:1": {"bold": true}},
+//	"lines": {"A:XFD": {"italic": true}, "B:B": {"format": "currency", "decimals": 2}, "1:1": {"bold": true}},
+//
+// A:XFD, every column, is the whole sheet's format.
 //
 // Earlier builds ignore the field and show those cells unformatted, so it
 // needs no new version.
 
 // writeLines writes the "lines" field, if the sheet has line formats.
 func (s *Sheet) writeLines(b *bytes.Buffer, indent string) error {
-	if s.lines.cols == nil && s.lines.rows == nil {
+	if s.lines.none() {
 		return nil
 	}
 	b.WriteString(indent + `"lines": {`)
 	first := true
+	if l := s.lines.sheet; !l.IsZero() {
+		raw, err := encodeCell(&Cell{Format: l.Format, Style: l.Style})
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(b, "%q: %s", s.lineRect(false, wholeSheet, wholeSheet).String(), raw)
+		first = false
+	}
 	for _, row := range []bool{false, true} {
 		m := s.lines.cols
 		if row {
@@ -69,6 +79,10 @@ func (s *Sheet) readLines(lines map[string]json.RawMessage) error {
 		input, f, st, err := decodeCell(raw)
 		if err != nil || input != "" {
 			return fmt.Errorf("lines %s: invalid format", key)
+		}
+		if r.AllRows() && r.AllCols() {
+			s.setLine(false, wholeSheet, lineFmt{f, st})
+			continue
 		}
 		row := !r.AllRows()
 		n0, n1 := r.From.Col, r.To.Col

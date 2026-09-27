@@ -10,8 +10,10 @@ import (
 // Column and row formats, as in Sheets: formatting whole columns or rows
 // stores the format once for the line instead of on each of its million
 // cells, and cells take it when they have none of their own. A cell's
-// format and style come from the cell, else its row, else its column;
-// each part (number format, text style) falls back on its own, so a
+// format and style come from the cell, else its row, else its column,
+// else the sheet's (formatting the whole sheet sets that, once, rather
+// than 16,384 column formats); each part (number format, text style)
+// falls back on its own, so a
 // currency cell in a bold column shows bold currency. A cell whose
 // formatting differs from its line's in a way the fallback can't express
 // (Automatic in a currency column) keeps its own formatting whole, marked
@@ -25,44 +27,59 @@ type lineFmt struct {
 
 func (l lineFmt) IsZero() bool { return l == lineFmt{} }
 
-// lineFormats are a sheet's column and row formats; nil maps when none.
+// lineFormats are a sheet's column and row formats, nil maps when none,
+// and the whole sheet's.
 type lineFormats struct {
-	cols map[int]lineFmt
-	rows map[int]lineFmt
+	cols  map[int]lineFmt
+	rows  map[int]lineFmt
+	sheet lineFmt
 }
 
-// lineKey is a column (row false) or row of a sheet, for undo.
+// none reports whether the sheet has no line formats at all.
+func (l *lineFormats) none() bool { return l.cols == nil && l.rows == nil && l.sheet.IsZero() }
+
+// lineKey is a column (row false) or row of a sheet, for undo; column
+// wholeSheet is the sheet's own format.
 type lineKey struct {
 	s   *Sheet
 	row bool
 	n   int
 }
 
-// line is a column's (row false) or row's formatting.
+const wholeSheet = -1
+
+// line is a column's (row false) or row's formatting, or the sheet's.
 func (s *Sheet) line(row bool, n int) lineFmt {
-	if row {
+	switch {
+	case row:
 		return s.lines.rows[n]
+	case n == wholeSheet:
+		return s.lines.sheet
 	}
 	return s.lines.cols[n]
 }
 
 // inherited is what a cell at a shows without formatting of its own: its
-// row's format and style, else its column's.
+// row's format and style, else its column's, else the sheet's.
 func (s *Sheet) inherited(a Addr) lineFmt {
-	if s.lines.rows == nil && s.lines.cols == nil {
+	if s.lines.none() {
 		return lineFmt{}
 	}
 	l := s.lines.rows[a.Row]
-	if c, ok := s.lines.cols[a.Col]; ok {
+	for _, next := range [2]lineFmt{s.lines.cols[a.Col], s.lines.sheet} {
 		if l.Format.IsZero() {
-			l.Format = c.Format
+			l.Format = next.Format
 		}
 		if l.Style.IsZero() {
-			l.Style = c.Style
+			l.Style = next.Style
 		}
 	}
 	return l
 }
+
+// SheetFormat returns the format and style of the whole sheet, which
+// every cell without its own, its row's or its column's shows.
+func (s *Sheet) SheetFormat() (Format, Style) { return s.lines.sheet.Format, s.lines.sheet.Style }
 
 // effective is the format (without what formulas infer) and style the
 // cell at a shows: its own, falling back part by part on its line's.
@@ -144,16 +161,19 @@ func lineStylesOf(m map[int]lineFmt) map[int]Style {
 
 // LoadLineFormat gives a whole column (row false) or row a format and
 // style, as an importer does, without recording undo or touching its
-// cells.
+// cells; column -1 is the whole sheet.
 func (s *Sheet) LoadLineFormat(row bool, n int, f Format, st Style) {
-	if row && n >= 0 && n < MaxRows || !row && n >= 0 && n < MaxCols {
+	if row && n >= 0 && n < MaxRows || !row && n >= wholeSheet && n < MaxCols {
 		s.setLine(row, n, lineFmt{f, st})
 	}
 }
 
 func (s *Sheet) lineRect(row bool, from, to int) Rect {
-	if row {
+	switch {
+	case row:
 		return rowRect(from, to)
+	case from == wholeSheet:
+		return colRect(0, MaxCols-1)
 	}
 	return colRect(from, to)
 }
@@ -162,25 +182,31 @@ func (s *Sheet) lineRect(row bool, from, to int) Rect {
 // within a step, marking its cells changed, so formulas reading them infer
 // their format again.
 func (s *Sheet) setLine(row bool, n int, l lineFmt) {
-	m := &s.lines.cols
-	if row {
-		m = &s.lines.rows
-	}
-	if (*m)[n] == l {
+	if s.line(row, n) == l {
 		return
 	}
 	if st := s.wb.hist.open; st != nil {
 		k := lineKey{s, row, n}
 		if _, seen := st.lines[k]; !seen {
-			st.lines[k] = (*m)[n]
+			st.lines[k] = s.line(row, n)
 		}
 	}
-	if l.IsZero() {
+	m := &s.lines.cols
+	switch {
+	case row:
+		m = &s.lines.rows
+	case n == wholeSheet:
+		s.lines.sheet = l
+		m = nil
+	}
+	switch {
+	case m == nil:
+	case l.IsZero():
 		delete(*m, n)
 		if len(*m) == 0 {
 			*m = nil
 		}
-	} else {
+	default:
 		if *m == nil {
 			*m = map[int]lineFmt{}
 		}
@@ -245,20 +271,26 @@ func (s *Sheet) formatLines(r Rect, fn func(*lineFmt)) bool {
 }
 
 // eachLine applies fn to the line formats of r's whole columns, or rows;
-// for the whole sheet, to every column and to the rows that have one.
+// for the whole sheet, to its own format and to the columns and rows
+// that have one, so they show the change too.
 func (s *Sheet) eachLine(r Rect, fn func(*lineFmt)) {
 	apply := func(row bool, n int, l lineFmt) {
 		fn(&l)
 		s.setLine(row, n, l)
 	}
+	if r.AllRows() && r.AllCols() {
+		apply(false, wholeSheet, s.lines.sheet)
+		for _, n := range slices.Sorted(maps.Keys(s.lines.cols)) {
+			apply(false, n, s.lines.cols[n])
+		}
+		for _, n := range slices.Sorted(maps.Keys(s.lines.rows)) {
+			apply(true, n, s.lines.rows[n])
+		}
+		return
+	}
 	if r.AllRows() {
 		for c := r.From.Col; c <= r.To.Col; c++ {
 			apply(false, c, s.lines.cols[c])
-		}
-		if r.AllCols() {
-			for _, n := range slices.Sorted(maps.Keys(s.lines.rows)) {
-				apply(true, n, s.lines.rows[n])
-			}
 		}
 		return
 	}
