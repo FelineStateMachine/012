@@ -124,6 +124,12 @@ func key(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift}
 	case "shift+up":
 		return tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
+	case "ctrl+shift+down":
+		return tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModCtrl | tea.ModShift}
+	case "ctrl+shift+up":
+		return tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModCtrl | tea.ModShift}
+	case "ctrl+shift+right":
+		return tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModCtrl | tea.ModShift}
 	case "ctrl+a":
 		return tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl}
 	case "enter":
@@ -155,6 +161,7 @@ func BenchmarkKeystroke(b *testing.B) {
 		{"select-data/dense-8192x256", uiShapes()[2], []string{"ctrl+a"}, nil},
 		{"select-sheet/dense-8192x256", uiShapes()[2], []string{"ctrl+a", "ctrl+a"}, nil},
 		{"extend-data/dense-8192x256", uiShapes()[2], []string{"ctrl+a"}, []string{"shift+up", "shift+down"}},
+		{"extend-edge/dense-8192x256", uiShapes()[2], []string{"ctrl+shift+right"}, []string{"ctrl+shift+down", "ctrl+shift+up"}},
 		{"extend/dense-8192x26", uiShapes()[1], []string{"shift+down"}, []string{"shift+down", "shift+up"}},
 		{"type/fanin-1000", uiShape{"fanin", func() *sheet.Sheet { return stress.FanIn(sheet.MaxRows, 1000) }},
 			nil, []string{"7", "enter", "up"}},
@@ -246,8 +253,8 @@ func (stressJEV) SystemOne(context.Context, typesafe.SystemOneRequest) (*typesaf
 }
 
 // BenchmarkJEV loads n JEV.TEST formulas with distinct questions and
-// drains every answer through Update, as the running program would,
-// counting frames drawn along the way at 60 per second.
+// drains every answer through Update, as the running program would.
+// Answers that are queued together (up to jevParallel) recalculate once.
 func BenchmarkJEV(b *testing.B) {
 	for _, n := range []int{100, 1000, 4000} {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
@@ -261,6 +268,7 @@ func BenchmarkJEV(b *testing.B) {
 				s.RecalcAll()
 				m := sized(s, 200, 60)
 				m.EnableJEV(stressJEV{}, cache)
+				m.jev.gather = 0 // answers already queued still gather; don't wait a frame
 				start := time.Now()
 				drain(m, m.jev.send())
 				if in, q := cache.Busy(); in+q > 0 {
