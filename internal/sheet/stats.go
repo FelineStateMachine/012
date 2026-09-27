@@ -81,14 +81,17 @@ type wordStats struct {
 // blockStats is the statistics of a block of the filled index, made on
 // first use.
 type blockStats struct {
-	words [blockWords]wordStats
-	ok    uint16 // a bit per word: its entry is current
+	words   [blockWords]wordStats
+	ok      uint16 // a bit per word: its entry is current
+	total   wordStats
+	totalOK bool // total is the sum of the words' entries, all current
 }
 
 // touch marks the entry holding a stale.
 func (st *cellStore) touch(a Addr) {
 	if b := st.filled.col(a.Col).block(a.Row >> blockShift); b != nil && b.stats != nil {
 		b.stats.ok &^= 1 << ((a.Row & (blockRows - 1)) >> 6)
+		b.stats.totalOK = false
 	}
 }
 
@@ -109,6 +112,22 @@ func (st *cellStore) word(col, id int, b *rowBlock, w int) wordStats {
 		x.ok |= 1 << w
 	}
 	return x.words[w]
+}
+
+// blockTotal returns the statistics of the whole block id of column col.
+func (st *cellStore) blockTotal(col, id int, b *rowBlock) wordStats {
+	if b.stats != nil && b.stats.totalOK {
+		return b.stats.total
+	}
+	var t wordStats
+	for w := range blockWords {
+		ws := st.word(col, id, b, w)
+		t.sum += ws.sum
+		t.count += ws.count
+		t.nums += ws.nums
+	}
+	b.stats.total, b.stats.totalOK = t, true
+	return t
 }
 
 // scanWord adds the filled cells of word w of block id, among the rows
@@ -137,6 +156,13 @@ func (st *cellStore) rangeStats(r Rect) Stats {
 			b := ci.blocks[id]
 			base := id << blockShift
 			lo, hi := max(r.From.Row-base, 0), min(r.To.Row-base, blockRows-1)
+			if lo == 0 && hi == blockRows-1 {
+				t := st.blockTotal(col, id, b)
+				s.Sum += t.sum
+				s.Count += int(t.count)
+				s.Nums += int(t.nums)
+				continue
+			}
 			for w := lo >> 6; w <= hi>>6; w++ {
 				if mask := wordMask(w, lo, hi); mask != ^uint64(0) {
 					st.scanWord(col, id, b, w, mask, &s)

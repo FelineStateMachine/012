@@ -26,7 +26,7 @@ it lags, and past a second it stalls.
 | Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1 to 2 ms); 1000 SUMs over a full column: 0.7 ms; 8192 running totals: 2.7 ms | | | About 20 ns per cell read: two map lookups |
 | Full recalc | Any sheet: under 40 ms for 213 k numbers; 1000 full-column SUMs 1.1 ms; 8192 running totals 2.6 ms | | | Same as above |
 | Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
-| Selection statistics | Any selection: extending one over all 2 M cells costs 0.5 ms a key | | | Per column with data, 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
+| Selection statistics | Any selection: extending one over all 2 M cells costs 0.4 ms a key | | | Per column with data, 1024 or 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
 | Imports | CSV, SQLite, Parquet: 1 to 3 M cells/s (two million cells in about 1 s); XLSX numbers or text: 0.7 to 1.1 M cells/s | XLSX with formulas: 0.4 to 0.6 M cells/s | Data past `max-cells` or the grid (dropped, with a note); XLSX files past the reader's limits (refused) | Building cells one at a time; XML decoding; XLSX formula translation |
 | Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 250 MB | | Whole-cell before-images, about 300 B per cell per step |
 | JEV | 4000 JEV cells: 4 us of CPU per answer, 15 ms to answer them all | | | An answer recalculates the cells that asked it; answers within a frame recalculate together |
@@ -452,13 +452,41 @@ Before and after, back to back (`-benchtime 1s`, medians of one run):
 | BigUndo: clear 8192 x 26, undo | 159 ms | 164 ms |
 | Sort 8191 rows | 31 ms | 32 ms |
 | Pivot over 8191 rows, 8 categories | 0.89 ms | 0.77 ms |
-| Extend a selection of 8192 x 256 by a row | 31 ms | 35 ms (measured alone) |
+| Extend a selection of 8192 x 256 by a row | 31 ms | 35 ms (measured alone; 0.41 ms once merged with main's selection statistics, below) |
 
 The index costs a few percent on edits and loads (keeping two bitmaps
 current per cell), and running aggregates cost memory for their
 checkpoints (a 1000-SUM fan-in allocates 2 MB per recalculation instead
 of 0.2 MB). A range is shared only from its second read in a
 recalculation, so ranges read once cost nothing extra.
+
+### Merged with main
+
+Step A was merged with main at 7431646 (selection statistics by block,
+JEV recalc by question, 120 fps, depth limits, the streaming XLSX
+reader). Main's dense statistics index, one entry per 64 rows of every
+column, would have been 268 M entries at the new grid; it now lives on
+the blocks of the index of filled cells, an entry per 64 rows and a
+total per 1024, made where there is data. Main and the merge back to
+back (`-benchtime 1s`):
+
+| Benchmark | Main | Merged |
+|---|---|---|
+| Extend a selection of 8192 x 256 by a row, 80 x 24 | 0.47 ms | 0.41 ms |
+| Select all of 8192 x 256, 80 x 24 | 0.28 ms | 0.28 ms |
+| JEV, 4000 cells answered | 14.5 ms | 14.3 ms |
+| Import XLSX 8192 x 26 numbers / table / 8192 formulas | 187 / 313 / 13.6 ms | 189 / 312 / 13.8 ms |
+| Import the POI formula tests (XLSX) | 9.7 ms | 9.5 ms |
+| Edit fan-in / running totals | 186 / 777 ms | 0.73 / 2.7 ms |
+| Sort 8191 rows | 29.7 ms | 32.3 ms |
+| BigUndo | 150 ms | 156 ms |
+| Open 8192 x 26 | 117 ms | 121 ms |
+
+CSV imports take longer only because they keep more: the airport codes
+(855 k cells, 0.78 s) and OWID energy (1.04 M cells, 0.84 s) now come in
+whole. XLSX imports set column widths and styles for the data's columns
+(at least 256), without an undo step each: setting 16,384 of them one
+step at a time took the POI file from 9.7 to 44 ms before the fix.
 
 ## Hotspots found and fixed
 
