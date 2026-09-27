@@ -46,12 +46,15 @@ func TestConditionalFormattingPanel(t *testing.T) {
 	}
 	// A2 is drawn on the green fill, A1 isn't.
 	sp := rowtext.Span{Text: "150", Owner: 0}
-	base, colored, _ := m.ruleSpan(addr("A2"), &sp, m.th.Cell, false, m.slotColor)
-	if !colored || base.GetBackground() != m.th.RuleFill[sheet.ColorGreen].GetBackground() {
-		t.Errorf("A2 base %v colored %v", base.GetBackground(), colored)
+	_, shade, shaded := m.ruleSpan(addr("A2"), &sp, false, m.slotColor)
+	if !shaded || shade.Style.GetBackground() != m.th.RuleFill[sheet.ColorGreen].GetBackground() {
+		t.Errorf("A2 shade %v shaded %v", shade.Style.GetBackground(), shaded)
 	}
-	if _, colored, _ := m.ruleSpan(addr("A1"), &sp, m.th.Cell, false, m.slotColor); colored {
+	if _, _, shaded := m.ruleSpan(addr("A1"), &sp, false, m.slotColor); shaded {
 		t.Error("A1 formatted")
+	}
+	if _, _, shaded := m.ruleSpan(addr("A2"), &sp, true, m.slotColor); shaded {
+		t.Error("the pointer's colors gave way to a rule's")
 	}
 	press(t, m, "<ctrl+z>")
 	if len(m.sheet.CondFormats()) != 0 {
@@ -158,6 +161,7 @@ func TestRuleMacros(t *testing.T) {
 	press(t, m, "<shift+down>")
 	src := recordRules(t, m)
 	for _, want := range []string{`run("format.conditional_add", answer="{\"ranges\":\"A1:A2\",\"condition\":\"not_empty\",\"fill\":\"green\"}")`,
+		`# Not recorded: remove conditional format A1:A2`,
 		`run("insert.checkbox")`, `run("data.validation_add", answer="{\"ranges\":\"C1:C2\",\"criteria\":\"list\",\"items\":[\"a\",\"b\"]}")`} {
 		if !strings.Contains(src, want) {
 			t.Errorf("script lacks %s:\n%s", want, src)
@@ -165,7 +169,7 @@ func TestRuleMacros(t *testing.T) {
 	}
 	fresh := newModel()
 	script(t, fresh, src)
-	if len(fresh.sheet.CondFormats()) != 1 || len(fresh.sheet.Validations()) != 2 {
+	if len(fresh.sheet.CondFormats()) != 2 || len(fresh.sheet.Validations()) != 2 { // the removal is only noted
 		t.Errorf("replay: %+v %+v %q", fresh.sheet.CondFormats(), fresh.sheet.Validations(), fresh.warn)
 	}
 }
@@ -176,6 +180,9 @@ func recordRules(t *testing.T, m *Model) string {
 	t.Helper()
 	send(m, nil)
 	run(m, m.runCommand("macro.record"))
+	run(m, m.runCommand("format.conditional"))
+	press(t, m, "<enter>", "<enter>")          // add the rule the form starts with
+	press(t, m, "<down>", "<delete>", "<esc>") // removed, and noted
 	run(m, m.runCommand("format.conditional"))
 	press(t, m, "<enter>", "<enter>", "<esc>", "<right>")
 	run(m, m.runCommand("insert.checkbox"))

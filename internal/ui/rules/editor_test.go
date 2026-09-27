@@ -39,7 +39,7 @@ func (h *fakeHost) Line() *lineedit.Line   { return &h.line }
 func (h *fakeHost) Close()                 { h.closed = true }
 func (h *fakeHost) Sheet() *sheet.Sheet    { return h.s }
 func (h *fakeHost) Selection() sheet.Rect  { return h.sel }
-func (h *fakeHost) Edited()                { h.edits++ }
+func (h *fakeHost) Reworked()              { h.edits++ }
 func (h *fakeHost) Slot(i int) color.Color { return color.Gray{Y: uint8(i * 16)} }
 func (h *fakeHost) SaveFormat(i int, f sheet.CondFormat) error {
 	h.saves = append(h.saves, f.JSON())

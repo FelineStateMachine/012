@@ -34,8 +34,9 @@ type Host interface {
 	// commands macros record do, reporting why they couldn't.
 	SaveFormat(i int, f sheet.CondFormat) error
 	SaveValidation(i int, v sheet.Validation) error
-	// Edited marks the file modified after a rule was removed or moved.
-	Edited()
+	// Reworked follows a rule removed or moved: the file is modified,
+	// and a macro being recorded notes what it can't replay.
+	Reworked()
 	// Slot is the terminal's color for an ANSI slot, for color scales.
 	Slot(i int) color.Color
 }
@@ -157,7 +158,7 @@ func (e *Editor) Key(k tea.KeyPressMsg) tea.Cmd {
 	case "delete", "backspace", "x", "-":
 		if e.list.Sel > 0 {
 			e.k.remove(e.h.Sheet(), e.list.Sel-1)
-			e.h.Edited()
+			e.h.Reworked()
 			e.list.Sel = min(e.list.Sel, e.k.count(e.h.Sheet()))
 		}
 	case "shift+up", "shift+down":
@@ -178,7 +179,7 @@ func (e *Editor) reorder(down bool) {
 	}
 	if e.k.move(e.h.Sheet(), i, to) {
 		e.list.Sel = to + 1
-		e.h.Edited()
+		e.h.Reworked()
 	}
 }
 

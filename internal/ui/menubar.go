@@ -84,7 +84,7 @@ var menuBar = []menuDef{
 		{cmd: "format.bold", title: "Bold"}, {cmd: "format.italic", title: "Italic"}, {cmd: "format.underline", title: "Underline"}, {cmd: "format.strikethrough", title: "Strikethrough"}, sep,
 		{cmd: "format.align_left", title: "Align left"}, {cmd: "format.align_center", title: "Align center"}, {cmd: "format.align_right", title: "Align right"}, sep,
 		{cmd: "column.width"}, {cmd: "column.reset"}, sep,
-		{cmd: "format.conditional"}, sep,
+		{cmd: "format.conditional"}, {cmd: "format.conditional_clear"}, sep,
 		{cmd: "format.clear", title: "Clear formatting"},
 	}},
 	{title: "Data", accel: 'd', items: []menuItem{

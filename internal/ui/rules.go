@@ -283,9 +283,27 @@ func (h host) SaveFormat(i int, f sheet.CondFormat) error {
 		m.changed = true
 		if i < 0 {
 			m.recordRule("format.conditional_add", f.JSON())
+		} else {
+			m.noteUnrecorded()
 		}
 	}
 	return err
+}
+
+// Reworked follows a rule removed or moved in the panel.
+func (h host) Reworked() {
+	h.m.changed = true
+	h.m.noteUnrecorded()
+}
+
+// noteUnrecorded notes in a recording the last undo step, a change to
+// rules the panel made that no command replays, as dialogs are noted.
+func (m *Model) noteUnrecorded() {
+	if r := m.rec; r != nil && r.depth == 0 && r.pending == "" {
+		r.flush(m)
+		r.actions = append(r.actions, macro.Note("Not recorded: "+m.book().UndoLabel()))
+		r.acted = true
+	}
 }
 
 // SaveValidation adds or replaces a validation rule, refusing one over a
@@ -306,6 +324,8 @@ func (h host) SaveValidation(i int, v sheet.Validation) error {
 		m.changed = true
 		if i < 0 {
 			m.recordRule("data.validation_add", v.JSON())
+		} else {
+			m.noteUnrecorded()
 		}
 	}
 	return err
