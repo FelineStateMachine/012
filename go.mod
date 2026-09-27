@@ -12,6 +12,7 @@ require (
 	github.com/parquet-go/parquet-go v0.32.0
 	github.com/sahilm/fuzzy v0.1.3
 	github.com/xuri/excelize/v2 v2.11.0
+	go.starlark.net v0.0.0-20260908191801-89a6a09411d5
 	golang.org/x/text v0.38.0
 	modernc.org/sqlite v1.59.0
 )
@@ -48,7 +49,7 @@ require (
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	google.golang.org/protobuf v1.34.2 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	modernc.org/libc v1.75.7 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
