@@ -27,65 +27,92 @@ func renderHTML(vt *ghostty.Terminal) (string, error) {
 	}
 	var b strings.Builder
 	for y := range uint32(rows) {
-		var line strings.Builder
-		var run strings.Builder
-		style := ""
-		flush := func() {
-			if run.Len() == 0 {
-				return
-			}
-			if style == "" {
-				line.WriteString(run.String())
-			} else {
-				fmt.Fprintf(&line, `<span style="%s">%s</span>`, style, run.String())
-			}
-			run.Reset()
-		}
+		var line spanWriter
 		for x := range cols {
-			ref, err := vt.GridRef(ghostty.Point{Tag: ghostty.PointTagActive, X: x, Y: y})
+			text, css, ok, err := cellHTML(vt, ghostty.Point{Tag: ghostty.PointTagActive, X: x, Y: y})
 			if err != nil {
 				return "", err
 			}
-			cell, err := ref.Cell()
-			if err != nil {
-				return "", err
+			if ok {
+				line.add(text, css)
 			}
-			if wide, _ := cell.Wide(); wide == ghostty.CellWideSpacerTail {
-				continue
-			}
-			text := " "
-			if has, _ := cell.HasText(); has {
-				cps, _ := ref.Graphemes()
-				var sb strings.Builder
-				for _, cp := range cps {
-					sb.WriteRune(rune(cp))
-				}
-				text = sb.String()
-			}
-			css := ""
-			if st, err := ref.Style(); err == nil && !st.IsDefault() {
-				css = styleCSS(st, strings.TrimSpace(text) == "")
-			}
-			// Cells erased with a background color hold just that color.
-			switch tag, _ := cell.ContentTag(); tag {
-			case ghostty.CellContentBgColorPalette:
-				p, _ := cell.ColorPalette()
-				css = fmt.Sprintf("background:var(--vt-palette-%d)", p)
-			case ghostty.CellContentBgColorRGB:
-				c, _ := cell.ColorRGB()
-				css = fmt.Sprintf("background:#%02x%02x%02x", c.R, c.G, c.B)
-			}
-			if css != style {
-				flush()
-				style = css
-			}
-			run.WriteString(html.EscapeString(text))
 		}
-		flush()
 		b.WriteString(strings.TrimRight(line.String(), " "))
 		b.WriteByte('\n')
 	}
 	return `<pre class="screen">` + strings.TrimRight(b.String(), "\n") + "</pre>", nil
+}
+
+// spanWriter writes a line of cells, one span per run of cells with the
+// same CSS; unstyled runs are bare text.
+type spanWriter struct {
+	out, run strings.Builder
+	style    string
+}
+
+// add appends a cell's text with its style.
+func (w *spanWriter) add(text, css string) {
+	if css != w.style {
+		w.flush()
+		w.style = css
+	}
+	w.run.WriteString(html.EscapeString(text))
+}
+
+func (w *spanWriter) flush() {
+	if w.run.Len() == 0 {
+		return
+	}
+	if w.style == "" {
+		w.out.WriteString(w.run.String())
+	} else {
+		fmt.Fprintf(&w.out, `<span style="%s">%s</span>`, w.style, w.run.String())
+	}
+	w.run.Reset()
+}
+
+// String is the line so far.
+func (w *spanWriter) String() string {
+	w.flush()
+	return w.out.String()
+}
+
+// cellHTML returns the text of the cell at p and its CSS; ok is false
+// for the second half of a wide character, which draws nothing.
+func cellHTML(vt *ghostty.Terminal, p ghostty.Point) (text, css string, ok bool, err error) {
+	ref, err := vt.GridRef(p)
+	if err != nil {
+		return "", "", false, err
+	}
+	cell, err := ref.Cell()
+	if err != nil {
+		return "", "", false, err
+	}
+	if wide, _ := cell.Wide(); wide == ghostty.CellWideSpacerTail {
+		return "", "", false, nil
+	}
+	text = " "
+	if has, _ := cell.HasText(); has {
+		cps, _ := ref.Graphemes()
+		var sb strings.Builder
+		for _, cp := range cps {
+			sb.WriteRune(rune(cp))
+		}
+		text = sb.String()
+	}
+	if st, err := ref.Style(); err == nil && !st.IsDefault() {
+		css = styleCSS(st, strings.TrimSpace(text) == "")
+	}
+	// Cells erased with a background color hold just that color.
+	switch tag, _ := cell.ContentTag(); tag {
+	case ghostty.CellContentBgColorPalette:
+		p, _ := cell.ColorPalette()
+		css = fmt.Sprintf("background:var(--vt-palette-%d)", p)
+	case ghostty.CellContentBgColorRGB:
+		c, _ := cell.ColorRGB()
+		css = fmt.Sprintf("background:#%02x%02x%02x", c.R, c.G, c.B)
+	}
+	return text, css, true, nil
 }
 
 // styleCSS converts a cell style to CSS. For blank cells only what shows

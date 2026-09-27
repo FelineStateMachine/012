@@ -250,44 +250,54 @@ func (s *session) keys(keys ...string) {
 	s.t.Helper()
 	for _, k := range keys {
 		if name, ok := strings.CutPrefix(k, "<"); ok {
-			parts := strings.Split(strings.TrimSuffix(name, ">"), "+")
-			var mods ghostty.Mods
-			for _, p := range parts[:len(parts)-1] {
-				switch p {
-				case "shift":
-					mods |= ghostty.ModShift
-				case "ctrl":
-					mods |= ghostty.ModCtrl
-				case "alt":
-					mods |= ghostty.ModAlt
-				}
-			}
-			base := parts[len(parts)-1]
-			if key, ok := namedKeys[base]; ok {
-				var cp rune
-				if base == "space" {
-					cp = ' ' // the encoder needs the key's codepoint
-				}
-				s.press(key, mods, "", cp)
-				continue
-			}
-			if ck, ok := charKeys[rune(base[0])]; ok && len(base) == 1 {
-				s.press(ck.key, mods|ck.mods, "", rune(base[0]))
-				continue
-			}
-			s.t.Fatalf("unknown key %s", k)
+			s.namedKey(strings.TrimSuffix(name, ">"))
+		} else {
+			s.typeText(k)
 		}
-		for _, r := range k {
-			key, ok := charKeys[r]
-			if !ok {
-				s.t.Fatalf("no key mapping for %q", r)
-			}
-			unshifted := key.base
-			if key.mods&ghostty.ModShift == 0 {
-				unshifted = r
-			}
-			s.press(key.key, key.mods, string(r), unshifted)
+	}
+}
+
+// modNames are the modifiers a named key can carry, as in "<ctrl+a>".
+var modNames = map[string]ghostty.Mods{"shift": ghostty.ModShift, "ctrl": ghostty.ModCtrl, "alt": ghostty.ModAlt}
+
+// namedKey presses a key written as in "<shift+down>", without the
+// brackets: modifiers, then a key name or a single character.
+func (s *session) namedKey(name string) {
+	s.t.Helper()
+	parts := strings.Split(name, "+")
+	var mods ghostty.Mods
+	for _, p := range parts[:len(parts)-1] {
+		mods |= modNames[p]
+	}
+	base := parts[len(parts)-1]
+	if key, ok := namedKeys[base]; ok {
+		var cp rune
+		if base == "space" {
+			cp = ' ' // the encoder needs the key's codepoint
 		}
+		s.press(key, mods, "", cp)
+		return
+	}
+	if ck, ok := charKeys[rune(base[0])]; ok && len(base) == 1 {
+		s.press(ck.key, mods|ck.mods, "", rune(base[0]))
+		return
+	}
+	s.t.Fatalf("unknown key <%s>", name)
+}
+
+// typeText types text character by character.
+func (s *session) typeText(text string) {
+	s.t.Helper()
+	for _, r := range text {
+		key, ok := charKeys[r]
+		if !ok {
+			s.t.Fatalf("no key mapping for %q", r)
+		}
+		unshifted := key.base
+		if key.mods&ghostty.ModShift == 0 {
+			unshifted = r
+		}
+		s.press(key.key, key.mods, string(r), unshifted)
 	}
 }
 
