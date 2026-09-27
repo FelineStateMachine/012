@@ -420,6 +420,50 @@ var screens = []screen{
 		s.keys("<alt+f>", "<down>", "<down>", "<down>", "<down>", "<down>", "<right>")
 		s.waitFor("SQLite database (.sqlite)")
 	}},
+	{name: "sheets", setup: summary},
+	{name: "sheets-wide", opts: options{cols: 200, rows: 30}, setup: summary},
+	{name: "sheets-point", setup: func(s *session) {
+		summary(s)
+		s.keys("<down>", "<down>", "<left>", "Rent share", "<tab>", "=", "<ctrl+pgup>", "<up>", "<up>")
+		s.waitForBar("Summary!B3", "=Sheet1!B3")
+	}},
+	{name: "sheets-many", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		budget(s)
+		for range 11 {
+			s.keys("<shift+f11>")
+		}
+		s.waitFor("Added Sheet12")
+		for range 5 {
+			s.keys("<ctrl+pgup>")
+		}
+		s.waitFor("‹")
+	}},
+	{name: "sheets-rename", setup: func(s *session) {
+		summary(s)
+		x := tabX(s.t, s, "Summary")
+		s.click(ghostty.MouseButtonLeft, x, int(s.rows)-1)
+		s.click(ghostty.MouseButtonLeft, x, int(s.rows)-1)
+		s.waitFor("Rename sheet: Summary")
+		s.keys("Q3 totals")
+	}},
+	{name: "sheets-menu", setup: func(s *session) {
+		summary(s)
+		s.click(ghostty.MouseButtonRight, tabX(s.t, s, "Summary"), int(s.rows)-1)
+		s.waitFor("Move right")
+	}},
+	{name: "sheets-picker", setup: func(s *session) {
+		summary(s)
+		s.keys("<alt+shift+k>")
+		s.waitFor("Go to sheet")
+	}},
+	{name: "find-all-sheets", setup: func(s *session) {
+		summary(s)
+		s.keys("<ctrl+f>", "total", "<alt+s>")
+		s.waitFor("in all sheets")
+		s.waitFor("2 of 2 on Summary")
+		s.keys("<enter>")
+		s.waitFor("1 of 2 on Sheet1")
+	}},
 }
 
 // named is the budget with its expenses named and a formula using the
@@ -457,7 +501,7 @@ func openImportPicker(s *session) {
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents", "sheets", "sheets-point", "sheets-menu", "sheets-many"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"
