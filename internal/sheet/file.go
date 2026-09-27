@@ -69,48 +69,6 @@ type fileSheet struct {
 	Pivot  *filePivot                 `json:"pivot,omitempty"` // version 5
 }
 
-// fileChart is a chart, one per line after the cells:
-//
-//	{"type": "column", "data": "A1:C7", "at": "E2", "width": 44, "height": 14, "header": true, "labels": true}
-//
-// Older versions of 012 ignore the field and drop the charts.
-type fileChart struct {
-	Type   string `json:"type"`
-	Data   string `json:"data"`
-	At     string `json:"at"`
-	Width  int    `json:"width"`
-	Height int    `json:"height"`
-	ByRow  bool   `json:"byRow,omitempty"`
-	Header bool   `json:"header,omitempty"`
-	Labels bool   `json:"labels,omitempty"`
-	Title  string `json:"title,omitempty"`
-}
-
-func encodeChart(c Chart) ([]byte, error) {
-	return json.Marshal(fileChart{
-		Type: c.Type.String(), Data: c.Data.String(), At: c.At.String(), Width: c.W, Height: c.H,
-		ByRow: c.ByRow, Header: c.Header, Labels: c.Labels, Title: c.Title,
-	})
-}
-
-func decodeChart(fc fileChart) (Chart, error) {
-	t, ok := ParseChartType(fc.Type)
-	if !ok {
-		return Chart{}, fmt.Errorf("unknown chart type %q", fc.Type)
-	}
-	data, ok := ParseRange(fc.Data)
-	if !ok {
-		return Chart{}, fmt.Errorf("invalid chart range %q", fc.Data)
-	}
-	at, ok := ParseAddr(fc.At)
-	if !ok {
-		return Chart{}, fmt.Errorf("invalid chart position %q", fc.At)
-	}
-	c := Chart{Type: t, Data: data, At: at, W: fc.Width, H: fc.Height,
-		ByRow: fc.ByRow, Header: fc.Header, Labels: fc.Labels, Title: fc.Title}
-	return c.clamped(), nil
-}
-
 type fileCell struct {
 	Input         string `json:"input,omitempty"`
 	Format        string `json:"format,omitempty"`

@@ -188,6 +188,10 @@ func TestChartFileRoundTrip(t *testing.T) {
 	want := []Chart{
 		{Type: ChartLine, Data: rng("A1:C4"), Header: true, Labels: true, Title: "Spend", At: at("E2"), W: 44, H: 14},
 		{Type: ChartPie, Data: rng("B2:B4"), ByRow: true, At: at("A20"), W: 30, H: 12},
+		{Type: ChartArea, Data: rng("A1:C4"), At: at("A30"), W: 30, H: 12,
+			ChartOptions: ChartOptions{Stack: StackPercent, Min: -5, HasMin: true, Max: 0, HasMax: true, NoGrid: true, Legend: LegendRight}},
+		{Type: ChartScatter, Data: rng("B1:C4"), At: at("A45"), W: 30, H: 12,
+			ChartOptions: ChartOptions{Trend: true, Log: true, Legend: LegendNone}},
 	}
 	for _, c := range want {
 		s.AddChart(c)
@@ -198,6 +202,11 @@ func TestChartFileRoundTrip(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), `"charts": [`+"\n    "+`{"type":"line","data":"A1:C4","at":"E2","width":44,"height":14,"header":true,"labels":true,"title":"Spend"}`) {
 		t.Errorf("charts not one per line:\n%s", buf.String())
+	}
+	// Options at their defaults are left out; the others are fields.
+	if !strings.Contains(buf.String(), `"stack":"percent","min":-5,"max":0,"gridlines":false,"legend":"right"}`) ||
+		!strings.Contains(buf.String(), `"type":"scatter","data":"B1:C4","at":"A45","width":30,"height":12,"trend":true,"log":true,"legend":"none"}`) {
+		t.Errorf("chart options:\n%s", buf.String())
 	}
 	got, err := Read(&buf)
 	if err != nil {

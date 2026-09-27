@@ -23,11 +23,14 @@ const (
 	ChartBar                     // horizontal bars
 	ChartLine                    // one line per series
 	ChartPie                     // the first series as slices of a whole
+	ChartArea                    // lines filled down to the axis
+	ChartScatter                 // points at X, Y: the first series is X
 )
 
 // chartTypeNames names every type, as files store it, in the order the
 // chart editor offers them.
-var chartTypeNames = [...]string{ChartColumn: "column", ChartBar: "bar", ChartLine: "line", ChartPie: "pie"}
+var chartTypeNames = [...]string{ChartColumn: "column", ChartBar: "bar", ChartLine: "line", ChartPie: "pie",
+	ChartArea: "area", ChartScatter: "scatter"}
 
 // ChartTypes lists the types in the order the chart editor offers them.
 var ChartTypes = func() []ChartType {
@@ -73,6 +76,9 @@ type Chart struct {
 	Title  string
 	At     Addr // the cell under the top-left corner
 	W, H   int  // size in terminal cells
+	// ChartOptions are the stacking, axis and legend settings of Sheets'
+	// Customize tab; see chartopts.go.
+	ChartOptions
 }
 
 // Chart size limits, in terminal cells.
