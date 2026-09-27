@@ -5,6 +5,8 @@ sidebar_position: 4
 
 # Arrays and spills
 
+![UNIQUE and SORT listing the regions, FILTER listing the big quarters, and the context line saying where a spilled value comes from](../media/arrays.gif)
+
 An array is a block of values: a range read whole, an array literal
 such as `{1,2;3,4}` (`,` between values in a row, `;` between rows; its
 values may be ranges, so `{A1:A3,C1:C3}` puts two columns side by

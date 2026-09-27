@@ -26,7 +26,8 @@ rest: building from a clone, importing files, `012 serve` and settings.
 
 - **Formulas as in Sheets**, with [Sheets' functions](docs/reference/functions.md),
   suggestions and argument hints, pointing at cells with the arrows or the
-  mouse, named ranges, references between sheets, optional decimal
+  mouse, named ranges, references between sheets, arrays that spill
+  (FILTER, SORT, UNIQUE, LAMBDA), optional decimal
   arithmetic for money, and undo for everything
   ([formulas](docs/formulas/README.md)).
 - **Data tools**: freeze, sort, filter, find and replace, conditional
@@ -57,6 +58,8 @@ rest: building from a clone, importing files, `012 serve` and settings.
 | Freeze, sort and filter | Find and replace |
 | ![JEV functions classifying reviews](docs/media/jev.gif) | ![Currency formats and totals](docs/media/formats-budget.png) |
 | JEV functions in formulas | Formats detected as you type |
+| ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![Recording a macro and replaying it](docs/media/macros.gif) |
+| Arrays that spill | Macros |
 
 The recordings are [VHS](https://github.com/charmbracelet/vhs) tapes in
 [`demos/`](demos), rendered by `make demos` in the Catppuccin Mocha
