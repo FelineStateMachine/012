@@ -109,6 +109,8 @@ func (m *Model) gridRow(row int) string {
 		}
 		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) {
 			sp = span{text: m.inCellText(m.sheet.ColWidth(a.Col))}
+		} else {
+			m.decorate(&sp, row) // links and error marks, see links.go
 		}
 		b.WriteString(m.renderSpan(sp, base, colored))
 	}
@@ -124,6 +126,9 @@ type span struct {
 	trail int
 	style sheet.Style
 	owner int // column of the cell the text belongs to
+
+	link  string // the owner's link target, drawn as a hyperlink
+	error bool   // the owner shows an error: its text gets the error mark
 }
 
 // renderSpan draws a span on base, one of the cell roles. Plain cells
@@ -132,15 +137,16 @@ func (m *Model) renderSpan(sp span, base lipgloss.Style, colored bool) string {
 	lead, trail := strings.Repeat(" ", sp.lead), strings.Repeat(" ", sp.trail)
 	st := sp.style
 	st.Align = sheet.AlignAuto
+	plain := st.IsZero() && sp.link == "" && !sp.error
 	switch {
-	case st.IsZero() && !colored:
+	case plain && !colored:
 		return lead + sp.text + trail
-	case st.IsZero():
+	case plain:
 		return base.Render(lead + sp.text + trail)
 	case !colored:
-		return lead + m.th.text(base, st).Render(sp.text) + trail
+		return lead + m.textStyle(base, sp).Render(sp.text) + trail
 	}
-	return base.Render(lead) + m.th.text(base, st).Render(sp.text) + base.Render(trail)
+	return base.Render(lead) + m.textStyle(base, sp).Render(sp.text) + base.Render(trail)
 }
 
 // inCellText shows the entry being typed inside the cell, keeping the end

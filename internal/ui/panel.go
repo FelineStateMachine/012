@@ -29,12 +29,13 @@ func (m *Model) View() tea.View {
 	}
 
 	content := strings.Join(lines, "\n")
-	if boxes := m.floating(); len(boxes) > 0 {
+	if boxes := m.floating(); len(boxes) > 0 || hasCharts(m) {
 		content = m.compose(content, boxes)
 	}
 	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go
+	v.ReportFocus = true                 // notifications only when the window is in the background
 	v.WindowTitle = "012 - " + m.displayName()
 	if m.jevBusy() != "" {
 		// Terminals that support it (OSC 9;4) show activity in the tab.
@@ -120,12 +121,17 @@ func (m *Model) contextLineText() string {
 		if left = m.readyLine(); left == "" {
 			left = m.jevLine()
 		}
+		if left == "" {
+			left = m.errorLine()
+		}
 	case m.mode == modeMenu:
 		switch o := m.overlay.(type) {
 		case *choiceBar:
 			left = o.line(m)
 		case *findBar:
 			left, right = o.line(m)
+		case contextLiner:
+			left, right = o.contextLine(m)
 		}
 	case m.mode == modePrompt:
 		left, right = m.promptLine()

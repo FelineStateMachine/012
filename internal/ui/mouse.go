@@ -368,6 +368,8 @@ func (m *Model) pointerShape() tea.Cmd {
 	switch {
 	case m.drag == dragResize, m.hover.kind == hitColBorder:
 		shape = "col-resize"
+	case m.mode == modeReady && m.chartAt(m.mouseX, m.mouseY) >= 0:
+		shape = "move"
 	case m.hover.kind == hitCell:
 		shape = "cell"
 	case m.hover.kind == hitFormulaBar, m.hover.kind == hitEditLine:
@@ -391,7 +393,8 @@ const (
 	shiftEscapeOff = "\x1b[>0s"
 )
 
-// exit restores the pointer shape and Shift+click handling, then quits.
-func exit() tea.Cmd {
-	return tea.Sequence(tea.Raw(ansi.SetPointerShape("default")+shiftEscapeOff), tea.Quit)
+// exit restores the pointer shape, Shift+click handling and the other
+// terminal modes 012 changed, frees chart images, then quits.
+func (m *Model) exit() tea.Cmd {
+	return tea.Sequence(tea.Raw(ansi.SetPointerShape("default")+shiftEscapeOff+m.releaseTerminal()), tea.Quit)
 }

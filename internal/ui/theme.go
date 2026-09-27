@@ -2,7 +2,9 @@ package ui
 
 import (
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
+	"012/internal/chart"
 	"012/internal/sheet"
 )
 
@@ -29,9 +31,14 @@ type theme struct {
 	key          lipgloss.Style // emphasized text in the status line, e.g. a range
 	keyChip      lipgloss.Style // a key cap in hints, menus and the palette, e.g. " Enter "
 	errorCell    lipgloss.Style // cells whose value is ERR or NA
-	found        lipgloss.Style // cells matching an open search
-	traced       lipgloss.Style // precedents or dependents being traced
-	argument     lipgloss.Style // the argument at the caret in a function's signature
+	// errorMark is layered on an error's text, so errors show beyond
+	// color: a curly underline, in the error color where the terminal
+	// supports colored underlines.
+	errorMark lipgloss.Style
+	link      lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
+	found     lipgloss.Style // cells matching an open search
+	traced    lipgloss.Style // precedents or dependents being traced
+	argument  lipgloss.Style // the argument at the caret in a function's signature
 	// copied marks the range on the clipboard, like Sheets' dashed border:
 	// a dashed underline across every cell, layered on the cell's own
 	// style, with its own text color where the cell has none.
@@ -48,6 +55,26 @@ type theme struct {
 	match             lipgloss.Style // characters matched by a search
 	matchSelected     lipgloss.Style // matched characters in the highlighted row
 	cell              lipgloss.Style // an ordinary cell: the base for bold, italic and underline
+
+	// Charts: see charts.go.
+	chartFrame    lipgloss.Style // a chart's border
+	chartSelected lipgloss.Style // the border of the selected chart and its resize handle
+	chartAxis     lipgloss.Style // axis lines and tick marks
+	chartLabel    lipgloss.Style // tick values, category labels and legend text
+	// series colors bars, lines, slices and legend swatches, in order;
+	// seriesBg is the same colors as backgrounds, for the lower half of a
+	// pie's half blocks. seriesANSI is the ANSI index of each, so images
+	// can use the terminal's own colors.
+	series     [chart.Colors]lipgloss.Style
+	seriesBg   [chart.Colors]lipgloss.Style
+	seriesANSI [chart.Colors]int
+}
+
+// imageID is the style of an image's Unicode placeholders: the
+// foreground color is not a color but the image's id, in the 256-color
+// palette, which is how the terminal knows which image to draw there.
+func (t theme) imageID(id int) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(id))
 }
 
 // text adds a cell's bold, italic, underline and strikethrough to base,
@@ -78,8 +105,18 @@ func newTheme(dark bool) theme {
 		headerBg, headerFg = lipgloss.White, lipgloss.Black
 		selFg, muted, match = lipgloss.BrightWhite, lipgloss.Black, lipgloss.Blue
 	}
+	// Links are blue, as in Sheets; plain blue is too dark on a dark
+	// background.
+	link := lipgloss.BrightBlue
+	// Series colors, most distinct first. On light backgrounds yellow and
+	// cyan fade, so they come last or not at all.
+	series := [chart.Colors]ansi.BasicColor{lipgloss.Cyan, lipgloss.Magenta, lipgloss.Yellow, lipgloss.Green, lipgloss.BrightBlue, lipgloss.BrightRed}
+	if !dark {
+		link = lipgloss.Blue
+		series = [chart.Colors]ansi.BasicColor{lipgloss.Blue, lipgloss.Magenta, lipgloss.Green, lipgloss.Red, lipgloss.Cyan, lipgloss.BrightBlack}
+	}
 	accent := lipgloss.NewStyle().Background(lipgloss.Cyan).Foreground(lipgloss.Black)
-	return theme{
+	t := theme{
 		indicator:    accent.Bold(true),
 		header:       lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
 		headerActive: accent.Bold(true),
@@ -95,6 +132,8 @@ func newTheme(dark bool) theme {
 		key:          lipgloss.NewStyle().Bold(true),
 		keyChip:      lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
 		errorCell:    lipgloss.NewStyle().Foreground(lipgloss.Red),
+		errorMark:    lipgloss.NewStyle().UnderlineStyle(lipgloss.UnderlineCurly).UnderlineColor(lipgloss.Red),
+		link:         lipgloss.NewStyle().Foreground(link).Underline(true),
 		found:        lipgloss.NewStyle().Background(lipgloss.Yellow).Foreground(lipgloss.Black),
 		traced:       lipgloss.NewStyle().Background(lipgloss.Green).Foreground(lipgloss.Black),
 		argument:     lipgloss.NewStyle().Bold(true).Underline(true),
@@ -111,5 +150,16 @@ func newTheme(dark bool) theme {
 		match:             lipgloss.NewStyle().Foreground(match).Bold(true),
 		matchSelected:     accent.Bold(true).Underline(true),
 		cell:              lipgloss.NewStyle(),
+
+		chartFrame:    lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
+		chartSelected: lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true),
+		chartAxis:     lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
+		chartLabel:    lipgloss.NewStyle().Foreground(muted),
 	}
+	for i, c := range series {
+		t.series[i] = lipgloss.NewStyle().Foreground(c)
+		t.seriesBg[i] = lipgloss.NewStyle().Background(c)
+		t.seriesANSI[i] = int(c)
+	}
+	return t
 }

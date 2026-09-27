@@ -51,7 +51,8 @@ var menuBar = []menuDef{
 	{title: "Insert", accel: 'i', items: []menuItem{
 		{cmd: "insert.row_above", title: "Row above"}, {cmd: "insert.row_below", title: "Row below"}, sep,
 		{cmd: "insert.col_left", title: "Column left"}, {cmd: "insert.col_right", title: "Column right"}, sep,
-		{cmd: "insert.selection"},
+		{cmd: "insert.selection"}, sep,
+		{cmd: "insert.chart"},
 	}},
 	{title: "Format", accel: 'o', items: []menuItem{
 		{title: "Number", items: []menuItem{

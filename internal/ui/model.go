@@ -101,19 +101,22 @@ type Model struct {
 	files    []string // file list shown by File Open
 	errMsg   string
 
+	term      terminal // what the terminal supports, see graphics.go
+	lastChart int      // the chart last selected, for chart commands; -1 for none
+
 	th theme
 }
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	return &Model{sheet: s, filename: filename, width: 80, height: 24, th: newTheme(true)}
+	return &Model{sheet: s, filename: filename, width: 80, height: 24, th: newTheme(true), term: newTerminal(), lastChart: -1}
 }
 
 // Init implements tea.Model. It asks the terminal for its background color
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
 	// sendJEV starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.sendJEV())
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.probes(), m.sendJEV())
 }
 
 // Update implements tea.Model.
@@ -157,7 +160,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case filesMsg:
 		m.files = msg
 	case jevAnswerMsg:
+		busy := m.jevBusy() != ""
 		m.handleJEVAnswer(msg)
+		if busy && m.jevBusy() == "" {
+			cmd = m.notifyDone("JEV finished answering in " + m.displayName())
+		}
+	default:
+		cmd = m.handleTerminal(msg)
 	}
 	// Scroll only when the focus moves, so the mouse wheel can look around
 	// without the view snapping back, as in Sheets.
@@ -166,7 +175,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.scrollTo(f)
 	}
 	// Any edit may have queued JEV questions.
-	return m, tea.Batch(cmd, m.sendJEV())
+	// Chart images follow any change, see graphics.go.
+	return m, tea.Batch(cmd, m.sendJEV(), m.syncImages())
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state

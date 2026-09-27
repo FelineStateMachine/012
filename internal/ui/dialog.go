@@ -88,7 +88,7 @@ func (c *choiceBar) line(m *Model) string {
 // and quits, so the quick path never loses work.
 func (m *Model) quit() tea.Cmd {
 	if !m.changed {
-		return exit()
+		return m.exit()
 	}
 	m.openOverlay(&choiceBar{
 		msg:  "You have unsaved changes.",
@@ -98,7 +98,7 @@ func (m *Model) quit() tea.Cmd {
 				m.quitAfterSave = true
 				return m.save()
 			}},
-			{key: "d", label: "Discard", run: func(*Model) tea.Cmd { return exit() }},
+			{key: "d", label: "Discard", run: (*Model).exit},
 			{key: "esc", label: "Cancel", run: func(*Model) tea.Cmd { return nil }},
 		},
 	})

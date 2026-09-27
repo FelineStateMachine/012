@@ -231,7 +231,7 @@ func (m *Model) fail(msg string) {
 }
 
 func (m *Model) reset(s *sheet.Sheet, filename string) {
-	*m = Model{sheet: s, filename: filename, width: m.width, height: m.height, th: m.th}
+	*m = Model{sheet: s, filename: filename, width: m.width, height: m.height, th: m.th, term: m.term, lastChart: -1}
 }
 
 func isDigits(s string) bool {
@@ -303,7 +303,7 @@ func (m *Model) handleSaved(msg savedMsg) tea.Cmd {
 	m.filename = msg.name
 	m.changed = false
 	if quit {
-		return exit()
+		return m.exit()
 	}
 	return nil
 }

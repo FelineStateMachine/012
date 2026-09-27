@@ -109,11 +109,17 @@ func (m *Model) floating() []box {
 	return nil
 }
 
-// compose draws boxes over the rendered screen.
+// compose draws the charts floating over the grid, then boxes (the open
+// overlay or formula suggestions), over the rendered screen.
 func (m *Model) compose(screen string, boxes []box) string {
 	c := lipgloss.NewCanvas(m.width, m.height)
 	c.Compose(lipgloss.NewLayer(screen))
-	c.Compose(compositor(boxes))
+	if charts := m.chartBoxes(); len(charts) > 0 {
+		c.Compose(compositor(charts))
+	}
+	if len(boxes) > 0 {
+		c.Compose(compositor(boxes))
+	}
 	return c.Render()
 }
 
@@ -131,6 +137,9 @@ func (m *Model) shellMouse(msg tea.MouseMsg) (tea.Cmd, bool) {
 		return nil, false
 	}
 	mouse := click.Mouse()
+	if cmd, ok := m.chartClick(mouse); ok {
+		return cmd, true
+	}
 	switch {
 	case mouse.Button == tea.MouseRight:
 		m.rightClick(mouse.X, mouse.Y)
