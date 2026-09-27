@@ -99,7 +99,7 @@ menus, help, undo or macros. The ids are those in the recorded scripts; a few:
 | `column.width` (answer: the width), `column.reset` | Column widths |
 | `data.sort_sheet_az`, `data.sort_range_az`, `data.sort_range_za`, `data.filter`, `data.filter_remove` | Sorting and filters |
 | `data.define_name` (answer: the name) | Name the selection |
-| `format.conditional_add`, `data.validation_add` (answer: the rule as a line of the file, see [files.md](../files/format.md#conditional-formats-and-data-validation)), `insert.checkbox`, `format.conditional_clear`, `data.validation_clear`, `data.checkbox_toggle` | Conditional formats, data validation and checkboxes |
+| `format.conditional_add`, `data.validation_add` (answer: the rule as a line of the file, see [The .012 format](../files/format.md#conditional-formats-and-data-validation)), `insert.checkbox`, `format.conditional_clear`, `data.validation_clear`, `data.checkbox_toggle` | Conditional formats, data validation and checkboxes |
 | `sheet.new`, `sheet.duplicate`, `sheet.rename` (answer: the name), `sheet.delete` (answer: `"enter"` when it asks), `sheet.hide`, `sheet.unhide` (answer: the sheet's name) | Sheets |
 | `view.freeze_rows1`, `view.freeze_cols1`, `view.freeze_rows0`, ... | Frozen panes |
 

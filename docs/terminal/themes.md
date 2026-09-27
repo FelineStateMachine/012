@@ -100,7 +100,7 @@ for cell text, text on the bars, the selection, the headers and every
 other role (`TestEveryThemeReadable`). Charts, as text and as kitty
 images, use the scheme's colors too.
 
-Conditional formats ([data.md](../sheets/rules.md#conditional-formatting)) name
+Conditional formats ([Conditional formatting and data validation](../sheets/rules.md#conditional-formatting)) name
 their colors (red, yellow, green, cyan, blue, magenta) rather than
 giving RGB, and each is an ANSI slot, so they follow the theme too: a
 text color is the slot on the cell (`RuleText`), a fill the slot as a

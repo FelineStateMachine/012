@@ -38,7 +38,7 @@ there's no command.
 | `--host-key` | `<config dir>/012/ssh_host_ed25519_key` | The server's key, generated on first run |
 | `--idle-timeout` | `30m` | End a session after this long without input, keeping its unsaved changes; `0` never does |
 | `--max-sessions` | `8` | Sessions at once; more are turned away with a message |
-| `--log`, `--otlp` | off | Telemetry, as for the app ([observability.md](../contributing/observability.md)) |
+| `--log`, `--otlp` | off | Telemetry, as for the app ([Observability](../contributing/observability.md)) |
 
 The config directory is `os.UserConfigDir()`: `~/Library/Application
 Support` on macOS, `~/.config` on Linux. On start, 012 prints the served
@@ -194,4 +194,4 @@ check protects the local app from other programs writing the file.
   300 B per cell of the sheets it opens; two sessions opening one file
   hold two copies. With 50 sessions typing at once on loopback, frames
   still arrive within one frame interval (p95 16.6 ms), the same as with
-  10: see [limits.md](../contributing/limits.md#serving-over-ssh).
+  10: see [Bounds of support](../contributing/limits.md#serving-over-ssh).

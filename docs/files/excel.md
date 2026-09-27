@@ -60,7 +60,7 @@ opposed to the sheet's AutoFilter) aren't read.
 
 ## Arrays in Excel
 
-A formula whose array spills (see [formulas.md](../formulas/arrays.md))
+A formula whose array spills (see [Arrays and spills](../formulas/arrays.md))
 is written as Excel writes a dynamic array formula: an array formula over
 the cells it spills into (`<f t="array" ref="C1:C9">`) on a cell whose
 metadata marks it dynamic (`cm="1"`, defined in `xl/metadata.xml`), with

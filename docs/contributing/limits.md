@@ -9,7 +9,7 @@ What 012 handles well, where it degrades, and why, measured. Numbers come
 from `make stress` (synthetic worst cases and real datasets, see
 [Measuring](#measuring)), `make stress-e2e` (key press to screen through a
 real terminal emulator), and the telemetry described in
-[observability.md](observability.md), which tracks how they move.
+[Observability](observability.md), which tracks how they move.
 
 Machine: Apple M5 Pro (18 cores), 48 GB, macOS, Go 1.27.1, arm64. Times
 are single-threaded: the engine and the UI run on one goroutine. Figures
@@ -150,7 +150,7 @@ on an empty sheet over 30 s, within the noise of measuring it.
 ## The function library
 
 Functions live in `internal/functions`, behind a `Book` interface whose
-methods pass only values (see [architecture.md](architecture.md#functions)):
+methods pass only values (see [Architecture](architecture.md#functions)):
 SUM-like functions have the engine add a range up (`Fold`), other range
 walks read chunks into buffers the `Reader` reuses (`Scan`), and lookups
 walk positions with a cursor, so no function makes a call or an

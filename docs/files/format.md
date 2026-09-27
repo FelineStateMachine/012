@@ -24,10 +24,15 @@ object:
 ```
 
 A formatted cell has its `input` and the formatting that isn't the
-default: `format` (as `number_format` in [macros](../reference/macro-api.md#cells) names
-it: `currency`, `percent`, `date`, ...), `decimals`, `pattern` for a
+default: `format` (as `number_format` in
+[macros](../reference/macro-api.md#cells) names it: `currency`, `percent`, `date`, ...), `decimals`, `pattern` for a
 custom format, `bold`, `italic`, `underline`, `strikethrough` and
 `align` (`left`, `center`, `right`).
+
+Only what's typed is saved. What 012 computes is computed again when the
+file opens: formula results, [pivot tables](#pivot-tables)' results, and
+the arrays formulas [spill](../formulas/arrays.md), whose cells are kept
+only for their formatting and notes.
 
 ## Versions
 
@@ -58,7 +63,7 @@ save), so they raise no version:
 | `protected` | a sheet | [Protected ranges](../sheets/notes-protection.md#protected-sheets-and-ranges): `{"range":"B2:C9","description":"Totals"}`, or `{"sheet":true}` |
 | `conditionalFormats`, `validations` | a sheet | [Rules](#conditional-formats-and-data-validation), one per line |
 | `arithmetic` | the workbook | `decimal` for [decimal arithmetic](../formulas/decimal.md) |
-| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on: see [macros.md](../reference/macro-api.md#in-the-file). Opening a file never runs them |
+| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on: see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
 
 ## Column and row formats
 
@@ -107,8 +112,6 @@ A pivot's sheet has a `pivot` field, on one line after its cells,
 holding the definition. The results are never saved; they are computed
 again when the file opens, so the file stays small and can't disagree
 with its data.
-Arrays that formulas spill are kept the same way: the file keeps the formula,
-and the cells it spills into only for their formatting and notes.
 
 ```json
 {

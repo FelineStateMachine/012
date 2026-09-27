@@ -28,7 +28,7 @@ sidebar_position: 2
 - Each sheet is 16,384 columns (A to XFD) by 1,048,576 rows, Excel's size;
   a reference past them (`XFE1`, `A1048577`) reads as a name. Formulas cost
   what their ranges hold, not their size: `SUM(A:A)` over ten numbers reads
-  ten cells, and `ROWS(A:A)` is still 1,048,576. See [limits.md](../contributing/limits.md)
+  ten cells, and `ROWS(A:A)` is still 1,048,576. See [Bounds of support](../contributing/limits.md)
   for what that means in practice.
 
 ## A range where one value is wanted

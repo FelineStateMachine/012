@@ -109,15 +109,15 @@ shows go there, and GIFs stay under 1 MB.
 
 `make lint` runs `scripts/doclint`, which flags wording that narrates
 history (see [CLAUDE.md](../../CLAUDE.md)), and `scripts/doccheck`: relative
-links and anchors resolve, [docs/README.md](../README.md) links every doc,
+links and anchors resolve, [012 documentation](../README.md) links every doc,
 every file in `docs/media` is shown by a doc and made by a tape, and
 every tape records something a doc shows. Unit tests check what the docs
 say about the code: menu paths lead to menu items, command ids and keys
-exist and every bound key is in [keys.md](../reference/keys.md)
+exist and every bound key is in [Keys and mouse](../reference/keys.md)
 (`internal/ui/docs_test.go`), settings and variables are options
-(`internal/config/docs_test.go`), and [files.md](../files/README.md) names every
+(`internal/config/docs_test.go`), and [Files](../files/README.md) names every
 field of the format (`internal/sheet/file_doc_test.go`).
-[functions.md](../reference/functions.md) and [config.md](../reference/config.md)'s reference are
+[Functions](../reference/functions.md) and [Configuration](../reference/config.md)'s reference are
 generated, and their tests fail when they're stale.
 
 ## No broken windows

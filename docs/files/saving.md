@@ -16,4 +16,4 @@ exists asks the same way: Enter replaces it, Esc cancels, and cancelling
 Under `012 serve`, a session that idles out or is ended by the server
 stopping keeps its unsaved changes in `.012-recovery/` in the served
 directory, and the next session opening that file offers them back: see
-[ssh.md](../terminal/ssh.md#unsaved-work).
+[Serving over SSH](../terminal/ssh.md#unsaved-work).

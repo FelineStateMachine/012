@@ -114,7 +114,7 @@ and mark the file modified, like any edit.
 
 Opening a file never runs its macros. The file remembers which computer
 its macros were made or trusted on (a random id kept in 012's
-config directory, the one [config.md](../reference/config.md) describes). Running
+config directory, the one [Configuration](../reference/config.md) describes). Running
 a macro from a file made elsewhere asks once, on the context line:
 
 ```

@@ -57,7 +57,7 @@ credential store or comes from a command; see [JEV setup](../formulas/jev.md#set
 In the app, File > Settings has **Theme** (a picker with live preview),
 **Open config file** (in your editor, reloading when it closes),
 **Reload config** and **JEV API key** (stored, then checked with one test
-call: see [jev.md](../formulas/jev.md#setup)). Reloading applies the options marked
+call: see [JEV functions](../formulas/jev.md#setup)). Reloading applies the options marked
 "File > Settings > Reload config" below; the rest take effect on the next
 start.
 

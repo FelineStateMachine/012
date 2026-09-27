@@ -15,7 +15,7 @@ runs. There are two paths that share one set of numbers:
   OTLP (or the collector tails its log file), the stress runs load into
   ClickHouse, and dashboards sit on top.
 
-The measured bounds these tools track are in [limits.md](limits.md).
+The measured bounds these tools track are in [Bounds of support](limits.md).
 
 ## Turning it on
 

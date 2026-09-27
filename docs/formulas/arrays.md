@@ -33,29 +33,33 @@ right and below, as in Sheets:
   `=IFERROR(FILTER(A2:A99, B2:B99="x"), "none")` spills or says none, and
   `=INDEX(A2:C9, 0, 2)` spills the second column.
 
-The context line says where a spilled cell's value comes from
-("Spilled from B2"), and on the formula's own cell where it spills
-("Spills into B2:C9"); spilled values are drawn in a color of their own,
-and the formula bar shows a spilled cell's formula dimmed. A spilled cell
-can't be typed into, cleared, pasted over or filled: the context line
-names the formula to edit instead. Selecting the formula with its spill
-and pressing Del clears it, formatting spilled cells keeps the
-formatting, and inserting or deleting rows and columns through a spill
-spills it again. Copying spilled cells pastes their values. Conditional
-formats color spilled cells by their values, and data validation marks
-spilled values it doesn't accept, but never stops an array from
-spilling: rules judge what's typed, and a spilled value isn't.
+## Spilled cells
+
+Spilled values are drawn in a color of their own. The context line says
+where a spilled cell's value comes from ("Spilled from B2"), and on the
+formula's own cell where it spills ("Spills into B2:C9"); the formula
+bar shows a spilled cell's formula dimmed.
+
+| Doing this to spilled cells | Does |
+|---|---|
+| Typing, clearing, pasting over or filling one | Nothing: the context line names the formula to edit instead |
+| Del on the formula with its spill selected | Clears the formula |
+| Formatting them | Keeps the formatting, which the file saves |
+| Inserting or deleting rows or columns through the spill | Spills it again |
+| Copying them | Pastes their values |
+| Conditional formats and data validation on them | Color them by their values, and mark values a rule doesn't accept; a rule never stops an array from spilling |
+
+Formulas reading spilled cells recalculate when the array changes, on
+any sheet, and undo brings back what an array spilled with the formula.
+The file keeps only the formula ([format](../files/format.md)).
+
+## When an array can't spill
 
 When a cell in the way of an array isn't empty, the formula shows
 `#REF!` and says why, as Sheets does: "Array result was not expanded
 because it would overwrite data in C3". Clearing that cell lets the
 array spill. The same goes for an array that would pass the sheet's
 edge, or write more cells than `max-cells` allows.
-
-Formulas reading spilled cells recalculate when the array changes, on
-any sheet, and undo brings back what an array spilled with the formula.
-Files keep only the formula: its array is computed again when the file
-opens.
 
 ## Names in a formula: LET and LAMBDA
 

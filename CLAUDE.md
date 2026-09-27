@@ -1,7 +1,8 @@
 # Working on 012
 
-Read [docs/UX.md](docs/contributing/ux.md), [docs/extending.md](docs/contributing/extending.md) and
-[docs/testing.md](docs/contributing/testing.md) before changing code.
+Read [UX](docs/contributing/ux.md), [extending](docs/contributing/extending.md)
+and [testing](docs/contributing/testing.md) in `docs/contributing/`
+before changing code.
 
 ## No broken windows
 

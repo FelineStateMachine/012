@@ -59,15 +59,8 @@ and the context line says what was undone, e.g. `Undid: clear B3:B5`.
 Insert and delete rows and columns from the Insert and Edit menus, the
 right-click menus, or Ctrl+Alt+= and Ctrl+Alt+- (rows, or columns when whole
 columns are selected). Formulas, names, charts, filters and widths follow.
-Drag a column header's edge to resize it, or use Format > Column width.
-
-Formatting whole columns or rows (select them with Ctrl+Space or
-Shift+Space, or click their headers) keeps the format on the column or
-row, as Sheets does, rather than on each of their million cells: every
-cell of it shows the format unless it has its own, and a cell typed into
-later takes it. A cell's format comes from the cell, else its row, else
-its column, else the whole sheet's (Ctrl+A twice, then a format); the
-number format and the text style fall back separately.
+Widths and the formats of whole columns and rows are in
+[formatting](formatting.md).
 
 ## Links
 

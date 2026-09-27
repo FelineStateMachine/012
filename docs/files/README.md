@@ -48,12 +48,12 @@ line lists the removed charts first, then which were re-pointed and
 which kept their range, and undo brings the removed ones back.
 
 **Size.** A sheet is 1,048,576 rows by 16,384 columns (A to XFD), as in
-Excel. Imports keep at most `max-cells` cells ([config.md](../reference/config.md#max-cells),
+Excel. Imports keep at most `max-cells` cells ([Configuration](../reference/config.md#max-cells),
 two million by default, about 600 MB): whole rows, as many as fit, and
 the context line says how many rows were left out, e.g. `only the first
 166,666 rows fit in max-cells (2,000,000 cells); 12,000 rows left out`.
 Data past the grid's edges is left out the same way. WK1 files keep their
-own 8,192 by 256. See [limits.md](../contributing/limits.md#imports) for speeds.
+own 8,192 by 256. See [Bounds of support](../contributing/limits.md#imports) for speeds.
 
 ## More
 

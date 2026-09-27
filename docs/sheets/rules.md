@@ -41,7 +41,7 @@ over a rule's colors; its text styles show through them.
 
 Colors are named (red, yellow, green, cyan, blue, magenta) rather than
 picked from a color wheel, because each is one of the terminal's 16 ANSI
-colors: the terminal's palette or the color scheme ([themes.md](../terminal/themes.md))
+colors: the terminal's palette or the color scheme ([Themes](../terminal/themes.md))
 decides what they look like, and a fill's text is drawn in whichever of
 black or white reads on it. A text color that wouldn't read on a rule's
 fill takes the fill's ink instead. Color scales blend the scheme's colors

@@ -19,12 +19,12 @@ shows it is derived from the table rather than listing it again.
 
 | Registry | Entry | Derived from it |
 |---|---|---|
-| `functions.FuncDef` (one file per category in `internal/functions`) | a function: name, signature, description, arity, eval, result format, decimal twin | parsing, autocomplete, argument hints, help, [functions.md](../reference/functions.md) |
+| `functions.FuncDef` (one file per category in `internal/functions`) | a function: name, signature, description, arity, eval, result format, decimal twin | parsing, autocomplete, argument hints, help, [Functions](../reference/functions.md) |
 | `ui.command` | an action: id, title, description, run, enabled, checked, what it edits, and how macros treat it | key bindings (Sheets and vim), menu bar, context menus, palette, shortcuts help, the `:` command line and its completions, macro recording and `run()` in scripts |
 | `fileio` formats (`formats.go`) | a format: name, extensions, labels, traits, importer, exporter | `Import`, `Export`, detection, import picker, File > Download, command line |
 | `chart.types`, with `sheet.ChartTypes` | a type: name and order (sheet, saved in files), a layout drawing text and image and the series its legend lists (chart) | `chart.Draw`, `chart.Image`, chart editor, Insert > Chart |
 | theme roles (`theme.Theme`) | a role: dark and light styles on the 16 ANSI colors, with a contrast minimum for schemes (`minContrast`) | every style in the UI, drawn in the terminal's palette or any color scheme (`FromPalette`); `TestEveryThemeReadable` checks each role under every built-in scheme |
-| `config.Options` | an option: name, type, default, environment variables, flag, live or not, description, check | parsing and warnings, flags, `012 config` and its default file, [config.md](../reference/config.md), Reload config |
+| `config.Options` | an option: name, type, default, environment variables, flag, live or not, description, check | parsing and warnings, flags, `012 config` and its default file, [Configuration](../reference/config.md), Reload config |
 
 Adding a function, command, format, chart type, option or role means
 adding an entry (and its file), not editing switch statements elsewhere.
@@ -119,7 +119,7 @@ Code reads and writes cells through a narrow API (`cellStore` in
 `internal/sheet/store.go`: get, set, delete, count, iterate everything or
 a range, a column being a range), not the map underneath. That lets the
 store change shape (compact column blocks, side tables for formulas and
-formats; see [limits.md](limits.md)) without touching the rest of the
+formats; see [Bounds of support](limits.md)) without touching the rest of the
 engine. Beside the map, occupancy indexes (`occupancy.go`) say which rows
 of each column hold a cell, and which hold contents, so a range yields its
 cells in row order at the cost of what it holds, and the used range, data
@@ -175,7 +175,7 @@ builds can safely ignore (decimal arithmetic) don't raise the version.
 ### 10. Measure at the seams
 
 Every seam above has a telemetry span and a `-tags stress` benchmark
-(`make stress`, `make stress-report`), and [limits.md](limits.md) records
+(`make stress`, `make stress-report`), and [Bounds of support](limits.md) records
 the bounds. A change to a seam comes with its numbers, measured against
 the code it replaces.
 
@@ -185,7 +185,7 @@ causes; hand work on another goroutine `m.spans.Parent()` (in the
 `context.Context` if the API already takes one); and give a workbook a
 new owner's trace with `SetTrace`. Never keep a "current span" in a
 global: `012 serve` runs many programs in one process (see
-[observability.md](observability.md#nested-spans)).
+[Observability](observability.md#nested-spans)).
 
 ### 11. Shape limits
 
@@ -201,7 +201,7 @@ aliases so callers don't change.
 
 Unit tests against the engine or model, an e2e test through libghostty, and
 a golden screen reviewed in the gallery for anything visible (see
-[testing.md](testing.md)).
+[Testing](testing.md)).
 
 ## Gaps
 
