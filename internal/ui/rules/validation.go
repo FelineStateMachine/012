@@ -19,6 +19,8 @@ func (dvKind) count(s *sheet.Sheet) int         { return len(s.Validations()) }
 func (dvKind) remove(s *sheet.Sheet, i int)     { s.DeleteValidation(i) }
 func (dvKind) move(*sheet.Sheet, int, int) bool { return false }
 func (dvKind) ordered() bool                    { return false }
+
+func (dvKind) command(action string) string { return "data.validation_" + action }
 func (dvKind) listHint() string {
 	return "A cell has one rule: a new rule takes its cells from the others"
 }

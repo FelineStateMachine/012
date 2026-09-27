@@ -232,6 +232,59 @@ select("A4")`
 	replays(t, m, "Replace", salesModel)
 }
 
+// salesRules is salesModel with two conditional formats on B2:B5 and a
+// dropdown on A2:A5.
+func salesRules() *Model {
+	m := salesModel()
+	for _, line := range []string{`{"ranges":"B2:B5","condition":"gt","values":["20"],"fill":"green"}`, `{"ranges":"B2:B5","condition":"lt","values":["10"],"fill":"red"}`} {
+		f, _ := sheet.ParseCondFormat(line)
+		m.sheet.AddCondFormat(f)
+	}
+	v, _ := sheet.ParseValidation(`{"ranges":"A2:A5","criteria":"list","items":["North","South","East","West"]}`)
+	m.sheet.AddValidation(v)
+	return m
+}
+
+func TestRecordRulesPanelEdits(t *testing.T) {
+	m := salesRules()
+	got := recordDo(t, m, "Rules", func() {
+		run(m, m.runCommand("format.conditional"))
+		press(t, m, "<down>", "<shift+down>") // green after red
+		press(t, m, "<enter>", "<down>", "<down>", "<down>", "<backspace>", "<backspace>", "30", "<enter>", "<esc>")
+		run(m, m.runCommand("data.validation"))
+		press(t, m, "<down>", "<delete>", "<esc>")
+	})
+	want := `run("format.conditional_move", answer={"rule": 1, "to": 2})
+run("format.conditional_set", answer={"rule": 2, "ranges": "B2:B5", "condition": "gt", "values": ["30"], "fill": "green"})
+run("data.validation_remove", answer=1)`
+	if got != want {
+		t.Fatalf("recorded:\n%s\nwant:\n%s", got, want)
+	}
+	replays(t, m, "Rules", salesRules)
+}
+
+func TestScriptsChangeRules(t *testing.T) {
+	m := salesRules()
+	script(t, m, `run("format.conditional_set", answer={"rule": 1, "ranges": "C2:C5", "condition": "empty", "fill": "yellow"})
+run("data.validation_set", answer={"rule": 1, "ranges": "A2:A9", "criteria": "list", "items": ["N", "S"]})
+run("format.conditional_move", answer={"rule": 2, "to": 1})`)
+	fs, vs := m.sheet.CondFormats(), m.sheet.Validations()
+	if len(fs) != 2 || fs[1].Ranges[0].String() != "C2:C5" || vs[0].Ranges[0].String() != "A2:A9" || m.note != "Ran S" {
+		t.Fatalf("formats %+v validations %+v warn %q", fs, vs, m.warn)
+	}
+	for src, want := range map[string]string{
+		`run("format.conditional_remove", answer=3)`:                       "there's no rule 3: the sheet has 2",
+		`run("format.conditional_move", answer={"rule": 1})`:               `give "to", a place from 1 to 2`,
+		`run("data.validation_set", answer={"ranges": "A1"})`:              "give the rule's number",
+		`run("format.conditional_set", answer={"rule": 1, "ranges": "?"})`: `invalid ranges "?"`,
+	} {
+		script(t, m, src)
+		if !strings.Contains(m.warn, want) {
+			t.Errorf("%s: warn %q, want %q", src, m.warn, want)
+		}
+	}
+}
+
 func TestRecordPivotEditor(t *testing.T) {
 	m := wideSales()
 	got := recordDo(t, m, "Pivot", func() {

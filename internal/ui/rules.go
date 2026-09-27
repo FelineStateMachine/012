@@ -335,20 +335,21 @@ func (h host) SaveFormat(i int, f sheet.CondFormat) error {
 		if i < 0 {
 			m.recordRule("format.conditional_add", f.JSON())
 		} else {
-			m.noteUnrecorded()
+			m.recordRule("format.conditional_set", numbered(i, f.JSON()))
 		}
 	}
 	return err
 }
 
-// Reworked follows a rule removed or moved in the panel.
-func (h host) Reworked() {
+// Reworked follows a rule removed or moved in the panel, recorded as the
+// command id that does the same, answered with answer.
+func (h host) Reworked(id, answer string) {
 	h.m.changed = true
-	h.m.noteUnrecorded()
+	h.m.recordRule(id, answer)
 }
 
-// noteUnrecorded notes in a recording the last undo step, a change to
-// rules the panel made that no command replays, as dialogs are noted.
+// noteUnrecorded notes in a recording the last undo step, a change no
+// command replays, as the named ranges picker makes.
 func (m *Model) noteUnrecorded() {
 	if r := m.rec; r != nil && r.depth == 0 && r.pending == "" {
 		r.flush(m)
@@ -376,19 +377,19 @@ func (h host) SaveValidation(i int, v sheet.Validation) error {
 		if i < 0 {
 			m.recordRule("data.validation_add", v.JSON())
 		} else {
-			m.noteUnrecorded()
+			m.recordRule("data.validation_set", numbered(i, v.JSON()))
 		}
 	}
 	return err
 }
 
-// recordRule records a rule added from the panel as the command that
-// adds it, answered with its line. A command that adds one itself is
-// recorded where it runs.
-func (m *Model) recordRule(id, line string) {
+// recordRule records a change the panel made to rules as the command
+// that makes it, answered with a rule's line or number (rulemacro.go). A
+// command that changes one itself is recorded where it runs.
+func (m *Model) recordRule(id, answer string) {
 	if m.rec == nil || m.rec.depth > 0 || m.rec.pending != "" {
 		return
 	}
 	m.rec.flush(m)
-	m.rec.add(m, macro.Call("run", id).With("answer", line))
+	m.rec.add(m, macro.Call("run", id).With("answer", macro.JSON(answer)))
 }

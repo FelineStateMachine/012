@@ -160,8 +160,8 @@ func TestRuleMacros(t *testing.T) {
 	m := newModel()
 	press(t, m, "<shift+down>")
 	src := recordRules(t, m)
-	for _, want := range []string{`run("format.conditional_add", answer="{\"ranges\":\"A1:A2\",\"condition\":\"not_empty\",\"fill\":\"green\"}")`,
-		`# Not recorded: remove conditional format A1:A2`,
+	for _, want := range []string{`run("format.conditional_add", answer={"ranges": "A1:A2", "condition": "not_empty", "fill": "green"})`,
+		`run("format.conditional_remove", answer=1)`,
 		`run("insert.checkbox")`, `run("data.validation_add", answer="{\"ranges\":\"C1:C2\",\"criteria\":\"list\",\"items\":[\"a\",\"b\"]}")`} {
 		if !strings.Contains(src, want) {
 			t.Errorf("script lacks %s:\n%s", want, src)
@@ -169,7 +169,7 @@ func TestRuleMacros(t *testing.T) {
 	}
 	fresh := newModel()
 	script(t, fresh, src)
-	if len(fresh.sheet.CondFormats()) != 2 || len(fresh.sheet.Validations()) != 2 { // the removal is only noted
+	if len(fresh.sheet.CondFormats()) != 1 || len(fresh.sheet.Validations()) != 2 {
 		t.Errorf("replay: %+v %+v %q", fresh.sheet.CondFormats(), fresh.sheet.Validations(), fresh.warn)
 	}
 }
@@ -182,7 +182,7 @@ func recordRules(t *testing.T, m *Model) string {
 	run(m, m.runCommand("macro.record"))
 	run(m, m.runCommand("format.conditional"))
 	press(t, m, "<enter>", "<enter>")          // add the rule the form starts with
-	press(t, m, "<down>", "<delete>", "<esc>") // removed, and noted
+	press(t, m, "<down>", "<delete>", "<esc>") // removed
 	run(m, m.runCommand("format.conditional"))
 	press(t, m, "<enter>", "<enter>", "<esc>", "<right>")
 	run(m, m.runCommand("insert.checkbox"))
