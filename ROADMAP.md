@@ -151,7 +151,7 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 
 | Item | Size |
 |---|---|
-| Version tags and release notes; prebuilt binaries attached to tags (built locally, since the repo is hosting only) | S |
+| Version tags and release notes; prebuilt binaries attached to tags (built locally, since the repo is hosting only). Tags done from v0.1.0, with notes in the tag message | S |
 | `make check`: vet, lint, tests, oracle, e2e in one target, run before every push. Done | S |
 | `make stress-report` thresholds that flag regressions over a set percentage against the last release | S |
 | Grafana: a trace panel for the nested spans | S |
