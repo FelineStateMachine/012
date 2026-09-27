@@ -187,10 +187,40 @@ func (c *pivotCalc) valueFormat(v PivotValue) Format {
 	if !summaries[v.Summarize].keepsFormat {
 		return Format{}
 	}
-	if row, ok := c.src.cells.filled.nextRow(v.Col, c.p.Range.From.Row+1, 1); ok && row <= c.p.Range.To.Row {
-		return c.src.DisplayFormat(Addr{Col: v.Col, Row: row})
+	return c.columnFormat(v.Col)
+}
+
+// columnFormat is the number format of column col's data in the source
+// range: the column's own when it has one, else the one most of its
+// numbers show in, ties going to the one met first. So one cell typed
+// differently ("$9,000" among "$2.50"s) doesn't restyle every result,
+// as in Sheets.
+func (c *pivotCalc) columnFormat(col int) Format {
+	if f := c.src.lines.cols[col].Format; !f.IsZero() {
+		return f
 	}
-	return Format{}
+	counts := map[Format]int{}
+	var seen []Format // in the order first met
+	r := c.p.Range
+	for row, ok := c.src.cells.filled.nextRow(col, r.From.Row+1, 1); ok && row <= r.To.Row; row, ok = c.src.cells.filled.nextRow(col, row+1, 1) {
+		a := Addr{Col: col, Row: row}
+		if c.src.Value(a).Kind != Number {
+			continue
+		}
+		f := c.src.DisplayFormat(a)
+		if counts[f] == 0 {
+			seen = append(seen, f)
+		}
+		counts[f]++
+	}
+	var best Format
+	most := 0
+	for _, f := range seen {
+		if counts[f] > most {
+			best, most = f, counts[f]
+		}
+	}
+	return best
 }
 
 // gather reads the source rows the filters let through, skipping rows

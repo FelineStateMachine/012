@@ -24,8 +24,11 @@ theme = light:Catppuccin Latte,dark:Catppuccin Mocha  # follow the terminal
   and switches when the terminal does (for example with the system's
   appearance, in terminals that report it).
 
-File > Settings > Theme opens a picker: type to search the names, or
-"dark" or "light"; the highlighted theme is drawn live, Enter keeps it and
+File > Settings > Theme opens a picker: type to search the names. A
+search starting with "dark" or "light" lists only the schemes of that
+kind (by `meta.isDark`, so "light" leaves out dark schemes such as Bright
+Lights), the rest of it searching their names: "light sol" finds
+Solarized Light. The highlighted theme is drawn live, Enter keeps it and
 writes `theme = ...` to the config file, and Esc goes back to the theme you
 had. With a `light:`/`dark:` pair, the picker changes the one in use.
 `012 config themes` lists every theme, with a `*` on the current one.

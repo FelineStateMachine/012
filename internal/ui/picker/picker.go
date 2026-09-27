@@ -71,6 +71,12 @@ type Picker struct {
 	Action string
 	Items  []Item
 
+	// Narrow, when set, sees the search first and can narrow the items by
+	// it, as "dark" does the themes: it returns the rest of the search,
+	// matched against the kept items' titles only, and which items to
+	// keep, or a nil keep to search every item as usual.
+	Narrow func(query string) (rest string, keep func(*Item) bool)
+
 	// Enter, when set, gets the first look at Enter with the search text,
 	// e.g. to take a typed path; it reports whether it handled it.
 	Enter func(query string) (tea.Cmd, bool)
@@ -120,12 +126,26 @@ func (p *Picker) Changed() {
 	p.Sel, p.Top = 0, 0
 	p.shown = p.shown[:0]
 	q := strings.TrimSpace(p.h.Line().Text())
+	var keep func(*Item) bool
+	if p.Narrow != nil {
+		if rest, k := p.Narrow(q); k != nil {
+			q, keep = strings.TrimSpace(rest), k
+		}
+	}
 	if q == "" {
 		for i := range p.Items {
-			p.shown = append(p.shown, Match{Item: &p.Items[i]})
+			if keep == nil || keep(&p.Items[i]) {
+				p.shown = append(p.shown, Match{Item: &p.Items[i]})
+			}
 		}
 		return
 	}
+	p.rank(q, keep)
+}
+
+// rank shows the items matching q, best first: of those keep keeps,
+// matching only their titles, when it is set.
+func (p *Picker) rank(q string, keep func(*Item) bool) {
 	// Rank title and path matches together by fuzzy score, so a tight
 	// match like "file" on the File menu beats letters scattered across a
 	// title. Title matches get a small bonus and win ties. Titles with a
@@ -144,7 +164,13 @@ func (p *Picker) Changed() {
 	}
 	best := map[int]*ranked{}
 	for _, mt := range fuzzy.FindNoSort(q, names) {
+		if keep != nil && !keep(&p.Items[mt.Index]) {
+			continue
+		}
 		best[mt.Index] = &ranked{Match{Item: &p.Items[mt.Index], InTitle: mt.MatchedIndexes}, mt.Score + titleBonus, mt.Index, false}
+	}
+	if keep != nil {
+		hay = nil // titles only
 	}
 	for _, mt := range fuzzy.FindNoSort(q, hay) {
 		if r, ok := best[mt.Index]; ok && r.score >= mt.Score {

@@ -1,5 +1,6 @@
 // Package themepicker is File > Settings > Theme: every theme in a
-// picker, fuzzy searched by name, "dark" or "light". The highlighted theme
+// picker, fuzzy searched by name, narrowed to one kind by a search
+// starting with "dark" or "light". The highlighted theme
 // is drawn live; Enter keeps it, Esc goes back to the theme there was. It
 // knows the UI only through Host, which draws and saves themes.
 package themepicker
@@ -70,9 +71,39 @@ func New(h Host) *Picker {
 	}
 	tp.Picker = picker.New(closing{h, tp}, "Theme", "Type a name, dark or light", 64, items)
 	tp.Action = "keep"
+	tp.Narrow = byKind(entries)
 	tp.Sel = sel
 	tp.preview()
 	return tp
+}
+
+// byKind narrows a search starting with the word "dark" or "light" to
+// the schemes of that kind (by their meta.isDark), the rest of it then
+// matching their names. So "light" lists light schemes, not dark ones
+// named like "Bright Lights", and "light sol" finds Solarized Light.
+// The terminal's theme is neither kind.
+func byKind(entries []theme.Entry) func(string) (string, func(*picker.Item) bool) {
+	dark := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		if e.Name != theme.Terminal {
+			dark[e.Name] = e.Dark
+		}
+	}
+	return func(q string) (string, func(*picker.Item) bool) {
+		word, rest, _ := strings.Cut(q, " ")
+		var want bool
+		switch strings.ToLower(word) {
+		case "dark":
+			want = true
+		case "light":
+		default:
+			return q, nil
+		}
+		return rest, func(it *picker.Item) bool {
+			d, ok := dark[it.Title]
+			return ok && d == want
+		}
+	}
 }
 
 // closing is the host as the inner picker sees it: closing it closes the
