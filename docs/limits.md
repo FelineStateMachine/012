@@ -28,6 +28,7 @@ it lags, and past a second it stalls.
 | Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 250 MB | | Whole-cell before-images, about 300 B per cell per step |
 | JEV | Up to about 1000 JEV cells: 0.3 ms of CPU per answer | 4000 JEV cells: 1.3 ms per answer, 5 s of CPU to answer them all | | Every answer recalculates every JEV cell (they're volatile) |
 | Formula depth | 10,000 nested parentheses or IFs: under 5 ms | | No explicit limit; recursion grows the stack | Recursive parser and evaluator |
+| Macros | Replaying 1000 recorded actions: 2.2 ms, one undo step; a script's call to the sheet: about 1.4 us | | Scripts past 10 M Starlark steps: stopped, with the line | One message per call to the sheet, served in batches on the UI goroutine |
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
 | SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 16.6 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 60 fps pacing; per session, the terminal's cell buffers |
 | Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 1 to 4 ms | | Results past 8192 x 256 (the pivot shows #REF!) | Reading each source cell of its fields: a map lookup each |
@@ -257,6 +258,27 @@ the pivot together:
 Groups are found by a comparable key struct rather than a string built
 per row: that took the 8-category pivot from 8.4 k to 196 allocations
 per edit, the others from 32 to 39 k to the figures above.
+
+## Macros
+
+A macro's script runs on its own goroutine; every call it makes to the
+sheet (an entry, a move, a command) is served on the UI goroutine as a
+message, in batches of up to 12 ms per update, so replaying doesn't wait
+a frame per call and the screen stays live for Esc. The run is one undo
+step whatever its size (`BenchmarkMacroReplay`, `BenchmarkMacroScript`,
+`internal/ui`, `-tags stress`, `BENCHTIME=2s`):
+
+| Benchmark | Time | Per action or call | Allocations |
+|---|---|---|---|
+| Replay 1000 recorded actions, absolute references (entries, selects, extends, a command) | 2.16 ms | 2.2 us | 30 k, 1.6 MB |
+| The same with relative references (moves, formulas moved with the active cell) | 2.19 ms | 2.2 us | 31 k, 1.7 MB |
+| A script's loop: 5000 `set` and 5000 `get` calls | 13.7 ms | 1.4 us per call | 220 k, 7.8 MB |
+
+Reading a range walks its cells; a range larger than 4096 cells (whole
+columns) is first trimmed to the used range, which costs a pass over the
+sheet, so reading single cells never does. Every run stops after 10
+million Starlark steps (`macro.DefaultMaxSteps`), about a second of pure
+computation.
 
 ## Hotspots found and fixed
 

@@ -12,6 +12,7 @@
 - [Serving over SSH](ssh.md): `012 serve`, setup, the security model and limits
 - [Configuration](config.md): the config file, `012 config` and every option
 - [Themes](themes.md): terminal color schemes, built in or your own
+- [Macros](macros.md): recording, running and managing macros; the Starlark scripting API
 
 **Working on 012**
 

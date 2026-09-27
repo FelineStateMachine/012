@@ -79,18 +79,18 @@ func (m *Model) applyTheme() string {
 
 func init() {
 	register(
-		&command{id: "settings.theme", title: "Theme",
+		&command{id: "settings.theme", macro: macroNever, title: "Theme",
 			desc: "Pick a color theme, previewing each as you move; Esc keeps the one you had",
 			run:  func(m *Model) tea.Cmd { m.openOverlay(newThemePicker(m)); return nil }},
-		&command{id: "settings.config_edit", title: "Open config file",
+		&command{id: "settings.config_edit", macro: macroNever, title: "Open config file",
 			desc:    "Edit the settings file in $VISUAL or $EDITOR; 012 reloads it when you close the editor",
 			enabled: func(m *Model) bool { return m.prefs.Config != nil && m.prefs.Config.Path != "" },
 			run:     (*Model).editConfig},
-		&command{id: "settings.config_reload", title: "Reload config",
+		&command{id: "settings.config_reload", macro: macroNever, title: "Reload config",
 			desc:    "Read the settings file again and apply the theme and display options",
 			enabled: func(m *Model) bool { return m.prefs.Reload != nil },
 			run:     func(m *Model) tea.Cmd { m.reloadConfig(); return nil }},
-		&command{id: "settings.jev_key", title: "JEV API key",
+		&command{id: "settings.jev_key", macro: macroNever, title: "JEV API key",
 			desc:    "Store the TypeSafe API key for JEV functions in the OS credential store",
 			enabled: func(m *Model) bool { return m.prefs.Keys != nil },
 			run:     (*Model).askKey},

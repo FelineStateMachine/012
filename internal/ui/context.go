@@ -43,7 +43,7 @@ func concat(lists ...[]menuItem) []menuItem {
 }
 
 func init() {
-	register(&command{id: "menu.context", title: "Cell menu", desc: "Open the right-click menu for the selection", run: func(m *Model) tea.Cmd {
+	register(&command{id: "menu.context", macro: macroNever, title: "Cell menu", desc: "Open the right-click menu for the selection", run: func(m *Model) tea.Cmd {
 		x, y := m.cellPos(m.cur)
 		m.showContextMenu(cellMenu, x, y+1)
 		return nil

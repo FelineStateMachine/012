@@ -16,7 +16,7 @@ func (m *Model) SetVimKeys(on bool) {
 }
 
 func init() {
-	register(&command{id: "settings.vim", title: "Vim keys",
+	register(&command{id: "settings.vim", macro: macroNever, title: "Vim keys",
 		desc: "Move with hjkl, counts and operators (dd, yy, p), visual selection with v and V, and : commands",
 		run: func(m *Model) tea.Cmd {
 			m.SetVimKeys(!m.prefs.vim)

@@ -48,9 +48,13 @@ type fileFormat struct {
 	// Arithmetic is "decimal" for decimal arithmetic, which needs no
 	// version bump: earlier builds ignore it and compute in binary, as
 	// Sheets would. It is for the whole workbook, so it stays at the top.
-	Arithmetic string      `json:"arithmetic,omitempty"`
-	fileSheet              // versions 1 to 3: the only sheet
-	Sheets     []fileSheet `json:"sheets,omitempty"` // version 4
+	Arithmetic string `json:"arithmetic,omitempty"`
+	// Macros and where they were made need no version bump either:
+	// earlier builds ignore them, and the sheets read the same.
+	MacroOrigin string      `json:"macroOrigin,omitempty"`
+	Macros      []fileMacro `json:"macros,omitempty"`
+	fileSheet               // versions 1 to 3: the only sheet
+	Sheets      []fileSheet `json:"sheets,omitempty"` // version 4
 }
 
 // fileSheet is one sheet of a file.
@@ -240,6 +244,12 @@ func (w *Workbook) headLines() string {
 	if w.decimal {
 		lines = append(lines, `"arithmetic": "decimal"`)
 	}
+	if len(w.macros) > 0 {
+		if w.macroOrigin != "" {
+			lines = append(lines, `"macroOrigin": `+jsonString(w.macroOrigin))
+		}
+		lines = append(lines, w.macrosLines())
+	}
 	return strings.Join(lines, ",\n  ")
 }
 
@@ -385,6 +395,10 @@ func ReadBook(r io.Reader) (*Workbook, error) {
 	// Anything but "decimal" (say, a mode from a later build) computes in
 	// binary, as the file would in a build without the setting.
 	w.decimal = f.Arithmetic == "decimal"
+	if err := w.readMacros(f.Macros); err != nil {
+		return nil, err
+	}
+	w.macroOrigin = f.MacroOrigin
 	w.RecalcAll()
 	return w, nil
 }

@@ -37,6 +37,11 @@ or touch your keychain. Unit tests do the same with `ui.Settings` and
 `ssh` client inside the same libghostty terminal, so the server path
 is tested as a user sees it (skipped when `ssh` isn't installed).
 
+Each session points `XDG_CONFIG_HOME` into its working directory, so its
+config file, theme files and the machine id that macros' trust uses are
+the test's own: sessions that share a directory are one computer, and
+tests never touch the real config, keychain or machine id.
+
 `make e2e` builds libghostty-vt from source with Zig into `.deps/` on first
 use. It is its own Go module so cgo never reaches the main binary.
 

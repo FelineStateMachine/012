@@ -68,6 +68,7 @@ type Model struct {
 
 	mode   mode
 	note   string // feedback on the last action, e.g. "Undid: clear B3"
+	warn   string // like note, for something that went wrong, e.g. a macro's error
 	errMsg string // the message ERROR mode shows
 
 	// Components. Each owns its state and the handling of the input it
@@ -88,7 +89,9 @@ type Model struct {
 	term    terminal   // what the terminal supports: graphics.go
 	prefs   prefs      // the settings in effect and the theme chosen: prefs.go
 
-	vim vimState // a vim key sequence in progress: vim.go
+	vim    vimState   // a vim key sequence in progress: vim.go
+	rec    *recorder  // a macro being recorded: macrorec.go
+	macros macroState // a macro running, and trust in the file's macros: macrorun.go
 
 	keyAt time.Time // when the key the next frame answers was pressed, for telemetry
 
@@ -118,6 +121,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if cmd, ok := m.importing(msg); ok {
 		return m, cmd
+	}
+	if m.macroBusy(msg) {
+		return m, nil
+	}
+	if m.rec != nil {
+		m.rec.acted = false
 	}
 	before, beforeMode := *m.focus(), m.mode
 	state := m.beginUpdate(msg)
@@ -161,6 +170,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.answerJEV(msg)
 	case importedMsg, importTickMsg, exportedMsg:
 		cmd = m.handleTransfer(msg)
+	case macroCallMsg:
+		cmd = m.serveMacro(msg)
+	case macroDoneMsg:
+		cmd = m.finishMacro(msg.r, msg.done)
+	case macroEditedMsg:
+		m.macroEdited(msg)
 	default:
 		if !m.handlePrefs(msg) {
 			cmd = m.term.handle(msg)
@@ -184,7 +199,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) beginUpdate(msg tea.Msg) int {
 	switch msg.(type) {
 	case tea.KeyPressMsg, tea.MouseClickMsg, tea.PasteMsg:
-		m.note = ""
+		m.note, m.warn = "", ""
 		if _, key := msg.(tea.KeyPressMsg); !key {
 			m.trace = nil // keys end a trace in handleKey
 		}
@@ -199,6 +214,7 @@ func (m *Model) beginUpdate(msg tea.Msg) int {
 // flag follows the undo history, and any edit but a paste clears the copy
 // marker, as in Sheets.
 func (m *Model) endUpdate(state int) {
+	m.observeRecording(state)
 	if m.sheet.StateID() != state {
 		m.changed = m.sheet.StateID() != m.saved
 		// An edit, a sort or a filter may hide the active cell's row.
@@ -217,7 +233,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil // the mouse is busy filling
 	}
-	if m.traceKey(k) {
+	if m.macroKey(k) || m.traceKey(k) {
 		return nil
 	}
 	switch m.mode {
@@ -247,7 +263,7 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 		}
 	}
 	key := k.String()
-	if m.moveKey(key) {
+	if m.recordMove(key) {
 		m.entry.tabbing = false
 		return nil
 	}
@@ -257,6 +273,9 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 	}
 	if id, ok := keymap[canonicalKey(key)]; ok {
 		return m.runCommand(id)
+	}
+	if cmd, ok := m.runShortcut(key); ok {
+		return cmd
 	}
 	if text := typed(k); text != "" {
 		m.startEntry(modeEnter, text)

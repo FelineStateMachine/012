@@ -75,7 +75,7 @@ Avoid in the main binary: DuckDB and automerge (both need cgo).
 
 - Multiple sheets with references between them, in Sheets' style (`Sheet2!A1`) rather than 1-2-3 R3's `B:A1`, and sheet tabs. Done.
 - Pivot tables as derived sheets. Done: Data > Pivot table and its editor, live results the engine owns, saved as their definition (file version 5), values in XLSX; see [docs/data.md](docs/data.md#pivot-tables).
-- Macros: replay the command log; Starlark (`go.starlark.net`) for scripts, with step limits.
+- Macros: replay the command log; Starlark (`go.starlark.net`) for scripts, with step limits. Done: Data > Macros records (absolute or relative references), saves, runs (Ctrl+Alt+Shift+digit, the palette) and manages macros, stored as Starlark in the file; see [docs/macros.md](docs/macros.md).
 - Serve over SSH with `charm.land/wish/v2`. Done: `012 serve [dir]`, a 012 per session confined to the directory, public-key auth only ([docs/ssh.md](docs/ssh.md)). Not shared editing: see below.
 - Decimal mode for currency (`cockroachdb/apd/v3`), opt-in. Done: File > Settings > Decimal arithmetic, boundary in the README.
 - Demos with VHS tapes. Done: `make demos` renders `demos/` locally and the README shows them. Not run in CI: the GitHub repo is hosting only.

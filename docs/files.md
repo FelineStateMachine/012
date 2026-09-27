@@ -42,6 +42,11 @@ the open file when something else wrote it since it was opened or last
 saved (another program, or another session of [012 serve](ssh.md)) asks
 first: Enter overwrites, S saves under another name, Esc cancels.
 
+Macros are an optional `macros` list, one macro per line with its
+Starlark script as a string, and `macroOrigin`, the computer they were
+made or trusted on; neither raises the version, and older builds ignore
+them. Opening a file never runs its macros. See [macros.md](macros.md#in-the-file).
+
 Other formats import as one sheet named after the file (or the SQLite
 table); CSV and TSV downloads write the sheet shown, as Sheets' do.
 

@@ -44,6 +44,9 @@ type Workbook struct {
 	active  int          // the sheet last shown, saved in the file
 	decimal bool         // decimal arithmetic, see decimal.go
 
+	macros      []Macro // see macros.go
+	macroOrigin string
+
 	// structural is set when sheets were added, deleted or renamed during
 	// the open change, which then recalculates everything: references by
 	// sheet name may now resolve differently.

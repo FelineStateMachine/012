@@ -41,7 +41,7 @@ func (m *Model) EnableJEV(client jev.Client, cache *jev.Cache) {
 }
 
 func init() {
-	register(&command{id: "jev.refresh", title: "Ask JEV again",
+	register(&command{id: "jev.refresh", macro: macroNever, title: "Ask JEV again",
 		desc:    "Ask the JEV model again for the selected cells, replacing its answers",
 		enabled: func(m *Model) bool { return m.jev != nil },
 		run: func(m *Model) tea.Cmd {

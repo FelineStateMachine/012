@@ -199,6 +199,8 @@ func openModel(args []string) (*ui.Model, error) {
 		}
 	}
 	m := ui.New(s, name)
+	m.SetMachine(machineID())
+	m.AllowEditor()
 	if importName != "" {
 		m.Import(importName)
 	}

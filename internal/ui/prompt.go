@@ -97,6 +97,7 @@ func (p *prompt) cancel(m *Model) {
 	}
 	m.quitAfterSave = false // cancelling Save as cancels Save and quit
 	m.closePrompt()
+	m.recordAnswer("", true)
 }
 
 // accept closes the prompt and acts on the answer.
@@ -104,7 +105,9 @@ func (p *prompt) accept(m *Model) tea.Cmd {
 	text := strings.TrimSpace(m.line.text())
 	m.closePrompt()
 	if p.kind != promptRange {
-		return p.onText(m, text)
+		cmd := p.onText(m, text)
+		m.recordAnswer(text, false)
+		return cmd
 	}
 	r := m.point.rect()
 	if p.typing {
@@ -114,7 +117,9 @@ func (p *prompt) accept(m *Model) tea.Cmd {
 			return nil
 		}
 	}
-	return p.onRange(m, r)
+	cmd := p.onRange(m, r)
+	m.recordAnswer(r.String(), false)
+	return cmd
 }
 
 // pointKey moves or stretches the range being pointed at; typing switches

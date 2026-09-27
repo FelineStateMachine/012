@@ -96,6 +96,7 @@ var menuBar = []menuDef{
 		{cmd: "data.pivot"}, {cmd: "data.pivot_edit"}, {cmd: "data.frequency"}, sep,
 		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, sep,
 		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,
+		{title: "Macros", items: macroItems}, sep,
 		{cmd: "jev.refresh"},
 	}},
 	{title: "Help", accel: 'h', items: []menuItem{
@@ -213,7 +214,7 @@ func barMenuFor(key string) int {
 }
 
 func init() {
-	register(&command{id: "menu", title: "Menu", desc: "Open the menu bar", run: func(m *Model) tea.Cmd {
+	register(&command{id: "menu", macro: macroNever, title: "Menu", desc: "Open the menu bar", run: func(m *Model) tea.Cmd {
 		m.showBarMenu(0)
 		return nil
 	}})

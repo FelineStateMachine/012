@@ -16,7 +16,7 @@ import (
 
 func init() {
 	register(
-		&command{id: "data.named_ranges", title: "Named ranges", desc: "List the named ranges: go to, add, edit or delete them", run: func(m *Model) tea.Cmd {
+		&command{id: "data.named_ranges", macro: macroView, title: "Named ranges", desc: "List the named ranges: go to, add, edit or delete them", run: func(m *Model) tea.Cmd {
 			m.openNames(m.selection())
 			return nil
 		}},

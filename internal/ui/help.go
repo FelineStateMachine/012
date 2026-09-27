@@ -16,17 +16,17 @@ import (
 
 func init() {
 	register(
-		&command{id: "help", title: "Keyboard shortcuts", desc: "Show every key, grouped by what it does", run: func(m *Model) tea.Cmd {
+		&command{id: "help", macro: macroNever, title: "Keyboard shortcuts", desc: "Show every key, grouped by what it does", run: func(m *Model) tea.Cmd {
 			m.openOverlay(&shortcuts{})
 			return nil
 		}},
-		&command{id: "help.functions", title: "Function list", desc: "Search the functions formulas can use", run: func(m *Model) tea.Cmd {
+		&command{id: "help.functions", macro: macroNever, title: "Function list", desc: "Search the functions formulas can use", run: func(m *Model) tea.Cmd {
 			p := newPicker(m, "Functions", "Type a function name, e.g. sum or if", 100, functionItems())
 			p.action = "insert"
 			m.openOverlay(p)
 			return nil
 		}},
-		&command{id: "help.about", title: "About 012", desc: "Show the version", run: func(m *Model) tea.Cmd {
+		&command{id: "help.about", macro: macroNever, title: "About 012", desc: "Show the version", run: func(m *Model) tea.Cmd {
 			m.openOverlay(&choiceBar{
 				msg: "012 " + version() + ": Lotus 1-2-3 looks, Google Sheets keys.",
 				choices: []choice{
@@ -143,6 +143,10 @@ func keyHelpRows(vim bool) []helpRow {
 		{keys: []string{"Arrows"}, action: "Pick cells for a formula"},
 		{keys: []string{"Esc"}, action: "Cancel the entry"},
 	}, "edit")
+	group("Macros", []helpRow{
+		{keys: []string{"Ctrl+Alt+Shift+0-9"}, action: "Run the macro with that shortcut"},
+		{keys: []string{"Esc"}, action: "Stop a macro while it runs"},
+	})
 	group("Menus and search", []helpRow{
 		{keys: []string{"Alt+letter"}, action: "Open a menu by its underlined letter"},
 	}, "palette", "menu", "menu.context", "help")

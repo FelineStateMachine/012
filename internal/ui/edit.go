@@ -18,8 +18,8 @@ import (
 
 func init() {
 	register(
-		&command{id: "edit.undo", title: "Undo", desc: "Undo the last change", run: (*Model).undo},
-		&command{id: "edit.redo", title: "Redo", desc: "Redo the last undone change", run: (*Model).redo},
+		&command{id: "edit.undo", macro: macroNever, title: "Undo", desc: "Undo the last change", run: (*Model).undo},
+		&command{id: "edit.redo", macro: macroNever, title: "Redo", desc: "Redo the last undone change", run: (*Model).redo},
 		&command{id: "edit.fill_down", title: "Fill down", desc: "Copy the top row of the selection into the rows below it", edits: (*Model).selection, run: func(m *Model) tea.Cmd {
 			return m.fill(m.sheet.FillDown)
 		}},
@@ -107,7 +107,7 @@ func (m *Model) afterHistory(verb, none string, c sheet.Change, ok bool) {
 		i = m.book().Active()
 	}
 	m.afterSheetsChange(c.Sheet, i)
-	if !c.Tabs {
+	if !c.Tabs && !c.Macros {
 		m.selectRect(c.Focus)
 	}
 }
@@ -157,6 +157,7 @@ func (m *Model) fillEntry() bool {
 		return false
 	}
 	m.cancelEntry()
+	m.recordEntry(input, true)
 	return true
 }
 

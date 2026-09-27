@@ -3,6 +3,8 @@ package ui
 import (
 	"log/slog"
 
+	"github.com/FelineStateMachine/012/internal/macro"
+
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 )
@@ -75,6 +77,7 @@ func (m *Model) finishFill() {
 	if dst == src || m.refusePivot(dst) {
 		return
 	}
+	m.recordFlush()
 	span := telemetry.Start("fill", slog.Int("cells", (dst.To.Row-dst.From.Row+1)*(dst.To.Col-dst.From.Col+1)))
 	got, err := m.sheet.FillSeries(src, dst)
 	span.Fail(err)
@@ -84,6 +87,24 @@ func (m *Model) finishFill() {
 	}
 	m.changed = true
 	m.selectRect(got)
+	m.record(fillAction(m.rec, src, dst))
+}
+
+// fillAction records a fill from src over dst: the range with absolute
+// references, how far with relative ones.
+func fillAction(r *recorder, src, dst sheet.Rect) macro.Action {
+	if r == nil || !r.relative {
+		return macro.Call("fill").With("to", dst.String())
+	}
+	switch {
+	case dst.To.Row > src.To.Row:
+		return macro.Call("fill").With("rows", dst.To.Row-src.To.Row)
+	case dst.From.Row < src.From.Row:
+		return macro.Call("fill").With("rows", dst.From.Row-src.From.Row)
+	case dst.To.Col > src.To.Col:
+		return macro.Call("fill").With("cols", dst.To.Col-src.To.Col)
+	}
+	return macro.Call("fill").With("cols", dst.From.Col-src.From.Col)
 }
 
 // cancelFill stops a fill handle drag without filling.

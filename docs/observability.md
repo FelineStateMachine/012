@@ -57,6 +57,7 @@ same, as an attribute for queries), `service` (`012`) and `dur_ms`.
 | `frames` | once a second while frames are drawn | `frames`, `render_p50_ms`, `render_p95_ms`, `render_max_ms` (View), `keys`, `key_p50_ms`, `key_p95_ms`, `key_max_ms` (key press to the end of its frame), `heap_bytes`, and gauges: `cells`, `jev_in_flight`, `jev_queued` |
 | `frame` | every frame, at debug level | `key_ms` |
 | `command` | every registered command | `id`, e.g. `data.sort` |
+| `macro` | each macro run, from start to end | `steps` (Starlark steps), `calls` (calls to the spreadsheet), `outcome` (`ok`, `error`, `cancelled` or `limit`) |
 | `sort`, `filter`, `find`, `replace`, `fill` | the operation itself | `rows`, `cols`, `keys`; `hidden`; `matches`; `replaced`; `cells` |
 | `pivot` | every pivot table recomputation (a change to its data or definition) | `records` (source rows summarized), `groups` (row groups at every depth), `cells` (results), `failed` (shows `#REF!`) |
 | `frequency` | making a frequency table | `rows` (data rows counted) |

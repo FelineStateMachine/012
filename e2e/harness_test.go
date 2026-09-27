@@ -479,7 +479,7 @@ func configEnv(t *testing.T, o options) []string {
 	t.Helper()
 	dir := o.configDir
 	if dir == "" {
-		dir = t.TempDir()
+		dir = filepath.Join(o.dir, ".config")
 	}
 	if o.config != "" {
 		if err := os.MkdirAll(filepath.Join(dir, "012"), 0o700); err != nil {

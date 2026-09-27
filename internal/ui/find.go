@@ -54,11 +54,11 @@ const findID = "find"
 
 func init() {
 	register(
-		&command{id: "edit.find", title: "Find", desc: "Find text in the sheet as you type", run: func(m *Model) tea.Cmd {
+		&command{id: "edit.find", macro: macroView, title: "Find", desc: "Find text in the sheet as you type", run: func(m *Model) tea.Cmd {
 			m.openFind(false)
 			return nil
 		}},
-		&command{id: "edit.replace", title: "Find and replace", desc: "Find text and replace it", run: func(m *Model) tea.Cmd {
+		&command{id: "edit.replace", macro: macroView, title: "Find and replace", desc: "Find text and replace it", run: func(m *Model) tea.Cmd {
 			m.openFind(true)
 			return nil
 		}},

@@ -49,7 +49,7 @@ var fileWords = []cmdItem{
 const cmdLineID = "cmdline"
 
 func init() {
-	register(&command{id: "vim.command", title: "Command line",
+	register(&command{id: "vim.command", macro: macroNever, title: "Command line",
 		desc: "Type a command: a cell to go to (B12), w, q, wq, e file, or any command by name",
 		run: func(m *Model) tea.Cmd {
 			c := &cmdLine{}

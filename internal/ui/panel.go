@@ -133,6 +133,8 @@ func (m *Model) indicator() string {
 	switch {
 	case m.xfer.job != nil:
 		return "WAIT"
+	case m.macros.run != nil:
+		return "CMD" // 1-2-3's indicator while a macro runs
 	case m.overlay != nil:
 		return m.overlay.indicator()
 	case m.mode == modePrompt:
@@ -149,6 +151,9 @@ func (m *Model) indicator() string {
 func (m *Model) menuBarLine() string {
 	left := m.menuBarTitles()
 	ind := m.th.Indicator.Render(" " + m.indicator() + " ")
+	if m.rec != nil {
+		ind = m.th.Recording.Render(" REC ") + " " + ind
+	}
 	gap := m.width - ansi.StringWidth(left) - ansi.StringWidth(ind)
 	return left + strings.Repeat(" ", max(gap, 1)) + ind
 }
@@ -198,6 +203,8 @@ func (m *Model) contextLineText() string {
 		left = m.fillLine()
 	case m.entry.hint != "":
 		left = m.th.Warning.Render(m.entry.hint)
+	case m.macros.run != nil:
+		left, right = "Running "+m.macros.run.name+"…", m.th.KeyHints("Esc", "stop")
 	case m.vimActive() && (m.vim.pending() != "" || m.visual() != visualNone):
 		left = m.vimLine()
 	case m.mode == modeReady && m.trace != nil:
@@ -208,6 +215,9 @@ func (m *Model) contextLineText() string {
 		}
 		if left == "" {
 			left = m.errorLine()
+		}
+		if left == "" {
+			left = m.recordingLine()
 		}
 	case m.mode == modeMenu:
 		switch o := m.overlay.(type) {

@@ -15,7 +15,7 @@ shows it is derived from the table rather than listing it again.
 | Registry | Entry | Derived from it |
 |---|---|---|
 | `sheet.FuncDef` | a function: name, signature, description, arity, eval | parsing, autocomplete, argument hints, help, [functions.md](functions.md) |
-| `ui.command` | an action: id, title, description, run, enabled, checked | key bindings (Sheets and vim), menu bar, context menus, palette, shortcuts help, the `:` command line and its completions |
+| `ui.command` | an action: id, title, description, run, enabled, checked, what it edits, and how macros treat it | key bindings (Sheets and vim), menu bar, context menus, palette, shortcuts help, the `:` command line and its completions, macro recording and `run()` in scripts |
 | `fileio` formats (`formats.go`) | a format: name, extensions, labels, traits, importer, exporter | `Import`, `Export`, detection, import picker, File > Download, command line |
 | `chart.types`, with `sheet.ChartTypes` | a type: name and order (sheet, saved in files), a layout drawing text and image (chart) | `chart.Draw`, `chart.Image`, chart editor, Insert > Chart |
 | theme roles (`theme.Theme`) | a role: dark and light styles on the 16 ANSI colors, with a contrast minimum for schemes (`minContrast`) | every style in the UI, drawn in the terminal's palette or any color scheme (`FromPalette`); `TestEveryThemeReadable` checks each role under all 349 schemes |
@@ -41,8 +41,24 @@ composited over the finished grid, so a new one never shifts the layout.
 ### 3. Actions go through commands
 
 Every user action is a registered command, whatever reaches it (key, menu,
-mouse, palette). This keeps discoverability automatic, and gives one place
-to add a command log for macros and replay later.
+mouse, palette). This keeps discoverability automatic, and `runCommand`,
+the one place commands run, is where the macro recorder listens: a command
+that changes the workbook is recorded by id (`run("format.bold")`), with
+the answer to the question it asks. Each command says how macros treat it
+(`command.macro`): recorded (the default), a view command recorded as the
+selection it leaves (Go to, Select all, Next sheet), or never recorded nor
+run from scripts (files, menus, help, undo, macros).
+
+The rest of the command log is what isn't a command but matters to a
+replay: entries as they're accepted, pastes of text, the fill handle,
+column borders and dragged tabs, each recorded where it happens with
+`Model.record`, and the selection, recorded as a state (where it is just
+before something acts on it) rather than as the keys or clicks that moved
+it. So movement keys, typing and mouse selection needn't become commands
+to be recorded, and a replay doesn't depend on the window's size. A new
+action that changes the workbook outside a command records itself the same
+way; anything unrecorded that changes the workbook while recording becomes
+a comment in the script, so a gap shows.
 
 ### 4. Side effects stay at the edges
 
@@ -61,9 +77,14 @@ the same way.
 Every change to a workbook goes through `Batch(Change{...}, fn)` and the
 history `step`: snapshot what changes, apply, mark dirty, recalculate. Undo,
 telemetry, recalculation and the file's dirty flag hang off that one path,
-and so will anything later that needs to see every change (macros, a
-command log, live sharing). New mutations use it; they never write cells
-around it.
+and so will anything later that needs to see every change (live sharing).
+New mutations use it; they never write cells around it. A change made over
+several calls, as a macro run makes one call per message, opens its step
+with `Workbook.Begin` and closes it when done, so it undoes as one; inside
+it, `Settle` recalculates what changed so far, so what reads formulas
+(scripts, sorting) sees current values. The macro list itself is changed
+through the same steps, so saving a macro is undoable and marks the file
+modified.
 
 ### 6. Storage behind a small API
 
@@ -122,7 +143,9 @@ Where the code doesn't follow the patterns yet:
 - Components in `internal/ui` are handed the whole `*Model` rather than a
   narrower interface, so they stay in package `ui` (pattern 2).
 - Movement keys, typing, F4 in formulas, Alt+letter menus and direct mouse
-  manipulation (resizing columns, the fill handle, dragging charts and tabs,
-  filter buttons) act without a registered command. Making them commands
-  would add palette and help entries, so they wait for the command log
-  (pattern 3).
+  manipulation act without a registered command (pattern 3). The macro
+  recorder covers what matters for replay without them (entries, the
+  selection, pastes, the fill handle, column borders, dragged tabs), but
+  dragging and resizing charts and the choices made in dialogs (the sort
+  bar, the filter picker, find and replace, the chart editor) aren't
+  recorded: a recording notes them as comments.

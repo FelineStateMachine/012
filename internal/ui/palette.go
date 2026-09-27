@@ -19,7 +19,7 @@ import (
 // its shortcut. The function list uses the same picker.
 
 func init() {
-	register(&command{id: "palette", title: "Search the menus", desc: "Find and run any command by name", run: func(m *Model) tea.Cmd {
+	register(&command{id: "palette", macro: macroNever, title: "Search the menus", desc: "Find and run any command by name", run: func(m *Model) tea.Cmd {
 		m.openOverlay(newPicker(m, "Search the menus", "Type a command, e.g. save or width", 76, paletteItems(m)))
 		return nil
 	}})
@@ -58,6 +58,7 @@ func paletteItems(m *Model) []pickItem {
 	for _, d := range menuBar {
 		walk(visibleItems(d.items), d.title)
 	}
+	items = append(items, macroRunItems(m)...)
 	rest := make([]string, 0, len(commands))
 	for id := range commands {
 		rest = append(rest, id)
