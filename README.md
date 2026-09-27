@@ -17,17 +17,10 @@ It is one pure-Go binary.
 go install github.com/FelineStateMachine/012/cmd/012@latest
 ```
 
-Requires Go 1.27. Or from a clone: `make build` puts the binary in `bin/012`.
-
-```sh
-012                  # a new sheet
-012 budget.012       # open or create a sheet
-012 sales.xlsx       # import .xlsx, .csv, .tsv, .sqlite, .parquet or Lotus .wk1
-012 serve ~/sheets   # serve a directory over SSH, a 012 per session
-```
-
-F1 shows every shortcut, F10 or Alt+letter opens the menus, and Ctrl+K
-searches every command. `012 config edit` opens the settings file.
+Then run `012`, or `012 budget.012` to open a sheet. F1 shows every
+shortcut, F10 or Alt+letter opens the menus, and Ctrl+K searches every
+command. [Install and run](docs/getting-started/install.md) has the
+rest: building from a clone, importing files, `012 serve` and settings.
 
 ## A short tour
 
@@ -73,7 +66,7 @@ palette; 012 draws in your terminal's own colors by default
 ## More
 
 - [Documentation](docs/README.md): every guide, for using 012 and for
-  working on it
+  working on it, starting with [getting started](docs/getting-started/README.md)
 - [Roadmap](ROADMAP.md)
 - Working on 012: `make build`, then `make check` before a push; see
   [testing](docs/contributing/testing.md) and [CLAUDE.md](CLAUDE.md)
