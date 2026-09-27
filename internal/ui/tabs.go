@@ -91,16 +91,14 @@ var tabMenu = []menuItem{
 	{cmd: "sheet.new"}, {cmd: "sheet.goto"},
 }
 
-func (m *Model) book() *sheet.Workbook { return m.sheet.Book() }
-
 // sheetAt returns the sheet d tabs from the one shown, or nil past the
 // ends: moving between sheets doesn't wrap around, as in Sheets.
-func (m *Model) sheetAt(d int) *sheet.Sheet {
-	i := m.book().Index(m.sheet) + d
-	if i < 0 || i >= m.book().Len() {
+func (g *grid) sheetAt(d int) *sheet.Sheet {
+	i := g.book().Index(g.sheet) + d
+	if i < 0 || i >= g.book().Len() {
 		return nil
 	}
-	return m.book().Sheet(i)
+	return g.book().Sheet(i)
 }
 
 func (m *Model) stepSheet(d int) tea.Cmd {

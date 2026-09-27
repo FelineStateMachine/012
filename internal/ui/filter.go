@@ -58,12 +58,12 @@ func (m *Model) createFilter() tea.Cmd {
 // dataRange is the range data commands act on: the selection when there
 // is one, cut to the data in it, or else the block of data around the
 // active cell.
-func (m *Model) dataRange() sheet.Rect {
-	if !m.hasRange() {
-		return m.sheet.Region(m.cur)
+func (g *grid) dataRange() sheet.Rect {
+	if !g.hasRange() {
+		return g.sheet.Region(g.cur)
 	}
-	r := m.selection()
-	if used, ok := m.sheet.UsedRange(); ok {
+	r := g.selection()
+	if used, ok := g.sheet.UsedRange(); ok {
 		r.To.Row = max(min(r.To.Row, used.To.Row), r.From.Row)
 		r.To.Col = max(min(r.To.Col, used.To.Col), r.From.Col)
 	}
@@ -72,26 +72,26 @@ func (m *Model) dataRange() sheet.Rect {
 
 // filterMark is the filter button in column c's header, if c is in the
 // filter's range, and whether the column's filter hides anything.
-func (m *Model) filterMark(c int) (string, bool) {
-	r, on := m.sheet.FilterRange()
+func (g *grid) filterMark(c int) (string, bool) {
+	r, on := g.sheet.FilterRange()
 	switch {
 	case !on || c < r.From.Col || c > r.To.Col:
 		return "", false
-	case m.sheet.ColumnFiltered(c):
+	case g.sheet.ColumnFiltered(c):
 		return "▼", true
 	}
 	return "▾", false
 }
 
 // filterButtonX is the screen x of column c's filter button, or -1.
-func (m *Model) filterButtonX(c int) int {
+func (g *grid) filterButtonX(c int) int {
 	name := sheet.ColName(c)
-	w := m.sheet.ColWidth(c)
-	if mark, _ := m.filterMark(c); mark == "" || w < len(name)+3 {
+	w := g.sheet.ColWidth(c)
+	if mark, _ := g.filterMark(c); mark == "" || w < len(name)+3 {
 		return -1
 	}
 	lw := len(name) + 2
-	return m.colStart(c) + (w-lw)/2 + lw - 1
+	return g.colStart(c) + (w-lw)/2 + lw - 1
 }
 
 // filterPicker is the values list and condition for one column.

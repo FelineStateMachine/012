@@ -2,8 +2,6 @@ package ui
 
 import (
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Right-click menus follow Sheets: the cell menu offers clipboard, insert
@@ -79,10 +77,4 @@ func (m *Model) rightClick(x, y int) {
 		}
 		m.showContextMenu(rowMenu, x, y+1)
 	}
-}
-
-// cellPos returns the screen position of a visible cell's left edge.
-func (m *Model) cellPos(a sheet.Addr) (x, y int) {
-	y, _ = m.rowY(a.Row)
-	return m.colStart(a.Col), y
 }

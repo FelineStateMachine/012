@@ -84,15 +84,15 @@ func orderName(desc bool) string {
 // headerRows is how many rows at the top of r are headers that sorting
 // leaves in place: frozen rows, the filter's header row, and, for a range
 // found around the active cell, a first row of text over numbers.
-func (m *Model) headerRows(r sheet.Rect, selected bool) int {
+func (g *grid) headerRows(r sheet.Rect, selected bool) int {
 	n := 0
-	if fr, _ := m.sheet.Frozen(); fr > r.From.Row {
+	if fr, _ := g.sheet.Frozen(); fr > r.From.Row {
 		n = fr - r.From.Row
 	}
-	if f, ok := m.sheet.FilterRange(); ok && f.From.Row == r.From.Row {
+	if f, ok := g.sheet.FilterRange(); ok && f.From.Row == r.From.Row {
 		n = max(n, 1)
 	}
-	if n == 0 && !selected && m.looksLikeHeader(r) {
+	if n == 0 && !selected && g.looksLikeHeader(r) {
 		n = 1
 	}
 	return min(n, r.To.Row-r.From.Row)
@@ -100,13 +100,13 @@ func (m *Model) headerRows(r sheet.Rect, selected bool) int {
 
 // looksLikeHeader reports whether r's first row is all text above a row
 // with numbers, like "Item, Amount" above "Rent, 1450".
-func (m *Model) looksLikeHeader(r sheet.Rect) bool {
+func (g *grid) looksLikeHeader(r sheet.Rect) bool {
 	if r.To.Row == r.From.Row {
 		return false
 	}
 	text, numbers := false, false
 	for c := r.From.Col; c <= r.To.Col; c++ {
-		switch m.sheet.Value(sheet.Addr{Col: c, Row: r.From.Row}).Kind {
+		switch g.sheet.Value(sheet.Addr{Col: c, Row: r.From.Row}).Kind {
 		case sheet.Empty:
 			continue
 		case sheet.Text:
@@ -114,7 +114,7 @@ func (m *Model) looksLikeHeader(r sheet.Rect) bool {
 		default:
 			return false
 		}
-		switch m.sheet.Value(sheet.Addr{Col: c, Row: r.From.Row + 1}).Kind {
+		switch g.sheet.Value(sheet.Addr{Col: c, Row: r.From.Row + 1}).Kind {
 		case sheet.Number, sheet.Bool:
 			numbers = true
 		}

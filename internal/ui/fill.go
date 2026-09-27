@@ -16,11 +16,11 @@ import (
 
 // fillCorner is the cell with the fill handle: the bottom-right corner of
 // the selection. Whole rows and columns have none.
-func (m *Model) fillCorner() sheet.Addr {
-	if m.whole != wholeNone {
+func (g *grid) fillCorner() sheet.Addr {
+	if g.whole != wholeNone {
 		return sheet.Addr{Col: -1, Row: -1}
 	}
-	return m.selection().To
+	return g.selection().To
 }
 
 // showFillHandle reports whether the fill handle is drawn in cell a:

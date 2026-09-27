@@ -103,54 +103,6 @@ func (m *Model) hitTest(x, y int) hit {
 	return hit{}
 }
 
-// colSpan returns the visible column under x and the x where it starts:
-// a frozen column or a scrolling one, but not the divider between them.
-func (m *Model) colSpan(x int) (col, start int, ok bool) {
-	_, fc := m.frozen()
-	cx := rowHdrW
-	for c := 0; c < fc; c++ {
-		w := m.sheet.ColWidth(c)
-		if x >= cx && x < cx+w {
-			return c, cx, true
-		}
-		cx += w
-	}
-	cx = m.scrollX()
-	for c := m.left; c < sheet.MaxCols && cx < m.width; c++ {
-		w := m.sheet.ColWidth(c)
-		if x >= cx && x < cx+w {
-			return c, cx, true
-		}
-		cx += w
-	}
-	return 0, 0, false
-}
-
-// colStart returns the screen x where column c starts, which may be off
-// screen (or under the frozen columns, for a scrolling column left of
-// m.left).
-func (m *Model) colStart(c int) int {
-	_, fc := m.frozen()
-	if c < fc {
-		x := rowHdrW
-		for k := range c {
-			x += m.sheet.ColWidth(k)
-		}
-		return x
-	}
-	x := m.scrollX()
-	if c >= m.left {
-		for k := m.left; k < c; k++ {
-			x += m.sheet.ColWidth(k)
-		}
-		return x
-	}
-	for k := c; k < m.left; k++ {
-		x -= m.sheet.ColWidth(k)
-	}
-	return x
-}
-
 // dragTarget maps a position during a drag to a cell, clamping to the
 // visible grid, and reports which way to autoscroll when it's outside.
 // Dragging from the scrolling area into the frozen panes scrolls back

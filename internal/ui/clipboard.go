@@ -46,12 +46,12 @@ func (m *Model) copy(cut bool) tea.Cmd {
 
 // copyRange is the selection, trimmed to the data when whole rows or
 // columns are selected, as there's no point copying thousands of blanks.
-func (m *Model) copyRange() sheet.Rect {
-	r := m.selection()
-	if m.whole == wholeNone {
+func (g *grid) copyRange() sheet.Rect {
+	r := g.selection()
+	if g.whole == wholeNone {
 		return r
 	}
-	used, ok := m.sheet.UsedRange()
+	used, ok := g.sheet.UsedRange()
 	r.To = sheet.Addr{Col: min(r.To.Col, used.To.Col), Row: min(r.To.Row, used.To.Row)}
 	if !ok || r.To.Col < r.From.Col || r.To.Row < r.From.Row {
 		r.To = r.From

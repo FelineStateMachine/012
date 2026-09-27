@@ -175,12 +175,6 @@ func (m *Model) overlayMouse(msg tea.MouseMsg) tea.Cmd {
 	return m.overlay.mouse(m, e)
 }
 
-// clampBox keeps a w by h box at x, y on screen, shifting it left and up
-// as needed.
-func (m *Model) clampBox(x, y, w, h int) (int, int) {
-	return max(min(x, m.width-w), 0), max(min(y, m.height-h), 0)
-}
-
 // list is the highlighted row and scroll position of a list in a box.
 type list struct {
 	sel, top int

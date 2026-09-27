@@ -171,10 +171,10 @@ func (m *Model) editName(n sheet.Name, sel sheet.Rect) {
 
 // namedSelection is the name of the selected range, if it has one, for
 // the name box, as in Sheets.
-func (m *Model) namedSelection() (string, bool) {
-	r := m.selection()
-	for _, n := range m.sheet.Names() {
-		if !n.Gone() && n.Sheet == m.sheet && n.Range == r {
+func (g *grid) namedSelection() (string, bool) {
+	r := g.selection()
+	for _, n := range g.sheet.Names() {
+		if !n.Gone() && n.Sheet == g.sheet && n.Range == r {
 			return n.Name, true
 		}
 	}

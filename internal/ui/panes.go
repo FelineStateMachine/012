@@ -6,7 +6,7 @@ import (
 
 // The viewport: frozen rows and columns stay on screen at the top and
 // left while the rest scrolls, split from it by a thin line like a tmux
-// pane border, and rows the filter hides are skipped. m.top and m.left
+// pane border, and rows the filter hides are skipped. top and left
 // are the first scrolling row and column, never inside the frozen area.
 // Everything that maps between rows or columns and the screen goes
 // through here, so drawing, navigation and the mouse agree.
@@ -14,15 +14,15 @@ import (
 // frozen returns the frozen rows and columns that fit on screen: frozen
 // panes too big for the window are shown only in part, leaving room for
 // at least one scrolling row and column.
-func (m *Model) frozen() (rows, cols int) {
-	rows, cols = m.sheet.Frozen()
-	for rows > 0 && m.frozenLines(rows)+1 >= m.visibleRows() {
+func (g *grid) frozen() (rows, cols int) {
+	rows, cols = g.sheet.Frozen()
+	for rows > 0 && g.frozenLines(rows)+1 >= g.visibleRows() {
 		rows--
 	}
 	w := 0
 	for c := range cols {
-		w += m.sheet.ColWidth(c)
-		if rowHdrW+w+1+3 > m.width {
+		w += g.sheet.ColWidth(c)
+		if rowHdrW+w+1+3 > g.width {
 			cols = c
 			break
 		}
@@ -32,10 +32,10 @@ func (m *Model) frozen() (rows, cols int) {
 
 // frozenLines counts the screen lines frozen rows take: those the filter
 // doesn't hide.
-func (m *Model) frozenLines(rows int) int {
+func (g *grid) frozenLines(rows int) int {
 	n := 0
 	for r := range rows {
-		if !m.sheet.RowHidden(r) {
+		if !g.sheet.RowHidden(r) {
 			n++
 		}
 	}
@@ -44,12 +44,12 @@ func (m *Model) frozenLines(rows int) int {
 
 // scrollRows is how many scrolling rows fit below the frozen ones and
 // their divider.
-func (m *Model) scrollRows() int {
-	fr, _ := m.frozen()
+func (g *grid) scrollRows() int {
+	fr, _ := g.frozen()
 	if fr == 0 {
-		return m.visibleRows()
+		return g.visibleRows()
 	}
-	return max(m.visibleRows()-m.frozenLines(fr)-1, 1)
+	return max(g.visibleRows()-g.frozenLines(fr)-1, 1)
 }
 
 // divider marks the line between frozen and scrolling rows in
@@ -57,22 +57,22 @@ func (m *Model) scrollRows() int {
 const divider = -1
 
 // screenRows returns the row shown on each grid line, top to bottom:
-// frozen rows, the divider, then scrolling rows from m.top, skipping
+// frozen rows, the divider, then scrolling rows from top, skipping
 // rows the filter hides. Rows past the end of the sheet are left off.
-func (m *Model) screenRows() []int {
-	n := m.visibleRows()
+func (g *grid) screenRows() []int {
+	n := g.visibleRows()
 	out := make([]int, 0, n)
-	fr, _ := m.frozen()
+	fr, _ := g.frozen()
 	for r := 0; r < fr; r++ {
-		if !m.sheet.RowHidden(r) {
+		if !g.sheet.RowHidden(r) {
 			out = append(out, r)
 		}
 	}
 	if fr > 0 {
 		out = append(out, divider)
 	}
-	for r := m.top; len(out) < n && r < sheet.MaxRows; r++ {
-		if !m.sheet.RowHidden(r) {
+	for r := g.top; len(out) < n && r < sheet.MaxRows; r++ {
+		if !g.sheet.RowHidden(r) {
 			out = append(out, r)
 		}
 	}
@@ -81,8 +81,8 @@ func (m *Model) screenRows() []int {
 
 // rowAt returns the row on screen line y, or false for the divider and
 // lines outside the grid.
-func (m *Model) rowAt(y int) (int, bool) {
-	rows := m.screenRows()
+func (g *grid) rowAt(y int) (int, bool) {
+	rows := g.screenRows()
 	if i := y - gridTop; i >= 0 && i < len(rows) && rows[i] != divider {
 		return rows[i], true
 	}
@@ -90,8 +90,8 @@ func (m *Model) rowAt(y int) (int, bool) {
 }
 
 // rowY returns the screen line of row r, or false if it isn't on screen.
-func (m *Model) rowY(r int) (int, bool) {
-	for i, row := range m.screenRows() {
+func (g *grid) rowY(r int) (int, bool) {
+	for i, row := range g.screenRows() {
 		if row == r {
 			return gridTop + i, true
 		}
@@ -101,14 +101,14 @@ func (m *Model) rowY(r int) (int, bool) {
 
 // stepRow moves n visible rows from r (up for negative n), skipping
 // hidden rows and stopping at the edges of the sheet.
-func (m *Model) stepRow(r, n int) int {
+func (g *grid) stepRow(r, n int) int {
 	d := 1
 	if n < 0 {
 		d, n = -1, -n
 	}
 	for ; n > 0; n-- {
 		next := r + d
-		for next >= 0 && next < sheet.MaxRows && m.sheet.RowHidden(next) {
+		for next >= 0 && next < sheet.MaxRows && g.sheet.RowHidden(next) {
 			next += d
 		}
 		if next < 0 || next >= sheet.MaxRows {
@@ -122,23 +122,23 @@ func (m *Model) stepRow(r, n int) int {
 // visibleRow returns r, or the nearest row above it the filter doesn't
 // hide (the header row always shows), so the active cell stays in the
 // data when its row is filtered out.
-func (m *Model) visibleRow(r int) int {
-	if !m.sheet.RowHidden(r) {
+func (g *grid) visibleRow(r int) int {
+	if !g.sheet.RowHidden(r) {
 		return r
 	}
-	if prev := m.stepRow(r, -1); prev != r {
+	if prev := g.stepRow(r, -1); prev != r {
 		return prev
 	}
-	return m.stepRow(r, 1)
+	return g.stepRow(r, 1)
 }
 
 // scrollX is the screen x where the scrolling columns start: after the
 // row numbers, the frozen columns and their divider.
-func (m *Model) scrollX() int {
-	_, fc := m.frozen()
+func (g *grid) scrollX() int {
+	_, fc := g.frozen()
 	x := rowHdrW
 	for c := range fc {
-		x += m.sheet.ColWidth(c)
+		x += g.sheet.ColWidth(c)
 	}
 	if fc > 0 {
 		x++
@@ -148,38 +148,116 @@ func (m *Model) scrollX() int {
 
 // clampView keeps the scrolling area out of the frozen panes, e.g. after
 // freezing more rows than were scrolled past.
-func (m *Model) clampView() {
-	fr, fc := m.frozen()
-	m.top = clamp(m.top, fr, sheet.MaxRows-1)
-	m.left = clamp(m.left, fc, sheet.MaxCols-1)
+func (g *grid) clampView() {
+	fr, fc := g.frozen()
+	g.top = clamp(g.top, fr, sheet.MaxRows-1)
+	g.left = clamp(g.left, fc, sheet.MaxCols-1)
 }
 
 // scrollTo moves the viewport the minimum amount needed to show a. Cells
 // in the frozen panes are always on screen.
-func (m *Model) scrollTo(a sheet.Addr) {
-	m.clampView()
-	fr, fc := m.frozen()
+func (g *grid) scrollTo(a sheet.Addr) {
+	g.clampView()
+	fr, fc := g.frozen()
 	if a.Row >= fr {
-		if a.Row < m.top {
-			m.top = a.Row
+		if a.Row < g.top {
+			g.top = a.Row
 		} else {
 			// Walk up from a over as many visible rows as fit; if that
-			// passes m.top, a is already on screen.
+			// passes g.top, a is already on screen.
 			r, n := a.Row, 1
-			for r > m.top && n < m.scrollRows() {
-				r = m.stepRow(r, -1)
+			for r > g.top && n < g.scrollRows() {
+				r = g.stepRow(r, -1)
 				n++
 			}
-			m.top = max(m.top, r)
+			g.top = max(g.top, r)
 		}
 	}
 	if a.Col >= fc {
-		if a.Col < m.left {
-			m.left = a.Col
+		if a.Col < g.left {
+			g.left = a.Col
 		}
-		for a.Col >= m.left+m.visibleCols(m.left) {
-			m.left++
+		for a.Col >= g.left+g.visibleCols(g.left) {
+			g.left++
 		}
 	}
-	m.clampView()
+	g.clampView()
+}
+
+func (g *grid) visibleRows() int {
+	return max(g.height-gridTop-1, 1)
+}
+
+// visibleCols returns how many whole scrolling columns fit starting at
+// left.
+func (g *grid) visibleCols(left int) int {
+	n, w := 0, g.scrollX()
+	for c := left; c < sheet.MaxCols; c++ {
+		w += g.sheet.ColWidth(c)
+		if w > g.width {
+			break
+		}
+		n++
+	}
+	return max(n, 1)
+}
+
+// colSpan returns the visible column under x and the x where it starts:
+// a frozen column or a scrolling one, but not the divider between them.
+func (g *grid) colSpan(x int) (col, start int, ok bool) {
+	_, fc := g.frozen()
+	cx := rowHdrW
+	for c := 0; c < fc; c++ {
+		w := g.sheet.ColWidth(c)
+		if x >= cx && x < cx+w {
+			return c, cx, true
+		}
+		cx += w
+	}
+	cx = g.scrollX()
+	for c := g.left; c < sheet.MaxCols && cx < g.width; c++ {
+		w := g.sheet.ColWidth(c)
+		if x >= cx && x < cx+w {
+			return c, cx, true
+		}
+		cx += w
+	}
+	return 0, 0, false
+}
+
+// colStart returns the screen x where column c starts, which may be off
+// screen (or under the frozen columns, for a scrolling column left of
+// left).
+func (g *grid) colStart(c int) int {
+	_, fc := g.frozen()
+	if c < fc {
+		x := rowHdrW
+		for k := range c {
+			x += g.sheet.ColWidth(k)
+		}
+		return x
+	}
+	x := g.scrollX()
+	if c >= g.left {
+		for k := g.left; k < c; k++ {
+			x += g.sheet.ColWidth(k)
+		}
+		return x
+	}
+	for k := c; k < g.left; k++ {
+		x -= g.sheet.ColWidth(k)
+	}
+	return x
+}
+
+// cellPos returns the screen position of a visible cell's left edge.
+func (g *grid) cellPos(a sheet.Addr) (x, y int) {
+	y, _ = g.rowY(a.Row)
+	return g.colStart(a.Col), y
+}
+
+// clampBox keeps a w by h box at x, y on screen, shifting it left and up
+// as needed.
+func (g *grid) clampBox(x, y, w, h int) (int, int) {
+	return max(min(x, g.width-w), 0), max(min(y, g.height-h), 0)
 }

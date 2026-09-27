@@ -105,20 +105,20 @@ func (m *Model) insertChart() tea.Cmd {
 }
 
 // showChart scrolls so chart i is on screen, as far as it fits.
-func (m *Model) showChart(i int) {
-	charts := m.sheet.Charts()
+func (g *grid) showChart(i int) {
+	charts := g.sheet.Charts()
 	if i < 0 || i >= len(charts) {
 		return
 	}
 	c := charts[i]
-	rows := m.visibleRows()
-	if c.At.Row < m.top || c.At.Row+c.H > m.top+rows {
-		m.top = clamp(c.At.Row+c.H-rows, 0, c.At.Row)
+	rows := g.visibleRows()
+	if c.At.Row < g.top || c.At.Row+c.H > g.top+rows {
+		g.top = clamp(c.At.Row+c.H-rows, 0, c.At.Row)
 	}
-	if c.At.Col < m.left || m.colStart(c.At.Col)+c.W > m.width {
-		m.left = c.At.Col
-		for m.left > 0 && m.colStart(c.At.Col)+c.W+m.sheet.ColWidth(m.left-1) <= m.width {
-			m.left--
+	if c.At.Col < g.left || g.colStart(c.At.Col)+c.W > g.width {
+		g.left = c.At.Col
+		for g.left > 0 && g.colStart(c.At.Col)+c.W+g.sheet.ColWidth(g.left-1) <= g.width {
+			g.left--
 		}
 	}
 }
@@ -152,8 +152,8 @@ func chartInner(c sheet.Chart) (w, h int) { return c.W - 4, c.H - 2 }
 
 // chartScreen returns where chart c's top-left corner is on screen; it
 // may be off screen.
-func (m *Model) chartScreen(c sheet.Chart) (x, y int) {
-	return m.colStart(c.At.Col), gridTop + c.At.Row - m.top
+func (g *grid) chartScreen(c sheet.Chart) (x, y int) {
+	return g.colStart(c.At.Col), gridTop + c.At.Row - g.top
 }
 
 // chartAt returns the topmost chart drawn under x, y, or -1.
@@ -499,19 +499,19 @@ func (s *chartSel) mouse(m *Model, e mouseEvent) tea.Cmd {
 
 // chartCellAt returns the cell a chart's corner snaps to when dragged to
 // screen position x, y, which may be past the grid's edges.
-func (m *Model) chartCellAt(x, y int) sheet.Addr {
-	a := sheet.Addr{Row: max(m.top+y-gridTop, 0), Col: m.left}
+func (g *grid) chartCellAt(x, y int) sheet.Addr {
+	a := sheet.Addr{Row: max(g.top+y-gridTop, 0), Col: g.left}
 	switch {
 	case x >= rowHdrW:
-		if col, _, ok := m.colSpan(x); ok {
+		if col, _, ok := g.colSpan(x); ok {
 			a.Col = col
 		} else {
-			a.Col = m.left + m.visibleCols(m.left) - 1
+			a.Col = g.left + g.visibleCols(g.left) - 1
 		}
 	default:
 		for cx := rowHdrW; cx > x && a.Col > 0; {
 			a.Col--
-			cx -= m.sheet.ColWidth(a.Col)
+			cx -= g.sheet.ColWidth(a.Col)
 		}
 	}
 	return clampAddr(a)

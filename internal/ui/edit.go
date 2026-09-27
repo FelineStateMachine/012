@@ -112,23 +112,23 @@ func (m *Model) afterHistory(verb, none string, c sheet.Change, ok bool) {
 }
 
 // selectRect selects r, as whole columns or rows when it spans the sheet.
-func (m *Model) selectRect(r sheet.Rect) {
+func (g *grid) selectRect(r sheet.Rect) {
 	allRows := r.From.Row == 0 && r.To.Row == sheet.MaxRows-1
 	allCols := r.From.Col == 0 && r.To.Col == sheet.MaxCols-1
 	switch {
 	case allRows && allCols:
-		m.selecting, m.whole, m.ext = true, wholeAll, m.cur
+		g.selecting, g.whole, g.ext = true, wholeAll, g.cur
 	case allRows:
-		m.cur.Col = r.From.Col
-		m.ext = sheet.Addr{Col: r.To.Col, Row: m.cur.Row}
-		m.selecting, m.whole = true, wholeCols
+		g.cur.Col = r.From.Col
+		g.ext = sheet.Addr{Col: r.To.Col, Row: g.cur.Row}
+		g.selecting, g.whole = true, wholeCols
 	case allCols:
-		m.cur.Row = r.From.Row
-		m.ext = sheet.Addr{Col: m.cur.Col, Row: r.To.Row}
-		m.selecting, m.whole = true, wholeRows
+		g.cur.Row = r.From.Row
+		g.ext = sheet.Addr{Col: g.cur.Col, Row: r.To.Row}
+		g.selecting, g.whole = true, wholeRows
 	default:
-		m.cur, m.ext = r.From, r.To
-		m.selecting, m.whole = r.From != r.To, wholeNone
+		g.cur, g.ext = r.From, r.To
+		g.selecting, g.whole = r.From != r.To, wholeNone
 	}
 }
 

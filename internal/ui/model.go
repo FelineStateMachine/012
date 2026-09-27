@@ -48,7 +48,10 @@ const doubleClick = 400 * time.Millisecond
 
 // Model is the whole application state.
 type Model struct {
-	sheet    *sheet.Sheet // the sheet shown; its workbook is the file
+	// grid is the sheet shown, the active cell, the scroll position, the
+	// window size and the selection; see grid.go.
+	grid
+
 	filename string
 	changed  bool
 	saved    int // the sheet's StateID when last saved or loaded
@@ -57,15 +60,6 @@ type Model struct {
 	note   string    // feedback on the last action, e.g. "Undid: clear B3"
 
 	quitAfterSave bool // "Save and quit" is waiting for the save to finish
-
-	cur           sheet.Addr // the active cell
-	top, left     int        // first visible row and column
-	width, height int
-
-	// Selection: see selection.go.
-	selecting bool
-	ext       sheet.Addr // the moving corner of the selection
-	whole     wholeKind
 
 	// Mouse: see mouse.go.
 	drag           dragKind
@@ -121,7 +115,7 @@ type Model struct {
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	return &Model{sheet: s, filename: filename, width: 80, height: 24, th: theme.New(true), term: newTerminal(), lastChart: -1}
+	return &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(), lastChart: -1}
 }
 
 // Init implements tea.Model. It asks the terminal for its background color
@@ -281,75 +275,6 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-// navigate applies a movement key to a, returning false if it isn't one.
-// Keys follow Google Sheets.
-func (m *Model) navigate(key string, a *sheet.Addr) bool {
-	rows, cols := m.scrollRows(), m.visibleCols(m.left)
-	switch key {
-	case "up":
-		a.Row = m.stepRow(a.Row, -1)
-	case "down":
-		a.Row = m.stepRow(a.Row, 1)
-	case "left", "shift+tab":
-		a.Col--
-	case "right", "tab":
-		a.Col++
-	case "ctrl+up":
-		*a = m.sheet.Edge(*a, 0, -1)
-	case "ctrl+down":
-		*a = m.sheet.Edge(*a, 0, 1)
-	case "ctrl+left":
-		*a = m.sheet.Edge(*a, -1, 0)
-	case "ctrl+right", "end":
-		*a = m.sheet.Edge(*a, 1, 0)
-	case "pgup":
-		a.Row = m.stepRow(a.Row, -rows)
-		m.top = m.stepRow(m.top, -rows)
-	case "pgdown":
-		a.Row = m.stepRow(a.Row, rows)
-		m.top = m.stepRow(m.top, rows)
-	case "alt+pgup":
-		a.Col -= cols
-		m.left -= cols
-	case "alt+pgdown":
-		a.Col += cols
-		m.left += cols
-	case "home":
-		a.Col = 0
-	case "ctrl+home":
-		*a = sheet.Addr{}
-	case "ctrl+end":
-		used, _ := m.sheet.UsedRange()
-		*a = used.To
-	default:
-		return false
-	}
-	*a = clampAddr(*a)
-	a.Row = m.visibleRow(a.Row)
-	// Moving into the frozen panes by keyboard scrolls the rest back to
-	// the start, as in Sheets (Ctrl+Home shows A1 with row 2 under it).
-	if fr, fc := m.frozen(); a.Row < fr || a.Col < fc {
-		if a.Row < fr {
-			m.top = 0
-		}
-		if a.Col < fc {
-			m.left = 0
-		}
-	}
-	m.clampView()
-	return true
-}
-
-func isMoveKey(key string) bool {
-	switch key {
-	case "up", "down", "left", "right", "tab", "shift+tab", "pgup", "pgdown",
-		"alt+pgup", "alt+pgdown", "home", "end", "ctrl+home", "ctrl+end",
-		"ctrl+up", "ctrl+down", "ctrl+left", "ctrl+right":
-		return true
-	}
-	return false
-}
-
 func (m *Model) handleWheel(mouse tea.Mouse) {
 	const step = 3
 	button := mouse.Button
@@ -386,24 +311,6 @@ func (m *Model) focus() *sheet.Addr {
 		return &m.ext
 	}
 	return &m.cur
-}
-
-func (m *Model) visibleRows() int {
-	return max(m.height-gridTop-1, 1)
-}
-
-// visibleCols returns how many whole scrolling columns fit starting at
-// left.
-func (m *Model) visibleCols(left int) int {
-	n, w := 0, m.scrollX()
-	for c := left; c < sheet.MaxCols; c++ {
-		w += m.sheet.ColWidth(c)
-		if w > m.width {
-			break
-		}
-		n++
-	}
-	return max(n, 1)
 }
 
 // typed returns the printable text of a key press, if any.
