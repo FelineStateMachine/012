@@ -38,9 +38,9 @@ if [ -n "$big" ]; then
 	echo "$big"
 	fail=1
 fi
-bins=$(git ls-files | grep -E '\.(test|exe|o|a|so|dylib)$|^bin/' || true)
+bins=$(git ls-files | grep -E '\.(test|exe|o|a|so|dylib)$|^bin/|(^|/)(zz_|tmp_?|scratch|dbg_)[^/]*$' || true)
 if [ -n "$bins" ]; then
-	echo "compiled files tracked by git:"
+	echo "compiled or scratch files tracked by git:"
 	echo "$bins"
 	fail=1
 fi
