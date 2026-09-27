@@ -47,6 +47,7 @@ var (
 	_ pivotHost  = (*Model)(nil)
 	_ macrosHost = (*Model)(nil)
 	_ namesHost  = (*Model)(nil)
+	_ promptHost = (*Model)(nil)
 )
 
 // Components that stay in package ui are handed interfaces of their own
@@ -76,7 +77,7 @@ func (m *Model) pointRange(label string, done func(sheet.Rect), cancel func()) {
 		done(r)
 		return nil
 	})
-	m.prompt.onCancel = func(*Model) { cancel() }
+	m.prompt.onCancel = cancel
 }
 
 // askText asks for text on the context line, starting from initial; done
@@ -86,7 +87,7 @@ func (m *Model) askText(label, initial string, done func(string), cancel func())
 		done(text)
 		return nil
 	})
-	m.prompt.onCancel = func(*Model) { cancel() }
+	m.prompt.onCancel = cancel
 }
 
 // What every component with a text field needs.

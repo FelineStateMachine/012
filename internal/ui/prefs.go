@@ -155,7 +155,7 @@ const keyCheckTimeout = 15 * time.Second
 // and checks it with one small test call (jev.Check).
 func (m *Model) askKey() tea.Cmd {
 	m.openPrompt(&prompt{kind: promptText, label: "TypeSafe API key:", indicator: "KEY", secret: true,
-		onText: func(m *Model, key string) tea.Cmd {
+		onText: func(key string) tea.Cmd {
 			if key == "" {
 				m.note = "No key entered; nothing changed"
 				return nil

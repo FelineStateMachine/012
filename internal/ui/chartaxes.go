@@ -89,7 +89,7 @@ func (e *chartEditor) askAxisEnd(m *Model, label, question, initial string, end 
 		e.reopen(m)
 		return nil
 	})
-	m.prompt.onCancel = e.reopen
+	m.prompt.onCancel = func() { e.reopen(m) }
 }
 
 func (e *chartEditor) axisStatus(m *Model) string {

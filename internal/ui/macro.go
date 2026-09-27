@@ -200,11 +200,11 @@ func (m *Model) stopRecording() tea.Cmd {
 		return nil
 	})
 	m.prompt.indicator = "NAME"
-	m.prompt.onCancel = stillRecording
+	m.prompt.onCancel = m.stillRecording
 	return nil
 }
 
-func stillRecording(m *Model) { m.note = "Still recording" }
+func (m *Model) stillRecording() { m.note = "Still recording" }
 
 // checkNewMacroName reports why name can't name a new macro.
 func checkNewMacroName(w *sheet.Workbook, name string) error {
@@ -229,7 +229,7 @@ func (m *Model) askShortcut(name string) {
 		return nil
 	})
 	m.prompt.indicator = "KEY"
-	m.prompt.onCancel = stillRecording
+	m.prompt.onCancel = m.stillRecording
 }
 
 func isShortcutDigit(s string) bool { return len(s) == 1 && s[0] >= '0' && s[0] <= '9' }

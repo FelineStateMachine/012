@@ -22,7 +22,7 @@ func (m *Model) openWidth() tea.Cmd {
 	for c := r.From.Col; c <= r.To.Col; c++ {
 		orig[c] = m.sheet.ColWidth(c)
 	}
-	restore := func(m *Model) {
+	restore := func() {
 		for c, w := range orig {
 			m.sheet.SetColWidth(c, w)
 		}
@@ -32,12 +32,12 @@ func (m *Model) openWidth() tea.Cmd {
 		label:     "Column width (1-240):",
 		indicator: "WIDTH",
 		fresh:     true,
-		resize:    (*Model).setWidths,
+		resize:    m.setWidths,
 		maxSize:   240,
-		onText: func(m *Model, text string) tea.Cmd {
+		onText: func(text string) tea.Cmd {
 			w, err := strconv.Atoi(text)
 			if err != nil || w < 1 || w > 240 {
-				restore(m)
+				restore()
 				m.fail("Column width must be between 1 and 240")
 				return nil
 			}

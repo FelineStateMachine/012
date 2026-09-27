@@ -37,7 +37,7 @@ func (m *Model) openHeight() tea.Cmd {
 			orig[row] = h
 		}
 	}
-	restore := func(m *Model) {
+	restore := func() {
 		m.sheet.Batch(sheet.Change{Label: "row height", Focus: r}, func() error {
 			m.sheet.SetRowHeight(r.From.Row, r.To.Row, 0)
 			for row, h := range orig {
@@ -52,12 +52,12 @@ func (m *Model) openHeight() tea.Cmd {
 		label:     "Row height (1-" + strconv.Itoa(sheet.MaxRowHeight) + " lines):",
 		indicator: "HEIGHT",
 		fresh:     true,
-		resize:    func(m *Model, h int) { m.sheet.SetRowHeight(r.From.Row, r.To.Row, h) },
+		resize:    func(h int) { m.sheet.SetRowHeight(r.From.Row, r.To.Row, h) },
 		maxSize:   sheet.MaxRowHeight,
-		onText: func(m *Model, text string) tea.Cmd {
+		onText: func(text string) tea.Cmd {
 			h, err := strconv.Atoi(text)
 			if err != nil || h < 1 || h > sheet.MaxRowHeight {
-				restore(m)
+				restore()
 				m.fail("Row height must be between 1 and " + strconv.Itoa(sheet.MaxRowHeight) + " lines")
 				return nil
 			}

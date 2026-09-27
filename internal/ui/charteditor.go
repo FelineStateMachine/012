@@ -136,7 +136,7 @@ func (e *chartEditor) editRange(m *Model) {
 		e.reopen(m)
 		return nil
 	})
-	m.prompt.onCancel = func(m *Model) {
+	m.prompt.onCancel = func() {
 		m.clearSelection()
 		e.reopen(m)
 	}
@@ -150,7 +150,7 @@ func (e *chartEditor) editTitle(m *Model) {
 		e.reopen(m)
 		return nil
 	})
-	m.prompt.onCancel = e.reopen
+	m.prompt.onCancel = func() { e.reopen(m) }
 }
 
 // editorPart is a piece of the editor bar: a type chip or a toggle.
