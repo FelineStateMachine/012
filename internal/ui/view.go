@@ -173,19 +173,29 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 			colored = false
 		}
 		var look sheet.Look
+		var shade theme.Shade
+		shaded := false
 		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() {
 			sp = rowtext.Span{Text: m.inCellText(m.sheet.ColWidth(a.Col))}
 		} else {
 			m.decorate(&sp, row) // links and error marks, see links.go
 			if rules {
-				base, colored, look = m.ruleSpan(a, &sp, base, colored, rgb) // looks.go
+				look, shade, shaded = m.ruleSpan(a, &sp, colored, rgb) // looks.go
 			}
+		}
+		if shaded {
+			base, colored = shade.Style, true
 		}
 		// The copy marker is layered on the cell's own colors.
 		if m.copied.marks(m.sheet, a) {
-			base, colored = base.Inherit(m.th.Copied), true
+			base, colored, shaded = base.Inherit(m.th.Copied), true, false
 		}
-		text := renderSpan(&m.th, sp, base, colored)
+		var text string
+		if shaded && plainSpan(sp) {
+			text = shade.Wrap(strings.Repeat(" ", sp.Lead) + sp.Text + strings.Repeat(" ", sp.Trail))
+		} else {
+			text = renderSpan(&m.th, sp, base, colored)
+		}
 		w := m.sheet.ColWidth(a.Col)
 		switch {
 		case m.showFillHandle(a):
@@ -215,13 +225,19 @@ func (m *Model) dividerRow() string {
 	return m.th.FrozenLine.Render(ansi.Truncate(b.String(), m.width, ""))
 }
 
+// plainSpan reports whether a span's text has no style of its own: no
+// text style, link or mark.
+func plainSpan(sp rowtext.Span) bool {
+	st := sp.Style
+	st.Align = sheet.AlignAuto
+	return st.IsZero() && sp.Link == "" && !sp.Error && !sp.Invalid
+}
+
 // renderSpan draws a span on base, one of the cell roles. Plain cells
 // with no text style are written without escape codes.
 func renderSpan(th *theme.Theme, sp rowtext.Span, base lipgloss.Style, colored bool) string {
 	lead, trail := strings.Repeat(" ", sp.Lead), strings.Repeat(" ", sp.Trail)
-	st := sp.Style
-	st.Align = sheet.AlignAuto
-	plain := st.IsZero() && sp.Link == "" && !sp.Error && !sp.Invalid
+	plain := plainSpan(sp)
 	switch {
 	case plain && !colored:
 		return lead + sp.Text + trail

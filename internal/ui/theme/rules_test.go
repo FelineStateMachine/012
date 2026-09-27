@@ -44,7 +44,7 @@ func TestColorScalesReadable(t *testing.T) {
 		for _, from := range sheet.Colors()[1:] {
 			for _, to := range sheet.Colors()[1:] {
 				for step := 0; step <= scaleSteps; step += 4 {
-					s := th.ScaleFill(from, to, float64(step)/scaleSteps, xterm)
+					s := th.ScaleFill(from, to, float64(step)/scaleSteps, xterm).Style
 					requireContrast(t, p.Name, "color scale", s.GetForeground(), s.GetBackground(), minText)
 				}
 			}
@@ -56,9 +56,9 @@ func TestScaleFillBlends(t *testing.T) {
 	p, _ := Lookup("Dracula", "")
 	th := FromPalette(p)
 	none := func(int) color.Color { return color.Black }
-	lo := th.ScaleFill(sheet.ColorRed, sheet.ColorGreen, 0, none).GetBackground()
-	hi := th.ScaleFill(sheet.ColorRed, sheet.ColorGreen, 1, none).GetBackground()
-	mid := th.ScaleFill(sheet.ColorRed, sheet.ColorGreen, 0.5, none).GetBackground()
+	lo := th.ScaleFill(sheet.ColorRed, sheet.ColorGreen, 0, none).Style.GetBackground()
+	hi := th.ScaleFill(sheet.ColorRed, sheet.ColorGreen, 1, none).Style.GetBackground()
+	mid := th.ScaleFill(sheet.ColorRed, sheet.ColorGreen, 0.5, none).Style.GetBackground()
 	same := func(a, b color.Color) bool {
 		ar, ag, ab, _ := a.RGBA()
 		br, bg, bb, _ := b.RGBA()
@@ -66,6 +66,12 @@ func TestScaleFillBlends(t *testing.T) {
 	}
 	if !same(lo, p.ANSI[1]) || !same(hi, p.ANSI[2]) || same(mid, lo) || same(mid, hi) {
 		t.Errorf("scale %v %v %v, scheme's red %v green %v", lo, mid, hi, p.ANSI[1], p.ANSI[2])
+	}
+	// A shade's codes draw what its style does.
+	for _, s := range []Shade{th.ScaleFill(sheet.ColorRed, sheet.ColorGreen, 0.5, none), th.RuleShade(sheet.RuleStyle{Fill: sheet.ColorBlue, Text: sheet.ColorYellow})} {
+		if s.Open == "" || s.Wrap(" 12 ") != s.Style.Render(" 12 ") {
+			t.Errorf("wrap %q, render %q", s.Wrap(" 12 "), s.Style.Render(" 12 "))
+		}
 	}
 	if len(th.scales) != 3 {
 		t.Errorf("%d shades kept", len(th.scales))

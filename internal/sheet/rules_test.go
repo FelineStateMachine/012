@@ -3,6 +3,8 @@ package sheet
 import (
 	"bytes"
 	"math"
+	"math/rand/v2"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -295,6 +297,29 @@ func TestRuleJSON(t *testing.T) {
 	}
 	if _, err := ParseCondFormat(`{"ranges":"C1","condition":"gt","values":["1"],"fill":"mauve"}`); err == nil {
 		t.Error("an unknown color")
+	}
+}
+
+// Percentiles by selection agree with sorting, duplicates and all.
+func TestPercentileBySelection(t *testing.T) {
+	r := rand.New(rand.NewPCG(3, 4))
+	for _, n := range []int{1, 2, 3, 10, 101, 1000} {
+		vals := make([]float64, n)
+		for i := range vals {
+			vals[i] = float64(r.IntN(20))
+		}
+		sorted := slices.Sorted(slices.Values(vals))
+		for _, p := range []float64{0, 0.1, 0.25, 0.5, 0.9, 1} {
+			x := p * float64(n-1)
+			i := int(x)
+			want := sorted[i]
+			if i < n-1 {
+				want += (x - float64(i)) * (sorted[i+1] - sorted[i])
+			}
+			if got := percentile(slices.Clone(vals), p); math.Abs(got-want) > 1e-9 {
+				t.Errorf("n %d p %v: %v, want %v", n, p, got, want)
+			}
+		}
 	}
 }
 

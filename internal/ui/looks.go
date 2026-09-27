@@ -9,6 +9,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/rowtext"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // Drawing the sheet's rules (see sheet.Look): a conditional format's
@@ -24,10 +25,10 @@ import (
 var checkGlyphs = [2]string{"[ ]", "[✓]"}
 
 // ruleSpan applies the looks of cell a and of the owner of its text to
-// a span: its base role where the cell has no other, its text styles,
-// a checkbox's glyph. It reports the base and whether it's colored.
-func (m *Model) ruleSpan(a sheet.Addr, sp *rowtext.Span, base lipgloss.Style, colored bool, rgb func(int) color.Color) (lipgloss.Style, bool, sheet.Look) {
-	look := m.sheet.Look(a)
+// a span: its text styles and a checkbox's glyph, and, where the cell
+// isn't colored already, the shade it's drawn on, if any (shaded).
+func (m *Model) ruleSpan(a sheet.Addr, sp *rowtext.Span, colored bool, rgb func(int) color.Color) (look sheet.Look, shade theme.Shade, shaded bool) {
+	look = m.sheet.Look(a)
 	own := look
 	if sp.Owner != a.Col && sp.Text != "" {
 		own = m.sheet.Look(sheet.Addr{Col: sp.Owner, Row: a.Row})
@@ -44,12 +45,10 @@ func (m *Model) ruleSpan(a sheet.Addr, sp *rowtext.Span, base lipgloss.Style, co
 		sp.Style.Strikethrough = sp.Style.Strikethrough || st.Strikethrough
 	}
 	sp.Invalid = own.Invalid && sp.Text != ""
-	if colored {
-		return base, true, look
-	}
 	switch {
+	case colored:
 	case look.Scaled:
-		return m.th.ScaleFill(look.From, look.To, look.Pos, rgb), true, look
+		return look, m.th.ScaleFill(look.From, look.To, look.Pos, rgb), true
 	case look.Styled || own.Styled:
 		st := sheet.RuleStyle{}
 		if look.Styled {
@@ -59,10 +58,10 @@ func (m *Model) ruleSpan(a sheet.Addr, sp *rowtext.Span, base lipgloss.Style, co
 			st.Text = own.Style.Text
 		}
 		if st.Fill != sheet.ColorNone || st.Text != sheet.ColorNone {
-			return m.th.Rule(st), true, look
+			return look, m.th.RuleShade(st), true
 		}
 	}
-	return base, false, look
+	return look, theme.Shade{}, false
 }
 
 // checkSpan is a checkbox drawn in a column w wide.

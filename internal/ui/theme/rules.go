@@ -3,6 +3,7 @@ package theme
 import (
 	"image/color"
 	"math"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -101,11 +102,53 @@ type scaleKey struct {
 	step     int
 }
 
+// Shade is a style drawn often, with the escape codes that open and
+// close it, so a cell of plain text in it is written without rendering
+// the style again.
+type Shade struct {
+	Style       lipgloss.Style
+	Open, Close string
+}
+
+func shadeOf(s lipgloss.Style) Shade {
+	r := s.Render(shadeMark)
+	i := strings.Index(r, shadeMark)
+	if i < 0 {
+		return Shade{Style: s}
+	}
+	return Shade{Style: s, Open: r[:i], Close: r[i+len(shadeMark):]}
+}
+
+// shadeMark stands for the text while a shade's codes are worked out: a
+// private use character, which no style changes.
+const shadeMark = ""
+
+// Wrap draws text in the shade.
+func (s Shade) Wrap(text string) string {
+	if s.Open == "" && s.Close == "" {
+		return s.Style.Render(text)
+	}
+	return s.Open + text + s.Close
+}
+
+// RuleShade is Rule's style with its codes, kept per theme.
+func (t *Theme) RuleShade(st sheet.RuleStyle) Shade {
+	k := sheet.RuleStyle{Text: st.Text, Fill: st.Fill}
+	if s, ok := t.shades[k]; ok {
+		return s
+	}
+	s := shadeOf(t.Rule(k))
+	if t.shades != nil {
+		t.shades[k] = s
+	}
+	return s
+}
+
 // ScaleFill is the fill of a color scale's cell, pos (0 to 1) of the way
 // from one point's color to the next's, with text readable on it. The
 // colors are the scheme's, or for the terminal theme rgb's (the
 // terminal's palette as it reports it). Shades are kept per theme.
-func (t *Theme) ScaleFill(from, to sheet.Color, pos float64, rgb func(slot int) color.Color) lipgloss.Style {
+func (t *Theme) ScaleFill(from, to sheet.Color, pos float64, rgb func(slot int) color.Color) Shade {
 	slotRGB := func(c sheet.Color) color.RGBA {
 		var col color.Color = color.Black
 		if s := RuleSlot(c); s >= 0 {
@@ -124,7 +167,7 @@ func (t *Theme) ScaleFill(from, to sheet.Color, pos float64, rgb func(slot int) 
 		return s
 	}
 	bg := blend(k.from, k.to, float64(step)/scaleSteps)
-	s := lipgloss.NewStyle().Background(bg).Foreground(t.scaleInk(bg, rgb))
+	s := shadeOf(lipgloss.NewStyle().Background(bg).Foreground(t.scaleInk(bg, rgb)))
 	if t.scales != nil && len(t.scales) < 4096 {
 		t.scales[k] = s
 	}

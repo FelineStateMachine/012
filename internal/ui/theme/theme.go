@@ -82,8 +82,10 @@ type Theme struct {
 	Invalid lipgloss.Style
 	// Dropdown is the ▾ at the right of a cell with a dropdown list.
 	Dropdown lipgloss.Style
-	// scales keeps the shades of color scales drawn so far.
-	scales map[scaleKey]lipgloss.Style
+	// scales and shades keep the shades of color scales and of rule
+	// colors drawn so far.
+	scales map[scaleKey]Shade
+	shades map[sheet.RuleStyle]Shade
 
 	// Chrome: the menu bar, dropdowns, the palette and dialogs.
 	MenuBar           lipgloss.Style // menu bar titles
@@ -237,7 +239,8 @@ func New(dark bool) Theme {
 
 		Invalid:  lipgloss.NewStyle().UnderlineStyle(lipgloss.UnderlineDotted).UnderlineColor(lipgloss.Yellow),
 		Dropdown: lipgloss.NewStyle().Foreground(muted),
-		scales:   map[scaleKey]lipgloss.Style{},
+		scales:   map[scaleKey]Shade{},
+		shades:   map[sheet.RuleStyle]Shade{},
 	}
 	ruleRoles(&t, dark)
 	for i, c := range series {

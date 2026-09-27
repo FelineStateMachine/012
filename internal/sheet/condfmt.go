@@ -318,9 +318,10 @@ func subtract(r, cut Rect) []Rect {
 	return out
 }
 
-// scaleValue is where a point sits among values, sorted ascending.
-func (p ScalePoint) at(vals []float64) float64 {
-	lo, hi := vals[0], vals[len(vals)-1]
+// at is where a point sits among the values of a scale's ranges, lo
+// the lowest and hi the highest; vals, in any order and reordered here,
+// are needed only for a percentile.
+func (p ScalePoint) at(vals []float64, lo, hi float64) float64 {
 	n, _, _ := ParseValue(strings.TrimSpace(p.Value))
 	switch p.Kind {
 	case PointMin:
@@ -335,15 +336,61 @@ func (p ScalePoint) at(vals []float64) float64 {
 	return n
 }
 
-// percentile interpolates between sorted values, as PERCENTILE.INC.
+// percentile interpolates between the values around rank p, as
+// PERCENTILE.INC, finding them by selection rather than sorting.
 func percentile(vals []float64, p float64) float64 {
 	p = min(max(p, 0), 1)
 	x := p * float64(len(vals)-1)
 	i := int(x)
+	v := nth(vals, i)
 	if i >= len(vals)-1 {
-		return vals[len(vals)-1]
+		return v
 	}
-	return vals[i] + (x-float64(i))*(vals[i+1]-vals[i])
+	next := slices.Min(vals[i+1:]) // nth leaves the larger values after i
+	return v + (x-float64(i))*(next-v)
+}
+
+// nth reorders vals so that vals[k] is the value a sort would put there,
+// with no larger value before it and no smaller after, and returns it
+// (quickselect, with the median of three as the pivot).
+func nth(vals []float64, k int) float64 {
+	lo, hi := 0, len(vals)-1
+	for lo < hi {
+		mid := lo + (hi-lo)/2
+		if vals[mid] < vals[lo] {
+			vals[mid], vals[lo] = vals[lo], vals[mid]
+		}
+		if vals[hi] < vals[lo] {
+			vals[hi], vals[lo] = vals[lo], vals[hi]
+		}
+		if vals[hi] < vals[mid] {
+			vals[hi], vals[mid] = vals[mid], vals[hi]
+		}
+		pivot := vals[mid]
+		i, j := lo, hi
+		for i <= j {
+			for vals[i] < pivot {
+				i++
+			}
+			for vals[j] > pivot {
+				j--
+			}
+			if i <= j {
+				vals[i], vals[j] = vals[j], vals[i]
+				i++
+				j--
+			}
+		}
+		switch {
+		case k <= j:
+			hi = j
+		case k >= i:
+			lo = i
+		default:
+			return vals[k]
+		}
+	}
+	return vals[k]
 }
 
 // pointText writes a point as the rules editor shows it, e.g. "Min" or

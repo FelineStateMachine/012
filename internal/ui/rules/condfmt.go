@@ -39,9 +39,14 @@ func sample(th *theme.Theme, h Host, f sheet.CondFormat, w int) string {
 	if f.IsScale() {
 		return scaleBar(th, h, f.Scale, w)
 	}
-	s := th.Text(th.Rule(f.Style), sheet.Style{Bold: f.Style.Bold, Italic: f.Style.Italic,
+	// The fill spans the sample; text styles only its text, as in a cell.
+	base := th.Rule(f.Style)
+	s := th.Text(base, sheet.Style{Bold: f.Style.Bold, Italic: f.Style.Italic,
 		Underline: f.Style.Underline, Strikethrough: f.Style.Strikethrough})
-	return s.Render(theme.Center("123", w))
+	text := theme.Center("123", w)
+	lead := len(text) - len(strings.TrimLeft(text, " "))
+	body := strings.TrimSpace(text)
+	return base.Render(text[:lead]) + s.Render(body) + base.Render(text[lead+len(body):])
 }
 
 // scaleBar draws a color scale's shades across w columns.
@@ -57,7 +62,7 @@ func scaleBar(th *theme.Theme, h Host, ps []sheet.ScalePoint, w int) string {
 				from, to, pos = ps[1].Color, ps[2].Color, (pos-0.5)*2
 			}
 		}
-		b.WriteString(th.ScaleFill(from, to, pos, h.Slot).Render(" "))
+		b.WriteString(th.ScaleFill(from, to, pos, h.Slot).Wrap(" "))
 	}
 	return b.String()
 }

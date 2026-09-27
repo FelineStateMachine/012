@@ -1,6 +1,7 @@
 package sheet
 
 import (
+	"math"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -257,20 +258,28 @@ func (c *looksCache) scale(s *Sheet, i int) *scaleStats {
 		return st
 	}
 	f := s.rules.formats[i]
+	// Only a percentile needs the values themselves; the rest need the
+	// lowest and highest.
+	keep := slices.ContainsFunc(f.Scale, func(p ScalePoint) bool { return p.Kind == PointPercentile })
+	lo, hi, n := math.Inf(1), math.Inf(-1), 0
 	var vals []float64
 	for _, r := range f.Ranges {
 		for _, cell := range s.cells.inRange(r) {
-			if cell.Value.Kind == Number {
-				vals = append(vals, cell.Value.Num)
+			if cell.Value.Kind != Number {
+				continue
+			}
+			v := cell.Value.Num
+			lo, hi, n = min(lo, v), max(hi, v), n+1
+			if keep {
+				vals = append(vals, v)
 			}
 		}
 	}
 	st := &scaleStats{}
-	if len(vals) > 0 {
-		slices.Sort(vals)
+	if n > 0 {
 		st.ok = true
 		for _, p := range f.Scale {
-			st.at = append(st.at, p.at(vals))
+			st.at = append(st.at, p.at(vals, lo, hi))
 			st.colors = append(st.colors, p.Color)
 		}
 	}
