@@ -46,17 +46,20 @@ func (dvKind) item(th *theme.Theme, h Host, i, w int, sel bool) string {
 
 // dvForm is a data validation rule being edited.
 type dvForm struct {
-	i       int
-	ranges  string
-	kind    int // a sheet.ValidKind
-	items   string
-	source  string
-	op      int // index in the comparisons of the kind; see ops
-	args    [2]string
-	formula string
-	reject  int // 0 warns, 1 rejects
-	help    string
-	loc     *locale.Locale // what args are typed in
+	i         int
+	ranges    string
+	kind      int // a sheet.ValidKind
+	items     string
+	source    string
+	op        int // index in the comparisons of the kind; see ops
+	args      [2]string
+	formula   string
+	reject    int // 0 warns, 1 rejects
+	help      string
+	display   int    // index in sheet.DropDisplays
+	checked   string // a checkbox's own values, "" for TRUE and FALSE
+	unchecked string
+	loc       *locale.Locale // what args are typed in
 }
 
 func (dvKind) form(h Host, i int, sel sheet.Rect) form {
@@ -66,7 +69,12 @@ func (dvKind) form(h Host, i int, sel sheet.Rect) form {
 	}
 	v := h.Sheet().Validations()[i]
 	f.ranges, f.kind, f.source, f.help = sheet.RangesText(v.Ranges), int(v.Kind), v.Source, v.Help
-	f.items = strings.Join(v.Items, ", ")
+	f.display = max(indexOf(sheet.DropDisplays(), v.Display), 0)
+	if on, off, custom := v.CheckboxValues(); custom {
+		f.checked, f.unchecked = on, off
+	} else {
+		f.items = strings.Join(v.Items, ", ")
+	}
 	if v.Reject {
 		f.reject = 1
 	}
@@ -94,6 +102,15 @@ func (f *dvForm) ops() []sheet.RuleOp {
 	return sheet.CompareOps()
 }
 
+func displayTitles() []string {
+	ds := sheet.DropDisplays()
+	out := make([]string, len(ds))
+	for i, d := range ds {
+		out[i] = d.Title()
+	}
+	return out
+}
+
 // opTitle names a comparison as the kind reads it.
 func opTitle(k sheet.ValidKind, op sheet.RuleOp) string {
 	titles := map[sheet.RuleOp]string{sheet.RuleNone: "Is a valid date", sheet.RuleBetween: "Between",
@@ -116,7 +133,15 @@ func (f *dvForm) rule() (sheet.Validation, error) {
 	}
 	k := sheet.ValidKind(f.kind)
 	v := sheet.Validation{Ranges: rs, Kind: k, Reject: f.reject == 1, Help: strings.TrimSpace(f.help)}
+	if k.Dropdown() {
+		v.Display = sheet.DropDisplays()[f.display]
+	}
 	switch {
+	case k == sheet.ValidCheckbox && strings.TrimSpace(f.checked+f.unchecked) != "":
+		v.Items = []string{strings.TrimSpace(f.checked)}
+		if off := strings.TrimSpace(f.unchecked); off != "" {
+			v.Items = append(v.Items, off)
+		}
 	case k == sheet.ValidList:
 		for _, it := range strings.Split(f.items, ",") {
 			if it = strings.TrimSpace(it); it != "" {
@@ -163,11 +188,18 @@ func (f *dvForm) rows(*theme.Theme, Host) []row {
 // criteriaRows are the rows of what the criteria need.
 func (f *dvForm) criteriaRows() []row {
 	k := sheet.ValidKind(f.kind)
+	display := row{kind: rowChoice, label: "Display", choices: displayTitles(), at: &f.display,
+		hint: "How the cells show their dropdown: the value as a chip, an arrow at the right, or plain text"}
 	switch {
 	case k == sheet.ValidList:
-		return []row{{kind: rowText, label: "Items", text: &f.items, placeholder: "Yes, No, Maybe", hint: "The dropdown's items, separated by commas"}}
+		return []row{{kind: rowText, label: "Items", text: &f.items, placeholder: "Yes, No, Maybe", hint: "The dropdown's items, separated by commas"}, display}
 	case k == sheet.ValidRange:
-		return []row{{kind: rowText, label: "From range", text: &f.source, placeholder: "Lists!A1:A20", hint: "The range whose values the dropdown lists"}}
+		return []row{{kind: rowText, label: "From range", text: &f.source, placeholder: "Lists!A1:A20", hint: "The range whose values the dropdown lists"}, display}
+	case k == sheet.ValidCheckbox:
+		return []row{
+			{kind: rowText, label: "Checked", text: &f.checked, placeholder: "TRUE", hint: "What a checked box holds; empty for TRUE"},
+			{kind: rowText, label: "Unchecked", text: &f.unchecked, placeholder: "FALSE", hint: "What an unchecked box holds; empty for FALSE, or a blank with a value of its own for checked"},
+		}
 	case k == sheet.ValidFormula:
 		return []row{{kind: rowText, label: "Formula", text: &f.formula, placeholder: "=B2<=C2", hint: "TRUE for valid entries, written for the first cell"}}
 	case !k.Compares():

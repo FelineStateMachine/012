@@ -24,16 +24,42 @@ one of:
   and bold, italic, underline or strikethrough. The conditions are
   Sheets': is empty, is not empty, text contains, does not contain,
   starts with, ends with, is exactly (ignoring case), date is, is before,
-  is after (a date, or today, tomorrow, yesterday), greater than, greater
-  than or equal to, less than, less than or equal to, is equal to, is not
-  equal to, is between, is not between, and custom formula is. A value
-  may be a formula (`=B2`), and a custom formula (`=$C2>100`) is written
-  for the first cell of the first range: its relative references move
-  with each cell, as a copied formula's would.
+  is after, greater than, greater than or equal to, less than, less than
+  or equal to, is equal to, is not equal to, is between, is not between,
+  and custom formula is; and Excel's, which compare a cell with the rest
+  of the rule's cells: top values and bottom values (the highest or
+  lowest 1 to 1000, ties included), top and bottom percent, above and
+  below average, and duplicate and unique values (text ignoring case).
+  A value may be a formula (`=B2`), and a custom formula (`=$C2>100`) is
+  written for the first cell of the first range: its relative references
+  move with each cell, as a copied formula's would.
 - **Color scale**: every number in the ranges is shaded along two or three
   colors, from its minimum to its maximum; each point is the minimum or
   maximum value, a number, a percent of the way between them, or a
   percentile, and a midpoint is optional.
+- **Data bar**: every number gets a bar across its cell, as long as the
+  number is far from the shortest point to the longest. Automatic points
+  run from zero (or the lowest number, when that's below zero) to the
+  highest; either may be a number, a percent or a percentile. Bars are
+  drawn in eighth blocks (`██▍`) in one of the named colors, so a bar
+  ends within a column, and text they run under is drawn in reverse
+  video; Show bar only hides the numbers.
+- **Icon set**: every number gets an icon at its cell's left by the
+  thresholds it reaches, each a percent of the way from lowest to
+  highest, a number or a percentile: arrows (`↓ → ↑`, in 3, 4 or 5),
+  circles filling up (`○ ◑ ●`, in 3, 4 or 5), symbols (`✗ ! ✓`) or
+  rating bars (`▂ ▄ ▆ █`, in 4 or 5), the lowest red, the highest green
+  and those between yellow (rating bars blue). Reverse icons gives the
+  lowest values the highest icon, and Show icon only hides the numbers.
+
+Dates in "date is", "is before" and "is after" are a date, or a period
+as Sheets and Excel name them: today, tomorrow, yesterday, the past
+week, month or year, and this, last or next week, month or year (weeks
+run Sunday to Saturday). A date is in a period, before its first day or
+after its last.
+
+Data bars and icons are glyphs, so they read without color as they do
+in it; their colors are the terminal's, as the other rules' are.
 
 Rules are tried in order, and the first that applies to a cell formats
 it, so a rule higher in the list wins. The pointer and the selection draw
@@ -61,13 +87,20 @@ Insert > Checkbox makes the selection checkboxes at once. The criteria:
 
 | Criteria | Cells may hold | Shows |
 |---|---|---|
-| Dropdown | one of the items typed (`Yes, No, Maybe`), ignoring case | ▾ at the right of the cell |
-| Dropdown (from a range) | one of the values in a range, on any sheet (`Lists!A1:A20`) | ▾ |
-| Checkbox | TRUE or FALSE; a blank cell is unchecked | `[✓]` or `[ ]`, centered |
+| Dropdown | one of the items typed (`Yes, No, Maybe`), ignoring case | the value on a chip, `▐Yes ▾▌`, or ▾ at the right of the cell |
+| Dropdown (from a range) | one of the values in a range, on any sheet (`Lists!A1:A20`) | a chip, or ▾ |
+| Checkbox | TRUE or FALSE, or values of its own (`Yes` and `No`); a blank cell is unchecked | `[✓]` or `[ ]`, centered |
 | Number | a number between, not between, equal to, greater than ... values | |
 | Date | any date, or one on, after, before, between ... dates | |
 | Text length | text whose length is between, less than ... | |
 | Custom formula is | anything for which the formula (`=B2<=C2`) is TRUE | |
+
+A dropdown's Display is Sheets' too: Chip draws its value between
+rounded ends in reverse video, with the ▾ inside (new dropdowns), Arrow
+draws the ▾ at the cell's right, and Plain text neither. A checkbox's
+Checked and Unchecked values, when set, are what checking and
+unchecking enter instead of TRUE and FALSE; with only a checked value,
+unchecking leaves the cell blank.
 
 Alt+Down, or a click on the ▾, opens a dropdown's list under the cell:
 type to search, Enter enters the item as if typed. Space, or a click on
@@ -102,6 +135,10 @@ What validation checks:
   entry open instead. When only rules that warn fail, it stays, the
   cells are marked, and the context line says how many ("2 cells
   invalid, first B2: ...").
+- **Macros' pastes and fills** (`paste_text`, `fill`, `enter` with
+  `fill=True`, and the paste and fill commands), the same way: a refused
+  one is undone and stops the macro with the reason; what the macro did
+  before it stays, and undoes with the rest of the macro as one step.
 - **Imports** aren't checked; what they leave invalid is marked.
 
 Adding a checkbox or a dropdown changes no cells, so on a protected range
@@ -110,12 +147,12 @@ picking an item asks as typing does ([protection](notes-protection.md#protected-
 
 ## Moving cells
 
-Conditional formats and validation rules move with cut and paste on a
-sheet, as in Sheets: the cut cells take their rules to where
-they land, and the cells they land on lose theirs. A rule whose cells
-partly move keeps both parts; with a custom formula it becomes two
-rules, each with the formula written for its own first cell, so the
+Conditional formats and validation rules move with cut and paste, as
+in Sheets: the cut cells take their rules to where they land, on their
+sheet or another, and the cells they land on lose theirs. A rule whose
+cells partly move keeps both parts; with a custom formula it becomes
+two rules, each with the formula written for its own first cell, so the
 cells that stayed read what they read and the moved ones read the cells
-beside their new places. Formulas in rules follow cells that
-move. Cut on one sheet and pasted on another, the cells leave their
-rules behind and meet the rules where they land.
+beside their new places. Formulas in rules follow cells that move, and
+a rule taken to another sheet names the sheet it came from for the
+cells it still reads there (`=Sheet1!$B2>0`).

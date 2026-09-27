@@ -87,6 +87,14 @@ type Theme struct {
 	Invalid lipgloss.Style
 	// Dropdown is the ▾ at the right of a cell with a dropdown list.
 	Dropdown lipgloss.Style
+	// DropdownChip is a dropdown's value drawn as a chip, as Sheets
+	// draws them: in reverse video, so it reads without color, with its
+	// rounded ends (▐ ▌) in DropdownCap, the chip's color.
+	DropdownChip lipgloss.Style
+	DropdownCap  lipgloss.Style
+	// BarOn is text a data bar of a rule color runs under: reverse
+	// video in the bar's color (see bars.go).
+	BarOn [sheet.NumColors]lipgloss.Style
 	// scales and shades keep the shades of color scales and of rule
 	// colors drawn so far.
 	scales map[scaleKey]Shade
@@ -181,7 +189,7 @@ func New(dark bool) Theme {
 // without it. Call it last: the roles' colors read reversed afterwards.
 func (t *Theme) standouts() {
 	for _, s := range []*lipgloss.Style{&t.Pointer, &t.Selection, &t.HeaderActive, &t.HeaderSel,
-		&t.Found, &t.Traced, &t.MenuSelected, &t.MenuAccelSelected} {
+		&t.Found, &t.Traced, &t.MenuSelected, &t.MenuAccelSelected, &t.DropdownChip} {
 		fg, bg := s.GetForeground(), s.GetBackground()
 		*s = s.Foreground(bg).Background(fg).Reverse(true)
 	}
@@ -283,11 +291,13 @@ func roles(dark bool) Theme {
 		ChartAxis:     lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
 		ChartLabel:    lipgloss.NewStyle().Foreground(muted),
 
-		Invalid:  lipgloss.NewStyle().UnderlineStyle(lipgloss.UnderlineDotted).UnderlineColor(lipgloss.Yellow),
-		Dropdown: lipgloss.NewStyle().Foreground(muted),
-		scales:   map[scaleKey]Shade{},
-		shades:   map[sheet.RuleStyle]Shade{},
-		levels:   aa,
+		Invalid:      lipgloss.NewStyle().UnderlineStyle(lipgloss.UnderlineDotted).UnderlineColor(lipgloss.Yellow),
+		Dropdown:     lipgloss.NewStyle().Foreground(muted),
+		DropdownChip: lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
+		DropdownCap:  lipgloss.NewStyle().Foreground(headerBg),
+		scales:       map[scaleKey]Shade{},
+		shades:       map[sheet.RuleStyle]Shade{},
+		levels:       aa,
 	}
 	ruleRoles(&t, dark)
 	for i, c := range series {

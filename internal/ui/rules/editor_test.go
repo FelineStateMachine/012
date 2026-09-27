@@ -195,9 +195,9 @@ func TestValidationForm(t *testing.T) {
 			t.Errorf("form lacks %q:\n%s", want, out)
 		}
 	}
-	press(e, "<down>", "<down>", "Yes, No,, Maybe ", "<down>", "<right>", "<enter>")
+	press(e, "<down>", "<down>", "Yes, No,, Maybe ", "<down>", "<down>", "<right>", "<enter>")
 	vs := h.s.Validations()
-	if len(vs) != 1 || strings.Join(vs[0].Items, "|") != "Yes|No|Maybe" || !vs[0].Reject {
+	if len(vs) != 1 || strings.Join(vs[0].Items, "|") != "Yes|No|Maybe" || !vs[0].Reject || vs[0].Display != sheet.DropChip {
 		t.Fatalf("saved %+v", vs)
 	}
 	// A number between, rejecting.
@@ -245,5 +245,40 @@ func TestMouseAndCursor(t *testing.T) {
 	e.Mouse(overlay.MouseEvent{Kind: overlay.MousePress, Button: tea.MouseLeft})
 	if !h.closed {
 		t.Error("a click outside didn't close")
+	}
+}
+
+// The form makes data bars and icon sets: the Format row's third and
+// fourth choices, their rows, and a preview drawn as the cells are.
+func TestBarAndIconForms(t *testing.T) {
+	h := newHost()
+	e := Formats(h)
+	press(e, "<enter>", "<down>", "<right>", "<right>")
+	out := text(e)
+	for _, want := range []string{"‹ Data bar ›", "Shortest", "‹ Automatic ›", "Longest", "Bar color", "Show bar only", "Preview"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("bar form lacks %q:\n%s", want, out)
+		}
+	}
+	press(e, "<enter>")
+	fs := h.s.CondFormats()
+	if len(fs) != 1 || !fs[0].IsBar() || fs[0].Bar != sheet.ColorBlue || fs[0].Scale[0].Kind != sheet.PointMin {
+		t.Fatalf("saved %+v", fs)
+	}
+	press(e, "<down>", "<enter>", "<down>", "<right>")
+	out = text(e)
+	for _, want := range []string{"‹ Icon set ›", "‹ Arrows ›", "‹ 3 icons ›", "→ from", "↑ from", "Reverse icons"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("icon form lacks %q:\n%s", want, out)
+		}
+	}
+	// Four icons, evenly apart.
+	press(e, "<down>", "<down>", "<right>", "<enter>")
+	f := h.s.CondFormats()[0]
+	if !f.IsIcons() || len(f.Scale) != 3 || f.Scale[0].Value != "25" || f.Scale[2].Value != "75" {
+		t.Errorf("icons %+v", f)
+	}
+	if !strings.Contains(text(e), "↓↘↗↑") {
+		t.Errorf("list sample:\n%s", text(e))
 	}
 }

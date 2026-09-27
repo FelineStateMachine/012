@@ -34,10 +34,25 @@ func (cfKind) item(th *theme.Theme, h Host, i, w int, sel bool) string {
 	return spread(base, text+base.Render(f.Summary()), "", w)
 }
 
-// sample draws w columns of a rule's look: its style on "123", or its
-// color scale.
+// sample draws w columns of a rule's look: its style on "123", its color
+// scale, its data bar or its icons.
 func sample(th *theme.Theme, h Host, f sheet.CondFormat, w int) string {
-	if f.IsScale() {
+	switch {
+	case f.IsBar():
+		var b strings.Builder
+		for _, n := range theme.BarCover(0.6, w) {
+			b.WriteString(theme.Block(n))
+		}
+		return th.RuleText[f.Bar].Render(b.String())
+	case f.IsIcons():
+		n := len(f.Scale) + 1
+		gs := f.Icons.Glyphs(n)
+		var b strings.Builder
+		for k := range min(len(gs), w) {
+			b.WriteString(th.RuleText[f.Icons.IconColor(k, n)].Render(gs[k]))
+		}
+		return b.String() + strings.Repeat(" ", max(w-len(gs), 0))
+	case f.IsScale():
 		return scaleBar(th, h, f.Scale, w)
 	}
 	// The fill spans the sample; text styles only its text, as in a cell.
@@ -72,7 +87,8 @@ func scaleBar(th *theme.Theme, h Host, ps []sheet.ScalePoint, w int) string {
 type cfForm struct {
 	i      int
 	ranges string
-	scale  int // 0 single color, 1 color scale
+	scale  int // formSingle, formScale, formBar or formIcons
+	bar    barForm
 	op     int // index in sheet.CondFormatOps
 	args   [2]string
 	text   int // index in sheet.Colors
@@ -103,7 +119,7 @@ var pointKinds = [3][]sheet.PointKind{
 }
 
 func (cfKind) form(h Host, i int, sel sheet.Rect) form {
-	f := &cfForm{i: i, ranges: sel.String(), fill: int(sheet.ColorGreen), loc: h.Sheet().Locale(),
+	f := &cfForm{i: i, ranges: sel.String(), fill: int(sheet.ColorGreen), loc: h.Sheet().Locale(), bar: newBarForm(),
 		op:  indexOf(sheet.CondFormatOps(), sheet.RuleNotEmpty),
 		pts: [3]cfPoint{{color: int(sheet.ColorRed) - 1}, {value: "50", color: int(sheet.ColorYellow) - 1}, {color: int(sheet.ColorGreen) - 1}}}
 	if i < 0 {
@@ -111,8 +127,18 @@ func (cfKind) form(h Host, i int, sel sheet.Rect) form {
 	}
 	r := h.Sheet().CondFormats()[i]
 	f.ranges = sheet.RangesText(r.Ranges)
+	switch {
+	case r.IsBar():
+		f.scale = formBar
+		f.bar.load(r)
+		return f
+	case r.IsIcons():
+		f.scale = formIcons
+		f.bar.load(r)
+		return f
+	}
 	if r.IsScale() {
-		f.scale = 1
+		f.scale = formScale
 		for k, p := range r.Scale {
 			slot := k
 			if k == len(r.Scale)-1 {
@@ -155,7 +181,16 @@ func (f *cfForm) rule() (sheet.CondFormat, error) {
 		return sheet.CondFormat{}, errRange
 	}
 	r := sheet.CondFormat{Ranges: rs}
-	if f.scale == 1 {
+	loc := func(s string) string { return sheet.CanonicalArg(s, f.loc) }
+	switch f.scale {
+	case formBar:
+		f.bar.barRule(&r, loc)
+		return r, nil
+	case formIcons:
+		f.bar.iconRule(&r, loc)
+		return r, nil
+	}
+	if f.scale == formScale {
 		for k, p := range f.pts {
 			if k == 1 && p.kind == 0 {
 				continue // no midpoint
@@ -185,22 +220,26 @@ func (f *cfForm) save(h Host) error {
 func (f *cfForm) rows(th *theme.Theme, h Host) []row {
 	rs := []row{
 		{kind: rowText, label: "Apply to", text: &f.ranges, placeholder: "A2:A100", hint: "The ranges the rule applies to, e.g. A2:A100 or A2:A9,C2:C9"},
-		{kind: rowChoice, label: "Format", choices: []string{"Single color", "Color scale"}, at: &f.scale, hint: "Color cells that meet a condition, or every number along a scale"},
+		{kind: rowChoice, label: "Format", choices: formatTitles, at: &f.scale, hint: "Color cells that meet a condition, every number along a scale, or draw bars or icons"},
 		{kind: rowSep},
 	}
-	if f.scale == 1 {
+	switch f.scale {
+	case formScale:
 		return append(rs, f.scaleRows(th, h)...)
+	case formBar:
+		return append(rs, f.bar.barRows(th, func(w int) string {
+			return barSample(th, sheet.Color(f.bar.color+1), min(w, 24))
+		})...)
+	case formIcons:
+		return append(rs, f.bar.iconRows(func(int) string {
+			return iconSample(th, sheet.IconSets()[f.bar.set], f.bar.icons(), f.bar.reverse)
+		})...)
 	}
 	op := sheet.CondFormatOps()[f.op]
 	rs = append(rs, row{kind: rowChoice, label: "Format if", choices: opTitles(), at: &f.op, hint: "The condition cells must meet"})
 	switch op.Args() {
 	case 1:
-		hint, holder := "The value to compare with, or a formula starting with =", "value or =formula"
-		if op == sheet.RuleFormula {
-			hint, holder = "TRUE for cells to format, written for the first cell: =$C2>100", "=$C2>100"
-		} else if op == sheet.RuleDateIs || op == sheet.RuleDateBefore || op == sheet.RuleDateAfter {
-			hint, holder = "A date, or today, tomorrow or yesterday", "2026-09-30 or today"
-		}
+		hint, holder := argHint(op)
 		rs = append(rs, row{kind: rowText, label: "Value", text: &f.args[0], placeholder: holder, hint: hint})
 	case 2:
 		rs = append(rs, row{kind: rowText, label: "Between", text: &f.args[0], placeholder: "lowest", hint: "The lowest value"},
@@ -261,6 +300,21 @@ func (f *cfForm) scaleRows(th *theme.Theme, h Host) []row {
 		r, _ := f.rule()
 		return scaleBar(th, h, r.Scale, min(w, 24))
 	}})
+}
+
+// argHint is the hint and placeholder of a condition's value.
+func argHint(op sheet.RuleOp) (hint, holder string) {
+	switch op {
+	case sheet.RuleFormula:
+		return "TRUE for cells to format, written for the first cell: =$C2>100", "=$C2>100"
+	case sheet.RuleDateIs, sheet.RuleDateBefore, sheet.RuleDateAfter:
+		return "A date, or a period: " + strings.Join(sheet.Periods(), ", "), "2026-09-30 or this week"
+	case sheet.RuleTop, sheet.RuleBottom:
+		return "How many of the highest or lowest values, 1 to 1000", "10"
+	case sheet.RuleTopPercent, sheet.RuleBottomPercent:
+		return "What percent of the highest or lowest values, 1 to 100", "10"
+	}
+	return "The value to compare with, or a formula starting with =", "value or =formula"
 }
 
 func opTitles() []string {

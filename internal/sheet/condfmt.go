@@ -96,7 +96,6 @@ func PointKinds() []PointKind {
 // IsScale reports whether the rule is a color scale.
 func (f CondFormat) IsScale() bool { return len(f.Scale) > 0 && !f.IsBar() && !f.IsIcons() }
 
-
 // Summary describes the rule in a few words, e.g. "Greater than 100".
 func (f CondFormat) Summary() string {
 	switch {

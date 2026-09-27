@@ -65,6 +65,7 @@ func ruleRoles(t *Theme, dark bool) {
 		slot := ruleSlots[c]
 		t.RuleText[c] = lipgloss.NewStyle().Foreground(slot)
 		t.RuleFill[c] = lipgloss.NewStyle().Background(slot).Foreground(ruleInk(dark, slot))
+		t.BarOn[c] = lipgloss.NewStyle().Foreground(slot).Reverse(true)
 	}
 	for f := 1; f < n; f++ {
 		for c := 1; c < n; c++ {

@@ -195,15 +195,35 @@ func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
 			marked := theme.Drawable(base.Inherit(m.th.Copied))
 			base, colored, shaded = &marked, true, false
 		}
-		var text string
-		if shaded && plainSpan(sp) {
-			text = shade.Wrap(strings.Repeat(" ", sp.Lead) + sp.Text + strings.Repeat(" ", sp.Trail))
-		} else {
-			text = renderSpan(&m.th, sp, *base, colored)
-		}
+		text := m.cellText(lc, a, sp, &look, base, colored, shade, shaded)
 		b.WriteString(m.cellMarks(lc, a, text, &look, base, colored))
 	}
 	return b.String()
+}
+
+// cellText draws a cell's span on its role: as a rule's shade, with its
+// data bar or icon, as a dropdown's chip (taking the look's ▾, which the
+// chip holds), or plainly.
+func (m *Model) cellText(lc *lineCtx, a sheet.Addr, sp rowtext.Span, look *sheet.Look, base *lipgloss.Style, colored bool, shade theme.Shade, shaded bool) string {
+	w := m.sheet.ColWidth(a.Col)
+	switch {
+	case look.Bar || look.Icon != "" || look.ValueHidden:
+		return m.barText(sp, w, look, base, colored, m.valueLine(lc, a))
+	case look.Dropdown && look.Display != sheet.DropArrow:
+		chip, ok := "", false
+		if look.Display == sheet.DropChip && !colored && sp.Owner == a.Col && m.valueLine(lc, a) {
+			chip, ok = m.chipText(sp, w)
+		}
+		if ok || look.Display == sheet.DropPlain {
+			look.Dropdown = false // no ▾ at the right
+		}
+		if ok {
+			return chip
+		}
+	case shaded && plainSpan(sp):
+		return shade.Wrap(strings.Repeat(" ", sp.Lead) + sp.Text + strings.Repeat(" ", sp.Trail))
+	}
+	return renderSpan(&m.th, sp, *base, colored)
 }
 
 // cellRole is the role a cell is drawn in: the pointer, the selection,
