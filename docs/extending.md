@@ -14,7 +14,7 @@ shows it is derived from the table rather than listing it again.
 
 | Registry | Entry | Derived from it |
 |---|---|---|
-| `sheet.FuncDef` | a function: name, signature, description, arity, eval | parsing, autocomplete, argument hints, help, [functions.md](functions.md) |
+| `functions.FuncDef` (one file per category in `internal/functions`) | a function: name, signature, description, arity, eval, result format, decimal twin | parsing, autocomplete, argument hints, help, [functions.md](functions.md) |
 | `ui.command` | an action: id, title, description, run, enabled, checked, what it edits, and how macros treat it | key bindings (Sheets and vim), menu bar, context menus, palette, shortcuts help, the `:` command line and its completions, macro recording and `run()` in scripts |
 | `fileio` formats (`formats.go`) | a format: name, extensions, labels, traits, importer, exporter | `Import`, `Export`, detection, import picker, File > Download, command line |
 | `chart.types`, with `sheet.ChartTypes` | a type: name and order (sheet, saved in files), a layout drawing text and image (chart) | `chart.Draw`, `chart.Image`, chart editor, Insert > Chart |
@@ -23,6 +23,12 @@ shows it is derived from the table rather than listing it again.
 
 Adding a function, command, format, chart type, option or role means
 adding an entry (and its file), not editing switch statements elsewhere.
+A function goes in the category file of `internal/functions` it belongs
+to (a new file is a new section of functions.md: add it to the
+generator's `categories`), reads its arguments with the shared helpers
+(`numArg`, `matrixArg`, `each`, `criteriaArgs`), and `go test
+./internal/functions -run FunctionsDoc -update-docs` regenerates the
+reference.
 A new process-wide setting is a `config.Options` entry read with
 `Config.String`, `Bool`, `Int` or `Duration`; one that belongs to a
 workbook goes in the file instead (pattern 9). A new role goes in
@@ -62,10 +68,11 @@ a comment in the script, so a gap shows.
 
 ### 4. Side effects stay at the edges
 
-`internal/sheet` does no I/O, network or terminal work. Anything outside the
-process is a small interface the engine asks (`RemoteSource`, set per
-workbook with `SetRemote`) and the UI fulfils asynchronously with
-`tea.Cmd`, answering from a cache. Tests substitute fakes (`jev.Client`,
+`internal/sheet` and `internal/functions` do no I/O, network or terminal
+work. Anything outside the process is a small interface the engine asks
+(`RemoteSource`, set per workbook with `SetRemote`; functions reach it
+through `Book.Ask`) and the UI fulfils asynchronously with `tea.Cmd`,
+answering from a cache. Tests substitute fakes (`jev.Client`,
 the fake TypeSafe server, `demos/fakejev`).
 New remote function families (other models, web lookups, databases) plug in
 the same way.
@@ -100,13 +107,24 @@ edges and the next filled cell are found without scanning.
 
 ### 7. Read ranges as ranges
 
-Formulas read single cells through `lookup.cell` and ranges through
-`lookup.cells`, which yields only the cells a range holds, so aggregates
-(`SUM(A:A)`, running totals) cost their data, and within a recalculation
-SUM-like functions share running aggregates per range (`rangememo.go`).
+Functions read cells through their `Reader` (`internal/functions/reader.go`):
+single cells through `cell`, and ranges through `cells`, which yields only
+the cells a range holds, so aggregates (`SUM(A:A)`, running totals) cost
+their data, and within a recalculation SUM-like functions share running
+aggregates per range (`Book.RangeAgg`, the engine's `rangememo.go`) or have
+the engine add a range up as it reads it (`Book.Fold`).
 Functions that need positions (`MATCH`, `SUMIF`, `INDEX`) take a `matrix`,
 which knows the range's full size and which cells hold something; they
-walk those and account for the blanks between at once.
+walk those (`stored`) and account for the blanks between at once.
+
+The `Reader` is concrete, and the engine's side of it, the `Book`, takes
+and returns only values: a callback or pointer handed through an
+interface escapes to the heap, so it would allocate on every range read.
+Ranges come through `Book.Scan` in chunks, into buffers the `Reader`
+reuses, and a function's own callbacks stay on the stack; aggregates pass
+their `Agg` by value to `Book.Fold`. A new way to
+read cells follows suit: a `Book` method of values, and the loop over
+what it returns in the `Reader`.
 
 ### 8. Work proportional to what changed or what's visible
 
@@ -144,7 +162,11 @@ the bounds. A change to a seam reports before and after numbers.
 
 `make lint`: no function over cognitive complexity 25, no Go file over 500
 lines. A package that keeps growing past a few thousand lines gets split
-along a boundary where dependencies point one way.
+along a boundary where dependencies point one way, as the function
+library (`internal/functions`) and values (`internal/value`) were split
+from the engine: the lower package defines the small interface it needs
+(`functions.Book`) and the engine implements it, keeping its API through
+aliases so callers don't change.
 
 ### 12. Every feature at three levels
 

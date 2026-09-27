@@ -419,7 +419,7 @@ Code that cost the grid, and what it does now:
 
 | Where | Was | Now |
 |---|---|---|
-| Range reads for aggregates (`reader.cells`) | every address of the range | the stored cells, in row order |
+| Range reads for aggregates (then `reader.cells`; now `Book.Fold` and `Book.Scan`) | every address of the range | the stored cells, in row order |
 | SUMIF(S), COUNTIF(S), AVERAGEIF(S), SUMPRODUCT, COUNTBLANK | a mask over every cell | the cells any range holds; the blanks between counted at once |
 | MATCH, VLOOKUP, HLOOKUP, XLOOKUP | every entry of the column searched | the stored entries, the blanks between as one; ROWS and INDEX keep the full size |
 | Range users (`rangeIndex`) | a fixed array of 256 column buckets, scanned per change | interval trees per used column, whole rows in one |
@@ -487,6 +487,35 @@ CSV imports take longer only because they keep more: the airport codes
 whole. XLSX imports set column widths and styles for the data's columns
 (at least 256), without an undo step each: setting 16,384 of them one
 step at a time took the POI file from 9.7 to 44 ms before the fix.
+
+## The function library
+
+The function library moved out of the engine into `internal/functions`,
+behind a `Book` interface whose methods pass only values (see
+[architecture.md](architecture.md#functions)): SUM-like functions have
+the engine add a range up (`Fold`), other range walks read chunks into
+buffers the `Reader` reuses (`Scan`), and lookups walk positions with a
+cursor. The criteria and lookup shapes (`criteria-60xSUMIF8192`: SUMIF,
+COUNTIFS and AVERAGEIF over whole columns of 8192 rows;
+`lookup-300xVLOOKUP8192`: VLOOKUP, MATCH and XLOOKUP into 8192 keys) were
+added for it. Before and after, back to back (`-benchtime 1s`, medians of
+three alternating runs; differences under about 3% are noise):
+
+| Benchmark | Before | After |
+|---|---|---|
+| Edit fan-in, 1000 x SUM(A1:A8192) / SUM(A:A) | 742 / 741 us | 749 / 750 us |
+| Edit running totals | 2.79 ms | 2.85 ms |
+| Edit sparse-1M | 2.64 ms, 9611 allocs | 2.45 ms, 3610 allocs |
+| Edit criteria / lookup | 40.7 / 26.3 ms | 37.1 / 25.3 ms |
+| Edit chain / fan-out / volatile / dense | 1.88 / 1.39 / 1.29 ms / 673 ns | 1.85 / 1.40 / 1.29 ms / 662 ns |
+| RecalcAll fan-in / running / sparse-1M | 0.97 / 2.50 / 3.82 ms | 0.97 / 2.51 / 3.62 ms |
+| RecalcAll criteria / lookup | 66.6 / 27.5 ms | 58.8 / 26.5 ms |
+| RecalcAll dense 8192 x 26 | 32.5 ms | 31.8 ms |
+| Arithmetic, binary / decimal (1000 formulas and a SUM) | 20.6 / 160 us | 19.8 / 156 us |
+
+Allocations are the same or fewer everywhere: lookups no longer make a
+closure per search, and criteria collect positions from the occupancy
+index without a call per cell.
 
 ## Hotspots found and fixed
 

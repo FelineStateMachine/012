@@ -6,7 +6,9 @@ Lip Gloss v2.
 ```
 cmd/012          entry point: flags and config, 012 config, 012 serve, JEV setup, opening or importing a file
 internal/config  the config file and the registry of options
-internal/sheet   the engine: cells, evaluation, functions, recalculation, undo, files
+internal/sheet   the engine: cells, recalculation, undo, files, names, pivots
+internal/functions the function library: the FuncDef table, evaluation, decimal arithmetic, JEV questions
+internal/value   cell values, number formats, typed-entry parsing, the clock
 internal/formula the formula language: references, lexer, parser, printer, rewriting
 internal/numfmt  number formats, rounding, General, date serials
 internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1
@@ -28,33 +30,45 @@ oracle/          differential tests against excelize's calculation (separate mod
 
 ## The engine
 
-`internal/sheet` knows nothing about terminals. It builds on two packages
-that know nothing about cells, and dependencies point one way:
+`internal/sheet` knows nothing about terminals. It builds on the function
+library, which knows nothing about sheets or storage, and on packages
+that know nothing about cells; dependencies point one way:
 
 ```
 internal/ui, internal/fileio, internal/chart, oracle
         |
-internal/sheet  --->  internal/formula
-        |
-        +-------->  internal/numfmt
+internal/sheet  ------------------------------+
+        |                                     |
+internal/functions  --->  internal/formula    |
+        |                                     |
+internal/value  --->  internal/numfmt  <------+
 ```
+
+(`sheet` also uses `formula`, `value` and `numfmt` directly.)
 
 - `internal/formula` is the language: `Addr` and `Rect`, A1 references
   with their `$` markers, sheet names in references and their quoting,
   the lexer and Pratt parser, the syntax tree, the printer and the
   reference rewriting for copies, moves and inserted or deleted rows and
   columns. The parser learns which functions exist through a small
-  `Func` interface that the engine's `FuncDef` implements.
+  `Func` interface that the library's `FuncDef` implements.
+- `internal/value` is what a cell computes to and how it is shown:
+  `Value` with its kinds and error codes, the coercions and ordering
+  every function shares (`ToNum`, `Compare`), `Format` and its kinds, and
+  typed-entry recognition (`ParseValue`, which turns "$1,200" or "9/26"
+  into a number and a format), with the clock it reads (`value.Now`,
+  which TODAY and NOW read too; tests replace it).
+- `internal/functions` is the function library; see
+  [Functions](#functions) below.
 - `internal/numfmt` renders numbers: number format patterns (as in TEXT
   and custom formats), Sheets' General form, rounding on 15 significant
   digits, and the calendar of serial day numbers.
 
 `sheet` re-exports what its callers used before (`sheet.Addr`,
-`sheet.Rect`, `sheet.Parse`, `sheet.FormatPattern`, the sheet-name
-helpers) as aliases and thin wrappers, so the UI, importers and charts see
-one engine package. Typed-entry recognition (`ParseValue`, which turns
-"$1,200" or "9/26" into a number and a format) stays in `sheet`: it yields
-the engine's `Format` and reads its clock.
+`sheet.Rect`, `sheet.Parse`, `sheet.Value`, `sheet.Format`,
+`sheet.ParseValue`, `sheet.FuncDef`, `sheet.Funcs`, the remote types,
+`sheet.FormatPattern`, the sheet-name helpers) as aliases and thin
+wrappers, so the UI, importers and charts see one engine package.
 
 A `Workbook` holds ordered `Sheet`s, the named ranges, the undo history,
 the arithmetic setting, the JEV source and recalculation, as a Sheets
@@ -75,7 +89,8 @@ style.
   formulas into an AST, keeping absolute markers so references can be
   rewritten when cells move. Its printer turns ASTs back into text in
   Sheets' spelling. Decimal arithmetic marks the operators it computes
-  with node types of the engine's own, so trees stay as parsed.
+  with node types of the function library's own, so trees stay as
+  parsed.
 - **Recalculation.** Formulas record the cells and ranges they read on
   their own sheet; references that name a sheet (`Sheet2!A1`) are kept by
   name and resolved when evaluated, so renaming rewrites them and a deleted
@@ -84,15 +99,17 @@ style.
   sheet, then evaluates the marked cells lazily in dependency order; a cell
   reached again while it is being evaluated is part of a cycle. Volatile
   functions (TODAY, RAND, the JEV functions) are recomputed on every
-  recalculation (`recalc.go`). Formulas read other cells through a
-  `lookup`: `cell` for one, `cells` for the cells a range holds, which
-  the aggregates (SUM, AVERAGE, COUNT and the rest) use, sharing running
-  aggregates within a recalculation (`rangememo.go`). The formulas whose
-  ranges contain a changed cell are found through interval trees per
-  column (`rangeindex.go`).
-- **Functions.** One table (`FuncDef`) holds every function's name,
-  signature, description and arity; it drives parsing, evaluation,
-  autocomplete, in-app help and [functions.md](functions.md).
+  recalculation (`recalc.go`). Formulas read other cells through each
+  sheet's `reader`, the engine's side of the function library's `Book`
+  (below): one cell, the cells a range holds in chunks, a range's bounds,
+  and the running aggregates SUM-like functions share within a
+  recalculation (`rangememo.go`). The formulas whose ranges contain a
+  changed cell are found through interval trees per column
+  (`rangeindex.go`).
+- **Functions.** One table (`FuncDef`, in `internal/functions`) holds
+  every function's name, signature, description and arity; it drives
+  parsing, evaluation, autocomplete, in-app help and
+  [functions.md](functions.md). See [Functions](#functions).
 - **Undo.** Every mutation goes through a small set of paths that snapshot
   the cells, widths, names, charts, view state and sheet list they change,
   on any sheet, so a step can be reversed exactly; multi-cell operations
@@ -113,9 +130,73 @@ style.
   and never saved: the file keeps the definition (`pivotfile.go`). A
   frequency table is a pivot with a preset definition.
 - **JEV.** The engine never touches the network. JEV functions describe a
-  question and look up the answer in the workbook's `RemoteSource`, set
-  with `SetRemote`; `internal/jev` answers from a cache and queues new
-  questions, and the UI sends them as background commands.
+  question and ask the `Book` for the answer, which the engine looks up
+  in the workbook's `RemoteSource`, set with `SetRemote`; `internal/jev`
+  answers from a cache and queues new questions, and the UI sends them as
+  background commands.
+
+### Functions
+
+`internal/functions` holds the function library: the `FuncDef` table
+(one file per category: `everyday.go`, `math.go`, `stats.go`,
+`logic.go`, `text.go`, `lookup.go`, `date.go`, `finance.go`, `link.go`,
+`jev.go`, which [functions.md](functions.md) is grouped by), the
+evaluation of formulas (`eval.go`: operators and calls), the helpers
+functions share (arguments and blocks of cells in `args.go`, criteria
+over aligned ranges in `masked.go`, searched lines in `seq.go`), format
+inference for Automatic cells (`format.go`), the decimal twins and
+`Decimalize` (`decimal.go`) and the questions JEV functions ask
+(`remote.go`, `remotekey.go`). It imports `formula`, `value` and `numfmt`,
+never the engine.
+
+A formula reads cells through a `Reader` over a `Book`, the interface
+the engine implements once per sheet (`reader` in `recalc.go`):
+
+| `Book` method | What it is |
+|---|---|
+| `Cell(sheet, a)` | one cell's value, evaluated first if it's dirty |
+| `Scan(sheet, r, from, addrs, vals)` | the next chunk of the cells a range holds, row by row: their addresses and, when asked, their values |
+| `Bounds(sheet, r)` | the smallest range holding a range's cells, for the data area of blocks and lookups |
+| `RangeAgg(sheet, r)` | the running aggregate SUM-like functions share within a recalculation |
+| `Fold(sheet, r, agg)` | a range added to a SUM-like function's aggregate, as the engine reads it |
+| `Ask(call)` | a JEV question's answer, `Pending` or `ErrNoRemote` |
+
+Sheets are named as references write them, so resolving names, missing
+sheets (`#REF!`), cycles and the depth limit stay the engine's. The
+engine finds functions through the table (`LookupFunc`, which the parser
+uses) and evaluates with `functions.Eval`.
+
+The boundary costs no allocation on the hot paths, which an interface
+usually would: a callback passed through an interface escapes to the
+heap, so a `Book` that took one (as the engine's own range read did)
+would allocate for every range a formula reads. Every `Book` method takes
+and returns plain values instead:
+
+- SUM-like functions hand the engine their aggregate (`Agg`, a value) and
+  it adds a range's cells as it reads them (`Fold`), or answers from the
+  running aggregates (`RangeAgg`), calling `Agg.Add` directly.
+- Other range walks (`Reader.cells`: AND, MEDIAN, TEXTJOIN, JEV lists)
+  ask `Scan` for a chunk of cells into buffers the `Reader` keeps (they
+  start at 8 cells and double up to 1024 as a range proves long; nested
+  reads each have their own) and walk it with the function's callback,
+  which stays on the stack. A chunk evaluates no cell past the first
+  error, where every walk stops, so no cell is evaluated that reading
+  one at a time wouldn't have.
+- Lookups and criteria walk the cells' positions only (`Reader.walk`, a
+  cursor, and `stored`), in chunks that start small at every search as a
+  search stops at its match, and read the value of each cell they reach
+  (`Cell`).
+
+The engine fills a chunk from the occupancy index without a call per cell
+(`colFill`, `rangeFill`), and keeps each sheet's reader between
+recalculations, so the buffers are made once. See
+[limits.md](limits.md#the-function-library) for before and after.
+
+What stays in the engine is what needs cells or the workbook: the
+running aggregates' storage and extension (`rangememo.go`), the links a
+HYPERLINK cell opens (`link.go`), the questions a cell's JEV formulas ask
+(`RemoteCalls`), explaining errors (`explain.go`) and the decimal
+setting (`SetDecimal`, which marks formulas with `functions.Decimalize`).
 
 ### Where the engine can grow
 
@@ -126,8 +207,8 @@ move without touching callers:
   formats in side tables) replaces `cellStore`'s map; its methods are the
   whole contract.
 - **Range reads.** Shared range results, prefix sums for running totals
-  and column-block scans go behind `lookup.cells`, the one place
-  aggregates read ranges.
+  and column-block scans go behind the engine's `Scan` and `RangeAgg`,
+  the places functions read ranges.
 - **Files.** A streaming or columnar `.012` format replaces `file.go`'s
   whole-document JSON; the format is already separate from the store.
 - **Depth limits.** `internal/formula`'s parser caps nesting at
@@ -135,12 +216,10 @@ move without touching callers:
   parse before anything evaluates it; evaluation puts off cells past
   65,536 levels of a chain rather than recursing further
   (`evaluate.go`).
-- **Functions.** The function library (values, evaluation, `FuncDef` and
-  the `functions_*.go` tables, about a third of `sheet`) is the next
-  boundary: it needs cells only through `lookup`. It stays in `sheet`
-  for now because `lookup` is a concrete type (an interface across a
-  package boundary would put every range callback on the heap) and
-  `Value` and `Format` would have to move below the engine with it.
+- **Functions.** A new function is an entry in `internal/functions`
+  that reads cells through its `Reader`; a new way of reading them (a
+  column block, a cached result) is a `Book` method that takes and
+  returns values, so the boundary stays free of allocations.
 
 ## The UI
 
