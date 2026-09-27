@@ -82,8 +82,9 @@ searches every command. `012 config edit` opens the settings file.
 | JEV functions in formulas | Formats detected as you type |
 
 The recordings are [VHS](https://github.com/charmbracelet/vhs) tapes in
-[`demos/`](demos); `make demos` renders them. Charts show as text here; in
-kitty, Ghostty and WezTerm they are real images.
+[`demos/`](demos); `make demos` renders them in a terminal using the
+Catppuccin Mocha palette, which 012 follows by default ([themes](docs/themes.md)).
+Charts show as text here; in kitty, Ghostty and WezTerm they are real images.
 
 ## Documentation
 
