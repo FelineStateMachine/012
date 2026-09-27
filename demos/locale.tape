@@ -6,7 +6,7 @@ Output out/locale.gif
 Source lib/setup.tape
 
 Hide
-Type "O12_LOCALE=en-US ../bin/012" Enter
+Type "../bin/012" Enter
 Sleep 1.5s
 Show
 
