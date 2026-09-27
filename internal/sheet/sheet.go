@@ -144,6 +144,7 @@ func (s *Sheet) ColWidth(c int) int {
 
 // SetColWidth sets column c's width; w <= 0 resets it to the default.
 func (s *Sheet) SetColWidth(c, w int) {
+	s.pivot.fit = false // the user's widths win over the pivot's
 	s.change("column width", colRect(c, c), func() { s.setWidth(c, w) })
 }
 

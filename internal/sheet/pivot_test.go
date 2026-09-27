@@ -77,6 +77,32 @@ func TestPivotGroupsRows(t *testing.T) {
 	if c := s.Cell(at("A5")); !c.Style.Bold {
 		t.Error("the Grand Total row isn't bold")
 	}
+	// A new pivot sheet's columns fit the results, until set by hand.
+	if s.ColWidth(0) != 13 || s.ColWidth(2) != 17 {
+		t.Errorf("widths %d %d, want 13 17", s.ColWidth(0), s.ColWidth(2))
+	}
+	s.SetColWidth(0, 20)
+	w.Lookup("Sales").Set(at("A2"), "Eastern seaboard region")
+	if s.ColWidth(0) != 20 {
+		t.Errorf("width %d after setting it by hand", s.ColWidth(0))
+	}
+}
+
+func TestPivotFilterValues(t *testing.T) {
+	w := sales(t)
+	s := newPivot(t, w, func(p *Pivot) {
+		p.Filters = []PivotFilter{
+			{Col: 0, Criteria: Criteria{Hidden: []string{"West"}}},
+			{Col: 1, Criteria: Criteria{Hidden: []string{"Ink"}}},
+		}
+	})
+	p, _ := s.Pivot()
+	// Region's values among the rows Product's filter lets through.
+	got := w.PivotFilterValues(p, 0)
+	want := []FilterValue{{"East", 1, true}, {"North", 1, true}, {"West", 1, false}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("values %v, want %v", got, want)
+	}
 }
 
 func TestPivotColumnsAndSubtotals(t *testing.T) {

@@ -281,6 +281,9 @@ func (w *Workbook) refreshPivot(s *Sheet) []loc {
 		s.pivot.out = union(s.pivot.out, Rect{From: pc.a, To: pc.a})
 	}
 	changed := s.writeDerived(want)
+	if s.pivot.fit {
+		s.fitPivot(want)
+	}
 	if OnPivot != nil {
 		info := PivotInfo{Cells: len(want), Failed: err != nil, Duration: time.Since(start)}
 		if calc != nil {
@@ -391,6 +394,21 @@ func (s *Sheet) setDerived(a Addr, c *Cell) {
 	s.unlink(a)
 	if c != nil {
 		s.cells.set(a, c)
+	}
+}
+
+// maxPivotWidth caps how wide fitting makes a pivot's column.
+const maxPivotWidth = 30
+
+// fitPivot widens the result's columns to their widest text, never below
+// the default width.
+func (s *Sheet) fitPivot(cells []pivotCell) {
+	widest := map[int]int{}
+	for _, pc := range cells {
+		widest[pc.a.Col] = max(widest[pc.a.Col], len([]rune(s.ShownText(pc.a))))
+	}
+	for col, w := range widest {
+		s.setWidth(col, clampInt(w+2, DefaultWidth, maxPivotWidth))
 	}
 }
 

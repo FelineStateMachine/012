@@ -223,7 +223,7 @@ func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
 	cp.view = s.view
 	cp.view.filter = s.view.filter.clone()
 	cp.charts = slices.Clone(s.charts)
-	cp.pivot = pivotState{def: s.pivot.def.clone(), stale: s.pivot.def != nil, out: s.pivot.out}
+	cp.pivot = pivotState{def: s.pivot.def.clone(), stale: s.pivot.def != nil, out: s.pivot.out, fit: s.pivot.fit}
 	w.change(cp, "duplicate "+s.name, Rect{}, func() {
 		w.recordSheets()
 		w.insert(cp, w.Index(s)+1)

@@ -105,6 +105,11 @@ type pivotState struct {
 	stale bool   // recompute at the end of the current change
 	out   Rect   // what the last result covered, from A1
 	err   string // why the pivot shows #REF!, or ""
+	// fit has the result's columns widened to fit, while the sheet is
+	// the pivot's own: from its creation until a width is set by hand.
+	// The widths aren't undo steps; undoing the creation removes them
+	// with the sheet.
+	fit bool
 }
 
 // clone returns a deep copy, so a stored pivot never shares slices.
@@ -195,9 +200,7 @@ func (w *Workbook) CreatePivot(src *Sheet, r Rect, name string, p Pivot) (*Sheet
 	w.change(s, "create "+name, Rect{}, func() {
 		w.recordSheets()
 		w.insert(s, w.Index(src)+1)
-		s.pivot.def = p.clone()
-		s.pivot.stale = true
-		s.pivot.out = Rect{}
+		s.pivot = pivotState{def: p.clone(), stale: true, fit: true}
 	})
 	return s, nil
 }
@@ -354,6 +357,26 @@ func (w *Workbook) DefaultSummarize(p Pivot, col int) Summarize {
 		}
 	}
 	return CountABy
+}
+
+// PivotFilterValues lists the distinct values of column col of the
+// pivot's source, among the rows its other filters let through, as a
+// filter's values list does.
+func (w *Workbook) PivotFilterValues(p Pivot, col int) []FilterValue {
+	src := w.Lookup(p.Source)
+	if src == nil || p.Lost {
+		return nil
+	}
+	var others []PivotFilter
+	var hidden []string
+	for _, f := range p.Filters {
+		if f.Col == col {
+			hidden = f.Criteria.Hidden
+		} else {
+			others = append(others, f)
+		}
+	}
+	return src.valuesList(p.Range, col, pivotTests(others), hidden, true)
 }
 
 // NewPivot starts a pivot over r on src with nothing chosen yet and both
