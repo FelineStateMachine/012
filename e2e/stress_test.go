@@ -64,8 +64,8 @@ func TestStressKeyLatency(t *testing.T) {
 			s.keys("<up>")
 			s.waitForName("A1")
 		}
-		s.keys(fmt.Sprint(i%10))
-		s.waitForEntry(fmt.Sprint(i%10))
+		s.keys(fmt.Sprint(i % 10))
+		s.waitForEntry(fmt.Sprint(i % 10))
 		return "<enter>", "A2"
 	})
 	report(t, "arrow", arrows)
