@@ -79,6 +79,23 @@ func reviews(s *session) {
 	s.waitFor("JEV: positive, 80% confident")
 }
 
+// inventory pastes a stock list of 40 items with a header row, the way
+// data usually arrives, and returns to A1.
+func inventory(s *session) {
+	items := []string{"Bolts", "Nuts", "Washers", "Hinges", "Brackets", "Screws", "Anchors", "Rivets"}
+	cats := []string{"Fasteners", "Fasteners", "Fasteners", "Hardware", "Hardware", "Fasteners", "Hardware", "Fasteners"}
+	rows := []string{"Item\tCategory\tBin\tQty\tPrice\tReorder"}
+	for i := range 40 {
+		k := i % len(items)
+		rows = append(rows, fmt.Sprintf("%s %d\t%s\tB%02d\t%d\t%.2f\t%s",
+			items[k], i/len(items)+1, cats[k], i%12+1, (i*37)%90+5, float64((i*53)%400)/20+0.5, []string{"no", "yes"}[i%3/2]))
+	}
+	s.paste(strings.Join(rows, "\n"))
+	s.waitFor("Pasted 246 cells")
+	s.keys("<ctrl+home>")
+	s.waitForName("A1")
+}
+
 var screens = []screen{
 	{name: "ready-empty", setup: func(s *session) {}},
 	{name: "budget", setup: budget},
@@ -299,6 +316,77 @@ var screens = []screen{
 		s.keys("<up>", "<right>")
 		s.waitFor("From B3: division by zero in B5/0")
 	}},
+	{name: "menu-freeze", setup: func(s *session) {
+		inventory(s)
+		s.keys("<alt+v>", "<right>", "<down>")
+		s.waitFor("Keep the first row on screen")
+	}},
+	{name: "frozen", setup: func(s *session) {
+		inventory(s)
+		s.keys("<alt+v>", "<enter>", "1", "<enter>")
+		s.waitFor("Froze 1 row")
+		s.keys("<alt+v>", "<enter>", "1", "1", "<enter>")
+		s.waitFor("Froze 1 column")
+		s.keys("<ctrl+end>", "<up>", "<up>", "<shift+up>", "<shift+up>")
+		s.waitForName("F37:F39")
+	}},
+	{name: "frozen-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		inventory(s)
+		s.keys("<right>", "<down>", "<alt+v>", "<enter>", "u", "<enter>")
+		s.waitFor("Froze 2 rows")
+		s.keys("<alt+v>", "<enter>", "u", "u", "<enter>")
+		s.waitFor("Froze 2 columns")
+		s.keys("<pgdown>", "<right>", "<right>", "<right>")
+		s.waitForName("E10")
+	}},
+	{name: "filter-picker", setup: func(s *session) {
+		inventory(s)
+		s.keys("<right>", "<alt+d>", "c")
+		s.waitFor("Created a filter")
+		s.keys("<alt+down>", "<down>", "<down>", "<space>", "<down>")
+		s.waitFor("[ ] Hardware")
+	}},
+	{name: "filter-condition", setup: func(s *session) {
+		inventory(s)
+		s.keys("<alt+d>", "c")
+		s.waitFor("Created a filter")
+		s.keys("<right>", "<right>", "<right>", "<alt+down>", "<tab>")
+		for range 8 {
+			s.keys("<down>")
+		}
+		s.keys("50")
+		s.waitFor("‹ Greater than ›  50")
+	}},
+	{name: "filtered", setup: func(s *session) {
+		inventory(s)
+		s.keys("<alt+d>", "c")
+		s.waitFor("Created a filter")
+		s.keys("<right>", "<alt+down>", "<down>", "<down>", "<space>", "<enter>")
+		s.keys("<right>", "<right>", "<alt+down>", "<tab>")
+		for range 8 {
+			s.keys("<down>")
+		}
+		s.keys("50", "<enter>")
+		s.waitFor("Filtered column D")
+		s.keys("<down>", "<down>")
+	}},
+	{name: "sort-bar", setup: func(s *session) {
+		inventory(s)
+		s.keys("<right>", "<alt+d>", "<down>", "<enter>", "a", "<enter>")
+		s.waitFor("Sort A2:F41 by")
+		s.keys("<alt+a>", "<right>", "<right>", "<right>", "<space>")
+		s.waitFor("D Qty  Z→A")
+	}},
+	{name: "fill-handle", setup: func(s *session) {
+		s.keys("Week", "<tab>", "Day", "<tab>", "Batch", "<enter>")
+		s.keys("1", "<tab>", "Mon", "<tab>", "Item 1", "<enter>")
+		s.keys("2", "<tab>", "Tue", "<tab>", "Item 2", "<enter>")
+		s.keys("<up>", "<up>", "<shift+down>", "<shift+right>", "<shift+right>")
+		s.waitForName("A2:C3")
+		s.mouse(ghostty.MouseActionPress, ghostty.MouseButtonLeft, 6+29, gridRow1+2, 0)
+		s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonLeft, 6+25, gridRow1+6, 0)
+		s.waitFor("Fill A2:C7")
+	}},
 }
 
 // named is the budget with its expenses named and a formula using the
@@ -331,7 +419,7 @@ func chartOfType(s *session, n int, title string) {
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"

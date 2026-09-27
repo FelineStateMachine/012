@@ -404,7 +404,7 @@ func (s *session) activeScreen() ghostty.TerminalScreen {
 
 var namedKeys = map[string]ghostty.Key{
 	"enter": ghostty.KeyEnter, "esc": ghostty.KeyEscape, "backspace": ghostty.KeyBackspace,
-	"tab": ghostty.KeyTab, "delete": ghostty.KeyDelete, "home": ghostty.KeyHome,
+	"tab": ghostty.KeyTab, "delete": ghostty.KeyDelete, "home": ghostty.KeyHome, "end": ghostty.KeyEnd,
 	"up": ghostty.KeyArrowUp, "down": ghostty.KeyArrowDown,
 	"left": ghostty.KeyArrowLeft, "right": ghostty.KeyArrowRight,
 	"pgup": ghostty.KeyPageUp, "pgdown": ghostty.KeyPageDown,
