@@ -20,8 +20,13 @@ import (
 // View implements tea.Model.
 func (m *Model) View() tea.View {
 	lines := []string{m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.headerRow()}
+	rows := m.screenRows()
 	for i := range m.visibleRows() {
-		lines = append(lines, m.gridRow(m.top+i))
+		if i < len(rows) {
+			lines = append(lines, m.gridRow(rows[i]))
+		} else {
+			lines = append(lines, "")
+		}
 	}
 	lines = append(lines, m.statusLine())
 	for i, l := range lines {
@@ -113,6 +118,8 @@ func (m *Model) contextLineText() string {
 	case m.drag == dragResize:
 		left = m.th.key.Render("Column "+sheet.ColName(m.resizeCol)) + m.th.muted.Render(" width ") +
 			strconv.Itoa(m.sheet.ColWidth(m.resizeCol)) + m.th.muted.Render("   double-click the border to fit")
+	case m.drag == dragFill:
+		left = m.fillLine()
 	case m.hint != "":
 		left = m.th.warning.Render(m.hint)
 	case m.mode == modeReady && m.trace != nil:
@@ -132,6 +139,8 @@ func (m *Model) contextLineText() string {
 			left, right = o.line(m)
 		case contextLiner:
 			left, right = o.contextLine(m)
+		case *sortBar:
+			left = o.line(m)
 		}
 	case m.mode == modePrompt:
 		left, right = m.promptLine()
@@ -238,6 +247,9 @@ func (m *Model) statusLine() string {
 	}
 	if m.sheet.Circular {
 		left += "  " + m.th.warning.Render("Circular reference")
+	}
+	if n := m.sheet.HiddenRows(); n > 0 {
+		left += "  " + m.th.hint.Render("Filter hides "+rowCount(n))
 	}
 	if busy := m.jevBusy(); busy != "" {
 		left += "  " + m.th.hint.Render(busy)

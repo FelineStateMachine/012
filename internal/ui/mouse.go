@@ -29,6 +29,8 @@ const (
 	hitEditLine   // the entry being typed
 	hitPanel
 	hitStatus
+	hitFilterButton // the filter mark in a column header
+	hitFillHandle   // the corner of the selection that drags out a fill
 )
 
 type hit struct {
@@ -47,7 +49,6 @@ func (m *Model) editLineAt() (line, x int) { return formulaLine, formulaBarTextX
 
 // hitTest maps a screen position to what's there.
 func (m *Model) hitTest(x, y int) hit {
-	rows := m.visibleRows()
 	switch {
 	case y < panelLines:
 		if line, tx := m.editLineAt(); y == line && m.editing() {
@@ -65,29 +66,49 @@ func (m *Model) hitTest(x, y int) hit {
 			return hit{}
 		}
 		kind := hitColHeader
-		if x == start+m.sheet.ColWidth(col)-1 {
+		switch {
+		case x == start+m.sheet.ColWidth(col)-1:
 			kind = hitColBorder
+		case x == m.filterButtonX(col):
+			kind = hitFilterButton
 		}
 		return hit{kind: kind, addr: sheet.Addr{Col: col, Row: m.top}}
-	case y >= gridTop && y < gridTop+rows:
-		row := m.top + y - gridTop
-		if x < rowHdrW {
-			return hit{kind: hitRowHeader, addr: sheet.Addr{Col: m.left, Row: row}}
-		}
-		col, _, ok := m.colSpan(x)
+	case y >= gridTop && y < gridTop+m.visibleRows():
+		row, ok := m.rowAt(y)
 		if !ok {
 			return hit{}
 		}
-		return hit{kind: hitCell, addr: sheet.Addr{Col: col, Row: row}}
+		if x < rowHdrW {
+			return hit{kind: hitRowHeader, addr: sheet.Addr{Col: m.left, Row: row}}
+		}
+		col, start, ok := m.colSpan(x)
+		if !ok {
+			return hit{}
+		}
+		a := sheet.Addr{Col: col, Row: row}
+		if m.mode == modeReady && a == m.fillCorner() && x == start+m.sheet.ColWidth(col)-1 {
+			return hit{kind: hitFillHandle, addr: a}
+		}
+		return hit{kind: hitCell, addr: a}
 	case y == m.height-1:
 		return hit{kind: hitStatus}
 	}
 	return hit{}
 }
 
-// colSpan returns the visible column under x and the x where it starts.
+// colSpan returns the visible column under x and the x where it starts:
+// a frozen column or a scrolling one, but not the divider between them.
 func (m *Model) colSpan(x int) (col, start int, ok bool) {
+	_, fc := m.frozen()
 	cx := rowHdrW
+	for c := 0; c < fc; c++ {
+		w := m.sheet.ColWidth(c)
+		if x >= cx && x < cx+w {
+			return c, cx, true
+		}
+		cx += w
+	}
+	cx = m.scrollX()
 	for c := m.left; c < sheet.MaxCols && cx < m.width; c++ {
 		w := m.sheet.ColWidth(c)
 		if x >= cx && x < cx+w {
@@ -99,9 +120,18 @@ func (m *Model) colSpan(x int) (col, start int, ok bool) {
 }
 
 // colStart returns the screen x where column c starts, which may be off
-// screen.
+// screen (or under the frozen columns, for a scrolling column left of
+// m.left).
 func (m *Model) colStart(c int) int {
-	x := rowHdrW
+	_, fc := m.frozen()
+	if c < fc {
+		x := rowHdrW
+		for k := range c {
+			x += m.sheet.ColWidth(k)
+		}
+		return x
+	}
+	x := m.scrollX()
 	if c >= m.left {
 		for k := m.left; k < c; k++ {
 			x += m.sheet.ColWidth(k)
@@ -116,30 +146,65 @@ func (m *Model) colStart(c int) int {
 
 // dragTarget maps a position during a drag to a cell, clamping to the
 // visible grid, and reports which way to autoscroll when it's outside.
+// Dragging from the scrolling area into the frozen panes scrolls back
+// toward them, as in Sheets, until the two meet.
 func (m *Model) dragTarget(x, y int) (a sheet.Addr, dc, dr int) {
-	rows, cols := m.visibleRows(), m.visibleCols(m.left)
-	switch {
-	case y < gridTop:
-		dr = -1
-	case y >= gridTop+rows:
-		dr = 1
+	rows := m.screenRows()
+	fr, fc := m.frozen()
+	anchor := m.dragAnchor()
+	firstRow := m.visibleRow(fr)
+	scrolledDown := m.top > firstRow
+	var last int
+	for _, r := range rows {
+		if r != divider {
+			last = r
+		}
 	}
+	switch row, ok := m.rowAt(y); {
+	case ok && (row >= fr || !scrolledDown || anchor.Row < fr):
+		a.Row = row
+	case y >= gridTop+len(rows):
+		a.Row, dr = last, 1
+	case y >= gridTop && !scrolledDown: // the divider, with nothing scrolled
+		a.Row = m.top
+	case scrolledDown && anchor.Row >= fr:
+		a.Row, dr = m.top, -1
+	default: // above the grid
+		a.Row = rows[0]
+		if scrolledDown {
+			dr = -1
+		}
+	}
+	scrolledRight := m.left > fc
+	cols := m.visibleCols(m.left)
 	right := m.colStart(m.left + cols)
-	switch {
-	case x < rowHdrW:
-		dc = -1
+	switch col, _, ok := m.colSpan(x); {
 	case x >= right:
-		dc = 1
-	}
-	a.Row = clamp(m.top+y-gridTop, m.top, m.top+rows-1)
-	if col, _, ok := m.colSpan(x); ok && dc == 0 {
+		a.Col, dc = m.left+cols-1, 1
+	case ok && (col >= fc || !scrolledRight || anchor.Col < fc):
 		a.Col = col
-	} else if dc < 0 {
+	case x >= rowHdrW && !scrolledRight:
 		a.Col = m.left
-	} else {
-		a.Col = m.left + cols - 1
+	case scrolledRight && anchor.Col >= fc:
+		a.Col, dc = m.left, -1
+	default: // over the row numbers
+		a.Col = 0
+		if fc == 0 {
+			a.Col = m.left
+		}
+		if scrolledRight || fc == 0 && m.left > 0 {
+			dc = -1
+		}
 	}
 	return clampAddr(a), dc, dr
+}
+
+// dragAnchor is where the drag in progress started.
+func (m *Model) dragAnchor() sheet.Addr {
+	if m.drag == dragPoint {
+		return m.point.anchor
+	}
+	return m.cur
 }
 
 // editing reports whether an entry is being typed.
@@ -214,6 +279,10 @@ func (m *Model) readyPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 	case hitCorner:
 		m.cur = sheet.Addr{Col: m.left, Row: m.top}
 		m.selecting, m.whole, m.ext = true, wholeAll, m.cur
+	case hitFillHandle:
+		m.startFill()
+	case hitFilterButton:
+		m.openFilterPicker(h.addr.Col)
 	case hitColBorder:
 		if double {
 			m.autofit(h.addr.Col)
@@ -287,6 +356,8 @@ func (m *Model) dragTo(x, y int) tea.Cmd {
 		m.ext.Col = a.Col
 	case dragRows:
 		m.ext.Row = a.Row
+	case dragFill:
+		m.dragFillTo(a)
 	}
 	if (dc != 0 || dr != 0) && !m.autoscrolling {
 		m.autoscrolling = true
@@ -314,7 +385,7 @@ func (m *Model) handleAutoscroll() tea.Cmd {
 		return nil
 	}
 	step := func(a *sheet.Addr) {
-		*a = clampAddr(sheet.Addr{Col: a.Col + dc, Row: a.Row + dr})
+		*a = clampAddr(sheet.Addr{Col: a.Col + dc, Row: m.stepRow(a.Row, dr)})
 	}
 	switch m.drag {
 	case dragPoint:
@@ -323,12 +394,18 @@ func (m *Model) handleAutoscroll() tea.Cmd {
 	case dragCells, dragCols, dragRows:
 		m.selecting = true
 		step(&m.ext)
+	case dragFill:
+		step(&m.fillAt)
+		m.dragFillTo(m.fillAt)
 	}
 	m.scrollTo(*m.focus())
 	return autoscrollTick()
 }
 
 func (m *Model) handleRelease() tea.Cmd {
+	if m.drag == dragFill {
+		m.finishFill()
+	}
 	m.drag, m.autoscrolling = dragNone, false
 	if m.selecting && m.whole == wholeNone && m.ext == m.cur {
 		m.clearSelection()
@@ -368,13 +445,15 @@ func (m *Model) pointerShape() tea.Cmd {
 	switch {
 	case m.drag == dragResize, m.hover.kind == hitColBorder:
 		shape = "col-resize"
+	case m.drag == dragFill, m.hover.kind == hitFillHandle:
+		shape = "crosshair"
 	case m.mode == modeReady && m.chartAt(m.mouseX, m.mouseY) >= 0:
 		shape = "move"
 	case m.hover.kind == hitCell:
 		shape = "cell"
 	case m.hover.kind == hitFormulaBar, m.hover.kind == hitEditLine:
 		shape = "text"
-	case m.hover.kind == hitColHeader, m.hover.kind == hitRowHeader, m.hover.kind == hitCorner:
+	case m.hover.kind == hitColHeader, m.hover.kind == hitRowHeader, m.hover.kind == hitCorner, m.hover.kind == hitFilterButton:
 		shape = "pointer"
 	}
 	if shape == m.shape {

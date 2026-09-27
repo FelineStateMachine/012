@@ -27,7 +27,11 @@ Inside the grid, 012 works like Google Sheets.
 | Ctrl+C, Ctrl+X, Ctrl+V | Copy, cut, paste; references adjust as in Sheets, and copies also go to the system clipboard |
 | Ctrl+Shift+V | Paste values only |
 | Paste from the terminal | Tab-separated or multi-line text fills a block of cells |
-| Ctrl+D, Ctrl+R | Fill down, fill right |
+| Ctrl+D, Ctrl+R | Fill down, fill right; top rows that start a series (1, 2 over blanks) continue it |
+| Drag the fill handle | The ▗ at the selection's corner, shown on hover: continue a series (1, 2, 3; Jan, Feb; Mon, Tue; dates; Item 1, Item 2) or copy |
+| View > Freeze | Keep rows or columns on screen while the rest scrolls |
+| Data > Sort sheet, Sort range | Sort by the active column A to Z or Z to A, or pick columns and order on a bar (Left/Right column, Space order, Alt+A add, Alt+H header row) |
+| Alt+Down, click ▾ in a header | With a filter (Data > Create a filter): pick the column's values (Space checks, type to search) or a condition |
 | Ctrl+Alt+= / Ctrl+Alt+- | Insert rows above / delete the selected rows (columns when whole columns are selected) |
 | Ctrl+Enter while typing | Enter the same entry in every selected cell |
 | F4 while typing a formula | Cycle the reference at the caret through A1, $A$1, A$1, $A1 |

@@ -43,6 +43,12 @@ type theme struct {
 	// a dashed underline across every cell, layered on the cell's own
 	// style, with its own text color where the cell has none.
 	copied lipgloss.Style
+	// frozenLine divides frozen rows and columns from the scrolling ones,
+	// like a tmux pane border.
+	frozenLine lipgloss.Style
+	// filterOn is the filter mark in the header of a column whose filter
+	// hides something (the mark itself also changes, from ▾ to ▼).
+	filterOn lipgloss.Style
 
 	// Chrome: the menu bar, dropdowns, the palette and dialogs.
 	menuBar           lipgloss.Style // menu bar titles
@@ -101,9 +107,11 @@ func newTheme(dark bool) theme {
 	// colored backgrounds stays at or above roughly 4.5:1.
 	headerBg, headerFg := lipgloss.BrightBlack, lipgloss.BrightWhite
 	selFg, muted, match := lipgloss.Black, lipgloss.BrightBlack, lipgloss.Yellow
+	filterFg := lipgloss.Yellow
 	if !dark {
 		headerBg, headerFg = lipgloss.White, lipgloss.Black
 		selFg, muted, match = lipgloss.BrightWhite, lipgloss.Black, lipgloss.Blue
+		filterFg = lipgloss.Blue
 	}
 	// Links are blue, as in Sheets; plain blue is too dark on a dark
 	// background.
@@ -139,6 +147,8 @@ func newTheme(dark bool) theme {
 		argument:     lipgloss.NewStyle().Bold(true).Underline(true),
 		copied: lipgloss.NewStyle().Foreground(lipgloss.Magenta).
 			UnderlineStyle(lipgloss.UnderlineDashed).UnderlineSpaces(true),
+		frozenLine: lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
+		filterOn:   lipgloss.NewStyle().Background(headerBg).Foreground(filterFg).Bold(true),
 
 		menuBar:           lipgloss.NewStyle(),
 		menuAccel:         lipgloss.NewStyle().Underline(true),

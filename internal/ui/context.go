@@ -26,7 +26,9 @@ var (
 	columnMenu = concat(clipboardItems, []menuItem{sep,
 		{cmd: "insert.col_left", title: "Insert column left"}, {cmd: "insert.col_right", title: "Insert column right"}, sep,
 		{cmd: "delete.col", title: "Delete column"}, {cmd: "clear"}, sep,
-		{cmd: "column.width", title: "Resize column"}, {cmd: "column.reset"},
+		{cmd: "column.width", title: "Resize column"}, {cmd: "column.reset"}, sep,
+		{cmd: "data.sort_sheet_az"}, {cmd: "data.sort_sheet_za"}, sep,
+		{cmd: "data.filter"}, {cmd: "data.filter_remove"},
 	})
 	rowMenu = concat(clipboardItems, []menuItem{sep,
 		{cmd: "insert.row_above", title: "Insert row above"}, {cmd: "insert.row_below", title: "Insert row below"}, sep,
@@ -62,7 +64,7 @@ func (m *Model) rightClick(x, y int) {
 			m.clearSelection()
 		}
 		m.showContextMenu(cellMenu, x, y+1)
-	case hitColHeader, hitColBorder:
+	case hitColHeader, hitColBorder, hitFilterButton:
 		if m.whole != wholeCols || h.addr.Col < sel.From.Col || h.addr.Col > sel.To.Col {
 			m.cur = h.addr
 			m.selecting, m.whole, m.ext = true, wholeCols, h.addr
@@ -79,9 +81,6 @@ func (m *Model) rightClick(x, y int) {
 
 // cellPos returns the screen position of a visible cell's left edge.
 func (m *Model) cellPos(a sheet.Addr) (x, y int) {
-	x = rowHdrW
-	for c := m.left; c < a.Col; c++ {
-		x += m.sheet.ColWidth(c)
-	}
-	return x, gridTop + a.Row - m.top
+	y, _ = m.rowY(a.Row)
+	return m.colStart(a.Col), y
 }

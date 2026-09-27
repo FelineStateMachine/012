@@ -46,6 +46,12 @@ var menuBar = []menuDef{
 		{cmd: "delete.row", title: "Delete row"}, {cmd: "delete.col", title: "Delete column"}, {cmd: "delete.selection"},
 	}},
 	{title: "View", accel: 'v', items: []menuItem{
+		{title: "Freeze", items: []menuItem{
+			{cmd: "view.freeze_rows0", title: "No rows"}, {cmd: "view.freeze_rows1", title: "1 row"},
+			{cmd: "view.freeze_rows2", title: "2 rows"}, {cmd: "view.freeze_rows_cur", title: "Up to current row"}, sep,
+			{cmd: "view.freeze_cols0", title: "No columns"}, {cmd: "view.freeze_cols1", title: "1 column"},
+			{cmd: "view.freeze_cols2", title: "2 columns"}, {cmd: "view.freeze_cols_cur", title: "Up to current column"},
+		}}, sep,
 		{cmd: "palette", title: "Command palette"}, {cmd: "help"},
 	}},
 	{title: "Insert", accel: 'i', items: []menuItem{
@@ -68,8 +74,15 @@ var menuBar = []menuDef{
 		{cmd: "column.width"}, {cmd: "column.reset"}, sep,
 		{cmd: "format.clear", title: "Clear formatting"},
 	}},
-	// Data: sort and filter will go here.
 	{title: "Data", accel: 'd', items: []menuItem{
+		{title: "Sort sheet", items: []menuItem{
+			{cmd: "data.sort_sheet_az", title: "A to Z"}, {cmd: "data.sort_sheet_za", title: "Z to A"},
+		}},
+		{title: "Sort range", items: []menuItem{
+			{cmd: "data.sort_range_az", title: "A to Z by the active column"}, {cmd: "data.sort_range_za", title: "Z to A by the active column"}, sep,
+			{cmd: "data.sort_range", title: "Advanced range sorting options"},
+		}}, sep,
+		{cmd: "data.filter"}, {cmd: "data.filter_column"}, {cmd: "data.filter_remove"}, sep,
 		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, sep,
 		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,
 		{cmd: "jev.refresh"},

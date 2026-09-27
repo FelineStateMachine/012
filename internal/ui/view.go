@@ -17,16 +17,42 @@ func (m *Model) active() sheet.Addr {
 	if m.mode == modePoint || m.pointing() {
 		return m.point.at
 	}
+	if a, ok := m.barActive(); ok {
+		return a
+	}
 	return m.cur
 }
 
 // highlight is the range drawn as selected: the pointer's range while
 // pointing, otherwise the selection.
 func (m *Model) highlight() (sheet.Rect, bool) {
-	if m.mode == modePoint || m.pointing() {
+	switch {
+	case m.mode == modePoint || m.pointing():
 		return m.point.rect(), true
+	case m.drag == dragFill:
+		return m.fillTo, true
+	}
+	if r, ok := m.barRange(); ok {
+		return r, true
 	}
 	return m.selection(), m.hasRange()
+}
+
+// screenCols returns the columns drawn left to right, with divider where
+// the frozen columns end.
+func (m *Model) screenCols() []int {
+	_, fc := m.frozen()
+	out := make([]int, 0, fc+1+m.visibleCols(m.left))
+	for c := range fc {
+		out = append(out, c)
+	}
+	if fc > 0 {
+		out = append(out, divider)
+	}
+	for i := range m.visibleCols(m.left) {
+		out = append(out, m.left+i)
+	}
+	return out
 }
 
 func (m *Model) headerRow() string {
@@ -34,25 +60,41 @@ func (m *Model) headerRow() string {
 	b.WriteString(m.th.header.Render(strings.Repeat(" ", rowHdrW)))
 	focus := m.active()
 	sel, selecting := m.highlight()
-	for i := range m.visibleCols(m.left) {
-		c := m.left + i
+	for _, c := range m.screenCols() {
+		if c == divider {
+			b.WriteString(m.th.frozenLine.Render("│"))
+			continue
+		}
 		w := m.sheet.ColWidth(c)
-		style := m.th.header
+		style, plain := m.th.header, false
 		switch {
 		case c == focus.Col:
 			style = m.th.headerActive
 		case selecting && c >= sel.From.Col && c <= sel.To.Col:
 			style = m.th.headerSel
-		case m.hover.addr.Col == c && (m.hover.kind == hitColHeader || m.hover.kind == hitColBorder):
+		case m.hover.addr.Col == c && (m.hover.kind == hitColHeader || m.hover.kind == hitColBorder || m.hover.kind == hitFilterButton):
 			style = m.th.headerHover
+		default:
+			plain = true
 		}
-		label := center(sheet.ColName(c), w)
+		name := sheet.ColName(c)
+		label := style.Render(center(name, w))
+		if mark, on := m.filterMark(c); mark != "" && w >= len(name)+3 {
+			// The filter's button follows the letter, e.g. "B ▾".
+			text := center(name+" "+mark, w)
+			k := strings.Index(text, mark)
+			markStyle := style
+			if on && plain {
+				markStyle = m.th.filterOn
+			}
+			label = style.Render(text[:k]) + markStyle.Render(mark) + style.Render(text[k+len(mark):])
+		}
 		if m.showHandle(c) && w > 1 {
 			// Draw the resize handle in the header's last cell.
-			b.WriteString(style.Render(label[:len(label)-1]) + m.th.handle.Render("▐"))
+			b.WriteString(ansi.Truncate(label, w-1, "") + m.th.handle.Render("▐"))
 			continue
 		}
-		b.WriteString(style.Render(label))
+		b.WriteString(label)
 	}
 	return b.String()
 }
@@ -70,6 +112,9 @@ func (m *Model) gridRow(row int) string {
 	if row >= sheet.MaxRows {
 		return ""
 	}
+	if row == divider {
+		return m.dividerRow()
+	}
 	focus := m.active()
 	sel, selecting := m.highlight()
 	hdr := m.th.header
@@ -84,8 +129,22 @@ func (m *Model) gridRow(row int) string {
 	var b strings.Builder
 	b.WriteString(hdr.Render(padLeft(strconv.Itoa(row+1), rowHdrW-1) + " "))
 
-	for i, sp := range m.rowText(row) {
-		a := sheet.Addr{Col: m.left + i, Row: row}
+	_, fc := m.frozen()
+	if fc > 0 {
+		b.WriteString(m.cellsText(row, 0, m.rowText(row, 0, fc, 0, fc-1), focus, sel, selecting))
+		b.WriteString(m.th.frozenLine.Render("│"))
+	}
+	ncols := m.visibleCols(m.left)
+	b.WriteString(m.cellsText(row, m.left, m.rowText(row, m.left, ncols, fc, sheet.MaxCols-1), focus, sel, selecting))
+	return b.String()
+}
+
+// cellsText draws the spans of a row's columns from first on, in the
+// roles for the pointer, the selection, search matches and errors.
+func (m *Model) cellsText(row, first int, spans []span, focus sheet.Addr, sel sheet.Rect, selecting bool) string {
+	var b strings.Builder
+	for i, sp := range spans {
+		a := sheet.Addr{Col: first + i, Row: row}
 		base, colored := m.th.cell, true
 		switch {
 		case a == focus:
@@ -112,9 +171,29 @@ func (m *Model) gridRow(row int) string {
 		} else {
 			m.decorate(&sp, row) // links and error marks, see links.go
 		}
-		b.WriteString(m.renderSpan(sp, base, colored))
+		text := m.renderSpan(sp, base, colored)
+		if m.showFillHandle(a) {
+			w := m.sheet.ColWidth(a.Col)
+			text = ansi.Truncate(text, w-1, "") + base.Bold(true).Render("▗")
+		}
+		b.WriteString(text)
 	}
 	return b.String()
+}
+
+// dividerRow is the line under the frozen rows, crossing the one right of
+// the frozen columns.
+func (m *Model) dividerRow() string {
+	var b strings.Builder
+	b.WriteString(strings.Repeat("─", rowHdrW))
+	for _, c := range m.screenCols() {
+		if c == divider {
+			b.WriteString("┼")
+			continue
+		}
+		b.WriteString(strings.Repeat("─", m.sheet.ColWidth(c)))
+	}
+	return m.th.frozenLine.Render(ansi.Truncate(b.String(), m.width, ""))
 }
 
 // span is what one grid column shows in a row: blank columns, the text,
@@ -159,17 +238,17 @@ func (m *Model) inCellText(w int) string {
 	return padRight(text, w)
 }
 
-// rowText lays out the visible columns of row, each span exactly its
-// column's width. Values are formatted with their cell's number format
+// rowText lays out ncols columns of row from lo, each span exactly its
+// column's width. Text may run in from columns between minCol and maxCol,
+// so it stops at the frozen columns' divider. Values are formatted with their cell's number format
 // and aligned as Sheets does: numbers right, text left, booleans and
 // errors centered, unless the cell sets an alignment. Text runs on into
 // blank neighbors: to the right when left-aligned, to the left when
 // right-aligned, both ways when centered. It can come from cells outside
 // the viewport, so the scan starts at the nearest filled cell on each
 // side.
-func (m *Model) rowText(row int) []span {
-	ncols := m.visibleCols(m.left)
-	lo, hi := m.left, m.left+ncols-1
+func (m *Model) rowText(row, lo, ncols, minCol, maxCol int) []span {
+	hi := lo + ncols - 1
 	out := make([]span, ncols)
 	for i := range out {
 		out[i] = span{trail: m.sheet.ColWidth(lo + i)}
@@ -181,13 +260,13 @@ func (m *Model) rowText(row int) []span {
 		return nil
 	}
 	first, last := lo, hi
-	for c := lo - 1; c >= 0; c-- {
+	for c := lo - 1; c >= minCol; c-- {
 		if content(c) != nil {
 			first = c
 			break
 		}
 	}
-	for c := hi + 1; c < sheet.MaxCols; c++ {
+	for c := hi + 1; c <= maxCol; c++ {
 		if content(c) != nil {
 			last = c
 			break

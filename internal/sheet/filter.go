@@ -111,6 +111,21 @@ func (f *Filter) clone() *Filter {
 // Filter returns a copy of the sheet's filter, or nil if it has none.
 func (s *Sheet) Filter() *Filter { return s.view.filter.clone() }
 
+// FilterRange returns the filter's range, and false if there is no
+// filter.
+func (s *Sheet) FilterRange() (Rect, bool) {
+	if f := s.view.filter; f != nil {
+		return f.Range, true
+	}
+	return Rect{}, false
+}
+
+// ColumnFiltered reports whether the filter has criteria for column col.
+func (s *Sheet) ColumnFiltered(col int) bool {
+	f := s.view.filter
+	return f != nil && !f.Cols[col].IsZero()
+}
+
 // CreateFilter puts a filter on r, whose first row is the header row.
 func (s *Sheet) CreateFilter(r Rect) {
 	s.setFilter("create a filter on "+r.String(), &Filter{Range: r, Cols: map[int]Criteria{}})

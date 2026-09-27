@@ -76,7 +76,7 @@ func TestRightClickHeaders(t *testing.T) {
 	if r := m.selection(); r.From != addr("C1") || r.To.Row != sheet.MaxRows-1 || r.To.Col != 2 {
 		t.Errorf("column header selected %s", r)
 	}
-	if got := menuLabels(t, m); got != "Cut,Copy,Paste,-,Insert column left,Insert column right,-,Delete column,Clear,-,Resize column,Reset column width" {
+	if got := menuLabels(t, m); got != "Cut,Copy,Paste,-,Insert column left,Insert column right,-,Delete column,Clear,-,Resize column,Reset column width,-,Sort sheet A to Z,Sort sheet Z to A,-,Create a filter,Remove filter" {
 		t.Errorf("column menu %s", got)
 	}
 	press(t, m, "r")

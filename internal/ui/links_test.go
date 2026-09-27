@@ -23,7 +23,9 @@ func TestLinksRenderAsHyperlinks(t *testing.T) {
 	if strings.Contains(ansi.Strip(strings.Split(v, "\n")[gridTop+2]), "plain") && strings.Contains(strings.Split(v, "\n")[gridTop+2], "\x1b]8") {
 		t.Error("plain text drawn as a link")
 	}
-	// The link survives the pointer and a composited overlay.
+	// The link survives the pointer and a composited overlay. The window is
+	// wide enough that the palette doesn't cover column A.
+	m.Update(tea.WindowSizeMsg{Width: 200, Height: 30})
 	press(t, m, "<ctrl+home>", "<ctrl+k>")
 	if !strings.Contains(m.View().Content, "https://example.com") {
 		t.Error("hyperlink lost under the pointer with an overlay open")
