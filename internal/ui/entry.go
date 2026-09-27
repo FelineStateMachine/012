@@ -1,9 +1,7 @@
 package ui
 
 import (
-	"slices"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
@@ -17,26 +15,42 @@ import (
 // operator point at cells (POINT) and insert their references. The
 // selection stays while typing, so Ctrl+Enter can fill it.
 
+// entry is the state of typing into a cell, beyond the text itself (in
+// Model.line) and the cell or range pointed at (Model.point).
+type entry struct {
+	hint string // shown on the context line, e.g. a formula error
+
+	// While pointing, the entry's text before and after the reference
+	// being pointed at.
+	prefix, suffix string
+
+	// home is the entry's sheet while the pointer is on another one; see
+	// tabs.go.
+	home *sheet.Sheet
+
+	assist assist // function and name suggestions: assist.go
+
+	// tabStart remembers where a run of Tab-committed entries began, so
+	// Enter returns to that column on the next row, as in Sheets.
+	tabStart int
+	tabbing  bool
+}
+
 func (m *Model) startEntry(md mode, text string) {
 	m.mode = md
-	m.home = nil
-	m.buf, m.bufPos, m.hint, m.assist = nil, 0, "", assist{}
-	m.insert(text)
+	m.entry.home = nil
+	m.line.clear()
+	m.entry.hint, m.entry.assist = "", assist{}
+	m.line.insert(text)
 }
 
 // startEdit edits the active cell's contents with the caret at the end.
 func (m *Model) startEdit() tea.Cmd {
 	m.startEntry(modeEdit, "")
 	if c := m.sheet.Cell(m.cur); c != nil {
-		m.buf = []rune(c.Input)
-		m.bufPos = len(m.buf)
+		m.line.set(c.Input)
 	}
 	return nil
-}
-
-// isFormula reports whether the edit line holds a formula.
-func (m *Model) isFormula() bool {
-	return len(m.buf) > 0 && (m.buf[0] == '=' || m.buf[0] == '+' || m.buf[0] == '-')
 }
 
 // enterKey handles ENTER mode. Arrow keys accept the entry and move, except
@@ -54,10 +68,10 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 		m.toggleAbsolute()
 		return nil
 	}
-	if m.isFormula() && m.canPoint() && m.startPoint(key) {
+	if m.line.isFormula() && m.line.canPoint() && m.startPoint(key) {
 		return nil
 	}
-	if m.isFormula() && (key == "left" || key == "right") {
+	if m.line.isFormula() && (key == "left" || key == "right") {
 		m.typeKey(k) // move the caret within a formula
 		return nil
 	}
@@ -77,7 +91,7 @@ func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 	if m.assistKey(key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
-	if m.isFormula() && m.canPoint() && strings.HasPrefix(key, "shift+") && m.startPoint(key) {
+	if m.line.isFormula() && m.line.canPoint() && strings.HasPrefix(key, "shift+") && m.startPoint(key) {
 		return nil
 	}
 	switch key {
@@ -110,16 +124,16 @@ func (m *Model) commitKey(key string) bool {
 	}
 	switch key {
 	case "enter":
-		if m.tabbing {
-			m.cur.Col = m.tabStart
-			m.tabbing = false
+		if m.entry.tabbing {
+			m.cur.Col = m.entry.tabStart
+			m.entry.tabbing = false
 		}
 		m.cur.Row++
 	case "shift+enter":
 		m.cur.Row--
 	case "tab":
-		if !m.tabbing {
-			m.tabStart, m.tabbing = m.cur.Col, true
+		if !m.entry.tabbing {
+			m.entry.tabStart, m.entry.tabbing = m.cur.Col, true
 		}
 		m.cur.Col++
 	case "shift+tab":
@@ -137,40 +151,6 @@ func (m *Model) cancelKey(key string) bool {
 	return true
 }
 
-// lineKey applies line-editing keys to buf.
-func (m *Model) lineKey(k tea.KeyPressMsg) {
-	switch k.String() {
-	case "left":
-		m.bufPos = max(m.bufPos-1, 0)
-	case "right":
-		m.bufPos = min(m.bufPos+1, len(m.buf))
-	case "home", "ctrl+a":
-		m.bufPos = 0
-	case "end", "ctrl+e":
-		m.bufPos = len(m.buf)
-	case "backspace":
-		if m.bufPos > 0 {
-			m.buf = slices.Delete(m.buf, m.bufPos-1, m.bufPos)
-			m.bufPos--
-		}
-	case "delete":
-		if m.bufPos < len(m.buf) {
-			m.buf = slices.Delete(m.buf, m.bufPos, m.bufPos+1)
-		}
-	default:
-		m.insert(typed(k))
-	}
-}
-
-// canPoint reports whether the text before the caret ends where a cell
-// reference may follow.
-func (m *Model) canPoint() bool {
-	if m.bufPos == 0 {
-		return false
-	}
-	return strings.ContainsRune("=+-*/^(,;<>&:", m.buf[m.bufPos-1])
-}
-
 // startPoint enters POINT mode if key moves (Shift extends). The pointer
 // starts at the active cell, or on another sheet where it last pointed.
 func (m *Model) startPoint(key string) bool {
@@ -186,8 +166,8 @@ func (m *Model) startPoint(key string) bool {
 	} else {
 		return false
 	}
-	m.pointPrefix = string(m.buf[:m.bufPos])
-	m.pointSuffix = string(m.buf[m.bufPos:])
+	m.entry.prefix = m.line.head()
+	m.entry.suffix = m.line.tail()
 	m.mode = modePoint
 	m.navigate(key, &m.point.at)
 	return true
@@ -221,8 +201,8 @@ func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 	}
 	if text := typed(k); text != "" {
 		m.resumeEntry(m.pointRef())
-		m.insert(text)
-		m.assist = assist{active: true}
+		m.line.insert(text)
+		m.entry.assist = assist{active: true}
 	}
 	return nil
 }
@@ -230,14 +210,14 @@ func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 // resumeEntry leaves POINT mode, inserting ref at the caret.
 func (m *Model) resumeEntry(ref string) {
 	m.mode = modeEnter
-	m.buf = []rune(m.pointPrefix + ref + m.pointSuffix)
-	m.bufPos = utf8.RuneCountInString(m.pointPrefix + ref)
+	m.line.buf = []rune(m.entry.prefix + ref + m.entry.suffix)
+	m.line.pos = utf8.RuneCountInString(m.entry.prefix + ref)
 }
 
 // commit stores the edit line in the active cell. An invalid formula stays
 // in EDIT mode with the caret at the problem and the reason on line 3.
 func (m *Model) commit() bool {
-	input := string(m.buf)
+	input := m.line.text()
 	if err := m.set(m.cur, input); err != nil {
 		m.entryError(err, input)
 		return false
@@ -260,20 +240,8 @@ func (m *Model) set(a sheet.Addr, input string) error {
 func (m *Model) cancelEntry() {
 	m.returnHome()
 	m.mode = modeReady
-	m.buf, m.bufPos, m.hint, m.assist = nil, 0, "", assist{}
-}
-
-func (m *Model) insert(text string) {
-	for _, r := range text {
-		if r == '\n' || r == '\r' || r == '\t' {
-			r = ' '
-		}
-		if !unicode.IsPrint(r) {
-			continue
-		}
-		m.buf = slices.Insert(m.buf, m.bufPos, r)
-		m.bufPos++
-	}
+	m.line.clear()
+	m.entry.hint, m.entry.assist = "", assist{}
 }
 
 func (m *Model) handlePaste(content string) {
@@ -286,14 +254,14 @@ func (m *Model) handlePaste(content string) {
 			m.startEntry(modeEnter, content)
 		}
 	case modeEnter, modeEdit:
-		m.insert(content)
+		m.line.insert(content)
 	case modePrompt:
 		if m.prompt.kind != promptRange {
 			m.promptType(content)
 		}
 	case modeMenu:
 		if o, ok := m.overlay.(textOverlay); ok {
-			m.insert(content)
+			m.line.insert(content)
 			o.changed(m)
 		}
 	}

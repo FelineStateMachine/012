@@ -81,18 +81,18 @@ func TestAutocompleteFunctions(t *testing.T) {
 		t.Errorf("status %q", st)
 	}
 	// Down moves the highlight rather than committing; Tab inserts.
-	for list[m.assist.sel].name != "SUM" {
+	for list[m.entry.assist.sel].name != "SUM" {
 		press(t, m, "<down>")
 	}
 	press(t, m, "<tab>")
-	if m.mode != modeEnter || string(m.buf) != "=SUM(" {
-		t.Fatalf("mode %v buf %q", m.mode, string(m.buf))
+	if m.mode != modeEnter || m.line.text() != "=SUM(" {
+		t.Fatalf("mode %v buf %q", m.mode, m.line.text())
 	}
 	if ctx := line(m, contextLine); !strings.HasPrefix(ctx, "SUM(value1, [value2, ...])") || !strings.Contains(ctx, "Sum of numbers") {
 		t.Errorf("signature %q", ctx)
 	}
 	press(t, m, "1,")
-	sig, _ := m.signature(m.buf, m.bufPos)
+	sig, _ := m.signature(m.line.buf, m.line.pos)
 	if !strings.Contains(sig, m.th.Argument.Render("[value2, ...]")) {
 		t.Errorf("second argument not marked: %q", sig)
 	}
@@ -106,8 +106,8 @@ func TestAutocompleteKeys(t *testing.T) {
 	m := newModel()
 	// Enter inserts while the list shows, then commits when it doesn't.
 	press(t, m, "=ab", "<enter>")
-	if string(m.buf) != "=ABS(" {
-		t.Fatalf("enter: %q", string(m.buf))
+	if m.line.text() != "=ABS(" {
+		t.Fatalf("enter: %q", m.line.text())
 	}
 	press(t, m, "-4)", "<enter>")
 	if m.sheet.Value(addr("A1")).Num != 4 {
@@ -156,15 +156,15 @@ func TestAutocompleteNamesAndMouse(t *testing.T) {
 	// Clicking a suggestion inserts it.
 	b, _ := m.assistBox()
 	send(m, tea.MouseClickMsg{X: b.x + 3, Y: b.y + 1, Button: tea.MouseLeft})
-	if string(m.buf) != "=SUM(Sales" || m.bufPos != start+5 {
-		t.Fatalf("click: %q", string(m.buf))
+	if m.line.text() != "=SUM(Sales" || m.line.pos != start+5 {
+		t.Fatalf("click: %q", m.line.text())
 	}
 	// Editing inside existing parentheses doesn't double them.
 	m = newModel()
 	press(t, m, "=AB(1)", "<f2>", "<left>", "<left>", "<left>", "<backspace>", "B")
 	press(t, m, "<tab>")
-	if string(m.buf) != "=ABS(1)" || m.bufPos != 5 {
-		t.Errorf("into parens: %q at %d", string(m.buf), m.bufPos)
+	if m.line.text() != "=ABS(1)" || m.line.pos != 5 {
+		t.Errorf("into parens: %q at %d", m.line.text(), m.line.pos)
 	}
 }
 

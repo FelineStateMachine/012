@@ -30,24 +30,24 @@ func (m *Model) showFillHandle(a sheet.Addr) bool {
 		return false
 	}
 	switch {
-	case m.drag == dragFill:
+	case m.mouse.drag == dragFill:
 		return true
-	case m.drag != dragNone:
+	case m.mouse.drag != dragNone:
 		return false
 	}
-	return (m.hover.kind == hitCell || m.hover.kind == hitFillHandle) && m.hover.addr == a
+	return (m.mouse.hover.kind == hitCell || m.mouse.hover.kind == hitFillHandle) && m.mouse.hover.addr == a
 }
 
 // startFill starts dragging the fill handle.
 func (m *Model) startFill() {
-	m.drag = dragFill
-	m.fillAt, m.fillTo = m.fillCorner(), m.selection()
+	m.mouse.drag = dragFill
+	m.mouse.fillAt, m.mouse.fillTo = m.fillCorner(), m.selection()
 }
 
 // dragFillTo points the fill at cell a: the selection grows along the
 // axis a is further out on, as in Sheets.
 func (m *Model) dragFillTo(a sheet.Addr) {
-	m.fillAt = a
+	m.mouse.fillAt = a
 	src := m.selection()
 	down, up := a.Row-src.To.Row, src.From.Row-a.Row
 	right, left := a.Col-src.To.Col, src.From.Col-a.Col
@@ -65,13 +65,13 @@ func (m *Model) dragFillTo(a sheet.Addr) {
 	default:
 		r.From.Col = a.Col
 	}
-	m.fillTo = r
+	m.mouse.fillTo = r
 }
 
 // finishFill fills the range the handle was dragged over and selects it.
 func (m *Model) finishFill() {
-	m.drag = dragNone
-	src, dst := m.selection(), m.fillTo
+	m.mouse.drag = dragNone
+	src, dst := m.selection(), m.mouse.fillTo
 	if dst == src {
 		return
 	}
@@ -88,14 +88,14 @@ func (m *Model) finishFill() {
 
 // cancelFill stops a fill handle drag without filling.
 func (m *Model) cancelFill() {
-	m.drag, m.autoscrolling = dragNone, false
-	m.fillTo = m.selection()
+	m.mouse.drag, m.mouse.autoscrolling = dragNone, false
+	m.mouse.fillTo = m.selection()
 }
 
 // fillLine is the context line while dragging the fill handle.
 func (m *Model) fillLine() string {
-	if m.fillTo == m.selection() {
+	if m.mouse.fillTo == m.selection() {
 		return m.th.Key.Render("Fill") + m.th.Muted.Render("   drag down, up, right or left to fill a series or copy   ") + m.th.KeyHints("Esc", "cancel")
 	}
-	return m.th.Key.Render("Fill "+m.fillTo.String()) + m.th.Muted.Render("   release to fill   ") + m.th.KeyHints("Esc", "cancel")
+	return m.th.Key.Render("Fill "+m.mouse.fillTo.String()) + m.th.Muted.Render("   release to fill   ") + m.th.KeyHints("Esc", "cancel")
 }

@@ -74,7 +74,7 @@ func init() {
 func (m *Model) openFind(replace bool) {
 	f, ok := m.overlay.(*findBar)
 	if !ok {
-		f = m.lastFind
+		f = m.find
 		if f == nil {
 			f = &findBar{cur: -1}
 		}
@@ -90,7 +90,7 @@ func (m *Model) openFind(replace bool) {
 		m.clearSelection()
 		m.openOverlay(f)
 		// Load the kept query so focus doesn't overwrite it.
-		m.buf = []rune(f.fields[f.field])
+		m.line.buf = []rune(f.fields[f.field])
 	}
 	f.replace = f.replace || replace
 	if replace && f.fields[0] != "" {
@@ -107,15 +107,14 @@ func (f *findBar) layout(*Model) []box { return nil }
 
 // focus moves editing to field i, keeping the other field's text.
 func (f *findBar) focus(m *Model, i int) {
-	f.fields[f.field] = string(m.buf)
+	f.fields[f.field] = m.line.text()
 	f.field = i
-	m.buf = []rune(f.fields[i])
-	m.bufPos = len(m.buf)
+	m.line.set(f.fields[i])
 }
 
 // changed re-runs the search as the query is typed.
 func (f *findBar) changed(m *Model) {
-	f.fields[f.field] = string(m.buf)
+	f.fields[f.field] = m.line.text()
 	if f.field == 0 {
 		f.search(m)
 	}
@@ -214,7 +213,7 @@ func (f *findBar) nextScope(m *Model) findScope {
 func (f *findBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 	switch k.String() {
 	case "esc":
-		m.lastFind = f
+		m.find = f
 		m.closeOverlay()
 	case "enter":
 		if f.replace && f.field == 1 {
@@ -258,9 +257,9 @@ func (f *findBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 			f.search(m)
 		}
 	default:
-		before := string(m.buf)
-		m.lineKey(k)
-		if string(m.buf) != before {
+		before := m.line.text()
+		m.line.key(k)
+		if m.line.text() != before {
 			f.changed(m)
 		}
 	}
@@ -372,7 +371,7 @@ func (f *findBar) parts(m *Model) []findPart {
 // fieldText is a field's text: the live edit buffer when focused.
 func (f *findBar) fieldText(m *Model, i int) string {
 	if f.field == i {
-		return string(m.buf)
+		return m.line.text()
 	}
 	return f.fields[i]
 }
@@ -431,7 +430,7 @@ func (f *findBar) cursor(m *Model) (x, y int) {
 	parts, xs := f.spans(m)
 	for i, p := range parts {
 		if p.field == f.field {
-			return xs[i] + ansi.StringWidth(p.text) - ansi.StringWidth(string(m.buf[m.bufPos:])), contextLine
+			return xs[i] + ansi.StringWidth(p.text) - ansi.StringWidth(m.line.tail()), contextLine
 		}
 	}
 	return 0, contextLine
@@ -444,7 +443,7 @@ func (f *findBar) mouse(m *Model, e mouseEvent) tea.Cmd {
 		return nil
 	}
 	if e.y != contextLine {
-		m.lastFind = f
+		m.find = f
 		m.closeOverlay()
 		return m.handlePress(tea.Mouse{X: e.x, Y: e.y, Button: e.button})
 	}

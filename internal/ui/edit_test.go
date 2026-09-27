@@ -171,8 +171,8 @@ func TestPasteTSVFromTerminal(t *testing.T) {
 	}
 	// A single line still starts an entry.
 	send(m, tea.PasteMsg{Content: "hello\n"})
-	if m.mode != modeEnter || string(m.buf) != "hello" {
-		t.Errorf("mode %v buf %q", m.mode, string(m.buf))
+	if m.mode != modeEnter || m.line.text() != "hello" {
+		t.Errorf("mode %v buf %q", m.mode, m.line.text())
 	}
 }
 
@@ -254,14 +254,14 @@ func TestF4CyclesReferences(t *testing.T) {
 	press(t, m, "=A1+B2")
 	for _, want := range []string{"=A1+$B$2", "=A1+B$2", "=A1+$B2", "=A1+B2"} {
 		press(t, m, "<f4>")
-		if string(m.buf) != want {
-			t.Errorf("F4 gave %q, want %q", string(m.buf), want)
+		if m.line.text() != want {
+			t.Errorf("F4 gave %q, want %q", m.line.text(), want)
 		}
 	}
 	// F4 while pointing puts the reference in first.
 	press(t, m, "*", "<up>", "<f4>")
-	if string(m.buf) != "=A1+B2*$A$1" || m.mode != modeEnter {
-		t.Errorf("F4 in POINT: %q mode %v", string(m.buf), m.mode)
+	if m.line.text() != "=A1+B2*$A$1" || m.mode != modeEnter {
+		t.Errorf("F4 in POINT: %q mode %v", m.line.text(), m.mode)
 	}
 }
 

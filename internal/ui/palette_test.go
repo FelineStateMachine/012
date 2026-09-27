@@ -119,8 +119,8 @@ func TestPaletteNoMatchAndEsc(t *testing.T) {
 		t.Errorf("paste searched for %q", selected(t, m))
 	}
 	press(t, m, "<esc>")
-	if m.overlay != nil || m.mode != modeReady || len(m.buf) != 0 {
-		t.Errorf("Esc: mode %v buf %q", m.mode, string(m.buf))
+	if m.overlay != nil || m.mode != modeReady || len(m.line.buf) != 0 {
+		t.Errorf("Esc: mode %v buf %q", m.mode, m.line.text())
 	}
 }
 

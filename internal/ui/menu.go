@@ -36,6 +36,7 @@ type prompt struct {
 	onText    func(m *Model, text string) tea.Cmd
 	onRange   func(m *Model, r sheet.Rect) tea.Cmd
 	onCancel  func(m *Model)
+	files     []string // the file list shown by File Open
 }
 
 func (m *Model) pointing() bool {
@@ -45,9 +46,9 @@ func (m *Model) pointing() bool {
 func (m *Model) openPrompt(p *prompt, initial string) {
 	m.mode = modePrompt
 	m.prompt = p
-	m.buf, m.bufPos = nil, 0
-	m.hint = ""
-	m.insert(initial)
+	m.line.clear()
+	m.entry.hint = ""
+	m.line.insert(initial)
 }
 
 func (m *Model) openText(label, initial string, onText func(*Model, string) tea.Cmd) {
@@ -150,7 +151,6 @@ func (m *Model) openSave() tea.Cmd {
 }
 
 func (m *Model) openRetrieve() tea.Cmd {
-	m.files = nil
 	m.openText("Open file:", "", func(m *Model, text string) tea.Cmd {
 		if _, ok := fileio.KindOf(text); ok {
 			return m.confirmImport(text, fileio.Options{})
@@ -177,7 +177,7 @@ func (m *Model) promptKey(k tea.KeyPressMsg) tea.Cmd {
 		m.closePrompt()
 		return nil
 	case "enter":
-		text := strings.TrimSpace(string(m.buf))
+		text := strings.TrimSpace(m.line.text())
 		m.closePrompt()
 		if p.kind != promptRange {
 			return p.onText(m, text)
@@ -204,43 +204,42 @@ func (m *Model) promptKey(k tea.KeyPressMsg) tea.Cmd {
 		}
 		if text := typed(k); text != "" {
 			p.typing = true
-			m.insert(text)
+			m.line.insert(text)
 		}
 	case p.kind == promptWidth && (key == "left" || key == "right"):
-		w, _ := strconv.Atoi(string(m.buf))
+		w, _ := strconv.Atoi(m.line.text())
 		if key == "left" {
 			w--
 		} else {
 			w++
 		}
 		w = clamp(w, 1, 240)
-		m.buf, m.bufPos, p.fresh = nil, 0, false
-		m.insert(strconv.Itoa(w))
+		m.line.buf, m.line.pos, p.fresh = nil, 0, false
+		m.line.insert(strconv.Itoa(w))
 		m.setWidths(w) // live preview
 	default:
 		if p.fresh && typed(k) != "" {
-			m.buf, m.bufPos = nil, 0
+			m.line.clear()
 		}
 		p.fresh = false
 		if p.kind == promptWidth && !isDigits(typed(k)) {
 			return nil
 		}
-		m.lineKey(k)
+		m.line.key(k)
 	}
 	return nil
 }
 
 func (m *Model) promptType(text string) {
 	if m.prompt.fresh {
-		m.buf, m.bufPos = nil, 0
+		m.line.clear()
 		m.prompt.fresh = false
 	}
-	m.insert(text)
+	m.line.insert(text)
 }
 
 func (m *Model) closePrompt() {
 	m.prompt = nil
-	m.files = nil
 	m.cancelEntry()
 }
 
@@ -253,7 +252,7 @@ func (m *Model) fail(msg string) {
 // session rather than the sheet carries over: the window, theme, terminal
 // state and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
-	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, lastChart: -1}
+	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, charts: chartState{last: -1}}
 }
 
 func isDigits(s string) bool {

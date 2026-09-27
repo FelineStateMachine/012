@@ -74,8 +74,8 @@ func TestFillHandleEscCancels(t *testing.T) {
 	send(m, tea.MouseMotionMsg(leftAt(cellX(0), gridTop+4)))
 	press(t, m, "<esc>")
 	send(m, tea.MouseReleaseMsg(leftAt(cellX(0), gridTop+4)))
-	if input(m, "A2") != "" || m.drag != dragNone {
-		t.Errorf("A2 %q drag %v", input(m, "A2"), m.drag)
+	if input(m, "A2") != "" || m.mouse.drag != dragNone {
+		t.Errorf("A2 %q drag %v", input(m, "A2"), m.mouse.drag)
 	}
 }
 

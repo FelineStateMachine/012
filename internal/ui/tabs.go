@@ -21,8 +21,15 @@ import (
 //
 // While a formula is being typed, switching sheets points into the other
 // sheet, as clicking a tab does in Sheets: the entry stays with its cell
-// (m.home), and the pointer inserts references such as Sheet2!A1. Enter
-// stores the formula and returns to its sheet.
+// (entry.home), and the pointer inserts references such as Sheet2!A1.
+// Enter stores the formula and returns to its sheet.
+
+// tabStrip is the sheet tabs' state: where each sheet was left, and how
+// far the strip is scrolled.
+type tabStrip struct {
+	places map[*sheet.Sheet]place // where each sheet's cursor and scroll were left
+	left   int                    // the first tab shown when they don't all fit
+}
 
 // place is where a sheet's cursor and scroll position were when it was
 // last shown.
@@ -133,33 +140,33 @@ func (m *Model) showSheet(s *sheet.Sheet) {
 	}
 	m.leave()
 	m.sheet = s
-	p := m.places[s]
+	p := m.tabs.places[s]
 	m.cur, m.top, m.left = p.cur, p.top, p.left
 	m.clearSelection()
-	m.lastChart = -1
+	m.charts.last = -1
 	m.book().SetActive(s)
 }
 
 // leave remembers where the sheet shown is, before another is shown.
 func (m *Model) leave() {
-	if m.places == nil {
-		m.places = map[*sheet.Sheet]place{}
+	if m.tabs.places == nil {
+		m.tabs.places = map[*sheet.Sheet]place{}
 	}
 	cur := m.cur
 	if m.away() {
 		cur = m.point.at // the entry's cell is on another sheet
 	}
-	m.places[m.sheet] = place{cur: cur, top: m.top, left: m.left}
+	m.tabs.places[m.sheet] = place{cur: cur, top: m.top, left: m.left}
 }
 
 // away reports whether an entry is being typed for a cell on another
 // sheet than the one shown.
-func (m *Model) away() bool { return m.home != nil && m.home != m.sheet }
+func (m *Model) away() bool { return m.entry.home != nil && m.entry.home != m.sheet }
 
 // entrySheet is the sheet the entry being typed goes to.
 func (m *Model) entrySheet() *sheet.Sheet {
-	if m.home != nil {
-		return m.home
+	if m.entry.home != nil {
+		return m.entry.home
 	}
 	return m.sheet
 }
@@ -173,24 +180,24 @@ func (m *Model) pointInto(s *sheet.Sheet) {
 		return
 	}
 	if m.mode != modePoint {
-		if !m.isFormula() || !m.canPoint() {
+		if !m.line.isFormula() || !m.line.canPoint() {
 			if m.commit() {
 				m.showSheet(s)
 			}
 			return
 		}
-		m.pointPrefix = string(m.buf[:m.bufPos])
-		m.pointSuffix = string(m.buf[m.bufPos:])
+		m.entry.prefix = m.line.head()
+		m.entry.suffix = m.line.tail()
 		m.mode = modePoint
 	}
-	if m.home == nil {
-		m.home = m.sheet
+	if m.entry.home == nil {
+		m.entry.home = m.sheet
 	}
 	cur := m.cur
 	m.leave()
 	m.sheet = s
-	p := m.places[s]
-	if s == m.home {
+	p := m.tabs.places[s]
+	if s == m.entry.home {
 		p.cur = cur // back home, pointing starts at the entry's cell
 	}
 	m.top, m.left = p.top, p.left
@@ -202,15 +209,15 @@ func (m *Model) pointInto(s *sheet.Sheet) {
 // returnHome shows the entry's sheet again once the entry is stored or
 // cancelled.
 func (m *Model) returnHome() {
-	home := m.home
-	m.home = nil
+	home := m.entry.home
+	m.entry.home = nil
 	if home == nil || home == m.sheet || !home.Live() {
 		return
 	}
 	cur := m.cur
-	m.places[m.sheet] = place{cur: m.point.at, top: m.top, left: m.left}
+	m.tabs.places[m.sheet] = place{cur: m.point.at, top: m.top, left: m.left}
 	m.sheet = home
-	p := m.places[home]
+	p := m.tabs.places[home]
 	m.cur, m.top, m.left = cur, p.top, p.left
 	m.book().SetActive(home)
 }
@@ -234,10 +241,10 @@ func (m *Model) afterSheetsChange(prefer *sheet.Sheet, index int) {
 	case !m.sheet.Live():
 		s := book.Sheet(clamp(index, 0, book.Len()-1))
 		m.sheet = s // the old sheet is gone: nothing to remember of it
-		p := m.places[s]
+		p := m.tabs.places[s]
 		m.cur, m.top, m.left = p.cur, p.top, p.left
 		m.clearSelection()
-		m.lastChart = -1
+		m.charts.last = -1
 		book.SetActive(s)
 	}
 }
@@ -365,7 +372,7 @@ func (m *Model) allTabs() int {
 
 // tabStrip lays out the tabs in room columns from the left of the status
 // line: as many as fit, always the shown one, the first shown staying put
-// until the shown one would fall off (m.tabLeft), ‹ and › where tabs are
+// until the shown one would fall off (m.tabs.left), ‹ and › where tabs are
 // hidden, then the +.
 func (m *Model) tabStrip(room int) (string, []tabSpan) {
 	sheets := m.book().Sheets()
@@ -394,7 +401,7 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 		}
 		return last, last >= active
 	}
-	first := clamp(m.tabLeft, 0, active)
+	first := clamp(m.tabs.left, 0, active)
 	last, ok := fits(first)
 	for !ok && first < active {
 		first++
@@ -409,7 +416,7 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 		}
 		first, last = first-1, l
 	}
-	m.tabLeft = first
+	m.tabs.left = first
 	if last < active {
 		last = active // a name too long for the room is cut below
 	}
@@ -430,7 +437,7 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 		switch {
 		case i == active:
 			style = m.th.TabActive
-		case m.hover.kind == hitTab && m.hover.addr.Col == i && (m.drag == dragNone || m.drag == dragTab):
+		case m.mouse.hover.kind == hitTab && m.mouse.hover.addr.Col == i && (m.mouse.drag == dragNone || m.mouse.drag == dragTab):
 			style = m.th.TabHover
 		}
 		label := tabLabel(sheets[i])
@@ -443,7 +450,7 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 		part(hitTabNext, 0, m.th.Muted.Render("›"))
 	}
 	addStyle := m.th.Muted
-	if m.hover.kind == hitTabAdd {
+	if m.mouse.hover.kind == hitTabAdd {
 		addStyle = m.th.TabHover
 	}
 	part(hitTabAdd, 0, addStyle.Render(" + "))
@@ -489,7 +496,7 @@ func (m *Model) tabPress(h hit, double bool) tea.Cmd {
 			m.openRename()
 			return nil
 		}
-		m.drag = dragTab
+		m.mouse.drag = dragTab
 	}
 	return nil
 }
@@ -502,8 +509,8 @@ func (m *Model) stepEntrySheet(d int) {
 
 // dropTab moves the dragged sheet to the tab it was released over.
 func (m *Model) dropTab() {
-	if m.hover.kind == hitTab && m.hover.addr.Col != m.book().Index(m.sheet) {
-		to := m.hover.addr.Col
+	if m.mouse.hover.kind == hitTab && m.mouse.hover.addr.Col != m.book().Index(m.sheet) {
+		to := m.mouse.hover.addr.Col
 		m.book().MoveSheet(m.sheet, to)
 		m.note = "Moved " + m.sheet.Name() + " to position " + strconv.Itoa(to+1)
 	}

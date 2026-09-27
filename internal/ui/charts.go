@@ -53,6 +53,11 @@ func init() {
 	)
 }
 
+// chartState is what chart commands remember between selections.
+type chartState struct {
+	last int // the chart last selected, for chart commands; -1 for none
+}
+
 func hasCharts(m *Model) bool { return len(m.sheet.Charts()) > 0 }
 
 // targetChart is the chart a chart command acts on: the selected one, the
@@ -65,8 +70,8 @@ func (m *Model) targetChart() int {
 	case *chartEditor:
 		return o.i
 	}
-	if m.lastChart >= 0 && m.lastChart < len(charts) {
-		return m.lastChart
+	if m.charts.last >= 0 && m.charts.last < len(charts) {
+		return m.charts.last
 	}
 	for i, c := range charts {
 		if c.Data.Contains(m.cur) {
@@ -129,7 +134,7 @@ func (m *Model) deleteChart(i int) {
 	}
 	m.sheet.DeleteChart(i)
 	m.changed = true
-	m.lastChart = -1
+	m.charts.last = -1
 	if _, ok := m.overlay.(*chartSel); ok {
 		m.closeOverlay()
 	}
@@ -329,16 +334,16 @@ var chartMenu = []menuItem{{cmd: "chart.edit"}, {cmd: "chart.delete"}}
 // selectChart selects chart i.
 func (m *Model) selectChart(i int) {
 	m.clearSelection()
-	m.lastChart = i
+	m.charts.last = i
 	m.openOverlay(&chartSel{i: i})
 }
 
 // setShape sets the terminal's pointer shape, if it changed.
 func (m *Model) setShape(shape string) tea.Cmd {
-	if shape == m.shape {
+	if shape == m.mouse.shape {
 		return nil
 	}
-	m.shape = shape
+	m.mouse.shape = shape
 	return tea.Raw(ansi.SetPointerShape(shape))
 }
 
@@ -565,7 +570,7 @@ func (m *Model) openChartEditor(i int, isNew bool, start int) {
 	if i < 0 || i >= len(m.sheet.Charts()) {
 		return
 	}
-	m.lastChart = i
+	m.charts.last = i
 	m.openOverlay(&chartEditor{i: i, start: start, isNew: isNew})
 }
 
@@ -608,7 +613,7 @@ func (e *chartEditor) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 		}
 		m.changed = m.sheet.StateID() != m.saved
 		m.closeOverlay()
-		m.lastChart = -1
+		m.charts.last = -1
 	case "left", "right", "shift+tab", "tab":
 		d := 1
 		if key == "left" || key == "shift+tab" {

@@ -125,7 +125,7 @@ func (m *Model) openFilterPicker(col int) {
 	}
 	p.fields[1] = p.cond.Arg
 	m.openOverlay(p)
-	m.buf, m.bufPos = nil, 0
+	m.line.clear()
 	p.search()
 }
 
@@ -133,14 +133,13 @@ func (p *filterPicker) indicator() string { return "FILTER" }
 
 // focus moves editing to field i, keeping the other field's text.
 func (p *filterPicker) focus(m *Model, i int) {
-	p.fields[p.field] = string(m.buf)
+	p.fields[p.field] = m.line.text()
 	p.field = i
-	m.buf = []rune(p.fields[i])
-	m.bufPos = len(m.buf)
+	m.line.set(p.fields[i])
 }
 
 func (p *filterPicker) changed(m *Model) {
-	p.fields[p.field] = string(m.buf)
+	p.fields[p.field] = m.line.text()
 	if p.field == 0 {
 		p.search()
 	}
@@ -205,7 +204,7 @@ func (p *filterPicker) cycle(d int) {
 
 // apply sets the column's criteria and closes the picker.
 func (p *filterPicker) apply(m *Model) {
-	p.fields[p.field] = string(m.buf)
+	p.fields[p.field] = m.line.text()
 	var cr sheet.Criteria
 	for _, v := range p.values {
 		if !p.checked[v.Text] {
@@ -263,9 +262,9 @@ func (p *filterPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 	case p.field == 0 && key == "space":
 		p.toggle(p.sel)
 	default:
-		before := string(m.buf)
-		m.lineKey(k)
-		if string(m.buf) != before {
+		before := m.line.text()
+		m.line.key(k)
+		if m.line.text() != before {
 			p.changed(m)
 		}
 	}
@@ -350,7 +349,7 @@ func (p *filterPicker) box(m *Model) (x, y, inner int) {
 
 func (p *filterPicker) cursor(m *Model) (int, int) {
 	x, y, _ := p.box(m)
-	caret := ansi.StringWidth(string(m.buf[:m.bufPos]))
+	caret := ansi.StringWidth(m.line.head())
 	if p.field == 1 {
 		return x + 1 + len(" If ") + ansi.StringWidth(p.condChip()) + 2 + caret, y + 1
 	}
@@ -375,7 +374,7 @@ func (p *filterPicker) layout(m *Model) []box {
 	if p.cond.Op.TakesArg() {
 		arg := p.fields[1]
 		if p.field == 1 {
-			arg = string(m.buf)
+			arg = m.line.text()
 		}
 		if arg == "" && p.field != 1 {
 			arg = m.th.Muted.Render("value")
@@ -384,7 +383,7 @@ func (p *filterPicker) layout(m *Model) []box {
 	}
 	search := p.fields[0]
 	if p.field == 0 {
-		search = string(m.buf)
+		search = m.line.text()
 	}
 	input := m.th.Title.Render(searchPrompt) + search
 	if search == "" {

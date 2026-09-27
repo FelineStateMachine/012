@@ -73,10 +73,10 @@ func (m *Model) suggestions(word string) []suggestion {
 // EDIT, in plain text, after the caret moved, or when the word already
 // names a range exactly and nothing else matches.
 func (m *Model) shownSuggestions() ([]suggestion, int) {
-	if (m.mode != modeEnter && m.mode != modeEdit) || !m.isFormula() || !m.assist.active || m.overlay != nil {
+	if (m.mode != modeEnter && m.mode != modeEdit) || !m.line.isFormula() || !m.entry.assist.active || m.overlay != nil {
 		return nil, 0
 	}
-	c := scanCaret(m.buf, m.bufPos)
+	c := scanCaret(m.line.buf, m.line.pos)
 	if c.word == "" {
 		return nil, 0
 	}
@@ -84,16 +84,16 @@ func (m *Model) shownSuggestions() ([]suggestion, int) {
 	if len(list) == 0 || len(list) == 1 && !list[0].fn && strings.EqualFold(list[0].name, c.word) {
 		return nil, 0
 	}
-	m.assist.sel = min(m.assist.sel, len(list)-1)
+	m.entry.assist.sel = min(m.entry.assist.sel, len(list)-1)
 	return list, c.wordStart
 }
 
 // typeKey applies a line-editing key to the entry. Typing or deleting
 // shows suggestions; moving the caret hides them, as in Sheets.
 func (m *Model) typeKey(k tea.KeyPressMsg) {
-	before := string(m.buf)
-	m.lineKey(k)
-	m.assist = assist{active: string(m.buf) != before}
+	before := m.line.text()
+	m.line.key(k)
+	m.entry.assist = assist{active: m.line.text() != before}
 }
 
 // assistKey handles the keys the suggestion list takes while it shows.
@@ -104,13 +104,13 @@ func (m *Model) assistKey(key string) bool {
 	}
 	switch key {
 	case "up", "ctrl+p":
-		m.assist.sel = (m.assist.sel - 1 + len(list)) % len(list)
+		m.entry.assist.sel = (m.entry.assist.sel - 1 + len(list)) % len(list)
 	case "down", "ctrl+n":
-		m.assist.sel = (m.assist.sel + 1) % len(list)
+		m.entry.assist.sel = (m.entry.assist.sel + 1) % len(list)
 	case "tab", "enter":
-		m.acceptSuggestion(list[m.assist.sel], start)
+		m.acceptSuggestion(list[m.entry.assist.sel], start)
 	case "esc":
-		m.assist.active = false
+		m.entry.assist.active = false
 	default:
 		return false
 	}
@@ -121,7 +121,7 @@ func (m *Model) assistKey(key string) bool {
 // a function unless one is already there.
 func (m *Model) acceptSuggestion(s suggestion, start int) {
 	text := []rune(s.name)
-	rest := m.buf[m.bufPos:]
+	rest := m.line.buf[m.line.pos:]
 	if s.fn && (len(rest) == 0 || rest[0] != '(') {
 		text = append(text, '(')
 	}
@@ -129,9 +129,9 @@ func (m *Model) acceptSuggestion(s suggestion, start int) {
 	if s.fn && len(rest) > 0 && rest[0] == '(' {
 		pos++ // into the existing parentheses
 	}
-	m.buf = slices.Concat(m.buf[:start], text, rest)
-	m.bufPos = pos
-	m.assist.active = false
+	m.line.buf = slices.Concat(m.line.buf[:start], text, rest)
+	m.line.pos = pos
+	m.entry.assist.active = false
 }
 
 // assistBox draws the list under the formula bar, its text aligned with
@@ -145,7 +145,7 @@ func (m *Model) assistBox() (box, bool) {
 	if rows < 1 {
 		return box{}, false
 	}
-	a := &m.assist
+	a := &m.entry.assist
 	a.top = clamp(a.top, a.sel-rows+1, a.sel)
 	a.top = clamp(a.top, 0, len(list)-rows)
 	nw, dw := 0, 0
@@ -173,7 +173,7 @@ func (m *Model) assistBox() (box, bool) {
 		footer = strconv.Itoa(a.sel+1) + " of " + strconv.Itoa(len(list))
 	}
 	// The box's text starts one column in, under the word's first letter.
-	x := formulaBarTextX() + ansi.StringWidth(string(m.buf[:start])) - 2
+	x := formulaBarTextX() + ansi.StringWidth(string(m.line.buf[:start])) - 2
 	x = clamp(x, 0, max(m.width-inner-2, 0))
 	return box{id: assistID, x: x, y: contextLine + 1, lines: m.th.Frame(inner, "", footer, lines)}, true
 }
@@ -191,20 +191,20 @@ func (m *Model) assistMouse(msg tea.MouseMsg) bool {
 		return false
 	}
 	list, start := m.shownSuggestions()
-	i := m.assist.top + mouse.Y - b.y - 1
+	i := m.entry.assist.top + mouse.Y - b.y - 1
 	switch msg.(type) {
 	case tea.MouseWheelMsg:
 		d := 1
 		if mouse.Button == tea.MouseWheelUp {
 			d = -1
 		}
-		m.assist.sel = clamp(m.assist.sel+d, 0, len(list)-1)
+		m.entry.assist.sel = clamp(m.entry.assist.sel+d, 0, len(list)-1)
 	case tea.MouseMotionMsg:
-		if i >= m.assist.top && i < min(len(list), m.assist.top+b.height()-2) {
-			m.assist.sel = i
+		if i >= m.entry.assist.top && i < min(len(list), m.entry.assist.top+b.height()-2) {
+			m.entry.assist.sel = i
 		}
 	case tea.MouseClickMsg:
-		if mouse.Button == tea.MouseLeft && i >= m.assist.top && i < min(len(list), m.assist.top+b.height()-2) {
+		if mouse.Button == tea.MouseLeft && i >= m.entry.assist.top && i < min(len(list), m.entry.assist.top+b.height()-2) {
 			m.acceptSuggestion(list[i], start)
 		}
 	}
@@ -218,13 +218,13 @@ func (m *Model) assistStatus() (desc, keys string, ok bool) {
 	if list == nil {
 		return "", "", false
 	}
-	return list[m.assist.sel].desc, m.th.KeyHints("Up/Down", "move", "Tab", "insert", "Esc", "hide"), true
+	return list[m.entry.assist.sel].desc, m.th.KeyHints("Up/Down", "move", "Tab", "insert", "Esc", "hide"), true
 }
 
 // inFunction reports whether the caret is inside a known function's
 // parentheses.
 func (m *Model) inFunction() bool {
-	_, ok := sheet.LookupFunc(scanCaret(m.buf, m.bufPos).fn)
+	_, ok := sheet.LookupFunc(scanCaret(m.line.buf, m.line.pos).fn)
 	return ok
 }
 

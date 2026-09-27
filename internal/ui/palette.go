@@ -92,7 +92,7 @@ type pickMatch struct {
 // picker is a searchable list in a box, in the manner of fzf: a search
 // field on top, results below with matched characters highlighted, and
 // the highlighted result's description on the status line. The search is
-// edited in m.buf with the usual line-editing keys.
+// edited in Model.line with the usual line-editing keys.
 type picker struct {
 	title       string
 	placeholder string
@@ -114,7 +114,7 @@ const (
 
 func newPicker(m *Model, title, placeholder string, maxW int, items []pickItem) *picker {
 	p := &picker{title: title, placeholder: placeholder, maxW: maxW, items: items}
-	m.buf, m.bufPos = nil, 0
+	m.line.clear()
 	p.changed(m)
 	return p
 }
@@ -126,7 +126,7 @@ func (p *picker) indicator() string { return "MENU" }
 func (p *picker) changed(m *Model) {
 	p.sel, p.top = 0, 0
 	p.shown = p.shown[:0]
-	q := strings.TrimSpace(string(m.buf))
+	q := strings.TrimSpace(m.line.text())
 	if q == "" {
 		for i := range p.items {
 			p.shown = append(p.shown, pickMatch{item: &p.items[i]})
@@ -194,9 +194,9 @@ func (p *picker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 	case "esc":
 		m.closeOverlay()
 	default:
-		before := string(m.buf)
-		m.lineKey(k)
-		if string(m.buf) != before {
+		before := m.line.text()
+		m.line.key(k)
+		if m.line.text() != before {
 			p.changed(m)
 		}
 	}
@@ -205,7 +205,7 @@ func (p *picker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 
 func (p *picker) pick(m *Model) tea.Cmd {
 	if p.enter != nil {
-		if cmd, ok := p.enter(m, strings.TrimSpace(string(m.buf))); ok {
+		if cmd, ok := p.enter(m, strings.TrimSpace(m.line.text())); ok {
 			return cmd
 		}
 	}
@@ -275,7 +275,7 @@ func (p *picker) box(m *Model) (x, y, inner int) {
 
 func (p *picker) cursor(m *Model) (int, int) {
 	x, y, _ := p.box(m)
-	return x + 1 + ansi.StringWidth(searchPrompt) + ansi.StringWidth(string(m.buf[:m.bufPos])), y + 1
+	return x + 1 + ansi.StringWidth(searchPrompt) + ansi.StringWidth(m.line.head()), y + 1
 }
 
 func (p *picker) layout(m *Model) []box {
@@ -284,8 +284,8 @@ func (p *picker) layout(m *Model) []box {
 	if len(p.shown) > 0 {
 		p.show(rows)
 	}
-	input := m.th.Title.Render(searchPrompt) + string(m.buf)
-	if len(m.buf) == 0 {
+	input := m.th.Title.Render(searchPrompt) + m.line.text()
+	if len(m.line.buf) == 0 {
 		input += m.th.Muted.Render(p.placeholder)
 	}
 	lines := []string{theme.Cells(m.th.MenuBar, input, inner), theme.SepRow}

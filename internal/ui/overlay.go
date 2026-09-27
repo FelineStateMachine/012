@@ -25,7 +25,7 @@ type overlay interface {
 }
 
 // textOverlay is an overlay with a text input, which gets the terminal
-// cursor. The text is edited in m.buf, like any other entry.
+// cursor. The text is edited in Model.line, like any other entry.
 type textOverlay interface {
 	overlay
 	cursor(m *Model) (x, y int)
@@ -70,7 +70,7 @@ func (m *Model) openOverlay(o overlay) {
 // closeOverlay closes the open overlay and returns to READY.
 func (m *Model) closeOverlay() {
 	m.overlay = nil
-	m.buf, m.bufPos = nil, 0
+	m.line.clear()
 	if m.mode == modeMenu {
 		m.mode = modeReady
 	}

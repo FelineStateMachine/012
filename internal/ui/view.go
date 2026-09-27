@@ -32,8 +32,8 @@ func (m *Model) highlight() (sheet.Rect, bool) {
 		return m.point.rect(), true
 	case m.away(): // the selection is on the entry's sheet
 		return sheet.Rect{}, false
-	case m.drag == dragFill:
-		return m.fillTo, true
+	case m.mouse.drag == dragFill:
+		return m.mouse.fillTo, true
 	}
 	if r, ok := m.barRange(); ok {
 		return r, true
@@ -75,7 +75,7 @@ func (m *Model) headerRow() string {
 			style = m.th.HeaderActive
 		case selecting && c >= sel.From.Col && c <= sel.To.Col:
 			style = m.th.HeaderSel
-		case m.hover.addr.Col == c && (m.hover.kind == hitColHeader || m.hover.kind == hitColBorder || m.hover.kind == hitFilterButton):
+		case m.mouse.hover.addr.Col == c && (m.mouse.hover.kind == hitColHeader || m.mouse.hover.kind == hitColBorder || m.mouse.hover.kind == hitFilterButton):
 			style = m.th.HeaderHover
 		default:
 			plain = true
@@ -105,10 +105,10 @@ func (m *Model) headerRow() string {
 // showHandle reports whether column c's resize handle is visible: while
 // hovering it or dragging it.
 func (m *Model) showHandle(c int) bool {
-	if m.drag == dragResize {
-		return m.resizeCol == c
+	if m.mouse.drag == dragResize {
+		return m.mouse.resizeCol == c
 	}
-	return m.hover.kind == hitColBorder && m.hover.addr.Col == c
+	return m.mouse.hover.kind == hitColBorder && m.mouse.hover.addr.Col == c
 }
 
 func (m *Model) gridRow(row int) string {
@@ -126,7 +126,7 @@ func (m *Model) gridRow(row int) string {
 		hdr = m.th.HeaderActive
 	case selecting && row >= sel.From.Row && row <= sel.To.Row:
 		hdr = m.th.HeaderSel
-	case m.hover.kind == hitRowHeader && m.hover.addr.Row == row:
+	case m.mouse.hover.kind == hitRowHeader && m.mouse.hover.addr.Row == row:
 		hdr = m.th.HeaderHover
 	}
 	var b strings.Builder
@@ -220,7 +220,7 @@ func (m *Model) renderSpan(sp span, base lipgloss.Style, colored bool) string {
 // inCellText shows the entry being typed inside the cell, keeping the end
 // of long entries visible, as Sheets does.
 func (m *Model) inCellText(w int) string {
-	text := " " + string(m.buf)
+	text := " " + m.line.text()
 	if over := ansi.StringWidth(text) - w; over > 0 {
 		text = ansi.TruncateLeft(text, over+1, "…")
 	}

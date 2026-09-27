@@ -118,8 +118,8 @@ func TestOpenImportsOtherFormats(t *testing.T) {
 		t.Errorf("save choices %q", l)
 	}
 	press(t, m, "<enter>")
-	if m.mode != modePrompt || string(m.buf) != "data.012" {
-		t.Errorf("save as %v %q", m.mode, string(m.buf))
+	if m.mode != modePrompt || m.line.text() != "data.012" {
+		t.Errorf("save as %v %q", m.mode, m.line.text())
 	}
 	press(t, m, "<enter>")
 	if m.filename != "data.012" {
@@ -163,11 +163,11 @@ func TestSQLiteTablePicker(t *testing.T) {
 
 	m.runCommand("file.import")
 	press(t, m, "<enter>", "query", "<enter>")
-	if m.mode != modePrompt || string(m.buf) != "SELECT * FROM orders" {
-		t.Fatalf("query prompt %v %q", m.mode, string(m.buf))
+	if m.mode != modePrompt || m.line.text() != "SELECT * FROM orders" {
+		t.Fatalf("query prompt %v %q", m.mode, m.line.text())
 	}
 	press(t, m, "<ctrl+a>")
-	m.buf, m.bufPos = []rune("SELECT sum(total) AS s FROM orders"), len("SELECT sum(total) AS s FROM orders")
+	m.line.buf, m.line.pos = []rune("SELECT sum(total) AS s FROM orders"), len("SELECT sum(total) AS s FROM orders")
 	press(t, m, "<enter>")
 	if m.sheet.Value(addr("A2")).Num != 12.5 {
 		t.Errorf("query A2 %+v err %q", m.sheet.Value(addr("A2")), m.errMsg)

@@ -52,61 +52,32 @@ type Model struct {
 	// window size and the selection; see grid.go.
 	grid
 
-	filename string
-	changed  bool
-	saved    int // the sheet's StateID when last saved or loaded
-
-	copied clipboard // see clipboard.go
-	note   string    // feedback on the last action, e.g. "Undid: clear B3"
-
+	// The file.
+	filename      string
+	changed       bool
+	saved         int  // the sheet's StateID when last saved or loaded
 	quitAfterSave bool // "Save and quit" is waiting for the save to finish
 
-	// Mouse: see mouse.go.
-	drag           dragKind
-	lastClick      time.Time
-	lastHit        hit
-	hover          hit        // what's under the mouse, for hover styling
-	mouseX, mouseY int        // last mouse position, for autoscroll
-	autoscrolling  bool       // an autoscroll tick is pending
-	resizeCol      int        // column being resized by its header border
-	fillAt         sheet.Addr // where a fill handle drag points, see fill.go
-	fillTo         sheet.Rect // the range that drag would fill
-	shape          string     // pointer shape last sent to the terminal
+	mode   mode
+	note   string // feedback on the last action, e.g. "Undid: clear B3"
+	errMsg string // the message ERROR mode shows
 
-	// Sheets: see tabs.go.
-	home    *sheet.Sheet           // while pointing into another sheet, the entry's sheet
-	places  map[*sheet.Sheet]place // where each sheet's cursor and scroll were left
-	tabLeft int                    // the first tab shown when they don't all fit
-
-	// tabStart remembers where a run of Tab-committed entries began, so
-	// Enter returns to that column on the next row, as in Sheets.
-	tabStart int
-	tabbing  bool
-
-	mode mode
-
-	// buf is the edit line used by ENTER, EDIT and text prompts.
-	buf    []rune
-	bufPos int
-	hint   string // shown on the third panel line, e.g. a formula error
-
-	point       pointer // POINT mode and range prompts
-	pointPrefix string  // entry text before the reference being pointed at
-	pointSuffix string  // entry text after the caret while pointing
-	assist      assist  // function and name suggestions while typing, see assist.go
-
-	trace *trace // precedents or dependents being shown, see trace.go
-
-	overlay  overlay    // open menu, palette or dialog, if any (modeMenu)
-	lastFind *findBar   // the last search, reopened by Ctrl+F
-	jev      *jevRunner // answers JEV functions; nil without an API key
-	xfer     transfer   // imports and downloads, see transfer.go
-	prompt   *prompt
-	files    []string // file list shown by File Open
-	errMsg   string
-
-	term      terminal // what the terminal supports, see graphics.go
-	lastChart int      // the chart last selected, for chart commands; -1 for none
+	// Components. Each owns its state and the handling of the input it
+	// takes; Model routes messages to them and composes what they draw.
+	line    lineEdit   // the edit line of entries, prompts and search fields: line.go
+	entry   entry      // typing into a cell: entry.go
+	point   pointer    // the cell or range pointed at in POINT mode and range prompts
+	prompt  *prompt    // a question on the context line: prompt.go
+	overlay overlay    // the open menu, picker or bar, if any (modeMenu): overlay.go
+	mouse   mouseState // drags, hover and double clicks: mouse.go
+	tabs    tabStrip   // the sheet tabs and where each sheet was left: tabs.go
+	find    *findBar   // the last search, reopened by Ctrl+F: find.go
+	charts  chartState // chart commands' target: charts.go
+	copied  clipboard  // what Ctrl+V pastes: clipboard.go
+	trace   *trace     // precedents or dependents being shown: trace.go
+	xfer    transfer   // imports and downloads: transfer.go
+	jev     *jevRunner // answers JEV functions; nil without an API key: jev.go
+	term    terminal   // what the terminal supports: graphics.go
 
 	keyAt time.Time // when the key the next frame answers was pressed, for telemetry
 
@@ -115,7 +86,7 @@ type Model struct {
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	return &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(), lastChart: -1}
+	return &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(), charts: chartState{last: -1}}
 }
 
 // Init implements tea.Model. It asks the terminal for its background color
@@ -170,7 +141,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case loadedMsg:
 		m.handleLoaded(msg)
 	case filesMsg:
-		m.files = msg
+		if m.prompt != nil {
+			m.prompt.files = msg
+		}
 	case jevAnswerMsg:
 		busy := m.jevBusy() != ""
 		m.handleJEVAnswer(msg)
@@ -227,7 +200,7 @@ func (m *Model) endUpdate(state int) {
 }
 
 func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
-	if m.drag == dragFill {
+	if m.mouse.drag == dragFill {
 		if k.String() == "esc" {
 			m.cancelFill()
 		}
@@ -259,7 +232,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
 	if m.moveKey(key) {
-		m.tabbing = false
+		m.entry.tabbing = false
 		return nil
 	}
 	if i := barMenuFor(key); i >= 0 {
@@ -305,8 +278,8 @@ func (m *Model) focus() *sheet.Addr {
 	switch {
 	case m.mode == modePoint || m.pointing() || m.away():
 		return &m.point.at
-	case m.drag == dragFill:
-		return &m.fillAt
+	case m.mouse.drag == dragFill:
+		return &m.mouse.fillAt
 	case m.selecting && m.whole == wholeNone:
 		return &m.ext
 	}

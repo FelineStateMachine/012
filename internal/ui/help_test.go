@@ -93,8 +93,8 @@ func TestFunctionListInsertsFunction(t *testing.T) {
 		t.Errorf("status %q", line(m, m.height-1))
 	}
 	press(t, m, "<enter>")
-	if m.mode != modeEnter || string(m.buf) != "=IFERROR(" {
-		t.Errorf("mode %v buf %q", m.mode, string(m.buf))
+	if m.mode != modeEnter || m.line.text() != "=IFERROR(" {
+		t.Errorf("mode %v buf %q", m.mode, m.line.text())
 	}
 }
 

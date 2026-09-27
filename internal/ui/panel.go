@@ -116,7 +116,7 @@ func formulaBarTextX() int { return nameBoxW + 1 }
 func (m *Model) formulaBar() string {
 	name := m.cur.String()
 	if m.away() {
-		name = sheet.Qualified(m.home.Name(), sheet.Rect{From: m.cur, To: m.cur})
+		name = sheet.Qualified(m.entry.home.Name(), sheet.Rect{From: m.cur, To: m.cur})
 	}
 	if m.hasRange() && (m.mode == modeReady || m.mode == modeMenu) {
 		name = m.selection().String()
@@ -127,9 +127,9 @@ func (m *Model) formulaBar() string {
 	box := m.th.Header.Render(theme.PadRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
 	switch m.mode {
 	case modeEnter, modeEdit:
-		return box + string(m.buf)
+		return box + m.line.text()
 	case modePoint:
-		return box + m.pointPrefix + m.th.Selection.Render(m.pointRef()) + m.pointSuffix
+		return box + m.entry.prefix + m.th.Selection.Render(m.pointRef()) + m.entry.suffix
 	}
 	if c := m.sheet.Cell(m.cur); c != nil {
 		return box + c.Input
@@ -144,13 +144,13 @@ func (m *Model) contextLineText() string {
 	switch {
 	case m.xfer.job != nil:
 		left = m.importLine()
-	case m.drag == dragResize:
-		left = m.th.Key.Render("Column "+sheet.ColName(m.resizeCol)) + m.th.Muted.Render(" width ") +
-			strconv.Itoa(m.sheet.ColWidth(m.resizeCol)) + m.th.Muted.Render("   double-click the border to fit")
-	case m.drag == dragFill:
+	case m.mouse.drag == dragResize:
+		left = m.th.Key.Render("Column "+sheet.ColName(m.mouse.resizeCol)) + m.th.Muted.Render(" width ") +
+			strconv.Itoa(m.sheet.ColWidth(m.mouse.resizeCol)) + m.th.Muted.Render("   double-click the border to fit")
+	case m.mouse.drag == dragFill:
 		left = m.fillLine()
-	case m.hint != "":
-		left = m.th.Warning.Render(m.hint)
+	case m.entry.hint != "":
+		left = m.th.Warning.Render(m.entry.hint)
 	case m.mode == modeReady && m.trace != nil:
 		left, right = m.traceLine()
 	case m.mode == modeReady:
@@ -174,14 +174,14 @@ func (m *Model) contextLineText() string {
 	case m.mode == modePrompt:
 		left, right = m.promptLine()
 	case m.mode == modePoint:
-		prefix := []rune(m.pointPrefix)
+		prefix := []rune(m.entry.prefix)
 		var ok bool
 		if left, right, ok = m.signatureLine(prefix, len(prefix), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
 			left = m.th.KeyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
 		}
-	case (m.mode == modeEnter || m.mode == modeEdit) && m.isFormula() && m.inFunction():
-		left, right, _ = m.signatureLine(m.buf, m.bufPos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
-	case m.mode == modeEnter && m.isFormula():
+	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.isFormula() && m.inFunction():
+		left, right, _ = m.signatureLine(m.line.buf, m.line.pos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
+	case m.mode == modeEnter && m.line.isFormula():
 		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
 	case m.mode == modeEnter:
 		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "accept and move", "Esc", "cancel")
@@ -208,12 +208,12 @@ func (m *Model) promptLine() (left, right string) {
 	case m.pointing():
 		return m.promptPrefix() + m.th.Selection.Render(m.point.text()),
 			m.th.KeyHints("Arrows", "move", "Shift+arrows", "extend", "Enter", "apply", "Esc", "cancel")
-	case len(m.files) > 0:
-		return m.promptPrefix() + string(m.buf), m.th.Muted.Render(strings.Join(m.files, "  "))
+	case len(m.prompt.files) > 0:
+		return m.promptPrefix() + m.line.text(), m.th.Muted.Render(strings.Join(m.prompt.files, "  "))
 	case m.prompt.kind == promptWidth:
-		return m.promptPrefix() + string(m.buf), m.th.KeyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
+		return m.promptPrefix() + m.line.text(), m.th.KeyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
 	}
-	return m.promptPrefix() + string(m.buf), m.th.KeyHints("Enter", "apply", "Esc", "cancel")
+	return m.promptPrefix() + m.line.text(), m.th.KeyHints("Enter", "apply", "Esc", "cancel")
 }
 
 func (m *Model) promptPrefix() string {
@@ -230,9 +230,9 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 	}
 	switch {
 	case m.mode == modeEnter, m.mode == modeEdit:
-		return formulaBarTextX() + ansi.StringWidth(string(m.buf[:m.bufPos])), formulaLine, true
+		return formulaBarTextX() + ansi.StringWidth(m.line.head()), formulaLine, true
 	case m.mode == modePrompt && !m.pointing():
-		return ansi.StringWidth(m.promptPrefix() + string(m.buf[:m.bufPos])), contextLine, true
+		return ansi.StringWidth(m.promptPrefix() + m.line.head()), contextLine, true
 	}
 	return 0, 0, false
 }

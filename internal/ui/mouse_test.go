@@ -54,14 +54,14 @@ func TestClickFormulaBarEdits(t *testing.T) {
 	press(t, m, "=1+2", "<enter>", "<up>")
 	line0, x0 := m.formulaBarAt()
 	click(m, x0+2, line0, 0)
-	if m.mode != modeEdit || m.bufPos != 2 {
-		t.Fatalf("mode %v caret %d", m.mode, m.bufPos)
+	if m.mode != modeEdit || m.line.pos != 2 {
+		t.Fatalf("mode %v caret %d", m.mode, m.line.pos)
 	}
 	// Clicking in the edit line moves the caret.
 	line1, x1 := m.editLineAt()
 	click(m, x1+4, line1, 0)
-	if m.bufPos != 4 {
-		t.Errorf("caret %d", m.bufPos)
+	if m.line.pos != 4 {
+		t.Errorf("caret %d", m.line.pos)
 	}
 }
 
@@ -69,8 +69,8 @@ func TestResizeColumnByDragging(t *testing.T) {
 	m := newModel()
 	border := rowHdrW + sheet.DefaultWidth - 1
 	send(m, tea.MouseMotionMsg{X: border, Y: headerLine})
-	if m.hover.kind != hitColBorder || !strings.Contains(line(m, headerLine), "▐") {
-		t.Fatalf("hover %v header %q", m.hover.kind, line(m, headerLine))
+	if m.mouse.hover.kind != hitColBorder || !strings.Contains(line(m, headerLine), "▐") {
+		t.Fatalf("hover %v header %q", m.mouse.hover.kind, line(m, headerLine))
 	}
 	send(m, tea.MouseClickMsg(leftAt(border, headerLine)))
 	send(m, tea.MouseMotionMsg(leftAt(border+5, headerLine)))
@@ -81,7 +81,7 @@ func TestResizeColumnByDragging(t *testing.T) {
 		t.Errorf("context line %q", line(m, 2))
 	}
 	send(m, tea.MouseReleaseMsg(leftAt(border+5, headerLine)))
-	if m.drag != dragNone || !m.changed {
+	if m.mouse.drag != dragNone || !m.changed {
 		t.Error("resize did not finish")
 	}
 }
@@ -101,7 +101,7 @@ func TestDragAutoscrolls(t *testing.T) {
 	m := newModel()
 	send(m, tea.MouseClickMsg(leftAt(cellX(0), gridTop)))
 	_, cmd := m.Update(tea.MouseMotionMsg(leftAt(cellX(0), m.height-1)))
-	if cmd == nil || !m.autoscrolling {
+	if cmd == nil || !m.mouse.autoscrolling {
 		t.Fatal("dragging below the grid did not start autoscroll")
 	}
 	bottom := m.ext.Row
@@ -113,7 +113,7 @@ func TestDragAutoscrolls(t *testing.T) {
 	}
 	send(m, tea.MouseReleaseMsg(leftAt(cellX(0), m.height-1)))
 	send(m, autoscrollMsg{})
-	if m.autoscrolling {
+	if m.mouse.autoscrolling {
 		t.Error("autoscroll kept going after release")
 	}
 }
@@ -132,8 +132,8 @@ func TestPointerShapes(t *testing.T) {
 		{1, m.height - 1, "pointer"}, // the sheet tab
 	} {
 		send(m, tea.MouseMotionMsg{X: tt.x, Y: tt.y})
-		if m.shape != tt.want {
-			t.Errorf("at %d,%d shape %q, want %q", tt.x, tt.y, m.shape, tt.want)
+		if m.mouse.shape != tt.want {
+			t.Errorf("at %d,%d shape %q, want %q", tt.x, tt.y, m.mouse.shape, tt.want)
 		}
 	}
 }
