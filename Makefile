@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e
+.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e
 
 build:
 	CGO_ENABLED=0 go build -o bin/012 ./cmd/012
@@ -17,6 +17,17 @@ run: build
 
 test:
 	go test ./...
+
+# Everything that must pass before a push: formatting, vet (also with the
+# stress benchmarks), shape limits, unit tests, the excelize oracle and the
+# end-to-end tests in libghostty.
+check:
+	@test -z "$$(gofmt -l cmd internal demos e2e oracle)" || { gofmt -l cmd internal demos e2e oracle; echo "gofmt: files above need formatting"; exit 1; }
+	go vet -tags stress ./...
+	$(MAKE) lint
+	go test ./...
+	$(MAKE) oracle
+	$(MAKE) e2e
 
 # Code shape limits: cognitive complexity and file length.
 lint:

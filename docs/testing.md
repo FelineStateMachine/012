@@ -1,6 +1,7 @@
 # Testing
 
 ```sh
+make check    # all of the below that must pass before a push: gofmt, vet, lint, test, oracle, e2e
 make lint     # go vet, cognitive complexity at most 25, Go files at most 500 lines
 make test     # engine, file formats and UI unit tests
 make fuzz     # fuzz the formula parser and the CSV, .wk1 and XLSX readers
