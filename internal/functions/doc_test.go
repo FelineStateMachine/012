@@ -27,6 +27,7 @@ var categories = []struct{ file, title string }{
 	{"stats.go", "Statistics"},
 	{"logic.go", "Logic and information"},
 	{"text.go", "Text"},
+	{"regex.go", "Split and regular expressions"},
 	{"lookup.go", "Lookup"},
 	{"dynamic.go", "Arrays"},
 	{"lambda.go", "LET and LAMBDA"},

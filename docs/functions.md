@@ -2,7 +2,7 @@
 
 <!-- Generated from the engine's function table by TestFunctionsDoc; do not edit. -->
 
-012 has 138 functions. They follow Google Sheets' names, arguments and
+012 has 142 functions. They follow Google Sheets' names, arguments and
 semantics; `[brackets]` mark optional arguments. Function names are
 case-insensitive, and 1-2-3's `@SUM(A1..A5)` spelling still works.
 
@@ -114,6 +114,15 @@ Aliases: `AVG` for `AVERAGE`.
 | `TRIM(text)` | Text without leading, trailing and repeated spaces |
 | `UPPER(text)` | Text in upper case |
 | `VALUE(text)` | Text as a number; dates and times too |
+
+## Split and regular expressions
+
+| Function | Description |
+|---|---|
+| `REGEXEXTRACT(text, regular_expression)` | The first match of a regular expression, or its capture groups across |
+| `REGEXMATCH(text, regular_expression)` | TRUE if text matches a regular expression |
+| `REGEXREPLACE(text, regular_expression, replacement)` | Text with every match replaced; $1 in the replacement is a capture group |
+| `SPLIT(text, delimiter, [split_by_each], [remove_empty_text])` | Text split at a delimiter into cells across (each character of it by default) |
 
 ## Lookup
 
