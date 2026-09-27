@@ -23,6 +23,7 @@ type Span struct {
 	Style sheet.Style
 	Owner int // column of the cell the text belongs to
 
+	// Left for the caller to fill in from the owner's value.
 	Link  string // the owner's link target, drawn as a hyperlink
 	Error bool   // the owner shows an error: its text gets the error mark
 }

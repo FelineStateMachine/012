@@ -46,7 +46,11 @@ const (
 // doubleClick is the longest gap between two clicks that edits a cell.
 const doubleClick = 400 * time.Millisecond
 
-// Model is the whole application state.
+// Model is the root of the UI, the tea.Model Bubble Tea runs. It holds
+// the file, the mode and the grid, owns a component for everything that
+// takes input or draws a part of the screen, routes each message to the
+// one it's for, and composes the screen from what they draw (panel.go,
+// view.go, overlay.go).
 type Model struct {
 	// grid is the sheet shown, the active cell, the scroll position, the
 	// window size and the selection; see grid.go.
@@ -70,7 +74,7 @@ type Model struct {
 	prompt  *prompt    // a question on the context line: prompt.go
 	overlay overlay    // the open menu, picker or bar, if any (modeMenu): overlay.go
 	mouse   mouseState // drags, hover and double clicks: mouse.go
-	tabs    tabStrip   // the sheet tabs and where each sheet was left: tabs.go
+	tabs    tabStrip   // the sheet tabs and where each sheet was left: tabstrip.go
 	find    *findBar   // the last search, reopened by Ctrl+F: find.go
 	charts  chartState // chart commands' target: charts.go
 	copied  clipboard  // what Ctrl+V pastes: clipboard.go
