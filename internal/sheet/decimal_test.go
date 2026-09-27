@@ -69,6 +69,23 @@ func TestDecimalArithmetic(t *testing.T) {
 		{"average of nothing", "=AVERAGE(A1:A2)", nil, "#DIV/0!", "#DIV/0!"},
 		{"sum ignores text in ranges", "=SUM(A1:A3)", []string{"0.1", "x", "0.2"}, "0.30000000000000004", "0.3"},
 		{"huge sum falls back", "=SUM(1E308, 1E308)", nil, "#NUM!", "#NUM!"},
+		// PRODUCT, SUMIF, SUMIFS and SUMPRODUCT have decimal twins too.
+		{"product", "=PRODUCT(A1:A2)", []string{"1.1", "1.1"}, "1.2100000000000002", "1.21"},
+		{"product of direct", "=PRODUCT(0.07, 3)", nil, "0.21000000000000002", "0.21"},
+		{"product skips text in ranges", "=PRODUCT(A1:A3)", []string{"1.1", "x", "1.1"}, "1.2100000000000002", "1.21"},
+		{"product of nothing", "=PRODUCT(A1:A2)", nil, "0", "0"},
+		{"product of text", `=PRODUCT("a")`, nil, "#VALUE!", "#VALUE!"},
+		{"huge product falls back", "=PRODUCT(1E308, 10)", nil, "#NUM!", "#NUM!"},
+		{"sumif", `=SUMIF(A1:A10, ">0")`, tenCents, "0.9999999999999999", "1"},
+		{"sumif equals", `=SUMIF(A1:A10, ">0")=1`, tenCents, "FALSE", "TRUE"},
+		{"sumif with sum range", `=SUMIF(A1:A3, "<>x", A1:A3)`, []string{"0.1", "x", "0.2"}, "0.30000000000000004", "0.3"},
+		{"sumif error", `=SUMIF(A1:A2, ">0")`, []string{"1", "=1/0"}, "1", "1"},
+		{"sumifs", `=SUMIFS(A1:A10, A1:A10, "0.1")`, tenCents, "0.9999999999999999", "1"},
+		{"sumifs mismatched", `=SUMIFS(A1:A10, A1:A9, ">0")`, tenCents, "#VALUE!", "#VALUE!"},
+		{"sumproduct", "=SUMPRODUCT(A1:A3, A1:A3)", []string{"0.1", "0.2", "0.3"}, "0.14", "0.14"},
+		{"sumproduct of cents", "=SUMPRODUCT(A1:A2, A3:A4)", []string{"0.1", "0.2", "3", "3"}, "0.9000000000000001", "0.9"},
+		{"sumproduct mismatched", "=SUMPRODUCT(A1:A2, A1:A3)", []string{"1", "2", "3"}, "#VALUE!", "#VALUE!"},
+		{"sumproduct error", "=SUMPRODUCT(A1:A2)", []string{"1", "=1/0"}, "#DIV/0!", "#DIV/0!"},
 	}
 	show := func(v Value) string {
 		if v.Kind == Number {

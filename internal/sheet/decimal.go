@@ -18,7 +18,7 @@ import (
 // compute in decimal:
 //
 //   - the operators + - * / and the postfix %
-//   - SUM and AVERAGE
+//   - SUM, AVERAGE, PRODUCT, SUMIF, SUMIFS and SUMPRODUCT
 //   - ROUND, ROUNDUP, ROUNDDOWN and TRUNC
 //
 // Each step reads its float64 operands as the shortest decimal that
@@ -102,10 +102,54 @@ func decRound(x float64, places int, mode numfmt.Rounding) (Value, bool) {
 	return fromDec(&z)
 }
 
-// decSum adds the numbers SUM would, in decimal, and counts them.
-func decSum(args []Node, get lookup) (sum apd.Decimal, n int, e *Value, ok bool) {
-	ok = true
-	var x apd.Decimal
+// decAcc accumulates a sum or a product in decimal; ok turns false when
+// a step can't be represented, and the caller falls back to binary.
+type decAcc struct {
+	d, x apd.Decimal
+	ok   bool
+}
+
+func newDecAcc(start int64) *decAcc {
+	a := &decAcc{ok: true}
+	a.d.SetInt64(start)
+	return a
+}
+
+func (a *decAcc) add(f float64) { a.step(f, decCtx.Add) }
+func (a *decAcc) mul(f float64) { a.step(f, decCtx.Mul) }
+
+func (a *decAcc) step(f float64, op func(d, x, y *apd.Decimal) (apd.Condition, error)) {
+	if !a.ok {
+		return
+	}
+	if _, err := a.x.SetFloat64(f); err != nil {
+		a.ok = false
+	} else if _, err := op(&a.d, &a.d, &a.x); err != nil {
+		a.ok = false
+	}
+}
+
+// addDec adds a decimal to the sum.
+func (a *decAcc) addDec(d *apd.Decimal) {
+	if !a.ok {
+		return
+	}
+	if _, err := decCtx.Add(&a.d, &a.d, d); err != nil {
+		a.ok = false
+	}
+}
+
+// result is the accumulated value, or false to fall back.
+func (a *decAcc) result() (Value, bool) {
+	if !a.ok {
+		return Value{}, false
+	}
+	return fromDec(&a.d)
+}
+
+// decFold feeds the numbers SUM and PRODUCT take to step and counts
+// them: in ranges only numbers, direct arguments coerced.
+func decFold(args []Node, get lookup, step func(float64)) (n int, e *Value) {
 	e = each(args, get, func(v Value, direct bool) *Value {
 		switch v.Kind {
 		case Error:
@@ -121,49 +165,89 @@ func decSum(args []Node, get lookup) (sum apd.Decimal, n int, e *Value, ok bool)
 			return err
 		}
 		n++
-		if _, err := x.SetFloat64(f); err != nil {
-			ok = false
-		} else if _, err := decCtx.Add(&sum, &sum, &x); err != nil {
-			ok = false
-		}
+		step(f)
 		return nil
 	})
-	return sum, n, e, ok
+	return n, e
+}
+
+// decTerms builds the decimal twin of a function that visits the terms
+// it adds (SUMIF, SUMIFS).
+func decTerms(terms func([]Node, lookup, func(float64)) *Value) func([]Node, lookup) (Value, bool) {
+	return func(args []Node, get lookup) (Value, bool) {
+		acc := newDecAcc(0)
+		if e := terms(args, get, acc.add); e != nil {
+			return *e, true
+		}
+		return acc.result()
+	}
+}
+
+// decSumProduct is SUMPRODUCT with each entry's product and the sum in
+// decimal.
+func decSumProduct(args []Node, get lookup) (Value, bool) {
+	acc := newDecAcc(0)
+	e := sumProductTerms(args, get, func(fs []float64) {
+		p := newDecAcc(1)
+		for _, f := range fs {
+			p.mul(f)
+		}
+		if !p.ok {
+			acc.ok = false
+		}
+		acc.addDec(&p.d)
+	})
+	if e != nil {
+		return *e, true
+	}
+	return acc.result()
 }
 
 // decEvals are the decimal versions of functions, by name. Each reports
 // false to fall back to the binary version.
 var decEvals = map[string]func(args []Node, get lookup) (Value, bool){
 	"SUM": func(args []Node, get lookup) (Value, bool) {
-		sum, _, e, ok := decSum(args, get)
-		if e != nil {
+		acc := newDecAcc(0)
+		if _, e := decFold(args, get, acc.add); e != nil {
 			return *e, true
 		}
-		if !ok {
-			return Value{}, false
-		}
-		return fromDec(&sum)
+		return acc.result()
 	},
 	"AVERAGE": func(args []Node, get lookup) (Value, bool) {
-		sum, n, e, ok := decSum(args, get)
+		acc := newDecAcc(0)
+		n, e := decFold(args, get, acc.add)
 		switch {
 		case e != nil:
 			return *e, true
 		case n == 0:
 			return ErrDiv0, true
-		case !ok:
+		case !acc.ok:
 			return Value{}, false
 		}
 		var q apd.Decimal
-		if _, err := decCtx.Quo(&q, &sum, apd.New(int64(n), 0)); err != nil {
+		if _, err := decCtx.Quo(&q, &acc.d, apd.New(int64(n), 0)); err != nil {
 			return Value{}, false
 		}
 		return fromDec(&q)
 	},
-	"ROUND":     decRounder(numfmt.HalfUp),
-	"ROUNDUP":   decRounder(numfmt.Up),
-	"ROUNDDOWN": decRounder(numfmt.Down),
-	"TRUNC":     decRounder(numfmt.Down),
+	"PRODUCT": func(args []Node, get lookup) (Value, bool) {
+		acc := newDecAcc(1)
+		n, e := decFold(args, get, acc.mul)
+		switch {
+		case e != nil:
+			return *e, true
+		case n == 0:
+			return num(0), true
+		}
+		return acc.result()
+	},
+	"SUMIF":      decTerms(sumIfTerms),
+	"SUMIFS":     decTerms(sumIfsTerms),
+	"SUMPRODUCT": decSumProduct,
+	"ROUND":      decRounder(numfmt.HalfUp),
+	"ROUNDUP":    decRounder(numfmt.Up),
+	"ROUNDDOWN":  decRounder(numfmt.Down),
+	"TRUNC":      decRounder(numfmt.Down),
 }
 
 func decRounder(mode numfmt.Rounding) func([]Node, lookup) (Value, bool) {

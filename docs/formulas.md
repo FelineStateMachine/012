@@ -90,7 +90,7 @@ file and can be undone.
 
 | Computed in decimal | Stays binary |
 |---|---|
-| `+ - * /` and postfix `%`; `SUM`, `AVERAGE`; `ROUND`, `ROUNDUP`, `ROUNDDOWN`, `TRUNC` | `^`, `SQRT`, `PRODUCT`, `SUMIF`, `SUMPRODUCT`, statistics, finance, dates and everything else |
+| `+ - * /` and postfix `%`; `SUM`, `AVERAGE`, `PRODUCT`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`; `ROUND`, `ROUNDUP`, `ROUNDDOWN`, `TRUNC` | `^`, `SQRT`, statistics, finance, dates and everything else |
 
 Values are still stored as doubles. Each decimal step reads its inputs as the
 shortest decimal that round-trips (what the cell shows), computes exactly
