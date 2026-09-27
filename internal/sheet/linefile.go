@@ -1,7 +1,7 @@
 package sheet
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -23,7 +23,7 @@ import (
 // needs no new version.
 
 // writeLines writes the "lines" field, if the sheet has line formats.
-func (s *Sheet) writeLines(b *bytes.Buffer, indent string) error {
+func (s *Sheet) writeLines(b *bufio.Writer, indent string) error {
 	if s.lines.none() {
 		return nil
 	}

@@ -1,7 +1,7 @@
 package sheet
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -153,7 +153,7 @@ type fileCriteria struct {
 
 // writeView adds the frozen panes, the filter and the protected ranges to
 // a file being written.
-func (s *Sheet) writeView(b *bytes.Buffer, indent string) error {
+func (s *Sheet) writeView(b *bufio.Writer, indent string) error {
 	var keys []string
 	var parts []any
 	if v := s.view; v.frozenRows > 0 || v.frozenCols > 0 {

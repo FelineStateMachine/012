@@ -1,7 +1,7 @@
 package sheet
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -172,7 +172,7 @@ func (fv fileValidation) rule() (Validation, error) {
 
 // writeRules writes the sheet's rules, one per line, after its other
 // fields.
-func (s *Sheet) writeRules(b *bytes.Buffer, indent string) {
+func (s *Sheet) writeRules(b *bufio.Writer, indent string) {
 	list := func(key string, lines []string) {
 		if len(lines) == 0 {
 			return

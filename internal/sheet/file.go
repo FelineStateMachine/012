@@ -1,7 +1,7 @@
 package sheet
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -77,20 +77,22 @@ func (s *Sheet) Write(w io.Writer) error { return s.wb.Write(w) }
 
 // Write saves the workbook as JSON, storing each cell's input as typed
 // and its formatting. Cells go one per line in row-major order so diffs
-// read naturally.
+// read naturally. It streams: cells are written as they are read from
+// the store, through a buffer of its own, so writing costs about nothing
+// on top of the workbook whatever its size.
 func (w *Workbook) Write(out io.Writer) error {
-	var b bytes.Buffer
+	b := bufio.NewWriterSize(out, 64<<10)
 	if w.single() {
 		s := w.sheets[0]
 		version := 2
 		if v := s.view; len(w.names) > 0 || v.frozenRows > 0 || v.frozenCols > 0 || v.filter != nil {
 			version = 3
 		}
-		fmt.Fprintf(&b, "{\n  \"version\": %d,\n", version)
+		fmt.Fprintf(b, "{\n  \"version\": %d,\n", version)
 		if s.name != "Sheet1" {
-			fmt.Fprintf(&b, "  \"name\": %s,\n", jsonString(s.name))
+			fmt.Fprintf(b, "  \"name\": %s,\n", jsonString(s.name))
 		}
-		if err := s.writeBody(&b, "  ", w.headLines()); err != nil {
+		if err := s.writeBody(b, "  ", w.headLines()); err != nil {
 			return err
 		}
 		b.WriteString("\n}\n")
@@ -99,31 +101,30 @@ func (w *Workbook) Write(out io.Writer) error {
 		if w.hasPivots() {
 			version = fileVersion
 		}
-		fmt.Fprintf(&b, "{\n  \"version\": %d,\n", version)
+		fmt.Fprintf(b, "{\n  \"version\": %d,\n", version)
 		if head := w.headLines(); head != "" {
 			b.WriteString("  " + head + ",\n")
 		}
 		if w.Active() > 0 {
-			fmt.Fprintf(&b, "  \"active\": %d,\n", w.Active())
+			fmt.Fprintf(b, "  \"active\": %d,\n", w.Active())
 		}
 		b.WriteString(`  "sheets": [`)
 		for i, s := range w.sheets {
 			if i > 0 {
 				b.WriteByte(',')
 			}
-			fmt.Fprintf(&b, "\n    {\n      \"name\": %s,\n", jsonString(s.name))
+			fmt.Fprintf(b, "\n    {\n      \"name\": %s,\n", jsonString(s.name))
 			if s.tabHidden {
 				b.WriteString("      \"hidden\": true,\n")
 			}
-			if err := s.writeBody(&b, "      ", ""); err != nil {
+			if err := s.writeBody(b, "      ", ""); err != nil {
 				return err
 			}
 			b.WriteString("\n    }")
 		}
 		b.WriteString("\n  ]\n}\n")
 	}
-	_, err := out.Write(b.Bytes())
-	return err
+	return b.Flush()
 }
 
 // single reports whether the workbook fits the single-sheet format of
@@ -177,7 +178,7 @@ func (w *Workbook) namesLine() string {
 // writeBody writes a sheet's fields, each line starting with indent, the
 // names line (if any) after the widths as version 3 has it, and no
 // newline after the last field.
-func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
+func (s *Sheet) writeBody(b *bufio.Writer, indent, names string) error {
 	if len(s.widths) > 0 {
 		b.WriteString(indent + `"widths": {`)
 		for i, c := range slices.Sorted(maps.Keys(s.widths)) {
@@ -197,25 +198,31 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 	if err := s.writeView(b, indent); err != nil {
 		return err
 	}
-	addrs := make([]Addr, 0, s.cells.len())
-	for a := range s.cells.keys() {
-		if c := s.cells.richAt(a); c == nil || c.saved() != nil {
-			addrs = append(addrs, a)
-		}
-	}
-	sortAddrs(addrs)
 	b.WriteString(indent + `"cells": {`)
-	for i, a := range addrs {
-		raw, err := encodeCell(s.cells.get(a).saved())
+	var line []byte
+	n := 0
+	for a := range s.cells.keysIn(Rect{To: Addr{Col: MaxCols - 1, Row: MaxRows - 1}}) {
+		line = append(append(line[:0], '\n'), indent...)
+		line = appendAddr(append(line, ' ', ' ', '"'), a)
+		line = append(line, '"', ':', ' ')
+		var ok bool
+		var err error
+		line, ok, err = s.cells.appendSaved(line, a)
 		if err != nil {
 			return err
 		}
-		if i > 0 {
+		if !ok {
+			continue
+		}
+		if n > 0 {
 			b.WriteByte(',')
 		}
-		fmt.Fprintf(b, "\n%s  %q: %s", indent, a.String(), raw)
+		n++
+		if _, err := b.Write(line); err != nil {
+			return err
+		}
 	}
-	if len(addrs) > 0 {
+	if n > 0 {
 		b.WriteString("\n" + indent)
 	}
 	b.WriteString("}")
@@ -224,7 +231,7 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 
 // writeObjects writes the fields after the cells: the charts, one per
 // line, the pivot table's definition, and the rules.
-func (s *Sheet) writeObjects(b *bytes.Buffer, indent string) error {
+func (s *Sheet) writeObjects(b *bufio.Writer, indent string) error {
 	if len(s.charts) > 0 {
 		b.WriteString(",\n" + indent + `"charts": [`)
 		for i, c := range s.charts {
@@ -268,56 +275,6 @@ func ReadTraced(r io.Reader, trace any) (*Sheet, error) {
 // version.
 func ReadBook(r io.Reader) (*Workbook, error) { return readBook(r, nil) }
 
-func readBook(r io.Reader, trace any) (*Workbook, error) {
-	var f fileFormat
-	if err := json.NewDecoder(r).Decode(&f); err != nil {
-		return nil, err
-	}
-	if f.Version < 1 || f.Version > fileVersion {
-		return nil, fmt.Errorf("unsupported file version %d", f.Version)
-	}
-	bodies := f.Sheets
-	if f.Version < 4 {
-		bodies = []fileSheet{f.fileSheet}
-		if bodies[0].Name == "" {
-			bodies[0].Name = "Sheet1"
-		}
-	}
-	if len(bodies) == 0 {
-		return nil, fmt.Errorf("the file has no sheets")
-	}
-	w := emptyBook()
-	w.trace = trace
-	for _, body := range bodies {
-		if err := w.checkName(nil, body.Name); err != nil {
-			return nil, fmt.Errorf("sheet %q: %w", body.Name, err)
-		}
-		w.insert(w.newSheet(body.Name), len(w.sheets))
-	}
-	if err := w.readNames(f.Names); err != nil {
-		return nil, err
-	}
-	for i, body := range bodies {
-		if err := w.sheets[i].read(body, f.Version); err != nil {
-			if len(bodies) > 1 {
-				err = fmt.Errorf("sheet %s: %w", body.Name, err)
-			}
-			return nil, err
-		}
-	}
-	w.active = clampInt(f.Active, 0, len(w.sheets)-1)
-	w.settleHidden()
-	// Anything but "decimal" (say, a mode from a later build) computes in
-	// binary, as the file would in a build without the setting.
-	w.decimal = f.Arithmetic == "decimal"
-	if err := w.readMacros(f.Macros); err != nil {
-		return nil, err
-	}
-	w.macroOrigin = f.MacroOrigin
-	w.RecalcAll()
-	return w, nil
-}
-
 // readNames defines the named ranges of a file. A range without a sheet
 // is on the first sheet, as in single-sheet files.
 func (w *Workbook) readNames(names map[string]string) error {
@@ -347,8 +304,9 @@ func (w *Workbook) readNames(names map[string]string) error {
 	return nil
 }
 
-// read fills an empty sheet from its part of a file.
-func (s *Sheet) read(f fileSheet, version int) error {
+// read fills a sheet, its cells read (fileread.go), from the rest of
+// its part of a file.
+func (s *Sheet) read(f fileSheet) error {
 	s.tabHidden = f.Hidden
 	for name, width := range f.Widths {
 		c, ok := ParseCol(name)
@@ -359,25 +317,6 @@ func (s *Sheet) read(f fileSheet, version int) error {
 	}
 	if err := s.readLines(f.Lines); err != nil {
 		return err
-	}
-	for name, raw := range f.Cells {
-		a, ok := ParseAddr(name)
-		if !ok {
-			return fmt.Errorf("invalid cell %q", name)
-		}
-		input, fm, st, note, err := decodeNoted(raw)
-		if err != nil {
-			return fmt.Errorf("%s: %w", name, err)
-		}
-		// Version 1 had no formats, so there entries imply them, as if
-		// typed again; since version 2 the stored format wins.
-		c, err := newCell(input, fm, st, version < 2)
-		if err != nil {
-			return fmt.Errorf("%s: %w", name, err)
-		}
-		if c = c.withNote(CleanNote(note)); c != nil {
-			s.place(a, c)
-		}
 	}
 	for i, fc := range f.Charts {
 		c, err := decodeChart(fc)
