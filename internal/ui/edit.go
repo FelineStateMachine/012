@@ -3,8 +3,6 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"slices"
-	"strings"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
@@ -178,117 +176,6 @@ func (m *Model) toggleAbsolute() {
 	if buf, pos, ok := cycleRef(m.buf, m.bufPos); ok {
 		m.buf, m.bufPos = buf, pos
 	}
-}
-
-// cycleRef finds the reference (or range) at or just before pos in a
-// formula and returns the text with its absolute markers cycled, and the
-// caret moved to the reference's end.
-func cycleRef(buf []rune, pos int) ([]rune, int, bool) {
-	quoted := make([]bool, len(buf))
-	in := false
-	for i, r := range buf {
-		if r == '"' {
-			in = !in
-		}
-		quoted[i] = in || r == '"'
-	}
-	isRefRune := func(i int) bool {
-		r := buf[i]
-		return !quoted[i] && (r == '$' || r >= '0' && r <= '9' || r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z')
-	}
-	// word returns the bounds of the run of reference characters around i.
-	word := func(i int) (int, int) {
-		start, end := i, i
-		for start > 0 && isRefRune(start-1) {
-			start--
-		}
-		for end < len(buf) && isRefRune(end) {
-			end++
-		}
-		return start, end
-	}
-	isRef := func(start, end int) bool {
-		if start == end || start > 0 && buf[start-1] == '@' || end < len(buf) && buf[end] == '(' {
-			return false
-		}
-		_, ok := sheet.ParseAddr(string(buf[start:end]))
-		return ok
-	}
-	start, end := word(pos)
-	if !isRef(start, end) {
-		return nil, 0, false
-	}
-	// Widen to a range written A1:B2 or A1..B2.
-	sep := func(i int) int {
-		switch {
-		case i < len(buf) && buf[i] == ':':
-			return 1
-		case i+1 < len(buf) && buf[i] == '.' && buf[i+1] == '.':
-			return 2
-		}
-		return 0
-	}
-	corners := [][2]int{{start, end}}
-	if n := sep(end); n > 0 {
-		if s2, e2 := word(end + n); s2 == end+n && isRef(s2, e2) {
-			corners = append(corners, [2]int{s2, e2})
-		}
-	} else {
-		for n := 1; n <= 2 && start-n > 0; n++ {
-			if sep(start-n) == n {
-				if s0, e0 := word(start - n - 1); e0 == start-n && isRef(s0, e0) {
-					corners = [][2]int{{s0, e0}, {start, end}}
-				}
-				break
-			}
-		}
-	}
-	next := nextMarkers(string(buf[corners[0][0]:corners[0][1]]))
-	out := slices.Clone(buf[:corners[0][0]])
-	for i, c := range corners {
-		if i > 0 {
-			out = append(out, buf[corners[i-1][1]:c[0]]...)
-		}
-		out = append(out, []rune(withMarkers(string(buf[c[0]:c[1]]), next))...)
-	}
-	caret := len(out)
-	out = append(out, buf[corners[len(corners)-1][1]:]...)
-	return out, caret, true
-}
-
-// nextMarkers returns the absolute markers that follow ref's in F4's
-// cycle: A1 -> $A$1 -> A$1 -> $A1 -> A1.
-func nextMarkers(ref string) markers {
-	col := strings.HasPrefix(ref, "$")
-	row := strings.Contains(ref[1:], "$")
-	switch {
-	case !col && !row:
-		return markers{true, true}
-	case col && row:
-		return markers{false, true}
-	case row:
-		return markers{true, false}
-	}
-	return markers{}
-}
-
-// markers says which parts of a reference are absolute.
-type markers struct{ col, row bool }
-
-// withMarkers rewrites ref with the given absolute markers.
-func withMarkers(ref string, marks markers) string {
-	ref = strings.ToUpper(strings.ReplaceAll(ref, "$", ""))
-	i := strings.IndexAny(ref, "0123456789")
-	var b strings.Builder
-	if marks.col {
-		b.WriteByte('$')
-	}
-	b.WriteString(ref[:i])
-	if marks.row {
-		b.WriteByte('$')
-	}
-	b.WriteString(ref[i:])
-	return b.String()
 }
 
 // countCells describes a paste for the context line.

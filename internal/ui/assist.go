@@ -4,7 +4,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -39,84 +38,6 @@ type suggestion struct {
 	detail string // the signature, or the range a name stands for
 	desc   string
 	fn     bool // a function: accepting it adds "("
-}
-
-// caret describes the formula text before the caret: the word being
-// typed, if it may be a function or name, and the innermost function call
-// the caret is in.
-type caret struct {
-	word      string
-	wordStart int
-	fn        string // e.g. "SUM", or "" outside any function's parentheses
-	arg       int    // index of the argument the caret is in
-}
-
-func isWordRune(r rune) bool {
-	return r < unicode.MaxASCII && (unicode.IsLetter(r) || unicode.IsDigit(r)) || r == '_' || r == '.' || r == '$' || r == '@'
-}
-
-// scanCaret reads a formula up to pos the way the lexer does: strings are
-// skipped, parentheses nest, and commas or semicolons at the innermost
-// level separate arguments.
-func scanCaret(buf []rune, pos int) caret {
-	type frame struct {
-		fn  string
-		arg int
-	}
-	var stack []frame
-	var c caret
-	inStr := false
-	start := -1                // start of the word being read
-	prev := ""                 // the word just before a space or "(" (SUM ( is allowed)
-	for i := 1; i < pos; i++ { // buf[0] is "=", "+" or "-"
-		r := buf[i]
-		if inStr {
-			inStr = r != '"'
-			continue
-		}
-		if isWordRune(r) {
-			if start < 0 {
-				start = i
-			}
-			continue
-		}
-		if start >= 0 {
-			prev, start = string(buf[start:i]), -1
-		}
-		switch r {
-		case ' ':
-			continue // keep prev for "SUM ("
-		case '"':
-			inStr = true
-		case '(':
-			stack = append(stack, frame{fn: strings.ToUpper(strings.TrimPrefix(prev, "@"))})
-		case ')':
-			if len(stack) > 0 {
-				stack = stack[:len(stack)-1]
-			}
-		case ',', ';':
-			if len(stack) > 0 {
-				stack[len(stack)-1].arg++
-			}
-		}
-		prev = ""
-	}
-	if inStr {
-		return caret{}
-	}
-	for i := len(stack) - 1; i >= 0; i-- {
-		if stack[i].fn != "" {
-			c.fn, c.arg = stack[i].fn, stack[i].arg
-			break
-		}
-	}
-	if start >= 0 && (pos == len(buf) || !isWordRune(buf[pos])) {
-		w := []rune(strings.TrimPrefix(string(buf[start:pos]), "@"))
-		if len(w) > 0 && (unicode.IsLetter(w[0]) || w[0] == '_') {
-			c.word, c.wordStart = string(w), pos-len(w)
-		}
-	}
-	return c
 }
 
 // suggestions lists the functions and named ranges for word: those
@@ -349,42 +270,4 @@ func (m *Model) signature(buf []rune, pos int) (sig, desc string) {
 	}
 	b.WriteString(")")
 	return b.String(), f.Desc
-}
-
-// splitArgs splits a signature's arguments at the top-level commas, so
-// "[value2, ...]" stays one part.
-func splitArgs(args string) []string {
-	var out []string
-	depth, start := 0, 0
-	for i, r := range args {
-		switch r {
-		case '[':
-			depth++
-		case ']':
-			depth--
-		case ',':
-			if depth == 0 {
-				out = append(out, strings.TrimSpace(args[start:i]))
-				start = i + 1
-			}
-		}
-	}
-	if s := strings.TrimSpace(args[start:]); s != "" {
-		out = append(out, s)
-	}
-	return out
-}
-
-// argPart maps an argument index to the part of the signature that
-// describes it: a repeating part like "[value2, ...]" covers every
-// argument from its position on. It returns -1 past the last argument.
-func argPart(parts []string, arg int, variadic bool) int {
-	rep := slices.IndexFunc(parts, func(p string) bool { return strings.Contains(p, "...") })
-	switch {
-	case rep >= 0 && variadic && arg >= rep:
-		return rep
-	case arg < len(parts):
-		return arg
-	}
-	return -1
 }
