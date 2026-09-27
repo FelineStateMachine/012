@@ -44,7 +44,7 @@ func init() {
 func (m *Model) copy(cut bool) tea.Cmd {
 	clip := m.sheet.Copy(m.selection())
 	m.copied = clipboard{clip: clip, sheet: m.sheet, cut: cut, marked: true}
-	text := clip.Text()
+	text := clip.TextIn(m.locale())
 	if text == nil {
 		m.note = "Copied; too many cells for the system clipboard, but Ctrl+V pastes them here"
 		return nil
@@ -77,6 +77,11 @@ func (m *Model) paste(values bool) tea.Cmd {
 	}
 	if err != nil {
 		m.fail(err.Error())
+		return nil
+	}
+	// Cells moved on their sheet take their rules along (sheet.Move);
+	// anything else meets the rules where it lands.
+	if (!c.cut || values || c.sheet != m.sheet) && !m.checkWritten(r, "Paste") {
 		return nil
 	}
 	m.selectRect(r)
@@ -167,13 +172,16 @@ func (m *Model) pasteText(content string) bool {
 					v = row[j]
 				}
 				a := sheet.Addr{Col: r.From.Col + j, Row: r.From.Row + i}
-				if m.sheet.Set(a, v) != nil {
+				if m.sheet.Set(a, m.storedEntry(v)) != nil {
 					m.sheet.Set(a, "'"+v) // a broken formula stays as text
 				}
 			}
 		}
 		return nil
 	})
+	if !m.checkWritten(r, "Paste") {
+		return true
+	}
 	m.selectRect(r)
 	m.note = "Pasted " + countCells(r) + " at " + r.String()
 	return true

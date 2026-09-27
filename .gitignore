@@ -1,4 +1,5 @@
 bin/
+dist/
 .deps/
 *.tmp
 e2e/testdata/screens/gallery.html

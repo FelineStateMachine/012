@@ -41,7 +41,7 @@ func TestVimSetting(t *testing.T) {
 	if s := screen(m); !strings.Contains(s, "Vim keys") {
 		t.Fatalf("settings submenu:\n%s", s)
 	}
-	press(t, m, "<down>", "<enter>")
+	press(t, m, "<down>", "<down>", "<enter>")
 	if !m.prefs.vim || indicator(m) != "NORMAL" || !strings.Contains(line(m, contextLine), "Vim keys on") {
 		t.Fatalf("vim %v, indicator %q, context %q", m.prefs.vim, indicator(m), line(m, contextLine))
 	}

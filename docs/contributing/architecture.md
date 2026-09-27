@@ -16,6 +16,7 @@ internal/functions the function library: the FuncDef table, evaluation, decimal 
 internal/value   cell values, number formats, typed-entry parsing, the clock
 internal/formula the formula language: references, lexer, parser, printer, rewriting
 internal/numfmt  number formats, rounding, General, date serials
+internal/locale  the locales: separators, date order, currency, formula separators
 internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1
 internal/chart   chart layout, text rendering and kitty image encoding
 internal/jev     the API key's resolution, answer cache and TypeSafe client
@@ -58,7 +59,21 @@ internal/functions  --->  internal/formula    |
 internal/value  --->  internal/numfmt  <------+
 ```
 
-(`sheet` also uses `formula`, `value` and `numfmt` directly.)
+(`sheet` also uses `formula`, `value` and `numfmt` directly. Below
+them all, `internal/locale` holds the table of locales and depends on
+nothing.)
+
+- `internal/locale` is the conventions of each locale: decimal and
+  thousands separators, date order and patterns, currency symbol and
+  place, and the formula separators that follow from the decimal one.
+  Cells, formulas and files keep en-US's form whatever the locale; the
+  packages above translate at the edges, where entries are typed and
+  shown: `value.Canonicalize` and `Localize` for typed values,
+  `formula.Delocalize` and `Localize` for formulas (one byte for one,
+  so positions carry over), `numfmt.FormatIn` and `Format.CodeIn` for
+  display, and `sheet.CanonicalEntry` and `LocalEntry` for whole
+  entries. The workbook's locale is a file setting beside decimal
+  arithmetic ([Locale](../sheets/locale.md)).
 
 - `internal/formula` is the language: `Addr` and `Rect`, A1 references
   with their `$` markers, sheet names in references and their quoting,
@@ -100,12 +115,16 @@ style.
   cost of what it holds; the stored index's blocks hold the cells
   themselves, a 16-byte slot each in row order (`slot.go`). A plain cell
   (a number, boolean or text as typed, with a format and style) lives in
-  its slot, with its text in a table of strings and its formatting in a
-  table of looks; formulas, notes, and what pivots and spills write are
-  whole `Cell`s in a side table, which recalculation updates in place.
-  `get` hands out a plain cell as a `Cell` made for the caller, a copy
-  whose changes reach nothing; `set` is the one way to change a cell. Formats of whole columns and rows, and of the
-  whole sheet, live on the lines (`lines.go`); a cell falls back on them.
+  its slot, with its text in a table of strings kept once each, its
+  formatting in a table of looks, and its input only when that isn't
+  the value's own text ("1.50" is kept as 1.5 printed with two
+  decimals). Formulas, notes, and what pivots and spills write are whole
+  `Cell`s in a side table, which recalculation updates in place. `get`
+  hands out a plain cell as a `Cell` made for the caller, a copy whose
+  changes reach nothing; `set` is the one way to change a cell. What
+  each costs is in [Bounds of support](limits.md#sheet-size). Formats of
+  whole columns and rows, and of the whole sheet, live on the lines
+  (`lines.go`); a cell falls back on them.
   Copy, paste and move carry the formatting cells show (`clipfmt.go`):
   whole lines as line formats, blocks as the cells' own. A line's format
   changing recalculates the formulas reading any cell of it, found through

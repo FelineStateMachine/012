@@ -68,7 +68,7 @@ func TestSniff(t *testing.T) {
 		{"empty", "", ','},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := sniff([]byte(tc.text), false); got != tc.want {
+			if got := sniff([]byte(tc.text), false, ','); got != tc.want {
 				t.Errorf("sniff = %q, want %q", got, tc.want)
 			}
 		})
@@ -77,7 +77,7 @@ func TestSniff(t *testing.T) {
 
 func readText(t *testing.T, k Kind, text string) (*sheet.Sheet, []string) {
 	t.Helper()
-	s, _, notes, err := readDelimited(context.Background(), strings.NewReader(text), k, 0, func(int) {})
+	s, _, notes, err := readDelimited(context.Background(), strings.NewReader(text), k, 0, nil, func(int) {})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestReadDelimitedTruncates(t *testing.T) {
 	for range sheet.MaxRows + 4 {
 		b.WriteString("x\n")
 	}
-	s, _, notes, err := readDelimited(context.Background(), strings.NewReader(b.String()), CSV, sheet.MaxRows+sheet.MaxCols, func(int) {})
+	s, _, notes, err := readDelimited(context.Background(), strings.NewReader(b.String()), CSV, sheet.MaxRows+sheet.MaxCols, nil, func(int) {})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestReadDelimitedTruncates(t *testing.T) {
 	for range 100 {
 		b.WriteString(strings.Repeat("7,", 9) + "7\n")
 	}
-	s, _, notes, err = readDelimited(context.Background(), strings.NewReader(b.String()), CSV, 255, func(int) {})
+	s, _, notes, err = readDelimited(context.Background(), strings.NewReader(b.String()), CSV, 255, nil, func(int) {})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,6 +280,6 @@ func FuzzReadDelimited(f *testing.F) {
 		if tsv {
 			k = TSV
 		}
-		readDelimited(context.Background(), strings.NewReader(string(data)), k, 0, func(int) {})
+		readDelimited(context.Background(), strings.NewReader(string(data)), k, 0, nil, func(int) {})
 	})
 }

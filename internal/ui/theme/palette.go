@@ -27,6 +27,9 @@ type Palette struct {
 	Selection  color.Color // may be nil
 	Dark       bool
 	File       string // the file it came from; empty for built-ins
+	// HighContrast holds every role to WCAG AAA (7:1 for text) instead
+	// of AA: the built-in high-contrast schemes.
+	HighContrast bool
 }
 
 // Terminal is the theme name that keeps the terminal's own palette.
@@ -74,7 +77,7 @@ var builtins = sync.OnceValue(func() []Palette {
 		panic("theme: classic: " + err.Error())
 	}
 	c.Name = ClassicName
-	return append([]Palette{c}, ps...)
+	return append(append([]Palette{c}, highContrastPalettes()...), ps...)
 })
 
 // Builtins returns the built-in schemes.
@@ -87,12 +90,12 @@ type Entry struct {
 	User bool // a file in the themes directory
 }
 
-// List returns the themes available: terminal first, then the files in
-// dir (the user's themes directory, may be ""), then the built-ins, each
-// group sorted by name case-insensitively. A file with a built-in's name
-// hides the built-in.
+// List returns the themes available: terminal and high-contrast first,
+// then the files in dir (the user's themes directory, may be ""), then
+// the built-ins, each group sorted by name case-insensitively. A file
+// with a built-in's name hides the built-in.
 func List(dir string) []Entry {
-	out := []Entry{{Name: Terminal, Dark: true}}
+	out := []Entry{{Name: Terminal, Dark: true}, {Name: HighContrast, Dark: true}}
 	seen := map[string]bool{}
 	var user []Entry
 	for _, p := range userPalettes(dir) {

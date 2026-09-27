@@ -479,7 +479,7 @@ var charKeys = func() map[rune]physKey {
 }()
 
 // configEnv gives a session its own config directory, with o.config as
-// its config file, and turns off the telemetry and theme variables a
+// its config file, and turns off the telemetry, theme and locale variables a
 // developer's shell may set.
 func configEnv(t *testing.T, o options) []string {
 	t.Helper()
@@ -495,5 +495,5 @@ func configEnv(t *testing.T, o options) []string {
 			t.Fatal(err)
 		}
 	}
-	return []string{"XDG_CONFIG_HOME=" + dir, "O12_THEME=", "TYPESAFE_DEFAULT_MODEL="}
+	return []string{"XDG_CONFIG_HOME=" + dir, "O12_THEME=", "TYPESAFE_DEFAULT_MODEL=", "O12_LOCALE=", "LC_ALL=", "LC_NUMERIC=", "LANG=C.UTF-8"}
 }

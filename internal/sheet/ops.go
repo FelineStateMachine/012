@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // Errors returned by operations that would lose data or don't fit.
@@ -215,12 +216,12 @@ func (c *Clip) Size() (cols, rows int) {
 	return c.Src.To.Col - c.Src.From.Col + 1, c.Src.To.Row - c.Src.From.Row + 1
 }
 
-// Text returns the clip's values as displayed in General format, row by
+// TextIn returns the clip's values as General shows them in loc, row by
 // row, for the system clipboard. Blank rows and columns past the last
 // value are left off, so copying whole columns gives their data; a block
 // of more than MaxCells cells, blanks between values included, is too
-// big for text, and Text returns nil.
-func (c *Clip) Text() [][]string {
+// big for text, and TextIn returns nil.
+func (c *Clip) TextIn(loc *locale.Locale) [][]string {
 	cols, rows := 0, 0
 	for off, cell := range c.cells {
 		if !cell.Blank() {
@@ -235,7 +236,7 @@ func (c *Clip) Text() [][]string {
 		out[r] = make([]string, cols)
 		for col := range out[r] {
 			if cell := c.cells[Addr{Col: col, Row: r}]; cell != nil {
-				out[r][col] = cell.Value.String()
+				out[r][col] = textIn(cell.Value, loc)
 			}
 		}
 	}

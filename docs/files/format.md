@@ -63,6 +63,7 @@ save), so they raise no version:
 | `protected` | a sheet | [Protected ranges](../sheets/notes-protection.md#protected-sheets-and-ranges): `{"range":"B2:C9","description":"Totals"}`, or `{"sheet":true}` |
 | `conditionalFormats`, `validations` | a sheet | [Rules](#conditional-formats-and-data-validation), one per line |
 | `arithmetic` | the workbook | `decimal` for [decimal arithmetic](../formulas/decimal.md) |
+| `locale` | the workbook | The [locale](../sheets/locale.md) it's typed and shown in (`"de-DE"`), when File > Settings > Locale chose one; without it, the file follows the reader's `locale` setting. Cells are stored the same way in every locale: `input` is always as typed in en-US (`1,234.5`, `9/26/2026`, `=ROUND(A1,2)`) |
 | `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on: see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
 
 ## Column and row formats
@@ -79,7 +80,7 @@ formatting together; `A:XFD` is the whole sheet's format:
 
 In version 4 the sheets are a list, each with its name and the fields a
 version 3 file has at the top, and named ranges say their sheet. The
-workbook's settings (named ranges, decimal arithmetic, the sheet shown
+workbook's settings (named ranges, decimal arithmetic, the locale, the sheet shown
 when saved as `active`) stay at the top:
 
 ```json

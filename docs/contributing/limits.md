@@ -29,7 +29,7 @@ it lags, and past a second it stalls.
 | Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1.3 to 1.9 ms); 1000 SUMs over a full column: 0.53 ms; 8192 running totals: 2.7 ms | 60 criteria functions (SUMIF, COUNTIFS, AVERAGEIF) over whole columns of 8192 rows: 29 ms an edit | | About 3 ns per cell read: an index into the column's block |
 | Full recalc | Any sheet: numbers and text hold their values and cost nothing; 1000 full-column SUMs 0.5 ms; 8192 running totals 1.8 ms | 60 whole-column criteria functions over 8192 rows: 44 ms | | Same as above |
 | Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms; a color scale on every cell shown adds 0.4 ms at 200 x 60 | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
-| Selection statistics | Any selection: extending one over all 2 M cells costs 0.3 ms a key | | | Per column with data, 1024 or 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
+| Selection statistics | Any selection: extending one over all 2.1 M cells of 8192 x 256 costs 0.3 ms a key | | | Per column with data, 1024 or 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
 | Imports | CSV, SQLite, Parquet: 2 to 4 M cells/s (a million cells in 0.25 to 0.4 s); XLSX numbers or text: 0.8 to 1.4 M cells/s | XLSX with formulas: 0.4 to 0.6 M cells/s | Data past `max-cells` or the grid (dropped, with a note); XLSX files past the reader's limits (refused) | Building cells one at a time; XML decoding; XLSX formula translation |
 | Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 280 MB | | Whole-cell before-images, about 300 B per cell per step |
 | JEV | 4000 JEV cells: 4 us of CPU per answer, 15 ms to answer them all | | | An answer recalculates the cells that asked it; answers within a frame recalculate together |
@@ -67,17 +67,14 @@ Heap per non-blank cell after loading (`BenchmarkMemory`,
 `BenchmarkImport`): numbers 20.5 B, opened from a file too; formulas 750
 B (the parsed tree and reference lists); imported CSV, SQLite and
 Parquet 21 to 63 B; text about 60 B plus its length, once per distinct string
-(a column of 90 texts repeated takes 27 B a cell). The store
-(`internal/sheet/store.go`, `slot.go`) keeps each column in blocks of
-1024 rows, a 16-byte slot per cell with contents or formatting: a plain
-cell (a number, boolean or text as typed, with a format and style) holds
-its value there, its text in a table of strings kept once each, its
-format and style in a table of looks, and its input only when that
-isn't the value's own text ("1.50" is kept as 1.5 printed with two
-decimals). Formulas, notes, and the results pivots and spills write are
-whole `Cell`s (216 B) in a side table. Reading a cell's value is an
-index into its column's block: 2.8 ns (`BenchmarkRead`), 8.6 ns a cell
-read by a SUM in a full recalculation.
+(a column of 90 texts repeated takes 27 B a cell). A plain cell (a
+number, boolean or text as typed, with a format and style) is a 16-byte
+slot in its column's block of 1024 rows; formulas, notes, and the
+results pivots and spills write are whole `Cell`s, about 300 B each with
+their entry and input (the `Cell` itself is 216 B). How the store lays
+them out is in [Architecture](architecture.md#the-engine). Reading a
+cell's value is an index into its column's block: 2.8 ns
+(`BenchmarkRead`), 8.6 ns a cell read by a SUM in a full recalculation.
 
 ## The grid
 
@@ -499,32 +496,33 @@ computation.
 
 ## What would raise the bounds
 
-In order of value for effort. `max-cells` stands at ten million, as
-Google Sheets' limit does; the sheet itself would hold several times
+In order of value for effort; sizes and scheduling are in the
+[roadmap](../../ROADMAP.md#3-scale). `max-cells` stands at ten million,
+as Google Sheets' limit does; the sheet itself would hold several times
 that in a few GB, and these are what stand in the way.
 
-1. **Streaming, compact file format** (M, 1 week). The `.012` file is
-   JSON decoded whole: ten million cells take 8 s and 2.7 GB at the
-   peak to open, 5.7 GB allocated, for a sheet that then holds 205 MB.
-   A streaming decoder over the same format would roughly halve open
-   time and cut allocation tenfold; a columnar or gzip-compressed
-   variant would cut the size about fourfold. The format is
-   `internal/sheet/file.go`, apart from the cell store.
-2. **Smaller undo steps** (S to M). A step keeps a whole `Cell` for each
-   cell it changed, about 300 B where the store keeps a number in 20,
-   and formatting-only changes as whole cells too. Keeping plain cells'
-   before-images as slots, and formatting changes as diffs, would let a
-   step over a full sheet cost what the sheet does.
+1. **Streaming, compact file format.** The `.012` file is JSON decoded
+   whole: ten million cells take 8 s and 2.7 GB at the peak to open,
+   5.7 GB allocated, for a sheet that then holds 205 MB. A streaming
+   decoder over the same format would roughly halve open time and cut
+   allocation tenfold; a columnar or gzip-compressed variant would cut
+   the size about fourfold. The format is `internal/sheet/file.go`,
+   apart from the cell store.
+2. **Smaller undo steps.** A step keeps a whole `Cell` for each cell it
+   changed, formatting-only changes included (see [Undo](#undo)).
+   Keeping plain cells' before-images as slots, and formatting changes
+   as diffs, would let a step over a full sheet cost what the sheet
+   does.
 3. **Compact spilled and pivot cells.** What arrays and pivots write is
-   kept as whole `Cell`s (about 300 B each, 516 k of them in the arrays
-   stress shape); their values and inferred formats would fit in slots.
+   kept as whole `Cell`s (516 k of them in the arrays stress shape);
+   their values and inferred formats would fit in slots.
 
 ## Measuring
 
 ```sh
 make stress           # fetch datasets, run everything, record the run (5 minutes)
 BENCH='Edit|Frame' make stress   # a subset; BENCHTIME=2s for steadier numbers
-make stress-report    # latest against previous and baseline, with trends
+make stress-report    # latest against previous, baseline and last release, with trends
 make stress-e2e       # key press to screen through libghostty
 ```
 

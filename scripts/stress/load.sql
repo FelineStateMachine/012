@@ -30,7 +30,17 @@ CREATE OR REPLACE TEMP MACRO fmt_ns(ns) AS
 CREATE OR REPLACE TEMP TABLE runs AS
 SELECT run_id, min(ts) AS ts, any_value(git_sha) AS git_sha, bool_or(git_dirty) AS dirty,
        any_value(cpu) AS cpu, any_value(goos) AS goos, any_value(go_version) AS go_version,
-       count(*) AS benchmarks,
+       count(DISTINCT (pkg, name)) AS benchmarks,
        row_number() OVER (ORDER BY min(ts) DESC) AS age
 FROM results
 GROUP BY run_id;
+
+-- One row per benchmark per run: the median of its samples (a run made
+-- with COUNT=n has n) and their spread, (max - min) / median.
+CREATE OR REPLACE TEMP TABLE bench AS
+SELECT run_id, pkg, name, count(*) AS samples,
+       median(ns_op) AS ns_op, min(ns_op) AS min_ns, max(ns_op) AS max_ns,
+       CASE WHEN median(ns_op) > 0 THEN (max(ns_op) - min(ns_op)) / median(ns_op) ELSE 0 END AS spread,
+       median(allocs_op) AS allocs_op
+FROM results
+GROUP BY run_id, pkg, name;

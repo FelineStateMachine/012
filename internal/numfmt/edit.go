@@ -1,6 +1,11 @@
 package numfmt
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+
+	"github.com/FelineStateMachine/012/internal/locale"
+)
 
 // AdjustDecimals adds (delta > 0) or removes zeros after the decimal
 // point of every section of a number pattern, as Sheets' Increase and
@@ -63,25 +68,41 @@ func adjustSection(sec string, delta int) string {
 // for a closing parenthesis, negatives in parentheses and zero as a dash.
 // It reports false when the number doesn't fit.
 func Accounting(v float64, dec, width int) (string, bool) {
+	return AccountingIn(v, dec, width, locale.Canonical)
+}
+
+// AccountingIn is Accounting as shown in loc: its separators, and its
+// currency symbol at the left of the cell, or after the number where loc
+// writes the symbol after it ("1.234,56 € ").
+func AccountingIn(v float64, dec, width int, loc *locale.Locale) (string, bool) {
 	whole, frac := Fixed(v, dec, HalfUp)
 	var num string
 	switch {
 	case strings.Trim(whole+frac, "0") == "":
 		num = "-" + strings.Repeat(" ", dec) + " "
 	case v < 0:
-		num = "(" + Format(-v, "#,##0"+decimals(dec)) + ")"
+		num = "(" + FormatIn(-v, "#,##0"+decimals(dec), loc) + ")"
 	default:
-		num = Format(v, "#,##0"+decimals(dec)) + " "
+		num = FormatIn(v, "#,##0"+decimals(dec), loc) + " "
 	}
-	gap := width - 1 - len(num)
+	sym := loc.Currency
+	if loc.After {
+		body := strings.TrimSuffix(num, " ") + " " + sym + " "
+		gap := width - utf8.RuneCountInString(body)
+		if gap < 0 {
+			return "", false
+		}
+		return strings.Repeat(" ", gap) + body, true
+	}
+	gap := width - utf8.RuneCountInString(sym) - utf8.RuneCountInString(num)
 	switch {
 	case gap < 0:
 		return "", false
 	case gap >= 1:
-		// Leave a column of padding before the $, like other cells.
-		return " $" + strings.Repeat(" ", gap-1) + num, true
+		// Leave a column of padding before the symbol, like other cells.
+		return " " + sym + strings.Repeat(" ", gap-1) + num, true
 	}
-	return "$" + strings.Repeat(" ", gap) + num, true
+	return sym + strings.Repeat(" ", gap) + num, true
 }
 
 func decimals(n int) string {

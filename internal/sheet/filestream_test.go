@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // readWhole reads a file the way encoding/json reads it whole, into
@@ -55,6 +57,9 @@ func readWhole(data []byte) (w *Workbook, ambiguous bool, err error) {
 	w.active = clampInt(f.Active, 0, len(w.sheets)-1)
 	w.settleHidden()
 	w.decimal = f.Arithmetic == "decimal"
+	if l, ok := locale.Lookup(f.Locale); ok {
+		w.locale = l
+	}
 	if err := w.readMacros(f.Macros); err != nil {
 		return nil, false, err
 	}

@@ -49,10 +49,10 @@ type Workbook struct {
 	evaluating loc
 	// depth counts the cells and operators being evaluated, nested; see
 	// evaluate.go.
-	depth   int
-	hist    history // undo and redo, see history.go
-	active  int     // the sheet last shown, saved in the file
-	decimal bool    // decimal arithmetic, see decimal.go
+	depth  int
+	hist   history // undo and redo, see history.go
+	active int     // the sheet last shown, saved in the file
+	settings
 
 	macros      []Macro // see macros.go
 	macroOrigin string

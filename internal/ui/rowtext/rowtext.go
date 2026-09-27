@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -41,7 +42,7 @@ type Span struct {
 // It can come from cells outside the viewport, so the scan starts at the
 // nearest filled cell on each side.
 func Layout(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int) []Span {
-	l := rowLayout{s: s, row: row, lo: lo, hi: lo + ncols - 1, out: make([]Span, ncols)}
+	l := rowLayout{s: s, loc: s.Locale(), row: row, lo: lo, hi: lo + ncols - 1, out: make([]Span, ncols)}
 	for i := range l.out {
 		l.out[i] = Span{Trail: s.ColWidth(lo + i)}
 	}
@@ -63,6 +64,7 @@ func Layout(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int) []Span {
 // rowLayout is Layout's work in progress on one row.
 type rowLayout struct {
 	s           *sheet.Sheet
+	loc         *locale.Locale // what numbers are shown in
 	row         int
 	lo, hi      int // the columns laid out
 	first, last int // the columns whose text may reach them
@@ -141,13 +143,13 @@ func (l *rowLayout) place(c int, v sheet.Value) {
 // the text, its alignment and the padding on its aligned side.
 func (l *rowLayout) display(c int, v sheet.Value, w int) (string, sheet.Align, int) {
 	f := l.s.DisplayFormat(sheet.Addr{Col: c, Row: l.row})
-	text, align := sheet.Display(v, f, w)
+	text, align := sheet.DisplayIn(v, f, w, l.loc)
 	pad := 1
 	// A number one character too wide (12/31/2026 in a default column)
 	// may use the padding when nothing is to its right, rather than
 	// turning into #s.
 	if v.Kind == sheet.Number && strings.Trim(text, "#") == "" && !l.filled(c+1) {
-		if wider, _ := sheet.Display(v, f, w+1); strings.Trim(wider, "#") != "" {
+		if wider, _ := sheet.DisplayIn(v, f, w+1, l.loc); strings.Trim(wider, "#") != "" {
 			text, pad = wider, 0
 		}
 	}

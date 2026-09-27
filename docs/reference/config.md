@@ -33,7 +33,8 @@ config-file = ?local.conf
   line (and in `012 config`).
 
 Settings are process-wide. Settings that belong to a workbook, such as
-decimal arithmetic, are saved in the workbook's `.012` file instead.
+decimal arithmetic and its locale, are saved in the workbook's `.012` file
+instead; `locale` here is the default for workbooks without one.
 
 **Precedence:** command-line flags win over environment variables, which
 win over the config file, which wins over the defaults. `012 config` shows
@@ -71,6 +72,7 @@ start.
 | [`chart-images`](#chart-images) | `true` | `O12_CHART_IMAGES` |
 | [`notifications`](#notifications) | `true` | `O12_NOTIFICATIONS` |
 | [`keymap`](#keymap) | `default` | `O12_KEYMAP` |
+| [`locale`](#locale) | `en-US` | `O12_LOCALE` |
 | [`max-cells`](#max-cells) | `10000000` | `O12_MAX_CELLS` |
 | [`jev-api-key-command`](#jev-api-key-command) |  |  |
 | [`jev-credential-store`](#jev-credential-store) | `true` | `O12_JEV_CREDENTIAL_STORE` |
@@ -90,7 +92,7 @@ start.
 
 #### `theme`
 
-Colors. `terminal` uses the terminal's own 16-color palette. Any other name is a terminal color scheme, built in (`012 config themes` lists them) or a file in the themes directory, drawn in its own colors with solid menu and status bars. `light:NAME,dark:NAME` picks one by the terminal's background and follows it when it changes.
+Colors. `terminal` uses the terminal's own 16-color palette. `high-contrast` draws white on black or black on white by the terminal's background, with WCAG AAA contrast. Any other name is a terminal color scheme, built in (`012 config themes` lists them) or a file in the themes directory, drawn in its own colors with solid menu and status bars. `light:NAME,dark:NAME` picks one by the terminal's background and follows it when it changes.
 
 | | |
 |---|---|
@@ -134,6 +136,18 @@ Keys in the grid. `default` works like Google Sheets; `vim` adds hjkl, counts, o
 | Applies | File > Settings > Reload config |
 
 ### Data
+
+#### `locale`
+
+How new sheets and files without a locale of their own are typed and shown: decimal and thousands separators, date order, the currency symbol and the formula argument separator (`;` where the decimal separator is a comma), as in Sheets' File > Settings > Locale, which sets a file's own. Files store the same thing in every locale. When unset, the POSIX locale (`LC_ALL`, `LC_NUMERIC`, then `LANG`, e.g. `de_DE.UTF-8`) picks it if it's one of these.
+
+| | |
+|---|---|
+| Type | one of `en-US`, `en-GB`, `en-CA`, `en-AU`, `de-DE`, `de-CH`, `fr-FR`, `fr-CA`, `es-ES`, `es-MX`, `it-IT`, `pt-BR`, `pt-PT`, `nl-NL`, `sv-SE`, `da-DK`, `nb-NO`, `fi-FI`, `pl-PL`, `cs-CZ`, `ru-RU`, `tr-TR`, `ja-JP`, `zh-CN` |
+| Default | `en-US` |
+| Environment | `O12_LOCALE` |
+| When unset | `LC_ALL`, `LC_NUMERIC`, `LANG` |
+| Applies | File > Settings > Reload config |
 
 #### `max-cells`
 

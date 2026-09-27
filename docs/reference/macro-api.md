@@ -62,8 +62,8 @@ is already in the formulas that use it.
 | `move(cols=0, rows=0)` | Move the active cell, dropping the selection |
 | `extend(cols=0, rows=0, whole=None)` | Select from the active cell to `cols`, `rows` away; `whole="columns"` or `"rows"` selects whole ones |
 | `jump(to, extend=False)` | Move as keys do: `"up"`, `"down"`, `"left"`, `"right"` (Ctrl+arrows, to the edge of the data), `"home"` (column A), `"start"` (A1), `"end"` (the last used cell) |
-| `enter(text, fill=False, origin=None)` | Type into the active cell and accept, as Enter does without moving; `fill=True` fills every selected cell (Ctrl+Enter). With `origin`, a formula is taken as typed at that cell and its relative references move with the distance to the active cell |
-| `paste_text(text)` | Paste tab-separated text from the active cell, as pasting from another program |
+| `enter(text, fill=False, origin=None)` | Type into the active cell and accept, as Enter does without moving; `fill=True` fills every selected cell (Ctrl+Enter). With `origin`, a formula is taken as typed at that cell and its relative references move with the distance to the active cell. `text` is in en-US's form (`1.5`, `9/26/2026`, `=ROUND(A1, 2)`) whatever the file's [locale](../sheets/locale.md), as a recording writes it, so a macro does the same everywhere |
+| `paste_text(text)` | Paste tab-separated text from the active cell, as pasting from another program: read in the file's [locale](../sheets/locale.md) |
 | `fill(to=None, rows=0, cols=0)` | Drag the fill handle: continue the selection's series or copy it over `to`, or `rows` down (up if negative), or `cols` right (left if negative) |
 
 ## Sheets

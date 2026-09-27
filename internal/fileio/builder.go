@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 )
@@ -17,7 +18,8 @@ import (
 // back to a formula's cached value when the formula can't be translated,
 // and counts what didn't fit so the notes can say.
 type builder struct {
-	s *sheet.Sheet
+	s   *sheet.Sheet
+	loc *locale.Locale // what entries are typed in (nil for en-US)
 
 	rowsOut, colsOut int // how far past the sheet's edges the data went
 	values           int // formulas kept as their values
@@ -129,16 +131,19 @@ func textInput(s string) string {
 	return s
 }
 
-// entryInput is s as if typed into Sheets, for text formats: numbers,
-// dates, currency and percentages become values with formats. Formulas
-// stay text: a data file shouldn't run formulas (or ask JEV questions)
-// just by being opened.
-func entryInput(s string) string {
+// entryInput is s as if typed into Sheets in loc, for text formats:
+// numbers, dates, currency and percentages become values with formats.
+// Formulas stay text: a data file shouldn't run formulas (or ask JEV
+// questions) just by being opened.
+func entryInput(s string, loc *locale.Locale) string {
 	s = flatten(s)
 	if strings.HasPrefix(s, "'") || sheet.IsFormulaEntry(s) {
 		return "'" + s
 	}
-	return s
+	if in := sheet.CanonicalEntry(s, loc); !sheet.IsFormulaEntry(in) {
+		return in
+	}
+	return "'" + s // a formula in loc's syntax
 }
 
 // numInput writes v so it parses back to the same number.
@@ -164,9 +169,9 @@ func (b *builder) text(a sheet.Addr, s string, f sheet.Format, st sheet.Style) {
 	b.put(a, textInput(s), f, st)
 }
 
-// entry stores s as if typed (see entryInput).
+// entry stores s as if typed in the builder's locale (see entryInput).
 func (b *builder) entry(a sheet.Addr, s string) {
-	b.put(a, entryInput(s), sheet.Format{}, sheet.Style{})
+	b.put(a, entryInput(s, b.loc), sheet.Format{}, sheet.Style{})
 }
 
 // number stores v with format f. Plain text formats keep the digits.

@@ -141,7 +141,7 @@ func (m *Model) openValuesPicker(title string, x int, values []sheet.FilterValue
 	for _, v := range p.values {
 		p.checked[v.Text] = v.Shown
 	}
-	p.fields[1] = p.cond.Arg
+	p.fields[1] = sheet.LocalArg(p.cond.Arg, m.locale())
 	m.openOverlay(p)
 	m.line.Clear()
 	p.search()
@@ -239,7 +239,7 @@ func (p *filterPicker) apply(m *Model) {
 			cr.Hidden = append(cr.Hidden, v.Text)
 		}
 	}
-	cr.Cond = sheet.Condition{Op: p.cond.Op, Arg: strings.TrimSpace(p.fields[1])}
+	cr.Cond = sheet.Condition{Op: p.cond.Op, Arg: sheet.CanonicalArg(strings.TrimSpace(p.fields[1]), m.locale())}
 	if !cr.Cond.Op.TakesArg() {
 		cr.Cond.Arg = ""
 	} else if cr.Cond.Arg == "" {

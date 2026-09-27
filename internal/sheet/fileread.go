@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // The reader streams the file (see scanner): cells go straight into
@@ -98,6 +100,10 @@ func readBook(r io.Reader, trace any) (*Workbook, error) {
 	// Anything but "decimal" (say, a mode from a later build) computes in
 	// binary, as the file would in a build without the setting.
 	w.decimal = f.Arithmetic == "decimal"
+	// A locale this build doesn't know follows the default.
+	if l, ok := locale.Lookup(f.Locale); ok {
+		w.locale = l
+	}
 	if err := w.readMacros(f.Macros); err != nil {
 		return nil, err
 	}

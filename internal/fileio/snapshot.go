@@ -4,6 +4,7 @@ import (
 	"iter"
 	"strconv"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -17,6 +18,8 @@ type Snapshot struct {
 	Cells  map[sheet.Addr]SnapCell
 	Widths map[int]int // non-default column widths
 	Name   string      // what to call the data: a sheet or table name
+	// Locale is the sheet's, which text formats (CSV) are written in.
+	Locale *locale.Locale
 
 	// ColFormats and RowFormats are the formats of whole columns and
 	// rows, for formats that keep them (XLSX).
@@ -87,7 +90,7 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 	} else {
 		r.To = r.From
 	}
-	snap := &Snapshot{Range: r, Cells: map[sheet.Addr]SnapCell{}, Widths: s.Widths(), Name: name,
+	snap := &Snapshot{Range: r, Cells: map[sheet.Addr]SnapCell{}, Widths: s.Widths(), Name: name, Locale: s.Locale(),
 		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true), Filter: s.Filter(),
 		CondFormats: s.CondFormats(), Validations: s.Validations()}
 	snap.FrozenRows, snap.FrozenCols = s.Frozen()
@@ -166,7 +169,8 @@ func excelRange(ws string, r sheet.Rect) string {
 }
 
 // textRows yields the snapshot's displayed text row by row across its
-// range, for text formats. The slice is reused from row to row.
+// range as shown in its locale, for text formats. The slice is reused
+// from row to row.
 func (s *Snapshot) textRows() iter.Seq[[]string] {
 	return func(yield func([]string) bool) {
 		r := s.Range
@@ -175,7 +179,7 @@ func (s *Snapshot) textRows() iter.Seq[[]string] {
 			for col := r.From.Col; col <= r.To.Col; col++ {
 				line[col-r.From.Col] = ""
 				if c, ok := s.Cells[sheet.Addr{Col: col, Row: row}]; ok {
-					line[col-r.From.Col] = c.Text()
+					line[col-r.From.Col] = sheet.FormatTextIn(c.Value, c.Format, s.Locale.Or())
 				}
 			}
 			if !yield(line) {

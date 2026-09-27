@@ -12,6 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/numfmt"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
@@ -188,10 +189,10 @@ func (m *Model) formulaBar() string {
 	if anchor, ok := m.sheet.SpillAnchor(m.cur); ok && m.sheet.HasSpills() {
 		// A spilled cell shows the formula it spills from, dimmed, as
 		// Sheets does.
-		return box + m.th.Muted.Render(m.sheet.Cell(anchor).Input)
+		return box + m.th.Muted.Render(m.shownEntry(m.sheet.Cell(anchor).Input))
 	}
 	if c := m.sheet.Cell(m.cur); c != nil {
-		return box + c.Input
+		return box + m.shownEntry(c.Input)
 	}
 	return box
 }
@@ -244,11 +245,11 @@ func (m *Model) contextLineText() string {
 	case m.mode == modePoint:
 		prefix := []rune(m.entry.prefix)
 		var ok bool
-		if left, right, ok = signatureLine(&m.th, m.width, prefix, len(prefix), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
+		if left, right, ok = signatureLine(&m.th, m.width, m.storedFormula(prefix), len(prefix), m.locale().ArgSep(), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
 			left = m.th.KeyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
 		}
-	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.IsFormula() && inFunction(&m.line):
-		left, right, _ = signatureLine(&m.th, m.width, m.line.Buf, m.line.Pos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
+	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.IsFormula() && m.inFunction():
+		left, right, _ = signatureLine(&m.th, m.width, m.storedFormula(m.line.Buf), m.line.Pos, m.locale().ArgSep(), m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
 	case m.mode == modeEnter && m.line.IsFormula():
 		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
 	case m.mode == modeEnter:
@@ -401,8 +402,8 @@ func (m *Model) statusRights() []string {
 		rng := m.th.Key.Render(r.String())
 		sum, avg := "", ""
 		if st.Nums > 0 {
-			sum = m.th.Muted.Render("Sum ") + fmtStat(st.Sum)
-			avg = m.th.Muted.Render("Avg ") + fmtStat(st.Sum/float64(st.Nums))
+			sum = m.th.Muted.Render("Sum ") + m.fmtStat(st.Sum)
+			avg = m.th.Muted.Render("Avg ") + m.fmtStat(st.Sum/float64(st.Nums))
 		}
 		count := m.th.Muted.Render("Count ") + strconv.Itoa(st.Count)
 		// As many stats as fit: Avg goes first, then Sum, then Count.
@@ -423,6 +424,6 @@ func (m *Model) statusRights() []string {
 
 // fmtStat formats a status line statistic with at most two decimals, as
 // Sheets does.
-func fmtStat(v float64) string {
-	return strconv.FormatFloat(math.Round(v*100)/100, 'f', -1, 64)
+func (m *Model) fmtStat(v float64) string {
+	return numfmt.Localize(strconv.FormatFloat(math.Round(v*100)/100, 'f', -1, 64), m.locale())
 }

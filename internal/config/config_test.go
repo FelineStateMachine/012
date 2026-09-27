@@ -331,3 +331,30 @@ func TestConfigDoc(t *testing.T) {
 		t.Errorf("%s is stale: run go test ./internal/config -update-docs", path)
 	}
 }
+
+// TestLocaleFallsBackOnPOSIX reads the locale from LC_ALL, LC_NUMERIC or
+// LANG only when nothing else sets it, and passes over POSIX locales it
+// doesn't have without a warning.
+func TestLocaleFallsBackOnPOSIX(t *testing.T) {
+	dir := t.TempDir()
+	set := write(t, filepath.Join(dir, "set"), "locale = fr-FR\n")
+	unset := filepath.Join(dir, "none")
+	cases := []struct {
+		path string
+		env  map[string]string
+		want string
+	}{
+		{unset, map[string]string{"LANG": "de_DE.UTF-8"}, "de-DE"},
+		{unset, map[string]string{"LANG": "de_DE.UTF-8", "LC_ALL": "pt_BR.UTF-8"}, "pt-BR"},
+		{unset, map[string]string{"LANG": "C.UTF-8"}, "en-US"},
+		{unset, map[string]string{"LANG": "xx_YY.UTF-8", "LC_NUMERIC": "sv_SE"}, "sv-SE"},
+		{set, map[string]string{"LANG": "de_DE.UTF-8"}, "fr-FR"},
+		{unset, map[string]string{"LANG": "de_DE.UTF-8", "O12_LOCALE": "ja-JP"}, "ja-JP"},
+	}
+	for _, c := range cases {
+		cfg := Load(c.path, func(k string) string { return c.env[k] }, nil)
+		if got := cfg.String("locale"); got != c.want || len(cfg.Warnings) > 0 {
+			t.Errorf("%v: locale %q, want %q; warnings %s", c.env, got, c.want, warnings(cfg))
+		}
+	}
+}

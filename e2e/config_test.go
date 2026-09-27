@@ -20,7 +20,7 @@ func TestConfigWarnings(t *testing.T) {
 
 // openTheme opens File > Settings > Theme.
 func openTheme(s *session) {
-	s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>")
+	s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>", "<down>")
 	s.waitFor("Pick a color theme")
 	s.keys("<enter>")
 	s.waitFor("─ Theme ─")
@@ -94,7 +94,7 @@ func TestAPIKeyPrompt(t *testing.T) {
 	cfg := t.TempDir()
 	s := startWith(t, options{configDir: cfg, env: []string{"TYPESAFE_BASE_URL=" + srv.URL}})
 	s.keys(`=JEV.TEST("The box was crushed", "Is this a complaint?")`, "<enter>")
-	s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>", "<down>")
+	s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>", "<down>", "<down>")
 	s.waitFor("Store the TypeSafe API key")
 	s.keys("<enter>", "test-key")
 	s.waitFor("TypeSafe API key: ••••••••")

@@ -6,7 +6,8 @@
 // from it.
 //
 // Settings are process-wide. Settings that belong to a workbook (decimal
-// arithmetic) stay in the workbook's file. Secrets never go here: the JEV
+// arithmetic, its locale) stay in the workbook's file; the locale option is
+// only the default. Secrets never go here: the JEV
 // API key lives in the OS credential store (see internal/keyring).
 package config
 
@@ -18,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // Kind is an option's type.
@@ -47,10 +50,16 @@ type Option struct {
 	Default string   // as it would be written in the file
 	Values  []string // for Enum
 	Env     []string // environment variables that set it, first set wins
-	Flag    string   // command-line flag, e.g. "--log"
-	Repeat  bool     // may be given more than once; each adds a value
-	Live    bool     // Reload config applies it without restarting
-	Desc    string   // what it does, one or more sentences
+	// Fallback are environment variables read, first set wins, when
+	// nothing else sets the option, through Adopt, which turns their
+	// value into one of the option's or "" to pass over it quietly (LANG
+	// may name a locale 012 lacks).
+	Fallback []string
+	Adopt    func(string) string
+	Flag     string // command-line flag, e.g. "--log"
+	Repeat   bool   // may be given more than once; each adds a value
+	Live     bool   // Reload config applies it without restarting
+	Desc     string // what it does, one or more sentences
 	// Check validates a value beyond its kind. Invalid values are
 	// reported as warnings and the option keeps its previous value.
 	Check func(string) error
@@ -77,7 +86,8 @@ var Groups = []string{GroupAppearance, GroupData, GroupJEV, GroupTelemetry, Grou
 // (go test ./internal/config -update-docs) and Settings follow.
 var Options = []Option{
 	{Name: "theme", Group: GroupAppearance, Default: "terminal", Env: []string{"O12_THEME"}, Flag: "--theme", Live: true,
-		Desc: "Colors. `terminal` uses the terminal's own 16-color palette. Any other name is a " +
+		Desc: "Colors. `terminal` uses the terminal's own 16-color palette. `high-contrast` draws white on " +
+			"black or black on white by the terminal's background, with WCAG AAA contrast. Any other name is a " +
 			"terminal color scheme, built in (`012 config themes` lists them) or a file in the themes " +
 			"directory, drawn in its own colors with solid menu and status bars. " +
 			"`light:NAME,dark:NAME` picks one by the terminal's background and follows it when it changes.",
@@ -91,6 +101,14 @@ var Options = []Option{
 	{Name: "keymap", Kind: Enum, Group: GroupAppearance, Default: "default", Values: []string{"default", "vim"}, Env: []string{"O12_KEYMAP"}, Live: true,
 		Desc: "Keys in the grid. `default` works like Google Sheets; `vim` adds hjkl, counts, operators, " +
 			"visual selection and a : command line (File > Settings > Vim keys)."},
+
+	{Name: "locale", Kind: Enum, Group: GroupData, Default: "en-US", Values: locale.Tags(), Env: []string{"O12_LOCALE"},
+		Fallback: []string{"LC_ALL", "LC_NUMERIC", "LANG"}, Adopt: locale.FromPOSIX, Live: true,
+		Desc: "How new sheets and files without a locale of their own are typed and shown: decimal and " +
+			"thousands separators, date order, the currency symbol and the formula argument separator " +
+			"(`;` where the decimal separator is a comma), as in Sheets' File > Settings > Locale, " +
+			"which sets a file's own. Files store the same thing in every locale. " +
+			"When unset, the POSIX locale (`LC_ALL`, `LC_NUMERIC`, then `LANG`, e.g. `de_DE.UTF-8`) picks it if it's one of these."},
 
 	{Name: "max-cells", Kind: Int, Group: GroupData, Default: "10000000", Env: []string{"O12_MAX_CELLS"}, Live: true,
 		Desc: "The most cells an import keeps, and a paste or fill writes at once. Numbers and text " +

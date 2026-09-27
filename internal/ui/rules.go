@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"image/color"
 
 	tea "charm.land/bubbletea/v2"
@@ -256,6 +257,53 @@ func (m *Model) checkEntry(input string) (warn string, ok bool) {
 		return "", false
 	}
 	return bad.Error(), true
+}
+
+// checkWritten checks what a paste or fill (what) wrote into r against
+// the cells' validation, as Sheets does: when a rule that rejects fails,
+// the whole change is taken back and ERROR mode says why; when only
+// rules that warn fail, it stays, the cells are marked, and the context
+// line says how many. It reports whether the change stayed.
+func (m *Model) checkWritten(r sheet.Rect, what string) bool {
+	if !m.sheet.HasRules() {
+		return true
+	}
+	bad := m.sheet.InvalidIn(r)
+	for _, b := range bad {
+		if b.Reject {
+			m.sheet.Discard()
+			m.fail(what + " undone: " + b.Error())
+			return false
+		}
+	}
+	if len(bad) > 0 {
+		m.warn = invalidNote(bad)
+	}
+	return true
+}
+
+// checkEntryFill handles the cells an entry filled (Ctrl+Enter) that fail
+// their validation: a rule that rejects takes the fill back and keeps
+// the entry open with the rule's help, as for one cell; rules that warn
+// let it in, saying so. It reports whether the entry stays open.
+func (m *Model) checkEntryFill(bad []*sheet.InvalidEntry, input string) bool {
+	for _, b := range bad {
+		if b.Reject {
+			m.entrySheet().Discard()
+			m.entryError(b, input)
+			return true
+		}
+	}
+	if len(bad) > 0 {
+		m.warn = invalidNote(bad)
+	}
+	return false
+}
+
+// invalidNote says how many cells a paste or fill left invalid, and why
+// the first is.
+func invalidNote(bad []*sheet.InvalidEntry) string {
+	return fmt.Sprintf("%s invalid, first %s: %s", cellCount(len(bad)), bad[0].Addr, bad[0].Help)
 }
 
 // The rules panel's host.
