@@ -77,6 +77,40 @@ func (rd *reader) RangeAgg(sheet string, r Rect) (functions.Agg, *Value, bool) {
 	return run.through(r.To.Row)
 }
 
+// Fold adds the cells of r to s as SUM-like functions read a range; see
+// functions.Book. The engine walks the cells and adds each as it reads
+// it, so a range costs no more than a call to Agg.Add per cell.
+func (rd *reader) Fold(sheet string, r Rect, s functions.Agg) (functions.Agg, *Value) {
+	t := rd.sheet(sheet)
+	if t == nil {
+		return s, s.Add(ErrRef, false)
+	}
+	var e *Value
+	add := func(a Addr) bool {
+		e = s.Add(rd.read(t, a), false)
+		return e == nil
+	}
+	switch {
+	case denseReads:
+		for a := r.From; a.Row <= r.To.Row && add(a); {
+			if a.Col++; a.Col > r.To.Col {
+				a = Addr{Col: r.From.Col, Row: a.Row + 1}
+			}
+		}
+	case r.From.Col == r.To.Col:
+		t.cells.colScan(r.From.Col, r.From.Row, r.To.Row, func(row int) bool {
+			return add(Addr{Col: r.From.Col, Row: row})
+		})
+	default:
+		for a := range t.cells.inRange(r) {
+			if !add(a) {
+				break
+			}
+		}
+	}
+	return s, e
+}
+
 // extend reads the run's columns from its next row through to.
 func (run *runAgg) extend(rd *reader, t *Sheet, key aggKey, to int) {
 	run.busy = true

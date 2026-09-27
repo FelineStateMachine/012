@@ -57,9 +57,10 @@ func (b *fakeBook) Scan(sheet string, r Rect, from Addr, addrs []Addr, vals []Va
 	return n
 }
 
-func (b *fakeBook) Bounds(string, Rect) (Rect, bool, bool)    { return Rect{}, false, true }
-func (b *fakeBook) RangeAgg(string, Rect) (Agg, *Value, bool) { return Agg{}, nil, false }
-func (b *fakeBook) Ask(RemoteCall) (RemoteAnswer, Value)      { return RemoteAnswer{}, ErrNoRemote }
+func (b *fakeBook) Bounds(string, Rect) (Rect, bool, bool)     { return Rect{}, false, true }
+func (b *fakeBook) RangeAgg(string, Rect) (Agg, *Value, bool)  { return Agg{}, nil, false }
+func (b *fakeBook) Fold(_ string, _ Rect, s Agg) (Agg, *Value) { return s, nil }
+func (b *fakeBook) Ask(RemoteCall) (RemoteAnswer, Value)       { return RemoteAnswer{}, ErrNoRemote }
 func newFakeReader(cells map[Addr]Value) (*Reader, *fakeBook) {
 	b := &fakeBook{cells: cells}
 	depth := 0

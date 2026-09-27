@@ -31,6 +31,11 @@ type Book interface {
 	// a recalculation (see Agg), with the first error in it, or false
 	// when r should be read directly.
 	RangeAgg(sheet string, r Rect) (Agg, *Value, bool)
+	// Fold adds the cells of r that hold something to s, row by row, as
+	// SUM-like functions read a range (Agg.Add), evaluating them as Cell
+	// does and stopping at the first error, which it returns. On a sheet
+	// that doesn't exist the range is one #REF!.
+	Fold(sheet string, r Rect, s Agg) (Agg, *Value)
 	// Ask looks up the answer to a remote question (JEV functions). The
 	// value is an error when there is none to give: Pending while it is
 	// on its way, ErrNoRemote when nothing answers them.
@@ -138,28 +143,66 @@ func (rd *Reader) cells(sheet string, r Rect, fn func(Addr, Value) bool) {
 
 // stored calls fn with every cell of r that holds something, row by row,
 // until fn returns false, without evaluating any. A sheet that doesn't
-// exist holds none. Lookups stop at the first match, so each call starts
-// with a small chunk, however long earlier ranges were, and doubles it
-// as the range goes on: finding a key near the top of a whole column
-// costs the cells before it.
+// exist holds none.
 func (rd *Reader) stored(sheet string, r Rect, fn func(Addr) bool) {
-	b := rd.take()
-	defer rd.give()
-	size := firstChunk
-	for from := r.From; from.Row <= r.To.Row; {
-		n := rd.book.Scan(sheet, r, from, b.addrs[:size], nil)
-		for i := range n {
-			if !fn(b.addrs[i]) {
-				return
-			}
-		}
-		if n < size {
-			return
-		}
-		from = next(r, b.addrs[n-1])
-		if size < maxChunk {
-			size *= 2
-			b.fit(size)
-		}
+	c := rd.walk(sheet, r)
+	defer c.close()
+	for a, ok := c.next(); ok && fn(a); a, ok = c.next() {
 	}
 }
+
+// cursor walks the cells of a range that hold something, row by row,
+// without evaluating any: stored as a loop, for searches that stop part
+// way and read values as they go. Searches stop at their match, so a
+// walk starts with a small chunk, however long earlier ranges were, and
+// doubles it as the range goes on: finding a key near the top of a
+// whole column costs the cells before it. A cursor holds a buffer until
+// it is closed.
+type cursor struct {
+	rd    *Reader
+	b     *scanBuf
+	sheet string
+	r     Rect
+	from  Addr // where the next chunk starts
+	size  int  // how many cells it asks for
+	n, i  int  // the cells in the buffer, and the next of them
+}
+
+// walk starts a cursor over the stored cells of r.
+func (rd *Reader) walk(sheet string, r Rect) cursor {
+	return cursor{rd: rd, b: rd.take(), sheet: sheet, r: r, from: r.From, size: firstChunk}
+}
+
+// next returns the next cell, or false when there are no more.
+func (c *cursor) next() (Addr, bool) {
+	if c.i < c.n {
+		c.i++
+		return c.b.addrs[c.i-1], true
+	}
+	return c.fill()
+}
+
+// fill reads the next chunk and returns its first cell.
+func (c *cursor) fill() (Addr, bool) {
+	if c.from.Row > c.r.To.Row {
+		return Addr{}, false
+	}
+	c.n, c.i = c.rd.book.Scan(c.sheet, c.r, c.from, c.b.addrs[:c.size], nil), 1
+	if c.n <= 0 {
+		c.from.Row = c.r.To.Row + 1
+		return Addr{}, false
+	}
+	if c.n < c.size {
+		c.from.Row = c.r.To.Row + 1 // that was the last
+	} else {
+		c.from = next(c.r, c.b.addrs[c.n-1])
+		if c.size < maxChunk {
+			c.size *= 2
+			c.b.fit(c.size)
+		}
+	}
+	return c.b.addrs[0], true
+}
+
+// close gives the cursor's buffer back.
+func (c *cursor) close() { c.rd.give() }

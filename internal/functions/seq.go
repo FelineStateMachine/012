@@ -30,7 +30,7 @@ func lineSeq(m matrix, get lookup, vertical bool) seq {
 	}
 	return seq{
 		n: line.size(), data: min(line.dataLen(), line.size()), line: line, blank: line.blank,
-		sparse: !line.ref || !get.dense,
+		sparse: line.ref && !get.dense, // a single value is one entry, searched as data
 		get:    get, vertical: vertical,
 		r: Rect{From: line.origin, To: Addr{Col: line.origin.Col + line.cols - 1, Row: line.origin.Row + line.rows - 1}},
 	}
@@ -39,14 +39,8 @@ func lineSeq(m matrix, get lookup, vertical bool) seq {
 // at is entry i's value.
 func (q *seq) at(i int) Value { return q.line.at(i) }
 
-// value is the value of entry i, whose cell is at a when the line is a
-// range.
-func (q *seq) value(i int, a Addr) Value {
-	if !q.line.ref {
-		return q.at(i)
-	}
-	return q.get.cell(q.line.sheet, a)
-}
+// value is the value of the entry whose cell is at a.
+func (q *seq) value(a Addr) Value { return q.get.cell(q.line.sheet, a) }
 
 // index is the entry of the line's cell at a.
 func (q *seq) index(a Addr) int {
@@ -56,22 +50,13 @@ func (q *seq) index(a Addr) int {
 	return a.Col - q.r.From.Col
 }
 
-// entries calls fn with the entries holding cells, in order, and where
-// their cells are, until fn returns false. It evaluates nothing: a search
-// reads the value of each entry it reaches (q.value), and no more.
-func (q *seq) entries(fn func(i int, a Addr) bool) {
-	if !q.line.ref {
-		fn(0, Addr{})
-		return
-	}
-	q.get.stored(q.line.sheet, q.r, func(a Addr) bool { return fn(q.index(a), a) })
-}
+// walk walks the cells of a sparse line's entries, in order. It
+// evaluates nothing: a search reads the value of each entry it reaches
+// (q.value), and no more, as reading one at a time did.
+func (q *seq) walk() cursor { return q.get.walk(q.line.sheet, q.r) }
 
-// positions is the entries holding cells, in order.
+// positions is the sparse line's entries holding cells, in order.
 func (q *seq) positions() []int {
-	if !q.line.ref {
-		return []int{0}
-	}
 	var out []int
 	q.get.stored(q.line.sheet, q.r, func(a Addr) bool {
 		out = append(out, q.index(a))
@@ -84,23 +69,20 @@ func (q *seq) positions() []int {
 func (q *seq) findExact(key Value, wild bool) int {
 	if q.sparse {
 		blank := lookupEqual(key, q.blank, wild)
-		next, found := 0, -1 // next is the first entry not looked at
-		q.entries(func(i int, a Addr) bool {
+		next := 0 // the first entry not looked at
+		c := q.walk()
+		defer c.close()
+		for a, ok := c.next(); ok; a, ok = c.next() {
+			i := q.index(a)
 			switch {
 			case i > next && blank:
-				found = next // a blank before this cell
-			case lookupEqual(key, q.value(i, a), wild):
-				found = i
-			default:
-				next = i + 1
-				return true
+				return next // a blank before this cell
+			case lookupEqual(key, q.value(a), wild):
+				return i
 			}
-			return false
-		})
-		switch {
-		case found >= 0:
-			return found
-		case blank && next < q.n:
+			next = i + 1
+		}
+		if blank && next < q.n {
 			return next
 		}
 		return -1
@@ -122,17 +104,18 @@ func (q *seq) findExact(key Value, wild bool) int {
 func (q *seq) findSorted(key Value, dir int) int {
 	found := -1
 	if q.sparse && key.Kind != q.blank.Kind { // blanks are skipped: only the cells count
-		q.entries(func(i int, a Addr) bool {
-			v := q.value(i, a)
+		c := q.walk()
+		defer c.close()
+		for a, ok := c.next(); ok; a, ok = c.next() {
+			v := q.value(a)
 			if v.Kind != key.Kind {
-				return true
+				continue
 			}
 			if compare(v, key)*dir > 0 {
-				return false
+				return found
 			}
-			found = i
-			return true
-		})
+			found = q.index(a)
+		}
 		return found
 	}
 	for i := range q.data {

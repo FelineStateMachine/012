@@ -247,19 +247,18 @@ func NewAgg() Agg { return Agg{prod: 1, min: math.Inf(1), max: math.Inf(-1)} }
 // SUM("a") is #VALUE!. A range read first is served from the running
 // aggregates shared by the recalculation (Book.RangeAgg; the engine's
 // rangememo.go), so a thousand SUM(A:A) or a column of running totals
-// read each cell once.
+// read each cell once; other ranges the engine adds up itself
+// (Book.Fold), as it reads them.
 func aggregate(done func(Agg) Value) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
 		s := NewAgg()
 		for _, arg := range args {
-			if rn, ok := arg.(formula.Range); ok && s.count == 0 {
-				if a, e, ok := get.book.RangeAgg(rn.Sheet, rn.Rect); ok {
-					if e != nil {
-						return *e
-					}
-					s = a
-					continue
+			if rn, ok := arg.(formula.Range); ok {
+				var e *Value
+				if s, e = rangeAgg(rn, s, get); e != nil {
+					return *e
 				}
+				continue
 			}
 			if e := eachOf(arg, get, s.Add); e != nil {
 				return *e
@@ -267,6 +266,17 @@ func aggregate(done func(Agg) Value) func([]Node, lookup) Value {
 		}
 		return done(s)
 	}
+}
+
+// rangeAgg adds the range rn to s: from the running aggregates when s is
+// empty and the range is shared, and otherwise as the engine reads it.
+func rangeAgg(rn formula.Range, s Agg, get lookup) (Agg, *Value) {
+	if s.count == 0 {
+		if a, e, ok := get.book.RangeAgg(rn.Sheet, rn.Rect); ok {
+			return a, e
+		}
+	}
+	return get.book.Fold(rn.Sheet, rn.Rect, s)
 }
 
 func logical(test func(trues, n int) bool) func([]Node, lookup) Value {
