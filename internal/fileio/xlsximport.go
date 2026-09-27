@@ -68,7 +68,7 @@ func (bk *xlsxBook) importBook(ctx context.Context, opt Options) (*Result, error
 		}
 		done += rows
 	}
-	notes := bk.importNames(book)
+	notes := append(bk.importNames(book), bk.protectionNote()...)
 	active := book.Sheet(clamp(bk.active, 0, book.Len()-1))
 	book.SetActive(active)
 	for i, info := range bk.sheets {
@@ -116,6 +116,12 @@ func (bk *xlsxBook) importSheet(ctx context.Context, b *builder, i int, af **xls
 		}
 	}
 	if *af, err = r.readTail(); err != nil {
+		return 0, fmt.Errorf("sheet %s: %w", bk.sheets[i].name, err)
+	}
+	if r.protected {
+		bk.protected = append(bk.protected, bk.sheets[i].name)
+	}
+	if err := bk.readNotes(b.s, bk.sheets[i].part); err != nil {
 		return 0, fmt.Errorf("sheet %s: %w", bk.sheets[i].name, err)
 	}
 	loadColStyles(b, width, func(c int) (xlsxStyle, bool) {
@@ -264,6 +270,17 @@ func isoDate(s string) (float64, sheet.Format, bool) {
 		return wall.Sub(base).Hours() / 24, sheet.Format{Kind: l.kind}, true
 	}
 	return 0, sheet.Format{}, false
+}
+
+// protectionNote says which sheets were protected in the file: 012
+// leaves their protection out, since Excel's locks cells while 012's
+// only warns, and Data > Protect sheets and ranges adds that.
+func (bk *xlsxBook) protectionNote() []string {
+	if len(bk.protected) == 0 {
+		return nil
+	}
+	return []string{fmt.Sprintf("Protection of %s left out: Data > Protect sheets and ranges warns before edits",
+		strings.Join(bk.protected, ", "))}
 }
 
 // importNames defines the workbook's named ranges that are a range on

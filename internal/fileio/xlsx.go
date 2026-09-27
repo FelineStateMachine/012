@@ -61,17 +61,24 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 	hidden[active] = false
 	err := writeFile(name, func(out io.Writer) error {
 		zw := zip.NewWriter(out)
+		var withNotes []int
 		for i, sn := range sheets {
 			rows, err := w.writeSheet(zw, i, names[i], sn, i == active)
 			if err != nil {
 				return err
 			}
 			res.Rows += rows
+			if len(sn.Notes) > 0 {
+				withNotes = append(withNotes, i+1)
+				if err := writeNotes(zw, i+1, sn.Notes); err != nil {
+					return err
+				}
+			}
 		}
 		if err := writePart(zw, "xl/styles.xml", w.styles.xml()); err != nil {
 			return err
 		}
-		if err := writePackage(zw, names, hidden, active, w.definedNames(snap.Names), filterRanges(sheets, names)); err != nil {
+		if err := writePackage(zw, names, hidden, active, w.definedNames(snap.Names), filterRanges(sheets, names), notesTypes(withNotes)); err != nil {
 			return err
 		}
 		return zw.Close()
@@ -140,14 +147,14 @@ func filterRanges(sheets []*Snapshot, names []string) []string {
 // writePackage writes the parts around the worksheets and styles: the
 // workbook with its sheets, active tab, names (with each filter's range,
 // filters[i] for sheet i) and calculation settings, the relationships
-// and the content types.
-func writePackage(zw *zip.Writer, names []string, hidden []bool, active int, defined [][2]string, filters []string) error {
+// and the content types, with extra ones for the sheets' parts.
+func writePackage(zw *zip.Writer, names []string, hidden []bool, active int, defined [][2]string, filters []string, extraTypes string) error {
 	var types, rels, book strings.Builder
 	types.WriteString(xmlHead + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
 		`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
 		`<Default Extension="xml" ContentType="application/xml"/>` +
 		`<Override PartName="/xl/workbook.xml" ContentType="` + mlType + `sheet.main+xml"/>` +
-		`<Override PartName="/xl/styles.xml" ContentType="` + mlType + `styles+xml"/>`)
+		`<Override PartName="/xl/styles.xml" ContentType="` + mlType + `styles+xml"/>` + extraTypes)
 	rels.WriteString(xmlHead + `<Relationships xmlns="` + relsNS + `">`)
 	book.WriteString(xmlHead + `<workbook xmlns="` + sheetMain + `" xmlns:r="` + officeRel + `">` +
 		`<bookViews><workbookView activeTab="` + strconv.Itoa(active) + `"/></bookViews><sheets>`)

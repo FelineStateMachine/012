@@ -69,13 +69,17 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 			return nil, err
 		}
 		excelizePanes(x, ws, next)
+		if err := excelizeNotes(x, ws, next); err != nil {
+			return nil, err
+		}
 		done += rows
 	}
-	filters, err := referenceAutoFilters(name)
+	filters, protected, err := referenceAutoFilters(name)
 	if err != nil {
 		return nil, err
 	}
 	notes = append(notes, excelizeNames(x, book)...)
+	notes = append(notes, (&xlsxBook{protected: protected}).protectionNote()...)
 	active := book.Sheet(clamp(x.GetActiveSheetIndex(), 0, book.Len()-1))
 	book.SetActive(active)
 	for i, ws := range names {
@@ -96,8 +100,29 @@ func excelizePanes(x *excelize.File, ws string, s *sheet.Sheet) {
 	}
 }
 
+// excelizeNotes loads sheet ws's notes (Excel's legacy comments) into s.
+func excelizeNotes(x *excelize.File, ws string, s *sheet.Sheet) error {
+	comments, err := x.GetComments(ws)
+	if err != nil {
+		return err
+	}
+	for _, c := range comments {
+		text := c.Text
+		for _, run := range c.Paragraph {
+			text += run.Text
+		}
+		if a, ok := sheet.ParseAddr(c.Cell); ok {
+			s.LoadNote(a, text)
+		}
+	}
+	return nil
+}
+
 // refWorksheet is the part of a worksheet referenceAutoFilters reads.
 type refWorksheet struct {
+	Protection *struct {
+		Sheet string `xml:"sheet,attr"`
+	} `xml:"sheetProtection"`
 	AutoFilter *struct {
 		Ref  string `xml:"ref,attr"`
 		Cols []struct {
@@ -123,46 +148,51 @@ type refWorksheet struct {
 	} `xml:"autoFilter"`
 }
 
-// referenceAutoFilters reads each sheet's autoFilter by decoding the
-// whole worksheet with encoding/xml, as excelize has no API for reading
-// one: the reference for the streaming reader's. Only the parts' names
-// come from 012's reader.
-func referenceAutoFilters(name string) ([]*xlsxAutoFilter, error) {
+// referenceAutoFilters reads each sheet's autoFilter, and the names of
+// the protected sheets, by decoding the whole worksheet with
+// encoding/xml, as excelize has no API for reading them: the reference
+// for the streaming reader's. Only the parts' names come from 012's
+// reader.
+func referenceAutoFilters(name string) ([]*xlsxAutoFilter, []string, error) {
 	f, err := os.Open(name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	bk, err := openXLSX(f, st.Size(), defaultXLSXLimits)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	zr, err := zip.NewReader(f, st.Size())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out := make([]*xlsxAutoFilter, len(bk.sheets))
+	var protected []string
 	for i, info := range bk.sheets {
 		if info.part == "" || info.kind != "worksheet" {
 			continue
 		}
 		rc, err := zr.Open(info.part)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		var ws refWorksheet
 		err = xml.NewDecoder(rc).Decode(&ws)
 		rc.Close()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		out[i] = ws.autoFilter()
+		if p := ws.Protection; p != nil && (p.Sheet == "1" || p.Sheet == "true") {
+			protected = append(protected, info.name)
+		}
 	}
-	return out, nil
+	return out, protected, nil
 }
 
 func (ws refWorksheet) autoFilter() *xlsxAutoFilter {

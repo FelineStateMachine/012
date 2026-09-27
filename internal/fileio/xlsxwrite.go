@@ -98,6 +98,9 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 	w.styledRows(bw, snap, styled, sheet.MaxRows)
 	bw.WriteString(`</sheetData>`)
 	writeAutoFilter(bw, snap)
+	if len(snap.Notes) > 0 {
+		bw.WriteString(`<legacyDrawing r:id="` + vmlRelID + `"/>`)
+	}
 	bw.WriteString(`</worksheet>`)
 	return r.To.Row - r.From.Row + 1
 }
