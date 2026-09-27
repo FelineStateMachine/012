@@ -73,7 +73,7 @@ follow-up task.
       `keymap` if Sheets has one; menu entry where Sheets would have it.
 - [ ] Unit tests in `internal/ui` driving `Update`, plus engine tests.
 - [ ] An e2e test in `e2e/` for the main flow.
-- [ ] Golden screen(s) in `e2e/screens_test.go` for every new visual state,
+- [ ] Golden screen(s) in `e2e/screenlist_test.go` for every new visual state,
       with a `-light` variant if it introduces new colors.
 - [ ] `make screens`, then look at `e2e/testdata/screens/gallery.html`
       (serve it over HTTP and screenshot it, or open it in a browser).

@@ -89,7 +89,14 @@ terminal (`BenchmarkFrame`).
 | 20 charts (text) | 0.82 ms | 2.9 ms | 7.3 ms |
 
 About half of a frame at 400 x 120 is Bubble Tea's parse and diff of the
-view string. Key presses add little: an arrow key through to its frame
+view string.
+
+A chart drawn as text costs 4 to 50 us at 24 x 10 to 120 x 40 cells,
+whatever its data: only the categories that fit are drawn (a pie of 8192
+slices, 0.44 ms, is the worst). An image for kitty graphics is redrawn
+when its data, size or theme changes: 25 to 260 us at 24 x 10 cells and
+1 to 1.5 ms at 120 x 40, a pie 8.6 ms (`internal/chart`,
+`BenchmarkDraw`, `BenchmarkImage`). Key presses add little: an arrow key through to its frame
 is 0.21 ms at 80 x 24 and 1.06 ms at 200 x 60; Page Down 1.26 ms.
 
 With the whole of an 8192 x 256 sheet selected, the status line's Sum,
@@ -113,8 +120,12 @@ Real, openly licensed datasets fetched by `scripts/stress-data.sh`
 | Parquet alltypes_tiny_pages | 7300 x 13 | 40 ms | 2.4 M cells/s | 276 B |
 
 Past the limits, imports keep the first 8192 rows and 256 columns and
-say how much they left out; reading the rest of the file still costs
-(the airport codes file is read to its end).
+say how much they left out. Parquet files and SQLite tables stop reading
+at the last row and take the count of the rest from the file; CSV, TSV
+and SQLite queries are read to their end to count it, without keeping
+it (the airport codes file is read to its end). Every importer but XLSX
+streams, so memory follows the sheet, not the file; excelize holds an
+XLSX worksheet in memory while its rows are read.
 
 ## Undo
 
@@ -251,7 +262,8 @@ make stress-e2e       # key press to screen through libghostty
 Benchmarks are built only with `-tags stress`, so `go test ./...` stays
 fast. They live in `internal/sheet/stress_test.go` (engine),
 `internal/ui/stress_test.go` (View, frames, keystrokes, JEV, telemetry
-overhead), `internal/fileio/stress_test.go` (imports and exports) and
+overhead), `internal/fileio/stress_test.go` (imports and exports),
+`internal/chart/stress_test.go` (charts as text and images) and
 `e2e/stress_test.go`; the synthetic sheets are built by
 `internal/stress`. Results accumulate in `.deps/stress/results` and, with
 the observability stack up, in ClickHouse.

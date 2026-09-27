@@ -35,7 +35,9 @@ use. It is its own Go module so cgo never reaches the main binary.
 
 `e2e/screens_test.go` records key UI states as HTML drawn from libghostty's
 cell grid (colors as palette variables, so one golden serves every theme),
-with light-terminal variants. `make screens` rewrites them and builds
+with light-terminal variants. The states are listed in
+`e2e/screenlist_test.go`, with the fixtures they share in
+`e2e/screensetup_test.go`. `make screens` rewrites them and builds
 `e2e/testdata/screens/gallery.html` with dark and light reference palettes.
 Every visual change is reviewed there before it's committed.
 

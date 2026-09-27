@@ -16,8 +16,8 @@ shows it is derived from the table rather than listing it again.
 |---|---|---|
 | `sheet.FuncDef` | a function: name, signature, description, arity, eval | parsing, autocomplete, argument hints, help, [functions.md](functions.md) |
 | `ui.command` | an action: id, title, description, run, enabled, checked | key bindings, menu bar, context menus, palette, shortcuts help |
-| file formats | a format: name, extensions, importer, exporter | import picker, File > Download, command line, detection |
-| chart types | a type: name, text renderer, image renderer | chart editor, Insert > Chart |
+| `fileio` formats (`formats.go`) | a format: name, extensions, labels, traits, importer, exporter | `Import`, `Export`, detection, import picker, File > Download, command line |
+| `chart.types`, with `sheet.ChartTypes` | a type: name and order (sheet, saved in files), a layout drawing text and image (chart) | `chart.Draw`, `chart.Image`, chart editor, Insert > Chart |
 | theme roles | a role: dark and light styles on the 16 ANSI colors | every style in the UI |
 
 Adding a function, command, format or chart type means adding an entry
@@ -111,10 +111,6 @@ a golden screen reviewed in the gallery for anything visible (see
 
 Where the code doesn't follow the patterns yet:
 
-- File formats are a closed `Kind` list with switches in `Import` and
-  `Export` (pattern 1).
-- Chart types are switches on `sheet.ChartType` in `internal/chart`
-  (pattern 1).
 - `sheet.Remote` is a package global; it belongs to the workbook (pattern 4).
 - Cells are a bare `map[Addr]*Cell` used directly across the engine
   (pattern 6).
