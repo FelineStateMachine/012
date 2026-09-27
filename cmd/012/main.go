@@ -24,9 +24,9 @@ func main() {
 }
 
 func run(args []string) error {
-	tc, args, err := logFlag(args)
+	tc, args, err := telemetryFlags(args)
 	if err != nil || len(args) > 1 {
-		return errors.New("usage: 012 [--log file.jsonl] [file]: a " + sheet.FileExt + " sheet, or a .csv, .tsv, .xlsx, .sqlite, .parquet or .wk1 file to import")
+		return errors.New("usage: 012 [--log file.jsonl] [--otlp http://localhost:4318] [file]: a " + sheet.FileExt + " sheet, or a .csv, .tsv, .xlsx, .sqlite, .parquet or .wk1 file to import")
 	}
 	stopTelemetry, err := startTelemetry(tc)
 	if err != nil {

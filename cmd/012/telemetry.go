@@ -10,24 +10,28 @@ import (
 	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
-// logFlag takes --log path (or --log=path) out of args. Without it the
-// log file comes from O12_LOG, and telemetry stays off when neither is
-// set.
-func logFlag(args []string) (telemetry.Config, []string, error) {
+// telemetryFlags takes --log path and --otlp url (or --log=path,
+// --otlp=url) out of args. Without them the log file comes from O12_LOG
+// and the OTLP endpoint from OTEL_EXPORTER_OTLP_ENDPOINT (and the other
+// OTEL_* variables), and telemetry stays off when none is set.
+func telemetryFlags(args []string) (telemetry.Config, []string, error) {
 	c := telemetry.ConfigFromEnv()
+	flags := map[string]*string{"--log": &c.LogPath, "--otlp": &c.OTLP.Endpoint}
 	var rest []string
 	for i := 0; i < len(args); i++ {
-		switch a := args[i]; {
-		case a == "--log":
-			if i+1 >= len(args) {
-				return c, nil, errors.New("--log needs a file")
-			}
-			c.LogPath = args[i+1]
-			i++
-		case strings.HasPrefix(a, "--log="):
-			c.LogPath = strings.TrimPrefix(a, "--log=")
-		default:
+		a := args[i]
+		name, value, hasValue := strings.Cut(a, "=")
+		dst, ok := flags[name]
+		switch {
+		case !ok:
 			rest = append(rest, a)
+		case hasValue:
+			*dst = value
+		case i+1 < len(args):
+			*dst = args[i+1]
+			i++
+		default:
+			return c, nil, errors.New(name + " needs a value")
 		}
 	}
 	return c, rest, nil
