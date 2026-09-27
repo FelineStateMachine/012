@@ -73,8 +73,9 @@ then text ignoring case, then booleans, then errors, with blanks last.
 
 Data > Create a filter puts a filter on the selection or the table around
 the active cell; headers show `▾`. Alt+Down or a click on `▾` opens the
-column's filter: check values in a searchable list, or pick a condition such
-as "greater than" or "text contains". Filtered-out rows are hidden, not
+column's filter: check values in a list (Space checks one, typing
+narrows the list), or pick a condition such as "greater than" or "text
+contains". Filtered-out rows are hidden, not
 deleted: row numbers show the gap, navigation skips them, formulas still
 count them, and the status line says how many rows are hidden.
 
