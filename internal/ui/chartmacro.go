@@ -122,11 +122,16 @@ func chartWith(c sheet.Chart, answer []jsonField) (sheet.Chart, error) {
 }
 
 // recordChart records chart i inserted or changed from before to after,
-// as the command id that does it answered with the chart.
-func (m *Model) recordChart(id string, i int, before, after sheet.Chart) {
+// as the command id that does it answered with the chart. A chart placed
+// (moved or resized while selected, not by a command) comes after the
+// selection it follows.
+func (m *Model) recordChart(id string, i int, before, after sheet.Chart, placed bool) {
 	r := m.rec
 	if r == nil || r.depth > 0 {
 		return
+	}
+	if placed {
+		r.flush(m)
 	}
 	if id == "insert.chart" {
 		m.recordDialog(id, after.JSON())
@@ -137,7 +142,7 @@ func (m *Model) recordChart(id string, i int, before, after sheet.Chart) {
 		return
 	}
 	n := json.RawMessage(strconv.Itoa(i + 1))
-	if last, ok := r.lastPlacement(i + 1); ok && r.base == m.selState() && placement(changes) {
+	if last, ok := r.lastPlacement(i + 1); ok && placed && placement(changes) {
 		for _, f := range changes {
 			if k := fieldIndex(last, f.key); k >= 0 {
 				last[k].value = f.value

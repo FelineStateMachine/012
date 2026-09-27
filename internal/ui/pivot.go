@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"cmp"
+	"errors"
 	"log/slog"
 	"strconv"
 
@@ -21,12 +23,26 @@ import (
 func init() {
 	register(
 		&command{id: "data.pivot", title: "Pivot table", desc: "Summarize the selection, or the table around the active cell, on a new sheet",
-			run: (*Model).createPivot},
+			run: (*Model).createPivot,
+			answer: func(m *Model, text string) (tea.Cmd, error) {
+				m.createPivot()
+				e, ok := m.overlay.(*pivotEditor)
+				if !ok {
+					return nil, errors.New(cmp.Or(m.errMsg, m.note))
+				}
+				return nil, e.answer(m, text)
+			}},
 		&command{id: "data.pivot_edit", title: "Edit pivot table", desc: "Change the pivot table's rows, columns, values and filters",
 			enabled: func(m *Model) bool { _, ok := m.sheet.Pivot(); return ok },
 			run: func(m *Model) tea.Cmd {
 				m.openPivotEditor(m.sheet.StateID(), nil)
 				return nil
+			},
+			answer: func(m *Model, text string) (tea.Cmd, error) {
+				if _, ok := m.sheet.Pivot(); !ok {
+					return nil, errors.New(m.sheet.Name() + " has no pivot table")
+				}
+				return nil, m.openPivotEditor(m.sheet.StateID(), nil).answer(m, text)
 			}},
 		&command{id: "data.frequency", title: "Frequency table (column stats)", desc: "Count each value of the active column, most frequent first, on a new sheet, as Sheets' Column stats do",
 			run: (*Model).frequency},

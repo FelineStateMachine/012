@@ -163,13 +163,14 @@ func (m *Model) recordAnswer(answer string, cancelled bool) {
 
 // recordDialog records what a dialog did once it has, as its command
 // answered with the dialog's choices (see command.answer), which a
-// replay makes again.
+// replay makes again. The selection it acted on was recorded when its
+// command ran, or by recordFlush when something else opened it: what the
+// command did to the selection since (showing a new sheet) is its own.
 func (m *Model) recordDialog(id, answer string) {
 	r := m.rec
 	if r == nil || r.depth > 0 || m.mode == modeError {
 		return
 	}
-	r.flush(m)
 	r.add(m, macro.Call("run", id).With("answer", macro.JSON(answer)))
 }
 

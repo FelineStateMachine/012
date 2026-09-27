@@ -210,3 +210,36 @@ run("chart.edit", answer={"chart": 1, "at": "H2", "legend": "none"})`)
 		t.Fatalf("warn %q overlay %T", m.warn, m.overlay)
 	}
 }
+
+func TestRecordPivotEditor(t *testing.T) {
+	m := wideSales()
+	got := recordDo(t, m, "Pivot", func() {
+		run(m, m.runCommand("data.pivot"))
+		press(t, m, "<space>", "reg", "<enter>")
+		press(t, m, "<down>", "<down>", "<space>", "units", "<enter>", "<enter>")
+		// Edited again: the grand total row off. Unchanged, it records
+		// nothing.
+		run(m, m.runCommand("data.pivot_edit"))
+		press(t, m, "<enter>")
+		run(m, m.runCommand("data.pivot_edit"))
+		press(t, m, "<end>", "<up>", "<space>", "<enter>")
+	})
+	want := `run("data.pivot", answer={"source": "Sheet1!A1:C5", "rows": [{"column": "A"}], "values": [{"column": "B", "summarize": "sum"}], "rowTotals": True, "columnTotals": True})
+run("data.pivot_edit", answer={"source": "Sheet1!A1:C5", "rows": [{"column": "A"}], "values": [{"column": "B", "summarize": "sum"}], "rowTotals": False, "columnTotals": True})`
+	if got != want {
+		t.Fatalf("recorded:\n%s\nwant:\n%s", got, want)
+	}
+	replays(t, m, "Pivot", wideSales)
+}
+
+func TestScriptAnswersPivotCommands(t *testing.T) {
+	m := wideSales()
+	script(t, m, `run("data.pivot_edit", answer={"source": "Sheet1!A1:C5"})`)
+	if !strings.Contains(m.warn, "Sheet1 has no pivot table") {
+		t.Fatalf("warn %q", m.warn)
+	}
+	script(t, m, `run("data.pivot", answer={"source": "Sheet1!A1:C5", "rows": [{"column": "A"}], "values": [{"column": "C", "summarize": "max"}]})`)
+	if m.sheet.Name() != "Pivot Table 1" || shows(m, "B1") != "MAX of Price" || m.overlay != nil {
+		t.Fatalf("on %s, B1 %q, overlay %T, warn %q", m.sheet.Name(), shows(m, "B1"), m.overlay, m.warn)
+	}
+}

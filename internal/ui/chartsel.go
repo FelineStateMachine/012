@@ -97,7 +97,7 @@ func (s *chartSel) place(from, to sheet.Chart, label string) {
 	sh.SetChart(s.i, to, label)
 	s.m.syncChanged()
 	if now, ok := s.chart(); ok {
-		s.m.recordChart("chart.edit", s.i, from, now)
+		s.m.recordChart("chart.edit", s.i, from, now, true)
 	}
 }
 

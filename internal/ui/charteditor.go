@@ -51,8 +51,9 @@ type chartHost interface {
 	passKey(k tea.KeyPressMsg) tea.Cmd
 	passMouse(e overlay.MouseEvent) tea.Cmd
 	// recordChart records a chart inserted, edited, moved or resized, as
-	// the command that does it answered with the chart (chartmacro.go).
-	recordChart(id string, i int, before, after sheet.Chart)
+	// the command that does it answered with the chart; placed is set
+	// for a move or resize without a command (chartmacro.go).
+	recordChart(id string, i int, before, after sheet.Chart, placed bool)
 }
 
 // chartEditor is the chart editor: a bar on the context line, in the
@@ -106,7 +107,7 @@ func (e *chartEditor) keep() {
 		id = "insert.chart"
 		m.say("Inserted a chart of " + e.chart().Data.String())
 	}
-	m.recordChart(id, e.i, e.before, e.chart())
+	m.recordChart(id, e.i, e.before, e.chart(), false)
 }
 
 func (e *chartEditor) Key(k tea.KeyPressMsg) tea.Cmd {
