@@ -3,6 +3,7 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -289,7 +290,9 @@ func (h scriptHost) Run(id string, answer *string) error {
 // choices, as a recording writes them.
 func (h scriptHost) answered(c *command, text string) error {
 	m := h.m
+	span := m.spans.Start("command", slog.String("id", c.id)) // as runCommand times commands
 	cmd, err := c.answer(m, text)
+	span.End()
 	m.macros.cmds = append(m.macros.cmds, cmd)
 	if err != nil {
 		if m.overlay != nil {

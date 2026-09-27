@@ -51,7 +51,8 @@ What gets recorded:
   (`run("data.sort_range", answer={"by": [{"column": "B"}], "header": True})`),
   the filter picker's values and condition, find and replace, the chart
   editor, and the pivot editor, each as the dialog left things when you
-  pressed Enter;
+  pressed Enter. These name columns, ranges and cells as they were, with
+  either kind of references;
 - charts moved or resized, by keys or by dragging, as
   `run("chart.edit", answer={"chart": 1, "at": "F3"})`, one call for a
   move made in steps;
