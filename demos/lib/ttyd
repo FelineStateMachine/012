@@ -1,0 +1,6 @@
+#!/bin/sh
+# VHS starts ttyd by name. `make demos` puts this directory first on PATH
+# so the recorded xterm.js treats Option as Alt on macOS, as terminals
+# set up for it do; otherwise Alt+F types "f" instead of opening 012's
+# File menu. DEMOS_TTYD is the real ttyd.
+exec "${DEMOS_TTYD:?set DEMOS_TTYD to the real ttyd}" -t macOptionIsMeta=true "$@"

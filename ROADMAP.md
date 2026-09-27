@@ -78,7 +78,7 @@ Avoid in the main binary: DuckDB and automerge (both need cgo).
 - Macros: replay the command log; Starlark (`go.starlark.net`) for scripts, with step limits.
 - Serve over SSH with `charm.land/wish/v2`.
 - Decimal mode for currency (`cockroachdb/apd/v3`), opt-in. Done: File > Settings > Decimal arithmetic, boundary in the README.
-- Demos in CI with VHS tapes; screenshots with freeze.
+- Demos in CI with VHS tapes; screenshots with freeze. Tapes done (`make demos`, `demos/`); not yet run in CI.
 
 ## Suggested order
 

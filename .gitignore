@@ -6,3 +6,4 @@ e2e/testdata/screens/gallery.html
 .claude/
 .env
 .env.*
+demos/out/

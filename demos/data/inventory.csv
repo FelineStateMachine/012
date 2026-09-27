@@ -1,0 +1,31 @@
+Item,Category,Supplier,Qty,Price
+Stapler,Desk,Umbrella,34,59.00
+Paper A4,Paper,Initech,18,12.50
+Pens blue,Writing,Acme,47,19.99
+Pens red,Writing,Initech,82,19.99
+Folders,Paper,Globex,71,0.99
+Notebook,Paper,Globex,56,7.99
+Tape,Desk,Globex,43,3.75
+Scissors,Desk,Acme,73,3.75
+Glue stick,Desk,Acme,65,59.00
+Markers,Writing,Initech,87,12.50
+Envelopes,Paper,Acme,2,0.99
+Clips,Desk,Globex,11,12.50
+Binder,Paper,Umbrella,14,59.00
+Ruler,Desk,Umbrella,17,24.00
+Eraser,Writing,Initech,112,39.90
+Calculator,Tech,Globex,89,0.99
+Labels,Paper,Globex,64,1.49
+Toner,Tech,Umbrella,77,12.50
+Desk lamp,Furniture,Umbrella,61,39.90
+Chair mat,Furniture,Umbrella,69,0.99
+Whiteboard,Furniture,Acme,24,59.00
+Sticky notes,Paper,Initech,45,7.99
+Highlighter,Writing,Umbrella,86,4.20
+Cable ties,Tech,Acme,32,3.75
+USB stick,Tech,Initech,46,7.99
+Mouse,Tech,Globex,3,12.50
+Keyboard,Tech,Umbrella,4,24.00
+Headset,Tech,Acme,28,59.00
+Monitor arm,Furniture,Umbrella,5,12.50
+Webcam,Tech,Globex,98,39.90
