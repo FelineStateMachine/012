@@ -1,7 +1,7 @@
 {
   "uid": "o12-runtime",
   "title": "012 runtime",
-  "description": "012's own event log (012 --log), via the collector's filelog receiver",
+  "description": "012's own events: its log, from the collector's filelog receiver (012 --log) or OTLP (012 --otlp), and its OTLP traces and metrics",
   "tags": [
     "012"
   ],
@@ -353,6 +353,92 @@
         "tooltip": {
           "mode": "multi"
         }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Key-to-frame latency (OTLP metrics)",
+      "description": "o12.key.latency, the per-second summary 012 sends over OTLP (012 --otlp): p50, p95 and max, in milliseconds",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT $__timeInterval(TimeUnix) AS time, max(ValueAtQuantiles.Value[indexOf(ValueAtQuantiles.Quantile, 0.5)]) AS p50, max(ValueAtQuantiles.Value[indexOf(ValueAtQuantiles.Quantile, 0.95)]) AS p95, max(ValueAtQuantiles.Value[indexOf(ValueAtQuantiles.Quantile, 1)]) AS max FROM otel.otel_metrics_summary WHERE $__timeFilter(TimeUnix) AND ServiceName = '012' AND MetricName = 'o12.key.latency' GROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Slowest spans (OTLP traces)",
+      "description": "The slowest spans 012 sent over OTLP; each is the root of its own trace, and the log record of the same event carries its TraceId",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT Timestamp AS time, SpanName AS span, round(Duration / 1e6, 2) AS ms, StatusCode AS status, StatusMessage AS error, TraceId AS trace, toString(SpanAttributes) AS attributes FROM otel.otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName = '012' ORDER BY Duration DESC LIMIT 50",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
       }
     }
   ],

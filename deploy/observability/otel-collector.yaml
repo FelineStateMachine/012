@@ -1,6 +1,10 @@
-# OpenTelemetry Collector for 012: OTLP (gRPC and HTTP) for any
-# instrumented process, and the filelog receiver for 012's own JSON
-# event logs (012 --log .deps/obs/logs/012.jsonl), all into ClickHouse.
+# OpenTelemetry Collector for 012, all into ClickHouse. Two ways in:
+# - OTLP/HTTP on 4318 (published on 127.0.0.1 only): 012 --otlp
+#   http://localhost:4318, or OTEL_EXPORTER_OTLP_ENDPOINT, sends its
+#   logs, traces and metrics (JSON encoding); gRPC on 4317 for others.
+# - The filelog receiver, the alternative for logs only: 012 --log
+#   .deps/obs/logs/012.jsonl. Use one or the other for a session, or its
+#   logs arrive twice.
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
