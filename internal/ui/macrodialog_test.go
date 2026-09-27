@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -12,8 +14,13 @@ import (
 
 // salesModel is a table of sales with a header row, the fixture both a
 // recording and its replay start from.
-func salesModel() *Model {
-	m := newModel()
+func salesModel() *Model { return withSales(newModel()) }
+
+// wideSales is salesModel on a screen wide enough for a chart beside the
+// table.
+func wideSales() *Model { return withSales(wideModel()) }
+
+func withSales(m *Model) *Model {
 	for i, row := range [][]string{
 		{"Region", "Units", "Price"},
 		{"North", "12", "3.5"},
@@ -155,5 +162,51 @@ run("data.filter_column", answer={"column": "D", "hidden": ["40"]})`)
 run("data.filter_column", answer={"hidden": ["40", "7"]})`)
 	if m.sheet.HiddenRows() != 2 || m.note != "Ran S" {
 		t.Fatalf("hidden %d note %q warn %q", m.sheet.HiddenRows(), m.note, m.warn)
+	}
+}
+
+func TestRecordChartEditorAndDrags(t *testing.T) {
+	m := wideSales()
+	got := recordDo(t, m, "Chart", func() {
+		run(m, m.runCommand("insert.chart"))
+		press(t, m, "3", "t", "Units", "<enter>", "<enter>")
+		// Moved a step at a time, then dragged by the corner: one call.
+		press(t, m, "<down>", "<right>", "<right>")
+		c := m.sheet.Charts()[0]
+		x, y := m.chartScreen(c)
+		send(m, tea.MouseClickMsg{X: x + c.W - 1, Y: y + c.H - 1, Button: tea.MouseLeft})
+		send(m, tea.MouseMotionMsg{X: x + 29, Y: y + 11, Button: tea.MouseLeft})
+		send(m, tea.MouseReleaseMsg{X: x + 29, Y: y + 11, Button: tea.MouseLeft})
+		// Edited again: the header row off.
+		press(t, m, "<enter>", "h", "<enter>", "<esc>")
+	})
+	want := `run("insert.chart", answer={"type": "line", "data": "A1:C5", "at": "D1", "width": 48, "height": 16, "header": True, "labels": True, "title": "Units"})
+run("chart.edit", answer={"chart": 1, "at": "F2", "width": 30, "height": 12})
+run("chart.edit", answer={"chart": 1, "header": False})`
+	if got != want {
+		t.Fatalf("recorded:\n%s\nwant:\n%s", got, want)
+	}
+	replays(t, m, "Chart", wideSales)
+}
+
+func TestScriptAnswersChartCommands(t *testing.T) {
+	m := wideSales()
+	script(t, m, `select("A1:B5")
+run("insert.chart", answer={"type": "pie", "title": "Units"})
+run("chart.edit", answer={"chart": 1, "at": "H2", "legend": "none"})`)
+	cs := m.sheet.Charts()
+	if len(cs) != 1 || cs[0].Type != sheet.ChartPie || cs[0].Title != "Units" || cs[0].At.String() != "H2" || cs[0].Legend != sheet.LegendNone || cs[0].Data.String() != "A1:B5" {
+		t.Fatalf("charts %+v, warn %q", cs, m.warn)
+	}
+	if m.overlay != nil || m.mode != modeReady {
+		t.Fatalf("left mode %v overlay %T", m.mode, m.overlay)
+	}
+	script(t, m, `run("chart.edit", answer={"chart": 2, "at": "A1"})`)
+	if !strings.Contains(m.warn, "there's no chart 2 on Sheet1: it has 1") {
+		t.Fatalf("warn %q", m.warn)
+	}
+	script(t, m, `run("chart.edit", answer={"type": "blimp"})`)
+	if !strings.Contains(m.warn, `unknown chart type "blimp"`) || m.overlay != nil {
+		t.Fatalf("warn %q overlay %T", m.warn, m.overlay)
 	}
 }

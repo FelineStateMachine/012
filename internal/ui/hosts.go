@@ -48,6 +48,7 @@ var (
 	_ macrosHost = (*Model)(nil)
 	_ namesHost  = (*Model)(nil)
 	_ promptHost = (*Model)(nil)
+	_ chartHost  = (*Model)(nil)
 )
 
 // Components that stay in package ui are handed interfaces of their own
