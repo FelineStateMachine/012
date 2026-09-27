@@ -418,7 +418,7 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 	for k, l := range st.lines {
 		inv.lines[k] = k.s.line(k.row, k.n)
 		k.s.setLine(k.row, k.n, l)
-		changed = append(changed, k.s.lineCells(k.row, k.n)...)
+		changed = append(changed, k.s.lineChanged(k.row, k.n)...)
 	}
 	for k, n := range st.names {
 		inv.names[k] = w.namePtr(k)

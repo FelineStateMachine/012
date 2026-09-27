@@ -214,8 +214,15 @@ func (s *Sheet) setLine(row bool, n int, l lineFmt) {
 	}
 	s.version++
 	if s.wb.hist.open != nil {
-		s.wb.hist.dirty = append(s.wb.hist.dirty, s.lineCells(row, n)...)
+		s.wb.hist.dirty = append(s.wb.hist.dirty, s.lineChanged(row, n)...)
 	}
+}
+
+// lineChanged is what to recalculate when a column's or row's format
+// changes: its stored cells, and the formulas reading any cell of it,
+// which infer their format from blank cells too.
+func (s *Sheet) lineChanged(row bool, n int) []loc {
+	return append(s.lineCells(row, n), s.readersIn(s.lineRect(row, n, n))...)
 }
 
 // lineCells are the stored cells of a column or row.
