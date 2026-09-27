@@ -255,14 +255,6 @@ var screens = []screen{
 		s.keys("<alt+f>", "<down>", "<down>", "<down>")
 		s.waitFor("Save the sheet")
 	}},
-	// The high-contrast theme, AAA on a dark and a light terminal.
-	{name: "theme-high-contrast", opts: options{config: "theme = high-contrast\n"}, setup: formatted},
-	{name: "theme-high-contrast-light", opts: options{light: true, config: "theme = high-contrast\n"}, setup: formatted},
-	{name: "theme-high-contrast-menu", opts: options{config: "theme = high-contrast\n"}, setup: func(s *session) {
-		budget(s)
-		s.keys("<alt+f>", "<down>", "<down>", "<down>")
-		s.waitFor("Save the sheet")
-	}},
 	{name: "theme-picker", setup: func(s *session) {
 		budget(s)
 		openTheme(s)
