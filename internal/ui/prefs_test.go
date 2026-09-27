@@ -173,7 +173,7 @@ func TestAPIKeyPrompt(t *testing.T) {
 	if got, _ := store.Get(context.Background()); got != key {
 		t.Errorf("stored %q", got)
 	}
-	if m.jev == nil || !strings.Contains(line(m, contextLine), "API key saved in the test store") {
+	if m.jev == nil || !strings.Contains(line(m, contextLine), "Key saved and checked; it's in the test store") {
 		t.Errorf("JEV not on: %q", line(m, contextLine))
 	}
 	if strings.Contains(screen(m), key) || m.line.Text() != "" {

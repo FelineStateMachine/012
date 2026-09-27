@@ -32,8 +32,13 @@ op read op://Private/TypeSafe/credential | 012 config set-key   # or pipe it in
 ```
 
 or in the app, File > Settings > JEV API key, which asks on the context
-line with the key masked and turns JEV on at once. `012 config` says where
-the key would come from, without showing it.
+line with the key masked and turns JEV on at once. It then checks the key
+with one test call, a fixed yes/no question about `2 + 2 = 4` that sends
+none of your data, and says "Key saved and checked" or "Key saved, but the
+check failed" with the reason (such as the service refusing the key). A
+key whose check failed is kept, since the service may only be unreachable
+for now; store the right one the same way. `012 config` says where the
+key would come from, without showing it.
 
 012 looks for the key in this order:
 

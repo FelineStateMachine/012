@@ -434,7 +434,10 @@ The JEV API key is never in the config. `jev.ResolveKey` takes it from
 `jev-api-key-command` (split into words and run without a shell, with a
 timeout, only when a sheet first asks JEV something). The base URL comes
 from the config or environment only and must be https unless it's
-loopback, so a file next to a sheet can't redirect the key.
+loopback, so a file next to a sheet can't redirect the key. Settings >
+JEV API key checks a new key with `jev.Check`: one fixed, trivial
+question, its error worded for the context line and never holding the
+key.
 
 `internal/keyring` is the credential store, chosen for the least
 dependency weight that is still correct on each OS, with `CGO_ENABLED=0`:
