@@ -3,8 +3,10 @@ package jev
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	typesafe "github.com/FelineStateMachine/typesafe-go"
@@ -124,5 +126,34 @@ func TestAsk(t *testing.T) {
 	// Network failures become answers with Failed set.
 	if a := Ask(context.Background(), &fakeClient{err: errors.New("offline")}, tests[0].call); a.Failed != "offline" {
 		t.Errorf("failure %+v", a)
+	}
+}
+
+// The engine rejects oversized questions itself; its limits must match
+// the SDK's, which match the service.
+func TestLimitsMatchSDK(t *testing.T) {
+	s := sheet.New()
+	sheet.Remote = NewCache()
+	defer func() { sheet.Remote = nil }()
+	labels := func(n int) string {
+		out := make([]string, n)
+		for i := range out {
+			out[i] = fmt.Sprint("l", i)
+		}
+		return strings.Join(out, ",")
+	}
+	for _, tt := range []struct {
+		fn  string
+		max int
+	}{{"JEV.CLASSIFY", typesafe.MaxChoiceOptions}, {"JEV.SCORE", typesafe.MaxScoreLevels}} {
+		at := sheet.Addr{}
+		s.Set(at, fmt.Sprintf(`=%s("x", "q", "%s")`, tt.fn, labels(tt.max)))
+		if !sheet.IsPending(s.Value(at)) {
+			t.Errorf("%s with %d options rejected: %+v", tt.fn, tt.max, s.Value(at))
+		}
+		s.Set(at, fmt.Sprintf(`=%s("x", "q", "%s")`, tt.fn, labels(tt.max+1)))
+		if v := s.Value(at); v != sheet.ErrValue {
+			t.Errorf("%s with %d options = %+v, want #VALUE!", tt.fn, tt.max+1, v)
+		}
 	}
 }

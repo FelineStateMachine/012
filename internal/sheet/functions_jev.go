@@ -33,6 +33,14 @@ func init() {
 	)
 }
 
+// Limits the JEV service enforces (typesafe.MaxChoiceOptions and
+// MaxScoreLevels; internal/jev tests keep them in step). Checking them here
+// shows #VALUE! at once instead of a request that is bound to fail.
+const (
+	maxChoiceLabels = 255
+	maxScoreLevels  = 10
+)
+
 // ErrRemote is a question the model couldn't answer, e.g. a network
 // failure; the context line says why.
 var ErrRemote = Value{Kind: Error, Str: "#ERROR!"}
@@ -112,6 +120,15 @@ func jevText(n Node, get lookup) (string, error) {
 	return strings.TrimSpace(text(v)), nil
 }
 
+// jevQuestion reads the question, which must not be empty.
+func jevQuestion(n Node, get lookup) (string, error) {
+	q, err := jevText(n, get)
+	if err == nil && q == "" {
+		err = inputError{ErrValue}
+	}
+	return q, err
+}
+
 // jevList reads a list argument: a range of cells, or one text of
 // comma-separated items like "positive, negative, neutral". Blanks are
 // skipped.
@@ -150,7 +167,7 @@ func yesNoCall(args []Node, get lookup) (RemoteCall, error) {
 	if err != nil {
 		return RemoteCall{}, err
 	}
-	q, err := jevText(args[1], get)
+	q, err := jevQuestion(args[1], get)
 	if err != nil {
 		return RemoteCall{}, err
 	}
@@ -170,7 +187,7 @@ func choiceCall(args []Node, get lookup) (RemoteCall, error) {
 	if err != nil {
 		return RemoteCall{}, err
 	}
-	q, err := jevText(args[1], get)
+	q, err := jevQuestion(args[1], get)
 	if err != nil {
 		return RemoteCall{}, err
 	}
@@ -184,8 +201,8 @@ func choiceCall(args []Node, get lookup) (RemoteCall, error) {
 			return RemoteCall{}, err
 		}
 	}
-	if len(labels) < 2 {
-		return RemoteCall{}, inputError{ErrValue} // nothing to choose between
+	if len(labels) < 2 || len(labels) > maxChoiceLabels {
+		return RemoteCall{}, inputError{ErrValue} // nothing to choose between, or too many
 	}
 	criteria := make(map[string]string, len(labels))
 	for i, l := range labels {
@@ -202,7 +219,7 @@ func scoreCall(args []Node, get lookup) (RemoteCall, error) {
 	if err != nil {
 		return RemoteCall{}, err
 	}
-	q, err := jevText(args[1], get)
+	q, err := jevQuestion(args[1], get)
 	if err != nil {
 		return RemoteCall{}, err
 	}
@@ -210,7 +227,7 @@ func scoreCall(args []Node, get lookup) (RemoteCall, error) {
 	if err != nil {
 		return RemoteCall{}, err
 	}
-	if len(levels) < 2 {
+	if len(levels) < 2 || len(levels) > maxScoreLevels {
 		return RemoteCall{}, inputError{ErrValue}
 	}
 	return RemoteCall{Kind: "score", State: state, Instructions: q, Criteria: levels}, nil
