@@ -3,7 +3,10 @@
 //
 //   - every relative link and image in Markdown points at a file that
 //     exists, and every #anchor at a heading of that file;
-//   - docs/README.md, the index, links every doc in docs/;
+//   - docs/ is a Docusaurus tree: every folder has a README.md that links
+//     its pages and subfolders, and a valid _category_.json, and every
+//     page front matter with a title and a sidebar_position (tree.go);
+//   - every docs/...md path Go code names exists;
 //   - every file in docs/media is shown by some doc, comes from a VHS tape
 //     in demos/ (its Output or a Screenshot), and no GIF is over maxGIF;
 //   - every tape in demos/ records something a doc shows.
@@ -38,7 +41,8 @@ func main() {
 	}
 	var problems []string
 	problems = append(problems, checkLinks(docs)...)
-	problems = append(problems, checkIndex(docs)...)
+	problems = append(problems, checkTree(docs)...)
+	problems = append(problems, checkGoPaths()...)
 	problems = append(problems, checkMedia(docs)...)
 	for _, p := range problems {
 		fmt.Println(p)
@@ -182,26 +186,6 @@ func checkLinks(docs map[string]*doc) []string {
 			} else if !td.anchors[anchor] {
 				out = append(out, where+": no heading with that anchor in "+target)
 			}
-		}
-	}
-	return out
-}
-
-// checkIndex reports docs the index doesn't link.
-func checkIndex(docs map[string]*doc) []string {
-	index, ok := docs["docs/README.md"]
-	if !ok {
-		return []string{"docs/README.md: missing"}
-	}
-	linked := map[string]bool{}
-	for _, l := range index.links {
-		file, _, _ := strings.Cut(l.target, "#")
-		linked[path.Clean(path.Join("docs", file))] = true
-	}
-	var out []string
-	for _, p := range sortedKeys(docs) {
-		if path.Dir(p) == "docs" && p != "docs/README.md" && !linked[p] {
-			out = append(out, "docs/README.md: doesn't link "+p)
 		}
 	}
 	return out

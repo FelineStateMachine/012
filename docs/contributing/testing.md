@@ -107,18 +107,35 @@ shows go there, and GIFs stay under 1 MB.
 
 ## Docs
 
+The docs are a tree of folders by concept under `docs/`, Markdown that
+reads on GitHub and builds with Docusaurus as it is:
+
+- each folder has a `README.md` that links its pages and subfolders (the
+  folder's page in Docusaurus, and what GitHub shows for the folder), and
+  a `_category_.json` with its sidebar `label`, `position` and a link to
+  that README;
+- each page starts with front matter: a `title` and a `sidebar_position`
+  unique in its folder;
+- links are relative, to `.md` files, so they work in both; images live
+  in `docs/media/`.
+
+A new page goes in the folder a reader would look in, with front matter,
+and a line in the folder's README.
+
 `make lint` runs `scripts/doclint`, which flags wording that narrates
-history (see [CLAUDE.md](../../CLAUDE.md)), and `scripts/doccheck`: relative
-links and anchors resolve, [012 documentation](../README.md) links every doc,
-every file in `docs/media` is shown by a doc and made by a tape, and
-every tape records something a doc shows. Unit tests check what the docs
-say about the code: menu paths lead to menu items, command ids and keys
-exist and every bound key is in [Keys and mouse](../reference/keys.md)
+history (see [CLAUDE.md](../../CLAUDE.md)), and `scripts/doccheck`, which
+checks the tree above, that relative links and anchors resolve, that
+every `docs/...md` path Go code names exists, that every file in
+`docs/media` is shown by a doc and made by a tape, and that every tape
+records something a doc shows. Unit tests check what the docs say about
+the code: menu paths lead to menu items, command ids and keys exist and
+every bound key is in [Keys and mouse](../reference/keys.md)
 (`internal/ui/docs_test.go`), settings and variables are options
-(`internal/config/docs_test.go`), and [Files](../files/README.md) names every
-field of the format (`internal/sheet/file_doc_test.go`).
-[Functions](../reference/functions.md) and [Configuration](../reference/config.md)'s reference are
-generated, and their tests fail when they're stale.
+(`internal/config/docs_test.go`), and [the .012 format](../files/format.md)
+names every field (`internal/sheet/file_doc_test.go`).
+[Functions](../reference/functions.md) and the reference in
+[Configuration](../reference/config.md) are generated, and their tests
+fail when they're stale.
 
 ## No broken windows
 
