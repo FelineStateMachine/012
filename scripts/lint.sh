@@ -3,6 +3,7 @@
 #   - staticcheck, with staticcheck.conf, in every module
 #   - no function with cognitive complexity over 25 (gocognit)
 #   - no Go file over 500 lines
+#   - no docs or comments narrating history (scripts/doclint)
 # The tools run with go run at pinned versions, so they never enter go.mod.
 set -eu
 cd "$(dirname "$0")/.."
@@ -38,6 +39,11 @@ long=$(find cmd internal demos e2e oracle -name '*.go' -exec wc -l {} + | awk -v
 if [ -n "$long" ]; then
 	echo "files over $MAX_LINES lines:"
 	echo "$long" | sort -rn
+	fail=1
+fi
+
+# Docs and comments describe the code as it is, not how it got here.
+if ! go run ./scripts/doclint; then
 	fail=1
 fi
 
