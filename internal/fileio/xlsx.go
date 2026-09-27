@@ -70,7 +70,7 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 		if err := writePart(zw, "xl/styles.xml", w.styles.xml()); err != nil {
 			return err
 		}
-		if err := writePackage(zw, names, hidden, active, snap.Names); err != nil {
+		if err := writePackage(zw, names, hidden, active, snap.Names, filterRanges(sheets, names)); err != nil {
 			return err
 		}
 		return zw.Close()
@@ -110,10 +110,23 @@ const (
 	mlType    = `application/vnd.openxmlformats-officedocument.spreadsheetml.`
 )
 
+// filterRanges is each sheet's filter range as Excel names it, with its
+// sheet (_xlnm._FilterDatabase), or "" for a sheet without a filter.
+func filterRanges(sheets []*Snapshot, names []string) []string {
+	out := make([]string, len(sheets))
+	for i, sn := range sheets {
+		if sn.Filter != nil {
+			out[i] = excelRange(names[i], sn.Filter.Range)
+		}
+	}
+	return out
+}
+
 // writePackage writes the parts around the worksheets and styles: the
-// workbook with its sheets, active tab, names and calculation settings,
-// the relationships and the content types.
-func writePackage(zw *zip.Writer, names []string, hidden []bool, active int, defined [][2]string) error {
+// workbook with its sheets, active tab, names (with each filter's range,
+// filters[i] for sheet i) and calculation settings, the relationships
+// and the content types.
+func writePackage(zw *zip.Writer, names []string, hidden []bool, active int, defined [][2]string, filters []string) error {
 	var types, rels, book strings.Builder
 	types.WriteString(xmlHead + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
 		`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
@@ -136,12 +149,17 @@ func writePackage(zw *zip.Writer, names []string, hidden []bool, active int, def
 	fmt.Fprintf(&rels, `<Relationship Id="rId%d" Type="%s/styles" Target="styles.xml"/></Relationships>`, len(names)+1, officeRel)
 	types.WriteString(`</Types>`)
 	book.WriteString(`</sheets>`)
-	if len(defined) > 0 {
-		book.WriteString(`<definedNames>`)
-		for _, n := range defined {
-			fmt.Fprintf(&book, `<definedName name="%s">%s</definedName>`, escapeXML(n[0], true), escapeXML(n[1], false))
+	var dn strings.Builder
+	for i, r := range filters {
+		if r != "" {
+			fmt.Fprintf(&dn, `<definedName name="_xlnm._FilterDatabase" localSheetId="%d" hidden="1">%s</definedName>`, i, escapeXML(r, false))
 		}
-		book.WriteString(`</definedNames>`)
+	}
+	for _, n := range defined {
+		fmt.Fprintf(&dn, `<definedName name="%s">%s</definedName>`, escapeXML(n[0], true), escapeXML(n[1], false))
+	}
+	if dn.Len() > 0 {
+		book.WriteString(`<definedNames>` + dn.String() + `</definedNames>`)
 	}
 	book.WriteString(`<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`)
 	for _, p := range []struct{ name, body string }{

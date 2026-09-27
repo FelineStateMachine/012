@@ -90,6 +90,14 @@ func writeExcelizeBook(t *testing.T, dir string) string {
 	x.SetColWidth("Q2 plan", "C", "C", 30)
 	x.SetDefinedName(&excelize.DefinedName{Name: "Rent", RefersTo: "Q1!$B$1"})
 	x.SetDefinedName(&excelize.DefinedName{Name: "Mine", RefersTo: "Q1!$B$1", Scope: "Q2 plan"})
+	// Frozen panes, and filters: values, conditions and one 012 can't apply.
+	x.SetPanes("Q1", &excelize.Panes{Freeze: true, XSplit: 1, YSplit: 1, TopLeftCell: "B2", ActivePane: "bottomRight"})
+	x.SetPanes("Q2 plan", &excelize.Panes{Freeze: true, YSplit: 2, TopLeftCell: "A3", ActivePane: "bottomLeft"})
+	x.AutoFilter("Q1", "A1:H4", []excelize.AutoFilterOptions{{Column: "E", Expression: "x == *gap"}, {Column: "B", Expression: "x > 1 and x < 5000"}})
+	for i, fruit := range []string{"Fruit", "Apple", "Pear", "banana", "Plum", "Apple"} {
+		x.SetSheetRow("Q2 plan", "A"+itoa(10+i), &[]any{fruit, i})
+	}
+	x.AutoFilter("Q2 plan", "A10:B15", []excelize.AutoFilterOptions{{Column: "A", Expression: "x == apple or x == Plum"}, {Column: "B", Expression: "x >= 2"}})
 	x.SetActiveSheet(1)
 	path := filepath.Join(dir, "excelize.xlsx")
 	if err := x.SaveAs(path); err != nil {
@@ -109,6 +117,13 @@ func writeExportedBook(t *testing.T, dir string) string {
 		f.Set(sheet.Addr{Col: 1, Row: row}, "=SUM($A$1:A"+itoa(row+1)+")")
 	}
 	f.SetColWidth(0, 20)
+	f.SetFrozen(1, 2)
+	f.CreateFilter(sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 1, Row: 39}))
+	f.FilterColumn(1, sheet.Criteria{Cond: sheet.Condition{Op: sheet.CondGreater, Arg: "500"}})
+	s.SetFrozen(1, 0)
+	s.CreateFilter(sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 9, Row: 60}))
+	s.FilterColumn(1, sheet.Criteria{Hidden: []string{"beta", "gamma"}})
+	s.FilterColumn(3, sheet.Criteria{Cond: sheet.Condition{Op: sheet.CondContains, Arg: "1"}})
 	path := filepath.Join(dir, "exported.xlsx")
 	if _, err := Export(context.Background(), path, XLSX, SnapBook(f), ExportOptions{}); err != nil {
 		t.Fatal(err)

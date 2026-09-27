@@ -29,6 +29,13 @@ type Snapshot struct {
 	Sheets []*Snapshot
 	Names  [][2]string
 	Hidden bool // a hidden sheet of Sheets, written hidden
+
+	// FrozenRows and FrozenCols are the frozen panes; Filter is the
+	// sheet's filter, if any, and HiddenRows the rows of Range it hides,
+	// for formats that keep them (XLSX).
+	FrozenRows, FrozenCols int
+	Filter                 *sheet.Filter
+	HiddenRows             map[int]bool
 }
 
 // SnapCell is one non-blank cell of a snapshot.
@@ -60,7 +67,16 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		r.To = r.From
 	}
 	snap := &Snapshot{Range: r, Cells: map[sheet.Addr]SnapCell{}, Widths: s.Widths(), Name: name,
-		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true)}
+		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true), Filter: s.Filter()}
+	snap.FrozenRows, snap.FrozenCols = s.Frozen()
+	if f := snap.Filter; f != nil {
+		snap.HiddenRows = map[int]bool{}
+		for row := max(f.Range.From.Row, r.From.Row); row <= min(f.Range.To.Row, r.To.Row); row++ {
+			if s.RowHidden(row) {
+				snap.HiddenRows[row] = true
+			}
+		}
+	}
 	for _, a := range s.Addrs() {
 		if !r.Contains(a) {
 			continue

@@ -51,6 +51,10 @@ type xlsxSheetReader struct {
 
 	colStyles []int // by column, see colStyle
 
+	// The first sheet view's frozen panes (see readPane).
+	paneRead               bool
+	frozenRows, frozenCols int
+
 	inData bool // inside <sheetData>
 	row    xlsxRowData
 	shared map[int]sharedFormula
@@ -101,10 +105,14 @@ func (r *xlsxSheetReader) readHead() error {
 			return err
 		}
 		se, ok := t.(xml.StartElement)
-		if !ok || r.x.depth != 2 && se.Name.Local != "col" {
+		if !ok || r.x.depth != 2 && se.Name.Local != "col" && se.Name.Local != "pane" {
 			continue
 		}
 		switch se.Name.Local {
+		case "pane":
+			if r.x.depth == 4 {
+				r.readPane(se)
+			}
 		case "sheetData":
 			r.inData = true
 			return nil

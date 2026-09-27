@@ -66,11 +66,8 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 	r := snap.Range
 	bw.WriteString(xmlHead + `<worksheet xmlns="` + sheetMain + `" xmlns:r="` + officeRel + `">`)
 	fmt.Fprintf(bw, `<dimension ref="%s%d:%s%d"/>`, excelColName(r.From.Col+1), r.From.Row+1, excelColName(r.To.Col+1), r.To.Row+1)
-	bw.WriteString(`<sheetViews><sheetView workbookViewId="0"`)
-	if active {
-		bw.WriteString(` tabSelected="1"`)
-	}
-	bw.WriteString(`/></sheetViews><sheetFormatPr defaultRowHeight="15"/>`)
+	writeSheetView(bw, snap, active)
+	bw.WriteString(`<sheetFormatPr defaultRowHeight="15"/>`)
 	w.writeCols(bw, snap)
 	bw.WriteString(`<sheetData>`)
 	styled := slices.Sorted(maps.Keys(snap.RowFormats)) // rows with a style of their own, written even without cells
@@ -87,7 +84,7 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 				b = w.cell(b, ws, a, c)
 			}
 		}
-		if len(b) > 0 || rowStyled {
+		if len(b) > 0 || rowStyled || snap.HiddenRows[row] {
 			w.rowStart(bw, snap, row)
 			bw.Write(b)
 			bw.WriteString(`</row>`)
@@ -95,7 +92,9 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 		w.buf = b
 	}
 	w.styledRows(bw, snap, styled, sheet.MaxRows)
-	bw.WriteString(`</sheetData></worksheet>`)
+	bw.WriteString(`</sheetData>`)
+	writeAutoFilter(bw, snap)
+	bw.WriteString(`</worksheet>`)
 	return r.To.Row - r.From.Row + 1
 }
 

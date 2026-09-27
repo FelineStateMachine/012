@@ -122,6 +122,9 @@ func (w *xlsxWriter) rowStart(bw *bufio.Writer, snap *Snapshot, row int) {
 	if l, ok := snap.RowFormats[row]; ok {
 		fmt.Fprintf(bw, ` s="%d" customFormat="1"`, w.styles.id(l.Format, l.Style))
 	}
+	if snap.HiddenRows[row] {
+		bw.WriteString(` hidden="1"`)
+	}
 	bw.WriteString(`>`)
 }
 
