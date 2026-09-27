@@ -31,28 +31,28 @@ searches every command. `012 config edit` opens the settings file.
 
 ## A short tour
 
-- **Formulas as in Sheets**, with [Sheets' functions](docs/functions.md),
+- **Formulas as in Sheets**, with [Sheets' functions](docs/reference/functions.md),
   suggestions and argument hints, pointing at cells with the arrows or the
   mouse, named ranges, references between sheets, optional decimal
   arithmetic for money, and undo for everything
-  ([formulas](docs/formulas.md)).
+  ([formulas](docs/formulas/README.md)).
 - **Data tools**: freeze, sort, filter, find and replace, conditional
   formatting, dropdowns and checkboxes, notes, protected ranges, and live
-  pivot tables ([working with data](docs/data.md)).
+  pivot tables ([working with data](docs/sheets/README.md)).
 - **Charts** that float over the grid and follow their data, drawn as real
   images in kitty, Ghostty and WezTerm and as text elsewhere
-  ([charts](docs/charts.md)).
+  ([charts](docs/sheets/charts.md)).
 - **Files**: a diff-friendly JSON format, import from CSV, TSV, XLSX,
   SQLite, Parquet and Lotus 1-2-3, export to CSV, TSV, XLSX and SQLite
-  ([files](docs/files.md)).
+  ([files](docs/files/README.md)).
 - **Macros**, recorded or written as Starlark scripts saved with the sheet
-  ([macros](docs/macros.md)).
+  ([macros](docs/sheets/macros.md)).
 - **Made for terminals**: the mouse, hyperlinks, the system clipboard over
   SSH, your terminal's colors or any of hundreds of schemes, optional vim
   keys, and `012 serve` to reach your sheets over SSH
-  ([keys](docs/keys.md), [themes](docs/themes.md), [SSH](docs/ssh.md)).
+  ([keys](docs/reference/keys.md), [themes](docs/terminal/themes.md), [SSH](docs/terminal/ssh.md)).
 - **JEV functions** ask TypeSafe's hosted model about your data from a
-  formula ([JEV](docs/jev.md)).
+  formula ([JEV](docs/formulas/jev.md)).
 
 | | |
 |---|---|
@@ -68,7 +68,7 @@ searches every command. `012 config edit` opens the settings file.
 The recordings are [VHS](https://github.com/charmbracelet/vhs) tapes in
 [`demos/`](demos), rendered by `make demos` in the Catppuccin Mocha
 palette; 012 draws in your terminal's own colors by default
-([themes](docs/themes.md)). Charts show as text here.
+([themes](docs/terminal/themes.md)). Charts show as text here.
 
 ## More
 
@@ -76,7 +76,7 @@ palette; 012 draws in your terminal's own colors by default
   working on it
 - [Roadmap](ROADMAP.md)
 - Working on 012: `make build`, then `make check` before a push; see
-  [testing](docs/testing.md) and [CLAUDE.md](CLAUDE.md)
+  [testing](docs/contributing/testing.md) and [CLAUDE.md](CLAUDE.md)
 
 Young and moving quickly. The file format is versioned and older files
 keep loading; the Go packages are internal and may change at any time.

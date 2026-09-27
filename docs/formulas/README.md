@@ -66,9 +66,9 @@ numbers as numbers.
 
 | Page | For |
 |---|---|
-| [References](@/formulas/references.md) | Cells, ranges, names, other sheets, and a range where one value is wanted |
-| [Building formulas](@/formulas/building.md) | Pointing, suggestions, argument hints, tracing |
-| [Arrays and spills](@/formulas/arrays.md) | FILTER, SORT, UNIQUE, SEQUENCE, ARRAYFORMULA, LET and LAMBDA |
-| [Decimal arithmetic](@/formulas/decimal.md) | Exact decimal math for money |
-| [JEV functions](@/formulas/jev.md) | Asking a hosted model from formulas |
-| [Functions](@/reference/functions.md) | Every function, generated from the engine |
+| [References](references.md) | Cells, ranges, names, other sheets, and a range where one value is wanted |
+| [Building formulas](building.md) | Pointing, suggestions, argument hints, tracing |
+| [Arrays and spills](arrays.md) | FILTER, SORT, UNIQUE, SEQUENCE, ARRAYFORMULA, LET and LAMBDA |
+| [Decimal arithmetic](decimal.md) | Exact decimal math for money |
+| [JEV functions](jev.md) | Asking a hosted model from formulas |
+| [Functions](../reference/functions.md) | Every function, generated from the engine |

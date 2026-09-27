@@ -7,7 +7,7 @@ sidebar_position: 4
 
 A spreadsheet holds several sheets, shown as tabs at the left of the
 status line (as tmux lists its windows). Formulas read other sheets by
-name, `=Sheet2!A1` ([references](@/formulas/references.md)).
+name, `=Sheet2!A1` ([references](../formulas/references.md)).
 
 | To | Do |
 |---|---|

@@ -108,20 +108,20 @@ shows go there, and GIFs stay under 1 MB.
 ## Docs
 
 `make lint` runs `scripts/doclint`, which flags wording that narrates
-history (see [CLAUDE.md](../CLAUDE.md)), and `scripts/doccheck`: relative
-links and anchors resolve, [docs/README.md](README.md) links every doc,
+history (see [CLAUDE.md](../../CLAUDE.md)), and `scripts/doccheck`: relative
+links and anchors resolve, [docs/README.md](../README.md) links every doc,
 every file in `docs/media` is shown by a doc and made by a tape, and
 every tape records something a doc shows. Unit tests check what the docs
 say about the code: menu paths lead to menu items, command ids and keys
-exist and every bound key is in [keys.md](keys.md)
+exist and every bound key is in [keys.md](../reference/keys.md)
 (`internal/ui/docs_test.go`), settings and variables are options
-(`internal/config/docs_test.go`), and [files.md](files.md) names every
+(`internal/config/docs_test.go`), and [files.md](../files/README.md) names every
 field of the format (`internal/sheet/file_doc_test.go`).
-[functions.md](functions.md) and [config.md](config.md)'s reference are
+[functions.md](../reference/functions.md) and [config.md](../reference/config.md)'s reference are
 generated, and their tests fail when they're stale.
 
 ## No broken windows
 
 `make check` must pass before a push, and warnings are fixed or turned
 off with a written reason rather than left standing. The rules are in
-[CLAUDE.md](../CLAUDE.md).
+[CLAUDE.md](../../CLAUDE.md).

@@ -40,7 +40,7 @@ win over the config file, which wins over the defaults. `012 config` shows
 where each value came from.
 
 **Secrets never go in this file.** The JEV API key lives in the OS
-credential store or comes from a command; see [JEV setup](jev.md#setup).
+credential store or comes from a command; see [JEV setup](../formulas/jev.md#setup).
 
 ## Commands
 
@@ -57,7 +57,7 @@ credential store or comes from a command; see [JEV setup](jev.md#setup).
 In the app, File > Settings has **Theme** (a picker with live preview),
 **Open config file** (in your editor, reloading when it closes),
 **Reload config** and **JEV API key** (stored, then checked with one test
-call: see [jev.md](jev.md#setup)). Reloading applies the options marked
+call: see [jev.md](../formulas/jev.md#setup)). Reloading applies the options marked
 "File > Settings > Reload config" below; the rest take effect on the next
 start.
 

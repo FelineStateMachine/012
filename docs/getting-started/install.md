@@ -20,11 +20,11 @@ go install github.com/FelineStateMachine/012/cmd/012@latest
 ```
 
 A file on the command line opens as File > Open would: a `.012` sheet, or
-another format imported ([files](@/files/README.md)). `012 serve` is
-described in [Serving over SSH](@/terminal/ssh.md).
+another format imported ([files](../files/README.md)). `012 serve` is
+described in [Serving over SSH](../terminal/ssh.md).
 
 `012 config` prints the settings in effect and `012 config edit` opens the
-settings file ([configuration](@/reference/config.md)). 012 draws in your
-terminal's own colors by default; [themes](@/terminal/themes.md) says
-how to pick a color scheme. The [terminal](@/terminal/README.md) page
+settings file ([configuration](../reference/config.md)). 012 draws in your
+terminal's own colors by default; [themes](../terminal/themes.md) says
+how to pick a color scheme. The [terminal](../terminal/README.md) page
 lists which terminal features 012 uses where they're available.

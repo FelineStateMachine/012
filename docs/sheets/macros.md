@@ -12,7 +12,7 @@ script (a small, deterministic dialect of Python) saved in the `.012`
 file, as Sheets saves Apps Script with a spreadsheet. Recorded macros are
 scripts too, so you can read them, change them, or write your own.
 
-![Recording a column total with relative references, then replaying it from Run macro and the palette](media/macros.gif)
+![Recording a column total with relative references, then replaying it from Run macro and the palette](../media/macros.gif)
 
 ## Recording
 
@@ -114,7 +114,7 @@ and mark the file modified, like any edit.
 
 Opening a file never runs its macros. The file remembers which computer
 its macros were made or trusted on (a random id kept in 012's
-config directory, the one [config.md](config.md) describes). Running
+config directory, the one [config.md](../reference/config.md) describes). Running
 a macro from a file made elsewhere asks once, on the context line:
 
 ```
@@ -130,4 +130,4 @@ read the clock or random numbers: all they can reach is the functions
 below. What a macro can do is what you could do with the keyboard in that
 workbook, which is why it asks before running someone else's.
 
-Macros are Starlark scripts you can read and write: the [scripting API](@/reference/macro-api.md) lists what they can do.
+Macros are Starlark scripts you can read and write: the [scripting API](../reference/macro-api.md) lists what they can do.

@@ -10,7 +10,7 @@ the client's own terminal, on the files of one directory. It's for
 reaching your sheets from another machine or a tablet with an SSH app,
 without installing anything there. It is not shared editing: two
 sessions are two separate spreadsheets (see
-[the roadmap](../ROADMAP.md#later-sharing-a-live-sheet-shelved)).
+[the roadmap](../../ROADMAP.md#later-sharing-a-live-sheet-shelved)).
 
 ```sh
 012 serve ~/sheets                 # serve ~/sheets on 127.0.0.1:2312
@@ -38,7 +38,7 @@ there's no command.
 | `--host-key` | `<config dir>/012/ssh_host_ed25519_key` | The server's key, generated on first run |
 | `--idle-timeout` | `30m` | End a session after this long without input, keeping its unsaved changes; `0` never does |
 | `--max-sessions` | `8` | Sessions at once; more are turned away with a message |
-| `--log`, `--otlp` | off | Telemetry, as for the app ([observability.md](observability.md)) |
+| `--log`, `--otlp` | off | Telemetry, as for the app ([observability.md](../contributing/observability.md)) |
 
 The config directory is `os.UserConfigDir()`: `~/Library/Application
 Support` on macOS, `~/.config` on Linux. On start, 012 prints the served
@@ -142,7 +142,7 @@ client: the window size and its changes, the colors (from the `TERM`
 the client sends), the light or dark background, kitty graphics, and
 the clipboard, which Ctrl+C sets on the client's machine through OSC 52.
 
-[Macros](macros.md) can be recorded, run, renamed and deleted in a
+[Macros](../sheets/macros.md) can be recorded, run, renamed and deleted in a
 session, but not edited as scripts: that would start an editor on the
 server. A file's macros ask for trust once per session, since the
 session isn't the server's own computer, and scripts have no file,
@@ -194,4 +194,4 @@ check protects the local app from other programs writing the file.
   300 B per cell of the sheets it opens; two sessions opening one file
   hold two copies. With 50 sessions typing at once on loopback, frames
   still arrive within one frame interval (p95 16.6 ms), the same as with
-  10: see [limits.md](limits.md#serving-over-ssh).
+  10: see [limits.md](../contributing/limits.md#serving-over-ssh).

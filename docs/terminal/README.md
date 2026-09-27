@@ -11,8 +11,8 @@ colors that follow light and dark.
 
 | Page | For |
 |---|---|
-| [Themes](@/terminal/themes.md) | Your terminal's colors, a built-in scheme, or your own |
-| [Serving over SSH](@/terminal/ssh.md) | `012 serve`: a 012 per session, on one directory |
+| [Themes](themes.md) | Your terminal's colors, a built-in scheme, or your own |
+| [Serving over SSH](ssh.md) | `012 serve`: a 012 per session, on one directory |
 
 ## Terminal features 012 uses
 

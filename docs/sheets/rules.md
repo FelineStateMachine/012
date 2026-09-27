@@ -15,7 +15,7 @@ Left/Right change a choice, Space flips a check, text lines are typed
 into, Enter saves and Esc goes back without saving. Every change is an
 undo step.
 
-![Checking a task off, picking an owner from a dropdown, a rejected entry, and the rules panel](media/rules.gif)
+![Checking a task off, picking an owner from a dropdown, a rejected entry, and the rules panel](../media/rules.gif)
 
 A rule applies to ranges (`A2:A100`, or several: `A2:A9,C2:C9`) and is
 one of:
@@ -41,7 +41,7 @@ over a rule's colors; its text styles show through them.
 
 Colors are named (red, yellow, green, cyan, blue, magenta) rather than
 picked from a color wheel, because each is one of the terminal's 16 ANSI
-colors: the terminal's palette or the color scheme ([themes.md](themes.md))
+colors: the terminal's palette or the color scheme ([themes.md](../terminal/themes.md))
 decides what they look like, and a fill's text is drawn in whichever of
 black or white reads on it. A text color that wouldn't read on a rule's
 fill takes the fill's ink instead. Color scales blend the scheme's colors
@@ -94,4 +94,4 @@ selection out of every rule.
 
 Adding a checkbox or a dropdown changes no cells, so on a protected range
 it doesn't ask first (on a protected sheet it does); checking a box or
-picking an item asks as typing does ([protection](#protected-sheets-and-ranges)).
+picking an item asks as typing does ([protection](notes-protection.md#protected-sheets-and-ranges)).

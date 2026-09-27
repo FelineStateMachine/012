@@ -7,9 +7,9 @@ sidebar_position: 3
 
 Formats change how values show, never what they are. Select cells,
 whole columns or rows, then pick a format from the Format menu, a key
-([keys](@/reference/keys.md#formatting)) or the palette. Entries such as
+([keys](../reference/keys.md#formatting)) or the palette. Entries such as
 `$1,200`, `12%` or `9/26/2026` take their format as you type them
-([formulas](@/formulas/README.md#what-you-type)).
+([formulas](../formulas/README.md#what-you-type)).
 
 ## Number formats
 
@@ -33,7 +33,7 @@ Format > Number, as Sheets names them:
 
 Format > Increase and Decrease decimal places show one more or one less.
 A formula left Automatic shows the format of what it reads
-([building formulas](@/formulas/building.md)).
+([building formulas](../formulas/building.md)).
 
 ## Text
 
@@ -51,7 +51,7 @@ cell of it shows the format unless it has its own, and a cell typed into
 later takes it. A cell's format comes from the cell, else its row, else
 its column, else the whole sheet's (Ctrl+A twice, then a format); the
 number format and the text style fall back separately. Copies carry what
-cells show ([editing](@/sheets/editing.md#copy-paste-and-fill)).
+cells show ([editing](editing.md#copy-paste-and-fill)).
 
 ## Column widths
 
@@ -60,4 +60,4 @@ Drag a column header's right edge, or use Format > Column width (1 to
 Reset column width goes back to the default.
 
 Conditional formats, which color cells by their values, are on
-[their own page](@/sheets/rules.md).
+[their own page](rules.md).

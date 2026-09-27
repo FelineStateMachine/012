@@ -5,7 +5,7 @@ sidebar_position: 8
 
 # Pivot tables
 
-![Building a pivot table of revenue by region and quarter, then changing its data](media/pivot.gif)
+![Building a pivot table of revenue by region and quarter, then changing its data](../media/pivot.gif)
 
 Data > Pivot table summarizes the selection, or the table around the
 active cell, on a new sheet named `Pivot Table 1`, as Sheets' Insert >

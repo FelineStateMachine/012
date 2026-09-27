@@ -30,7 +30,7 @@ O12_LOG_LEVEL=debug                   # also one event per frame
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 012 budget.012  # the same
 ```
 
-Or keep them in the [config file](config.md) as `log-file`, `log-level`
+Or keep them in the [config file](../reference/config.md) as `log-file`, `log-level`
 and `otlp-endpoint`; flags win over the environment, which wins over the
 file.
 

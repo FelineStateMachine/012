@@ -50,7 +50,7 @@ follow-up task.
   `lipgloss.NewStyle()` in views. Need a new role? Add it to `theme` with a
   comment saying what it's for, in both the dark and light variants.
 - Use the 16 ANSI colors so the user's terminal palette applies. No
-  hard-coded RGB. Color schemes ([themes.md](themes.md)) are data: they
+  hard-coded RGB. Color schemes ([themes.md](../terminal/themes.md)) are data: they
   map the same roles to their colors and correct contrast, and
   `TestEveryThemeReadable` must pass for a new role.
 - Bars (menu bar, formula bar, context line, column headers, status line)
@@ -91,7 +91,7 @@ follow-up task.
       committing. Screens are drawn from libghostty's cell grid, so they
       match what a terminal shows.
 - [ ] The feature's doc updated in place, where a reader looks for it,
-      and its keys in [keys.md](keys.md) (tests check every bound key is
+      and its keys in [keys.md](../reference/keys.md) (tests check every bound key is
       there); a headline feature gets a tape in `demos/` and a place in
       the README ([testing.md](testing.md#demo-recordings)).
 

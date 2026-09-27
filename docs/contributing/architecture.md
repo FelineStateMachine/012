@@ -128,7 +128,7 @@ style.
 - **Functions.** One table (`FuncDef`, in `internal/functions`) holds
   every function's name, signature, description and arity; it drives
   parsing, evaluation, autocomplete, in-app help and
-  [functions.md](functions.md). See [Functions](#functions).
+  [functions.md](../reference/functions.md). See [Functions](#functions).
 - **Undo.** Every mutation goes through a small set of paths that snapshot
   the cells, widths, names, charts, view state and sheet list they change,
   on any sheet, so a step can be reversed exactly; multi-cell operations
@@ -186,7 +186,7 @@ style.
 (one file per category: `everyday.go`, `math.go`, `stats.go`,
 `logic.go`, `text.go`, `regex.go`, `lookup.go`, `dynamic.go`,
 `lambda.go`, `date.go`, `finance.go`, `link.go`, `jev.go`, which
-[functions.md](functions.md) is grouped by), the evaluation of formulas
+[functions.md](../reference/functions.md) is grouped by), the evaluation of formulas
 (`eval.go`: operators and calls; arrays in `array.go`, functions mapped
 over them in `lift.go`, the names LET and LAMBDA bind in `scope.go`), the helpers
 functions share (arguments and blocks of cells in `args.go`, criteria
@@ -295,7 +295,7 @@ move without touching callers:
 
 `internal/ui` is a Bubble Tea program. Inside the grid it follows Google
 Sheets; around it, the control panel keeps a 1-2-3 look. See
-[UX.md](UX.md) for the rules every change follows.
+[UX.md](ux.md) for the rules every change follows.
 
 **Commands.** Every action is a registered command with a title and
 description (`commands.go`), reached from key bindings, the menu bar,
@@ -479,7 +479,7 @@ file names. Everything a model knows lives in the model, so sessions
 share nothing but read-only tables (the command and function
 registries), the process-wide telemetry and, with JEV on, the HTTP
 client; each gets its own `jev.Cache`, whose queue belongs to that
-session's program. See [ssh.md](ssh.md).
+session's program. See [ssh.md](../terminal/ssh.md).
 
 **Unsaved work.** `Server.Shutdown` closes a channel every session
 watches; a session quitting on it, or on its idle timeout, asks its
@@ -504,7 +504,7 @@ config directory; the same directory holds `themes/` and 012 serve's host
 key. Every option is one entry in `config.Options`: name, type, default,
 environment variables, flag, whether Reload config applies it, and a
 description. Parsing and validation, the flags `cmd/012` accepts, `012
-config`'s listing and default file, and [config.md](config.md)'s
+config`'s listing and default file, and [config.md](../reference/config.md)'s
 reference (checked by a test) all come from that table. Values are layered defaults < file < environment < flags, each
 remembering its source; problems are warnings, never fatal. The UI gets a
 `ui.Settings` (the config, a reload function, the credential store, a JEV
@@ -550,7 +550,7 @@ color scheme (`theme.Palette`: VHS's embedded catalog, or a Ghostty,
 kitty or VHS JSON file in `themes/`) is drawn by `theme.FromPalette`,
 which maps each ANSI color to the scheme's, adds full-width bands for the
 bars and a screen background, and corrects contrast (see
-[themes.md](themes.md)). Bands are applied by `theme.Fill`, one pass over
+[themes.md](../terminal/themes.md)). Bands are applied by `theme.Fill`, one pass over
 a rendered line's escape sequences that sets the band's colors at the
 start and after each reset and pads to the width; `View` fills the bar
 lines before overlays are composited and the whole screen after, so bars

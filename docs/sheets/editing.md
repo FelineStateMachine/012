@@ -14,7 +14,7 @@ select whole columns and rows. The active cell stays distinct from the rest
 of the selection, and the status line shows Sum, Avg and Count, dropping the
 ones that don't fit on a narrow terminal.
 
-![A column selected, with its Sum, Avg and Count on the status line](media/selection-stats.png)
+![A column selected, with its Sum, Avg and Count on the status line](../media/selection-stats.png)
 
 ## Copy, paste and fill
 

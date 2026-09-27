@@ -28,7 +28,7 @@ mouse and the vim keymap added.
 
 | Key | Action |
 |---|---|
-| Type | Replace the cell: `=` starts a formula, `'` forces text, and `$1,200`, `12%`, `9/26/2026` or `14:30` are numbers that keep their format ([formulas.md](formulas.md#what-you-type)) |
+| Type | Replace the cell: `=` starts a formula, `'` forces text, and `$1,200`, `12%`, `9/26/2026` or `14:30` are numbers that keep their format ([formulas.md](../formulas/README.md#what-you-type)) |
 | Enter, Tab | Accept and move down or right; Enter goes back to the column a run of Tabs began in |
 | Enter, F2, double-click | Edit the cell |
 | Esc | Cancel the entry |
@@ -58,7 +58,7 @@ mouse and the vim keymap added.
 | Ctrl+D, Ctrl+R | Fill down, fill right; a series started in the top rows (1, 2 over blanks) continues |
 | Ctrl+Alt+=, Ctrl+Alt+- | Insert rows above, delete the selected rows (columns when whole columns are selected) |
 
-[data.md](data.md#copy-paste-and-fill) says how formats travel with
+[data.md](../sheets/editing.md#copy-paste-and-fill) says how formats travel with
 copies and which series the fill handle continues.
 
 ## Formatting
@@ -89,20 +89,20 @@ The rest of the formats are in the Format menu.
 
 | Key | Action | More |
 |---|---|---|
-| Ctrl+F, Ctrl+H | Find; find and replace | [data.md](data.md#find-and-replace) |
-| Alt+Down | Open the active cell's dropdown (type to search, Enter picks); elsewhere, with a filter on (Data > Create a filter), the column's filter (Space checks values, type to search, or pick a condition) | [validation](data.md#data-validation), [filter](data.md#filter) |
-| Space | Check or uncheck the selected checkboxes (Insert > Checkbox); elsewhere Space starts an entry | [data.md](data.md#data-validation) |
-| Alt+, Alt+. | Trace precedents, dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) | [formulas.md](formulas.md#building-formulas) |
-| Alt+Shift+F | Frequency table of the active column on a new sheet, as VisiData's Shift+F | [data.md](data.md#frequency-tables) |
-| Shift+F2 | Add or edit the active cell's note; Alt+Enter or Shift+Enter starts a new line | [data.md](data.md#notes) |
+| Ctrl+F, Ctrl+H | Find; find and replace | [data.md](../sheets/find-replace.md) |
+| Alt+Down | Open the active cell's dropdown (type to search, Enter picks); elsewhere, with a filter on (Data > Create a filter), the column's filter (Space checks values, type to search, or pick a condition) | [validation](../sheets/rules.md#data-validation), [filter](../sheets/sort-filter.md#filter) |
+| Space | Check or uncheck the selected checkboxes (Insert > Checkbox); elsewhere Space starts an entry | [data.md](../sheets/rules.md#data-validation) |
+| Alt+, Alt+. | Trace precedents, dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) | [formulas.md](../formulas/building.md) |
+| Alt+Shift+F | Frequency table of the active column on a new sheet, as VisiData's Shift+F | [data.md](../sheets/pivots.md#frequency-tables) |
+| Shift+F2 | Add or edit the active cell's note; Alt+Enter or Shift+Enter starts a new line | [data.md](../sheets/notes-protection.md#notes) |
 
 Tools with no key of their own have their keys on screen while they're
 open, and in their docs: sorting by several columns
-([data.md](data.md#sort)), conditional formatting and data validation
-([rules panel](data.md#conditional-formatting)), pivot tables
-([pivot editor](data.md#pivot-tables)), protected ranges
-([data.md](data.md#protected-sheets-and-ranges)) and charts
-([charts.md](charts.md)). In Data > Named ranges, Enter goes to a
+([data.md](../sheets/sort-filter.md#sort)), conditional formatting and data validation
+([rules panel](../sheets/rules.md#conditional-formatting)), pivot tables
+([pivot editor](../sheets/pivots.md)), protected ranges
+([data.md](../sheets/notes-protection.md#protected-sheets-and-ranges)) and charts
+([charts.md](../sheets/charts.md)). In Data > Named ranges, Enter goes to a
 range, F2 renames or repoints it and Ctrl+D deletes it.
 
 ## Files, menus and help
@@ -119,7 +119,7 @@ range, F2 renames or repoints it and Ctrl+D deletes it.
 
 | Key | Action |
 |---|---|
-| Ctrl+Alt+Shift+0 to 9 | Run the macro with that shortcut ([macros.md](macros.md#running)) |
+| Ctrl+Alt+Shift+0 to 9 | Run the macro with that shortcut ([macros.md](../sheets/macros.md#running)) |
 | Esc | Stop a macro while it runs (the mode indicator says CMD) |
 
 ## Vim keys
@@ -137,7 +137,7 @@ Ctrl+D, Ctrl+U and Ctrl+R are vim's, so fill down and fill right are in
 the Edit menu. F1 lists the vim keys first, and the menus and palette
 show them where Sheets' keys are taken.
 
-![Vim keys: counts, dd and p, / search, VISUAL rows and the : line](media/vim.gif)
+![Vim keys: counts, dd and p, / search, VISUAL rows and the : line](../media/vim.gif)
 
 | Keys (NORMAL) | Action |
 |---|---|

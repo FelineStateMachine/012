@@ -38,7 +38,7 @@ writes `theme = ...` to the config file, and Esc goes back to the theme you
 had. With a `light:`/`dark:` pair, the picker changes the one in use.
 `012 config themes` lists every theme, with a `*` on the current one.
 
-![The theme picker previewing 1-2-3 Classic](media/theme-classic.png)
+![The theme picker previewing 1-2-3 Classic](../media/theme-classic.png)
 
 ## Built-in schemes
 
@@ -100,7 +100,7 @@ for cell text, text on the bars, the selection, the headers and every
 other role (`TestEveryThemeReadable`). Charts, as text and as kitty
 images, use the scheme's colors too.
 
-Conditional formats ([data.md](data.md#conditional-formatting)) name
+Conditional formats ([data.md](../sheets/rules.md#conditional-formatting)) name
 their colors (red, yellow, green, cyan, blue, magenta) rather than
 giving RGB, and each is an ANSI slot, so they follow the theme too: a
 text color is the slot on the cell (`RuleText`), a fill the slot as a
@@ -125,6 +125,6 @@ terminal theme leaves them empty, so it looks as it always has.
 ## Credits
 
 The built-in schemes are VHS's `themes.json` (MIT License, Copyright (c)
-2022-2023 Charmbracelet, Inc.; see [NOTICE](../NOTICE)), which credits
+2022-2023 Charmbracelet, Inc.; see [NOTICE](../../NOTICE)), which credits
 each scheme's authors in its `meta.credits`. The contrast correction is
 adapted from the theme package of puzzletea, by the same author.

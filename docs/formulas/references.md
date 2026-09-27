@@ -28,7 +28,7 @@ sidebar_position: 2
 - Each sheet is 16,384 columns (A to XFD) by 1,048,576 rows, Excel's size;
   a reference past them (`XFE1`, `A1048577`) reads as a name. Formulas cost
   what their ranges hold, not their size: `SUM(A:A)` over ten numbers reads
-  ten cells, and `ROWS(A:A)` is still 1,048,576. See [limits.md](limits.md)
+  ten cells, and `ROWS(A:A)` is still 1,048,576. See [limits.md](../contributing/limits.md)
   for what that means in practice.
 
 ## A range where one value is wanted
@@ -49,7 +49,7 @@ in Sheets and Excel (implicit intersection):
 Ranges on other sheets work the same, by the formula's row or column:
 `='Q3 plan'!C2:C9*10` in A3 reads `'Q3 plan'!C3`. A range that is a
 cell's whole formula, `=B2:B4` or `=Rent`, is an array and spills, as in
-Sheets (see [Arrays and spills](#arrays-and-spills)). Functions that
+Sheets (see [Arrays and spills](arrays.md)). Functions that
 take ranges (`SUM`, `COUNTIF`, `MATCH`, `VLOOKUP`, `SUMPRODUCT` and the
 like) read the whole range, and an expression given to them is computed
 over arrays: `SUM(B2:B4*2)` doubles each cell and adds them.

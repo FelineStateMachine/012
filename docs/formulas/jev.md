@@ -73,7 +73,7 @@ key would come from, without showing it.
 The service's address and model come from the config file or the
 environment only: `jev-base-url` (or `TYPESAFE_BASE_URL`), which must be
 https unless it's this machine, and `jev-model` (or
-`TYPESAFE_DEFAULT_MODEL`). See [config.md](config.md).
+`TYPESAFE_DEFAULT_MODEL`). See [config.md](../reference/config.md).
 
 **012 doesn't read `.env` files.** A `.env` next to a downloaded sheet
 could set `TYPESAFE_BASE_URL` and send your key to someone else's server.

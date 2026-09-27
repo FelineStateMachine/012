@@ -24,7 +24,7 @@ object:
 ```
 
 A formatted cell has its `input` and the formatting that isn't the
-default: `format` (as `number_format` in [macros](macros.md#cells) names
+default: `format` (as `number_format` in [macros](../reference/macro-api.md#cells) names
 it: `currency`, `percent`, `date`, ...), `decimals`, `pattern` for a
 custom format, `bold`, `italic`, `underline`, `strikethrough` and
 `align` (`left`, `center`, `right`).
@@ -50,19 +50,19 @@ save), so they raise no version:
 
 | Field | On | Holds |
 |---|---|---|
-| `note` | a cell | Its [note](data.md#notes) |
+| `note` | a cell | Its [note](../sheets/notes-protection.md#notes) |
 | `own` | a cell | `true` when its formatting is its own, not its column's or row's (Automatic in a currency column) |
 | `lines` | a sheet | [Column and row formats](#column-and-row-formats) |
 | `name`, `hidden` | a sheet | Its name when renamed; `true` when hidden (a file whose sheets are all hidden opens with the first one shown) |
 | `charts` | a sheet | One chart per line: `type` (`column`, `bar`, `line`, `pie`, `area`, `scatter`), `data`, `at`, `width`, `height`, `byRow`, `header`, `labels`, `title`, and options left out at their defaults: `stack` (`stacked`, `percent`), `trend`, `min`, `max`, `log`, `gridlines` (only when off), `legend` (`right`, `none`). A build that charts but lacks a chart's type refuses the file |
-| `protected` | a sheet | [Protected ranges](data.md#protected-sheets-and-ranges): `{"range":"B2:C9","description":"Totals"}`, or `{"sheet":true}` |
+| `protected` | a sheet | [Protected ranges](../sheets/notes-protection.md#protected-sheets-and-ranges): `{"range":"B2:C9","description":"Totals"}`, or `{"sheet":true}` |
 | `conditionalFormats`, `validations` | a sheet | [Rules](#conditional-formats-and-data-validation), one per line |
-| `arithmetic` | the workbook | `decimal` for [decimal arithmetic](formulas.md#decimal-arithmetic) |
-| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on: see [macros.md](macros.md#in-the-file). Opening a file never runs them |
+| `arithmetic` | the workbook | `decimal` for [decimal arithmetic](../formulas/decimal.md) |
+| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on: see [macros.md](../reference/macro-api.md#in-the-file). Opening a file never runs them |
 
 ## Column and row formats
 
-[Formats of whole columns and rows](data.md#rows-and-columns) are kept
+[Formats of whole columns and rows](../sheets/editing.md#rows-and-columns) are kept
 in a `lines` field after the widths, runs of lines with the same
 formatting together; `A:XFD` is the whole sheet's format:
 

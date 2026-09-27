@@ -19,12 +19,12 @@ shows it is derived from the table rather than listing it again.
 
 | Registry | Entry | Derived from it |
 |---|---|---|
-| `functions.FuncDef` (one file per category in `internal/functions`) | a function: name, signature, description, arity, eval, result format, decimal twin | parsing, autocomplete, argument hints, help, [functions.md](functions.md) |
+| `functions.FuncDef` (one file per category in `internal/functions`) | a function: name, signature, description, arity, eval, result format, decimal twin | parsing, autocomplete, argument hints, help, [functions.md](../reference/functions.md) |
 | `ui.command` | an action: id, title, description, run, enabled, checked, what it edits, and how macros treat it | key bindings (Sheets and vim), menu bar, context menus, palette, shortcuts help, the `:` command line and its completions, macro recording and `run()` in scripts |
 | `fileio` formats (`formats.go`) | a format: name, extensions, labels, traits, importer, exporter | `Import`, `Export`, detection, import picker, File > Download, command line |
 | `chart.types`, with `sheet.ChartTypes` | a type: name and order (sheet, saved in files), a layout drawing text and image and the series its legend lists (chart) | `chart.Draw`, `chart.Image`, chart editor, Insert > Chart |
 | theme roles (`theme.Theme`) | a role: dark and light styles on the 16 ANSI colors, with a contrast minimum for schemes (`minContrast`) | every style in the UI, drawn in the terminal's palette or any color scheme (`FromPalette`); `TestEveryThemeReadable` checks each role under every built-in scheme |
-| `config.Options` | an option: name, type, default, environment variables, flag, live or not, description, check | parsing and warnings, flags, `012 config` and its default file, [config.md](config.md), Reload config |
+| `config.Options` | an option: name, type, default, environment variables, flag, live or not, description, check | parsing and warnings, flags, `012 config` and its default file, [config.md](../reference/config.md), Reload config |
 
 Adding a function, command, format, chart type, option or role means
 adding an entry (and its file), not editing switch statements elsewhere.
