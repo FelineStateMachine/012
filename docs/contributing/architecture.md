@@ -158,9 +158,16 @@ style.
 - **Undo.** Every mutation goes through a small set of paths that snapshot
   the cells, widths, names, charts, view state and sheet list they change,
   on any sheet, so a step can be reversed exactly; multi-cell operations
-  are one step. A deleted sheet keeps its cells, so undo brings it back.
-  The history keeps at most 100 steps and about 256 MB of before-images,
-  counted as they're recorded, dropping the oldest steps first.
+  are one step. A step keeps each sheet's before-images as an image
+  (`historyimage.go`) in the store's own form: plain cells as slots in
+  columns of blocks, their text and formatting in the image's tables,
+  and whole `Cell`s only for rich ones, so clearing a whole sheet holds
+  about what the sheet does. A deleted or replaced sheet keeps its
+  cells, so undo brings it back. The history keeps at most 100 steps and
+  about 256 MB of before-images, counted as they're recorded, dropping
+  the oldest steps first; a change whose step would pass 1 GB
+  (`UndoCost`, `MaxStepBytes`) asks first, and runs `WithoutUndo` if told
+  to go on.
 - **Pivot tables.** A sheet may hold a pivot (`pivot.go`): a definition
   naming its source by sheet name, as formulas do, and a region of
   derived cells from A1 that the engine owns. When a recalculation marks
@@ -300,13 +307,15 @@ The package boundaries leave the bounds in [Bounds of support](limits.md) room t
 move without touching callers:
 
 - **Storage.** `cellStore`'s methods are the whole contract, so what is
-  kept whole or in a slot can change (spilled and pivot cells in slots,
-  plain before-images in the history) without touching callers.
+  kept whole or in a slot can change (spilled and pivot cells in slots)
+  without touching callers.
 - **Range reads.** Shared range results, prefix sums for running totals
   and column-block scans go behind the engine's `Scan` and `RangeAgg`,
   the places functions read ranges.
-- **Files.** A streaming or columnar `.012` format replaces `file.go`'s
-  whole-document JSON; the format is already separate from the store.
+- **Files.** The `.012` reader and writer stream (`fileread.go`,
+  `filescan.go`) and meet the store only through its methods, so another
+  encoding would sit beside them; [The .012 format](../files/format.md#reading-and-writing)
+  says why there is one.
 - **Depth limits.** `internal/formula`'s parser caps nesting at
   `formula.MaxDepth` (1024 levels), so a pathological formula fails to
   parse before anything evaluates it; evaluation puts off cells past

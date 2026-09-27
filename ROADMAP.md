@@ -37,8 +37,6 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 
 | Item | Result | Size |
 |---|---|---|
-| A streaming or binary `.012` format next to the readable JSON one | Open and save scale with the data | M |
-| Smaller undo steps: plain cells' before-images as slots, formatting changes as diffs | More history in the same memory; clearing a full sheet costs what the sheet does | S to M |
 | Compact spilled and pivot cells: derived cells in the compact slot form instead of whole `Cell`s | Large spills and pivots cost what plain cells cost ([Bounds of support](docs/contributing/limits.md#what-would-raise-the-bounds)) | M |
 | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid | L |
 
@@ -80,6 +78,7 @@ by a gateway dialing the iroh ticket.
 - A locale per file, as Sheets' File > Settings > Locale: decimal commas, date order, currency and `;` in formulas, typed and shown while files store en-US's form: [Locale](docs/sheets/locale.md)
 - An Excel-sized grid with a `max-cells` budget; operations cost the data, not the grid: [Bounds of support](docs/contributing/limits.md#sheet-size)
 - Compact column storage and a ten-million-cell `max-cells` budget: [Bounds of support](docs/contributing/limits.md#sheet-size)
+- Undo steps in the compact form: clearing a full ten-million-cell sheet holds about what the sheet does, and a step past 1 GB asks first: [Bounds of support](docs/contributing/limits.md#undo)
 
 **Finding and using features**
 
@@ -110,6 +109,7 @@ by a gateway dialing the iroh ticket.
 **Files**
 
 - Import CSV, TSV, XLSX, SQLite, Parquet and Lotus `.wk1`; export CSV, TSV, XLSX and SQLite; import locations; save-as and overwrite checks: [Files](docs/files/README.md)
+- `.012` files read and written as a stream, cells straight into and out of the store: [The .012 format](docs/files/format.md#reading-and-writing)
 
 **Upkeep**
 
