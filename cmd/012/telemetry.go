@@ -2,7 +2,6 @@ package main
 
 import (
 	"log/slog"
-	"os"
 	"runtime/debug"
 	"time"
 
@@ -21,21 +20,6 @@ func telemetryConfig(c *config.Config) telemetry.Config {
 	tc.OTLP.Endpoint = c.String("otlp-endpoint")
 	tc.Level.UnmarshalText([]byte(c.String("log-level")))
 	return tc
-}
-
-// telemetryFlags takes the telemetry flags (--log, --otlp) out of args,
-// and reads the rest of telemetry's settings from the config file and
-// environment. 012 serve uses it before parsing its own flags.
-func telemetryFlags(args []string) (telemetry.Config, []string, error) {
-	flags, rest, err := config.ParseFlags(args)
-	if err != nil {
-		return telemetry.Config{}, nil, err
-	}
-	path, err := config.DefaultPath()
-	if err != nil {
-		return telemetry.Config{}, nil, err
-	}
-	return telemetryConfig(config.Load(path, os.Getenv, flags)), rest, nil
 }
 
 // startTelemetry opens the log and reports every recalculation and pivot

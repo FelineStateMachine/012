@@ -133,8 +133,8 @@ func jevConfig(c *config.Config, key string) jev.Config {
 }
 
 // startJEV finds the API key and connects, returning notes for the
-// context line: why the key couldn't be read, or that a .env file's key
-// is no longer read.
+// context line: why the key couldn't be read, or that a .env file holds
+// a key, which 012 doesn't read.
 //
 // jev-api-key-command runs only when the environment and the credential
 // store have no key, and then only when a sheet first asks JEV

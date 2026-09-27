@@ -210,7 +210,7 @@ func TestChartImages(t *testing.T) {
 		t.Errorf("unchanged chart sent again")
 	}
 	press(t, m, "<f5>", "B2", "<enter>", "99", "<enter>")
-	_, cmd = m.Update(nil)
+	m.Update(nil)
 	raw = nil
 	m.term.sent[firstImageID] = "stale"
 	collect(m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans))

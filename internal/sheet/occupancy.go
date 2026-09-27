@@ -130,14 +130,6 @@ func (o *occupancy) colsIn(c0, c1 int) []int {
 	return o.colIDs[i:j]
 }
 
-// colCells is the number of cells stored in column c.
-func (o *occupancy) colCells(c int) int {
-	if ci := o.col(c); ci != nil {
-		return ci.n
-	}
-	return 0
-}
-
 // blockIDs returns the numbers from b0 to b1 of the blocks that any of
 // cols has, ascending.
 func (o *occupancy) blockIDs(cols []int, b0, b1 int) []int {

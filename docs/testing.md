@@ -93,3 +93,9 @@ It needs vhs 0.12+, ttyd and ffmpeg. The JEV tape talks to `demos/fakejev`, a
 local stand-in the target starts on 127.0.0.1, never the real service. On
 macOS, `demos/lib/ttyd` wraps ttyd so Alt+letter reaches the app. VHS has no
 mouse commands, so the tapes use the keyboard.
+
+## No broken windows
+
+`make check` must pass before a push, and warnings are fixed or turned
+off with a written reason rather than left standing. The rules are in
+[CLAUDE.md](../CLAUDE.md).

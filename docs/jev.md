@@ -65,7 +65,7 @@ environment only: `jev-base-url` (or `TYPESAFE_BASE_URL`), which must be
 https unless it's this machine, and `jev-model` (or
 `TYPESAFE_DEFAULT_MODEL`). See [config.md](config.md).
 
-**`.env` files are no longer read.** A `.env` next to a downloaded sheet
+**012 doesn't read `.env` files.** A `.env` next to a downloaded sheet
 could set `TYPESAFE_BASE_URL` and send your key to someone else's server.
 If the directory 012 starts in has a `.env` with `TYPESAFE_API_KEY`, the
 context line suggests `012 config set-key`; 012 never reads the key from

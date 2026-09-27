@@ -8,8 +8,8 @@ import "github.com/FelineStateMachine/012/internal/value"
 //
 // Every method takes and returns plain values, never a callback: a
 // function value or pointer passed through an interface escapes to the
-// heap, so a callback per range read would cost an allocation where the
-// engine used to cost none. Ranges are read instead in chunks, into
+// heap, so a callback per range read would cost an allocation that an
+// engine reading its own cells doesn't pay. Ranges are read instead in chunks, into
 // buffers the Reader keeps and reuses (Scan), and each function walks
 // them with callbacks of its own that stay on the stack.
 type Book interface {
