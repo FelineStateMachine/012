@@ -7,10 +7,19 @@ through File > Download. Imports run in the background with a progress
 bar; Esc cancels. Saving an imported sheet asks whether to save it as a
 `.012` file or download it back in its format.
 
+File > Import asks where the data goes, as Sheets' Import location does
+(a new, empty spreadsheet is simply replaced):
+
+| Location | Does |
+|---|---|
+| Insert new sheet(s) | Adds the file's sheets after the others: every sheet of an `.xlsx`, named after the file for other formats. A name already taken gets a number (`Sales 2`) and the file's formulas follow it; named ranges come along unless their name is taken. One undo step, and the spreadsheet stays the file you're editing |
+| Replace current sheet | Puts the data in place of the sheet shown, keeping its name and position, so formulas and named ranges that read it read the new data. One undo step. Not offered for `.xlsx`, which holds several sheets |
+| Replace spreadsheet | Opens the file instead, as File > Open and the command line do, asking first when there are unsaved changes |
+
 | Format | Import | Download |
 |---|---|---|
 | CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, as Sheets' Download does |
-| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths, shared formulas, dates in the 1904 system. Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed; hidden sheets show, with a note. Files that unpack past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) are refused with a message saying which | Every sheet, the same, with formulas in Excel's syntax and their results cached. JEV functions and `#AND#` save as values, and so do pivot tables: Excel gets the results, not a pivot |
+| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths, shared formulas, dates in the 1904 system; sheets Excel hid stay hidden (unless it's the one Excel showed). Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed. Files past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) are refused with a message saying which | Every sheet, the same, with formulas in Excel's syntax and their results cached. JEV functions and `#AND#` save as values, and so do formulas naming a sheet that doesn't exist (their `#REF!`; Excel would refuse the reference) or a sheet whose name Excel can't take as is (renamed in the file, e.g. `Plan (2)`), and pivot tables: Excel gets the results, not a pivot. The download's result counts the formulas saved as values, with an example |
 | SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet shown or the selection as a table, first row as column names; a table of that name is replaced |
 | Parquet | Every column, with dates and timestamps; lists joined with commas | |
 | Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
@@ -83,6 +92,12 @@ arithmetic, the sheet shown when saved) stay at the top:
 ```
 
 Older builds refuse version 4 files rather than lose sheets.
+
+A hidden sheet (Hide sheet on its tab) has `"hidden": true` after its
+name. It needs no version bump: builds without hidden sheets ignore the
+field and show the sheet. A file whose sheets are all hidden opens with
+the first one shown. XLSX downloads write hidden sheets hidden, and
+sheets hidden in Excel import hidden.
 
 ## Pivot tables
 

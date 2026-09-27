@@ -68,6 +68,11 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 	notes = append(notes, excelizeNames(x, book)...)
 	active := book.Sheet(clamp(x.GetActiveSheetIndex(), 0, book.Len()-1))
 	book.SetActive(active)
+	for i, ws := range names {
+		if shown, err := x.GetSheetVisible(ws); err == nil && !shown && book.Sheet(i) != active {
+			book.HideSheet(book.Sheet(i)) // hidden in Excel, hidden here
+		}
+	}
 	b.s = active
 	prog.setRows(done)
 	s, notes := b.finish(notes)

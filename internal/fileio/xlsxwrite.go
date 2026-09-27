@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -18,11 +19,44 @@ const excelMaxText = 32767
 
 // xlsxWriter writes worksheets, sharing cell formats among them.
 type xlsxWriter struct {
-	styles  *xlsxStyleTable
-	values  int    // formulas written as values
-	example string // the first of them
-	multi   bool   // examples name their sheet
-	buf     []byte // a row's cells
+	styles *xlsxStyleTable
+	multi  bool   // examples name their sheet
+	buf    []byte // a row's cells
+
+	// Formulas are written as their values when Excel has no equivalent,
+	// or when they name a sheet the file doesn't have, which Excel would
+	// refuse.
+	values       valueCount
+	missing      valueCount
+	missingSheet string          // the sheet missing's example names
+	known        map[string]bool // keys of the sheets written
+}
+
+// valueCount counts formulas written as values, keeping the first one's
+// address as an example.
+type valueCount struct {
+	n       int
+	example string
+}
+
+func (v *valueCount) add(multi bool, ws string, a sheet.Addr) {
+	v.n++
+	if v.example == "" {
+		v.example = a.String()
+		if multi {
+			v.example = sheet.QuoteSheet(ws) + "!" + a.String()
+		}
+	}
+}
+
+// unknownSheet returns a sheet c's formula names that isn't written.
+func (w *xlsxWriter) unknownSheet(c SnapCell) (string, bool) {
+	for _, name := range c.Sheets {
+		if !w.known[formula.SheetKey(name)] {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 // sheet writes a snapshot as a worksheet and returns the rows written.
@@ -74,20 +108,11 @@ func mapKeys(m map[int]int) func(func(int) bool) {
 }
 
 // cell appends snapshot cell c at a as a <c> element. A formula's value
-// is written as its cached result; a formula with no Excel equivalent
-// is written as its value alone, and counted.
+// is written as its cached result; a formula with no Excel equivalent,
+// or naming a sheet that isn't written, is written as its value alone,
+// and counted.
 func (w *xlsxWriter) cell(b []byte, ws string, a sheet.Addr, c SnapCell) []byte {
-	formula := ""
-	if c.Formula {
-		if fx, ok := toExcelFormula(c.Input); ok {
-			formula = fx
-		} else if w.values++; w.example == "" {
-			w.example = a.String()
-			if w.multi {
-				w.example = sheet.QuoteSheet(ws) + "!" + a.String()
-			}
-		}
-	}
+	fx := w.formula(ws, a, c)
 	b = append(b, `<c r="`...)
 	b = append(b, excelColName(a.Col+1)...)
 	b = strconv.AppendInt(b, int64(a.Row+1), 10)
@@ -99,23 +124,23 @@ func (w *xlsxWriter) cell(b []byte, ws string, a sheet.Addr, c SnapCell) []byte 
 		b = strconv.AppendInt(b, int64(w.styles.id(c.Format, c.Style)), 10)
 		b = append(b, '"')
 	}
-	typ, v, inline := cellValue(c)
+	typ, v, inline := cellValue(c, fx != "")
 	if typ != "" {
 		b = append(b, ` t="`...)
 		b = append(b, typ...)
 		b = append(b, '"')
 	}
-	if formula == "" && v == "" {
+	if fx == "" && v == "" {
 		return append(b, "/>"...)
 	}
 	b = append(b, '>')
-	if formula != "" {
+	if fx != "" {
 		b = append(b, "<f>"...)
-		b = appendEscaped(b, formula, false)
+		b = appendEscaped(b, fx, false)
 		b = append(b, "</f>"...)
 	}
 	switch {
-	case inline && formula == "":
+	case inline && fx == "":
 		b = append(b, `<is><t xml:space="preserve">`...)
 		b = appendEscaped(b, v, true)
 		b = append(b, "</t></is>"...)
@@ -127,11 +152,31 @@ func (w *xlsxWriter) cell(b []byte, ws string, a sheet.Addr, c SnapCell) []byte 
 	return append(b, "</c>"...)
 }
 
+// formula is c's formula in Excel's syntax, or "" when it has none or
+// is written as its value, which it counts.
+func (w *xlsxWriter) formula(ws string, a sheet.Addr, c SnapCell) string {
+	if !c.Formula {
+		return ""
+	}
+	if name, ok := w.unknownSheet(c); ok {
+		if w.missing.n == 0 {
+			w.missingSheet = name
+		}
+		w.missing.add(w.multi, ws, a)
+		return ""
+	}
+	fx, ok := toExcelFormula(c.Input)
+	if !ok {
+		w.values.add(w.multi, ws, a)
+	}
+	return fx
+}
+
 // cellValue is a cell's value as Excel stores it: the type attribute,
 // the text, and whether text goes inline (<is>) rather than in <v>,
 // which only a formula's cached text does (t="str"). Errors are written
 // as text, as Excel recalculates on opening.
-func cellValue(c SnapCell) (typ, v string, inline bool) {
+func cellValue(c SnapCell, hasFormula bool) (typ, v string, inline bool) {
 	switch c.Value.Kind {
 	case sheet.Number:
 		n := toExcelSerial(c.Value.Num, c.Format)
@@ -149,10 +194,8 @@ func cellValue(c SnapCell) (typ, v string, inline bool) {
 		if utf8.RuneCountInString(s) > excelMaxText {
 			s = string([]rune(s)[:excelMaxText])
 		}
-		if c.Formula {
-			if _, ok := toExcelFormula(c.Input); ok {
-				return "str", s, false
-			}
+		if hasFormula {
+			return "str", s, false
 		}
 		return "inlineStr", s, true
 	}

@@ -122,7 +122,7 @@ func compareXLSX(t *testing.T, path string, want, got *Result) {
 	if want.Rows != got.Rows {
 		t.Errorf("rows %d, excelize %d", got.Rows, want.Rows)
 	}
-	if w, g := strings.Join(want.Notes, "; "), strings.Join(withoutHidden(got.Notes), "; "); w != g {
+	if w, g := strings.Join(want.Notes, "; "), strings.Join(got.Notes, "; "); w != g {
 		t.Errorf("notes %q, excelize %q", g, w)
 	}
 	if want.Sheet.Name() != got.Sheet.Name() {
@@ -156,16 +156,6 @@ func compareXLSX(t *testing.T, path string, want, got *Result) {
 // the references in the text as written.
 func sameSharedFormula(a, b string) bool {
 	return strings.Contains(a, `": "=`) && strings.ReplaceAll(a, " ", "") == strings.ReplaceAll(b, " ", "")
-}
-
-func withoutHidden(notes []string) []string {
-	var out []string
-	for _, n := range notes {
-		if !strings.Contains(n, "hidden sheet") {
-			out = append(out, n)
-		}
-	}
-	return out
 }
 
 // savedLines is the workbook as 012 saves it, without the cells in skip

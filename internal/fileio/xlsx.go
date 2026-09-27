@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -40,16 +41,23 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 	if len(sheets) == 0 {
 		sheets = []*Snapshot{snap}
 	}
-	w := &xlsxWriter{styles: newXLSXStyleTable(), multi: len(sheets) > 1}
+	w := &xlsxWriter{styles: newXLSXStyleTable(), multi: len(sheets) > 1, known: map[string]bool{}}
 	res := &ExportResult{}
-	names, active := make([]string, len(sheets)), 0
+	names, hidden, active := make([]string, len(sheets)), make([]bool, len(sheets)), 0
 	used := map[string]bool{}
 	for i, sn := range sheets {
 		names[i] = uniqueSheetName(sheetName(sn.Name), used)
 		if sn == snap {
 			active = i
 		}
+		hidden[i] = sn.Hidden
+		// A formula can name only a sheet written under its own name:
+		// one renamed to suit Excel goes out as values, as a missing one.
+		if names[i] == sn.Name {
+			w.known[formula.SheetKey(sn.Name)] = true
+		}
 	}
+	hidden[active] = false
 	err := writeFile(name, func(out io.Writer) error {
 		zw := zip.NewWriter(out)
 		for i, sn := range sheets {
@@ -62,7 +70,7 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 		if err := writePart(zw, "xl/styles.xml", w.styles.xml()); err != nil {
 			return err
 		}
-		if err := writePackage(zw, names, active, snap.Names); err != nil {
+		if err := writePackage(zw, names, hidden, active, snap.Names); err != nil {
 			return err
 		}
 		return zw.Close()
@@ -70,9 +78,13 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 	if err != nil {
 		return nil, err
 	}
-	if w.values > 0 {
+	if w.values.n > 0 {
 		res.Notes = append(res.Notes, fmt.Sprintf("%s with no Excel equivalent saved as values, e.g. %s",
-			count(w.values, "formula", "formulas"), w.example))
+			count(w.values.n, "formula", "formulas"), w.values.example))
+	}
+	if w.missing.n > 0 {
+		res.Notes = append(res.Notes, fmt.Sprintf("%s naming a sheet that doesn't exist saved as values, e.g. %s (%s)",
+			count(w.missing.n, "formula", "formulas"), w.missing.example, sheet.QuoteSheet(w.missingSheet)))
 	}
 	return res, nil
 }
@@ -101,7 +113,7 @@ const (
 // writePackage writes the parts around the worksheets and styles: the
 // workbook with its sheets, active tab, names and calculation settings,
 // the relationships and the content types.
-func writePackage(zw *zip.Writer, names []string, active int, defined [][2]string) error {
+func writePackage(zw *zip.Writer, names []string, hidden []bool, active int, defined [][2]string) error {
 	var types, rels, book strings.Builder
 	types.WriteString(xmlHead + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
 		`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
@@ -115,7 +127,11 @@ func writePackage(zw *zip.Writer, names []string, active int, defined [][2]strin
 		n := strconv.Itoa(i + 1)
 		fmt.Fprintf(&types, `<Override PartName="/xl/worksheets/sheet%s.xml" ContentType="%sworksheet+xml"/>`, n, mlType)
 		fmt.Fprintf(&rels, `<Relationship Id="rId%s" Type="%s/worksheet" Target="worksheets/sheet%s.xml"/>`, n, officeRel, n)
-		fmt.Fprintf(&book, `<sheet name="%s" sheetId="%s" r:id="rId%s"/>`, escapeXML(ws, true), n, n)
+		state := ""
+		if hidden[i] {
+			state = ` state="hidden"`
+		}
+		fmt.Fprintf(&book, `<sheet name="%s" sheetId="%s"%s r:id="rId%s"/>`, escapeXML(ws, true), n, state, n)
 	}
 	fmt.Fprintf(&rels, `<Relationship Id="rId%d" Type="%s/styles" Target="styles.xml"/></Relationships>`, len(names)+1, officeRel)
 	types.WriteString(`</Types>`)

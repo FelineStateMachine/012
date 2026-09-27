@@ -69,6 +69,9 @@ func TestXLSXReader(t *testing.T) {
 	if w := book.Sheet(2).ColWidth(7); w != 13 {
 		t.Errorf("Refs width %d", w)
 	}
+	if !book.Sheet(1).Hidden() || res.Sheet.Hidden() {
+		t.Errorf("Hidden hidden %v, Refs hidden %v", book.Sheet(1).Hidden(), res.Sheet.Hidden())
+	}
 	if g := input(book.Sheet(1), addr(t, "B2")); g != "Region" {
 		t.Errorf("Hidden!B2 %q", g)
 	}
@@ -77,7 +80,7 @@ func TestXLSXReader(t *testing.T) {
 	}
 	notes := strings.Join(res.Notes, "; ")
 	for _, want := range []string{
-		"2 named ranges left out, e.g. Local", "1 hidden sheet shown, e.g. Hidden",
+		"2 named ranges left out, e.g. Local",
 		"4 formulas kept as values, e.g. A7 =CUBEVALUE(1)",
 	} {
 		if !strings.Contains(notes, want) {

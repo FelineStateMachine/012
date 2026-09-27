@@ -65,9 +65,13 @@ func (bk *xlsxBook) importBook(ctx context.Context, prog *Progress) (*Result, er
 		done += rows
 	}
 	notes := bk.importNames(book)
-	notes = append(notes, bk.hiddenNote()...)
 	active := book.Sheet(clamp(bk.active, 0, book.Len()-1))
 	book.SetActive(active)
+	for i, info := range bk.sheets {
+		if info.hidden && book.Sheet(i) != active {
+			book.HideSheet(book.Sheet(i)) // hidden in Excel, hidden here
+		}
+	}
 	b.s = active
 	prog.setRows(done)
 	s, notes := b.finish(notes)
@@ -274,20 +278,4 @@ func (bk *xlsxBook) importNames(book *sheet.Workbook) []string {
 // Workbook, is the workbook's.
 func (bk *xlsxBook) scoped(dn xlsxName) bool {
 	return dn.sheet >= 0 && dn.sheet < len(bk.sheets) && bk.sheets[dn.sheet].name != "Workbook"
-}
-
-// hiddenNote says which sheets Excel hid: 012 shows every sheet.
-func (bk *xlsxBook) hiddenNote() []string {
-	n, example := 0, ""
-	for _, s := range bk.sheets {
-		if s.hidden {
-			if n++; n == 1 {
-				example = s.name
-			}
-		}
-	}
-	if n == 0 {
-		return nil
-	}
-	return []string{fmt.Sprintf("%s shown, e.g. %s", count(n, "hidden sheet", "hidden sheets"), example)}
 }

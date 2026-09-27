@@ -375,6 +375,28 @@ func TestXLSXWriteText(t *testing.T) {
 	}
 }
 
+// A sheet whose name Excel can't take as is gets another; formulas
+// naming it go out as values, like formulas naming a missing sheet.
+func TestXLSXRenamedSheetAsValue(t *testing.T) {
+	src := build(t, map[string]string{"A1": "1"})
+	book := src.Book()
+	book.RenameSheet(src, "Plan")
+	spaced, err := book.AddSheet(" Plan", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spaced.Set(addr(t, "A1"), "=' Plan'!A2+Plan!A1")
+	name := filepath.Join(t.TempDir(), "renamed.xlsx")
+	res, err := Export(context.Background(), name, XLSX, SnapBook(src), ExportOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "1 formula naming a sheet that doesn't exist saved as values, e.g. 'Plan (2)'!A1 (' Plan')"
+	if len(res.Notes) != 1 || res.Notes[0] != want {
+		t.Errorf("notes %q, want %q", res.Notes, want)
+	}
+}
+
 func TestUniqueSheetName(t *testing.T) {
 	used := map[string]bool{}
 	long := strings.Repeat("x", 31)
@@ -390,4 +412,67 @@ func trim(s string) string {
 		return s[:40] + "..."
 	}
 	return s
+}
+
+// A formula naming a sheet the workbook doesn't have goes out as its
+// value (#REF!), with a note, since Excel would refuse the reference.
+func TestXLSXMissingSheetAsValue(t *testing.T) {
+	src := build(t, map[string]string{"A1": "2", "B1": "=Gone!A1+1", "B2": "=A1*2", "B3": "=SUM('Old plan'!A1:A3, gone!B1)"})
+	name := filepath.Join(t.TempDir(), "missing.xlsx")
+	res, err := Export(context.Background(), name, XLSX, SnapBook(src), ExportOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "2 formulas naming a sheet that doesn't exist saved as values, e.g. B1 (Gone)"
+	if len(res.Notes) != 1 || res.Notes[0] != want {
+		t.Errorf("notes %q, want %q", res.Notes, want)
+	}
+	x, err := excelize.OpenFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer x.Close()
+	ws := x.GetSheetName(0)
+	for cell, formula := range map[string]string{"B1": "", "B2": "A1*2", "B3": ""} {
+		if got, _ := x.GetCellFormula(ws, cell); got != formula {
+			t.Errorf("%s formula %q, want %q", cell, got, formula)
+		}
+	}
+	if got, _ := x.GetCellValue(ws, "B1"); got != "#REF!" {
+		t.Errorf("B1 value %q", got)
+	}
+}
+
+// Hidden sheets go out to Excel hidden, and come back hidden.
+func TestXLSXHiddenSheets(t *testing.T) {
+	src := build(t, map[string]string{"A1": "=Data!A1*2"})
+	book := src.Book()
+	data, _ := book.AddSheet("Data", 1)
+	data.Set(addr(t, "A1"), "21")
+	if err := book.HideSheet(data); err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Join(t.TempDir(), "hidden.xlsx")
+	if _, err := Export(context.Background(), name, XLSX, SnapBook(src), ExportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	x, err := excelize.OpenFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shown, _ := x.GetSheetVisible("Data"); shown {
+		t.Error("Data is visible in Excel")
+	}
+	if shown, _ := x.GetSheetVisible(x.GetSheetName(0)); !shown {
+		t.Error("the first sheet is hidden in Excel")
+	}
+	x.Close()
+	got, err := Import(context.Background(), name, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gb := got.Sheet.Book()
+	if !gb.Lookup("Data").Hidden() || got.Sheet.Hidden() || shown(got.Sheet, addr(t, "A1")) != "42" {
+		t.Errorf("read back: Data hidden %v, shown %s hidden %v", gb.Lookup("Data").Hidden(), got.Sheet.Name(), got.Sheet.Hidden())
+	}
 }
