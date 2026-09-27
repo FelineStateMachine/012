@@ -3,6 +3,7 @@ package sheet
 import (
 	"sync"
 
+	"github.com/FelineStateMachine/012/internal/numfmt"
 	"github.com/cockroachdb/apd/v3"
 )
 
@@ -83,11 +84,11 @@ func decArith(op string, a, b float64) (Value, bool) {
 
 // decRounding maps ROUND's modes to apd's: half away from zero, away
 // from zero, toward zero.
-var decRounding = [...]apd.Rounder{roundHalfUp: apd.RoundHalfUp, roundUp: apd.RoundUp, roundDown: apd.RoundDown}
+var decRounding = [...]apd.Rounder{numfmt.HalfUp: apd.RoundHalfUp, numfmt.Up: apd.RoundUp, numfmt.Down: apd.RoundDown}
 
 // decRound rounds x to places decimal places (negative places round to
 // tens, hundreds...) in decimal.
-func decRound(x float64, places int, mode roundMode) (Value, bool) {
+func decRound(x float64, places int, mode numfmt.Rounding) (Value, bool) {
 	var d, z apd.Decimal
 	if _, err := d.SetFloat64(x); err != nil {
 		return Value{}, false
@@ -158,13 +159,13 @@ var decEvals = map[string]func(args []Node, get lookup) (Value, bool){
 		}
 		return fromDec(&q)
 	},
-	"ROUND":     decRounder(roundHalfUp),
-	"ROUNDUP":   decRounder(roundUp),
-	"ROUNDDOWN": decRounder(roundDown),
-	"TRUNC":     decRounder(roundDown),
+	"ROUND":     decRounder(numfmt.HalfUp),
+	"ROUNDUP":   decRounder(numfmt.Up),
+	"ROUNDDOWN": decRounder(numfmt.Down),
+	"TRUNC":     decRounder(numfmt.Down),
 }
 
-func decRounder(mode roundMode) func([]Node, lookup) (Value, bool) {
+func decRounder(mode numfmt.Rounding) func([]Node, lookup) (Value, bool) {
 	return func(args []Node, get lookup) (Value, bool) {
 		x, err := numArg(args[0], get)
 		if err != nil {

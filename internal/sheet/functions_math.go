@@ -3,6 +3,8 @@ package sheet
 import (
 	"math"
 	"math/rand/v2"
+
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
 func init() {
@@ -23,11 +25,11 @@ func init() {
 		&FuncDef{Name: "POWER", Args: "base, exponent", Desc: "A number raised to a power", Min: 2, Max: 2,
 			eval: numeric(func(x []float64) Value { return powerOf(x[0], x[1]) })},
 		&FuncDef{Name: "ROUNDUP", Args: "value, [places]", Desc: "Round away from zero", Min: 1, Max: 2,
-			eval: rounder(roundUp), format: inheritFrom(0)},
+			eval: rounder(numfmt.Up), format: inheritFrom(0)},
 		&FuncDef{Name: "ROUNDDOWN", Args: "value, [places]", Desc: "Round toward zero", Min: 1, Max: 2,
-			eval: rounder(roundDown), format: inheritFrom(0)},
+			eval: rounder(numfmt.Down), format: inheritFrom(0)},
 		&FuncDef{Name: "TRUNC", Args: "value, [places]", Desc: "Drop decimals past a number of places", Min: 1, Max: 2,
-			eval: rounder(roundDown), format: inheritFrom(0)},
+			eval: rounder(numfmt.Down), format: inheritFrom(0)},
 		&FuncDef{Name: "CEILING", Args: "value, [factor]", Desc: "Round up to a multiple of factor", Min: 1, Max: 2,
 			eval: toMultiple(math.Ceil), format: inheritFrom(0)},
 		&FuncDef{Name: "FLOOR", Args: "value, [factor]", Desc: "Round down to a multiple of factor", Min: 1, Max: 2,

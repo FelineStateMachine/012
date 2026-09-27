@@ -1,99 +1,19 @@
 package sheet
 
 import (
-	"math"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
-// Dates are serial numbers as in Sheets: whole days since 1899-12-30
-// (day 0), with the time of day as the fraction. Unlike Excel there is no
-// fictitious 1900-02-29, and dates before 1900 are negative.
-
-// Now is the clock used by TODAY() and NOW(); tests replace it.
+// Now is the clock used by TODAY() and NOW(), and for the year of dates
+// typed without one; tests replace it.
 var Now = time.Now
 
-// epochDays is 1899-12-30 as days since 0000-03-01 (see daysFromCivil).
-var epochDays = daysFromCivil(1899, 12, 30)
-
-// daysFromCivil counts days since 0000-03-01 in the proleptic Gregorian
-// calendar (Howard Hinnant's algorithm). Months outside 1-12 normalize.
-func daysFromCivil(y, m, d int) int {
-	y += floorDivInt(m-1, 12)
-	m = (m-1)%12 + 1
-	if m <= 0 {
-		m += 12
-	}
-	if m <= 2 {
-		y--
-	}
-	era := floorDivInt(y, 400)
-	yoe := y - era*400
-	mp := (m + 9) % 12
-	doy := (153*mp+2)/5 + d - 1
-	doe := yoe*365 + yoe/4 - yoe/100 + doy
-	return era*146097 + doe
-}
-
-// civil converts a serial day number to year, month and day.
-func civil(serial int64) (y, m, d int) {
-	z := int(serial) + epochDays
-	era := floorDivInt(z, 146097)
-	doe := z - era*146097
-	yoe := (doe - doe/1460 + doe/36524 - doe/146096) / 365
-	y = yoe + era*400
-	doy := doe - (365*yoe + yoe/4 - yoe/100)
-	mp := (5*doy + 2) / 153
-	d = doy - (153*mp+2)/5 + 1
-	m = (mp+2)%12 + 1
-	if m <= 2 {
-		y++
-	}
-	return y, m, d
-}
-
-// dateSerial returns the serial of a date; month and day overflow into
-// the next month or year, as DATE() allows.
-func dateSerial(y, m, d int) float64 {
-	return float64(daysFromCivil(y, m, 1) + d - 1 - epochDays)
-}
-
-// timeSerial is the fraction of a day for a time of day.
-func timeSerial(h, m int, s float64) float64 {
-	return (float64(h)*3600 + float64(m)*60 + s) / 86400
-}
-
-// weekday returns 0 for Sunday through 6 for Saturday. Day 0 was a
-// Saturday.
-func weekday(serial int64) int {
-	return int(((serial+6)%7 + 7) % 7)
-}
-
-// serialOf converts a time to a serial in its own time zone.
-func serialOf(t time.Time) float64 {
-	h, m, s := t.Clock()
-	return dateSerial(t.Year(), int(t.Month()), t.Day()) +
-		timeSerial(h, m, float64(s)+float64(t.Nanosecond())/1e9)
-}
-
-func floorDiv(a, b int64) int64 {
-	q := a / b
-	if (a%b != 0) && ((a < 0) != (b < 0)) {
-		q--
-	}
-	return q
-}
-
-func floorDivInt(a, b int) int { return int(floorDiv(int64(a), int64(b))) }
-
-// splitSerial returns the date and time parts of a serial, rounded to
-// the second.
-func splitSerial(v float64) (days int64, secs int) {
-	total := int64(math.Round(v * 86400))
-	days = floorDiv(total, 86400)
-	return days, int(total - days*86400)
-}
+// Typed dates and times become serial day numbers, as in Sheets; see
+// numfmt's calendar.
 
 // parseDateTime recognizes dates and times typed into a cell the way
 // Sheets does in the en-US locale: 9/26/2026, 9/26/26, 9/26 (this year),
@@ -189,7 +109,7 @@ func parseTime(s string) (float64, Format, bool) {
 	case h >= 24:
 		f = Preset(FmtDuration)
 	}
-	return timeSerial(h, m, sec), f, true
+	return numfmt.TimeSerial(h, m, sec), f, true
 }
 
 // parseDate recognizes the date forms listed at parseDateTime.
@@ -243,7 +163,7 @@ func parseDate(s string) (float64, Format, bool) {
 // monthName matches a month's full name or three-letter abbreviation.
 func monthName(w string) (month int, long, ok bool) {
 	w = strings.ToLower(strings.TrimSuffix(w, "."))
-	for i, n := range monthNames {
+	for i, n := range numfmt.MonthNames {
 		n = strings.ToLower(n)
 		if w == n {
 			return i + 1, len(w) > 3, true
@@ -271,12 +191,8 @@ func ymd(ys, ms, ds string, f Format) (float64, Format, bool) {
 			y += 1900
 		}
 	}
-	if m < 1 || m > 12 || d < 1 || d > daysIn(y, m) {
+	if m < 1 || m > 12 || d < 1 || d > numfmt.DaysIn(y, m) {
 		return 0, Format{}, false
 	}
-	return dateSerial(y, m, d), f, true
-}
-
-func daysIn(y, m int) int {
-	return int(dateSerial(y, m+1, 1) - dateSerial(y, m, 1))
+	return numfmt.DateSerial(y, m, d), f, true
 }

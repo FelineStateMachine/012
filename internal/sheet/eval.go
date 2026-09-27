@@ -3,6 +3,8 @@ package sheet
 import (
 	"math"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
 // Kind is the type of a computed cell value.
@@ -27,7 +29,7 @@ type Value struct {
 func (v Value) String() string {
 	switch v.Kind {
 	case Number:
-		return numString(v.Num)
+		return numfmt.General(v.Num)
 	case Bool:
 		if v.Num != 0 {
 			return "TRUE"

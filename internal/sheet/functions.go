@@ -3,6 +3,8 @@ package sheet
 import (
 	"math"
 	"slices"
+
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
 // FuncDef describes a spreadsheet function. The table drives parsing
@@ -98,7 +100,7 @@ func init() {
 		&FuncDef{Name: "INT", Args: "value", Desc: "Round down to the nearest integer", Min: 1, Max: 1, eval: math1(math.Floor), format: inherit},
 		&FuncDef{Name: "SQRT", Args: "value", Desc: "Square root", Min: 1, Max: 1, eval: math1(math.Sqrt)},
 		&FuncDef{Name: "ROUND", Args: "value, [places]", Desc: "Round to a number of decimal places, halves away from zero", Min: 1, Max: 2,
-			eval: rounder(roundHalfUp), format: inheritFrom(0)},
+			eval: rounder(numfmt.HalfUp), format: inheritFrom(0)},
 		&FuncDef{Name: "MOD", Args: "dividend, divisor", Desc: "Remainder, with the sign of the divisor", Min: 2, Max: 2,
 			eval: numeric(func(x []float64) Value {
 				if x[1] == 0 {
@@ -281,7 +283,7 @@ func constant(v Value) func([]Node, lookup) Value {
 
 // rounder builds ROUND, ROUNDUP, ROUNDDOWN and TRUNC: round on the 15 digits a
 // spreadsheet shows, so ROUNDUP(2.3, 1) stays 2.3.
-func rounder(mode roundMode) func([]Node, lookup) Value {
+func rounder(mode numfmt.Rounding) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
 		x, err := numArg(args[0], get)
 		if err != nil {
@@ -291,6 +293,6 @@ func rounder(mode roundMode) func([]Node, lookup) Value {
 		if err != nil {
 			return *err
 		}
-		return num(roundTo(x, clampInt(places, -308, 308), mode))
+		return num(numfmt.Round(x, clampInt(places, -308, 308), mode))
 	}
 }

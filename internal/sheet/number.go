@@ -1,10 +1,11 @@
 package sheet
 
 import (
-	"math"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
 // ParseNumber recognizes numbers the way Google Sheets does on entry:
@@ -119,21 +120,24 @@ func Display(v Value, f Format, width int) (string, Align) {
 	}
 	switch f.Kind {
 	case FmtAuto:
-		return formatGeneral(v.Num, inner), AlignRight
+		return numfmt.GeneralFit(v.Num, inner), AlignRight
 	case FmtText:
-		return numString(v.Num), AlignLeft
+		return numfmt.General(v.Num), AlignLeft
 	case FmtAccounting:
-		if s, ok := accounting(v.Num, f.Decimals, width); ok {
+		if s, ok := numfmt.Accounting(v.Num, f.Decimals, width); ok {
 			return s, AlignFill
 		}
 		return strings.Repeat("#", inner), AlignRight
 	}
-	s := FormatPattern(v.Num, f.pattern())
+	s := numfmt.Format(v.Num, f.pattern())
 	if utf8.RuneCountInString(s) > inner {
 		s = strings.Repeat("#", inner)
 	}
 	return s, AlignRight
 }
+
+// FormatPattern renders v with a number format pattern, as TEXT() does.
+func FormatPattern(v float64, pat string) string { return numfmt.Format(v, pat) }
 
 // FormatText renders v under f with no width limit, e.g. for TEXT() or
 // copying out of the grid.
@@ -143,41 +147,9 @@ func FormatText(v Value, f Format) string {
 	}
 	switch f.Kind {
 	case FmtAuto, FmtText:
-		return numString(v.Num)
+		return numfmt.General(v.Num)
 	}
-	return FormatPattern(v.Num, f.pattern())
-}
-
-// accounting lays out Sheets' Accounting format in width columns: the $
-// at the left, the number right-aligned with room for a closing
-// parenthesis, negatives in parentheses and zero as a dash.
-func accounting(v float64, dec, width int) (string, bool) {
-	ip, fp := fixed(v, dec, roundHalfUp)
-	var num string
-	switch {
-	case strings.Trim(ip+fp, "0") == "":
-		num = "-" + strings.Repeat(" ", dec) + " "
-	case v < 0:
-		num = "(" + FormatPattern(-v, "#,##0"+decimals(dec)) + ")"
-	default:
-		num = FormatPattern(v, "#,##0"+decimals(dec)) + " "
-	}
-	gap := width - 1 - len(num)
-	switch {
-	case gap < 0:
-		return "", false
-	case gap >= 1:
-		// Leave a column of padding before the $, like other cells.
-		return " $" + strings.Repeat(" ", gap-1) + num, true
-	}
-	return "$" + strings.Repeat(" ", gap) + num, true
-}
-
-func decimals(n int) string {
-	if n <= 0 {
-		return ""
-	}
-	return "." + strings.Repeat("0", n)
+	return numfmt.Format(v.Num, f.pattern())
 }
 
 // FormatValue renders v in width columns with one column of padding, the
@@ -198,45 +170,7 @@ func FormatValue(v Value, width int) string {
 // FormatNumber formats a number in the General format within width
 // columns, for use outside the grid (e.g. the status line).
 func FormatNumber(v float64, width int) string {
-	return formatGeneral(v, width)
-}
-
-// formatGeneral mimics General number format: as many digits as fit,
-// rounding decimals first, then scientific notation, then #s.
-func formatGeneral(v float64, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	s := numString(v)
-	if strings.ContainsRune(s, 'E') {
-		s = strconv.FormatFloat(v, 'f', -1, 64)
-	}
-	if len(s) <= width {
-		return s
-	}
-	// Try fewer decimals before falling back to scientific notation, but
-	// never round a non-zero number down to zero.
-	if dot := strings.IndexByte(s, '.'); dot >= 0 && dot <= width {
-		for prec := max(width-dot-1, 0); prec >= 0; prec-- {
-			f := strconv.FormatFloat(v, 'f', prec, 64)
-			if len(f) > width {
-				continue
-			}
-			if r, _ := strconv.ParseFloat(f, 64); r != 0 || v == 0 {
-				if strings.Contains(f, ".") {
-					f = strings.TrimRight(strings.TrimRight(f, "0"), ".")
-				}
-				return f
-			}
-			break
-		}
-	}
-	for prec := width; prec >= 0; prec-- {
-		if e := strconv.FormatFloat(v, 'E', prec, 64); len(e) <= width {
-			return e
-		}
-	}
-	return strings.Repeat("#", width)
+	return numfmt.GeneralFit(v, width)
 }
 
 func padLeft(s string, width int) string {
@@ -253,6 +187,3 @@ func centerPad(s string, width int) string {
 	pad := width - len(s)
 	return strings.Repeat(" ", pad/2) + s + strings.Repeat(" ", pad-pad/2)
 }
-
-// isWhole reports whether v is an integer.
-func isWhole(v float64) bool { return v == math.Trunc(v) }
