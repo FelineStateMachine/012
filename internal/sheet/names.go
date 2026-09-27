@@ -14,19 +14,29 @@ import (
 // recalculates every formula that uses it. Inserting, deleting and moving
 // cells moves a name's range like any other range reference.
 
-// Name is a named range.
+// Name is a named range. Names belong to the workbook, as in Sheets, and
+// each points at a range on one of its sheets.
 type Name struct {
 	Name  string // as the user spelled it; formulas match it in any case
+	Sheet *Sheet // the sheet the range is on
 	Range Rect
 	// Lost is set when every cell of the range was deleted: formulas using
 	// the name show #REF!, as in Sheets. Range is then zero.
 	Lost bool
 }
 
-// Ref is what the name stands for, e.g. "B2:B20", or "#REF!" when lost.
+// Gone reports whether the name no longer points at cells: its cells or
+// its sheet were deleted.
+func (n Name) Gone() bool { return n.Lost || n.Sheet == nil || !n.Sheet.live }
+
+// Ref is what the name stands for, e.g. "B2:B20", or "#REF!" when gone.
+// In a workbook of several sheets it names the sheet: "Sales!B2:B20".
 func (n Name) Ref() string {
-	if n.Lost {
+	switch {
+	case n.Gone():
 		return "#REF!"
+	case n.Sheet.wb.Len() > 1:
+		return Qualified(n.Sheet.name, n.Range)
 	}
 	return n.Range.String()
 }
@@ -83,93 +93,105 @@ func looksLikeRef(k string) bool {
 }
 
 // Names returns the named ranges, sorted by name.
-func (s *Sheet) Names() []Name {
+func (w *Workbook) Names() []Name {
 	// The keys are already upper case: sorting names by nameKey upper-cased
 	// both sides of every comparison, 20,000 allocations a frame for 1000
 	// names, since the formula bar looks for the selection's name.
-	keys := slices.Sorted(maps.Keys(s.names))
+	keys := slices.Sorted(maps.Keys(w.names))
 	out := make([]Name, len(keys))
 	for i, k := range keys {
-		out[i] = s.names[k]
+		out[i] = w.names[k]
 	}
 	return out
 }
 
 // LookupName finds a named range, ignoring case.
-func (s *Sheet) LookupName(name string) (Name, bool) {
-	n, ok := s.names[nameKey(name)]
+func (w *Workbook) LookupName(name string) (Name, bool) {
+	n, ok := w.names[nameKey(name)]
 	return n, ok
 }
 
 // NameUsers returns how many formulas mention the name.
-func (s *Sheet) NameUsers(name string) int { return len(s.nameUsers[nameKey(name)]) }
+func (w *Workbook) NameUsers(name string) int { return len(w.nameUsers[nameKey(name)]) }
 
-// DefineName names the range r, as one undo step.
-func (s *Sheet) DefineName(name string, r Rect) error {
+// DefineName names the range r on sheet s, as one undo step.
+func (w *Workbook) DefineName(name string, s *Sheet, r Rect) error {
 	if err := ValidName(name); err != nil {
 		return err
 	}
-	if old, ok := s.LookupName(name); ok {
+	if old, ok := w.LookupName(name); ok {
 		return fmt.Errorf("%s already names %s", old.Name, old.Ref())
 	}
-	s.change("name "+r.String()+" "+name, r, func() { s.putName(nameKey(name), &Name{Name: name, Range: r}) })
+	w.change(s, "name "+r.String()+" "+name, r, func() { w.putName(nameKey(name), &Name{Name: name, Sheet: s, Range: r}) })
 	return nil
 }
 
-// EditName renames the named range old and points it at r, as one undo
-// step. Formulas that use it are rewritten to the new name, as in Sheets.
-func (s *Sheet) EditName(old, name string, r Rect) error {
-	cur, ok := s.LookupName(old)
+// EditName renames the named range old and points it at r on sheet s, as
+// one undo step. Formulas that use it are rewritten to the new name, as
+// in Sheets.
+func (w *Workbook) EditName(old, name string, s *Sheet, r Rect) error {
+	cur, ok := w.LookupName(old)
 	if !ok {
 		return fmt.Errorf("There's no range named %s", old)
 	}
 	if err := ValidName(name); err != nil {
 		return err
 	}
-	if other, ok := s.LookupName(name); ok && nameKey(name) != nameKey(old) {
+	if other, ok := w.LookupName(name); ok && nameKey(name) != nameKey(old) {
 		return fmt.Errorf("%s already names %s", other.Name, other.Ref())
 	}
-	s.change("edit "+name, r, func() {
+	w.change(s, "edit "+name, r, func() {
 		from, to := nameKey(cur.Name), nameKey(name)
 		if cur.Name != name {
-			s.renameInFormulas(from, name)
+			w.renameInFormulas(from, name)
 		}
 		if from != to {
-			s.putName(from, nil)
+			w.putName(from, nil)
 		}
-		s.putName(to, &Name{Name: name, Range: r})
+		w.putName(to, &Name{Name: name, Sheet: s, Range: r})
 	})
 	return nil
 }
 
 // DeleteName removes a named range, as one undo step. Formulas that use
 // it show #NAME? until it is defined again.
-func (s *Sheet) DeleteName(name string) error {
-	cur, ok := s.LookupName(name)
+func (w *Workbook) DeleteName(name string) error {
+	cur, ok := w.LookupName(name)
 	if !ok {
 		return fmt.Errorf("There's no range named %s", name)
 	}
-	s.change("delete "+cur.Name, cur.Range, func() { s.putName(nameKey(name), nil) })
+	w.change(cur.Sheet, "delete "+cur.Name, cur.Range, func() { w.putName(nameKey(name), nil) })
 	return nil
+}
+
+// The sheet's name methods are the workbook's, with ranges on this sheet.
+
+func (s *Sheet) Names() []Name                        { return s.wb.Names() }
+func (s *Sheet) LookupName(name string) (Name, bool)  { return s.wb.LookupName(name) }
+func (s *Sheet) NameUsers(name string) int            { return s.wb.NameUsers(name) }
+func (s *Sheet) DefineName(name string, r Rect) error { return s.wb.DefineName(name, s, r) }
+func (s *Sheet) DeleteName(name string) error         { return s.wb.DeleteName(name) }
+func (s *Sheet) EditName(old, name string, r Rect) error {
+	return s.wb.EditName(old, name, s, r)
 }
 
 // renameInFormulas rewrites the formulas that use the name with key from
 // to spell it to instead.
-func (s *Sheet) renameInFormulas(from, to string) {
+func (w *Workbook) renameInFormulas(from, to string) {
 	rw := refRewrite{name: func(n nameNode) Node {
 		if nameKey(n.name) == from {
 			return nameNode{to}
 		}
 		return n
 	}}
-	for _, a := range slices.Collect(maps.Keys(s.nameUsers[from])) {
-		s.place(a, s.cells[a].rewritten(rw))
+	for _, l := range slices.Collect(maps.Keys(w.nameUsers[from])) {
+		l.s.place(l.a, l.s.cells[l.a].rewritten(rw))
 	}
 }
 
 // namePtr returns a copy of the named range with key k, or nil.
-func (s *Sheet) namePtr(k string) *Name {
-	if n, ok := s.names[k]; ok {
+func (w *Workbook) namePtr(k string) *Name {
+	if n, ok := w.names[k]; ok {
 		return &n
 	}
 	return nil
@@ -178,26 +200,27 @@ func (s *Sheet) namePtr(k string) *Name {
 // putName stores (or with nil removes) the named range with key k,
 // recording it for undo, and returns the formulas that use it, which need
 // recalculating. Every change to names goes through here.
-func (s *Sheet) putName(k string, n *Name) []Addr {
-	s.recordName(k)
+func (w *Workbook) putName(k string, n *Name) []loc {
+	w.recordName(k)
 	if n == nil {
-		delete(s.names, k)
+		delete(w.names, k)
 	} else {
-		s.names[k] = *n
+		w.names[k] = *n
 	}
-	users := slices.Collect(maps.Keys(s.nameUsers[k]))
-	if s.hist.open != nil {
-		s.hist.dirty = append(s.hist.dirty, users...)
+	users := slices.Collect(maps.Keys(w.nameUsers[k]))
+	if w.hist.open != nil {
+		w.hist.dirty = append(w.hist.dirty, users...)
 	}
 	return users
 }
 
-// remapNames moves named ranges along with the cells they cover, when
-// rows or columns are inserted or deleted or cells are moved. A range
-// whose cells are all gone is lost.
+// remapNames moves the named ranges on this sheet along with the cells
+// they cover, when rows or columns are inserted or deleted or cells are
+// moved. A range whose cells are all gone is lost.
 func (s *Sheet) remapNames(rng func(Rect) (Rect, bool)) {
-	for k, n := range s.names {
-		if n.Lost {
+	w := s.wb
+	for k, n := range w.names {
+		if n.Lost || n.Sheet != s {
 			continue
 		}
 		next := n
@@ -207,7 +230,7 @@ func (s *Sheet) remapNames(rng func(Rect) (Rect, bool)) {
 			next.Range, next.Lost = Rect{}, true
 		}
 		if next != n {
-			s.putName(k, &next)
+			w.putName(k, &next)
 		}
 	}
 }
@@ -221,16 +244,21 @@ func (s *Sheet) bound(c *Cell) Node {
 	}
 	const fixed = absCol | absRow
 	n, _ := rewrite(c.expr, refRewrite{name: func(nn nameNode) Node {
-		nm, ok := s.names[nameKey(nn.name)]
+		nm, ok := s.wb.names[nameKey(nn.name)]
 		switch {
 		case !ok:
 			return nn
-		case nm.Lost:
+		case nm.Gone():
 			return refErrNode{}
-		case nm.Range.From == nm.Range.To:
-			return refNode{nm.Range.From, fixed}
 		}
-		return rangeNode{nm.Range, [2]absFlags{fixed, fixed}}
+		sheet := ""
+		if nm.Sheet != s {
+			sheet = nm.Sheet.name
+		}
+		if nm.Range.From == nm.Range.To {
+			return refNode{nm.Range.From, fixed, sheet}
+		}
+		return rangeNode{nm.Range, [2]absFlags{fixed, fixed}, sheet}
 	}})
 	return n
 }

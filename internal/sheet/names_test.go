@@ -175,8 +175,8 @@ func TestNamesUndoRedo(t *testing.T) {
 func TestNameCycles(t *testing.T) {
 	s := sheetOf(t, map[string]string{"A1": "=SUM(Loop)", "A2": "1"})
 	s.DefineName("Loop", rect("A1:A2"))
-	if !s.Circular || s.Value(at("A1")) != ErrRef {
-		t.Errorf("circular %v A1 %v", s.Circular, s.Value(at("A1")))
+	if !s.Book().Circular || s.Value(at("A1")) != ErrRef {
+		t.Errorf("circular %v A1 %v", s.Book().Circular, s.Value(at("A1")))
 	}
 }
 
@@ -199,7 +199,7 @@ func TestNamesFileRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(r.Names(), s.Names()) || r.Value(at("B1")).Num != 7 || r.Value(at("B2")) != ErrRef {
+	if nameRefs(r) != nameRefs(s) || r.Value(at("B1")).Num != 7 || r.Value(at("B2")) != ErrRef {
 		t.Errorf("read back %v B1=%v B2=%v", r.Names(), r.Value(at("B1")), r.Value(at("B2")))
 	}
 	if r.CanUndo() {
@@ -238,4 +238,14 @@ func TestPrecedentsAndDependents(t *testing.T) {
 	if got := s.Dependents(at("B1")); len(got) != 0 {
 		t.Errorf("dependents of B1 = %v", got)
 	}
+}
+
+// nameRefs lists a workbook's names and what they stand for, to compare
+// names across workbooks.
+func nameRefs(s *Sheet) string {
+	var b strings.Builder
+	for _, n := range s.Names() {
+		b.WriteString(n.Name + "=" + n.Ref() + " ")
+	}
+	return b.String()
 }

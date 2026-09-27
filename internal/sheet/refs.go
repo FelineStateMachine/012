@@ -86,7 +86,7 @@ func shiftRefs(dc, dr int) refRewrite {
 			if !ok {
 				return refErrNode{}
 			}
-			return refNode{a, n.abs}
+			return refNode{a, n.abs, n.sheet}
 		},
 		rng: func(n rangeNode) Node {
 			from, ok1 := move(n.r.From, n.abs[0])
@@ -94,28 +94,38 @@ func shiftRefs(dc, dr int) refRewrite {
 			if !ok1 || !ok2 {
 				return refErrNode{}
 			}
-			return newRange(from, to, n.abs[0], n.abs[1])
+			r := newRange(from, to, n.abs[0], n.abs[1])
+			r.sheet = n.sheet
+			return r
 		},
 	}
 }
 
-// relocate is the rewrite for cells that move: cell maps where each cell
-// went (false if it's gone), and rng maps whole ranges.
-func relocate(cell func(Addr) (Addr, bool), rng func(Rect) (Rect, bool)) refRewrite {
+// relocate is the rewrite for cells that move on one sheet: cell maps
+// where each cell went (false if it's gone), and rng maps whole ranges.
+// on reports whether a reference written with a sheet name ("" for none)
+// points at the sheet whose cells moved; other references stay.
+func relocate(on func(sheet string) bool, cell func(Addr) (Addr, bool), rng func(Rect) (Rect, bool)) refRewrite {
 	return refRewrite{
 		ref: func(n refNode) Node {
+			if !on(n.sheet) {
+				return n
+			}
 			a, ok := cell(n.a)
 			if !ok {
 				return refErrNode{}
 			}
-			return refNode{a, n.abs}
+			return refNode{a, n.abs, n.sheet}
 		},
 		rng: func(n rangeNode) Node {
+			if !on(n.sheet) {
+				return n
+			}
 			r, ok := rng(n.r)
 			if !ok {
 				return refErrNode{}
 			}
-			return rangeNode{r, n.abs}
+			return rangeNode{r, n.abs, n.sheet}
 		},
 	}
 }
@@ -132,7 +142,7 @@ func (c *Cell) withFormula(n Node) *Cell {
 // rewritten returns c with its references rewritten, or c itself if none
 // changed.
 func (c *Cell) rewritten(rw refRewrite) *Cell {
-	if c.expr == nil || (len(c.refs) == 0 && len(c.ranges) == 0 && len(c.names) == 0) {
+	if c.expr == nil || (len(c.refs) == 0 && len(c.ranges) == 0 && len(c.names) == 0 && len(c.xrefs) == 0) {
 		return c
 	}
 	n, changed := rewrite(c.expr, rw)

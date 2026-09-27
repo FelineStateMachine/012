@@ -224,29 +224,33 @@ func decimalize(n Node) Node {
 
 // arith returns the formula to evaluate under the workbook's arithmetic
 // setting.
-func (s *Sheet) arith(n Node) Node {
-	if s.view.decimal {
+func (w *Workbook) arith(n Node) Node {
+	if w.decimal {
 		return decimalize(n)
 	}
 	return n
 }
 
 // Decimal reports whether the workbook computes in decimal.
-func (s *Sheet) Decimal() bool { return s.view.decimal }
+func (w *Workbook) Decimal() bool { return w.decimal }
 
-// SetDecimal turns decimal arithmetic on or off, as one undo step, and
-// recalculates every formula.
-func (s *Sheet) SetDecimal(on bool) {
-	if on == s.view.decimal {
+// SetDecimal turns decimal arithmetic on or off for every sheet, as one
+// undo step, and recalculates every formula.
+func (w *Workbook) SetDecimal(on bool) {
+	if on == w.decimal {
 		return
 	}
 	label := "turn off decimal arithmetic"
 	if on {
 		label = "turn on decimal arithmetic"
 	}
-	s.change(label, Rect{}, func() {
-		s.recordView()
-		s.view.decimal = on
-		s.hist.dirty = append(s.hist.dirty, s.Addrs()...)
+	w.change(w.sheets[w.Active()], label, Rect{}, func() {
+		w.recordDecimal()
+		w.decimal = on
+		w.structural = true // every formula computes differently
 	})
 }
+
+// Decimal and SetDecimal on a sheet are its workbook's.
+func (s *Sheet) Decimal() bool      { return s.wb.Decimal() }
+func (s *Sheet) SetDecimal(on bool) { s.wb.SetDecimal(on) }

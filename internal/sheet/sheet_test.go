@@ -218,15 +218,15 @@ func TestCircular(t *testing.T) {
 	s := New()
 	s.Set(at("A1"), "=B1+1")
 	s.Set(at("B1"), "=A1+1")
-	if !s.Circular || s.Value(at("A1")) != ErrRef || s.Value(at("B1")) != ErrRef {
-		t.Errorf("circular: %v %+v %+v", s.Circular, s.Value(at("A1")), s.Value(at("B1")))
+	if !s.Book().Circular || s.Value(at("A1")) != ErrRef || s.Value(at("B1")) != ErrRef {
+		t.Errorf("circular: %v %+v %+v", s.Book().Circular, s.Value(at("A1")), s.Value(at("B1")))
 	}
 	s.Set(at("B1"), "3")
-	if s.Circular || s.Value(at("A1")).Num != 4 {
-		t.Errorf("after break: %v %+v", s.Circular, s.Value(at("A1")))
+	if s.Book().Circular || s.Value(at("A1")).Num != 4 {
+		t.Errorf("after break: %v %+v", s.Book().Circular, s.Value(at("A1")))
 	}
 	s.Set(at("C1"), "=SUM(C1:C2)")
-	if !s.Circular {
+	if !s.Book().Circular {
 		t.Error("self-referencing range not flagged")
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"slices"
+	"strings"
 )
 
 // FileExt is the extension of the native worksheet format.
@@ -16,7 +17,10 @@ const FileExt = ".012"
 // Version 1 files (cells as plain strings, no formatting) still load.
 // Version 3 adds named ranges, frozen panes and a filter; a sheet using
 // none of them is written as version 2, so earlier builds can open it.
-const fileVersion = 3
+// Version 4 holds several sheets; a workbook of one sheet whose formulas
+// name no sheet is still written as version 2 or 3, its sheet's name in
+// a "name" field that earlier builds ignore.
+const fileVersion = 4
 
 // The file is JSON with one entry per cell, keyed by address. A cell
 // without formatting is just its input, as in version 1; a formatted cell
@@ -26,11 +30,31 @@ const fileVersion = 3
 //	"C2": {"input": "1450", "format": "currency", "decimals": 2, "bold": true}
 //
 // Named ranges map each name to its range, or to "#REF!" once its cells
-// were deleted: "names": {"Sales": "B2:B20"}.
+// were deleted: "names": {"Sales": "B2:B20"}. In version 4 the sheets are
+// a list, each with its name and the fields a version 3 file has at the
+// top, and ranges of names say their sheet: {"Sales": "Q3!B2:B20"}.
+//
+//	"sheets": [
+//	  {
+//	    "name": "Q3",
+//	    "cells": {
+//	      "A1": "Rent",
 type fileFormat struct {
 	Version int               `json:"version"`
-	Widths  map[string]int    `json:"widths,omitempty"`
 	Names   map[string]string `json:"names,omitempty"`
+	Active  int               `json:"active,omitempty"` // index of the sheet shown
+	// Arithmetic is "decimal" for decimal arithmetic, which needs no
+	// version bump: earlier builds ignore it and compute in binary, as
+	// Sheets would. It is for the whole workbook, so it stays at the top.
+	Arithmetic string      `json:"arithmetic,omitempty"`
+	fileSheet              // versions 1 to 3: the only sheet
+	Sheets     []fileSheet `json:"sheets,omitempty"` // version 4
+}
+
+// fileSheet is one sheet of a file.
+type fileSheet struct {
+	Name   string         `json:"name,omitempty"`
+	Widths map[string]int `json:"widths,omitempty"`
 	fileView
 	Cells  map[string]json.RawMessage `json:"cells"`
 	Charts []fileChart                `json:"charts,omitempty"`
@@ -141,37 +165,113 @@ func decodeCell(raw json.RawMessage) (string, Format, Style, error) {
 	return fc.Input, f, st, nil
 }
 
-// Write saves the worksheet as JSON, storing each cell's input as typed
+// Write saves the workbook the sheet belongs to; see Workbook.Write.
+func (s *Sheet) Write(w io.Writer) error { return s.wb.Write(w) }
+
+// Write saves the workbook as JSON, storing each cell's input as typed
 // and its formatting. Cells go one per line in row-major order so diffs
 // read naturally.
-func (s *Sheet) Write(w io.Writer) error {
+func (w *Workbook) Write(out io.Writer) error {
 	var b bytes.Buffer
-	version := 2
-	if v := s.view; len(s.names) > 0 || v.frozenRows > 0 || v.frozenCols > 0 || v.filter != nil {
-		version = 3
+	if w.single() {
+		s := w.sheets[0]
+		version := 2
+		if v := s.view; len(w.names) > 0 || v.frozenRows > 0 || v.frozenCols > 0 || v.filter != nil {
+			version = 3
+		}
+		fmt.Fprintf(&b, "{\n  \"version\": %d,\n", version)
+		if s.name != "Sheet1" {
+			fmt.Fprintf(&b, "  \"name\": %s,\n", jsonString(s.name))
+		}
+		if err := s.writeBody(&b, "  ", w.headLines()); err != nil {
+			return err
+		}
+		b.WriteString("\n}\n")
+	} else {
+		fmt.Fprintf(&b, "{\n  \"version\": %d,\n", fileVersion)
+		if head := w.headLines(); head != "" {
+			b.WriteString("  " + head + ",\n")
+		}
+		if w.Active() > 0 {
+			fmt.Fprintf(&b, "  \"active\": %d,\n", w.Active())
+		}
+		b.WriteString(`  "sheets": [`)
+		for i, s := range w.sheets {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			fmt.Fprintf(&b, "\n    {\n      \"name\": %s,\n", jsonString(s.name))
+			if err := s.writeBody(&b, "      ", ""); err != nil {
+				return err
+			}
+			b.WriteString("\n    }")
+		}
+		b.WriteString("\n  ]\n}\n")
 	}
-	fmt.Fprintf(&b, "{\n  \"version\": %d,\n", version)
+	_, err := out.Write(b.Bytes())
+	return err
+}
+
+// single reports whether the workbook fits the single-sheet format of
+// versions 2 and 3: one sheet, and no formula naming a sheet.
+func (w *Workbook) single() bool {
+	return len(w.sheets) == 1 && len(w.crossUsers) == 0
+}
+
+func jsonString(s string) string {
+	raw, _ := json.Marshal(s)
+	return string(raw)
+}
+
+// headLines are the workbook's fields before the sheets: the named ranges
+// and the arithmetic setting, separated as the lines of the file.
+func (w *Workbook) headLines() string {
+	var lines []string
+	if names := w.namesLine(); names != "" {
+		lines = append(lines, names)
+	}
+	if w.decimal {
+		lines = append(lines, `"arithmetic": "decimal"`)
+	}
+	return strings.Join(lines, ",\n  ")
+}
+
+// namesLine is the "names" field, or "" without names.
+func (w *Workbook) namesLine() string {
+	names := w.Names()
+	if len(names) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(`"names": {`)
+	for i, n := range names {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "%q: %s", n.Name, jsonString(n.Ref()))
+	}
+	b.WriteString("}")
+	return b.String()
+}
+
+// writeBody writes a sheet's fields, each line starting with indent, the
+// names line (if any) after the widths as version 3 has it, and no
+// newline after the last field.
+func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 	if len(s.widths) > 0 {
-		b.WriteString(`  "widths": {`)
+		b.WriteString(indent + `"widths": {`)
 		for i, c := range slices.Sorted(maps.Keys(s.widths)) {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			fmt.Fprintf(&b, "%q: %d", ColName(c), s.widths[c])
+			fmt.Fprintf(b, "%q: %d", ColName(c), s.widths[c])
 		}
 		b.WriteString("},\n")
 	}
-	if names := s.Names(); len(names) > 0 {
-		b.WriteString(`  "names": {`)
-		for i, n := range names {
-			if i > 0 {
-				b.WriteString(", ")
-			}
-			fmt.Fprintf(&b, "%q: %q", n.Name, n.Ref())
-		}
-		b.WriteString("},\n")
+	if names != "" {
+		b.WriteString(indent + names + ",\n")
 	}
-	if err := s.writeView(&b); err != nil {
+	if err := s.writeView(b, indent); err != nil {
 		return err
 	}
 	addrs := make([]Addr, 0, len(s.cells))
@@ -179,7 +279,7 @@ func (s *Sheet) Write(w io.Writer) error {
 		addrs = append(addrs, a)
 	}
 	sortAddrs(addrs)
-	b.WriteString(`  "cells": {`)
+	b.WriteString(indent + `"cells": {`)
 	for i, a := range addrs {
 		raw, err := encodeCell(s.cells[a])
 		if err != nil {
@@ -188,14 +288,14 @@ func (s *Sheet) Write(w io.Writer) error {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		fmt.Fprintf(&b, "\n    %q: %s", a.String(), raw)
+		fmt.Fprintf(b, "\n%s  %q: %s", indent, a.String(), raw)
 	}
 	if len(addrs) > 0 {
-		b.WriteString("\n  ")
+		b.WriteString("\n" + indent)
 	}
 	b.WriteString("}")
 	if len(s.charts) > 0 {
-		b.WriteString(",\n  \"charts\": [")
+		b.WriteString(",\n" + indent + `"charts": [`)
 		for i, c := range s.charts {
 			raw, err := encodeChart(c)
 			if err != nil {
@@ -204,17 +304,26 @@ func (s *Sheet) Write(w io.Writer) error {
 			if i > 0 {
 				b.WriteByte(',')
 			}
-			fmt.Fprintf(&b, "\n    %s", raw)
+			fmt.Fprintf(b, "\n%s  %s", indent, raw)
 		}
-		b.WriteString("\n  ]")
+		b.WriteString("\n" + indent + "]")
 	}
-	b.WriteString("\n}\n")
-	_, err := w.Write(b.Bytes())
-	return err
+	return nil
 }
 
-// Read loads a worksheet written by Write, of this or an earlier version.
+// Read loads a file written by Write, of this or an earlier version, and
+// returns the sheet that was shown when it was saved.
 func Read(r io.Reader) (*Sheet, error) {
+	w, err := ReadBook(r)
+	if err != nil {
+		return nil, err
+	}
+	return w.Sheet(w.Active()), nil
+}
+
+// ReadBook loads a workbook written by Write, of this or an earlier
+// version.
+func ReadBook(r io.Reader) (*Workbook, error) {
 	var f fileFormat
 	if err := json.NewDecoder(r).Decode(&f); err != nil {
 		return nil, err
@@ -222,58 +331,103 @@ func Read(r io.Reader) (*Sheet, error) {
 	if f.Version < 1 || f.Version > fileVersion {
 		return nil, fmt.Errorf("unsupported file version %d", f.Version)
 	}
-	s := New()
-	for name, width := range f.Widths {
-		c, ok := ParseCol(name)
-		if !ok {
-			return nil, fmt.Errorf("invalid column %q", name)
+	bodies := f.Sheets
+	if f.Version < 4 {
+		bodies = []fileSheet{f.fileSheet}
+		if bodies[0].Name == "" {
+			bodies[0].Name = "Sheet1"
 		}
-		s.SetColWidth(c, width)
 	}
-	for name, ref := range f.Names {
+	if len(bodies) == 0 {
+		return nil, fmt.Errorf("the file has no sheets")
+	}
+	w := emptyBook()
+	for _, body := range bodies {
+		if err := w.checkName(nil, body.Name); err != nil {
+			return nil, fmt.Errorf("sheet %q: %w", body.Name, err)
+		}
+		w.insert(w.newSheet(body.Name), len(w.sheets))
+	}
+	if err := w.readNames(f.Names); err != nil {
+		return nil, err
+	}
+	for i, body := range bodies {
+		if err := w.sheets[i].read(body, f.Version); err != nil {
+			if len(bodies) > 1 {
+				err = fmt.Errorf("sheet %s: %w", body.Name, err)
+			}
+			return nil, err
+		}
+	}
+	w.active = clampInt(f.Active, 0, len(w.sheets)-1)
+	// Anything but "decimal" (say, a mode from a later build) computes in
+	// binary, as the file would in a build without the setting.
+	w.decimal = f.Arithmetic == "decimal"
+	w.RecalcAll()
+	return w, nil
+}
+
+// readNames defines the named ranges of a file. A range without a sheet
+// is on the first sheet, as in single-sheet files.
+func (w *Workbook) readNames(names map[string]string) error {
+	for name, ref := range names {
 		if err := ValidName(name); err != nil {
-			return nil, fmt.Errorf("name %q: %w", name, err)
+			return fmt.Errorf("name %q: %w", name, err)
 		}
-		if _, dup := s.LookupName(name); dup {
-			return nil, fmt.Errorf("name %q is defined twice", name)
+		if _, dup := w.LookupName(name); dup {
+			return fmt.Errorf("name %q is defined twice", name)
 		}
-		n := Name{Name: name, Lost: ref == "#REF!"}
+		n := Name{Name: name, Sheet: w.sheets[0], Lost: ref == "#REF!"}
 		if !n.Lost {
-			r, ok := ParseRange(ref)
+			sheet, rest := SplitSheet(ref)
+			if sheet != "" {
+				if n.Sheet = w.Lookup(sheet); n.Sheet == nil {
+					return fmt.Errorf("name %q: no sheet %q", name, sheet)
+				}
+			}
+			r, ok := ParseRange(rest)
 			if !ok {
-				return nil, fmt.Errorf("name %q: invalid range %q", name, ref)
+				return fmt.Errorf("name %q: invalid range %q", name, ref)
 			}
 			n.Range = r
 		}
-		s.putName(nameKey(name), &n)
+		w.putName(nameKey(name), &n)
+	}
+	return nil
+}
+
+// read fills an empty sheet from its part of a file.
+func (s *Sheet) read(f fileSheet, version int) error {
+	for name, width := range f.Widths {
+		c, ok := ParseCol(name)
+		if !ok {
+			return fmt.Errorf("invalid column %q", name)
+		}
+		s.setWidth(c, width)
 	}
 	for name, raw := range f.Cells {
 		a, ok := ParseAddr(name)
 		if !ok {
-			return nil, fmt.Errorf("invalid cell %q", name)
+			return fmt.Errorf("invalid cell %q", name)
 		}
 		input, fm, st, err := decodeCell(raw)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", name, err)
+			return fmt.Errorf("%s: %w", name, err)
 		}
 		// Version 1 had no formats, so there entries imply them, as if
-		// typed again; in version 2 the stored format wins.
-		c, err := newCell(input, fm, st, f.Version < 2)
+		// typed again; since version 2 the stored format wins.
+		c, err := newCell(input, fm, st, version < 2)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", name, err)
+			return fmt.Errorf("%s: %w", name, err)
 		}
 		s.place(a, c)
 	}
 	for i, fc := range f.Charts {
 		c, err := decodeChart(fc)
 		if err != nil {
-			return nil, fmt.Errorf("chart %d: %w", i+1, err)
+			return fmt.Errorf("chart %d: %w", i+1, err)
 		}
 		s.charts = append(s.charts, c)
 	}
-	if err := s.readView(f.fileView); err != nil {
-		return nil, err
-	}
-	s.RecalcAll()
-	return s, nil
+	return s.readView(f.fileView)
 }

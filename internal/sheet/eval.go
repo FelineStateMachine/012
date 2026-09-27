@@ -85,8 +85,10 @@ func toNum(v Value) (float64, *Value) {
 	return 0, errOf(v)
 }
 
-// lookup resolves the current value of a referenced cell.
-type lookup func(Addr) Value
+// lookup resolves the current value of a referenced cell: on the
+// formula's own sheet when sheet is "", otherwise on the sheet with that
+// name.
+type lookup func(sheet string, a Addr) Value
 
 func eval(n Node, get lookup) Value {
 	switch n := n.(type) {
@@ -97,7 +99,7 @@ func eval(n Node, get lookup) Value {
 	case boolLit:
 		return boolean(n.v)
 	case refNode:
-		return get(n.a)
+		return get(n.sheet, n.a)
 	case nameNode:
 		return ErrName
 	case refErrNode:
@@ -108,7 +110,7 @@ func eval(n Node, get lookup) Value {
 		// A range outside a function: Sheets uses the top-left cell here
 		// for single-cell ranges and #VALUE! otherwise.
 		if n.r.From == n.r.To {
-			return get(n.r.From)
+			return get(n.sheet, n.r.From)
 		}
 		return ErrValue
 	case unaryNode:

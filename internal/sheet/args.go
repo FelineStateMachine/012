@@ -68,7 +68,8 @@ func boolArg(args []Node, i int, def bool, get lookup) (bool, *Value) {
 type matrix struct {
 	rows, cols int
 	cell       func(r, c int) Value
-	origin     Addr // top-left cell when the block is a reference
+	origin     Addr   // top-left cell when the block is a reference
+	sheet      string // the reference's sheet, as written
 	ref        bool
 }
 
@@ -80,26 +81,23 @@ func (m matrix) size() int { return m.rows * m.cols }
 func (m matrix) vector() bool { return m.rows == 1 || m.cols == 1 }
 
 func matrixArg(n Node, get lookup) matrix {
-	var r Rect
 	switch n := n.(type) {
 	case rangeNode:
-		r = n.r
+		return rectMatrix(n.sheet, n.r, get)
 	case refNode:
-		r = Rect{From: n.a, To: n.a}
-	default:
-		v := eval(n, get)
-		return matrix{rows: 1, cols: 1, cell: func(int, int) Value { return v }}
+		return rectMatrix(n.sheet, Rect{From: n.a, To: n.a}, get)
 	}
-	return rectMatrix(r, get)
+	v := eval(n, get)
+	return matrix{rows: 1, cols: 1, cell: func(int, int) Value { return v }}
 }
 
-func rectMatrix(r Rect, get lookup) matrix {
+func rectMatrix(sheet string, r Rect, get lookup) matrix {
 	return matrix{
 		rows: r.To.Row - r.From.Row + 1, cols: r.To.Col - r.From.Col + 1,
 		cell: func(row, col int) Value {
-			return get(Addr{Col: r.From.Col + col, Row: r.From.Row + row})
+			return get(sheet, Addr{Col: r.From.Col + col, Row: r.From.Row + row})
 		},
-		origin: r.From, ref: true,
+		origin: r.From, sheet: sheet, ref: true,
 	}
 }
 
@@ -110,7 +108,7 @@ func (m matrix) resized(rows, cols int, get lookup) matrix {
 		return m
 	}
 	to := Addr{Col: m.origin.Col + cols - 1, Row: m.origin.Row + rows - 1}
-	return rectMatrix(Rect{From: m.origin, To: to}, get)
+	return rectMatrix(m.sheet, Rect{From: m.origin, To: to}, get)
 }
 
 // nums collects the numbers in args with aggregate semantics: in ranges

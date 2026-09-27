@@ -212,6 +212,16 @@ func importKind(ctx context.Context, name string, k Kind, opt Options) (*Result,
 	if err != nil {
 		return nil, err
 	}
+	// A file of one table becomes one sheet named after it, as in Sheets.
+	if book := r.Sheet.Book(); k != XLSX && book.Len() == 1 {
+		base := strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))
+		if opt.Table != "" {
+			base = opt.Table
+		}
+		if book.RenameSheet(r.Sheet, sheetName(base)) == nil {
+			book.ClearHistory()
+		}
+	}
 	r.Kind = k
 	if p := opt.Progress; p != nil && p.permille.Load() >= 0 {
 		p.permille.Store(1000)

@@ -13,33 +13,55 @@ func (s *Sheet) ExplainError(a Addr) string {
 	return s.explain(a, nil)
 }
 
+// label names a cell for an explanation, with its sheet when it isn't on
+// the sheet being explained: B3 or Sheet2!B3.
+func (l loc) label(from *Sheet) string {
+	if l.s == from {
+		return l.a.String()
+	}
+	return quoteSheet(l.s.name) + "!" + l.a.String()
+}
+
 // maxExplainExpr caps how much of a formula an explanation quotes.
 const maxExplainExpr = 40
 
-func (s *Sheet) explain(a Addr, path []Addr) string {
+func (s *Sheet) explain(a Addr, path []loc) string {
+	here := loc{s, a}
 	c := s.cells[a]
 	v := s.Value(a)
 	if c == nil || v.Kind != Error || !c.IsFormula() {
 		return ""
 	}
-	if i := slices.Index(path, a); i >= 0 {
+	// Cells are named relative to the sheet the explanation starts on.
+	home := s
+	if len(path) > 0 {
+		home = path[0].s
+	}
+	if i := slices.Index(path, here); i >= 0 {
 		names := make([]string, 0, len(path)-i+1)
 		for _, p := range path[i:] {
-			names = append(names, p.String())
+			names = append(names, p.label(home))
 		}
-		return "Circular reference: " + strings.Join(append(names, a.String()), " → ")
+		return "Circular reference: " + strings.Join(append(names, here.label(home)), " → ")
 	}
-	path = append(path, a)
+	path = append(path, here)
 	n, from := s.errorOrigin(c.expr, v)
 	if from != nil {
-		why := s.explain(*from, path)
+		why := from.s.explain(from.a, path)
+		name := from.label(home)
 		if why == "" {
-			return "From " + from.String()
+			return "From " + name
 		}
 		if strings.HasPrefix(why, "Circular") || strings.HasPrefix(why, "From ") {
 			return why
 		}
-		return "From " + from.String() + ": " + strings.ToLower(why[:1]) + why[1:]
+		return "From " + name + ": " + strings.ToLower(why[:1]) + why[1:]
+	}
+	if r, ok := n.(refNode); ok && s.wb.resolve(s, r.sheet) == nil {
+		return "Unresolved sheet name " + quoteSheet(r.sheet)
+	}
+	if r, ok := n.(rangeNode); ok && s.wb.resolve(s, r.sheet) == nil {
+		return "Unresolved sheet name " + quoteSheet(r.sheet)
 	}
 	return describeError(v, n)
 }
@@ -47,17 +69,23 @@ func (s *Sheet) explain(a Addr, path []Addr) string {
 // errorOrigin finds the innermost part of n that produces the error want
 // itself rather than passing it on. When the error comes from a
 // referenced cell, it returns that cell.
-func (s *Sheet) errorOrigin(n Node, want Value) (Node, *Addr) {
+func (s *Sheet) errorOrigin(n Node, want Value) (Node, *loc) {
 	same := func(v Value) bool { return v.Kind == Error && v.Str == want.Str }
-	get := s.Value
+	get := s.wb.values(s)
+	at := func(sheet string, a Addr) *loc {
+		if t := s.wb.resolve(s, sheet); t != nil {
+			return &loc{t, a}
+		}
+		return nil // an unresolved sheet name is the error itself
+	}
 	switch n := n.(type) {
 	case refNode:
-		if same(get(n.a)) {
-			return n, &n.a
+		if same(get(n.sheet, n.a)) {
+			return n, at(n.sheet, n.a)
 		}
 	case rangeNode:
-		if n.r.From == n.r.To && same(get(n.r.From)) {
-			return n, &n.r.From
+		if n.r.From == n.r.To && same(get(n.sheet, n.r.From)) {
+			return n, at(n.sheet, n.r.From)
 		}
 	case unaryNode:
 		if same(eval(n.x, get)) {
@@ -75,11 +103,15 @@ func (s *Sheet) errorOrigin(n Node, want Value) (Node, *Addr) {
 		}
 		for _, arg := range n.args {
 			if r, ok := arg.(rangeNode); ok && r.r.From != r.r.To {
-				cells := s.cellsIn(r.r)
+				t := s.wb.resolve(s, r.sheet)
+				if t == nil {
+					return arg, nil
+				}
+				cells := t.cellsIn(r.r)
 				sortAddrs(cells)
 				for _, a := range cells {
-					if same(get(a)) {
-						return arg, &a
+					if same(t.Value(a)) {
+						return arg, &loc{t, a}
 					}
 				}
 				continue

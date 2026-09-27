@@ -31,7 +31,7 @@ func (s *Sheet) Link(a Addr) string {
 		return ""
 	}
 	if call, ok := c.expr.(callNode); ok && call.fn.Name == "HYPERLINK" && c.IsFormula() {
-		v := eval(call.args[0], s.Value)
+		v := eval(call.args[0], s.wb.values(s))
 		if v.Kind == Error {
 			return ""
 		}

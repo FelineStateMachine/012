@@ -123,12 +123,12 @@ func isVolatile(n Node) bool {
 // the cell is Automatic: dates from date functions, and otherwise the
 // format of the first formatted input, so =B2+B3 of currency shows
 // currency and a date plus days shows a date.
-func inferFormat(n Node, at func(Addr) Format) Format {
+func inferFormat(n Node, at func(string, Addr) Format) Format {
 	switch n := n.(type) {
 	case refNode:
-		return at(n.a)
+		return at(n.sheet, n.a)
 	case rangeNode:
-		return at(n.r.From)
+		return at(n.sheet, n.r.From)
 	case unaryNode:
 		if n.op == "-" || n.op == "+" {
 			return inferFormat(n.x, at)

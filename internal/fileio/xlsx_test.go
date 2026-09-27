@@ -98,8 +98,8 @@ func TestXLSXRoundTrip(t *testing.T) {
 }
 
 // TestXLSXImport reads a workbook written by excelize the way Excel
-// writes one: several sheets, shared strings, built-in formats and
-// formulas 012 can't read.
+// writes one: several sheets referring to each other, shared strings,
+// built-in formats, named ranges and formulas 012 can't read.
 func TestXLSXImport(t *testing.T) {
 	x := excelize.NewFile()
 	x.SetSheetName("Sheet1", "Q1")
@@ -114,7 +114,16 @@ func TestXLSXImport(t *testing.T) {
 	x.SetCellValue("Q1", "A2", 84) // the cached value
 	x.SetCellFormula("Q1", "A2", "Q2!A1*2")
 	x.SetCellFormula("Q1", "B2", "SUM(B1,1)")
+	x.SetCellFormula("Q1", "C2", "SUM('Q3 plan'!A1:A2)+Total")
+	x.SetCellValue("Q1", "D2", 7)
+	x.SetCellFormula("Q1", "D2", "CUBEVALUE(1)")
 	x.SetCellValue("Q2", "A1", 42)
+	x.SetSheetName("Q3", "Q3 plan")
+	x.SetCellValue("Q3 plan", "A1", 1)
+	x.SetCellValue("Q3 plan", "A2", 2)
+	x.SetDefinedName(&excelize.DefinedName{Name: "Total", RefersTo: "Q2!$A$1"})
+	x.SetDefinedName(&excelize.DefinedName{Name: "Local", RefersTo: "Q2!$A$1", Scope: "Q2"})
+	x.SetActiveSheet(1)
 	id, _ := x.NewStyle(&excelize.Style{NumFmt: 4, Font: &excelize.Font{Bold: true}})
 	x.SetCellStyle("Q1", "B1", "B1", id)
 	date, _ := x.NewStyle(&excelize.Style{NumFmt: 15})
@@ -131,10 +140,14 @@ func TestXLSXImport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := res.Sheet
+	book := res.Sheet.Book()
+	if book.Len() != 3 || res.Sheet.Name() != "Q2" || book.Sheet(2).Name() != "Q3 plan" {
+		t.Fatalf("imported %d sheets, showing %s", book.Len(), res.Sheet.Name())
+	}
+	s := book.Sheet(0)
 	for cell, want := range map[string]string{
 		"A1": "Region", "B1": "1,234.50", "C1": "=not a formula", "D1": "15-Mar-23", "E1": "TRUE",
-		"A2": "84", "B2": "123550.00%",
+		"A2": "84", "B2": "123550.00%", "C2": "45", "D2": "7",
 	} {
 		if g := shown(s, addr(t, cell)); g != want {
 			t.Errorf("%s shows %q, want %q", cell, g, want)
@@ -151,14 +164,14 @@ func TestXLSXImport(t *testing.T) {
 	}
 	notes := strings.Join(res.Notes, "; ")
 	for _, want := range []string{
-		"first sheet only, Q1; not imported: Q2, Q3",
-		"1 formula kept as values, e.g. A2 =Q2!A1*2",
+		"1 formula kept as values, e.g. D2 =CUBEVALUE(1)",
+		"1 named range left out, e.g. Local",
 	} {
 		if !strings.Contains(notes, want) {
 			t.Errorf("notes %q, want %q", notes, want)
 		}
 	}
-	if rows, frac := prog.Get(); rows != 2 {
+	if rows, frac := prog.Get(); rows != 5 {
 		t.Errorf("progress %d rows, %v", rows, frac)
 	}
 }
@@ -220,6 +233,8 @@ func TestExcelFormulas(t *testing.T) {
 		{`=JEV.TEST(A2,"Is it?")`, "", false},
 		{"=A1>1 #AND# B1<2", "", false},
 		{"=#REF!+1", "#REF!+1", true},
+		{"='Q3 #1'!A1..B2", "'Q3 #1'!A1:B2", true},
+		{"=SUM('Bob''s'!A1)", "SUM('Bob''s'!A1)", true},
 	} {
 		got, ok := toExcelFormula(tc.in)
 		if ok != tc.ok || ok && got != tc.want {
@@ -230,9 +245,57 @@ func TestExcelFormulas(t *testing.T) {
 		"SUM(A1:B2)":                             "=SUM(A1:B2)",
 		"_xlfn.IFNA(_xlfn.XLOOKUP(1,A:A,B:B),0)": "=IFNA(XLOOKUP(1,A:A,B:B),0)",
 		`"_xlfn.kept"&A1`:                        `="_xlfn.kept"&A1`,
+		"'_xlfn.odd'!A1":                         "='_xlfn.odd'!A1",
 	} {
 		if got := fromExcelFormula(in); got != want {
 			t.Errorf("fromExcelFormula(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// Every sheet goes out to Excel and comes back, with references between
+// sheets, the sheet shown and named ranges.
+func TestXLSXWorkbookRoundTrip(t *testing.T) {
+	src := build(t, map[string]string{"A1": "Rent", "B1": "1450", "B2": "='Q3 plan'!A1*2"})
+	book := src.Book()
+	book.RenameSheet(src, "Budget")
+	plan, _ := book.AddSheet("Q3 plan", 1)
+	plan.Set(addr(t, "A1"), "=Budget!B1+Rent")
+	plan.Set(addr(t, "A2"), `=JEV.TEST(A1, "Big?")`)
+	book.DefineName("Rent", src, sheet.NewRect(addr(t, "B1"), addr(t, "B1")))
+
+	name := filepath.Join(t.TempDir(), "book.xlsx")
+	res, err := Export(context.Background(), name, XLSX, SnapBook(plan), ExportOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Notes) != 1 || !strings.Contains(res.Notes[0], "e.g. 'Q3 plan'!A2") {
+		t.Errorf("notes %q", res.Notes)
+	}
+	x, err := excelize.OpenFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := x.GetCellFormula("Budget", "B2"); got != "'Q3 plan'!A1*2" {
+		t.Errorf("Excel formula %q", got)
+	}
+	x.Close()
+
+	got, err := Import(context.Background(), name, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gb := got.Sheet.Book()
+	if gb.Len() != 2 || got.Sheet.Name() != "Q3 plan" {
+		t.Fatalf("read back %d sheets, showing %s", gb.Len(), got.Sheet.Name())
+	}
+	if v := shown(gb.Sheet(0), addr(t, "B2")); v != "5800" {
+		t.Errorf("Budget!B2 shows %s", v)
+	}
+	if v := input(got.Sheet, addr(t, "A1")); v != "=Budget!B1+Rent" {
+		t.Errorf("Q3 plan!A1 input %s", v)
+	}
+	if n, ok := gb.LookupName("Rent"); !ok || n.Ref() != "Budget!B1" {
+		t.Errorf("name Rent: %v %s", ok, n.Ref())
 	}
 }

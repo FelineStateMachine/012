@@ -18,15 +18,31 @@ var (
 const maxFill = 1 << 20
 
 // remap moves every stored cell with cell (dropping those it rejects) and
-// rewrites every formula with rw, as one undo step.
-func (s *Sheet) remap(label string, focus Rect, cell func(Addr) (Addr, bool), rw refRewrite) {
+// rewrites every reference to this sheet's cells, here and on other
+// sheets, with cell and rng, as one undo step. References to other sheets
+// stay as they are.
+func (s *Sheet) remap(label string, focus Rect, cell func(Addr) (Addr, bool), rng func(Rect) (Rect, bool)) {
+	rw := relocate(s.onThis(s), cell, rng)
 	next := make(map[Addr]*Cell, len(s.cells))
 	for a, c := range s.cells {
 		if to, ok := cell(a); ok {
 			next[to] = c.rewritten(rw)
 		}
 	}
+	others := map[loc]*Cell{}
+	for _, l := range s.wb.crossList() {
+		if l.s == s {
+			continue
+		}
+		c := l.s.cells[l.a]
+		if nc := c.rewritten(relocate(s.onThis(l.s), cell, rng)); nc != c {
+			others[l] = nc
+		}
+	}
 	s.change(label, focus, func() {
+		for l, c := range others {
+			l.s.place(l.a, c)
+		}
 		for a, c := range s.cells {
 			if next[a] != c {
 				s.place(a, next[a])
@@ -99,7 +115,7 @@ func (s *Sheet) restructure(rows bool, sp span) {
 		label += "s"
 	}
 	s.change(label, focus, func() {
-		s.remap(label, focus, cell, relocate(cell, rng))
+		s.remap(label, focus, cell, rng)
 		s.remapNames(rng)
 		s.shiftCharts(cell, rng)
 		if !rows {
@@ -157,10 +173,118 @@ func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
 	}
 	label := "move " + src.String() + " to " + dst.String()
 	s.change(label, dst, func() {
-		s.remap(label, dst, cell, relocate(cell, rng))
+		s.remap(label, dst, cell, rng)
 		s.remapNames(rng) // a name for exactly the moved cells follows them
 	})
 	return dst, nil
+}
+
+// MoveTo moves the cells in src to sheet dst, src's top-left corner
+// landing on to, as cutting on one sheet and pasting on another does in
+// Sheets. Formulas anywhere that read the moved cells follow them to dst,
+// naming its sheet where they need to; the moved formulas keep reading
+// what they read, naming this sheet for cells that stayed behind.
+// References to cells the move overwrote become #REF!.
+func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
+	if dst == s {
+		return s.Move(src, to)
+	}
+	dc, dr := to.Col-src.From.Col, to.Row-src.From.Row
+	d := Rect{to, Addr{Col: src.To.Col + dc, Row: src.To.Row + dr}}
+	if !d.To.Valid() {
+		return Rect{}, ErrPasteEdge
+	}
+	shift := func(a Addr) Addr { return Addr{Col: a.Col + dc, Row: a.Row + dr} }
+	rw := func(orig, home *Sheet) refRewrite { return s.moveRewrite(dst, src, d, orig, home) }
+
+	moved := map[Addr]*Cell{}
+	for _, a := range s.cellsIn(src) {
+		moved[shift(a)] = s.cells[a].rewritten(rw(s, dst))
+	}
+	rest := map[loc]*Cell{}
+	keep := func(l loc) {
+		if src.Contains(l.a) && l.s == s || d.Contains(l.a) && l.s == dst {
+			return
+		}
+		c := l.s.cells[l.a]
+		if nc := c.rewritten(rw(l.s, l.s)); nc != c {
+			rest[l] = nc
+		}
+	}
+	for _, t := range []*Sheet{s, dst} {
+		for a := range t.cells {
+			keep(loc{t, a})
+		}
+	}
+	for _, l := range s.wb.crossList() {
+		if l.s != s && l.s != dst {
+			keep(l)
+		}
+	}
+	label := "move " + src.String() + " to " + quoteSheet(dst.name) + "!" + d.String()
+	dst.change(label, d, func() {
+		for _, a := range s.cellsIn(src) {
+			s.place(a, nil)
+		}
+		for _, a := range dst.cellsIn(d) {
+			dst.place(a, nil)
+		}
+		for a, c := range moved {
+			dst.place(a, c)
+		}
+		for l, c := range rest {
+			l.s.place(l.a, c)
+		}
+		for k, n := range s.wb.names {
+			if n.Sheet == s && !n.Lost && src.Contains(n.Range.From) && src.Contains(n.Range.To) {
+				n.Sheet, n.Range = dst, Rect{shift(n.Range.From), shift(n.Range.To)}
+				s.wb.putName(k, &n)
+			}
+		}
+	})
+	return d, nil
+}
+
+// moveRewrite maps the references of a formula that was on orig and is
+// on home after cells in src on s move to d on dst. A reference names its
+// sheet unless it points at home.
+func (s *Sheet) moveRewrite(dst *Sheet, src, d Rect, orig, home *Sheet) refRewrite {
+	dc, dr := d.From.Col-src.From.Col, d.From.Row-src.From.Row
+	shift := func(a Addr) Addr { return Addr{Col: a.Col + dc, Row: a.Row + dr} }
+	// written is how a reference names now, having named was as written.
+	written := func(as string, was, now *Sheet) string {
+		switch {
+		case now == home:
+			return ""
+		case now == was && as != "":
+			return as
+		}
+		return now.name
+	}
+	return refRewrite{
+		ref: func(n refNode) Node {
+			t := s.wb.resolve(orig, n.sheet)
+			switch {
+			case t == nil:
+				return n
+			case t == s && src.Contains(n.a):
+				return refNode{shift(n.a), n.abs, written(n.sheet, t, dst)}
+			case t == dst && d.Contains(n.a):
+				return refErrNode{}
+			}
+			return refNode{n.a, n.abs, written(n.sheet, t, t)}
+		},
+		rng: func(n rangeNode) Node {
+			t := s.wb.resolve(orig, n.sheet)
+			switch {
+			case t == nil:
+				return n
+			case t == s && src.Contains(n.r.From) && src.Contains(n.r.To):
+				return rangeNode{Rect{shift(n.r.From), shift(n.r.To)}, n.abs, written(n.sheet, t, dst)}
+			}
+			return rangeNode{n.r, n.abs, written(n.sheet, t, t)}
+		},
+	}
 }
 
 // Clip is a copied range: snapshots of its cells taken at copy time.
@@ -315,7 +439,7 @@ func (s *Sheet) FillEntry(r Rect, origin Addr, input string) error {
 	if _, _, err := classify(input); err != nil {
 		return err
 	}
-	return s.Batch(Change{"fill " + r.String(), r}, func() error {
+	return s.Batch(Change{Label: "fill " + r.String(), Focus: r}, func() error {
 		if err := s.put(origin, input); err != nil {
 			return err
 		}

@@ -20,7 +20,15 @@ func (s *Sheet) Precedents(a Addr) []Rect {
 			out = append(out, r)
 		}
 	}
-	walkRefs(s.bound(c), func(a Addr) { add(Rect{a, a}) }, add)
+	walkRefs(s.bound(c), func(sheet string, a Addr) {
+		if sheet == "" {
+			add(Rect{a, a})
+		}
+	}, func(sheet string, r Rect) {
+		if sheet == "" {
+			add(r)
+		}
+	})
 	return out
 }
 
@@ -38,10 +46,12 @@ func (s *Sheet) Dependents(a Addr) []Addr {
 			}
 		}
 	}
-	for k, users := range s.nameUsers {
-		if n, ok := s.names[k]; ok && !n.Lost && n.Range.Contains(a) {
+	for k, users := range s.wb.nameUsers {
+		if n, ok := s.wb.names[k]; ok && !n.Lost && n.Sheet == s && n.Range.Contains(a) {
 			for u := range users {
-				seen[u] = true
+				if u.s == s {
+					seen[u.a] = true
+				}
 			}
 		}
 	}

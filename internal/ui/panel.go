@@ -273,10 +273,10 @@ func (m *Model) statusLine() string {
 	if m.changed {
 		left += m.th.muted.Render("  modified")
 	}
-	if m.sheet.Decimal() {
+	if m.sheet.Book().Decimal() {
 		left += m.th.muted.Render("  decimal")
 	}
-	if m.sheet.Circular {
+	if m.sheet.Book().Circular {
 		left += "  " + m.th.warning.Render("Circular reference")
 	}
 	if n := m.sheet.HiddenRows(); n > 0 {

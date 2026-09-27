@@ -23,6 +23,11 @@ func toExcelFormula(input string) (string, bool) {
 	for i := 0; i < len(src); i++ {
 		c := src[i]
 		switch {
+		case c == '\'':
+			// A quoted sheet name, 'Q3 plan'!A1, is the same in Excel.
+			j := quoteEnd(src, i)
+			b.WriteString(src[i:j])
+			i = j - 1
 		case c == '"':
 			j := i + 1
 			for j < len(src) {
@@ -95,6 +100,12 @@ func fromExcelFormula(f string) string {
 	inStr := false
 	for i := 0; i < len(f); i++ {
 		c := f[i]
+		if c == '\'' && !inStr {
+			j := quoteEnd(f, i)
+			b.WriteString(f[i:j])
+			i = j - 1
+			continue
+		}
 		if c == '"' {
 			inStr = !inStr
 		}
@@ -112,6 +123,21 @@ func fromExcelFormula(f string) string {
 		b.WriteByte(c)
 	}
 	return b.String()
+}
+
+// quoteEnd returns the index just past the quoted sheet name starting at
+// s[i], where a quote inside is written twice.
+func quoteEnd(s string, i int) int {
+	for j := i + 1; j < len(s); j++ {
+		if s[j] == '\'' {
+			if j+1 < len(s) && s[j+1] == '\'' {
+				j++
+				continue
+			}
+			return j + 1
+		}
+	}
+	return len(s)
 }
 
 // prefixFold returns len(prefix) if s starts with it, ignoring case.

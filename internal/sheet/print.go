@@ -46,8 +46,10 @@ func printNode(b *strings.Builder, n Node) {
 	case boolLit:
 		b.WriteString(strings.ToUpper(strconv.FormatBool(n.v)))
 	case refNode:
+		writeSheet(b, n.sheet)
 		b.WriteString(refString(n.a, n.abs))
 	case rangeNode:
+		writeSheet(b, n.sheet)
 		b.WriteString(refString(n.r.From, n.abs[0]) + ":" + refString(n.r.To, n.abs[1]))
 	case refErrNode:
 		b.WriteString("#REF!")
@@ -77,6 +79,13 @@ func printNode(b *strings.Builder, n Node) {
 			printNode(b, a)
 		}
 		b.WriteByte(')')
+	}
+}
+
+// writeSheet writes a reference's sheet and its "!", quoted as needed.
+func writeSheet(b *strings.Builder, sheet string) {
+	if sheet != "" {
+		b.WriteString(quoteSheet(sheet) + "!")
 	}
 }
 

@@ -48,9 +48,10 @@ var (
 // IsPending reports whether v is waiting for a remote answer.
 func IsPending(v Value) bool { return v == Pending }
 
-// RecalcVolatile recomputes volatile formulas and their dependents, e.g.
-// after remote answers arrive. It doesn't touch the undo history.
-func (s *Sheet) RecalcVolatile() { s.recalc(nil) }
+// RecalcVolatile recomputes volatile formulas and their dependents on
+// every sheet, e.g. after remote answers arrive. It doesn't touch the
+// undo history.
+func (s *Sheet) RecalcVolatile() { s.wb.recalc(nil) }
 
 // RemoteCalls returns the questions the formula at a asks, with their
 // current inputs, so the UI can show details or re-ask them.
@@ -59,7 +60,7 @@ func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
 	if c == nil || c.expr == nil {
 		return nil
 	}
-	get := func(a Addr) Value { return s.Value(a) }
+	get := s.wb.values(s)
 	var calls []RemoteCall
 	var walk func(Node)
 	walk = func(n Node) {

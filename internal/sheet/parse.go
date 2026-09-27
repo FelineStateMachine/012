@@ -13,15 +13,19 @@ type (
 	numLit  struct{ v float64 }
 	strLit  struct{ v string }
 	boolLit struct{ v bool }
+	// refNode is a cell reference. sheet is the sheet name as written
+	// before the "!" (Sheet2!A1), or "" for the formula's own sheet.
 	refNode struct {
-		a   Addr
-		abs absFlags
+		a     Addr
+		abs   absFlags
+		sheet string
 	}
 	// rangeNode is kept normalized (r.From is the top-left corner); abs
 	// holds the absolute markers of r.From and r.To.
 	rangeNode struct {
-		r   Rect
-		abs [2]absFlags
+		r     Rect
+		abs   [2]absFlags
+		sheet string
 	}
 	refErrNode struct{}              // a reference to deleted cells: #REF!
 	nameNode   struct{ name string } // a named range as spelled in the formula; #NAME? if undefined
@@ -52,6 +56,7 @@ const (
 	tokFunc   // identifier directly followed by "("
 	tokOp     // operators and punctuation
 	tokRefErr // #REF!, left behind when a referenced cell is deleted
+	tokSheet  // a sheet name and its "!", as in Sheet2!A1 or 'My Sheet'!A1; text is the name
 )
 
 type token struct {
@@ -122,12 +127,25 @@ func lex(src string) ([]token, error) {
 				i++
 			}
 			toks = append(toks, token{tokStr, sb.String(), start})
+		case c == '\'':
+			// A quoted sheet name, with '' for a quote: 'Q3 ''26'!A1.
+			name, end, ok := quotedName(src, i)
+			if !ok || end >= len(src) || src[end] != '!' {
+				return nil, &ParseError{start, "Expected ! after a quoted sheet name"}
+			}
+			i = end + 1
+			toks = append(toks, token{tokSheet, name, start})
 		case c == '@' || isIdentStart(c):
 			if c == '@' { // 1-2-3 style @SUM
 				i++
 			}
 			for i < len(src) && isIdentPart(src[i]) && !strings.HasPrefix(src[i:], "..") {
 				i++
+			}
+			if c != '@' && i < len(src) && src[i] == '!' {
+				toks = append(toks, token{tokSheet, src[start:i], start})
+				i++
+				continue
 			}
 			name := strings.ToUpper(strings.TrimPrefix(src[start:i], "@"))
 			if name == "" {
@@ -274,7 +292,13 @@ func (p *parser) prefix() (Node, error) {
 	case tokStr:
 		return strLit{t.text}, nil
 	case tokIdent:
-		return p.ident(t)
+		return p.ident(t, "")
+	case tokSheet:
+		ref := p.next()
+		if ref.kind != tokIdent {
+			return nil, &ParseError{ref.pos, "Expected a cell after " + quoteSheet(t.text) + "!"}
+		}
+		return p.ident(ref, t.text)
 	case tokFunc:
 		return p.call(t)
 	case tokRefErr:
@@ -310,9 +334,14 @@ func (p *parser) prefix() (Node, error) {
 	return nil, &ParseError{t.pos, "Unexpected " + t.text}
 }
 
-func (p *parser) ident(t token) (Node, error) {
+// ident parses a reference, a range, a boolean or a name. sheet is the
+// sheet the reference was qualified with, if any.
+func (p *parser) ident(t token, sheet string) (Node, error) {
 	a, abs, isRef := parseRef(t.text)
 	if !isRef {
+		if sheet != "" {
+			return nil, &ParseError{t.pos, "Expected a cell after " + quoteSheet(sheet) + "!"}
+		}
 		switch t.text {
 		case "TRUE":
 			return boolLit{true}, nil
@@ -325,13 +354,22 @@ func (p *parser) ident(t token) (Node, error) {
 	if p.isOp(":") || p.isOp("..") {
 		sep := p.next()
 		end := p.next()
+		// The second corner may repeat the sheet: Sheet2!A1:Sheet2!B3.
+		if end.kind == tokSheet {
+			if sheetKey(end.text) != sheetKey(sheet) {
+				return nil, &ParseError{end.pos, "A range can't span sheets"}
+			}
+			end = p.next()
+		}
 		b, bAbs, ok := parseRef(end.text)
 		if end.kind != tokIdent || !ok {
 			return nil, &ParseError{end.pos, "Expected a cell after " + sep.text}
 		}
-		return newRange(a, b, abs, bAbs), nil
+		r := newRange(a, b, abs, bAbs)
+		r.sheet = sheet
+		return r, nil
 	}
-	return refNode{a, abs}, nil
+	return refNode{a, abs, sheet}, nil
 }
 
 // newRange builds a normalized range from two corners as written. Each
@@ -348,7 +386,7 @@ func newRange(a, b Addr, aAbs, bAbs absFlags) rangeNode {
 		a.Row, b.Row = b.Row, a.Row
 		swap(absRow)
 	}
-	return rangeNode{Rect{a, b}, [2]absFlags{aAbs, bAbs}}
+	return rangeNode{Rect{a, b}, [2]absFlags{aAbs, bAbs}, ""}
 }
 
 func (p *parser) call(t token) (Node, error) {
@@ -407,13 +445,14 @@ func walkNames(n Node, fn func(nameNode)) {
 	}
 }
 
-// walkRefs calls fn for every single-cell reference and range in n.
-func walkRefs(n Node, ref func(Addr), rng func(Rect)) {
+// walkRefs calls fn for every single-cell reference and range in n, with
+// the sheet it was qualified with ("" for the formula's own sheet).
+func walkRefs(n Node, ref func(string, Addr), rng func(string, Rect)) {
 	switch n := n.(type) {
 	case refNode:
-		ref(n.a)
+		ref(n.sheet, n.a)
 	case rangeNode:
-		rng(n.r)
+		rng(n.sheet, n.r)
 	case unaryNode:
 		walkRefs(n.x, ref, rng)
 	case binaryNode:

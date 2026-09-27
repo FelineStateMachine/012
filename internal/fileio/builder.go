@@ -9,10 +9,11 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// builder fills a new sheet for an importer. It keeps text as text (an
-// imported "12%" string must not turn into a number, nor "=A1" into a
-// formula), falls back to a formula's cached value when the formula
-// can't be translated, and counts what didn't fit so the notes can say.
+// builder fills a new workbook for an importer, one sheet at a time (s
+// is the sheet being filled). It keeps text as text (an imported "12%"
+// string must not turn into a number, nor "=A1" into a formula), falls
+// back to a formula's cached value when the formula can't be translated,
+// and counts what didn't fit so the notes can say.
 type builder struct {
 	s *sheet.Sheet
 
@@ -148,7 +149,8 @@ func (b *builder) kept(a sheet.Addr, text string, keep func()) {
 	}
 }
 
-// finish recalculates and returns the sheet with notes on what was lost.
+// finish recalculates the workbook and returns the sheet being filled
+// with notes on what was lost.
 func (b *builder) finish(notes []string) (*sheet.Sheet, []string) {
 	b.s.RecalcAll()
 	if b.values > 0 {

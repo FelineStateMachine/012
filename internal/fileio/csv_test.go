@@ -202,6 +202,9 @@ func TestDelimitedRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if n := got.Sheet.Name(); n != "out" || got.Sheet.CanUndo() {
+				t.Errorf("imported sheet named %q, undoable %v", n, got.Sheet.CanUndo())
+			}
 			for _, a := range src.Addrs() {
 				if want, g := shown(src, a), shown(got.Sheet, a); g != want {
 					t.Errorf("%s shows %q after the round trip, want %q", a, g, want)

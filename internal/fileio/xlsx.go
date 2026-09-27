@@ -19,50 +19,85 @@ const (
 	excelPadding      = 1
 )
 
+// importXLSX reads every sheet of a workbook, with its named ranges, and
+// returns the sheet that was active in Excel.
 func importXLSX(ctx context.Context, name string, prog *Progress) (*Result, error) {
 	x, err := excelize.OpenFile(name)
 	if err != nil {
 		return nil, err
 	}
 	defer x.Close()
-	sheets := x.GetSheetList()
-	if len(sheets) == 0 {
+	names := x.GetSheetList()
+	if len(names) == 0 {
 		return nil, fmt.Errorf("the workbook has no sheets")
 	}
-	ws := sheets[0]
-	var notes []string
-	if n := len(sheets) - 1; n > 0 {
-		notes = append(notes, fmt.Sprintf("first sheet only, %s; not imported: %s", ws, strings.Join(sheets[1:], ", ")))
-	}
-
+	// Rows across all sheets, for the progress bar.
+	dims := make([]int, len(names))
 	total := 0
-	if dim, err := x.GetSheetDimension(ws); err == nil {
-		if _, to, ok := strings.Cut(dim, ":"); ok {
-			if _, r, err := excelize.CellNameToCoordinates(to); err == nil {
-				total = r
+	for i, ws := range names {
+		if dim, err := x.GetSheetDimension(ws); err == nil {
+			if _, to, ok := strings.Cut(dim, ":"); ok {
+				if _, r, err := excelize.CellNameToCoordinates(to); err == nil {
+					dims[i] = r
+				}
 			}
 		}
+		total += dims[i]
 	}
 
 	b := newBuilder()
+	book := b.s.Book()
 	styles := map[int]xlsxStyle{}
+	var notes []string
+	done := 0
+	for i, ws := range names {
+		if i == 0 {
+			err = book.RenameSheet(b.s, ws)
+		} else {
+			b.s, err = book.AddSheet(ws, i)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("sheet %s: %w", ws, err)
+		}
+		rows, err := importXLSXSheet(ctx, x, b, ws, styles, func(row int) {
+			prog.setRows(done + row)
+			prog.setFrac(int64(done+row), int64(total))
+		})
+		if err != nil {
+			return nil, err
+		}
+		done += rows
+	}
+	notes = append(notes, importXLSXNames(x, book)...)
+	active := book.Sheet(clamp(x.GetActiveSheetIndex(), 0, book.Len()-1))
+	book.SetActive(active)
+	b.s = active
+	prog.setRows(done)
+	s, notes := b.finish(notes)
+	return &Result{Sheet: s, Rows: done, Notes: notes}, nil
+}
+
+func clamp(v, lo, hi int) int { return max(lo, min(v, hi)) }
+
+// importXLSXSheet reads one sheet into b.s, reporting rows read, and
+// returns how many rows it read.
+func importXLSXSheet(ctx context.Context, x *excelize.File, b *builder, ws string, styles map[int]xlsxStyle, report func(int)) (int, error) {
 	rows, err := x.Rows(ws)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer rows.Close()
 	row := 0
 	for ; rows.Next(); row++ {
 		if row%128 == 0 {
 			if err := ctx.Err(); err != nil {
-				return nil, err
+				return 0, err
 			}
-			prog.setRows(row)
-			prog.setFrac(int64(row), int64(total))
+			report(row)
 		}
 		cols, err := rows.Columns(excelize.Options{RawCellValue: true})
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 		for col, raw := range cols {
 			a := sheet.Addr{Col: col, Row: row}
@@ -74,10 +109,8 @@ func importXLSX(ctx context.Context, name string, prog *Progress) (*Result, erro
 		}
 	}
 	if err := rows.Error(); err != nil {
-		return nil, err
+		return 0, err
 	}
-	prog.setRows(row)
-
 	for c := range sheet.MaxCols {
 		colName, _ := excelize.ColumnNumberToName(c + 1)
 		w, err := x.GetColWidth(ws, colName)
@@ -86,8 +119,34 @@ func importXLSX(ctx context.Context, name string, prog *Progress) (*Result, erro
 		}
 		b.s.SetColWidth(c, max(int(math.Round(w))+excelPadding, 1))
 	}
-	s, notes := b.finish(notes)
-	return &Result{Sheet: s, Rows: row, Notes: notes}, nil
+	return row, nil
+}
+
+// importXLSXNames defines the workbook's named ranges that are a range on
+// one sheet, such as Sales = Q3!$B$2:$B$20, and notes the others (sheet
+// scoped names, constants, formulas).
+func importXLSXNames(x *excelize.File, book *sheet.Workbook) []string {
+	skipped := 0
+	example := ""
+	for _, dn := range x.GetDefinedName() {
+		if strings.HasPrefix(dn.Name, "_xlnm.") {
+			continue // print areas and the like
+		}
+		ref := strings.TrimPrefix(dn.RefersTo, "=")
+		ws, rest := sheet.SplitSheet(ref)
+		r, ok := sheet.ParseRange(rest)
+		s := book.Lookup(ws)
+		if dn.Scope != "" && dn.Scope != "Workbook" || !ok || s == nil || book.DefineName(dn.Name, s, r) != nil {
+			skipped++
+			if example == "" {
+				example = dn.Name
+			}
+		}
+	}
+	if skipped > 0 {
+		return []string{fmt.Sprintf("%s left out, e.g. %s", count(skipped, "named range", "named ranges"), example)}
+	}
+	return nil
 }
 
 // xlsxStyle is what 012 keeps of an Excel cell style.
@@ -158,52 +217,103 @@ func importXLSXCell(x *excelize.File, b *builder, ws, cell string, a sheet.Addr,
 	keep()
 }
 
-// exportXLSX writes a workbook with one sheet: values, formulas in
-// Excel's syntax with their results cached, number formats, text styles,
-// alignment and column widths.
+// exportXLSX writes a workbook: the snapshot's sheets (or just the
+// snapshot), each with values, formulas in Excel's syntax with their
+// results cached, number formats, text styles, alignment and column
+// widths, and the named ranges.
 func exportXLSX(name string, snap *Snapshot) (*ExportResult, error) {
 	x := excelize.NewFile()
 	defer x.Close()
-	ws := sheetName(snap.Name)
-	if err := x.SetSheetName("Sheet1", ws); err != nil {
-		return nil, err
+	sheets := snap.Sheets
+	if len(sheets) == 0 {
+		sheets = []*Snapshot{snap}
 	}
-	sw, err := x.NewStreamWriter(ws)
-	if err != nil {
-		return nil, err
+	w := &xlsxWriter{x: x, styleIDs: map[xlsxStyle]int{}, multi: len(sheets) > 1}
+	res := &ExportResult{}
+	for i, sn := range sheets {
+		ws := sheetName(sn.Name)
+		var err error
+		if i == 0 {
+			err = x.SetSheetName("Sheet1", ws)
+		} else {
+			_, err = x.NewSheet(ws)
+		}
+		if err != nil {
+			return nil, err
+		}
+		rows, err := w.sheet(ws, sn)
+		if err != nil {
+			return nil, err
+		}
+		res.Rows += rows
+		if sn == snap || snap.Sheets == nil {
+			x.SetActiveSheet(i)
+		}
 	}
-	for c, w := range snap.Widths {
-		if err := sw.SetColWidth(c+1, c+1, float64(max(w-excelPadding, 1))); err != nil {
+	for _, n := range snap.Names {
+		if err := x.SetDefinedName(&excelize.DefinedName{Name: n[0], RefersTo: n[1]}); err != nil {
 			return nil, err
 		}
 	}
-	styleIDs := map[xlsxStyle]int{}
-	styleFor := func(f sheet.Format, st sheet.Style) (int, error) {
-		key := xlsxStyle{f, st}
-		if id, ok := styleIDs[key]; ok {
-			return id, nil
-		}
-		xs := &excelize.Style{}
-		if code := excelCode(f); code != "" {
-			xs.CustomNumFmt = &code
-		}
-		if st.Bold || st.Italic || st.Underline || st.Strikethrough {
-			xs.Font = &excelize.Font{Bold: st.Bold, Italic: st.Italic, Strike: st.Strikethrough}
-			if st.Underline {
-				xs.Font.Underline = "single"
-			}
-		}
-		if st.Align != sheet.AlignAuto {
-			xs.Alignment = &excelize.Alignment{Horizontal: st.Align.String()}
-		}
-		id, err := x.NewStyle(xs)
-		styleIDs[key] = id
-		return id, err
+	yes := true
+	if err := x.SetCalcProps(&excelize.CalcPropsOptions{FullCalcOnLoad: &yes}); err != nil {
+		return nil, err
 	}
+	buf, err := x.WriteToBuffer()
+	if err != nil {
+		return nil, err
+	}
+	if w.values > 0 {
+		res.Notes = append(res.Notes, fmt.Sprintf("%s with no Excel equivalent saved as values, e.g. %s",
+			count(w.values, "formula", "formulas"), w.example))
+	}
+	return res, writeFile(name, buf.Bytes())
+}
 
+// xlsxWriter writes sheets into a workbook, sharing cell styles.
+type xlsxWriter struct {
+	x        *excelize.File
+	styleIDs map[xlsxStyle]int
+	values   int    // formulas written as values
+	example  string // the first of them
+	multi    bool   // examples name their sheet
+}
+
+func (w *xlsxWriter) styleFor(f sheet.Format, st sheet.Style) (int, error) {
+	key := xlsxStyle{f, st}
+	if id, ok := w.styleIDs[key]; ok {
+		return id, nil
+	}
+	xs := &excelize.Style{}
+	if code := excelCode(f); code != "" {
+		xs.CustomNumFmt = &code
+	}
+	if st.Bold || st.Italic || st.Underline || st.Strikethrough {
+		xs.Font = &excelize.Font{Bold: st.Bold, Italic: st.Italic, Strike: st.Strikethrough}
+		if st.Underline {
+			xs.Font.Underline = "single"
+		}
+	}
+	if st.Align != sheet.AlignAuto {
+		xs.Alignment = &excelize.Alignment{Horizontal: st.Align.String()}
+	}
+	id, err := w.x.NewStyle(xs)
+	w.styleIDs[key] = id
+	return id, err
+}
+
+// sheet writes a snapshot to sheet ws and returns the rows written.
+func (w *xlsxWriter) sheet(ws string, snap *Snapshot) (int, error) {
+	sw, err := w.x.NewStreamWriter(ws)
+	if err != nil {
+		return 0, err
+	}
+	for c, width := range snap.Widths {
+		if err := sw.SetColWidth(c+1, c+1, float64(max(width-excelPadding, 1))); err != nil {
+			return 0, err
+		}
+	}
 	r := snap.Range
-	values := 0
-	example := ""
 	for row := r.From.Row; row <= r.To.Row; row++ {
 		var line []any
 		for col := r.From.Col; col <= r.To.Col; col++ {
@@ -218,8 +328,8 @@ func exportXLSX(name string, snap *Snapshot) (*ExportResult, error) {
 			f := c.Format
 			id := 0
 			if !f.IsZero() || !c.Style.IsZero() {
-				if id, err = styleFor(f, c.Style); err != nil {
-					return nil, err
+				if id, err = w.styleFor(f, c.Style); err != nil {
+					return 0, err
 				}
 			}
 			xc := excelize.Cell{StyleID: id, Value: xlsxValue(c.Value, f)}
@@ -227,9 +337,12 @@ func exportXLSX(name string, snap *Snapshot) (*ExportResult, error) {
 				if fx, ok := toExcelFormula(c.Input); ok {
 					xc.Formula = fx
 				} else {
-					values++
-					if example == "" {
-						example = a.String()
+					w.values++
+					if w.example == "" {
+						w.example = a.String()
+						if w.multi {
+							w.example = sheet.QuoteSheet(ws) + "!" + a.String()
+						}
 					}
 				}
 			}
@@ -237,26 +350,13 @@ func exportXLSX(name string, snap *Snapshot) (*ExportResult, error) {
 		}
 		cell, _ := excelize.CoordinatesToCellName(r.From.Col+1, row+1)
 		if err := sw.SetRow(cell, line); err != nil {
-			return nil, err
+			return 0, err
 		}
 	}
 	if err := sw.Flush(); err != nil {
-		return nil, err
+		return 0, err
 	}
-	yes := true
-	if err := x.SetCalcProps(&excelize.CalcPropsOptions{FullCalcOnLoad: &yes}); err != nil {
-		return nil, err
-	}
-	buf, err := x.WriteToBuffer()
-	if err != nil {
-		return nil, err
-	}
-	res := &ExportResult{Rows: r.To.Row - r.From.Row + 1}
-	if values > 0 {
-		res.Notes = append(res.Notes, fmt.Sprintf("%s with no Excel equivalent saved as values, e.g. %s",
-			count(values, "formula", "formulas"), example))
-	}
-	return res, writeFile(name, buf.Bytes())
+	return r.To.Row - r.From.Row + 1, nil
 }
 
 // xlsxValue is a computed value as excelize writes it.

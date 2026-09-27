@@ -30,9 +30,10 @@ type Cell struct {
 
 	auto     Format   // format inferred from a formula, shown when Format is Automatic
 	expr     Node     // nil for text
-	refs     []Addr   // single-cell references in expr
-	ranges   []Rect   // range references in expr
-	names    []string // names in expr, as keys of Sheet.names
+	refs     []Addr   // single-cell references in expr to its own sheet
+	ranges   []Rect   // range references in expr to its own sheet
+	xrefs    []xref   // references that name a sheet, e.g. Sheet2!A1
+	names    []string // names in expr, as keys of Workbook.names
 	volatile bool     // expr calls TODAY, NOW, RAND...
 }
 
@@ -45,8 +46,12 @@ func (c *Cell) IsFormula() bool {
 // formatting).
 func (c *Cell) Blank() bool { return c == nil || c.Input == "" }
 
-// Sheet is a sparse worksheet.
+// Sheet is a sparse worksheet, one of a Workbook's sheets.
 type Sheet struct {
+	wb   *Workbook
+	name string
+	live bool // in the workbook's list; false once deleted
+
 	cells  map[Addr]*Cell
 	widths map[int]int
 
@@ -58,15 +63,6 @@ type Sheet struct {
 	rangeUsers rangeIndex
 	volatile   map[Addr]struct{} // formulas recalculated on every change
 
-	// names are the named ranges by upper-case name (see names.go), and
-	// nameUsers the formula cells that mention each name, defined or not,
-	// so defining a name recalculates the formulas waiting for it.
-	names     map[string]Name
-	nameUsers map[string]map[Addr]struct{}
-
-	// Circular is set when the last recalculation found a cycle.
-	Circular bool
-
 	// version counts changes to cells and their values, so what is derived
 	// from them can be cached; see RangeStats.
 	version uint64
@@ -74,22 +70,13 @@ type Sheet struct {
 
 	charts []Chart // floating charts, bottom first; see chart.go
 
-	hist history // undo and redo, see history.go
-
 	view   viewState   // frozen panes and the filter, see view.go
 	hidden hiddenCache // rows the filter hides, see filter.go
 }
 
-// New returns an empty worksheet.
+// New returns an empty worksheet, the only sheet of a new workbook.
 func New() *Sheet {
-	return &Sheet{
-		cells:      make(map[Addr]*Cell),
-		widths:     make(map[int]int),
-		dependents: make(map[Addr]map[Addr]struct{}),
-		volatile:   make(map[Addr]struct{}),
-		names:      make(map[string]Name),
-		nameUsers:  make(map[string]map[Addr]struct{}),
-	}
+	return NewBook().Sheet(0)
 }
 
 // Cell returns the cell at a, or nil if it has neither contents nor
@@ -271,11 +258,23 @@ func formattingOnly(f Format, st Style) *Cell {
 
 // setExpr sets c's expression and the references indexed from it.
 func (c *Cell) setExpr(n Node) {
-	c.expr, c.refs, c.ranges, c.names, c.volatile = n, nil, nil, nil, false
+	c.expr, c.refs, c.ranges, c.xrefs, c.names, c.volatile = n, nil, nil, nil, nil, false
 	if n != nil {
 		walkRefs(n,
-			func(r Addr) { c.refs = append(c.refs, r) },
-			func(r Rect) { c.ranges = append(c.ranges, r) })
+			func(sheet string, r Addr) {
+				if sheet != "" {
+					c.xrefs = append(c.xrefs, xref{sheetKey(sheet), Rect{r, r}})
+					return
+				}
+				c.refs = append(c.refs, r)
+			},
+			func(sheet string, r Rect) {
+				if sheet != "" {
+					c.xrefs = append(c.xrefs, xref{sheetKey(sheet), r})
+					return
+				}
+				c.ranges = append(c.ranges, r)
+			})
 		walkNames(n, func(nn nameNode) { c.names = append(c.names, nameKey(nn.name)) })
 		c.volatile = isVolatile(n)
 	}
@@ -302,11 +301,8 @@ func (s *Sheet) place(a Addr, c *Cell) {
 	if c.volatile {
 		s.volatile[a] = struct{}{}
 	}
-	for _, k := range c.names {
-		if s.nameUsers[k] == nil {
-			s.nameUsers[k] = make(map[Addr]struct{})
-		}
-		s.nameUsers[k][a] = struct{}{}
+	if s.live {
+		s.wb.index(loc{s, a}, c)
 	}
 }
 
@@ -345,30 +341,44 @@ func (s *Sheet) unlink(a Addr) {
 			delete(s.dependents, r)
 		}
 	}
-	for _, k := range old.names {
-		delete(s.nameUsers[k], a)
-		if len(s.nameUsers[k]) == 0 {
-			delete(s.nameUsers, k)
-		}
+	if s.live {
+		s.wb.unindex(loc{s, a}, old)
 	}
 	s.rangeUsers.remove(a, old.ranges)
 	delete(s.volatile, a)
 	delete(s.cells, a)
 }
 
-// RecalcAll recomputes every formula. Loaders call it once the sheet is
-// built, so it also starts a fresh undo history: loading isn't undoable.
-func (s *Sheet) RecalcAll() {
-	// Every cell is dirty, so there is nothing to propagate: tracing
-	// dependents from each cell cost O(cells x range users).
+// RecalcAll recomputes every formula in the workbook. Loaders call it
+// once the sheets are built, so it also starts a fresh undo history:
+// loading isn't undoable.
+func (s *Sheet) RecalcAll() { s.wb.RecalcAll() }
+
+// RecalcAll recomputes every formula and clears the undo history.
+func (w *Workbook) RecalcAll() {
+	w.recalcAll()
+	w.ClearHistory()
+}
+
+// recalcAll recomputes every formula on every sheet, as after loading or
+// after a sheet is added, renamed or deleted, when references by name may
+// resolve differently. Every cell is dirty, so there is nothing to
+// propagate: tracing dependents from each cell cost O(cells x range
+// users).
+func (w *Workbook) recalcAll() {
 	start := recalcStart()
-	state := make(map[Addr]int, len(s.cells))
-	for a := range s.cells {
-		state[a] = dirty
+	n := 0
+	for _, s := range w.sheets {
+		n += len(s.cells)
 	}
-	s.evaluate(state)
-	s.observe(true, start, len(state))
-	s.ClearHistory()
+	state := make(map[loc]int, n)
+	for _, s := range w.sheets {
+		for a := range s.cells {
+			state[loc{s, a}] = dirty
+		}
+	}
+	w.evaluate(state)
+	w.observe(true, start, len(state))
 }
 
 // Recalculation states of a cell.
@@ -379,62 +389,71 @@ const (
 )
 
 // recalc recomputes the changed cells, volatile formulas, and everything
-// that transitively depends on them.
-func (s *Sheet) recalc(changed []Addr) {
+// that transitively depends on them, on any sheet.
+func (w *Workbook) recalc(changed []loc) {
 	start := recalcStart()
-	state := s.affected(changed)
-	s.evaluate(state)
-	s.observe(false, start, len(state))
+	state := w.affected(changed)
+	w.evaluate(state)
+	w.observe(false, start, len(state))
 }
 
 // affected marks dirty the changed cells, volatile formulas, and every
-// formula that transitively reads them.
-func (s *Sheet) affected(changed []Addr) map[Addr]int {
-	state := make(map[Addr]int)
-	queue := append([]Addr(nil), changed...)
-	for a := range s.volatile {
-		queue = append(queue, a)
+// formula that transitively reads them, on any sheet.
+func (w *Workbook) affected(changed []loc) map[loc]int {
+	state := make(map[loc]int)
+	queue := append([]loc(nil), changed...)
+	for _, s := range w.sheets {
+		for a := range s.volatile {
+			queue = append(queue, loc{s, a})
+		}
 	}
 	// The named ranges in use, looked up once rather than for every cell.
 	type namedUsers struct {
+		s     *Sheet
 		r     Rect
-		users map[Addr]struct{}
+		users map[loc]struct{}
 	}
 	var named []namedUsers
-	for k, users := range s.nameUsers {
-		if nm, ok := s.names[k]; ok && !nm.Lost {
-			named = append(named, namedUsers{nm.Range, users})
+	for k, users := range w.nameUsers {
+		if nm, ok := w.names[k]; ok && !nm.Gone() {
+			named = append(named, namedUsers{nm.Sheet, nm.Range, users})
 		}
 	}
 	// Queue each formula once, not once per changed cell it reads.
-	push := func(u Addr) {
+	push := func(u loc) {
 		if state[u] != dirty {
 			queue = append(queue, u)
 		}
 	}
 	for len(queue) > 0 {
-		a := queue[0]
+		l := queue[0]
 		queue = queue[1:]
-		if state[a] == dirty {
+		if state[l] == dirty || !l.s.live {
 			continue
 		}
-		state[a] = dirty
+		state[l] = dirty
+		s, a := l.s, l.a
 		for d := range s.dependents[a] {
-			push(d)
+			push(loc{s, d})
 		}
 		for u := range s.rangeUsers.candidates(a.Col) {
 			for _, r := range s.cells[u].ranges {
 				if r.Contains(a) {
-					push(u)
+					push(loc{s, u})
 					break
 				}
 			}
 		}
 		for _, n := range named {
-			if n.r.Contains(a) {
+			if n.s == s && n.r.Contains(a) {
 				for u := range n.users {
 					push(u)
 				}
+			}
+		}
+		for u := range w.crossUsers {
+			if w.crossReads(u, l) {
+				push(u)
 			}
 		}
 	}
@@ -445,25 +464,27 @@ func (s *Sheet) affected(changed []Addr) map[Addr]int {
 // lazily in dependency order: reading a dirty cell evaluates it first. A
 // cell that is reached again while it is still being evaluated is part of
 // a cycle and becomes ERR.
-func (s *Sheet) evaluate(state map[Addr]int) {
-	s.version++
-	s.Circular = false
-	s.hidden.valid = false // values may have changed what the filter hides
-	var compute func(Addr) Value
-	compute = func(a Addr) Value {
+func (w *Workbook) evaluate(state map[loc]int) {
+	w.Circular = false
+	for _, s := range w.sheets {
+		s.version++
+		s.hidden.valid = false // values may have changed what the filter hides
+	}
+	var compute func(loc) Value
+	compute = func(l loc) Value {
 		// Every cell a formula reads comes through here, so it looks
 		// each map up once: a SUM over 8192 cells makes 8192 calls.
-		c := s.cells[a]
-		switch st := state[a]; {
+		c := l.s.cells[l.a]
+		switch st := state[l]; {
 		case c == nil:
 			return Value{}
 		case st == visiting:
-			s.Circular = true
+			w.Circular = true
 			return ErrRef
 		case st != dirty:
 			return c.Value
 		}
-		state[a] = visiting
+		state[l] = visiting
 		c.auto = Format{}
 		switch {
 		case c.Input == "":
@@ -473,16 +494,68 @@ func (s *Sheet) evaluate(state map[Addr]int) {
 		case c.expr == nil:
 			c.Value = Value{Kind: Text, Str: strings.TrimPrefix(c.Input, "'")}
 		default:
-			expr := s.arith(s.bound(c))
-			c.Value = eval(expr, compute)
+			expr := w.arith(l.s.bound(c))
+			// One small closure per formula, to resolve sheet names.
+			c.Value = eval(expr, w.lookupFrom(l.s, compute))
 			if _, lit := expr.(numLit); !lit {
-				c.auto = inferFormat(expr, s.DisplayFormat)
+				c.auto = inferFormat(expr, w.formatFrom(l.s))
 			}
 		}
-		state[a] = done
+		state[l] = done
 		return c.Value
 	}
-	for a := range state {
-		compute(a)
+	for l := range state {
+		compute(l)
+	}
+}
+
+// crossReads reports whether the formula at u reads the cell l through a
+// reference that names l's sheet.
+func (w *Workbook) crossReads(u, l loc) bool {
+	c := u.s.cells[u.a]
+	if c == nil {
+		return false
+	}
+	for _, x := range c.xrefs {
+		if x.r.Contains(l.a) && w.byKey[x.key] == l.s {
+			return true
+		}
+	}
+	return false
+}
+
+// lookupFrom resolves references in a formula on s with get: references
+// without a sheet read s, others the sheet they name (#REF! when no sheet
+// has that name). The last sheet name is remembered, so a range on
+// another sheet resolves its name once.
+func (w *Workbook) lookupFrom(s *Sheet, get func(loc) Value) lookup {
+	var lastName string
+	var last *Sheet
+	return func(sheet string, a Addr) Value {
+		if sheet == "" {
+			return get(loc{s, a})
+		}
+		if sheet != lastName || last == nil {
+			lastName, last = sheet, w.byKey[sheetKey(sheet)]
+		}
+		if last == nil {
+			return ErrRef
+		}
+		return get(loc{last, a})
+	}
+}
+
+// values reads current values for formulas on s, across sheets.
+func (w *Workbook) values(s *Sheet) lookup {
+	return w.lookupFrom(s, func(l loc) Value { return l.s.Value(l.a) })
+}
+
+// formatFrom reads display formats for formulas on s, across sheets.
+func (w *Workbook) formatFrom(s *Sheet) func(string, Addr) Format {
+	return func(sheet string, a Addr) Format {
+		if t := w.resolve(s, sheet); t != nil {
+			return t.DisplayFormat(a)
+		}
+		return Format{}
 	}
 }

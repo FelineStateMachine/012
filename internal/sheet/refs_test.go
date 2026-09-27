@@ -12,14 +12,14 @@ func TestParseAbsoluteRefs(t *testing.T) {
 		in   string
 		want Node
 	}{
-		{"=A1", refNode{at("A1"), 0}},
-		{"=$A1", refNode{at("A1"), absCol}},
-		{"=A$1", refNode{at("A1"), absRow}},
-		{"=$a$1", refNode{at("A1"), absCol | absRow}},
-		{"=$B$3:A1", rangeNode{NewRect(at("A1"), at("B3")), [2]absFlags{0, absCol | absRow}}},
+		{"=A1", refNode{at("A1"), 0, ""}},
+		{"=$A1", refNode{at("A1"), absCol, ""}},
+		{"=A$1", refNode{at("A1"), absRow, ""}},
+		{"=$a$1", refNode{at("A1"), absCol | absRow, ""}},
+		{"=$B$3:A1", rangeNode{NewRect(at("A1"), at("B3")), [2]absFlags{0, absCol | absRow}, ""}},
 		// Each marker stays with its column or row when corners swap.
-		{"=$B1:A$2", rangeNode{NewRect(at("A1"), at("B2")), [2]absFlags{0, absCol | absRow}}},
-		{"=A1..$B2", rangeNode{NewRect(at("A1"), at("B2")), [2]absFlags{0, absCol}}},
+		{"=$B1:A$2", rangeNode{NewRect(at("A1"), at("B2")), [2]absFlags{0, absCol | absRow}, ""}},
+		{"=A1..$B2", rangeNode{NewRect(at("A1"), at("B2")), [2]absFlags{0, absCol}, ""}},
 		{"=A$$1", nameNode{"A$$1"}},
 		{"=A1$", nameNode{"A1$"}},
 		{"=#REF!+1", binaryNode{op: "+", l: refErrNode{}, r: numLit{1}}},

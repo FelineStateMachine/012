@@ -8,12 +8,11 @@ import (
 )
 
 // View state that belongs to the worksheet rather than to a cell: frozen
-// rows and columns, the filter and the arithmetic setting. It is saved in
-// the file and every change to it is an undo step, as in Sheets.
+// rows and columns, and the filter. It is saved in the file and every
+// change to it is an undo step, as in Sheets.
 type viewState struct {
 	frozenRows, frozenCols int
 	filter                 *Filter // never modified in place; replaced whole
-	decimal                bool    // decimal arithmetic, see decimal.go
 }
 
 // Frozen returns how many rows and columns are frozen at the top and left.
@@ -61,16 +60,19 @@ func plural(n int, noun string) string {
 // recordView saves the view state before its first change in the open
 // step.
 func (s *Sheet) recordView() {
-	st := s.hist.open
-	if st == nil || st.view != nil {
+	st := s.wb.hist.open
+	if st == nil {
+		return
+	}
+	if _, seen := st.views[s]; seen {
 		return
 	}
 	v := s.view
-	st.view = &v
+	st.views[s] = &v
 }
 
 func (v viewState) equal(w viewState) bool {
-	return v.frozenRows == w.frozenRows && v.frozenCols == w.frozenCols && v.decimal == w.decimal &&
+	return v.frozenRows == w.frozenRows && v.frozenCols == w.frozenCols &&
 		(v.filter == w.filter || reflect.DeepEqual(v.filter, w.filter))
 }
 
@@ -120,15 +122,9 @@ func (s *Sheet) shiftView(rows bool, sp span) {
 //
 //	"freeze": {"rows": 1},
 //	"filter": {"range": "A1:C20", "columns": {"B": {"condition": "gt", "value": "100"}}},
-//
-// and the arithmetic setting, which needs no version bump: earlier
-// builds ignore it and compute in binary, as Sheets would.
-//
-//	"arithmetic": "decimal",
 type fileView struct {
-	Arithmetic string      `json:"arithmetic,omitempty"`
-	Freeze     *fileFreeze `json:"freeze,omitempty"`
-	Filter     *fileFilter `json:"filter,omitempty"`
+	Freeze *fileFreeze `json:"freeze,omitempty"`
+	Filter *fileFilter `json:"filter,omitempty"`
 }
 
 type fileFreeze struct {
@@ -148,12 +144,9 @@ type fileCriteria struct {
 }
 
 // writeView adds the frozen panes and the filter to a file being written.
-func (s *Sheet) writeView(b *bytes.Buffer) error {
+func (s *Sheet) writeView(b *bytes.Buffer, indent string) error {
 	var keys []string
 	var parts []any
-	if s.view.decimal {
-		keys, parts = append(keys, "arithmetic"), append(parts, "decimal")
-	}
 	if v := s.view; v.frozenRows > 0 || v.frozenCols > 0 {
 		keys, parts = append(keys, "freeze"), append(parts, fileFreeze{Rows: v.frozenRows, Cols: v.frozenCols})
 	}
@@ -169,16 +162,13 @@ func (s *Sheet) writeView(b *bytes.Buffer) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(b, "  %q: %s,\n", keys[i], raw)
+		fmt.Fprintf(b, "%s%q: %s,\n", indent, keys[i], raw)
 	}
 	return nil
 }
 
 // readView restores the frozen panes and the filter from a file.
 func (s *Sheet) readView(fv fileView) error {
-	// Anything but "decimal" (say, a mode from a later build) computes
-	// in binary, as the file would in a build without the setting.
-	s.view.decimal = fv.Arithmetic == "decimal"
 	if fz := fv.Freeze; fz != nil {
 		s.view.frozenRows, s.view.frozenCols = clampInt(fz.Rows, 0, MaxFrozen), clampInt(fz.Cols, 0, MaxFrozen)
 	}
