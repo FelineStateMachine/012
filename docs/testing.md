@@ -1,6 +1,7 @@
 # Testing
 
 ```sh
+make lint     # go vet, cognitive complexity at most 25, Go files at most 500 lines
 make test     # engine, file formats and UI unit tests
 make fuzz     # fuzz the formula parser and the CSV and .wk1 readers
 make oracle   # compare formulas and number formats with excelize

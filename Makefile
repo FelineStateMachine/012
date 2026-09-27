@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e
+.PHONY: lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e
 
 build:
 	CGO_ENABLED=0 go build -o bin/012 ./cmd/012
@@ -17,6 +17,11 @@ run: build
 
 test:
 	go test ./...
+
+# Code shape limits: cognitive complexity and file length.
+lint:
+	go vet ./...
+	scripts/lint.sh
 
 fuzz:
 	go test ./internal/sheet -run '^$$' -fuzz FuzzParse -fuzztime 60s
