@@ -480,7 +480,11 @@ both (see [observability.md](observability.md)). The OTLP exporter uses
 only the standard library: bounded queues per signal, drained by one
 goroutine in batches; when a queue is full new items are dropped and
 counted, so the UI never waits on the network. Operation durations are
-histograms keyed by span name, which are fixed in the code.
+histograms keyed by span name, which are fixed in the code. Spans nest
+through a `telemetry.Trace` per owner (each Model, each import) and
+explicit `Parent` handles across goroutines; a workbook holds its
+owner's trace, opaque to the engine, so recalculations nest in the
+command that caused them.
 
 ## Testing
 

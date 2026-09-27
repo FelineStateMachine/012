@@ -171,6 +171,14 @@ Every seam above has a telemetry span and a `-tags stress` benchmark
 (`make stress`, `make stress-report`), and [limits.md](limits.md) records
 the bounds. A change to a seam reports before and after numbers.
 
+Spans nest without a `context.Context` through the engine: start a UI
+span through the model's trace (`m.spans.Start`), so it holds what it
+causes; hand work on another goroutine `m.spans.Parent()` (in the
+`context.Context` if the API already takes one); and give a workbook a
+new owner's trace with `SetTrace`. Never keep a "current span" in a
+global: `012 serve` runs many programs in one process (see
+[observability.md](observability.md#nested-spans)).
+
 ### 11. Shape limits
 
 `make lint`: no function over cognitive complexity 25, no Go file over 500

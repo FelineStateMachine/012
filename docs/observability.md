@@ -37,8 +37,10 @@ load (15 ns, no allocation; `go test -bench . ./internal/telemetry`,
 and `TestOffAllocatesNothing` guards the zero), and a keystroke
 through to its frame costs the same with telemetry on or off (1.06 ms on
 a 200x60 screen of an 8192x26 sheet, `BenchmarkTelemetry` under
-`-tags stress`). With it on, each event costs about 0.5 us written to
-the file, and about 0.6 us queued for OTLP (`BenchmarkSpanOTLP`).
+`-tags stress`). With it on, each span costs about 0.66 us written to
+the file (`BenchmarkSpanOn`; 0.7 us nested under an open span,
+`BenchmarkTraceOn`), and about 0.67 us queued for OTLP
+(`BenchmarkSpanOTLP`).
 
 Events carry sizes, counts and durations, never cell contents, file
 contents or secrets. The JEV API key is never logged; neither are file
@@ -48,12 +50,15 @@ names, OTLP endpoints or OTLP headers.
 
 Every event has `time`, `level`, `msg` (the event name), `event` (the
 same, as an attribute for queries), `service` (`012`) and `dur_ms`.
+Spans (every event below but `start`, `otlp`, `frames` and `frame`) also
+have `trace_id`, `span_id` and, below a root, `parent_id`, the same ids
+OTLP sends (see [Nested spans](#nested-spans)).
 
 | Event | When | Attributes |
 |---|---|---|
 | `start` | the log opens | `version` (VCS revision), `go`, `os`, `arch`, `cpus`, `pid`, `file` and `otlp` (which outputs are on) |
 | `otlp` | on exit, with OTLP on | per signal (`logs`, `traces`, `metrics`): `sent`, `dropped` (queue full), `failed` (request failed) so far |
-| `recalc` | every recalculation | `full` (after loading), `evaluated` (dirty cells recomputed), `cells` (stored), `volatile`, `circular` |
+| `recalc` | every recalculation, including the pivot refreshes it causes (nested in it) | `full` (after loading), `evaluated` (dirty cells recomputed), `cells` (stored), `volatile`, `circular` |
 | `frames` | once a second while frames are drawn | `frames`, `render_p50_ms`, `render_p95_ms`, `render_max_ms` (View), `keys`, `key_p50_ms`, `key_p95_ms`, `key_max_ms` (key press to the end of its frame), `heap_bytes`, and gauges: `cells`, `jev_in_flight`, `jev_queued` |
 | `frame` | every frame, at debug level | `key_ms` |
 | `command` | every registered command | `id`, e.g. `data.sort` |
@@ -65,14 +70,99 @@ same, as an attribute for queries), `service` (`012`) and `dur_ms`.
 | `save`, `open` | the native `.012` file | `cells`, `bytes` (save times serializing, on the UI goroutine) |
 | `jev` | each question sent | `kind`, `queued` (waiting when sent), `outcome` (`ok` or `failed`) |
 | `chart.image` | each kitty-graphics chart image | `type`, `w`, `h`, `bytes` |
+| `serve.session` | each `012 serve` SSH session, from start to end | `term`, `idle` |
 
 Failures are logged at `WARN` with an `error` message.
 
-The engine doesn't log: `sheet.OnRecalc` hands each recalculation's
-counts to `cmd/012`, which logs them, and `sheet.OnPivot` each pivot
-table's. The call sites use
+The engine doesn't log: `sheet.OnBegin` says a recalculation or pivot
+refresh starts, and `sheet.OnRecalc` and `sheet.OnPivot` hand its counts
+to `cmd/012` as it ends, which logs them. The call sites use
 `internal/telemetry` (`Start`/`End` spans, `Event`, `Frame`, `Set`), so
 the backends (the JSON file, OTLP) sit behind it without touching them.
+
+## Nested spans
+
+Spans nest, so a trace shows what an action caused:
+
+```
+command format.bold
+  recalc
+    pivot
+    recalc          (what reads the pivot's results)
+import
+  recalc
+macro
+  command set / recalc ...
+serve.session
+  command ...
+```
+
+A child shares its parent's trace id and names it as its parent span.
+No `context.Context` goes through the engine for it; instead
+(`internal/telemetry/trace.go`):
+
+- **A `Trace` per owner.** Each UI `Model` keeps a `telemetry.Trace`,
+  the stack of spans it has open, used only on its program's goroutine.
+  `m.spans.Start("command", ...)` opens a span under the innermost one;
+  its `End` closes it (and anything left open inside it). There is no
+  goroutine-global current span: `012 serve` runs many programs in one
+  process, and background `tea.Cmd`s run on other goroutines.
+- **The workbook carries its owner's trace.** `Workbook.SetTrace` hands
+  it the trace, opaque to the engine (the UI sets its own; an import's
+  builder and `sheet.ReadTraced` set one under the import's or open's
+  span). The engine's hooks get it back: `OnBegin` begins a span in it,
+  `OnRecalc`/`OnPivot` end it, so recalculations and pivot refreshes
+  nest in whatever command, import or macro changed the sheet. A
+  workbook with no trace logs them as roots.
+- **Explicit `Parent` handles across goroutines.** `m.spans.Parent()`
+  (or `span.Parent()`) is a small value any goroutine can start under:
+  JEV questions, opening a file, and imports and exports, which take it
+  in the `context.Context` they already have (`telemetry.WithParent`,
+  `ParentFrom`).
+- **Long-lived spans are entered.** A macro run's span starts under the
+  command that ran it and is entered (`Trace.Enter`/`Leave`) while the
+  UI serves the script's calls, so its commands and recalculations nest
+  in it. `012 serve` enters each session's `serve.session` span at the
+  bottom of that session's Model's trace for good, so every command of a
+  session is in its trace, and sessions never share one.
+
+Off, every one of these calls is still one atomic load and no
+allocation (`TestOffAllocatesNothing`, `TestTraceOff`,
+`BenchmarkTraceOff` 16 ns).
+
+In ClickHouse, a join on `ParentSpanId` shows the tree:
+
+```sql
+SELECT p.SpanName AS parent, if(p.SpanName = 'command', p.SpanAttributes['id'], '') AS id,
+       c.SpanName AS child, count() AS n
+FROM otel.otel_traces AS c
+JOIN otel.otel_traces AS p ON c.ParentSpanId = p.SpanId AND c.TraceId = p.TraceId
+WHERE c.ServiceName = '012'
+GROUP BY parent, id, child ORDER BY parent, child;
+```
+
+From a scripted session (import a CSV, paste a table, make a pivot of
+it, clear a source cell, bold it):
+
+```
+┌─parent──┬─id──────────┬─child──┬─n─┐
+│ command │ data.pivot  │ recalc │ 2 │
+│ command │ format.bold │ recalc │ 1 │
+│ command │ clear       │ recalc │ 1 │
+│ import  │             │ recalc │ 4 │
+│ recalc  │             │ pivot  │ 6 │
+│ recalc  │             │ recalc │ 3 │
+└─────────┴─────────────┴────────┴───┘
+```
+
+and one trace, `command clear` > `recalc` > (`pivot`, `recalc`). With
+the JSON log, the same tree comes from `span_id` and `parent_id`:
+
+```sql
+SELECT p.msg AS parent, p.id, c.msg AS child, count(*) AS n
+FROM read_json_auto('events.jsonl') c JOIN read_json_auto('events.jsonl') p
+  ON c.parent_id = p.span_id GROUP BY ALL ORDER BY n DESC;
+```
 
 ## OTLP
 
@@ -81,8 +171,8 @@ standard library only (no OpenTelemetry SDK, no new dependency):
 
 | Signal | What | Shape |
 |---|---|---|
-| Logs (`/v1/logs`) | every event above | body = event name, severity from the level (INFO 9, WARN 13, DEBUG 5), the event's attributes (`event`, `dur_ms`, counts) as typed values. The log record of a span carries its `traceId` and `spanId` |
-| Traces (`/v1/traces`) | every `Start`/`End` span and `Event` (recalc, import, sort, jev, command, ...) | one root span per operation, in a trace of its own: call sites pass no context, so spans don't nest. Kind INTERNAL; status ERROR with the message on `Fail`. Frames aren't spans |
+| Logs (`/v1/logs`) | every event above | body = event name, severity from the level (INFO 9, WARN 13, DEBUG 5), the event's attributes (`event`, `dur_ms`, counts, `parent_id`) as typed values. The log record of a span carries its `traceId` and `spanId` |
+| Traces (`/v1/traces`) | every `Start`/`End` span and `Event` (recalc, import, sort, jev, command, ...) | nested (see [Nested spans](#nested-spans)): a child carries `parentSpanId` and its parent's `traceId`; a root has no `parentSpanId`. Kind INTERNAL; status ERROR with the message on `Fail`. Frames aren't spans |
 | Metrics (`/v1/metrics`) | the frame summary and running totals | `o12.frame.duration` and `o12.key.latency` (ms): summaries per second with count, sum and the 0.5, 0.95 and 1 quantiles. `o12.heap` (bytes) and the gauges `o12.cells`, `o12.jev_in_flight`, `o12.jev_queued`. Cumulative: `o12.frames` (sum), `o12.operation.duration` (ms histogram per `event`, buckets 0.5 ms to 30 s), `o12.telemetry.dropped` (per `signal`) |
 
 Every request carries the resource `service.name=012`,
@@ -264,7 +354,10 @@ WHERE ServiceName = '012' AND MetricName = 'o12.key.latency' ORDER BY TimeUnix;
 
 From `make stress-e2e` sent over OTLP, `otel_traces` held 221 `recalc`
 spans (p95 51 ms), 1 `import` (94 ms, 8192 rows) and 3 `command`, and
-the metrics tables a summary, heap and cells gauge per second.
+the metrics tables a summary, heap and cells gauge per second. The
+import's trace holds two full recalculations under it (33 ms each of
+127 ms): the builder's, and the one renaming the sheet after the file
+causes.
 
 The `012 runtime` dashboard shows recalculation time (p50, p95, max),
 frame and key-to-frame p95 per second, heap and cells, JEV answer time
