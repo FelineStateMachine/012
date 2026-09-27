@@ -379,7 +379,7 @@ func TestMacrosFromElsewhereAskOnce(t *testing.T) {
 		t.Fatal("opening ran a macro")
 	}
 	press(t, m, "<ctrl+alt+#>") // Ctrl+Alt+Shift+3 without the kitty protocol
-	if !strings.Contains(line(m, contextLine), "made on another computer") {
+	if !strings.Contains(line(m, contextLine), "Trust this file's macros?") || !strings.Contains(line(m, m.height-1), "made on another computer") {
 		t.Fatalf("no trust question: %q", line(m, contextLine))
 	}
 	press(t, m, "<esc>")

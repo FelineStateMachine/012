@@ -245,7 +245,7 @@ func (m *Model) recordingLine() string {
 	if m.rec.relative {
 		refs = "relative"
 	}
-	return m.th.Hint.Render("Recording a macro with " + refs + " references. Stop and save it in Data > Macros.")
+	return m.th.Hint.Render("Recording (" + refs + " references). Stop it in Data > Macros.")
 }
 
 // recordingHeader is the comment a recorded script starts with.

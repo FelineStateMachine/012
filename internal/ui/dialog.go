@@ -15,7 +15,8 @@ import (
 // It takes the keyboard like an overlay but draws no box.
 type choiceBar struct {
 	msg     string
-	warn    bool // the message is a warning, e.g. about losing work
+	warn    bool   // the message is a warning, e.g. about losing work
+	desc    string // more on the status line, when the question needs it
 	choices []choice
 }
 
@@ -27,7 +28,7 @@ type choice struct {
 
 func (c *choiceBar) indicator() string              { return "MENU" }
 func (c *choiceBar) layout(*Model) []box            { return nil }
-func (c *choiceBar) status(*Model) (string, string) { return "", "" }
+func (c *choiceBar) status(*Model) (string, string) { return c.desc, "" }
 
 func (c *choiceBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 	key := strings.ToLower(k.String())

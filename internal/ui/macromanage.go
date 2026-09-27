@@ -57,7 +57,7 @@ func macroManageItems(m *Model) []pickItem {
 		lines := strings.Count(strings.TrimRight(mc.Source, "\n"), "\n") + 1
 		items = append(items, pickItem{
 			title: mc.Name, name: len(mc.Name), detail: strconv.Itoa(lines) + " lines", key: shortcutLabel(mc.Key),
-			desc: "Run " + mc.Name + "; F4 shows its script",
+			desc: "Run " + mc.Name,
 			pick: func(m *Model) tea.Cmd {
 				m.closeOverlay()
 				return m.runMacro(mc)

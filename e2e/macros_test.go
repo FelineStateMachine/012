@@ -15,7 +15,7 @@ func recordTotals(s *session) {
 	s.waitFor("Record macro with relative references")
 	s.keys("<enter>")
 	s.waitFor(" REC ")
-	s.waitFor("Recording a macro with relative references")
+	s.waitFor("Recording (relative references)")
 	s.keys("Total", "<tab>", "=SUM(2,3)", "<enter>")
 	s.keys("<up>", "<shift+right>", "<ctrl+b>")
 	s.waitFor("Bold on for A1:B1")
@@ -87,11 +87,11 @@ func TestMacroFromAnotherComputerAsks(t *testing.T) {
 	s = startWith(t, options{dir: dir, config: t.TempDir()}, "book.012")
 	s.waitForBar("A1", "Total")
 	s.keys("<f5>", "C3", "<enter>", "<ctrl+alt+shift+1>")
-	s.waitFor("This file's macros were made on another computer")
+	s.waitFor("Trust this file's macros?")
 	s.keys("<esc>")
 	s.waitForBar("C3", "")
 	s.keys("<ctrl+alt+shift+1>")
-	s.waitFor("made on another computer")
+	s.waitFor("made on another computer and can change the file")
 	s.keys("<enter>")
 	s.waitForBar("C3:D3", "Total") // the macro ends selecting the pair
 	// Trusted now: no second question.
