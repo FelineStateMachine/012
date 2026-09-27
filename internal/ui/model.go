@@ -221,7 +221,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 	case modeMenu:
 		return m.overlay.key(m, k)
 	case modePrompt:
-		return m.promptKey(k)
+		return m.prompt.key(m, k)
 	case modeError:
 		m.errMsg = ""
 		m.mode = modeReady
@@ -303,4 +303,9 @@ func clampAddr(a sheet.Addr) sheet.Addr {
 		Col: clamp(a.Col, 0, sheet.MaxCols-1),
 		Row: clamp(a.Row, 0, sheet.MaxRows-1),
 	}
+}
+
+func (m *Model) fail(msg string) {
+	m.mode = modeError
+	m.errMsg = msg
 }

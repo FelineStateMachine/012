@@ -172,7 +172,7 @@ func (m *Model) contextLineText() string {
 			left = o.line(m)
 		}
 	case m.mode == modePrompt:
-		left, right = m.promptLine()
+		left, right = m.prompt.line(m)
 	case m.mode == modePoint:
 		prefix := []rune(m.entry.prefix)
 		var ok bool
@@ -201,25 +201,6 @@ func (m *Model) spread(left, right string) string {
 	return left + strings.Repeat(" ", gap) + right
 }
 
-// promptLine is an open prompt, e.g. "Save as: budget.012", and the keys
-// or choices that go with it.
-func (m *Model) promptLine() (left, right string) {
-	switch {
-	case m.pointing():
-		return m.promptPrefix() + m.th.Selection.Render(m.point.text()),
-			m.th.KeyHints("Arrows", "move", "Shift+arrows", "extend", "Enter", "apply", "Esc", "cancel")
-	case len(m.prompt.files) > 0:
-		return m.promptPrefix() + m.line.text(), m.th.Muted.Render(strings.Join(m.prompt.files, "  "))
-	case m.prompt.kind == promptWidth:
-		return m.promptPrefix() + m.line.text(), m.th.KeyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
-	}
-	return m.promptPrefix() + m.line.text(), m.th.KeyHints("Enter", "apply", "Esc", "cancel")
-}
-
-func (m *Model) promptPrefix() string {
-	return m.prompt.label + " "
-}
-
 // cursorPos returns where the terminal cursor goes: in the formula bar
 // while typing an entry, on the context line in a text prompt, or in an
 // overlay's search field.
@@ -232,7 +213,7 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 	case m.mode == modeEnter, m.mode == modeEdit:
 		return formulaBarTextX() + ansi.StringWidth(m.line.head()), formulaLine, true
 	case m.mode == modePrompt && !m.pointing():
-		return ansi.StringWidth(m.promptPrefix() + m.line.head()), contextLine, true
+		return ansi.StringWidth(m.prompt.prefix() + m.line.head()), contextLine, true
 	}
 	return 0, 0, false
 }

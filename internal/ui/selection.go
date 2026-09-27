@@ -209,3 +209,38 @@ func isMoveKey(key string) bool {
 	}
 	return false
 }
+
+func (m *Model) openGoto() {
+	m.openText("Go to:", m.cur.String(), func(m *Model, text string) tea.Cmd {
+		text = strings.TrimSpace(text)
+		// A sheet may lead: Sheet2!A1, 'Q3 plan'!B2:C9, or just Sheet2!.
+		target := m.sheet
+		if name, rest := sheet.SplitSheet(text); name != "" {
+			if target = m.book().Lookup(name); target == nil {
+				m.fail("There's no sheet named " + name)
+				return nil
+			}
+			if text = rest; text == "" {
+				m.showSheet(target)
+				return nil
+			}
+		}
+		r, ok := sheet.ParseRange(text)
+		if n, named := m.sheet.LookupName(text); named && !n.Gone() && target == m.sheet {
+			r, ok, target = n.Range, true, n.Sheet
+		}
+		if !ok {
+			m.fail("Not a cell, range or named range: " + text)
+			return nil
+		}
+		m.showSheet(target)
+		if r.From == r.To {
+			m.clearSelection()
+			m.cur = r.From
+			return nil
+		}
+		m.selectRect(r)
+		return nil
+	})
+	m.prompt.indicator = "POINT"
+}

@@ -396,30 +396,6 @@ func (m *Model) handleRelease() tea.Cmd {
 	return nil
 }
 
-// autofit sizes column c to its widest content, as double-clicking a
-// header border does in Sheets. Selected columns fit together.
-func (m *Model) autofit(c int) {
-	cols := []int{c}
-	if r := m.selection(); m.whole == wholeCols && c >= r.From.Col && c <= r.To.Col {
-		cols = cols[:0]
-		for k := r.From.Col; k <= r.To.Col; k++ {
-			cols = append(cols, k)
-		}
-	}
-	widest := map[int]int{}
-	for _, a := range m.sheet.Addrs() {
-		if cell := m.sheet.Cell(a); cell != nil {
-			widest[a.Col] = max(widest[a.Col], ansi.StringWidth(cell.Value.String()))
-		}
-	}
-	for _, k := range cols {
-		// One column of padding each side, and never narrower than the
-		// header letters.
-		m.sheet.SetColWidth(k, clamp(widest[k]+2, len(sheet.ColName(k))+2, 240))
-	}
-	m.changed = true
-}
-
 // pointerShape asks the terminal for the pointer shape that fits what's
 // under the mouse (OSC 22, supported by Ghostty, kitty, foot and xterm;
 // others ignore it).

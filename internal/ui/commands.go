@@ -158,14 +158,3 @@ func init() {
 		&command{id: "quit", title: "Quit", desc: "Close 012", run: (*Model).quit},
 	)
 }
-
-// save writes to the current file, asking for a name the first time.
-func (m *Model) save() tea.Cmd {
-	if m.filename == "" && m.xfer.source != "" {
-		return m.saveImported()
-	}
-	if m.filename == "" {
-		return m.openSave()
-	}
-	return saveCmd(m.sheet, m.filename)
-}

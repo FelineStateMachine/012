@@ -257,7 +257,7 @@ func (m *Model) handlePaste(content string) {
 		m.line.insert(content)
 	case modePrompt:
 		if m.prompt.kind != promptRange {
-			m.promptType(content)
+			m.prompt.paste(m, content)
 		}
 	case modeMenu:
 		if o, ok := m.overlay.(textOverlay); ok {
