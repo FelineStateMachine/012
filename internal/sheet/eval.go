@@ -134,6 +134,11 @@ func eval(n Node, get lookup) Value {
 			if err != nil {
 				return *err
 			}
+			if n.dec {
+				if v, ok := decArith("/", f, 100); ok {
+					return v
+				}
+			}
 			return num(f / 100)
 		}
 		return x // unary + is identity
@@ -179,6 +184,11 @@ func evalBinary(n binaryNode, get lookup) Value {
 	b, err := toNum(r)
 	if err != nil {
 		return *err
+	}
+	if n.dec {
+		if v, ok := decArith(n.op, a, b); ok {
+			return v
+		}
 	}
 	switch n.op {
 	case "+":

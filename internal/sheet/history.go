@@ -260,6 +260,9 @@ func (s *Sheet) swap(from, to *[]*step) (Change, bool) {
 	if st.view != nil {
 		v := s.view
 		inv.view, s.view = &v, *st.view
+		if v.decimal != s.view.decimal {
+			changed = append(changed, s.Addrs()...) // every formula computes differently
+		}
 	}
 	s.recalc(changed)
 	*to = append(*to, inv)

@@ -27,12 +27,14 @@ type (
 	nameNode   struct{ name string } // a named range as spelled in the formula; #NAME? if undefined
 	emptyArg   struct{}              // an omitted argument, as in XLOOKUP(a, b, c, , 1)
 	unaryNode  struct {
-		op string
-		x  Node
+		op  string
+		x   Node
+		dec bool // computed in decimal (decimal.go)
 	}
 	binaryNode struct {
 		op   string
 		l, r Node
+		dec  bool // computed in decimal (decimal.go)
 	}
 	callNode struct {
 		fn   *FuncDef

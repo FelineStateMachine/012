@@ -8,6 +8,7 @@ require (
 	github.com/FelineStateMachine/typesafe-go v0.2.0
 	github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886
 	github.com/charmbracelet/x/ansi v0.11.8
+	github.com/cockroachdb/apd/v3 v3.2.3
 	github.com/parquet-go/parquet-go v0.32.0
 	github.com/sahilm/fuzzy v0.1.3
 	github.com/xuri/excelize/v2 v2.11.0

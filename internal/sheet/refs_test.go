@@ -22,7 +22,7 @@ func TestParseAbsoluteRefs(t *testing.T) {
 		{"=A1..$B2", rangeNode{NewRect(at("A1"), at("B2")), [2]absFlags{0, absCol}}},
 		{"=A$$1", nameNode{"A$$1"}},
 		{"=A1$", nameNode{"A1$"}},
-		{"=#REF!+1", binaryNode{"+", refErrNode{}, numLit{1}}},
+		{"=#REF!+1", binaryNode{op: "+", l: refErrNode{}, r: numLit{1}}},
 	}
 	for _, tt := range tests {
 		got, err := Parse(tt.in)

@@ -473,7 +473,7 @@ func (s *Sheet) evaluate(state map[Addr]int) {
 		case c.expr == nil:
 			c.Value = Value{Kind: Text, Str: strings.TrimPrefix(c.Input, "'")}
 		default:
-			expr := s.bound(c)
+			expr := s.arith(s.bound(c))
 			c.Value = eval(expr, compute)
 			if _, lit := expr.(numLit); !lit {
 				c.auto = inferFormat(expr, s.DisplayFormat)
