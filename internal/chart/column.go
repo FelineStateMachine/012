@@ -168,12 +168,14 @@ func (p *columnPlan) drawBars(g *Grid) {
 				continue
 			}
 			x0, x1 := p.bar(i, j)
-			// Below the axis, bars fill from the top.
-			barCells(zero, p.sc.pos(v), v >= 0, lowerEighths, "▀", func(r int, glyph string) {
-				for x := x0; x < x1; x++ {
+			lo, hi := min(zero, p.sc.pos(v)), max(zero, p.sc.pos(v))
+			for r := int(math.Floor(lo)); float64(r) < hi; r++ {
+				// Below the axis, bars fill from the top.
+				glyph := barGlyph(lo, hi, r, v >= 0, lowerEighths, "▀")
+				for x := x0; glyph != "" && x < x1; x++ {
 					g.set(x, p.axisRow-1-r, glyph, SeriesRole(j))
 				}
-			})
+			}
 		}
 	}
 }

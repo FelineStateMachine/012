@@ -101,10 +101,13 @@ func (p *barPlan) draw(g *Grid, o Options) {
 			if math.IsNaN(v) {
 				continue
 			}
-			// Left of the axis, bars fill from the right.
-			barCells(zero, p.sc.pos(v), v >= 0, leftEighths, "▐", func(c int, glyph string) {
-				g.set(p.plot.Min.X+c, p.barRow(i, j), glyph, SeriesRole(j))
-			})
+			lo, hi := min(zero, p.sc.pos(v)), max(zero, p.sc.pos(v))
+			for c := int(math.Floor(lo)); float64(c) < hi; c++ {
+				// Left of the axis, bars fill from the right.
+				if glyph := barGlyph(lo, hi, c, v >= 0, leftEighths, "▐"); glyph != "" {
+					g.set(p.plot.Min.X+c, p.barRow(i, j), glyph, SeriesRole(j))
+				}
+			}
 		}
 	}
 }
@@ -136,26 +139,22 @@ func (p *barPlan) drawAxis(g *Grid) {
 	}
 }
 
-// barCells walks the cells a bar covers from zero to end, distances
-// along its axis in cells, calling fill with each cell and its glyph.
-// A positive bar grows away from the axis in eighths; a negative one
-// has no eighths growing the other way, so its partly covered cells are
-// a full block or the half block half.
-func barCells(zero, end float64, positive bool, eighths []string, half string, fill func(c int, glyph string)) {
-	lo, hi := min(zero, end), max(zero, end)
-	for c := int(math.Floor(lo)); float64(c) < hi; c++ {
-		cover := min(hi, float64(c+1)) - max(lo, float64(c))
-		glyph := ""
-		switch {
-		case positive:
-			glyph = eighths[int(math.Round(cover*8))]
-		case cover >= 0.75:
-			glyph = "█"
-		case cover >= 0.25:
-			glyph = half
+// barGlyph is the glyph of cell c of a bar from lo to hi, distances
+// along its axis in cells, or "" for none. A positive bar grows away
+// from the axis in eighths; a negative one has no eighths growing the
+// other way, so its partly covered cells are a full block or the half
+// block half.
+func barGlyph(lo, hi float64, c int, positive bool, eighths []string, half string) string {
+	cover := min(hi, float64(c+1)) - max(lo, float64(c))
+	switch {
+	case positive:
+		if g := eighths[int(math.Round(cover*8))]; g != " " {
+			return g
 		}
-		if glyph != "" && glyph != " " {
-			fill(c, glyph)
-		}
+	case cover >= 0.75:
+		return "█"
+	case cover >= 0.25:
+		return half
 	}
+	return ""
 }
