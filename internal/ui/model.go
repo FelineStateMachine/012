@@ -86,9 +86,9 @@ type Model struct {
 	xfer    transfer   // imports and downloads: transfer.go
 	jev     *jevRunner // answers JEV functions; nil without an API key: jev.go
 	term    terminal   // what the terminal supports: graphics.go
+	prefs   prefs      // the settings in effect and the theme chosen: prefs.go
 
-	prefs prefs    // the user's preferences, kept across files: prefs.go
-	vim   vimState // a vim key sequence in progress: vim.go
+	vim vimState // a vim key sequence in progress: vim.go
 
 	keyAt time.Time // when the key the next frame answers was pressed, for telemetry
 
@@ -97,7 +97,7 @@ type Model struct {
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	m := &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(os.Getenv), charts: chartState{last: -1}, prefs: initialPrefs()}
+	m := &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(os.Getenv), charts: chartState{last: -1}}
 	if filename != "" {
 		m.disk = diskStamp(filename)
 	}
@@ -132,8 +132,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		beforeMode = -1 // keep the focus visible after a resize
-	case tea.BackgroundColorMsg:
-		m.th = theme.New(msg.IsDark())
 	case tea.KeyPressMsg:
 		cmd = m.handleKey(msg)
 	case tea.PasteMsg:
@@ -164,7 +162,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case importedMsg, importTickMsg, exportedMsg:
 		cmd = m.handleTransfer(msg)
 	default:
-		cmd = m.term.handle(msg)
+		if !m.handlePrefs(msg) {
+			cmd = m.term.handle(msg)
+		}
 	}
 	// Scroll only when the focus moves, so the mouse wheel can look around
 	// without the view snapping back, as in Sheets.

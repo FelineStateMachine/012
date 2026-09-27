@@ -81,7 +81,7 @@ func TestJEVFunctionsAgainstFakeService(t *testing.T) {
 func TestJEVOffWithoutKey(t *testing.T) {
 	s := start(t, "")
 	s.keys(`=JEV.TEST("x", "Q")`, "<enter>", "<up>")
-	s.waitFor("JEV functions need TYPESAFE_API_KEY")
+	s.waitFor("JEV functions need an API key")
 	if !strings.Contains(s.line(gridRow1), "#N/A") {
 		t.Errorf("A1 shows %q", s.line(gridRow1))
 	}

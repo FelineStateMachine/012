@@ -26,7 +26,12 @@ by libghostty itself from the modes the app turned on, so they are the bytes
 Ghostty would send. Tests assert on what a user would see: screen text,
 cursor position, window title, hyperlinks, which screen is active after
 quitting. A fake TypeSafe server answers JEV questions, and the harness
-clears `TYPESAFE_API_KEY` so tests never reach the real service.
+clears `TYPESAFE_API_KEY` so tests never reach the real service. Every
+session gets its own config directory (`XDG_CONFIG_HOME`, with an
+optional config file), and the binary is built with `-tags fakekeyring`,
+whose credential store is a file there, so tests never read your config
+or touch your keychain. Unit tests do the same with `ui.Settings` and
+`keyring.Memory`.
 
 `e2e/ssh_test.go` runs `012 serve` and reaches it with the system's
 `ssh` client inside the same libghostty terminal, so the server path

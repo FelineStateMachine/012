@@ -15,16 +15,29 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/FelineStateMachine/012/internal/jev"
+	"github.com/FelineStateMachine/012/internal/config"
 	"github.com/FelineStateMachine/012/internal/serve"
 )
 
 const serveUsage = "usage: 012 serve [--listen addr] [--authorized-keys file] [--host-key file] [--idle-timeout 30m] [--max-sessions 8] [dir]"
 
-// serveFlags parses 012 serve's arguments into options, starting from
-// the defaults. The served directory may come before or after the flags.
-func serveFlags(args []string, stderr io.Writer) (serve.Options, error) {
+// serveOptions are 012 serve's settings from the config file, the
+// serve-* options, over the built-in defaults.
+func serveOptions(c *config.Config) serve.Options {
 	o := serve.Defaults()
+	o.Listen = c.String("serve-listen")
+	o.AuthorizedKeys = c.String("serve-authorized-keys")
+	if k := c.String("serve-host-key"); k != "" {
+		o.HostKey = k
+	}
+	o.IdleTimeout = c.Duration("serve-idle-timeout")
+	o.MaxSessions = c.Int("serve-max-sessions")
+	return o
+}
+
+// serveFlags parses 012 serve's arguments into options, starting from o.
+// The served directory may come before or after the flags.
+func serveFlags(args []string, stderr io.Writer, o serve.Options) (serve.Options, error) {
 	fs := flag.NewFlagSet("012 serve", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.Usage = func() {
@@ -57,32 +70,40 @@ func serveFlags(args []string, stderr io.Writer) (serve.Options, error) {
 }
 
 // runServe is 012 serve: sessions over SSH until interrupted.
-func runServe(args []string) error {
-	tc, args, err := telemetryFlags(args)
+func runServe(args []string, e env) error {
+	flags, args, err := config.ParseFlags(args)
 	if err != nil {
 		return err
 	}
-	o, err := serveFlags(args, os.Stderr)
+	cfg, err := loadConfig(e, flags)
+	if err != nil {
+		return err
+	}
+	for _, w := range cfg.Warnings {
+		fmt.Fprintln(e.stderr, "config: "+w.Short())
+	}
+	o, err := serveFlags(args, e.stderr, serveOptions(cfg))
 	if errors.Is(err, flag.ErrHelp) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	stopTelemetry, err := startTelemetry(tc)
+	stopTelemetry, err := startTelemetry(telemetryConfig(cfg))
 	if err != nil {
 		return err
 	}
 	defer stopTelemetry()
-	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	log := slog.New(slog.NewTextHandler(e.stderr, nil))
 	d := serve.Deps{Log: log}
-	// JEV functions run when the server's own environment has an API
-	// key; sessions never read .env files.
-	if cfg, ok := jev.LoadConfig(); ok {
-		if d.JEV, err = jev.NewClient(cfg); err != nil {
-			return fmt.Errorf("JEV: %w", err)
-		}
+	// JEV functions run when the server has an API key: from its own
+	// environment, the credential store or jev-api-key-command. Sessions
+	// never read .env files.
+	client, notes := startJEV(cfg, e, keyStore(cfg, e))
+	for _, n := range notes {
+		fmt.Fprintln(e.stderr, n)
 	}
+	d.JEV = client
 	srv, err := serve.New(o, d)
 	if err != nil {
 		return err
@@ -96,7 +117,7 @@ func runServe(args []string) error {
 			log.Warn("listening beyond this machine: anyone holding an authorized key who can reach " + o.Listen + " can read and write " + srv.Dir())
 		}
 	}
-	fmt.Fprintf(os.Stderr, "012 serving %s on %s\nhost key %s\nconnect: ssh -p %s %s\n",
+	fmt.Fprintf(e.stderr, "012 serving %s on %s\nhost key %s\nconnect: ssh -p %s %s\n",
 		srv.Dir(), l.Addr(), gossh.FingerprintSHA256(srv.HostKey()), portOf(l.Addr()), hostOf(l.Addr()))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

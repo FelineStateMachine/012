@@ -16,11 +16,60 @@ background (cells show `Loading…`), are cached by question, and the context
 line shows the confidence for the selected cell. Data > Ask JEV again
 re-asks the selection.
 
-Set `TYPESAFE_API_KEY` in the environment or a `.env` file in the current
-directory or next to the sheet; `TYPESAFE_BASE_URL` and
-`TYPESAFE_DEFAULT_MODEL` are optional. Without a key the functions show
-`#N/A` and say why. `JEV_LIVE_TEST=1 go test ./internal/jev -run TestLive`
-checks the real service.
+Without a key the functions show `#N/A` and say how to add one.
+`JEV_LIVE_TEST=1 go test ./internal/jev -run TestLive` checks the real
+service.
+
+## Setup
+
+The API key never goes in a file 012 reads or on a command line. Store it
+once in your operating system's credential store:
+
+```sh
+012 config set-key        # asks for the key without echoing it
+op read op://Private/TypeSafe/credential | 012 config set-key   # or pipe it in
+012 config delete-key     # remove it
+```
+
+or in the app, File > Settings > JEV API key, which asks on the context
+line with the key masked and turns JEV on at once. `012 config` says where
+the key would come from, without showing it.
+
+012 looks for the key in this order:
+
+1. **`TYPESAFE_API_KEY`** in the environment, for CI, containers and
+   one-off runs.
+2. **The credential store**: the macOS Keychain, the Windows Credential
+   Manager, or the Secret Service on Linux and the BSDs (GNOME Keyring,
+   KWallet, KeePassXC; this needs `secret-tool`, in the `libsecret-tools`
+   package on Debian and Ubuntu). The item is service `012`, account
+   `jev-api-key`. `jev-credential-store = false` in the config skips it.
+3. **`jev-api-key-command`** in the config: a command that prints the key,
+   for password managers:
+
+   ```
+   jev-api-key-command = op read op://Private/TypeSafe/credential
+   jev-api-key-command = pass show typesafe
+   jev-api-key-command = sh -c 'gpg -dq ~/.secrets/typesafe.gpg | head -1'
+   ```
+
+   It runs the first time a sheet asks JEV something, not at every
+   start, for at most 10 seconds, and the first line it prints is the key.
+   It runs without a shell: the value is split into words, with quotes
+   grouping words and a backslash escaping the next character, and
+   nothing is expanded (`$HOME`, `~`, `*`, pipes and `;` are passed on
+   literally). For a pipeline, write `sh -c '...'` yourself.
+
+The service's address and model come from the config file or the
+environment only: `jev-base-url` (or `TYPESAFE_BASE_URL`), which must be
+https unless it's this machine, and `jev-model` (or
+`TYPESAFE_DEFAULT_MODEL`). See [config.md](config.md).
+
+**`.env` files are no longer read.** A `.env` next to a downloaded sheet
+could set `TYPESAFE_BASE_URL` and send your key to someone else's server.
+If the directory 012 starts in has a `.env` with `TYPESAFE_API_KEY`, the
+context line suggests `012 config set-key`; 012 never reads the key from
+it.
 
 ## How requests behave
 
@@ -33,7 +82,8 @@ checks the real service.
   than two labels, more than the service's 255 labels or 10 score levels)
   show as errors at once and are never sent.
 - A failed request shows `#ERROR!`, and the context line says why.
-- 012 never logs or saves the API key; `.env` files are read for
-  `TYPESAFE_*` settings only.
+- 012 never logs, shows or saves the API key anywhere but the credential
+  store, and never passes it as a command-line argument: the macOS
+  Keychain and the Secret Service get it on stdin.
 
 The client is [typesafe-go](https://github.com/FelineStateMachine/typesafe-go).

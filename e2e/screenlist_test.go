@@ -238,6 +238,38 @@ var screens = []screen{
 		s.keys("<alt+f>", "<up>", "<up>", "<right>")
 		s.waitFor("Compute money exactly")
 	}},
+	// Themes: color schemes draw bars and the screen in their own colors.
+	{name: "theme-classic", opts: options{config: "theme = 1-2-3 Classic\n"}, setup: func(s *session) {
+		budget(s)
+		s.keys("<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>")
+		s.waitFor("Sum 2158.4")
+	}},
+	{name: "theme-classic-narrow-menu", opts: options{cols: 61, rows: 16, config: "theme = 1-2-3 Classic\n"}, setup: func(s *session) {
+		budget(s)
+		s.keys("<alt+f>", "<down>", "<down>", "<down>")
+		s.waitFor("Save the sheet")
+	}},
+	{name: "theme-dark", opts: options{config: "theme = TokyoNight\n"}, setup: formatted},
+	{name: "theme-light-menu", opts: options{light: true, config: "theme = light:Catppuccin Latte,dark:Catppuccin Mocha\n"}, setup: func(s *session) {
+		budget(s)
+		s.keys("<alt+f>", "<down>", "<down>", "<down>")
+		s.waitFor("Save the sheet")
+	}},
+	{name: "theme-picker", setup: func(s *session) {
+		budget(s)
+		openTheme(s)
+		s.keys("gruvbox")
+		s.waitFor("│ › gruvbox")
+	}},
+	{name: "api-key-prompt", setup: func(s *session) {
+		s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>", "<down>")
+		s.waitFor("Store the TypeSafe API key")
+		s.keys("<enter>", "ts-demo-0123456789")
+		s.waitFor("TypeSafe API key: ••••••••••••••••••")
+	}},
+	{name: "config-warning", opts: options{config: "theme = Nord\nbogus = 1\n"}, setup: func(s *session) {
+		s.waitFor(`unknown key "bogus"`)
+	}},
 	{name: "menu-freeze", setup: func(s *session) {
 		inventory(s)
 		s.keys("<alt+v>", "<right>", "<down>")

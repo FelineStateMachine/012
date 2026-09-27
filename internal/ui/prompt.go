@@ -31,6 +31,7 @@ type prompt struct {
 	label     string
 	indicator string
 	fresh     bool // the default is still showing; typing replaces it
+	secret    bool // the answer is shown masked, e.g. an API key
 	typing    bool // range prompts: the user is typing instead of pointing
 	onText    func(m *Model, text string) tea.Cmd
 	onRange   func(m *Model, r sheet.Rect) tea.Cmd
@@ -177,12 +178,25 @@ func (p *prompt) line(m *Model) (left, right string) {
 		return p.prefix() + m.line.text(), m.th.Muted.Render(strings.Join(p.files, "  "))
 	case p.kind == promptWidth:
 		return p.prefix() + m.line.text(), m.th.KeyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
+	case p.secret:
+		return p.prefix() + mask(len(m.line.buf)), m.th.KeyHints("Enter", "save", "Esc", "cancel")
 	}
 	return p.prefix() + m.line.text(), m.th.KeyHints("Enter", "apply", "Esc", "cancel")
 }
 
 func (p *prompt) prefix() string {
 	return p.label + " "
+}
+
+// mask stands for n typed characters of a secret.
+func mask(n int) string { return strings.Repeat("•", n) }
+
+// head is the answer before the caret, as shown.
+func (p *prompt) head(m *Model) string {
+	if p.secret {
+		return mask(m.line.pos)
+	}
+	return m.line.head()
 }
 
 func isDigits(s string) bool {

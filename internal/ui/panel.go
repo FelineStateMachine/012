@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -38,11 +39,13 @@ func (m *Model) View() tea.View {
 	for i, l := range lines {
 		lines[i] = ansi.Truncate(l, m.width, "")
 	}
+	m.drawBars(lines)
 
 	content := strings.Join(lines, "\n")
 	if boxes := m.floating(); len(boxes) > 0 || hasCharts(m) {
 		content = m.compose(content, boxes)
 	}
+	content = m.fillScreen(content)
 	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go
@@ -63,6 +66,46 @@ func (m *Model) View() tea.View {
 		v.Cursor.Shape = tea.CursorBar
 	}
 	return v
+}
+
+// drawBars draws the menu bar, formula bar, context line, column header
+// row and status line as full-width bands in the theme's bar roles,
+// before overlays are composited over them.
+func (m *Model) drawBars(lines []string) {
+	bands := []struct {
+		line int
+		role lipgloss.Style
+	}{
+		{menuLine, m.th.MenuBarRow}, {formulaLine, m.th.FormulaBarRow}, {contextLine, m.th.ContextRow},
+		{headerLine, m.th.ColumnHeaderRow}, {len(lines) - 1, m.th.StatusBarRow},
+	}
+	for _, b := range bands {
+		if b.line < len(lines) {
+			lines[b.line] = theme.Fill(lines[b.line], m.width, b.role)
+		}
+	}
+}
+
+// fillScreen draws everything else on the theme's background, out to the
+// edges, when the theme has one of its own.
+func (m *Model) fillScreen(content string) string {
+	if isEmpty(m.th.Screen) {
+		return content
+	}
+	lines := strings.Split(content, "\n")
+	for len(lines) < m.height {
+		lines = append(lines, "")
+	}
+	for i, l := range lines {
+		lines[i] = theme.Fill(l, m.width, m.th.Screen)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func isEmpty(s lipgloss.Style) bool {
+	_, noBg := s.GetBackground().(lipgloss.NoColor)
+	_, noFg := s.GetForeground().(lipgloss.NoColor)
+	return noBg && noFg
 }
 
 // timeFrame reports a frame begun at start to telemetry, with how long
@@ -219,7 +262,7 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 	case m.mode == modeEnter, m.mode == modeEdit:
 		return formulaBarTextX() + ansi.StringWidth(m.line.head()), formulaLine, true
 	case m.mode == modePrompt && !m.pointing():
-		return ansi.StringWidth(m.prompt.prefix() + m.line.head()), contextLine, true
+		return ansi.StringWidth(m.prompt.prefix() + m.prompt.head(m)), contextLine, true
 	}
 	return 0, 0, false
 }

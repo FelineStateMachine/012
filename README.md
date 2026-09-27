@@ -27,7 +27,7 @@ Requires Go 1.27. Or from a clone: `make build` puts the binary in `bin/012`.
 ```
 
 F1 shows every shortcut, F10 or Alt+letter opens the menus, and Ctrl+K
-searches every command.
+searches every command. `012 config edit` opens the settings file.
 
 ## What it does
 
@@ -58,6 +58,11 @@ searches every command.
   menus and a command palette styled like terminal software, not a GUI,
   and optional vim keys (hjkl, counts, dd/yy/p, visual selection, `:`
   commands) in File > Settings.
+- **Themes and a config file.** Your terminal's colors by default, or any
+  of 349 color schemes (or your own Ghostty theme) with solid menu and
+  status bars; one Ghostty-style config file for every setting, and the
+  JEV API key kept in the OS keychain ([config](docs/config.md),
+  [themes](docs/themes.md)).
 
 ## Demos
 
@@ -83,6 +88,7 @@ kitty, Ghostty and WezTerm they are real images.
 - [Files](docs/files.md)
 - [JEV functions](docs/jev.md)
 - [Serving over SSH](docs/ssh.md): `012 serve`, public-key only, confined to one directory
+- [Configuration](docs/config.md) and [themes](docs/themes.md)
 - [Architecture](docs/architecture.md), [UX bar](docs/UX.md) and [testing](docs/testing.md)
 - [Limits](docs/limits.md): how big a sheet 012 handles and where it slows down
 - [Observability](docs/observability.md): event logs, DuckDB, and a local Collector, ClickHouse and Grafana stack

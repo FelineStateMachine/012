@@ -61,22 +61,26 @@ func TestPaletteSearchRunsCommand(t *testing.T) {
 
 func TestPaletteMatchesMenuPath(t *testing.T) {
 	m := newModel()
-	// "file" matches every File menu command through its path.
+	// "file" matches "Open config file" by its title first, then every
+	// File menu command through its path.
 	press(t, m, "<ctrl+k>", "file")
 	var got []string
 	for _, pm := range openPicker(t, m).shown {
 		got = append(got, pm.item.title)
 	}
-	slices.Sort(got[:6])
-	if s := strings.Join(got[:6], ","); s != "Import,New,Open,Quit,Save,Save as" {
+	if got[0] != "Open config file" {
+		t.Errorf("first match for file: %q", got[0])
+	}
+	slices.Sort(got[1:7])
+	if s := strings.Join(got[1:7], ","); s != "Import,New,Open,Quit,Save,Save as" {
 		t.Errorf("file matched %s", strings.Join(got, ","))
 	}
-	press(t, m, "<down>", "<down>")
+	press(t, m, "<down>", "<down>", "<down>")
 	if selected(t, m) != "Save" || !strings.Contains(line(m, m.height-1), "Save the sheet") {
 		t.Errorf("selected %q, status %q", selected(t, m), line(m, m.height-1))
 	}
 	// Up from the top wraps to the bottom.
-	press(t, m, "<up>", "<up>", "<up>")
+	press(t, m, "<up>", "<up>", "<up>", "<up>")
 	if p := openPicker(t, m); p.sel != len(p.shown)-1 {
 		t.Errorf("wrapped to %d of %d", p.sel, len(p.shown))
 	}

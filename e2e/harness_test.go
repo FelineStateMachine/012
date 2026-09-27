@@ -27,7 +27,9 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	binPath = filepath.Join(dir, "012")
-	build := exec.Command("go", "build", "-o", binPath, "./cmd/012")
+	// fakekeyring swaps the OS credential store for a file under
+	// XDG_CONFIG_HOME, which every session points at a temporary directory.
+	build := exec.Command("go", "build", "-tags", "fakekeyring", "-o", binPath, "./cmd/012")
 	build.Dir = ".."
 	build.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := build.CombinedOutput(); err != nil {
@@ -68,6 +70,11 @@ type options struct {
 	light      bool     // use the light reference palette
 	env        []string // extra environment, e.g. a fake JEV endpoint
 	jev        bool     // answer JEV functions with a fake service (screens)
+	// config is the session's config file. Every session has its own
+	// config directory (XDG_CONFIG_HOME), so the user's is never read;
+	// configDir shares one between sessions.
+	config    string
+	configDir string
 	// graphics turns on the kitty graphics protocol, so charts become
 	// images; off by default, so screens show the text charts every
 	// terminal gets.
@@ -130,6 +137,7 @@ func startWith(t *testing.T, o options, args ...string) *session {
 	// Tests never reach the real JEV service: the key is cleared unless a
 	// test points JEV at a fake server through o.env.
 	s.cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor", "TYPESAFE_API_KEY=", "TYPESAFE_BASE_URL=")
+	s.cmd.Env = append(s.cmd.Env, configEnv(t, o)...)
 	s.cmd.Env = append(s.cmd.Env, o.env...)
 	s.pty, err = pty.StartWithSize(s.cmd, &pty.Winsize{Cols: s.cols, Rows: s.rows})
 	if err != nil {
@@ -463,3 +471,23 @@ var charKeys = func() map[rune]physKey {
 	}
 	return m
 }()
+
+// configEnv gives a session its own config directory, with o.config as
+// its config file, and turns off the telemetry and theme variables a
+// developer's shell may set.
+func configEnv(t *testing.T, o options) []string {
+	t.Helper()
+	dir := o.configDir
+	if dir == "" {
+		dir = t.TempDir()
+	}
+	if o.config != "" {
+		if err := os.MkdirAll(filepath.Join(dir, "012"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "012", "config"), []byte(o.config), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return []string{"XDG_CONFIG_HOME=" + dir, "O12_THEME=", "TYPESAFE_DEFAULT_MODEL="}
+}

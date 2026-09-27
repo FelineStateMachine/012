@@ -8,6 +8,8 @@
 package serve
 
 import (
+	"github.com/FelineStateMachine/012/internal/config"
+
 	"errors"
 	"fmt"
 	"os"
@@ -52,8 +54,8 @@ func Defaults() Options {
 	if home, err := os.UserHomeDir(); err == nil {
 		o.AuthorizedKeys = filepath.Join(home, ".ssh", "authorized_keys")
 	}
-	if cfg, err := os.UserConfigDir(); err == nil {
-		o.HostKey = filepath.Join(cfg, "012", "ssh_host_ed25519_key")
+	if dir, err := config.Dir(); err == nil {
+		o.HostKey = filepath.Join(dir, "ssh_host_ed25519_key")
 	}
 	return o
 }

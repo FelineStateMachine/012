@@ -4,19 +4,21 @@
 Lip Gloss v2.
 
 ```
-cmd/012          entry point: flags, JEV setup, opening or importing a file, 012 serve
+cmd/012          entry point: flags and config, 012 config, 012 serve, JEV setup, opening or importing a file
+internal/config  the config file and the registry of options
 internal/sheet   the engine: cells, evaluation, functions, recalculation, undo, files
 internal/formula the formula language: references, lexer, parser, printer, rewriting
 internal/numfmt  number formats, rounding, General, date serials
 internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1
 internal/chart   chart layout, text rendering and kitty image encoding
-internal/jev     JEV configuration, answer cache and TypeSafe client
+internal/jev     the API key's resolution, answer cache and TypeSafe client
+internal/keyring the OS credential store the API key lives in
 internal/telemetry  opt-in JSON log and OTLP export of spans, events and frame stats
 internal/serve   the SSH server: auth, host key, a Model per session (charm.land/wish/v2)
 internal/confine resolving typed file names, confined to a directory when served
 internal/stress  synthetic worst-case sheets for the -tags stress benchmarks
 internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
-  theme          style roles and the widgets drawn with them (frames, key chips)
+  theme          style roles, color schemes and the widgets drawn with them (frames, key chips)
   rowtext        laying out a row of cell text across the columns on screen
   formula        reading the formula being typed (F4, the word and call at the caret)
 e2e/             end-to-end tests through libghostty (separate module, cgo)
@@ -226,6 +228,64 @@ only to read or write, through the model's `confine.Root`: the zero
 root (the local app) uses them as they are, a served session's root
 keeps them inside its directory. Every open, save, import, download and
 file listing goes through `Model.path` or the root.
+
+## Configuration and secrets
+
+`internal/config` reads one Ghostty-style file (`key = value`, `#`
+comments, `config-file` includes) from `$XDG_CONFIG_HOME/012` or the OS
+config directory; the same directory holds `themes/` and 012 serve's host
+key. Every option is one entry in `config.Options`: name, type, default,
+environment variables, flag, whether Reload config applies it, and a
+description. Parsing and validation, the flags `cmd/012` accepts, `012
+config`'s listing and default file, and [config.md](config.md)'s
+reference (checked by a test) all come from that table. Values are layered defaults < file < environment < flags, each
+remembering its source; problems are warnings, never fatal. The UI gets a
+`ui.Settings` (the config, a reload function, the credential store, a JEV
+connector) through `Model.Configure`, so tests hand it a temporary config
+and a store in memory.
+
+The JEV API key is never in the config. `jev.ResolveKey` takes it from
+`TYPESAFE_API_KEY`, then the credential store, then
+`jev-api-key-command` (split into words and run without a shell, with a
+timeout, only when a sheet first asks JEV something). The base URL comes
+from the config or environment only and must be https unless it's
+loopback, so a file next to a sheet can't redirect the key.
+
+`internal/keyring` is the credential store, chosen for the least
+dependency weight that is still correct on each OS, with `CGO_ENABLED=0`:
+
+| OS | Store | How |
+|---|---|---|
+| macOS | Keychain | `/usr/bin/security`. Writing uses `security -i`, which reads its command from stdin, with the key hex-encoded (`-X`), so it's never in any process's arguments. |
+| Linux, BSD | Secret Service (GNOME Keyring, KWallet, KeePassXC) | libsecret's `secret-tool`, which reads the secret to store from stdin. |
+| Windows | Credential Manager | `CredReadW`, `CredWriteW`, `CredDeleteW` from advapi32 through `golang.org/x/sys/windows`, already in the module graph. |
+
+The alternatives were a keyring module (zalando/go-keyring, which does
+the same on macOS but brings godbus for Linux, or 99designs/keyring,
+which brings several backends and needs cgo for the macOS Keychain) or
+cgo bindings to Security.framework and libsecret, which would end the
+pure-Go build. Two
+small command-line programs and one system DLL cover the three OSes with
+no new module. The stores share a `Store` interface; tests use a
+recording runner or `keyring.Memory`, and the e2e binary is built with
+`-tags fakekeyring`, whose store is a file under `XDG_CONFIG_HOME`, so no
+test reaches a real keychain.
+
+## Themes
+
+`theme.Theme` is a set of style roles, each defined on the 16 ANSI colors
+and the default background and foreground (`theme.New`). The terminal
+theme sends them as ANSI numbers, so the terminal's palette applies. A
+color scheme (`theme.Palette`: VHS's embedded catalog, or a Ghostty,
+kitty or VHS JSON file in `themes/`) is drawn by `theme.FromPalette`,
+which maps each ANSI color to the scheme's, adds full-width bands for the
+bars and a screen background, and corrects contrast (see
+[themes.md](themes.md)). Bands are applied by `theme.Fill`, one pass over
+a rendered line's escape sequences that sets the band's colors at the
+start and after each reset and pads to the width; `View` fills the bar
+lines before overlays are composited and the whole screen after, so bars
+reach the edge under menus too. Charts take their colors from the scheme
+when there is one, and from the terminal's palette otherwise.
 
 ## Telemetry
 

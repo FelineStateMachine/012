@@ -98,7 +98,7 @@ func TestJEVPendingAndBusy(t *testing.T) {
 func TestJEVWithoutKeyExplains(t *testing.T) {
 	m := tallModel()
 	press(t, m, `=JEV.TEST("x", "Q")`, "<enter>", "<up>")
-	if !strings.Contains(line(m, contextLine), "TYPESAFE_API_KEY") {
+	if !strings.Contains(line(m, contextLine), "Settings > JEV API key") {
 		t.Errorf("context line %q", line(m, contextLine))
 	}
 	if commands["jev.refresh"].enabled(m) {

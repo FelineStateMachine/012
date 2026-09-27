@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,27 +11,6 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
-
-func TestLoadConfig(t *testing.T) {
-	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".env"), []byte("# settings\nOTHER=x\nexport TYPESAFE_API_KEY=\"from-file\"\nTYPESAFE_DEFAULT_MODEL=jev-small\n"), 0o600)
-	t.Setenv("TYPESAFE_API_KEY", "")
-	t.Setenv("TYPESAFE_BASE_URL", "")
-	t.Setenv("TYPESAFE_DEFAULT_MODEL", "")
-
-	c, ok := LoadConfig(dir)
-	if !ok || c.APIKey != "from-file" || c.Model != "jev-small" {
-		t.Errorf("from .env: %+v %v", c, ok)
-	}
-	t.Setenv("TYPESAFE_API_KEY", "from-env")
-	if c, _ := LoadConfig(dir); c.APIKey != "from-env" {
-		t.Errorf("environment should win: %q", c.APIKey)
-	}
-	t.Setenv("TYPESAFE_API_KEY", "")
-	if _, ok := LoadConfig(t.TempDir()); ok {
-		t.Error("no key anywhere, but JEV is on")
-	}
-}
 
 func TestCacheQueuesOnce(t *testing.T) {
 	m := NewCache()
