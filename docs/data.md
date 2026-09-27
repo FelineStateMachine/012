@@ -226,8 +226,11 @@ and its subtotal is just `Total`. Sorting an outer column field by a
 value's total orders whole outer groups, so their columns stay
 together. Rows blank across the whole range are
 left out, so a range can reach past the data. SUM, AVERAGE, MIN and MAX
-keep the column's number format; an error in a summed column shows as that
-error, as SUM would.
+keep the column's number format: the column's own when it has one, else
+the format most of its numbers show in (ties go to the first), so one
+price typed as `$9,000` among `$2.50`s doesn't turn every total into
+whole dollars. A group's label shows in the format of its first cell. An
+error in a summed column shows as that error, as SUM would.
 
 The results are live: any change to the data, typed, pasted, filled or
 computed by a formula, recomputes the pivot, and rows or columns inserted

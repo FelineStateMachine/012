@@ -1,6 +1,8 @@
 package themepicker
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -112,5 +114,61 @@ func TestSearchPreviewsTheBestMatch(t *testing.T) {
 	}
 	if index(selected(p)) < 0 || h.last() != selected(p) {
 		t.Errorf("searching %q selected %q, drew %v", target, selected(p), h.previews)
+	}
+}
+
+// search types s into the picker.
+func search(p *Picker, s string) {
+	for _, r := range s {
+		press(p, typed(string(r)))
+	}
+}
+
+// shownNames are the titles the picker lists.
+func shownNames(p *Picker) []string {
+	var out []string
+	for _, m := range p.Shown() {
+		out = append(out, m.Item.Title)
+	}
+	return out
+}
+
+func TestDarkOrLightFiltersByKind(t *testing.T) {
+	dark := map[string]bool{}
+	for _, e := range entries() {
+		dark[e.Name] = e.Dark
+	}
+	for _, q := range []string{"light", "Dark", "light sol", "dark cat"} {
+		p := New(newHost(name(0)))
+		search(p, q)
+		want := strings.EqualFold(q[:4], "dark")
+		got := shownNames(p)
+		if len(got) == 0 {
+			t.Errorf("%q lists nothing", q)
+		}
+		for _, n := range got {
+			if n == theme.Terminal || dark[n] != want {
+				t.Errorf("%q lists %q (dark %v)", q, n, dark[n])
+			}
+		}
+	}
+	p := New(newHost(name(0)))
+	search(p, "light")
+	if slices.Contains(shownNames(p), "Bright Lights") {
+		t.Error(`"light" lists the dark "Bright Lights"`)
+	}
+	if n := len(shownNames(p)); n >= len(entries())/2 {
+		t.Errorf(`"light" lists %d of %d themes`, n, len(entries()))
+	}
+	p = New(newHost(name(0)))
+	search(p, "light sol")
+	if !strings.Contains(selected(p), "Solarized Light") {
+		t.Errorf(`"light sol" selected %q`, selected(p))
+	}
+	// Other searches still match names fuzzily, whatever their kind.
+	p = New(newHost(name(0)))
+	search(p, "brightli")
+	if selected(p) != "Bright Lights" {
+		t.Errorf(`"brightli" selected %q`, selected(p))
 	}
 }
