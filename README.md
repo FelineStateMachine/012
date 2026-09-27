@@ -9,6 +9,8 @@ select, and Sheets' shortcuts do what you expect. Around the grid, the
 control panel, the mode indicator and the character grid keep 1-2-3's look.
 It is one pure-Go binary.
 
+![Typing a small budget, pointing at cells in a formula, and watching totals recalculate](docs/media/first-steps.gif)
+
 ## Install
 
 ```sh
@@ -53,6 +55,21 @@ searches every command.
 - **Made for terminals.** Mouse with hover and resize handles, hyperlinks,
   light and dark themes that follow the terminal, desktop notifications,
   menus and a command palette styled like terminal software, not a GUI.
+
+## Demos
+
+| | |
+|---|---|
+| ![Menus and the command palette](docs/media/menus-palette.gif) | ![Inserting a chart that follows its data](docs/media/charts.gif) |
+| Menus and the command palette (Ctrl+K) | Charts that float over the grid and follow their data |
+| ![Freezing, sorting and filtering](docs/media/freeze-sort-filter.gif) | ![Find and replace](docs/media/find-replace.gif) |
+| Freeze, sort and filter | Find and replace |
+| ![JEV functions classifying reviews](docs/media/jev.gif) | ![Currency formats and totals](docs/media/formats-budget.png) |
+| JEV functions in formulas | Formats detected as you type |
+
+The recordings are [VHS](https://github.com/charmbracelet/vhs) tapes in
+[`demos/`](demos); `make demos` renders them. Charts show as text here; in
+kitty, Ghostty and WezTerm they are real images.
 
 ## Documentation
 
