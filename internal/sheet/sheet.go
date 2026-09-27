@@ -236,12 +236,8 @@ func (s *Sheet) Set(a Addr, input string) error {
 // put stores an entry without recalculating, keeping the cell's
 // formatting.
 func (s *Sheet) put(a Addr, input string) error {
-	var f Format
-	var st Style
-	var note string
-	if old := s.cells.get(a); old != nil {
-		f, st, note = old.Format, old.Style, old.Note
-	}
+	f, st, _ := s.cells.look(a)
+	note := s.Note(a)
 	if f.IsZero() && !st.own && s.inherited(a).Format.Kind == FmtText {
 		f = Format{Kind: FmtText} // typed into a plain text column: text
 	}
@@ -380,7 +376,8 @@ func (s *Sheet) EraseRange(r Rect) {
 	s.change("clear "+r.String(), r, func() {
 		for _, a := range s.cellsIn(r) {
 			if s.cells.filledAt(a) {
-				s.place(a, s.cells.get(a).leftover())
+				f, st, _ := s.cells.look(a)
+				s.place(a, formattingOnly(f, st).withNote(s.Note(a)))
 			}
 		}
 	})

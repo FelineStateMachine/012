@@ -73,7 +73,7 @@ func (w *Workbook) deletedSize(st *step) int64 {
 	var n int64
 	for _, s := range st.sheets.order {
 		if !slices.Contains(w.sheets, s) {
-			n += int64(s.Len()) * (entryBytes + cellBytes)
+			n += s.cells.size()
 		}
 	}
 	return n

@@ -244,6 +244,27 @@ func (st *cellStore) releaseSlot(sl slot) {
 	}
 }
 
+// Estimated heap of the store's parts, for the undo history's budget
+// (historysize.go): a slot with its share of the blocks and indexes, as
+// BenchmarkMemory measures it, and a string's entry in the table.
+const (
+	slotBytes = 20
+	strBytes  = 64
+)
+
+// size estimates the heap the cells hold: a slot each, and the rich
+// cells and strings on top.
+func (st *cellStore) size() int64 {
+	n := int64(st.len()) * slotBytes
+	for _, rc := range st.rich {
+		n += cellSize(rc.c)
+	}
+	for _, s := range st.strs.strs {
+		n += strBytes + int64(len(s))
+	}
+	return n
+}
+
 // richCell is a rich cell and where it is.
 type richCell struct {
 	c *Cell
