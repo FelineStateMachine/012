@@ -411,6 +411,7 @@ func excelizeStyleOf(x *excelize.File, id int, cache map[int]xlsxStyle) xlsxStyl
 			case "right":
 				out.style.Align = sheet.AlignRight
 			}
+			out.style.VAlign = excelVAligns[al.Vertical]
 		}
 	}
 	cache[id] = out
