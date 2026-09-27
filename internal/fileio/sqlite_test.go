@@ -116,6 +116,34 @@ func TestSQLiteImport(t *testing.T) {
 	}
 }
 
+// TestSQLitePastLimit keeps the rows that fit and says how many didn't,
+// for a table (counted, not read) and for a query (read to the end).
+func TestSQLitePastLimit(t *testing.T) {
+	name := filepath.Join(t.TempDir(), "nums.sqlite")
+	db, err := sql.Open("sqlite", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE nums AS WITH RECURSIVE c(n) AS
+		(SELECT 1 UNION ALL SELECT n+1 FROM c WHERE n < 8195) SELECT n FROM c`)
+	db.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, opt := range []Options{{Table: "nums"}, {Query: "SELECT n FROM nums"}} {
+		res, err := Import(context.Background(), name, opt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g := shown(res.Sheet, sheet.Addr{Row: sheet.MaxRows - 1}); g != "8191" {
+			t.Errorf("%+v: last row shows %q, want 8191", opt, g)
+		}
+		if res.Rows != 8196 || len(res.Notes) != 1 || res.Notes[0] != "only the first 8,192 rows fit; 4 rows left out" {
+			t.Errorf("%+v: rows %d, notes %q", opt, res.Rows, res.Notes)
+		}
+	}
+}
+
 func TestSQLiteExportRoundTrip(t *testing.T) {
 	src := build(t, map[string]string{
 		"A1": "Item", "B1": "Qty", "C1": "Price", "D1": "Due", "E1": "", "F1": "Item",

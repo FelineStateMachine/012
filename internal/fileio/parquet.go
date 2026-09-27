@@ -24,7 +24,8 @@ type parquetColumn struct {
 
 // importParquet reads every leaf column, named by its path, into a
 // sheet with a header row. Repeated values in a row are joined with
-// commas.
+// commas. Rows past the sheet's last are counted from the file's
+// metadata, not read.
 func importParquet(ctx context.Context, name string, prog *Progress) (*Result, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -40,10 +41,36 @@ func importParquet(ctx context.Context, name string, prog *Progress) (*Result, e
 	if err != nil {
 		return nil, err
 	}
-	schema := pf.Schema()
+	b := newBuilder()
+	r := &parquetReader{
+		b: b, cols: parquetHeader(b, pf.Schema()), prog: prog,
+		row: 1, total: pf.NumRows(), buf: make([]parquet.Row, 256),
+	}
+	for _, rg := range pf.RowGroups() {
+		if r.row >= sheet.MaxRows {
+			break
+		}
+		if err := r.group(ctx, rg); err != nil {
+			return nil, err
+		}
+	}
+	// The rows left out, as far as the file says there are.
+	r.row = max(r.row, int(r.total)+1)
+	b.fits(sheet.Addr{Row: r.row - 1})
+	prog.setRows(r.row)
+	var notes []string
+	if r.lists > 0 {
+		notes = append(notes, "repeated values joined with commas")
+	}
+	s, notes := b.finish(notes)
+	return &Result{Sheet: s, Rows: r.row, Notes: notes}, nil
+}
+
+// parquetHeader writes the columns' paths as a bold header row and
+// returns how each column's values become cells.
+func parquetHeader(b *builder, schema *parquet.Schema) []parquetColumn {
 	paths := schema.Columns()
 	cols := make([]parquetColumn, len(paths))
-	b := newBuilder()
 	header := sheet.Style{Bold: true}
 	for i, path := range paths {
 		b.text(sheet.Addr{Col: i}, strings.Join(path, "."), sheet.Format{}, header)
@@ -55,46 +82,49 @@ func importParquet(ctx context.Context, name string, prog *Progress) (*Result, e
 			}
 		}
 	}
+	return cols
+}
 
-	total := pf.NumRows()
-	row := 1
-	buf := make([]parquet.Row, 256)
-	lists := 0
-	for _, rg := range pf.RowGroups() {
-		rows := rg.Rows()
-		for {
-			if err := ctx.Err(); err != nil {
-				rows.Close()
-				return nil, err
-			}
-			n, err := rows.ReadRows(buf)
-			for _, r := range buf[:n] {
-				if putParquetRow(b, row, r, cols) {
-					lists++
-				}
-				row++
-			}
-			prog.setRows(row)
-			prog.setFrac(int64(row-1), total)
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if err != nil {
-				rows.Close()
-				return nil, err
-			}
-			if n == 0 {
-				break
-			}
+// parquetReader holds the state of one import.
+type parquetReader struct {
+	b     *builder
+	cols  []parquetColumn
+	prog  *Progress
+	row   int   // the sheet row of the next file row
+	total int64 // rows in the file
+	lists int   // rows with repeated values
+	buf   []parquet.Row
+}
+
+// group reads a row group, a batch at a time, until it ends or the
+// sheet is full.
+func (r *parquetReader) group(ctx context.Context, rg parquet.RowGroup) error {
+	rows := rg.Rows()
+	defer rows.Close()
+	for r.row < sheet.MaxRows {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-		rows.Close()
+		n, err := rows.ReadRows(r.buf)
+		for _, row := range r.buf[:n] {
+			if putParquetRow(r.b, r.row, row, r.cols) {
+				r.lists++
+			}
+			r.row++
+		}
+		r.prog.setRows(r.row)
+		r.prog.setFrac(int64(r.row-1), r.total)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return nil
+		}
 	}
-	var notes []string
-	if lists > 0 {
-		notes = append(notes, "repeated values joined with commas")
-	}
-	s, notes := b.finish(notes)
-	return &Result{Sheet: s, Rows: row, Notes: notes}, nil
+	return nil
 }
 
 // putParquetRow stores one row, reporting whether a column repeated.

@@ -107,25 +107,9 @@ func importSQLite(ctx context.Context, name string, opt Options) (*Result, error
 		return nil, err
 	}
 	defer db.Close()
-	query, total := opt.Query, 0
-	if query == "" {
-		table := opt.Table
-		if table == "" {
-			ts, err := tables(ctx, db)
-			switch {
-			case err != nil:
-				return nil, err
-			case len(ts) == 0:
-				return nil, errors.New("the database has no tables")
-			case len(ts) > 1:
-				return nil, &ErrNeedTable{Tables: ts}
-			}
-			table = ts[0].Name
-		}
-		query = "SELECT * FROM " + quoteIdent(table)
-		if err := db.QueryRowContext(ctx, "SELECT count(*) FROM "+quoteIdent(table)).Scan(&total); err != nil {
-			return nil, sqliteErr(err)
-		}
+	query, total, err := sqliteQuery(ctx, db, opt)
+	if err != nil {
+		return nil, err
 	}
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -142,27 +126,72 @@ func importSQLite(ctx context.Context, name string, opt Options) (*Result, error
 	for c, name := range cols {
 		b.text(sheet.Addr{Col: c}, name, sheet.Format{}, header)
 	}
-	vals := make([]any, len(cols))
-	ptrs := make([]any, len(cols))
+	row, blobs, err := readSQLiteRows(ctx, rows, b, len(cols), total, opt.Progress)
+	if err != nil {
+		return nil, err
+	}
+	var notes []string
+	if blobs > 0 {
+		notes = append(notes, count(blobs, "binary value", "binary values")+" shown as sizes")
+	}
+	s, notes := b.finish(notes)
+	return &Result{Sheet: s, Rows: row, Notes: notes}, nil
+}
+
+// sqliteQuery is the query an import runs: the options' own, or all of
+// the table they name, or of the only table, with its row count; the
+// count is -1 for a query.
+func sqliteQuery(ctx context.Context, db *sql.DB, opt Options) (string, int, error) {
+	if opt.Query != "" {
+		return opt.Query, -1, nil
+	}
+	table := opt.Table
+	if table == "" {
+		ts, err := tables(ctx, db)
+		switch {
+		case err != nil:
+			return "", 0, err
+		case len(ts) == 0:
+			return "", 0, errors.New("the database has no tables")
+		case len(ts) > 1:
+			return "", 0, &ErrNeedTable{Tables: ts}
+		}
+		table = ts[0].Name
+	}
+	total := 0
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM "+quoteIdent(table)).Scan(&total); err != nil {
+		return "", 0, sqliteErr(err)
+	}
+	return "SELECT * FROM " + quoteIdent(table), total, nil
+}
+
+// readSQLiteRows stores the rows below the header and returns the rows
+// read, counting the header, and how many values were binary. With a
+// known total, rows past the sheet's last are counted, not read.
+func readSQLiteRows(ctx context.Context, rows *sql.Rows, b *builder, ncols, total int, prog *Progress) (row, blobs int, err error) {
+	vals := make([]any, ncols)
+	ptrs := make([]any, ncols)
 	for i := range vals {
 		ptrs[i] = &vals[i]
 	}
-	row, blobs := 1, 0
-	for ; rows.Next(); row++ {
+	for row = 1; rows.Next(); row++ {
 		if row%256 == 0 {
 			if err := ctx.Err(); err != nil {
-				return nil, err
+				return 0, 0, err
 			}
-			prog := opt.Progress
 			prog.setRows(row)
 			prog.setFrac(int64(row), int64(total))
 		}
-		if err := rows.Scan(ptrs...); err != nil {
-			return nil, sqliteErr(err)
-		}
 		if row >= sheet.MaxRows {
+			if total >= 0 {
+				row = max(row, total+1)
+				break
+			}
 			b.fits(sheet.Addr{Row: row})
 			continue
+		}
+		if err := rows.Scan(ptrs...); err != nil {
+			return 0, 0, sqliteErr(err)
 		}
 		for c, v := range vals {
 			if putValue(b, sheet.Addr{Col: c, Row: row}, v) {
@@ -171,15 +200,11 @@ func importSQLite(ctx context.Context, name string, opt Options) (*Result, error
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, sqliteErr(err)
+		return 0, 0, sqliteErr(err)
 	}
-	opt.Progress.setRows(row)
-	var notes []string
-	if blobs > 0 {
-		notes = append(notes, count(blobs, "binary value", "binary values")+" shown as sizes")
-	}
-	s, notes := b.finish(notes)
-	return &Result{Sheet: s, Rows: row, Notes: notes}, nil
+	b.fits(sheet.Addr{Row: row - 1})
+	prog.setRows(row)
+	return row, blobs, nil
 }
 
 // putValue stores a database value, reporting whether it was binary data
