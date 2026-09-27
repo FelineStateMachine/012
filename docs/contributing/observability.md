@@ -407,8 +407,13 @@ The `012 runtime` dashboard shows recalculation time (p50, p95, max),
 frame and key-to-frame p95 per second, heap and cells, JEV answer time
 and queue, imports and exports with throughput, the slowest operations,
 and events per minute (all from the logs, so either way in works), and
-from OTLP the key-to-frame latency summary and the slowest spans with
-their trace ids. `012 stress runs` shows edit latency per
+from OTLP the key-to-frame latency summary, the slowest spans, the
+recent traces with nested spans (root span, command id, span count and
+which spans nest in it), and a trace view: the spans of one trace as a
+tree on a timeline, in Grafana's trace panel (the ClickHouse plugin's
+trace format). A trace id in either table links to it, through the
+dashboard's Trace id box; with the box empty the view shows the latest
+trace with nested spans. `012 stress runs` shows edit latency per
 topology, frame and keystroke times, full recalc and file operations,
 memory per cell (log scales where the spread is wide), the latest run
 against the previous one, and the runs.

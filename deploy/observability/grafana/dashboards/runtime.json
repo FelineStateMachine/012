@@ -409,7 +409,7 @@
       "id": 9,
       "type": "table",
       "title": "Slowest spans (OTLP traces)",
-      "description": "The slowest spans 012 sent over OTLP; each is the root of its own trace, and the log record of the same event carries its TraceId",
+      "description": "The slowest spans 012 sent over OTLP, roots and nested ones; a trace id opens that trace in the trace view below",
       "datasource": {
         "type": "grafana-clickhouse-datasource",
         "uid": "clickhouse"
@@ -435,15 +435,129 @@
       ],
       "fieldConfig": {
         "defaults": {},
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "trace"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show this trace",
+                    "url": "/d/o12-runtime/012-runtime?var-trace=${__value.raw}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "showHeader": true
       }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Recent traces with nested spans",
+      "description": "Traces of more than one span, newest first: the root span, its command id, how many spans it holds, which spans nest in it and how long the root took. A trace id opens it in the trace view below",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "refId": "A",
+          "rawSql": "SELECT min(Timestamp) AS time, anyIf(SpanName, ParentSpanId = '') AS root, anyIf(SpanAttributes['id'], ParentSpanId = '') AS command, count() AS spans, arrayStringConcat(arraySort(groupUniqArrayIf(SpanName, ParentSpanId != '')), ', ') AS nested, round(maxIf(Duration, ParentSpanId = '') / 1e6, 2) AS ms, countIf(StatusCode = 'Error') AS errors, TraceId AS trace FROM otel.otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName = '012' GROUP BY TraceId HAVING spans > 1 ORDER BY time DESC LIMIT 100"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "trace"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show this trace",
+                    "url": "/d/o12-runtime/012-runtime?var-trace=${__value.raw}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "id": 11,
+      "type": "traces",
+      "title": "Trace ${trace}",
+      "description": "The spans of one trace as a tree with their timing: the trace id in the Trace id box at the top, or the latest trace with nested spans when it is empty",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 24,
+        "h": 14
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 3,
+          "queryType": "traces",
+          "refId": "A",
+          "rawSql": "SELECT TraceId AS traceID, SpanId AS spanID, ParentSpanId AS parentSpanID, ServiceName AS serviceName, SpanName AS operationName, multiply(toUnixTimestamp64Nano(Timestamp), 0.000001) AS startTime, multiply(Duration, 0.000001) AS duration, arrayMap(key -> map('key', key, 'value', SpanAttributes[key]), mapKeys(SpanAttributes)) AS tags, arrayMap(key -> map('key', key, 'value', ResourceAttributes[key]), mapKeys(ResourceAttributes)) AS serviceTags, if(StatusCode IN ('Error', 'STATUS_CODE_ERROR'), 2, 0) AS statusCode FROM otel.otel_traces WHERE ServiceName = '012' AND TraceId = if('${trace}' != '', '${trace}', (SELECT TraceId FROM otel.otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName = '012' AND ParentSpanId != '' ORDER BY Timestamp DESC LIMIT 1)) ORDER BY Timestamp LIMIT 1000"
+        }
+      ],
+      "options": {}
     }
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "trace",
+        "label": "Trace id",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "description": "The trace the trace view shows; empty shows the latest trace with nested spans"
+      }
+    ]
   },
   "annotations": {
     "list": []
