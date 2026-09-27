@@ -191,6 +191,9 @@ func (m *Model) runCommand(id string) tea.Cmd {
 	if m.askCommand(c) {
 		return nil
 	}
+	if c.edits != nil && m.askUndoCost(c.edits(m), func(m *Model) tea.Cmd { return m.runCommand(c.id) }) {
+		return nil
+	}
 	if m.rec != nil {
 		return m.recordingCommand(c) // macrorec.go
 	}

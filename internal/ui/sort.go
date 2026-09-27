@@ -65,7 +65,8 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 	if m.refuseEdit(r, false) {
 		return nil
 	}
-	if m.askProtected(r, func(m *Model) tea.Cmd { return m.sort(r, keys) }) {
+	retry := func(m *Model) tea.Cmd { return m.sort(r, keys) }
+	if m.askProtected(r, retry) || m.askUndoCost(r, retry) {
 		return nil
 	}
 	span := m.spans.Start("sort", slog.Int("rows", r.To.Row-r.From.Row+1), slog.Int("cols", r.To.Col-r.From.Col+1), slog.Int("keys", len(keys)))

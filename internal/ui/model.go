@@ -85,6 +85,7 @@ type Model struct {
 
 	mode      mode
 	protectOK bool   // an edit to a protected range was agreed to: protect.go
+	undoOK    bool   // a change too large to undo was agreed to: undocost.go
 	note      string // feedback on the last action, e.g. "Undid: clear B3"
 	warn      string // like note, for something that went wrong, e.g. a macro's error
 	errMsg    string // the message ERROR mode shows
