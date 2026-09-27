@@ -163,10 +163,17 @@ func (m *Model) syncImages() tea.Cmd {
 		w, h := chartInner(c)
 		d := m.sheet.ChartData(c)
 		key := fmt.Sprintf("%v %v %d %d %v %v", c.Type, d, w, h, o, pal)
-		if m.term.sent[id] == key {
+		prev, resent := m.term.sent[id]
+		if prev == key {
 			continue
 		}
 		m.term.sent[id] = key
+		if resent {
+			// Free the old image and its placement first: Ghostty keeps
+			// every virtual placement of an id and sizes the image by the
+			// oldest, so a chart that grew would draw at its old size.
+			out.WriteString(chart.Delete(id, m.term.wrap))
+		}
 		span := telemetry.Start("chart.image", slog.String("type", c.Type.String()), slog.Int("w", w), slog.Int("h", h))
 		g := chart.Draw(c.Type, d, w, h, o)
 		img := chart.Image(c.Type, d, w, h, o, pal)

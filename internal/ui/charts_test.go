@@ -217,6 +217,12 @@ func TestChartImages(t *testing.T) {
 	if len(raw) != 1 {
 		t.Errorf("changed chart not sent")
 	}
+	// The old image and its placement are freed before the new one is
+	// sent, so the terminal sizes it by the new placement, not the first.
+	del, send := strings.Index(raw[0], "a=d,d=I,i=16"), strings.Index(raw[0], "a=T,")
+	if del < 0 || send < del {
+		t.Errorf("resent image doesn't free the old placement first: %q", raw[0][:min(len(raw[0]), 80)])
+	}
 	// Deleting the chart frees its image.
 	raw = nil
 	m.sheet.DeleteChart(0)
