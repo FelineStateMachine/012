@@ -36,6 +36,10 @@ func (m *Model) View() tea.View {
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go
 	v.WindowTitle = "012 - " + m.displayName()
+	if m.jevBusy() != "" {
+		// Terminals that support it (OSC 9;4) show activity in the tab.
+		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarIndeterminate, 0)
+	}
 	if m.changed {
 		v.WindowTitle += " (modified)"
 	}
@@ -108,7 +112,9 @@ func (m *Model) contextLineText() string {
 	case m.hint != "":
 		left = m.th.warning.Render(m.hint)
 	case m.mode == modeReady:
-		left = m.readyLine()
+		if left = m.readyLine(); left == "" {
+			left = m.jevLine()
+		}
 	case m.mode == modeMenu:
 		switch o := m.overlay.(type) {
 		case *choiceBar:
@@ -210,6 +216,9 @@ func (m *Model) statusLine() string {
 	}
 	if m.sheet.Circular {
 		left += "  " + m.th.warning.Render("Circular reference")
+	}
+	if busy := m.jevBusy(); busy != "" {
+		left += "  " + m.th.hint.Render(busy)
 	}
 	var right string
 	if m.hasRange() && m.mode == modeReady {

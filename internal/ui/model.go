@@ -91,8 +91,9 @@ type Model struct {
 	pointPrefix string  // entry text before the reference being pointed at
 	pointSuffix string  // entry text after the caret while pointing
 
-	overlay  overlay  // open menu, palette or dialog, if any (modeMenu)
-	lastFind *findBar // the last search, reopened by Ctrl+F
+	overlay  overlay    // open menu, palette or dialog, if any (modeMenu)
+	lastFind *findBar   // the last search, reopened by Ctrl+F
+	jev      *jevRunner // answers JEV functions; nil without an API key
 	prompt   *prompt
 	files    []string // file list shown by File Open
 	errMsg   string
@@ -108,7 +109,8 @@ func New(s *sheet.Sheet, filename string) *Model {
 // Init implements tea.Model. It asks the terminal for its background color
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn))
+	// sendJEV starts any questions queued while loading the file.
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.sendJEV())
 }
 
 // Update implements tea.Model.
@@ -151,6 +153,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.handleLoaded(msg)
 	case filesMsg:
 		m.files = msg
+	case jevAnswerMsg:
+		m.handleJEVAnswer(msg)
 	}
 	// Scroll only when the focus moves, so the mouse wheel can look around
 	// without the view snapping back, as in Sheets.
@@ -158,7 +162,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if f := *m.focus(); f != before || m.mode != beforeMode {
 		m.scrollTo(f)
 	}
-	return m, cmd
+	// Any edit may have queued JEV questions.
+	return m, tea.Batch(cmd, m.sendJEV())
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state

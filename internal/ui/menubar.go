@@ -68,7 +68,9 @@ var menuBar = []menuDef{
 		{cmd: "format.clear", title: "Clear formatting"},
 	}},
 	// Data: sort, filter and named ranges will go here.
-	{title: "Data", accel: 'd'},
+	{title: "Data", accel: 'd', items: []menuItem{
+		{cmd: "jev.refresh"},
+	}},
 	{title: "Help", accel: 'h', items: []menuItem{
 		{cmd: "palette", title: "Search the menus"}, {cmd: "help"}, {cmd: "help.functions"}, sep,
 		{cmd: "help.about"},

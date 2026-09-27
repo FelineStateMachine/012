@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
 
+	"012/internal/jev"
 	"012/internal/sheet"
 	"012/internal/ui"
 )
@@ -24,6 +26,24 @@ func run(args []string) error {
 	if len(args) > 1 {
 		return errors.New("usage: 012 [file" + sheet.FileExt + "]")
 	}
+	// JEV functions run when an API key is set, in the environment or a
+	// .env file next to the sheet or in the current directory. The cache
+	// goes in before loading so the file's JEV cells queue their questions.
+	var jevClient jev.Client
+	var jevCache *jev.Cache
+	dirs := []string{"."}
+	if len(args) == 1 {
+		dirs = append(dirs, filepath.Dir(args[0]))
+	}
+	if cfg, ok := jev.LoadConfig(dirs...); ok {
+		c, err := jev.NewClient(cfg)
+		if err != nil {
+			return fmt.Errorf("JEV: %w", err)
+		}
+		jevClient, jevCache = c, jev.NewCache()
+		sheet.Remote = jevCache
+	}
+
 	s, name := sheet.New(), ""
 	if len(args) == 1 {
 		name = args[0]
@@ -40,6 +60,10 @@ func run(args []string) error {
 			}
 		}
 	}
-	_, err := tea.NewProgram(ui.New(s, name)).Run()
+	m := ui.New(s, name)
+	if jevClient != nil {
+		m.EnableJEV(jevClient, jevCache)
+	}
+	_, err := tea.NewProgram(m).Run()
 	return err
 }

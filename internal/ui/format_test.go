@@ -18,11 +18,8 @@ func rowCells(m *Model, r, n int) []string {
 	x := rowHdrW
 	for i := range n {
 		w := m.sheet.ColWidth(m.left + i)
-		seg := ""
-		if x < len(l) {
-			seg = l[x:min(x+w, len(l))]
-		}
-		out[i] = strings.TrimSpace(seg)
+		// Cut by display columns: cells may hold multi-byte text.
+		out[i] = strings.TrimSpace(ansi.Cut(l, x, x+w))
 		x += w
 	}
 	return out

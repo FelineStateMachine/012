@@ -94,11 +94,14 @@ func TestVisibleItemsHidesMissingCommands(t *testing.T) {
 	if s := strings.Join(got, ","); s != "Clear,-,Go to" {
 		t.Errorf("visible items %s", s)
 	}
-	// Data has no registered commands yet, so the bar hides it.
+	// Menus only show once they have a registered command; Data's first
+	// is Ask JEV again.
+	found := false
 	for _, bm := range barMenus() {
-		if bm.def.title == "Data" {
-			t.Error("empty Data menu shown")
-		}
+		found = found || bm.def.title == "Data"
+	}
+	if !found {
+		t.Error("Data menu hidden")
 	}
 }
 
