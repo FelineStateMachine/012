@@ -312,9 +312,7 @@ func (m *Model) handleImported(msg importedMsg) tea.Cmd {
 		m.fail(fmt.Sprintf("Couldn't import %s: %v", filepath.Base(msg.name), msg.err))
 		return nil
 	}
-	jev := m.jev
 	m.reset(msg.res.Sheet, "")
-	m.jev = jev
 	m.xfer.source, m.xfer.kind = msg.name, msg.res.Kind
 	what := filepath.Base(msg.name)
 	switch {
@@ -327,7 +325,8 @@ func (m *Model) handleImported(msg importedMsg) tea.Cmd {
 	if len(msg.res.Notes) > 0 {
 		m.note += "; " + strings.Join(msg.res.Notes, "; ")
 	}
-	return nil
+	// A long import may finish while the terminal is in the background.
+	return m.notifyDone("Imported " + what)
 }
 
 // openTablePicker asks which table of a SQLite database to import, or

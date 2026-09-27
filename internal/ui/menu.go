@@ -234,8 +234,11 @@ func (m *Model) fail(msg string) {
 	m.errMsg = msg
 }
 
+// reset starts over on s, as File > New and Open do. What belongs to the
+// session rather than the sheet carries over: the window, theme, terminal
+// state and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
-	*m = Model{sheet: s, filename: filename, width: m.width, height: m.height, th: m.th, term: m.term, lastChart: -1}
+	*m = Model{sheet: s, filename: filename, width: m.width, height: m.height, th: m.th, term: m.term, jev: m.jev, lastChart: -1}
 }
 
 func isDigits(s string) bool {

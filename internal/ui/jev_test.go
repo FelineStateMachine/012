@@ -111,3 +111,13 @@ func TestJEVWithoutKeyExplains(t *testing.T) {
 		t.Error("Ask JEV again is available without a key")
 	}
 }
+
+// Starting a new sheet or opening a file keeps JEV on.
+func TestJEVSurvivesNewSheet(t *testing.T) {
+	m, fake := jevModel(t)
+	run(m, m.runCommand("file.new"))
+	press(t, m, `=JEV.TEST("x", "Is this on?")`, "<enter>")
+	if got := m.sheet.Value(addr("A1")); got.Kind != sheet.Bool || fake.calls != 1 {
+		t.Errorf("after File > New: A1 %+v, %d requests", got, fake.calls)
+	}
+}

@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -290,5 +291,23 @@ func TestImportOnStart(t *testing.T) {
 	run(m, m.Init())
 	if input(m, "A1") != "7" || m.displayName() != "start.csv" {
 		t.Errorf("A1 %q name %q err %q", input(m, "A1"), m.displayName(), m.errMsg)
+	}
+}
+
+// An import that finishes while the terminal is in the background says so
+// with a desktop notification.
+func TestImportNotifiesWhenBlurred(t *testing.T) {
+	m := newModel()
+	send(m, tea.BlurMsg{})
+	m.xfer.job = &importJob{id: 5, name: "big.csv", prog: fileio.NewProgress(), cancel: func() {}}
+	_, cmd := m.Update(importedMsg{id: 5, name: "big.csv", res: &fileio.Result{Sheet: sheet.New(), Rows: 3}})
+	var notified bool
+	for _, msg := range flatten(cmd) {
+		if raw, ok := msg.(tea.RawMsg); ok && strings.Contains(fmt.Sprint(raw.Msg), "012: Imported big.csv") {
+			notified = true
+		}
+	}
+	if !notified {
+		t.Error("no notification for a background import")
 	}
 }
