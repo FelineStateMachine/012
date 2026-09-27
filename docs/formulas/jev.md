@@ -5,6 +5,8 @@ sidebar_position: 7
 
 # JEV functions
 
+![JEV functions classifying reviews, answers arriving in the background](../media/jev.gif)
+
 With a TypeSafe API key, four functions ask the hosted JEV model about a
 value (a cell, a range or text). They follow Sheets' argument style: the
 value, the question, then what the answers mean.
@@ -22,8 +24,6 @@ line shows the confidence for the selected cell. Data > Ask JEV again
 re-asks the selection.
 
 Without a key the functions show `#N/A` and say how to add one.
-`JEV_LIVE_TEST=1 go test ./internal/jev -run TestLive` checks the real
-service.
 
 ## Setup
 
