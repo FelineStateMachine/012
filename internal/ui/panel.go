@@ -94,6 +94,10 @@ func (m *Model) indicator() string {
 		return m.overlay.indicator()
 	case m.mode == modePrompt:
 		return m.prompt.indicator
+	case m.vimActive() && m.visual() != visualNone:
+		return "VISUAL"
+	case m.vimActive():
+		return "NORMAL"
 	}
 	return m.mode.String()
 }
@@ -151,6 +155,8 @@ func (m *Model) contextLineText() string {
 		left = m.fillLine()
 	case m.entry.hint != "":
 		left = m.th.Warning.Render(m.entry.hint)
+	case m.vimActive() && (m.vim.pending() != "" || m.visual() != visualNone):
+		left = m.vimLine()
 	case m.mode == modeReady && m.trace != nil:
 		left, right = m.trace.line(&m.th, m.width, m.sheet)
 	case m.mode == modeReady:
@@ -343,7 +349,10 @@ func (m *Model) statusRights() []string {
 		}
 		return append(out, "")
 	}
-	pairs := []string{shortcut("palette"), "search", shortcut("help"), "shortcuts", shortcut("menu"), "menu"}
+	pairs := []string{m.shortcut("palette"), "search", m.shortcut("help"), "shortcuts", m.shortcut("menu"), "menu"}
+	if m.prefs.vim {
+		pairs = append([]string{":", "command"}, pairs...)
+	}
 	for ; len(pairs) > 0; pairs = pairs[:len(pairs)-2] {
 		out = append(out, m.th.KeyHints(pairs...))
 	}

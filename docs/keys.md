@@ -6,8 +6,6 @@ Alt+letter) and the command palette (Ctrl+K), which shows each command's
 shortcut. F1 or Ctrl+/ lists every binding, generated from the same table
 the app uses, so it never drifts from what the keys do.
 
-Inside the grid, 012 works like Google Sheets.
-
 | Key | Action |
 |---|---|
 | Type | Replace the cell. `=` starts a formula, `'` forces text; `$1,200`, `12%`, `9/26/2026` and `14:30` are numbers that keep their format |
@@ -50,6 +48,66 @@ Inside the grid, 012 works like Google Sheets.
 | Insert > Chart | Chart the selection (or the table around the active cell); the editor bar picks the type with Left/Right, S switches rows and columns, H and L toggle the header row and labels, R changes the range, T the title |
 | Click a chart, then Arrows / Shift+arrows / Del | Move, resize or delete it; drag the chart or its corner with the mouse; Enter edits it |
 | Cmd- or Ctrl-click a URL | Open it: cells holding a URL, and `=HYPERLINK(url, [label])`, are terminal hyperlinks |
+
+## Vim keys
+
+File > Settings > Vim keys (also `:settings.vim` or the palette) turns
+on a vim keymap in the spirit of sc-im and VisiData. It is off by
+default and belongs to you, not the sheet: it isn't saved in `.012`
+files, and File > New and Open keep it. The mode indicator says
+**NORMAL** where it would say READY, **VISUAL** while selecting with
+`v` or `V`, and **COMMAND** on the `:` line; typing into a cell is
+ENTER or EDIT, as always, and Enter, Tab or Esc there return to NORMAL.
+Keys vim doesn't take keep their Sheets meaning (arrows, Del, Ctrl+S,
+Ctrl+C/V, Alt+letter menus, F-keys); Ctrl+D, Ctrl+U and Ctrl+R are
+vim's, so fill down and fill right are in the Edit menu. F1 lists the
+vim keys first, and the menus and palette show them where Sheets' keys
+are taken.
+
+| Keys (NORMAL) | Action |
+|---|---|
+| `h` `j` `k` `l`, arrows | Left, down, up, right |
+| `w` `b` | Jump to the edge of the data, right or left (as Ctrl+arrows) |
+| `gg` `G` | First row, last row with data; with a count, that row (`12G`) |
+| `0` `^` `$` | Column A, the last filled cell of the row |
+| `H` `M` `L` | Top, middle, bottom row on screen |
+| Ctrl+D, Ctrl+U | Half a screen down, up |
+| A count (`5j`, `3dd`, `4x`) | Repeats a move or command, or says how many rows or cells an operator takes |
+| `i` `a`, Enter | Edit the cell, caret at the start or the end |
+| `=` | Start a formula |
+| `o` `O` | Insert a row below or above and start typing in it |
+| `x` | Clear the cell (with a count, that many to the right) |
+| `dd` `yy` | Cut or copy the row (with a count, that many rows); `p` pastes them back |
+| `p` `P` | Paste rows cut or copied with `dd` or `yy` as new rows below or above; other copied cells paste at the active cell |
+| `u`, Ctrl+R | Undo, redo |
+| `v` `V` | Select cells or whole rows (VISUAL); motions stretch the selection |
+| `/`, `n` `N` | Find (Enter stays on the match), next and previous match |
+| `gt` `gT` | Next, previous sheet |
+| `:` | The command line |
+| Esc | Cancel a count or sequence, leave VISUAL, deselect |
+
+In VISUAL mode `d` or `x` deletes the selection (whole rows with `V`,
+the cells' contents with `v`) and keeps a copy to paste, `y` copies it,
+`p` pastes over it, `o` goes to the other corner, and `v`, `V` or Esc go
+back to NORMAL.
+
+The `:` line takes:
+
+| Command | Action |
+|---|---|
+| `:B12`, `:Sheet2!A1`, `:C3:D9`, `:Sales` | Go to a cell, range or named range |
+| `:40` | Go to row 40 |
+| `:w`, `:w name`, `:w out.csv` | Save, Save as, or Download as another format, just as the File menu does |
+| `:q`, `:q!` | Quit (asking about unsaved changes), quit discarding them |
+| `:wq`, `:x` | Save and quit; `:x` saves only if something changed |
+| `:e name`, `:e!` | Open a sheet or import a file; refused with unsaved changes unless `:e!` |
+| `:edit.fill_down`, `:fill down` | Any command, by its ID or title |
+
+Completions for commands appear under the line as you type, drawn from
+the same registry as the menus and palette: Tab puts the highlighted
+one on the line (Tab again for the next, Shift+Tab back), Up and Down
+move, and Enter runs the line, or the highlighted completion when the
+line isn't a command itself (`:fill d` Enter fills down).
 
 ## Mouse
 

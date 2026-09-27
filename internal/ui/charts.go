@@ -139,7 +139,7 @@ func (m *Model) deleteChart(i int) {
 	if _, ok := m.overlay.(*chartSel); ok {
 		m.closeOverlay()
 	}
-	m.note = "Deleted the chart   " + m.th.KeyHints(shortcut("edit.undo"), "undo")
+	m.note = "Deleted the chart   " + m.th.KeyHints(m.shortcut("edit.undo"), "undo")
 }
 
 // displayCharts are the charts as drawn: with the one being dragged at

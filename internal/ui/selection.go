@@ -212,35 +212,42 @@ func isMoveKey(key string) bool {
 
 func (m *Model) openGoto() {
 	m.openText("Go to:", m.cur.String(), func(m *Model, text string) tea.Cmd {
-		text = strings.TrimSpace(text)
-		// A sheet may lead: Sheet2!A1, 'Q3 plan'!B2:C9, or just Sheet2!.
-		target := m.sheet
-		if name, rest := sheet.SplitSheet(text); name != "" {
-			if target = m.book().Lookup(name); target == nil {
-				m.fail("There's no sheet named " + name)
-				return nil
-			}
-			if text = rest; text == "" {
-				m.showSheet(target)
-				return nil
-			}
-		}
-		r, ok := sheet.ParseRange(text)
-		if n, named := m.sheet.LookupName(text); named && !n.Gone() && target == m.sheet {
-			r, ok, target = n.Range, true, n.Sheet
-		}
-		if !ok {
+		if !m.gotoText(strings.TrimSpace(text)) {
 			m.fail("Not a cell, range or named range: " + text)
-			return nil
 		}
-		m.showSheet(target)
-		if r.From == r.To {
-			m.clearSelection()
-			m.cur = r.From
-			return nil
-		}
-		m.selectRect(r)
 		return nil
 	})
 	m.prompt.indicator = "POINT"
+}
+
+// gotoText goes to a cell, range or named range, on any sheet, and
+// reports whether text named one. A sheet may lead: Sheet2!A1,
+// 'Q3 plan'!B2:C9, or just Sheet2!.
+func (m *Model) gotoText(text string) bool {
+	target := m.sheet
+	if name, rest := sheet.SplitSheet(text); name != "" {
+		if target = m.book().Lookup(name); target == nil {
+			m.fail("There's no sheet named " + name)
+			return true
+		}
+		if text = rest; text == "" {
+			m.showSheet(target)
+			return true
+		}
+	}
+	r, ok := sheet.ParseRange(text)
+	if n, named := m.sheet.LookupName(text); named && !n.Gone() && target == m.sheet {
+		r, ok, target = n.Range, true, n.Sheet
+	}
+	if !ok {
+		return false
+	}
+	m.showSheet(target)
+	if r.From == r.To {
+		m.clearSelection()
+		m.cur = r.From
+		return true
+	}
+	m.selectRect(r)
+	return true
 }

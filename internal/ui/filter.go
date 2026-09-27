@@ -51,7 +51,7 @@ func (m *Model) createFilter() tea.Cmd {
 	r := m.dataRange()
 	m.sheet.CreateFilter(r)
 	m.changed = true
-	m.note = "Created a filter on " + r.String() + "   " + m.th.KeyHints(shortcut("data.filter_column"), "filter the active column")
+	m.note = "Created a filter on " + r.String() + "   " + m.th.KeyHints(m.shortcut("data.filter_column"), "filter the active column")
 	return nil
 }
 

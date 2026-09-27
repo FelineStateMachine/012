@@ -102,6 +102,26 @@ func TestPaletteTitleMatchesFirst(t *testing.T) {
 	}
 }
 
+func TestPaletteWordPrefixFirst(t *testing.T) {
+	m := newModel()
+	// "col" starts a word in the column commands; "Command line" only
+	// spells it across two words, so it ranks after them.
+	press(t, m, "<ctrl+k>", "col")
+	shown := openPicker(t, m).shown
+	seenOther := false
+	for _, pm := range shown {
+		prefix := wordPrefix(pm.item.title[:pm.item.name], "col")
+		if !prefix {
+			seenOther = true
+		} else if seenOther {
+			t.Errorf("%q, a word-prefix match, ranked after other matches", pm.item.title)
+		}
+	}
+	if len(shown) == 0 || !wordPrefix(shown[0].item.title, "col") {
+		t.Errorf("first match for col: %+v", shown[0].item.title)
+	}
+}
+
 func TestPaletteNoMatchAndEsc(t *testing.T) {
 	m := newModel()
 	press(t, m, "<ctrl+k>", "zzqx")

@@ -365,6 +365,27 @@ var screens = []screen{
 		s.keys("<alt+shift+k>")
 		s.waitFor("Go to sheet")
 	}},
+	{name: "vim-normal", setup: func(s *session) {
+		budget(s)
+		vimOn(s)
+		s.keys("gg", "2d")
+		s.waitFor("2d")
+	}},
+	{name: "vim-visual", setup: func(s *session) {
+		budget(s)
+		vimOn(s)
+		s.keys("gg", "2j", "v", "2j", "h")
+		s.waitFor("VISUAL")
+		s.waitFor("Sum 2158.4")
+	}},
+	{name: "vim-command", setup: func(s *session) {
+		budget(s)
+		vimOn(s)
+		s.keys(":", "find")
+		s.waitFor("COMMAND")
+		s.waitFor("edit.find")
+		s.keys("<tab>", "<tab>")
+	}},
 	{name: "find-all-sheets", setup: func(s *session) {
 		summary(s)
 		s.keys("<ctrl+f>", "total", "<alt+s>")
@@ -378,7 +399,7 @@ var screens = []screen{
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents", "sheets", "sheets-point", "sheets-menu", "sheets-many"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents", "sheets", "sheets-point", "sheets-menu", "sheets-many", "vim-normal", "vim-visual", "vim-command"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"

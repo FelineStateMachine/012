@@ -63,32 +63,39 @@ func (m *Model) openSave() tea.Cmd {
 	if name == "" {
 		name = m.displayBase() + sheet.FileExt
 	}
-	m.openText("Save as:", name, func(m *Model, text string) tea.Cmd {
-		return m.saveAs(withExt(text), true)
-	})
+	m.openText("Save as:", name, (*Model).saveAsFile)
 	return nil
 }
 
+// saveAsFile saves the sheet under a name typed for Save as or :w.
+func (m *Model) saveAsFile(text string) tea.Cmd {
+	return m.saveAs(withExt(text), true)
+}
+
 func (m *Model) openRetrieve() tea.Cmd {
-	m.openText("Open file:", "", func(m *Model, text string) tea.Cmd {
-		if _, ok := fileio.KindOf(text); ok {
-			return m.confirmImport(text, fileio.Options{})
-		}
-		name := withExt(text)
-		p, ok := m.path("open", name)
-		if !ok {
-			return nil
-		}
-		return loadCmd(name, p)
-	})
+	m.openText("Open file:", "", (*Model).openFile)
 	return listFilesCmd(m.root)
+}
+
+// openFile opens a sheet, or imports a file of another format, named for
+// Open or :e.
+func (m *Model) openFile(text string) tea.Cmd {
+	if _, ok := fileio.KindOf(text); ok {
+		return m.confirmImport(text, fileio.Options{})
+	}
+	name := withExt(text)
+	p, ok := m.path("open", name)
+	if !ok {
+		return nil
+	}
+	return loadCmd(name, p)
 }
 
 // reset starts over on s, as File > New and Open do. What belongs to the
 // session rather than the sheet carries over: the window, theme, terminal
 // state, served directory and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
-	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}}
+	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}, prefs: m.prefs}
 	if m.jev != nil {
 		s.Book().SetRemote(m.jev.cache)
 	}

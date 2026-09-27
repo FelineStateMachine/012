@@ -78,20 +78,28 @@ type helpRow struct {
 // helpRows lists the shortcuts, generated from the keymap and the command
 // registry so help can't drift from behavior. Movement and typing, which
 // aren't commands, come first; then commands grouped by the menu they're
-// in.
-func helpRows() []helpRow {
+// in. With vim keys on, the vim keys come first.
+func helpRows(vim bool) []helpRow {
+	if vim {
+		return append(vimHelpRows(), keyHelpRows(true)...)
+	}
+	return keyHelpRows(false)
+}
+
+// keyHelpRows are the Sheets keys and every command's shortcuts.
+func keyHelpRows(vim bool) []helpRow {
 	listed := map[string]bool{}
 	var rows []helpRow
 	group := func(title string, static []helpRow, ids ...string) {
 		var cmds []helpRow
 		for _, id := range ids {
-			keys := keysFor(id)
+			keys := keysFor(id, vim)
 			if listed[id] || len(keys) == 0 || commands[id] == nil {
 				continue
 			}
 			listed[id] = true
 			for i, k := range keys {
-				keys[i] = theme.KeyLabel(k)
+				keys[i] = keyLabel(k)
 			}
 			cmds = append(cmds, helpRow{keys: keys, action: commands[id].title})
 		}
@@ -169,7 +177,7 @@ func (s *shortcuts) indicator() string { return "HELP" }
 
 // lines renders the rows, as one or two columns, and returns their width.
 func (s *shortcuts) lines(m *Model) ([]string, int) {
-	rows := helpRows()
+	rows := helpRows(m.prefs.vim)
 	keyW, actW := 0, 0
 	for _, r := range rows {
 		keyW = max(keyW, ansi.StringWidth(m.th.Chips(r.keys)))

@@ -34,7 +34,7 @@ var menuBar = []menuDef{
 	{title: "File", accel: 'f', items: []menuItem{
 		{cmd: "file.new"}, {cmd: "file.open"}, {cmd: "file.import"}, sep,
 		{cmd: "file.save"}, {cmd: "file.saveas"}, {title: "Download", items: downloadItems()}, sep,
-		{title: "Settings", items: []menuItem{{cmd: "settings.decimal"}}}, sep,
+		{title: "Settings", items: []menuItem{{cmd: "settings.decimal"}, {cmd: "settings.vim"}}}, sep,
 		{cmd: "quit"},
 	}},
 	{title: "Edit", accel: 'e', items: []menuItem{

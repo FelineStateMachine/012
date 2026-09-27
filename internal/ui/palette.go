@@ -40,7 +40,7 @@ func paletteItems(m *Model) []pickItem {
 		seen[id] = true
 		c := commands[id]
 		items = append(items, pickItem{
-			title: c.title, name: len(c.title), detail: path, key: shortcut(id), desc: c.desc,
+			title: c.title, name: len(c.title), detail: path, key: m.shortcut(id), desc: c.desc,
 			off: !c.available(m), pick: func(m *Model) tea.Cmd { return m.runFromOverlay(id) },
 		})
 	}
@@ -136,20 +136,23 @@ func (p *picker) changed(m *Model) {
 	}
 	// Rank title and path matches together by fuzzy score, so a tight
 	// match like "file" on the File menu beats letters scattered across a
-	// title. Title matches get a small bonus and win ties.
+	// title. Title matches get a small bonus and win ties. Titles with a
+	// word starting with the query ("col" in Column width) come before
+	// the rest, such as "Command line", which only spells it across words.
 	names, hay := make([]string, len(p.items)), make([]string, len(p.items))
 	for i, it := range p.items {
 		names[i], hay[i] = it.title[:it.name], it.haystack()
 	}
 	const titleBonus = 10
 	type ranked struct {
-		pm    pickMatch
-		score int
-		order int
+		pm     pickMatch
+		score  int
+		order  int
+		prefix bool // a word of the title starts with the query
 	}
 	best := map[int]*ranked{}
 	for _, mt := range fuzzy.FindNoSort(q, names) {
-		best[mt.Index] = &ranked{pickMatch{item: &p.items[mt.Index], inTitle: mt.MatchedIndexes}, mt.Score + titleBonus, mt.Index}
+		best[mt.Index] = &ranked{pickMatch{item: &p.items[mt.Index], inTitle: mt.MatchedIndexes}, mt.Score + titleBonus, mt.Index, false}
 	}
 	for _, mt := range fuzzy.FindNoSort(q, hay) {
 		if r, ok := best[mt.Index]; ok && r.score >= mt.Score {
@@ -165,10 +168,19 @@ func (p *picker) changed(m *Model) {
 				pm.inDesc = append(pm.inDesc, i-it.name-2)
 			}
 		}
-		best[mt.Index] = &ranked{pm, mt.Score, mt.Index}
+		best[mt.Index] = &ranked{pm, mt.Score, mt.Index, false}
+	}
+	for i, r := range best {
+		r.prefix = wordPrefix(names[i], q)
 	}
 	all := slices.Collect(maps.Values(best))
 	slices.SortFunc(all, func(a, b *ranked) int {
+		if a.prefix != b.prefix {
+			if a.prefix {
+				return -1
+			}
+			return 1
+		}
 		if c := cmp.Compare(b.score, a.score); c != 0 {
 			return c
 		}
@@ -177,6 +189,17 @@ func (p *picker) changed(m *Model) {
 	for _, r := range all {
 		p.shown = append(p.shown, r.pm)
 	}
+}
+
+// wordPrefix reports whether a word of title starts with q, ignoring case.
+func wordPrefix(title, q string) bool {
+	q = strings.ToLower(q)
+	for w := range strings.FieldsSeq(strings.ToLower(title)) {
+		if strings.HasPrefix(w, q) {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *picker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {

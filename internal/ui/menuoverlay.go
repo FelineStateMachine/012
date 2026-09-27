@@ -366,7 +366,7 @@ func (m *Model) isChecked(id string) bool {
 // (plain when the item is unavailable), › for a submenu, or ✓ for a
 // setting that is on.
 func (it menuItem) key(m *Model, disabled bool) string {
-	k := shortcut(it.cmd)
+	k := m.shortcut(it.cmd)
 	switch {
 	case it.items != nil:
 		return "›"

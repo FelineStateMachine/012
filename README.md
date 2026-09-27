@@ -55,7 +55,9 @@ searches every command.
   and cached ([docs](docs/jev.md)).
 - **Made for terminals.** Mouse with hover and resize handles, hyperlinks,
   light and dark themes that follow the terminal, desktop notifications,
-  menus and a command palette styled like terminal software, not a GUI.
+  menus and a command palette styled like terminal software, not a GUI,
+  and optional vim keys (hjkl, counts, dd/yy/p, visual selection, `:`
+  commands) in File > Settings.
 
 ## Demos
 
