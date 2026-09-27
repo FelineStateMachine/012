@@ -121,7 +121,7 @@ func TestJEVAnswersRecalculateOncePerFrame(t *testing.T) {
 		t.Fatalf("%d questions in flight, want 3", in)
 	}
 	recalcs := 0
-	sheet.OnRecalc = func(sheet.RecalcInfo) { recalcs++ }
+	sheet.OnRecalc = func(any, sheet.RecalcInfo) { recalcs++ }
 	defer func() { sheet.OnRecalc = nil }()
 	var answers []jevAnswerMsg
 	for _, cmd := range cmds {

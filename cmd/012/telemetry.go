@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"time"
 
 	"github.com/FelineStateMachine/012/internal/config"
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -37,7 +38,8 @@ func telemetryFlags(args []string) (telemetry.Config, []string, error) {
 	return telemetryConfig(config.Load(path, os.Getenv, flags)), rest, nil
 }
 
-// startTelemetry opens the log and reports every recalculation to it.
+// startTelemetry opens the log and reports every recalculation and pivot
+// refresh to it, as spans nested in their workbook's trace.
 func startTelemetry(c telemetry.Config) (func() error, error) {
 	if info, ok := debug.ReadBuildInfo(); ok {
 		c.Version = info.Main.Version
@@ -51,15 +53,30 @@ func startTelemetry(c telemetry.Config) (func() error, error) {
 	if err != nil || !telemetry.Enabled() {
 		return stop, err
 	}
-	sheet.OnRecalc = func(i sheet.RecalcInfo) {
+	sheet.OnBegin = func(trace any, op string) {
+		if t, ok := trace.(*telemetry.Trace); ok {
+			t.Begin(op)
+		}
+	}
+	sheet.OnRecalc = func(trace any, i sheet.RecalcInfo) {
 		telemetry.Set("cells", int64(i.Cells))
-		telemetry.Event("recalc", i.Duration,
+		endSpan(trace, "recalc", i.Duration,
 			slog.Bool("full", i.Full), slog.Int("evaluated", i.Evaluated), slog.Int("cells", i.Cells),
 			slog.Int("volatile", i.Volatile), slog.Bool("circular", i.Circular))
 	}
-	sheet.OnPivot = func(i sheet.PivotInfo) {
-		telemetry.Event("pivot", i.Duration,
+	sheet.OnPivot = func(trace any, i sheet.PivotInfo) {
+		endSpan(trace, "pivot", i.Duration,
 			slog.Int("records", i.Records), slog.Int("groups", i.Groups), slog.Int("cells", i.Cells), slog.Bool("failed", i.Failed))
 	}
 	return stop, nil
+}
+
+// endSpan ends the span sheet.OnBegin began in the workbook's trace, or
+// logs the operation as a root span of its own when the workbook has no
+// trace (one read before the UI took it, say).
+func endSpan(trace any, name string, d time.Duration, attrs ...slog.Attr) {
+	if t, ok := trace.(*telemetry.Trace); ok && t.End(attrs...) {
+		return
+	}
+	telemetry.Event(name, d, attrs...)
 }

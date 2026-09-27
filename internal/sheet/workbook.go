@@ -41,6 +41,7 @@ type Workbook struct {
 	Circular bool
 
 	remote RemoteSource // answers JEV functions, see remote.go
+	trace  any          // the owner's telemetry trace, see observe.go
 	// waiting are the formulas that were shown Loading… by question key,
 	// so an answer recalculates only them; evaluating is the formula
 	// being evaluated, which a question is asked for (see remote.go).

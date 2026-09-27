@@ -188,8 +188,8 @@ type PivotInfo struct {
 }
 
 // OnPivot, when set, is called after every pivot recomputation, like
-// OnRecalc.
-var OnPivot func(PivotInfo)
+// OnRecalc (see OnBegin).
+var OnPivot func(trace any, i PivotInfo)
 
 // maxPivotChain bounds pivots reading pivots that are refreshed in turn
 // after one change.
@@ -264,6 +264,9 @@ func (w *Workbook) refreshPivots(sheets []*Sheet) {
 func (w *Workbook) refreshPivot(s *Sheet) []loc {
 	var start time.Time
 	if OnPivot != nil {
+		if OnBegin != nil {
+			OnBegin(w.trace, "pivot")
+		}
 		start = time.Now()
 	}
 	s.pivot.stale = false
@@ -289,7 +292,7 @@ func (w *Workbook) refreshPivot(s *Sheet) []loc {
 		if calc != nil {
 			info.Records, info.Groups = calc.records, calc.groups()
 		}
-		OnPivot(info)
+		OnPivot(w.trace, info)
 	}
 	return changed
 }

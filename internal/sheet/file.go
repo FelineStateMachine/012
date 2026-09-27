@@ -355,8 +355,12 @@ func (s *Sheet) writeObjects(b *bytes.Buffer, indent string) error {
 
 // Read loads a file written by Write, of this or an earlier version, and
 // returns the sheet that was shown when it was saved.
-func Read(r io.Reader) (*Sheet, error) {
-	w, err := ReadBook(r)
+func Read(r io.Reader) (*Sheet, error) { return ReadTraced(r, nil) }
+
+// ReadTraced is Read giving the workbook trace (see SetTrace) before it
+// recalculates, so that recalculation nests in the caller's span.
+func ReadTraced(r io.Reader, trace any) (*Sheet, error) {
+	w, err := readBook(r, trace)
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +369,9 @@ func Read(r io.Reader) (*Sheet, error) {
 
 // ReadBook loads a workbook written by Write, of this or an earlier
 // version.
-func ReadBook(r io.Reader) (*Workbook, error) {
+func ReadBook(r io.Reader) (*Workbook, error) { return readBook(r, nil) }
+
+func readBook(r io.Reader, trace any) (*Workbook, error) {
 	var f fileFormat
 	if err := json.NewDecoder(r).Decode(&f); err != nil {
 		return nil, err
@@ -384,6 +390,7 @@ func ReadBook(r io.Reader) (*Workbook, error) {
 		return nil, fmt.Errorf("the file has no sheets")
 	}
 	w := emptyBook()
+	w.trace = trace
 	for _, body := range bodies {
 		if err := w.checkName(nil, body.Name); err != nil {
 			return nil, fmt.Errorf("sheet %q: %w", body.Name, err)

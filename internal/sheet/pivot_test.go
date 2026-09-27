@@ -484,7 +484,7 @@ func TestPivotDuplicate(t *testing.T) {
 
 func TestPivotTelemetry(t *testing.T) {
 	var got []PivotInfo
-	OnPivot = func(i PivotInfo) { got = append(got, i) }
+	OnPivot = func(_ any, i PivotInfo) { got = append(got, i) }
 	defer func() { OnPivot = nil }()
 	w := sales(t)
 	newPivot(t, w, func(p *Pivot) {
