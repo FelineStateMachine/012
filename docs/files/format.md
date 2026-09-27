@@ -41,26 +41,16 @@ only for their formatting and notes.
 
 ## Reading and writing
 
-012 reads and writes the file as a stream (`internal/sheet/fileread.go`,
-`filescan.go`). Each cell goes into its sheet as its line is read, a
-number typed plainly straight into the 16-byte slot the sheet keeps it
-in, so opening a file takes about the memory of the workbook, however
-large the file; the other fields are small and decoded whole. Saving
-writes the cells in row-major order as it reads them from the sheet,
-straight into the file. Ten million numbers (236 MB of JSON) open in
-1.2 s and save in 0.5 s ([Bounds of support](../contributing/limits.md#sheet-size)).
-
 Any JSON with the same fields reads the same: the order of keys,
 spacing, and the case of field names don't matter. A cell given twice
 takes its last entry, though an invalid earlier one is refused; the
 `version` or the `sheets` list given twice around cells is refused.
 
-There is one format. A binary one that stored the slots themselves
-would open ten million numbers in about 0.3 s at best (storing ten
-million slots alone takes 0.17 s) where the JSON takes 1.2 s: a second
-saved on sheets near `max-cells`, and nothing a smaller sheet would
-notice, for the loss of what the JSON gives, diffs, merges, and a file
-anyone can read and fix.
+012 reads and writes the file as a stream, each cell straight into or
+out of its sheet, so opening a file takes about the memory of the
+workbook however large the file; what that costs, and why there is no
+binary format beside this one, is in
+[Bounds of support](../contributing/limits.md#the-012-file).
 
 ## Versions
 

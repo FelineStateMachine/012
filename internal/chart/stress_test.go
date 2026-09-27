@@ -76,3 +76,22 @@ func BenchmarkImage(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkSixel is a chart's image encoded as sixel, in 256 colors, as
+// it is whenever its data, size or colors change.
+func BenchmarkSixel(b *testing.B) {
+	pal := Palette{Series: [Colors]color.RGBA{{205, 49, 49, 255}, {13, 188, 121, 255}, {36, 114, 200, 255}}, Grid: color.RGBA{128, 128, 128, 80}}
+	d := stressData(12)
+	for _, ct := range stressTypes {
+		for _, sz := range stressSizes {
+			img := Image(ct.t, d, sz.w, sz.h, Options{CellW: 10, CellH: 20}, pal)
+			b.Run(fmt.Sprintf("%s/%dx%d", ct.name, sz.w, sz.h), func(b *testing.B) {
+				n := 0
+				for b.Loop() {
+					n = len(Sixel(img, color.RGBA{0, 0, 0, 255}, 256))
+				}
+				b.ReportMetric(float64(n), "bytes")
+			})
+		}
+	}
+}

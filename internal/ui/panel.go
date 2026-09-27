@@ -49,10 +49,13 @@ func (m *Model) View() tea.View {
 		content = m.compose(content, boxes)
 	}
 	content = m.fillScreen(content)
+	m.term.six.noteFrame(content)
 	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go
 	v.ReportFocus = true                 // notifications only when the window is in the background
+	// Key releases, for keys held to preview: keyboard.go.
+	v.KeyboardEnhancements.ReportEventTypes = true
 	v.WindowTitle = "012 - " + m.displayName()
 	if m.jev.busy() != "" {
 		// Terminals that support it (OSC 9;4) show activity in the tab.

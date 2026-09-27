@@ -18,6 +18,8 @@ import (
 // vim doesn't claim keep their Sheets meaning, so arrows, Ctrl+S, Alt
 // menus and F-keys work as always. Every action but moving and selecting
 // runs a registered command; the bindings are tables in vimkeys.go.
+// Registers are in vimregs.go, marks in vimmarks.go and . in
+// vimrepeat.go.
 
 // vimState is where a vim key sequence has got to.
 type vimState struct {
@@ -26,6 +28,18 @@ type vimState struct {
 	visual visualKind
 	// rows is the clip dd or yy last copied: pasting it inserts rows.
 	rows *sheet.Clip
+	reg  rune // the register named with " for the next operator, 0 for none
+	// typed are the keys of the sequence so far, after any count and
+	// register, kept for . to repeat.
+	typed []tea.Msg
+	regs  map[rune]vimRegister // named, numbered and small-delete registers
+	marks map[rune]mark
+	back  *mark // where the last jump left from, for '' and ``
+	// last is the change . repeats; inserting is one still taking the
+	// keys of the entry it started (i, o, cc).
+	last, inserting *vimChange
+	replaying       bool // . is replaying last
+	clipPaste       bool // "+p asked the terminal for the clipboard
 }
 
 type visualKind int
@@ -42,14 +56,25 @@ const maxCount = 9999
 // n is the count, 1 when none was typed.
 func (v *vimState) n() int { return max(v.count, 1) }
 
-func (v *vimState) reset() { v.count, v.keys = 0, "" }
+func (v *vimState) reset() { v.count, v.keys, v.reg, v.typed = 0, "", 0, nil }
 
-// pending is what's been typed of an unfinished sequence, e.g. "3d".
+// pending is what's been typed of an unfinished sequence, e.g. "3d" or
+// "a2y.
 func (v *vimState) pending() string {
-	if v.count == 0 {
-		return v.keys
+	p := v.keys
+	if v.count > 0 {
+		p = strconv.Itoa(v.count) + p
 	}
-	return strconv.Itoa(v.count) + v.keys
+	if v.reg != 0 {
+		p = `"` + string(v.reg) + p
+	}
+	return p
+}
+
+// argPrefixes are the keys whose next key is a name rather than a
+// command: a register after ", a mark after m, ' and `.
+var argPrefixes = map[string]string{
+	`"`: "register", "m": "set a mark", "'": "go to a mark's row", "`": "go to a mark",
 }
 
 // vimKey names a key press as the vim tables do: the character typed,
@@ -83,12 +108,23 @@ func (m *Model) vimKeyPress(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	if key == "esc" {
 		return m.vimEscape()
 	}
+	if _, ok := argPrefixes[v.keys]; ok {
+		return m.vimArgKey(key), true
+	}
+	if _, ok := argPrefixes[key]; ok && v.keys == "" {
+		v.keys = key
+		return nil, true
+	}
 	if d := digit(key); v.keys == "" && (d > 0 || d == 0 && v.count > 0) {
 		v.count = min(v.count*10+d, maxCount)
 		return nil, true
 	}
+	v.typed = append(v.typed, k)
 	seq := v.keys + key
 	if mv, ok := vimMotions[seq]; ok {
+		if jumpMotions[seq] {
+			m.jumped()
+		}
 		m.vimMove(mv)
 		v.reset()
 		return nil, true
@@ -98,7 +134,7 @@ func (m *Model) vimKeyPress(k tea.KeyPressMsg) (tea.Cmd, bool) {
 		table = vimVisual
 	}
 	if b, ok := table[seq]; ok {
-		cmd := b.run(m, v.n())
+		cmd := m.runBinding(b)
 		v.reset()
 		return cmd, true
 	}
@@ -266,8 +302,15 @@ func (m *Model) vimLine() string {
 // vimNext lists the keys that finish the sequence begun, and what they
 // do, as pairs for KeyHints: after d, "d" and "cut rows".
 func (m *Model) vimNext() []string {
-	if m.vim.keys == "" {
-		return nil // just a count: anything may follow
+	switch m.vim.keys {
+	case "":
+		return nil // just a count or a register: anything may follow
+	case `"`:
+		return []string{"a-z", "named", "0-9", "copies, rows cut", "-", "cells cut", "+", "clipboard"}
+	case "m":
+		return []string{"a-z", "mark the cell"}
+	case "'", "`":
+		return []string{"a-z", argPrefixes[m.vim.keys], m.vim.keys, "back"}
 	}
 	table := vimNormal
 	if m.visual() != visualNone {
@@ -286,8 +329,10 @@ func (m *Model) vimNext() []string {
 	var out []string
 	for _, seq := range seqs {
 		what := "first row"
-		if b, ok := table[seq]; ok {
+		if b, ok := table[seq]; ok && b.id != "" {
 			what = strings.ToLower(commands[b.id].title)
+		} else if ok {
+			what = strings.ToLower(b.label[:1]) + b.label[1:]
 		}
 		out = append(out, seq[len(m.vim.keys):], what)
 	}

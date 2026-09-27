@@ -167,7 +167,7 @@ func decodeBorders(fb *fileBorders) (Borders, error) {
 // its slot, without making a Cell.
 func (st *cellStore) appendSaved(buf []byte, a Addr) ([]byte, bool, error) {
 	b, i := st.find(a)
-	if sl := b.vals[i]; sl.kind != slotRich && sl.look == 0 {
+	if sl := b.vals[i]; sl.kind != slotRich && sl.kind&slotDerived == 0 && sl.look == 0 {
 		return st.appendInput(buf, sl), true, nil
 	}
 	c := st.get(a).saved()

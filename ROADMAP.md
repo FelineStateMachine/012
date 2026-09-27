@@ -18,7 +18,6 @@ Sizes: S (a day or two), M (about a week), L (weeks).
 
 | Item | Why | Size |
 |---|---|---|
-| Open 012's XLSX output in Excel and LibreOffice before releases, as was done for Google Sheets | The writer is otherwise checked by excelize and 012's reader | S |
 | Conditional formatting and validation, what's left: data bars and icon sets, "top 10", "duplicate values", date periods (this week, last month), rules moving with cells cut to another sheet, a dropdown's chip look, and custom checkbox values | Excel's other rule types come in as notes | M |
 | Remaining overlays get narrow hosts: filter picker, sort and choice bars, chart editor, shortcuts, named ranges, cell entry and prompts | Components testable without the model ([Architecture](docs/contributing/architecture.md#the-ui)) | M |
 
@@ -36,7 +35,6 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 
 | Item | Result | Size |
 |---|---|---|
-| Compact spilled and pivot cells: derived cells in the compact slot form instead of whole `Cell`s | Large spills and pivots cost what plain cells cost ([Bounds of support](docs/contributing/limits.md#what-would-raise-the-bounds)) | M |
 | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid | L |
 
 ### 4. Macros, keys and the terminal
@@ -44,9 +42,6 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 | Item | Size |
 |---|---|
 | Record dialog choices (sort bar, filter picker, find and replace, chart editor) and chart drags; let scripts run commands that open dialogs, with answers | M |
-| Vim: `.` repeat, registers, marks, `cc`/`s`, command-line history, `:w!` | M |
-| Hold-to-preview and Shift+Enter on terminals with the kitty keyboard protocol (`View.KeyboardEnhancements`) | S |
-| Sixel chart images, redrawn on resize, for terminals without kitty graphics | M |
 
 ## Later: sharing a live sheet (shelved)
 
@@ -76,9 +71,9 @@ by a gateway dialing the iroh ticket.
 - Dynamic arrays that spill (FILTER, SORT, UNIQUE, SEQUENCE and more, ARRAYFORMULA), LET and LAMBDA, SPLIT and the REGEX functions: [Arrays and spills](docs/formulas/arrays.md)
 - Opt-in decimal arithmetic for money: [Decimal arithmetic](docs/formulas/decimal.md)
 - A locale per file, as Sheets' File > Settings > Locale: decimal commas, date order, currency and `;` in formulas, typed and shown while files store en-US's form: [Locale](docs/sheets/locale.md)
-- An Excel-sized grid with a `max-cells` budget; operations cost the data, not the grid: [Bounds of support](docs/contributing/limits.md#sheet-size)
-- Compact column storage and a ten-million-cell `max-cells` budget: [Bounds of support](docs/contributing/limits.md#sheet-size)
+- An Excel-sized grid in compact column storage, with a ten-million-cell `max-cells` budget; operations cost the data, not the grid: [Bounds of support](docs/contributing/limits.md#sheet-size)
 - Undo steps in the compact form: clearing a full ten-million-cell sheet holds about what the sheet does, and a step past 1 GB asks first: [Bounds of support](docs/contributing/limits.md#undo)
+- Spilled cells and pivot results in the compact form, about 20 B each: [Bounds of support](docs/contributing/limits.md#sheet-size)
 
 **Finding and using features**
 
@@ -86,6 +81,7 @@ by a gateway dialing the iroh ticket.
 - Formula suggestions, argument hints and pointing at cells and sheets: [Building formulas](docs/formulas/building.md)
 - Tracing precedents and dependents, hidden sheets explained: [Building formulas](docs/formulas/building.md)
 - An optional vim keymap with a `:` command line: [Keys and mouse](docs/reference/keys.md#vim-keys)
+- Vim `.` repeat, registers, marks, `cc` and `s`, `:` line history and `:w!`: [Keys and mouse](docs/reference/keys.md#vim-keys)
 
 **Data tools**
 
@@ -105,6 +101,8 @@ by a gateway dialing the iroh ticket.
 - Color schemes and a config file: [Themes](docs/terminal/themes.md), [Configuration](docs/reference/config.md)
 - A high-contrast theme at WCAG AAA, and every state readable without color: [Themes](docs/terminal/themes.md#high-contrast), [UX](docs/contributing/ux.md#reading-without-color)
 - `012 serve` over SSH, with files on the ssh command line and recovery of unsaved work: [Serving over SSH](docs/terminal/ssh.md)
+- Shift+Enter, Ctrl+I and keys held to preview, with the kitty keyboard protocol: [Keys and mouse](docs/reference/keys.md#keys-the-terminal-has-to-tell-apart)
+- Sixel chart images on terminals without kitty graphics, drawn after the frame and redrawn as the screen moves: [Charts](docs/sheets/charts.md)
 
 **Files**
 
@@ -114,6 +112,6 @@ by a gateway dialing the iroh ticket.
 **Upkeep**
 
 - `make check` before every push; demo tapes (`make demos`); annotated version tags with release notes (v0.2.0 onward; v0.1.0 remains on the Go module proxy): [Testing](docs/contributing/testing.md)
-- A release checklist and `make dist`, release archives cross-compiled locally with SHA256SUMS: [Releasing](docs/contributing/releasing.md)
+- A release checklist (XLSX output opened in Excel, LibreOffice and Google Sheets) and `make dist`, release archives cross-compiled locally with SHA256SUMS: [Releasing](docs/contributing/releasing.md)
 - `make stress-report` flags regressions against the last release's run, allowing for noise: [Observability](docs/contributing/observability.md#regressions-against-the-last-release)
 - Grafana: recent traces and a trace view of the nested spans: [Observability](docs/contributing/observability.md#the-stack)

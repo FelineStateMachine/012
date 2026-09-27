@@ -5,6 +5,8 @@ sidebar_position: 10
 
 # Charts
 
+![Inserting a chart from the palette, switching its type, and watching it follow its data](../media/charts.gif)
+
 Insert > Chart charts the selection, or the table around the active cell,
 guessing the header row, the label column and a title. The chart floats over
 the grid, pinned to a cell, and redraws when its data changes.
@@ -34,12 +36,22 @@ chart these options apply along the bottom; on a scatter, to Y.
 
 Click a chart to select it. Drag it to move it, drag its corner to resize it,
 or use the arrows and Shift+arrows; Enter edits it, Del deletes it, and
-right-click offers both. Charts follow inserted and deleted rows and
+right-click offers both. In terminals that say when a key is let go
+([Keys the terminal has to tell apart](../reference/keys.md#keys-the-terminal-has-to-tell-apart)),
+holding Space on a selected chart shows it across the grid until Space
+is let go. Charts follow inserted and deleted rows and
 columns, and save with the sheet.
 
 **Images or text.** At startup 012 asks the terminal whether it supports the
 kitty graphics protocol. Where it does (kitty, Ghostty, WezTerm) the plot is
 a real image, drawn in the terminal's own palette and placed with Unicode
-placeholders, so redraws never erase it. Elsewhere, and usually inside tmux,
-the plot is drawn with block and braille characters. Axis labels, the
-legend and the frame are text either way.
+placeholders, so redraws never erase it. Otherwise, where the terminal
+lists sixel graphics among its device attributes (foot, xterm, mlterm,
+Windows Terminal), the plot is a sixel image in the terminal's palette,
+in as many colors as it has color registers. A sixel image is drawn over
+the finished screen, so it shows only where its whole plot area does: a
+chart scrolled partly out of the grid, or under another chart, a menu or
+a dialog, is text until it shows whole again, and the image is drawn
+again after scrolling, resizing or an edit to its data. Elsewhere, and
+inside tmux, the plot is drawn with block and braille characters. Axis
+labels, the legend and the frame are text either way.

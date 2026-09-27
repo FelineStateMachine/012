@@ -18,10 +18,11 @@ colors that follow light and dark.
 
 | Feature | What for | Where it works |
 |---|---|---|
-| Kitty keyboard protocol | telling apart keys like Ctrl+I and Tab, Shift+Enter | kitty, Ghostty, WezTerm, foot, Alacritty, iTerm2 |
+| Kitty keyboard protocol | telling apart keys like Ctrl+I and Tab, Shift+Enter, and keys held to preview ([Keys](../reference/keys.md#keys-the-terminal-has-to-tell-apart)) | kitty, Ghostty, WezTerm, foot, Alacritty, iTerm2 |
 | Mouse, all motion | hover highlights, drag, resize | most terminals |
 | Pointer shape (OSC 22) | resize and text cursors over the grid | Ghostty, kitty, foot, xterm |
 | Kitty graphics | chart images | kitty, Ghostty, WezTerm |
+| Sixel graphics (DA1 attribute 4, XTSMGRAPHICS) | chart images where kitty graphics aren't, outside tmux: [Charts](../sheets/charts.md) | foot, xterm, mlterm, Windows Terminal |
 | Hyperlinks (OSC 8) | links in cells | most modern terminals |
 | Clipboard (OSC 52) | copying ranges | most terminals; tmux needs `set-clipboard on` |
 | Progress (OSC 9;4) | JEV and import progress in the tab | Ghostty, Windows Terminal, iTerm2 |

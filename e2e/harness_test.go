@@ -59,6 +59,9 @@ type session struct {
 	mev  *ghostty.MouseEvent
 	cols uint16
 	rows uint16
+	// legacy, for options.legacyKeys, hides the keyboard protocol from
+	// the terminal and sends keys as legacy terminals do: keys_test.go.
+	legacy *keyFilter
 
 	exited chan struct{} // closed when the pty reader stops
 }
@@ -79,6 +82,10 @@ type options struct {
 	// images; off by default, so screens show the text charts every
 	// terminal gets.
 	graphics bool
+	// legacyKeys makes the terminal one without the kitty keyboard
+	// protocol or modifyOtherKeys: keys are sent as legacy terminals
+	// send them, and releases never (see keys_test.go).
+	legacyKeys bool
 	// program runs instead of 012, such as an ssh client reaching 012
 	// serve.
 	program string
@@ -156,6 +163,10 @@ func startWith(t *testing.T, o options, args ...string) *session {
 		return ghostty.SizeReportSize{Columns: s.cols, Rows: s.rows, CellWidth: cellW, CellHeight: cellH}, true
 	})
 
+	if o.legacyKeys {
+		s.legacy = &keyFilter{}
+	}
+	legacy := s.legacy
 	go func() {
 		defer close(s.exited)
 		buf := make([]byte, 32*1024)
@@ -163,7 +174,7 @@ func startWith(t *testing.T, o options, args ...string) *session {
 			n, err := s.pty.Read(buf)
 			if n > 0 {
 				s.mu.Lock()
-				s.vt.Write(buf[:n])
+				s.vt.Write(legacy.filter(buf[:n]))
 				s.raw = append(s.raw, buf[:n]...)
 				s.mu.Unlock()
 			}
@@ -323,9 +334,19 @@ func (s *session) typeText(text string) {
 }
 
 func (s *session) press(key ghostty.Key, mods ghostty.Mods, text string, unshifted rune) {
+	s.keyEvent(ghostty.KeyActionPress, key, mods, text, unshifted)
+}
+
+// keyEvent sends a press, repeat or release of key, encoded for the
+// modes the program turned on.
+func (s *session) keyEvent(action ghostty.KeyAction, key ghostty.Key, mods ghostty.Mods, text string, unshifted rune) {
+	if data, ok := legacyBytes(action, key, mods, unshifted); ok && s.legacy != nil {
+		s.write(data)
+		return
+	}
 	s.mu.Lock()
 	s.enc.SetOptFromTerminal(s.vt)
-	s.ev.SetAction(ghostty.KeyActionPress)
+	s.ev.SetAction(action)
 	s.ev.SetKey(key)
 	s.ev.SetMods(mods)
 	// Shift that produced the text is consumed by the layout, as a real
@@ -342,6 +363,11 @@ func (s *session) press(key ghostty.Key, mods ghostty.Mods, text string, unshift
 	if err != nil {
 		s.t.Fatalf("encoding key %v: %v", key, err)
 	}
+	s.write(data)
+}
+
+// write sends a key's bytes.
+func (s *session) write(data []byte) {
 	if _, err := s.pty.Write(data); err != nil {
 		s.t.Fatal(err)
 	}
@@ -432,51 +458,6 @@ func (s *session) activeScreen() ghostty.TerminalScreen {
 	scr, _ := s.vt.ActiveScreen()
 	return scr
 }
-
-var namedKeys = map[string]ghostty.Key{
-	"enter": ghostty.KeyEnter, "esc": ghostty.KeyEscape, "backspace": ghostty.KeyBackspace,
-	"tab": ghostty.KeyTab, "delete": ghostty.KeyDelete, "home": ghostty.KeyHome, "end": ghostty.KeyEnd,
-	"up": ghostty.KeyArrowUp, "down": ghostty.KeyArrowDown,
-	"left": ghostty.KeyArrowLeft, "right": ghostty.KeyArrowRight,
-	"pgup": ghostty.KeyPageUp, "pgdown": ghostty.KeyPageDown,
-	"f1": ghostty.KeyF1, "f2": ghostty.KeyF2, "f5": ghostty.KeyF5, "f10": ghostty.KeyF10, "f11": ghostty.KeyF11,
-	"space": ghostty.KeySpace,
-}
-
-type physKey struct {
-	key  ghostty.Key
-	mods ghostty.Mods
-	base rune // unshifted character, for shifted symbols
-}
-
-// charKeys maps typed characters to physical keys on a US layout.
-var charKeys = func() map[rune]physKey {
-	m := map[rune]physKey{' ': {key: ghostty.KeySpace}}
-	for i := range 26 {
-		k := ghostty.KeyA + ghostty.Key(i)
-		m[rune('a'+i)] = physKey{key: k}
-		m[rune('A'+i)] = physKey{key: k, mods: ghostty.ModShift, base: rune('a' + i)}
-	}
-	digits := ")!@#$%^&*("
-	for i := range 10 {
-		k := ghostty.KeyDigit0 + ghostty.Key(i)
-		m[rune('0'+i)] = physKey{key: k}
-		m[rune(digits[i])] = physKey{key: k, mods: ghostty.ModShift, base: rune('0' + i)}
-	}
-	for _, p := range []struct {
-		plain, shifted rune
-		key            ghostty.Key
-	}{
-		{'-', '_', ghostty.KeyMinus}, {'=', '+', ghostty.KeyEqual},
-		{',', '<', ghostty.KeyComma}, {'.', '>', ghostty.KeyPeriod},
-		{'/', '?', ghostty.KeySlash}, {';', ':', ghostty.KeySemicolon},
-		{'\'', '"', ghostty.KeyQuote},
-	} {
-		m[p.plain] = physKey{key: p.key}
-		m[p.shifted] = physKey{key: p.key, mods: ghostty.ModShift, base: p.plain}
-	}
-	return m
-}()
 
 // configEnv gives a session its own config directory, with o.config as
 // its config file, and turns off the telemetry, theme and locale variables a

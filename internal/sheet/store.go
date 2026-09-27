@@ -18,9 +18,10 @@ import (
 // occupancy index (occupancy.go) has a bitmap per block of the rows
 // holding a cell, and each block keeps their slots (slot.go) in row
 // order, so a cell is found by indexing a column, a block and a popcount,
-// without hashing. A plain number costs its 16-byte slot. Rich cells
-// (formulas, notes, pivots' and spills' results) are whole Cells in a
-// side table the slot points at.
+// without hashing. A plain number costs its 16-byte slot, and so does a
+// pivot's or a spill's result (a derived cell, marked in its slot). Rich
+// cells (formulas, notes) are whole Cells in a side table the slot
+// points at.
 //
 // get returns a rich cell's own Cell, which recalculation updates in
 // place, as ever, and a plain cell as a Cell made for the caller (a
@@ -47,6 +48,12 @@ type cellStore struct {
 	lookIdx  map[look]uint16 // looks' entries
 	rich     []richCell      // rich cells, by slot.ref
 	richFree []uint32        // entries of rich not in use
+
+	// pivots counts the pivot's results stored (Cell.derived), and
+	// pivotArea holds them all while there are any, so they are found
+	// without visiting every cell.
+	pivots    int
+	pivotArea Rect
 }
 
 func newCellStore() cellStore { return cellStore{} }
@@ -111,8 +118,8 @@ func (st *cellStore) has(a Addr) bool { return st.stored.has(a) }
 // filledAt reports whether the cell at a has contents: !get(a).Blank().
 func (st *cellStore) filledAt(a Addr) bool { return st.filled.has(a) }
 
-// richAt returns the cell at a if it is rich (a formula, a note, a
-// pivot's or a spill's result), or nil.
+// richAt returns the cell at a if it is rich (a formula or a note, or a
+// cell a slot can't hold), or nil.
 func (st *cellStore) richAt(a Addr) *Cell {
 	b, i := st.find(a)
 	if b == nil || b.vals[i].kind != slotRich {
@@ -148,8 +155,14 @@ func (st *cellStore) holds(a Addr, c *Cell) bool {
 	if sl.kind == slotRich {
 		return st.rich[sl.ref].c == c
 	}
-	if l := st.lookOf(sl); c.Note != "" || c.derived || c.spilled || !c.auto.IsZero() || c.Format != l.f || c.Style != l.st {
+	if l := st.lookOf(sl); c.Note != "" || c.auto != l.auto || c.Format != l.f || c.Style != l.st {
 		return false
+	}
+	if c.derived != (sl.kind&slotPivot != 0) || c.spilled != (sl.kind&slotSpill != 0) {
+		return false
+	}
+	if sl.kind&slotDerived != 0 {
+		return c.expr == nil && c.Value == st.slotValue(sl)
 	}
 	switch sl.kind {
 	case slotText:
@@ -201,6 +214,7 @@ func (st *cellStore) set(a Addr, c *Cell) {
 		b.vals = slices.Insert(b.vals, i, slot{kind: slotBlank})
 	}
 	old := b.vals[i]
+	st.countPivot(a, st.isPivot(old), c.derived)
 	sl, ok := st.plainSlot(c) // before releasing old, which may share its strings
 	switch {
 	case ok:
@@ -226,6 +240,7 @@ func (st *cellStore) setSlot(a Addr, sl slot) {
 		i, _ = b.index(a.Row & (blockRows - 1))
 		b.vals = slices.Insert(b.vals, i, slot{kind: slotBlank})
 	}
+	st.countPivot(a, st.isPivot(b.vals[i]), false)
 	st.releaseSlot(b.vals[i])
 	b.vals[i] = sl
 	st.filledAs(a, st.filled.has(a), sl.kind != slotBlank)
@@ -251,6 +266,7 @@ func (st *cellStore) delete(a Addr) {
 	}
 	st.touch(a)
 	old := b.vals[i]
+	st.countPivot(a, st.isPivot(old), false)
 	if st.filled.has(a) {
 		st.filled.unmark(a)
 	}

@@ -39,6 +39,10 @@ Lights), the rest of it searching their names: "light sol" finds
 Solarized Light. The highlighted theme is drawn live, Enter keeps it and
 writes `theme = ...` to the config file, and Esc goes back to the theme you
 had. With a `light:`/`dark:` pair, the picker changes the one in use.
+In terminals that say when a key is let go ([Keys the terminal has to
+tell apart](../reference/keys.md#keys-the-terminal-has-to-tell-apart)),
+holding Space before typing a search hides the list to show the whole
+sheet in the highlighted theme, until Space is let go.
 `012 config themes` lists every theme, with a `*` on the current one.
 
 ![The theme picker previewing 1-2-3 Classic](../media/theme-classic.png)
@@ -62,9 +66,8 @@ muted text included, and 4.5:1 for lines, borders, chart axes and
 unavailable menu items. The pointer is black on cyan, the selection
 white on blue, errors a light red on black (a dark red on white).
 
-States never rest on color alone in any theme: the pointer and the
-selection are in reverse video, errors have a curly underline, invalid
-entries a dotted one, spilled values are italic, and so on
+States never rest on color alone in any theme: each also shows as
+text, a glyph or an attribute such as reverse video or an underline
 ([Reading without color](../contributing/ux.md#reading-without-color)).
 
 ## Your own schemes
