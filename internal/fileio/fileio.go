@@ -31,19 +31,45 @@ const (
 	WK1
 )
 
-var kinds = []struct {
-	kind   Kind
-	name   string   // short name, e.g. in "Export as CSV"
-	label  string   // what the file is, for the import picker
-	exts   []string // recognized extensions, the first one written
-	export bool
-}{
-	{CSV, "CSV", "Comma-separated values", []string{".csv"}, true},
-	{TSV, "TSV", "Tab-separated values", []string{".tsv", ".tab"}, true},
-	{XLSX, "XLSX", "Excel workbook", []string{".xlsx", ".xlsm"}, true},
-	{SQLite, "SQLite", "SQLite database", []string{".sqlite", ".sqlite3", ".db"}, true},
-	{Parquet, "Parquet", "Parquet file", []string{".parquet"}, false},
-	{WK1, "WK1", "Lotus 1-2-3 worksheet", []string{".wk1", ".wks"}, false},
+// A fileFormat is everything about a Kind: its names, its extensions, and
+// the functions reading and writing it. Adding a format is a file with
+// its importer (and exporter) and a row here.
+type fileFormat struct {
+	kind  Kind
+	name  string   // short name, e.g. in "Export as CSV"
+	label string   // what the file is, for the import picker
+	exts  []string // recognized extensions, the first one written
+	// book is set for formats that hold named sheets of their own; a
+	// file of any other kind names its one sheet after the file.
+	book bool
+	read importer
+	// write is nil for formats 012 only imports.
+	write exporter
+}
+
+// An importer reads a file into a new workbook, returning the sheet to
+// show. It checks ctx between rows, and updates opt.Progress.
+type importer func(ctx context.Context, name string, opt Options) (*Result, error)
+
+// An exporter writes a snapshot to a file.
+type exporter func(ctx context.Context, name string, snap *Snapshot, opt ExportOptions) (*ExportResult, error)
+
+// kinds are the formats, in Kind order, which is menu order.
+var kinds = []fileFormat{
+	{CSV, "CSV", "Comma-separated values", []string{".csv"}, false, importCSV, exportCSV},
+	{TSV, "TSV", "Tab-separated values", []string{".tsv", ".tab"}, false, importTSV, exportTSV},
+	{XLSX, "XLSX", "Excel workbook", []string{".xlsx", ".xlsm"}, true, importXLSX, exportXLSX},
+	{SQLite, "SQLite", "SQLite database", []string{".sqlite", ".sqlite3", ".db"}, false, importSQLite, exportSQLite},
+	{Parquet, "Parquet", "Parquet file", []string{".parquet"}, false, importParquet, nil},
+	{WK1, "WK1", "Lotus 1-2-3 worksheet", []string{".wk1", ".wks"}, false, importWK1, nil},
+}
+
+// format returns the kind's format, or nil for an unknown kind.
+func (k Kind) format() *fileFormat {
+	if k < 1 || int(k) > len(kinds) {
+		return nil
+	}
+	return &kinds[k-1]
 }
 
 // Kinds lists every format, in menu order.
@@ -57,31 +83,32 @@ func Kinds() []Kind {
 
 // String is the format's short name, e.g. "XLSX".
 func (k Kind) String() string {
-	if k < 1 || int(k) > len(kinds) {
-		return "unknown"
+	if f := k.format(); f != nil {
+		return f.name
 	}
-	return kinds[k-1].name
+	return "unknown"
 }
 
 // Label says what a file of this kind is, e.g. "Excel workbook".
 func (k Kind) Label() string {
-	if k < 1 || int(k) > len(kinds) {
-		return ""
+	if f := k.format(); f != nil {
+		return f.label
 	}
-	return kinds[k-1].label
+	return ""
 }
 
 // Ext is the extension written for this kind, e.g. ".xlsx".
 func (k Kind) Ext() string {
-	if k < 1 || int(k) > len(kinds) {
-		return ""
+	if f := k.format(); f != nil {
+		return f.exts[0]
 	}
-	return kinds[k-1].exts[0]
+	return ""
 }
 
 // CanExport reports whether sheets can be written in this format.
 func (k Kind) CanExport() bool {
-	return k >= 1 && int(k) <= len(kinds) && kinds[k-1].export
+	f := k.format()
+	return f != nil && f.write != nil
 }
 
 // KindOf recognizes a file's format by its extension.
@@ -193,27 +220,13 @@ func Import(ctx context.Context, name string, opt Options) (*Result, error) {
 }
 
 func importKind(ctx context.Context, name string, k Kind, opt Options) (*Result, error) {
-	var (
-		r   *Result
-		err error
-	)
-	switch k {
-	case CSV, TSV:
-		r, err = importDelimited(ctx, name, k, opt.Progress)
-	case XLSX:
-		r, err = importXLSX(ctx, name, opt.Progress)
-	case SQLite:
-		r, err = importSQLite(ctx, name, opt)
-	case Parquet:
-		r, err = importParquet(ctx, name, opt.Progress)
-	case WK1:
-		r, err = importWK1(ctx, name, opt.Progress)
-	}
+	f := k.format()
+	r, err := f.read(ctx, name, opt)
 	if err != nil {
 		return nil, err
 	}
 	// A file of one table becomes one sheet named after it, as in Sheets.
-	if book := r.Sheet.Book(); k != XLSX && book.Len() == 1 {
+	if book := r.Sheet.Book(); !f.book && book.Len() == 1 {
 		base := strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))
 		if opt.Table != "" {
 			base = opt.Table
@@ -255,15 +268,10 @@ func Export(ctx context.Context, name string, k Kind, snap *Snapshot, opt Export
 }
 
 func exportKind(ctx context.Context, name string, k Kind, snap *Snapshot, opt ExportOptions) (*ExportResult, error) {
-	switch k {
-	case CSV, TSV:
-		return exportDelimited(name, k, snap)
-	case XLSX:
-		return exportXLSX(name, snap)
-	case SQLite:
-		return exportSQLite(ctx, name, snap, opt.Table)
+	if !k.CanExport() {
+		return nil, fmt.Errorf("can't export %s files", k)
 	}
-	return nil, fmt.Errorf("can't export %s files", k)
+	return k.format().write(ctx, name, snap, opt)
 }
 
 // fileSize is the size of the file name, for telemetry; -1 if unknown.

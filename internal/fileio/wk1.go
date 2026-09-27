@@ -42,7 +42,8 @@ const (
 	wk1File
 )
 
-func importWK1(ctx context.Context, name string, prog *Progress) (*Result, error) {
+func importWK1(ctx context.Context, name string, opt Options) (*Result, error) {
+	prog := opt.Progress
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err

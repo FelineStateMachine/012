@@ -146,6 +146,22 @@ func (c *countingReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
+func importCSV(ctx context.Context, name string, opt Options) (*Result, error) {
+	return importDelimited(ctx, name, CSV, opt.Progress)
+}
+
+func importTSV(ctx context.Context, name string, opt Options) (*Result, error) {
+	return importDelimited(ctx, name, TSV, opt.Progress)
+}
+
+func exportCSV(_ context.Context, name string, snap *Snapshot, _ ExportOptions) (*ExportResult, error) {
+	return exportDelimited(name, CSV, snap)
+}
+
+func exportTSV(_ context.Context, name string, snap *Snapshot, _ ExportOptions) (*ExportResult, error) {
+	return exportDelimited(name, TSV, snap)
+}
+
 func importDelimited(ctx context.Context, name string, k Kind, prog *Progress) (*Result, error) {
 	f, err := os.Open(name)
 	if err != nil {

@@ -26,7 +26,8 @@ type parquetColumn struct {
 // sheet with a header row. Repeated values in a row are joined with
 // commas. Rows past the sheet's last are counted from the file's
 // metadata, not read.
-func importParquet(ctx context.Context, name string, prog *Progress) (*Result, error) {
+func importParquet(ctx context.Context, name string, opt Options) (*Result, error) {
+	prog := opt.Progress
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err

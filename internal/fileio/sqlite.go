@@ -278,7 +278,8 @@ type sqlColumn struct {
 // exportSQLite writes the snapshot as a table, its first row naming the
 // columns. An existing table of that name is replaced; the rest of the
 // database is left alone.
-func exportSQLite(ctx context.Context, name string, snap *Snapshot, table string) (*ExportResult, error) {
+func exportSQLite(ctx context.Context, name string, snap *Snapshot, opt ExportOptions) (*ExportResult, error) {
+	table := opt.Table
 	if table == "" {
 		table = TableName(snap.Name)
 	}

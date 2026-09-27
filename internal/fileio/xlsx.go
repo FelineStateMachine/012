@@ -21,7 +21,8 @@ const (
 
 // importXLSX reads every sheet of a workbook, with its named ranges, and
 // returns the sheet that was active in Excel.
-func importXLSX(ctx context.Context, name string, prog *Progress) (*Result, error) {
+func importXLSX(ctx context.Context, name string, opt Options) (*Result, error) {
+	prog := opt.Progress
 	x, err := excelize.OpenFile(name)
 	if err != nil {
 		return nil, err
@@ -221,7 +222,7 @@ func importXLSXCell(x *excelize.File, b *builder, ws, cell string, a sheet.Addr,
 // snapshot), each with values, formulas in Excel's syntax with their
 // results cached, number formats, text styles, alignment and column
 // widths, and the named ranges.
-func exportXLSX(name string, snap *Snapshot) (*ExportResult, error) {
+func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions) (*ExportResult, error) {
 	x := excelize.NewFile()
 	defer x.Close()
 	sheets := snap.Sheets
