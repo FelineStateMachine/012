@@ -394,13 +394,20 @@ the user's editor (`AllowEditor`), since that starts a program.
 
 `internal/chart` draws a chart in two layers that share one layout: text
 for any terminal (block elements for bars, braille for lines, half blocks
-for pies) and, on terminals with kitty graphics, an image of the plot area
-with the axes and legend still terminal text. Each chart type is a layout
-in the `types` table, returning a plan that draws it both ways; the type
-constants and their names belong to `internal/sheet`, since charts are
-saved with sheets. Work is bounded by the chart's size, not its data: only
-the categories that fit are drawn, pie slices are found by binary search,
-and a pie image supersamples only pixels on a slice edge or the rim.
+for pies, eighths filled column by column for areas) and, on terminals
+with kitty graphics, an image of the plot area with the axes and legend
+still terminal text. Each chart type is a layout in the `types` table,
+returning a plan that draws it both ways, and the series its legend
+lists; `Draw` places the legend and gives the layout the room left. The
+type constants and their names, and the options of each chart
+(`sheet.ChartOptions`: stacking, trend lines, the value axis, gridlines,
+the legend), belong to `internal/sheet`, since charts are saved with
+sheets. Stacked bars are piles of spans, and a cell where two meet draws
+the lower as eighths over the upper as background. Work is bounded by the
+chart's size, not its data: only the categories that fit are drawn, areas
+are sampled once per column (per pixel column in images), pie slices are
+found by binary search, and a pie image supersamples only pixels on a
+slice edge or the rim.
 
 ## Serving over SSH
 

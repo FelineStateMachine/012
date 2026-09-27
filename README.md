@@ -46,7 +46,8 @@ searches every command. `012 config edit` opens the settings file.
   value pickers and conditions, find and replace with regular expressions,
   tracing precedents and dependents, live pivot tables and frequency
   tables on sheets of their own.
-- **Charts.** Column, bar, line and pie charts that float over the grid and
+- **Charts.** Column, bar, line, area, pie and scatter charts (stacked,
+  with trend lines, log and fixed axes) that float over the grid and
   update live; real images in terminals with the kitty graphics protocol
   (kitty, Ghostty, WezTerm), text elsewhere.
 - **Files.** A diff-friendly JSON format, plus import from CSV, TSV, XLSX,

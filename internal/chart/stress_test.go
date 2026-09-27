@@ -40,6 +40,8 @@ var stressTypes = []struct {
 	{"bar", sheet.ChartBar},
 	{"line", sheet.ChartLine},
 	{"pie", sheet.ChartPie},
+	{"area", sheet.ChartArea},
+	{"scatter", sheet.ChartScatter},
 }
 
 var stressSizes = []struct{ w, h int }{{24, 10}, {120, 40}}

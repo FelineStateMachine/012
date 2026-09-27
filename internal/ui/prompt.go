@@ -96,13 +96,12 @@ func (p *prompt) cancel(m *Model) {
 		m.point.anchored = false
 		return
 	}
+	m.quitAfterSave = false // cancelling Save as cancels Save and quit
+	// Closed first, so onCancel can return to what opened the prompt, as
+	// the chart editor does.
+	m.closePrompt()
 	if p.onCancel != nil {
 		p.onCancel(m)
-	}
-	m.quitAfterSave = false // cancelling Save as cancels Save and quit
-	m.closePrompt()
-	if m.overlay != nil {
-		m.mode = modeMenu // onCancel went back to the overlay that asked
 	}
 	m.recordAnswer("", true)
 }

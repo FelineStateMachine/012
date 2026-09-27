@@ -50,7 +50,7 @@ the app uses, so it never drifts from what the keys do.
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
 | Right-click, Shift+F10 | Cell, column or row menu |
 | F1 or Ctrl+/ | Keyboard shortcuts |
-| Insert > Chart | Chart the selection (or the table around the active cell); the editor bar picks the type with Left/Right, S switches rows and columns, H and L toggle the header row and labels, R changes the range, T the title |
+| Insert > Chart | Chart the selection (or the table around the active cell); the editor bar picks the type with Left/Right or 1 to 6, S switches rows and columns, H and L toggle the header row and labels, K stacks columns, bars and areas, E adds a scatter's trend line, R changes the range, T the title, and A opens the axis and legend bar (N minimum, X maximum, L log scale, G gridlines, P legend position) |
 | Click a chart, then Arrows / Shift+arrows / Del | Move, resize or delete it; drag the chart or its corner with the mouse; Enter edits it |
 | Cmd- or Ctrl-click a URL | Open it: cells holding a URL, and `=HYPERLINK(url, [label])`, are terminal hyperlinks |
 | Data > Macros | Record what you do as a macro (absolute or relative references), stop and save it with a name and shortcut, run or manage saved macros; see [macros.md](macros.md) |

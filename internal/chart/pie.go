@@ -12,7 +12,8 @@ import (
 )
 
 // piePlan lays out a pie of the first series, clockwise from twelve
-// o'clock as in Sheets, with a legend of labels and shares to its right.
+// o'clock as in Sheets, with a legend of labels and shares to its right
+// unless the legend is off: a pie's legend is always on the right.
 // As text, the disc is half blocks: two square pixels per cell, each
 // colored by its slice.
 type piePlan struct {
@@ -21,7 +22,9 @@ type piePlan struct {
 	slices []slice
 	disc   image.Rectangle // in cells
 	legend image.Point     // top-left of the legend
-	nameW  int
+	// noLegend leaves the legend out, for Legend: none.
+	noLegend bool
+	nameW    int
 }
 
 type slice struct {
@@ -59,15 +62,18 @@ func newPiePlan(d sheet.ChartData, w, h int, o Options) *piePlan {
 	}
 	// "■ " name "  " share: shares are at most "100%".
 	p.nameW = max(min(p.nameW, w/2-8), 3)
-	legendW := 2 + p.nameW + 2 + 4
+	legendW, gap := 2+p.nameW+2+4, 3
+	if o.Chart.Legend == sheet.LegendNone {
+		legendW, gap, p.noLegend = 0, 0, true
+	}
 	a := o.aspect()
-	rows := min(h, int(float64(w-legendW-3)/a))
+	rows := min(h, int(float64(w-legendW-gap)/a))
 	if rows < 2 {
 		p.msg = "Too small to chart"
 		return p
 	}
 	cols := int(math.Round(float64(rows) * a))
-	x0 := max((w-(cols+3+legendW))/2, 0)
+	x0 := max((w-(cols+gap+legendW))/2, 0)
 	y0 := (h - rows) / 2
 	p.disc = image.Rect(x0, y0, x0+cols, y0+rows)
 	n := min(len(p.slices), h)
@@ -124,6 +130,9 @@ func (p *piePlan) draw(g *Grid, o Options) {
 }
 
 func (p *piePlan) drawLegend(g *Grid) {
+	if p.noLegend {
+		return
+	}
 	x, y := p.legend.X, p.legend.Y
 	for i, s := range p.slices {
 		if y >= g.H {

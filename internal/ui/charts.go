@@ -222,6 +222,7 @@ func (m *Model) chartBoxes() []overlay.Box {
 func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 	w, h := chartInner(c)
 	o := m.term.chartOptions()
+	o.Chart = c.ChartOptions
 	if i >= maxImages {
 		o.Image = false
 	}
@@ -302,7 +303,7 @@ func chartRow(th *theme.Theme, g *chart.Grid, y, imageID int, image bool) string
 
 func chartRole(th *theme.Theme, r chart.Role) lipgloss.Style {
 	switch {
-	case r == chart.Axis:
+	case r == chart.Axis, r == chart.Gridline:
 		return th.ChartAxis
 	case r == chart.Label:
 		return th.ChartLabel

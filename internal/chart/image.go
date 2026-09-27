@@ -28,7 +28,7 @@ func Image(t sheet.ChartType, d sheet.ChartData, w, h int, o Options, pal Palett
 	if w < 8 || h < 3 {
 		return nil
 	}
-	p := planFor(t, d, w, h, o)
+	p, _ := planFor(t, d, w, h, o)
 	plot := p.plotArea()
 	if p.note() != "" || plot.Empty() {
 		return nil
@@ -131,32 +131,36 @@ func segDist(px, py, ax, ay, bx, by float64) float64 {
 	return math.Hypot(px-(ax+t*dx), py-(ay+t*dy))
 }
 
-// image draws columns or lines. Values map exactly, while gridlines sit
-// on the cell boundaries the text ticks label.
+// image draws columns, lines or areas. Values map exactly, while
+// gridlines sit on the cell boundaries the text ticks label.
 func (p *columnPlan) image(cv *canvas) {
 	bottom := float64(p.plot.Dy()) * cv.ch
-	y := func(v float64) float64 { return bottom - p.sc.pos(v)*cv.ch }
-	for j := 1; j <= p.sc.n; j++ {
-		cv.hline(int(math.Round(y(p.sc.tick(j)))), cv.pal.Grid)
+	y := func(v float64) float64 { return bottom - p.sc.at(v)*cv.ch }
+	if p.grid {
+		for j := 1; j <= p.sc.n; j++ {
+			cv.hline(int(math.Round(y(p.sc.tick(j)))), cv.pal.Grid)
+		}
 	}
-	if p.line {
-		p.lineImage(cv, y)
-		return
-	}
-	if p.sc.lo < 0 {
+	if p.kind != columnLine && p.sc.crossesZero() {
 		cv.hline(int(math.Round(y(0))), cv.pal.Grid)
 	}
+	switch p.kind {
+	case columnLine:
+		p.lineImage(cv, y)
+		return
+	case columnArea:
+		p.areaImage(cv, y)
+		return
+	}
 	inset := min(cv.cw/6, 2)
-	for j, s := range p.d.Series {
-		for i := 0; i < p.shown && i < len(s.Values); i++ {
-			v := s.Values[i]
-			if math.IsNaN(v) {
-				continue
-			}
-			x0, x1 := p.bar(i, j)
+	var piles []span
+	for i := 0; i < p.shown; i++ {
+		piles = p.piles(i, piles)
+		for _, s := range piles {
+			x0, x1 := p.bar(i, s.j)
 			px0 := float64(x0-p.plot.Min.X)*cv.cw + inset
 			px1 := float64(x1-p.plot.Min.X)*cv.cw - inset
-			cv.rect(px0, min(y(v), y(0)), px1, max(y(v), y(0)), cv.pal.Series[j%Colors])
+			cv.rect(px0, y(s.hi), px1, y(s.lo), cv.pal.Series[s.j%Colors])
 		}
 	}
 }
@@ -187,22 +191,22 @@ func (p *columnPlan) lineImage(cv *canvas, y func(float64) float64) {
 
 // image draws horizontal bars.
 func (p *barPlan) image(cv *canvas) {
-	x := func(v float64) float64 { return p.sc.pos(v) * cv.cw }
-	for j := 1; j <= p.sc.n; j++ {
-		cv.vline(int(math.Round(x(p.sc.tick(j))))-1, cv.pal.Grid)
+	x := func(v float64) float64 { return p.sc.at(v) * cv.cw }
+	if p.grid {
+		for j := 1; j <= p.sc.n; j++ {
+			cv.vline(int(math.Round(x(p.sc.tick(j))))-1, cv.pal.Grid)
+		}
 	}
-	if p.sc.lo < 0 {
+	if p.sc.crossesZero() {
 		cv.vline(int(math.Round(x(0))), cv.pal.Grid)
 	}
 	inset := min(cv.ch/8, 2)
-	for j, s := range p.d.Series {
-		for i := 0; i < p.shown && i < len(s.Values); i++ {
-			v := s.Values[i]
-			if math.IsNaN(v) {
-				continue
-			}
-			row := float64(p.barRow(i, j))
-			cv.rect(min(x(v), x(0)), row*cv.ch+inset, max(x(v), x(0)), (row+1)*cv.ch-inset, cv.pal.Series[j%Colors])
+	var piles []span
+	for i := 0; i < p.shown; i++ {
+		piles = p.piles(i, piles)
+		for _, s := range piles {
+			row := float64(p.barRow(i, s.j))
+			cv.rect(x(s.lo), row*cv.ch+inset, x(s.hi), (row+1)*cv.ch-inset, cv.pal.Series[s.j%Colors])
 		}
 	}
 }

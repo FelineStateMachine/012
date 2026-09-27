@@ -29,7 +29,9 @@ func TestNotes(t *testing.T) {
 
 	// It's saved with the sheet.
 	s.keys("<ctrl+s>", "notes", "<enter>")
-	s.eventually("saved", func() bool { return strings.Contains(s.line(29), "notes.012") && !strings.Contains(s.line(29), "modified") })
+	s.eventually("saved", func() bool {
+		return strings.Contains(s.line(29), "notes.012") && !strings.Contains(s.line(29), "modified")
+	})
 	s2 := start(t, dir, "notes.012")
 	s2.keys("<right>")
 	s2.waitFor("Note  Due on the 1st ↵ autopay")

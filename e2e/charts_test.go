@@ -169,3 +169,46 @@ func TestLinksAndErrorMarks(t *testing.T) {
 		t.Errorf("error cell underline %v, want curly", st.Underline())
 	}
 }
+
+// TestChartOptions stacks a column chart, fixes its axis minimum, moves
+// its legend, saves and reopens it, and turns it into a scatter with a
+// trend line.
+func TestChartOptions(t *testing.T) {
+	dir := t.TempDir()
+	s := start(t, dir)
+	spending(s)
+	insertChart(s)
+	s.keys("k")
+	s.waitFor("Stacked")
+	s.waitFor("$2,000 ┤")
+	s.keys("a")
+	s.waitFor("Min auto")
+	s.keys("n")
+	s.waitFor("Axis minimum (blank for auto):")
+	s.keys("1000", "<enter>")
+	s.waitFor("Min 1000")
+	s.waitFor("$1,000 ┼")
+	s.keys("p")
+	s.waitFor("Legend right")
+	s.waitFor("■ Rent")
+	s.keys("<esc>")
+	s.waitFor("Series in columns")
+	s.keys("<enter>")
+	s.waitFor("Column chart of A1:C5")
+	s.keys("<esc>", "<ctrl+s>", "options", "<enter>")
+	s.eventually("saved", func() bool { return s.title() == "012 - options.012" })
+	s.keys("<ctrl+q>")
+	s.waitExit()
+
+	r := start(t, dir, "options.012")
+	r.waitFor("$1,000 ┼")
+	r.waitFor("■ Rent")
+	r.click(ghostty.MouseButtonLeft, 50, 10)
+	r.waitFor("Column chart of A1:C5")
+	r.keys("<enter>")
+	r.waitFor("Stacked")
+	r.keys("6", "e")
+	r.waitFor("Trend line")
+	r.keys("<enter>")
+	r.waitFor("Scatter chart of A1:C5")
+}
