@@ -5,6 +5,7 @@ package fileio
 
 import (
 	"archive/zip"
+	"cmp"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -70,9 +71,14 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 		}
 		done += rows
 	}
-	filters, protected, err := referenceAutoFilters(name)
+	filters, protected, heights, err := referenceAutoFilters(name)
 	if err != nil {
 		return nil, err
+	}
+	for i, hs := range heights {
+		for row, h := range hs {
+			book.Sheet(i).LoadRowHeight(row, h)
+		}
 	}
 	notes = append(notes, excelizeNames(x, book)...)
 	notes = append(notes, (&xlsxBook{protected: protected}).protectionNote()...)
@@ -117,6 +123,11 @@ func excelizeNotes(x *excelize.File, ws string, s *sheet.Sheet) error {
 
 // refWorksheet is the part of a worksheet referenceAutoFilters reads.
 type refWorksheet struct {
+	Rows []struct {
+		R      int    `xml:"r,attr"`
+		Ht     string `xml:"ht,attr"`
+		Custom string `xml:"customHeight,attr"`
+	} `xml:"sheetData>row"`
 	Protection *struct {
 		Sheet string `xml:"sheet,attr"`
 	} `xml:"sheetProtection"`
@@ -145,30 +156,32 @@ type refWorksheet struct {
 	} `xml:"autoFilter"`
 }
 
-// referenceAutoFilters reads each sheet's autoFilter, and the names of
-// the protected sheets, by decoding the whole worksheet with
+// referenceAutoFilters reads each sheet's autoFilter, the names of the
+// protected sheets and the heights of rows set by hand (excelize doesn't
+// say which those are), by decoding the whole worksheet with
 // encoding/xml, as excelize has no API for reading them: the reference
 // for the streaming reader's. Only the parts' names come from 012's
 // reader.
-func referenceAutoFilters(name string) ([]*xlsxAutoFilter, []string, error) {
+func referenceAutoFilters(name string) ([]*xlsxAutoFilter, []string, []map[int]int, error) {
 	f, err := os.Open(name)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	bk, err := openXLSX(f, st.Size(), defaultXLSXLimits)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	zr, err := zip.NewReader(f, st.Size())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	out := make([]*xlsxAutoFilter, len(bk.sheets))
+	heights := make([]map[int]int, len(bk.sheets))
 	var protected []string
 	for i, info := range bk.sheets {
 		if info.part == "" || info.kind != "worksheet" {
@@ -176,20 +189,36 @@ func referenceAutoFilters(name string) ([]*xlsxAutoFilter, []string, error) {
 		}
 		rc, err := zr.Open(info.part)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		var ws refWorksheet
 		err = xml.NewDecoder(rc).Decode(&ws)
 		rc.Close()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		out[i] = ws.autoFilter()
 		if p := ws.Protection; p != nil && (p.Sheet == "1" || p.Sheet == "true") {
 			protected = append(protected, info.name)
 		}
+		heights[i] = ws.heights()
 	}
-	return out, protected, nil
+	return out, protected, heights, nil
+}
+
+// heights are the rows' heights set by hand, in lines, by row from 0.
+func (ws refWorksheet) heights() map[int]int {
+	out := map[int]int{}
+	for _, r := range ws.Rows {
+		se := xml.StartElement{Attr: []xml.Attr{{Name: xml.Name{Local: "ht"}, Value: r.Ht}, {Name: xml.Name{Local: "customHeight"}, Value: r.Custom}}}
+		if r.Custom == "" {
+			se.Attr = se.Attr[:1]
+		}
+		if h := rowHeight(se); h > 0 && r.R >= 1 {
+			out[r.R-1] = h
+		}
+	}
+	return out
 }
 
 func (ws refWorksheet) autoFilter() *xlsxAutoFilter {
@@ -236,6 +265,11 @@ func excelizeSheet(ctx context.Context, x *excelize.File, b *builder, ws string,
 		return 0, err
 	}
 	defer rows.Close()
+	dimCols := 0
+	if dim, err := x.GetSheetDimension(ws); err == nil {
+		_, to, _ := strings.Cut(dim, ":")
+		dimCols, _, _ = excelize.CellNameToCoordinates(cmp.Or(to, dim))
+	}
 	row, width := 0, 0
 	for ; rows.Next(); row++ {
 		if row%128 == 0 {
@@ -260,6 +294,7 @@ func excelizeSheet(ctx context.Context, x *excelize.File, b *builder, ws string,
 			cell, _ := excelize.CoordinatesToCellName(col+1, row+1)
 			excelizeCell(x, b, ws, cell, a, raw, styles)
 		}
+		excelizeBordered(x, b, ws, row, len(cols), dimCols, styles)
 	}
 	if err := rows.Error(); err != nil {
 		return 0, err
@@ -279,6 +314,13 @@ func excelizeSheet(ctx context.Context, x *excelize.File, b *builder, ws string,
 			continue
 		}
 		b.s.LoadColWidth(c, max(int(math.Round(w))+excelPadding, 1))
+	}
+	if merges, err := x.GetMergeCells(ws, true); err == nil {
+		for _, mc := range merges {
+			if r, ok := sheet.ParseRange(mc.GetStartAxis() + ":" + mc.GetEndAxis()); ok {
+				b.s.LoadMerge(r)
+			}
+		}
 	}
 	return row, excelizeView(x, ws, b.s)
 }
@@ -310,6 +352,10 @@ func excelizeNames(x *excelize.File, book *sheet.Workbook) []string {
 	return nil
 }
 
+// excelizeBorderStyles are Excel's border styles by excelize's index.
+var excelizeBorderStyles = []string{"none", "thin", "medium", "dashed", "dotted", "thick", "double", "hair",
+	"mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"}
+
 func excelizeStyleOf(x *excelize.File, id int, cache map[int]xlsxStyle) xlsxStyle {
 	if st, ok := cache[id]; ok {
 		return st
@@ -325,7 +371,26 @@ func excelizeStyleOf(x *excelize.File, id int, cache map[int]xlsxStyle) xlsxStyl
 			out.style.Bold, out.style.Italic, out.style.Strikethrough = f.Bold, f.Italic, f.Strike
 			out.style.Underline = f.Underline != "" && f.Underline != "none"
 		}
+		for _, br := range st.Border {
+			l := sheet.LineNone
+			if br.Style > 0 && br.Style < len(excelizeBorderStyles) {
+				l = borderLine(excelizeBorderStyles[br.Style])
+			}
+			switch br.Type {
+			case "left":
+				out.style.Borders.Left = l
+			case "right":
+				out.style.Borders.Right = l
+			case "top":
+				out.style.Borders.Top = l
+			case "bottom":
+				out.style.Borders.Bottom = l
+			}
+		}
 		if al := st.Alignment; al != nil {
+			if al.WrapText {
+				out.style.Wrap = sheet.WrapOn
+			}
 			switch al.Horizontal {
 			case "left":
 				out.style.Align = sheet.AlignLeft
@@ -338,6 +403,23 @@ func excelizeStyleOf(x *excelize.File, id int, cache map[int]xlsxStyle) xlsxStyl
 	}
 	cache[id] = out
 	return out
+}
+
+// excelizeBordered stores the blank cells of row from column from (from
+// 0) up to the last one within dimCols that draws borders, which 012's
+// reader keeps though no value follows them.
+func excelizeBordered(x *excelize.File, b *builder, ws string, row, from, dimCols int, styles map[int]xlsxStyle) {
+	last := -1
+	for col := from; col < min(dimCols, sheet.MaxCols); col++ {
+		cell, _ := excelize.CoordinatesToCellName(col+1, row+1)
+		if id, err := x.GetCellStyle(ws, cell); err == nil && id != 0 && !excelizeStyleOf(x, id, styles).style.Borders.IsZero() {
+			last = col
+		}
+	}
+	for col := from; col <= last; col++ {
+		cell, _ := excelize.CoordinatesToCellName(col+1, row+1)
+		excelizeCell(x, b, ws, cell, sheet.Addr{Col: col, Row: row}, "", styles)
+	}
 }
 
 func excelizeCell(x *excelize.File, b *builder, ws, cell string, a sheet.Addr, raw string, styles map[int]xlsxStyle) {

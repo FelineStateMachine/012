@@ -3,7 +3,6 @@ package fileio
 import (
 	"bufio"
 	"fmt"
-	"maps"
 	"math"
 	"slices"
 	"strconv"
@@ -78,10 +77,10 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 	bw.WriteString(`<sheetFormatPr defaultRowHeight="15"/>`)
 	w.writeCols(bw, snap)
 	bw.WriteString(`<sheetData>`)
-	styled := slices.Sorted(maps.Keys(snap.RowFormats)) // rows with a style of their own, written even without cells
+	styled := lineRows(snap) // rows with a style or height of their own, written even without cells
 	for row := r.From.Row; row <= r.To.Row; row++ {
 		styled = w.styledRows(bw, snap, styled, row)
-		_, rowStyled := snap.RowFormats[row]
+		rowStyled := len(styled) > 0 && styled[0] == row
 		if rowStyled {
 			styled = styled[1:]
 		}
@@ -102,6 +101,7 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 	w.styledRows(bw, snap, styled, sheet.MaxRows)
 	bw.WriteString(`</sheetData>`)
 	writeAutoFilter(bw, snap)
+	writeMerges(bw, snap)
 	w.writeRules(bw, ws, snap)
 	if len(snap.Notes) > 0 {
 		bw.WriteString(`<legacyDrawing r:id="` + vmlRelID + `"/>`)
@@ -285,11 +285,12 @@ func xmlChar(r rune) bool {
 // distinct number format and text style is a cellXfs entry, with its
 // number format code and font.
 type xlsxStyleTable struct {
-	ids   map[xlsxStyle]int
-	xfs   []xlsxStyle // index 0 is the default
-	codes []string    // custom number formats, from id 164
-	fonts []sheet.Style
-	dxfs  []sheet.RuleStyle // conditional formats' styles, see xlsxrules.go
+	ids     map[xlsxStyle]int
+	xfs     []xlsxStyle // index 0 is the default
+	codes   []string    // custom number formats, from id 164
+	fonts   []sheet.Style
+	borders []sheet.Borders   // see xlsxlayout.go; index 0 is none
+	dxfs    []sheet.RuleStyle // conditional formats' styles, see xlsxrules.go
 }
 
 // dxf is the index of the differential style for a rule's style.
@@ -335,7 +336,7 @@ func (t *xlsxStyleTable) dxfsXML() string {
 }
 
 func newXLSXStyleTable() *xlsxStyleTable {
-	return &xlsxStyleTable{ids: map[xlsxStyle]int{{}: 0}, xfs: []xlsxStyle{{}}, fonts: []sheet.Style{{}}}
+	return &xlsxStyleTable{ids: map[xlsxStyle]int{{}: 0}, xfs: []xlsxStyle{{}}, fonts: []sheet.Style{{}}, borders: []sheet.Borders{{}}}
 }
 
 // id is the index of the cell format for f and st.
@@ -369,18 +370,23 @@ func (t *xlsxStyleTable) xml() string {
 			i = len(t.fonts)
 			t.fonts = append(t.fonts, font)
 		}
-		fmt.Fprintf(&xfs, `<xf numFmtId="%d" fontId="%d" fillId="0" borderId="0" xfId="0"`, numFmt, i)
+		border := t.borderID(x.style.Borders)
+		fmt.Fprintf(&xfs, `<xf numFmtId="%d" fontId="%d" fillId="0" borderId="%d" xfId="0"`, numFmt, i, border)
 		if numFmt != 0 {
 			xfs.WriteString(` applyNumberFormat="1"`)
 		}
 		if i != 0 {
 			xfs.WriteString(` applyFont="1"`)
 		}
-		if x.style.Align == sheet.AlignAuto {
+		if border != 0 {
+			xfs.WriteString(` applyBorder="1"`)
+		}
+		align := alignmentXML(x.style)
+		if align == "" {
 			xfs.WriteString(`/>`)
 			continue
 		}
-		fmt.Fprintf(&xfs, ` applyAlignment="1"><alignment horizontal="%s"/></xf>`, x.style.Align)
+		xfs.WriteString(` applyAlignment="1">` + align + `</xf>`)
 	}
 	var b strings.Builder
 	b.WriteString(xmlHead + `<styleSheet xmlns="` + sheetMain + `">`)
@@ -405,8 +411,7 @@ func (t *xlsxStyleTable) xml() string {
 		b.WriteString(`<sz val="11"/><name val="Calibri"/><family val="2"/></font>`)
 	}
 	b.WriteString(`</fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
-		`<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
-		`<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>`)
+		t.bordersXML() + `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>`)
 	fmt.Fprintf(&b, `<cellXfs count="%d">%s</cellXfs>`, len(t.xfs), xfs.String())
 	b.WriteString(`<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` + t.dxfsXML() + `</styleSheet>`)
 	return b.String()

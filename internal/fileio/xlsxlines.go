@@ -116,11 +116,28 @@ func (w *xlsxWriter) writeCols(bw *bufio.Writer, snap *Snapshot) {
 	bw.WriteString(`</cols>`)
 }
 
-// rowStart writes a <row> start tag, with the row's style if it has one.
+// lineRows are the rows with a style or a height of their own, in
+// order.
+func lineRows(snap *Snapshot) []int {
+	rows := slices.Collect(maps.Keys(snap.RowFormats))
+	for r := range snap.Heights {
+		if _, styled := snap.RowFormats[r]; !styled {
+			rows = append(rows, r)
+		}
+	}
+	slices.Sort(rows)
+	return rows
+}
+
+// rowStart writes a <row> start tag, with the row's style and height if
+// it has them.
 func (w *xlsxWriter) rowStart(bw *bufio.Writer, snap *Snapshot, row int) {
 	fmt.Fprintf(bw, `<row r="%d"`, row+1)
 	if l, ok := snap.RowFormats[row]; ok {
 		fmt.Fprintf(bw, ` s="%d" customFormat="1"`, w.styles.id(l.Format, l.Style))
+	}
+	if h, ok := snap.Heights[row]; ok {
+		fmt.Fprintf(bw, ` ht="%d" customHeight="1"`, h*pointsPerLine)
 	}
 	if snap.HiddenRows[row] {
 		bw.WriteString(` hidden="1"`)
@@ -128,8 +145,8 @@ func (w *xlsxWriter) rowStart(bw *bufio.Writer, snap *Snapshot, row int) {
 	bw.WriteString(`>`)
 }
 
-// styledRows writes, as empty rows, the styled rows (ascending) before
-// row to, returning those left.
+// styledRows writes, as empty rows, the rows of lineRows (ascending)
+// before row to, returning those left.
 func (w *xlsxWriter) styledRows(bw *bufio.Writer, snap *Snapshot, rows []int, to int) []int {
 	for len(rows) > 0 && rows[0] < to {
 		w.rowStart(bw, snap, rows[0])

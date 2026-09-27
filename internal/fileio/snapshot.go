@@ -48,6 +48,11 @@ type Snapshot struct {
 	// Notes are the cells' notes in the range, for formats that keep
 	// them (XLSX, as comments). A note may be on a cell with no contents.
 	Notes map[sheet.Addr]string
+
+	// Heights are the rows' heights set by hand, in lines, and Merges
+	// the merged cells in the range, for formats that keep them (XLSX).
+	Heights map[int]int
+	Merges  []sheet.Rect
 }
 
 // SnapName is a named range: its name, and the range on the sheet
@@ -91,6 +96,19 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true), Filter: s.Filter(),
 		CondFormats: s.CondFormats(), Validations: s.Validations()}
 	snap.FrozenRows, snap.FrozenCols = s.Frozen()
+	for row, h := range s.Heights() {
+		if row >= r.From.Row && row <= r.To.Row {
+			if snap.Heights == nil {
+				snap.Heights = map[int]int{}
+			}
+			snap.Heights[row] = h
+		}
+	}
+	for _, m := range s.Merges() {
+		if r.Contains(m.From) && r.Contains(m.To) {
+			snap.Merges = append(snap.Merges, m)
+		}
+	}
 	for _, a := range s.NotesIn(notes) {
 		if snap.Notes == nil {
 			snap.Notes = map[sheet.Addr]string{}
@@ -129,6 +147,29 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 	return snap
 }
 
+// snapLayout adds to a whole sheet's snapshot what its layout needs in
+// a workbook, growing the range to hold it: rows with heights, merged
+// cells, and blank cells that draw borders, which count as contents
+// there.
+func snapLayout(snap *Snapshot, s *sheet.Sheet) {
+	snap.Heights, snap.Merges = s.Heights(), s.Merges()
+	grow := func(x sheet.Rect) {
+		if len(snap.Cells) == 0 && snap.Range.From == snap.Range.To {
+			snap.Range = sheet.Rect{To: x.To}
+		}
+		snap.Range.To.Col, snap.Range.To.Row = max(snap.Range.To.Col, x.To.Col), max(snap.Range.To.Row, x.To.Row)
+	}
+	for _, m := range snap.Merges {
+		grow(m)
+	}
+	for _, a := range s.BorderedIn(sheet.Rect{To: sheet.Addr{Col: sheet.MaxCols - 1, Row: sheet.MaxRows - 1}}) {
+		if _, ok := snap.Cells[a]; !ok {
+			snap.Cells[a] = SnapCell{Style: s.CellStyle(a)}
+		}
+		grow(sheet.Rect{From: a, To: a})
+	}
+}
+
 // SnapBook copies every sheet of s's workbook, whole, with the named
 // ranges, for formats that hold several sheets. The result is s's
 // snapshot.
@@ -137,6 +178,7 @@ func SnapBook(s *sheet.Sheet) *Snapshot {
 	all := []*Snapshot{}
 	for _, t := range s.Book().Sheets() {
 		sn := Snap(t, sheet.Rect{}, t.Name())
+		snapLayout(sn, t)
 		sn.Hidden = t.Hidden() && t != s
 		if t == s {
 			out = sn

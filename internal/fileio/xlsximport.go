@@ -120,6 +120,9 @@ func (bk *xlsxBook) importSheet(ctx context.Context, b *builder, i int, af **xls
 		return 0, fmt.Errorf("sheet %s: %w", bk.sheets[i].name, err)
 	}
 	bk.loadRules(b.s, r)
+	for _, m := range r.merges {
+		b.s.LoadMerge(m)
+	}
 	if r.protected {
 		bk.protected = append(bk.protected, bk.sheets[i].name)
 	}
@@ -149,13 +152,16 @@ func (bk *xlsxBook) importRow(b *builder, r *xlsxSheetReader) error {
 	if row.style != 0 {
 		loadRowStyle(b, row.num-1, bk.styles.style(row.style))
 	}
+	if row.height > 0 && row.num <= sheet.MaxRows {
+		b.s.LoadRowHeight(row.num-1, row.height)
+	}
 	cells := row.cells
 	if !slices.IsSortedFunc(cells, func(a, b xlsxCell) int { return a.col - b.col }) {
 		slices.SortStableFunc(cells, func(a, b xlsxCell) int { return a.col - b.col })
 	}
 	lastCol := 0
 	for i := range cells {
-		if cells[i].kept() {
+		if cells[i].kept() || !bk.styles.style(cells[i].style).style.Borders.IsZero() {
 			lastCol = cells[i].col
 		}
 	}

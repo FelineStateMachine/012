@@ -78,6 +78,8 @@ func (r *xlsxSheetReader) readTail() (*xlsxAutoFilter, error) {
 		switch {
 		case err != nil:
 			return nil, err
+		case se.Name.Local == "mergeCell" && r.x.depth == 3:
+			r.readMerge(se)
 		case rule || r.x.depth != 2:
 		case se.Name.Local == "sheetProtection":
 			v, _ := attr(se, "sheet")

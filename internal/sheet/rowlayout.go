@@ -114,6 +114,25 @@ func (s *Sheet) shapersIn(row int, fn func(col int)) {
 	}
 }
 
+// BorderedIn returns the blank cells of r whose own formatting draws
+// borders, in no particular order, at the cost of the cells that wrap or
+// draw borders.
+func (s *Sheet) BorderedIn(r Rect) []Addr {
+	var out []Addr
+	for row, cols := range s.shapers.rows {
+		if row < r.From.Row || row > r.To.Row {
+			continue
+		}
+		for c := range cols {
+			a := Addr{Col: c, Row: row}
+			if cell := s.cells.get(a); r.Contains(a) && cell.Blank() && !cell.Style.Borders.IsZero() {
+				out = append(out, a)
+			}
+		}
+	}
+	return out
+}
+
 // WrappedIn returns the columns of row whose cells wrap text they hold,
 // outside merged cells, in no particular order.
 func (s *Sheet) WrappedIn(row int) []int {

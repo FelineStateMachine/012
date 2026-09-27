@@ -62,7 +62,8 @@ type xlsxSheetReader struct {
 	dvs      []xlsxDV
 	extRules int
 
-	protected bool // the sheet has a <sheetProtection sheet="1">, read by readTail
+	protected bool         // the sheet has a <sheetProtection sheet="1">, read by readTail
+	merges    []sheet.Rect // its merged cells, read by readTail
 
 	inData bool // inside <sheetData>
 	row    xlsxRowData
@@ -103,9 +104,10 @@ func (r *xlsxSheetReader) spilled(a sheet.Addr) bool {
 
 // xlsxRowData is the row just read.
 type xlsxRowData struct {
-	num   int // from 1
-	style int // the row's cell format index, for cells not written
-	cells []xlsxCell
+	num    int // from 1
+	style  int // the row's cell format index, for cells not written
+	height int // lines, when set by hand to more than one; see rowHeight
+	cells  []xlsxCell
 }
 
 // sharedFormula is the master cell of a shared formula.
@@ -259,6 +261,7 @@ func (r *xlsxSheetReader) readRow(se xml.StartElement) error {
 		return fmt.Errorf("row %s is past Excel's last row, %s", thousands(num), thousands(excelRows))
 	}
 	r.row.num, r.row.style = num, intAttr(se, "s", 0)
+	r.row.height = rowHeight(se)
 	r.row.cells = r.row.cells[:0]
 	col := 0
 	for {

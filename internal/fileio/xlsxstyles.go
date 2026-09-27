@@ -11,11 +11,12 @@ import (
 )
 
 // xlsxStyles is what 012 reads of the styles part: custom number
-// formats, fonts, and the cell formats (cellXfs) that cells refer to by
-// index, resolved to 012 formats and styles on first use.
+// formats, fonts, borders, and the cell formats (cellXfs) that cells
+// refer to by index, resolved to 012 formats and styles on first use.
 type xlsxStyles struct {
 	numFmts map[int]string
 	fonts   []xlsxFont
+	borders []sheet.Borders
 	xfs     []xlsxXf
 	cache   map[int]xlsxStyle
 	dxfs    []sheet.RuleStyle // conditional formats' styles, see xlsxrulesread.go
@@ -23,11 +24,13 @@ type xlsxStyles struct {
 
 type xlsxFont struct{ bold, italic, strike, underline bool }
 
-// xlsxXf is a cell format; numFmt and font are -1 when not given.
+// xlsxXf is a cell format; numFmt, font and border are -1 when not
+// given.
 type xlsxXf struct {
-	numFmt, font          int
-	applyFont, applyAlign bool
-	align                 sheet.Align
+	numFmt, font, border               int
+	applyFont, applyAlign, applyBorder bool
+	align                              sheet.Align
+	wrap                               bool
 }
 
 // style is the cell format with index id, as 012 keeps it; an unknown
@@ -48,6 +51,12 @@ func (s *xlsxStyles) style(id int) xlsxStyle {
 	}
 	if xf.applyAlign {
 		out.style.Align = xf.align
+		if xf.wrap {
+			out.style.Wrap = sheet.WrapOn
+		}
+	}
+	if xf.applyBorder && xf.border >= 0 && xf.border < len(s.borders) {
+		out.style.Borders = s.borders[xf.border]
 	}
 	if s.cache == nil {
 		s.cache = map[int]xlsxStyle{}
@@ -120,7 +129,7 @@ func (s *xlsxStyles) read(p *xlsxPackage, part string) error {
 // element reads one element inside a section of the styles part.
 func (s *xlsxStyles) element(x *xmlStream, se xml.StartElement, section string, cur *xlsxXf) (*xlsxXf, error) {
 	full := len(s.numFmts) >= x.g.p.lim.styles || len(s.fonts) >= x.g.p.lim.styles || len(s.xfs) >= x.g.p.lim.styles ||
-		len(s.dxfs) >= x.g.p.lim.styles
+		len(s.dxfs) >= x.g.p.lim.styles || len(s.borders) >= x.g.p.lim.styles
 	switch {
 	case section == "dxfs" && se.Name.Local == "dxf" && x.depth == 3:
 		if full {
@@ -148,16 +157,27 @@ func (s *xlsxStyles) element(x *xmlStream, se xml.StartElement, section string, 
 			return nil, err
 		}
 		s.fonts = append(s.fonts, f)
+	case section == "borders" && se.Name.Local == "border" && x.depth == 3:
+		if full {
+			return nil, fmt.Errorf("the workbook has more than %d borders: %w", x.g.p.lim.styles, errXLSXLimit)
+		}
+		b, err := readBorder(x)
+		if err != nil {
+			return nil, err
+		}
+		s.borders = append(s.borders, b)
 	case section == "cellXfs" && se.Name.Local == "xf" && x.depth == 3:
 		if full {
 			return nil, fmt.Errorf("the workbook has more than %d cell formats: %w", x.g.p.lim.styles, errXLSXLimit)
 		}
 		s.xfs = append(s.xfs, xlsxXf{
-			numFmt: intAttr(se, "numFmtId", -1), font: intAttr(se, "fontId", -1),
+			numFmt: intAttr(se, "numFmtId", -1), font: intAttr(se, "fontId", -1), border: intAttr(se, "borderId", -1),
 			applyFont: boolAttr(se, "applyFont", true), applyAlign: boolAttr(se, "applyAlignment", true),
+			applyBorder: boolAttr(se, "applyBorder", true),
 		})
 		return &s.xfs[len(s.xfs)-1], nil
 	case section == "cellXfs" && se.Name.Local == "alignment" && x.depth == 4 && cur != nil:
+		cur.wrap = boolAttr(se, "wrapText", false)
 		switch h, _ := attr(se, "horizontal"); h {
 		case "left":
 			cur.align = sheet.AlignLeft

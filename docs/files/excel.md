@@ -8,6 +8,7 @@ sidebar_position: 2
 **Read:** every sheet, opening on the one Excel showed; values, formulas
 (references between sheets too, shared formulas), workbook named ranges,
 number formats, bold, italic, underline, strikethrough, alignment,
+[wrapped text, borders, row heights and merged cells](#layout-in-excel),
 column widths, column and row styles, frozen panes, [filters](#filters-in-excel),
 notes (Excel's notes, its legacy comments; threaded comments aren't
 read), [conditional formatting and data validation](#rules-in-excel),
@@ -33,6 +34,17 @@ What changes on the way:
 | JEV functions, `#AND#`, formulas naming a sheet that doesn't exist | Go out as values (their `#REF!`, for a missing sheet: Excel would refuse the reference). The download's result counts the formulas saved as values, with an example |
 | A sheet name Excel can't take as is (spaces at its ends, or the same as another's but for them and case) | Written as one it can: without the spaces, with a number when two would clash (`Plan (2)`); formulas and named ranges naming it name that |
 | Files past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) | Refused, with a message saying which |
+
+## Layout in Excel
+
+| 012 | Excel |
+|---|---|
+| Wrap | The cell format's `wrapText` |
+| Clip | Nothing: Excel has no clipping, so the text overflows there |
+| Borders: thin, thick, double | Borders in the styles part: `thin`, `medium`, `double`. Coming in, `hair`, `dotted` and the dashed lines read as thin, `medium`, `thick` and the medium dashed lines as thick |
+| A blank cell with borders | Written as a styled cell, and read, even after a row's last value |
+| A row's height, in lines | `ht` in points, 15 to a line, with `customHeight`; coming in, only heights set by hand (`customHeight`) of more than a line, rounded to lines. Rows Excel fitted to their text fit it here too |
+| Merged cells | `mergeCells`; the values Excel keeps under a merge's other cells come in but don't show |
 
 ## Filters in Excel
 

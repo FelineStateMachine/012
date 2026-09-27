@@ -176,7 +176,8 @@ func compareXLSX(t *testing.T, path string, want, got *Result) {
 // writing it back, which drops the spaces between its tokens; 012 moves
 // the references in the text as written.
 func sameSharedFormula(a, b string) bool {
-	return strings.Contains(a, `": "=`) && strings.ReplaceAll(a, " ", "") == strings.ReplaceAll(b, " ", "")
+	formula := strings.Contains(a, `": "=`) || strings.Contains(a, `"input":"=`)
+	return formula && strings.ReplaceAll(a, " ", "") == strings.ReplaceAll(b, " ", "")
 }
 
 // savedLines is the workbook as 012 saves it, without the cells in skip
