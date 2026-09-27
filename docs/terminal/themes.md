@@ -25,6 +25,9 @@ theme = light:Catppuccin Latte,dark:Catppuccin Mocha  # follow the terminal
   background, and draws the menu bar, the column headers and the status
   line as solid bands, in the manner of 1-2-3 and classic terminal
   programs. The terminal's own palette is never changed.
+- **`high-contrast`** is white on black on a dark terminal and black on
+  white on a light one, switching when the terminal does, with every
+  role at WCAG AAA contrast (see [High contrast](#high-contrast)).
 - **`light:A,dark:B`** picks A on a light terminal and B on a dark one,
   and switches when the terminal does (for example with the system's
   appearance, in terminals that report it).
@@ -48,6 +51,21 @@ Rose Pine and hundreds more), so names are the ones VHS's `Set Theme`
 takes, plus **1-2-3 Classic**: CGA colors on a blue screen. Names match
 without regard to case, and then without regard to spaces, hyphens and
 underscores, so `tokyo-night` finds `TokyoNight`.
+
+## High contrast
+
+`theme = high-contrast` draws with two built-in schemes, **High Contrast
+Dark** and **High Contrast Light**, picked by the terminal's background;
+name one of them (`theme = high-contrast-light`) to keep it. They hold
+every role to WCAG AAA rather than AA: 7:1 for all text, hints and
+muted text included, and 4.5:1 for lines, borders, chart axes and
+unavailable menu items. The pointer is black on cyan, the selection
+white on blue, errors a light red on black (a dark red on white).
+
+States never rest on color alone in any theme: the pointer and the
+selection are in reverse video, errors have a curly underline, invalid
+entries a dotted one, spilled values are italic, and so on
+([Reading without color](../contributing/ux.md#reading-without-color)).
 
 ## Your own schemes
 
@@ -91,13 +109,14 @@ well:
   text color; the column header row is filled with the header color;
 - a background role too close to the screen's background is moved apart;
 - text below its contrast minimum against its background (WCAG 4.5:1 for
-  text, 3:1 for hints, lines and chart axes, 2:1 for unavailable items)
-  is moved toward the scheme's text color, or toward black or white, just
-  far enough to reach it.
+  text, 3:1 for hints, lines and chart axes, 2:1 for unavailable items;
+  the high-contrast schemes' AAA minimums above) is moved toward the
+  scheme's text color, or toward black or white, just far enough to
+  reach it.
 
 A test runs every built-in scheme through this and checks those minimums
 for cell text, text on the bars, the selection, the headers and every
-other role (`TestEveryThemeReadable`). Charts, as text and as kitty
+other role (`TestEveryThemeReadable`, and `TestHighContrast` for AAA). Charts, as text and as kitty
 images, use the scheme's colors too.
 
 Conditional formats ([Conditional formatting and data validation](../sheets/rules.md#conditional-formatting)) name

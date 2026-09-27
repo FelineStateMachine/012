@@ -21,6 +21,14 @@ func budget(s *session) {
 	s.waitForBar("B7", "=SUM(B3:B5)")
 }
 
+// highContrast is the budget with an error and a selection, for the
+// high-contrast theme.
+func highContrast(s *session) {
+	budget(s)
+	s.keys("<up>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>")
+	s.waitFor("Sum 2158.4")
+}
+
 // formatted types a bill schedule with dates, currency and percentages,
 // then styles it with Sheets' shortcuts: bold title and totals, headers
 // aligned over their numbers, a struck-out cancelled bill and an italic
