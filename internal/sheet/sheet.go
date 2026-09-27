@@ -68,6 +68,13 @@ type Sheet struct {
 	version uint64
 	stats   statsCache
 
+	// calc is the recalculation state of cells while the workbook
+	// recalculates, with calcGet and calcFmt, the lookups its formulas
+	// read other cells and formats with; all nil otherwise.
+	calc    map[Addr]int
+	calcGet lookup
+	calcFmt func(string, Addr) Format
+
 	charts []Chart // floating charts, bottom first; see chart.go
 
 	view   viewState   // frozen panes and the filter, see view.go
@@ -369,16 +376,14 @@ func (w *Workbook) recalcAll() {
 	start := recalcStart()
 	n := 0
 	for _, s := range w.sheets {
-		n += len(s.cells)
-	}
-	state := make(map[loc]int, n)
-	for _, s := range w.sheets {
+		s.calc = make(map[Addr]int, len(s.cells))
 		for a := range s.cells {
-			state[loc{s, a}] = dirty
+			s.calc[a] = dirty
 		}
+		n += len(s.calc)
 	}
-	w.evaluate(state)
-	w.observe(true, start, len(state))
+	w.evaluate()
+	w.observe(true, start, n)
 }
 
 // Recalculation states of a cell.
@@ -392,15 +397,18 @@ const (
 // that transitively depends on them, on any sheet.
 func (w *Workbook) recalc(changed []loc) {
 	start := recalcStart()
-	state := w.affected(changed)
-	w.evaluate(state)
-	w.observe(false, start, len(state))
+	n := w.affected(changed)
+	w.evaluate()
+	w.observe(false, start, n)
 }
 
-// affected marks dirty the changed cells, volatile formulas, and every
-// formula that transitively reads them, on any sheet.
-func (w *Workbook) affected(changed []loc) map[loc]int {
-	state := make(map[loc]int)
+// affected marks dirty, in each sheet's calc, the changed cells, volatile
+// formulas, and every formula that transitively reads them, on any sheet,
+// and returns how many it marked.
+func (w *Workbook) affected(changed []loc) int {
+	for _, s := range w.sheets {
+		s.calc = make(map[Addr]int)
+	}
 	queue := append([]loc(nil), changed...)
 	for _, s := range w.sheets {
 		for a := range s.volatile {
@@ -421,18 +429,20 @@ func (w *Workbook) affected(changed []loc) map[loc]int {
 	}
 	// Queue each formula once, not once per changed cell it reads.
 	push := func(u loc) {
-		if state[u] != dirty {
+		if u.s.calc[u.a] != dirty {
 			queue = append(queue, u)
 		}
 	}
+	n := 0
 	for len(queue) > 0 {
 		l := queue[0]
 		queue = queue[1:]
-		if state[l] == dirty || !l.s.live {
+		s, a := l.s, l.a
+		if !s.live || s.calc[a] == dirty {
 			continue
 		}
-		state[l] = dirty
-		s, a := l.s, l.a
+		s.calc[a] = dirty
+		n++
 		for d := range s.dependents[a] {
 			push(loc{s, d})
 		}
@@ -444,9 +454,9 @@ func (w *Workbook) affected(changed []loc) map[loc]int {
 				}
 			}
 		}
-		for _, n := range named {
-			if n.s == s && n.r.Contains(a) {
-				for u := range n.users {
+		for _, nu := range named {
+			if nu.s == s && nu.r.Contains(a) {
+				for u := range nu.users {
 					push(u)
 				}
 			}
@@ -460,25 +470,23 @@ func (w *Workbook) affected(changed []loc) map[loc]int {
 			}
 		}
 	}
-	return state
+	return n
 }
 
-// evaluate computes the cells marked dirty in state. Cells are evaluated
-// lazily in dependency order: reading a dirty cell evaluates it first. A
-// cell that is reached again while it is still being evaluated is part of
-// a cycle and becomes ERR.
-func (w *Workbook) evaluate(state map[loc]int) {
+// evaluate computes the cells marked dirty in each sheet's calc. Cells
+// are evaluated lazily in dependency order: reading a dirty cell
+// evaluates it first. A cell that is reached again while it is still
+// being evaluated is part of a cycle and becomes ERR. The state lives on
+// the sheets, keyed by address as on one sheet, and each sheet's lookup
+// is made once, so evaluating a formula allocates nothing for sheets.
+func (w *Workbook) evaluate() {
 	w.Circular = false
-	for _, s := range w.sheets {
-		s.version++
-		s.hidden.valid = false // values may have changed what the filter hides
-	}
-	var compute func(loc) Value
-	compute = func(l loc) Value {
+	var compute func(s *Sheet, a Addr) Value
+	compute = func(s *Sheet, a Addr) Value {
 		// Every cell a formula reads comes through here, so it looks
 		// each map up once: a SUM over 8192 cells makes 8192 calls.
-		c := l.s.cells[l.a]
-		switch st := state[l]; {
+		c := s.cells[a]
+		switch st := s.calc[a]; {
 		case c == nil:
 			return Value{}
 		case st == visiting:
@@ -487,7 +495,7 @@ func (w *Workbook) evaluate(state map[loc]int) {
 		case st != dirty:
 			return c.Value
 		}
-		state[l] = visiting
+		s.calc[a] = visiting
 		c.auto = Format{}
 		switch {
 		case c.Input == "":
@@ -497,18 +505,28 @@ func (w *Workbook) evaluate(state map[loc]int) {
 		case c.expr == nil:
 			c.Value = Value{Kind: Text, Str: strings.TrimPrefix(c.Input, "'")}
 		default:
-			expr := w.arith(l.s.bound(c))
-			// One small closure per formula, to resolve sheet names.
-			c.Value = eval(expr, w.lookupFrom(l.s, compute))
+			expr := w.arith(s.bound(c))
+			c.Value = eval(expr, s.calcGet)
 			if _, lit := expr.(numLit); !lit {
-				c.auto = inferFormat(expr, w.formatFrom(l.s))
+				c.auto = inferFormat(expr, s.calcFmt)
 			}
 		}
-		state[l] = done
+		s.calc[a] = done
 		return c.Value
 	}
-	for l := range state {
-		compute(l)
+	for _, s := range w.sheets {
+		s.version++
+		s.hidden.valid = false // values may have changed what the filter hides
+		s.calcGet = w.lookupOn(s, compute)
+		s.calcFmt = w.formatFrom(s)
+	}
+	for _, s := range w.sheets {
+		for a := range s.calc {
+			compute(s, a)
+		}
+	}
+	for _, s := range w.sheets {
+		s.calc, s.calcGet, s.calcFmt = nil, nil, nil
 	}
 }
 
@@ -527,16 +545,16 @@ func (w *Workbook) crossReads(u, l loc) bool {
 	return false
 }
 
-// lookupFrom resolves references in a formula on s with get: references
+// lookupOn resolves references in a formula on s with get: references
 // without a sheet read s, others the sheet they name (#REF! when no sheet
 // has that name). The last sheet name is remembered, so a range on
 // another sheet resolves its name once.
-func (w *Workbook) lookupFrom(s *Sheet, get func(loc) Value) lookup {
+func (w *Workbook) lookupOn(s *Sheet, get func(*Sheet, Addr) Value) lookup {
 	var lastName string
 	var last *Sheet
 	return func(sheet string, a Addr) Value {
 		if sheet == "" {
-			return get(loc{s, a})
+			return get(s, a)
 		}
 		if sheet != lastName || last == nil {
 			lastName, last = sheet, w.byKey[sheetKey(sheet)]
@@ -544,13 +562,13 @@ func (w *Workbook) lookupFrom(s *Sheet, get func(loc) Value) lookup {
 		if last == nil {
 			return ErrRef
 		}
-		return get(loc{last, a})
+		return get(last, a)
 	}
 }
 
 // values reads current values for formulas on s, across sheets.
 func (w *Workbook) values(s *Sheet) lookup {
-	return w.lookupFrom(s, func(l loc) Value { return l.s.Value(l.a) })
+	return w.lookupOn(s, func(t *Sheet, a Addr) Value { return t.Value(a) })
 }
 
 // formatFrom reads display formats for formulas on s, across sheets.
