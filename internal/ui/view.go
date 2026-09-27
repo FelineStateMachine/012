@@ -325,6 +325,7 @@ func (m *Model) rowText(row, lo, ncols, minCol, maxCol int) []span {
 			}
 		}
 		claimed = to
+		cut := textCutter{s: text}
 		for k := max(first, lo); k <= min(last, hi); k++ {
 			kx0, kx1 := col(k)
 			if kx1 <= from || kx0 >= to {
@@ -332,7 +333,7 @@ func (m *Model) rowText(row, lo, ncols, minCol, maxCol int) []span {
 			}
 			sp := span{trail: kx1 - kx0, style: cell.Style, owner: c}
 			if seg0, seg1 := max(start, kx0, from), min(start+tw, kx1, to); seg1 > seg0 {
-				sp.lead, sp.text, sp.trail = seg0-kx0, ansi.Cut(text, seg0-start, seg1-start), kx1-seg1
+				sp.lead, sp.text, sp.trail = seg0-kx0, cut.cut(seg0-start, seg1-start), kx1-seg1
 			}
 			out[k-lo] = sp
 		}
@@ -347,6 +348,49 @@ func (m *Model) rowText(row, lo, ncols, minCol, maxCol int) []span {
 		}
 	}
 	return out
+}
+
+// textCutter cuts successive column ranges, left to right, out of one
+// line of text in a single pass, as ansi.Cut would one at a time: a
+// cluster is in [l, r) when its right edge is past l and not past r.
+// Cutting each column's piece with ansi.Cut rescanned the text from its
+// start, so a screen of 500-character text took 40 ms to draw.
+type textCutter struct {
+	s     string
+	i     int // byte offset of the next cluster
+	right int // right edge, in columns, of the text before s[i:]
+}
+
+func (c *textCutter) cut(l, r int) string {
+	for c.i < len(c.s) {
+		n, w := nextCluster(c.s[c.i:])
+		if c.right+w > l {
+			break
+		}
+		c.i, c.right = c.i+n, c.right+w
+	}
+	from := c.i
+	for c.i < len(c.s) {
+		n, w := nextCluster(c.s[c.i:])
+		if c.right+w > r {
+			break
+		}
+		c.i, c.right = c.i+n, c.right+w
+	}
+	return c.s[from:c.i]
+}
+
+// nextCluster returns the length in bytes and width in columns of the
+// grapheme cluster s starts with, measured as ansi.Cut measures it.
+func nextCluster(s string) (n, w int) {
+	switch b := s[0]; {
+	case b >= 0x20 && b < 0x7f:
+		return 1, 1
+	case b < 0x80:
+		return 1, 0
+	}
+	g, w := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
+	return len(g), w
 }
 
 // keyLabel formats a key binding for display, e.g. "ctrl+s" -> "Ctrl+S".
