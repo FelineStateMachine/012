@@ -17,7 +17,7 @@ cd "$root"
 out="$root/.deps/stress/results"
 mkdir -p "$out"
 raw="$out/raw-$(date -u +%Y%m%dT%H%M%SZ).txt"
-pkgs=${PKGS:-"./internal/sheet ./internal/ui ./internal/fileio ./internal/telemetry"}
+pkgs=${PKGS:-"./internal/sheet ./internal/ui ./internal/fileio ./internal/chart ./internal/telemetry"}
 
 # shellcheck disable=SC2086 # pkgs is a list
 STRESS_DIR="$root/.deps/stress" go test -tags stress -run '^$' \
