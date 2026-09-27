@@ -2,7 +2,6 @@ package ui
 
 import (
 	"cmp"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -181,7 +180,7 @@ func (m *Model) runCmdLine(text string) (tea.Cmd, bool) {
 	bang := strings.HasSuffix(word, "!")
 	switch strings.TrimSuffix(word, "!") {
 	case "w":
-		return m.writeTo(arg, bang), true
+		return m.writeTo(arg), true
 	case "q":
 		if bang {
 			return m.exit(), true
@@ -192,7 +191,7 @@ func (m *Model) runCmdLine(text string) (tea.Cmd, bool) {
 			return m.exit(), true
 		}
 		m.quitAfterSave = true
-		return m.writeTo(arg, bang), true
+		return m.writeTo(arg), true
 	case "e":
 		return m.editFile(arg, bang), true
 	}
@@ -231,31 +230,25 @@ func commandNamed(text string) (string, bool) {
 	return "", false
 }
 
-// writeTo is :w. Without a name it saves; with one it saves under that
-// name, or downloads when the name is another format's (:w out.csv).
-// An existing file is replaced only after asking, or with :w!.
-func (m *Model) writeTo(name string, force bool) tea.Cmd {
+// writeTo is :w. Without a name it saves, as File > Save; with one it
+// saves as that name, as File > Save as, or downloads when the name is
+// another format's (:w out.csv), as File > Download. It goes the menus'
+// ways, so files are named, checked and replaced the same.
+func (m *Model) writeTo(name string) tea.Cmd {
 	if name == "" {
 		return m.runCommand("file.save")
 	}
-	if k, ok := fileio.KindOf(name); ok {
-		if !k.CanExport() {
-			m.quitAfterSave = false
-			m.fail("012 can't write " + k.String() + " files")
-			return nil
-		}
-		if k.HasTables() {
-			m.openTableName(name, k, sheet.Rect{})
-			return nil
-		}
-		return m.confirmReplace(filepath.Base(name)+" exists.", func(m *Model) tea.Cmd {
-			return m.download(name, k, sheet.Rect{}, "")
-		}, exists(name) && !force)
+	k, ok := fileio.KindOf(name)
+	switch {
+	case !ok:
+		return m.saveAsFile(name)
+	case !k.CanExport():
+		m.quitAfterSave = false
+		m.fail("012 can't write " + k.String() + " files")
+		return nil
 	}
-	name = withExt(name)
-	return m.confirmReplace(filepath.Base(name)+" exists.", func(m *Model) tea.Cmd {
-		return saveCmd(m.sheet, name)
-	}, exists(name) && !force && name != m.filename)
+	m.quitAfterSave = false // a download isn't the sheet's file
+	return m.downloadFile(k, sheet.Rect{}, name)
 }
 
 // editFile is :e name: open a sheet or import a file, refusing to drop
@@ -268,10 +261,7 @@ func (m *Model) editFile(name string, force bool) tea.Cmd {
 		m.fail("Unsaved changes: :w saves them, :e! " + name + " discards them")
 		return nil
 	}
-	if _, ok := fileio.KindOf(name); ok {
-		return m.confirmImport(name, fileio.Options{})
-	}
-	return loadCmd(withExt(name))
+	return m.openFile(name)
 }
 
 func (c *cmdLine) contextLine(m *Model) (string, string) {

@@ -23,20 +23,27 @@ func (m *Model) openSave() tea.Cmd {
 	if name == "" {
 		name = m.displayBase() + sheet.FileExt
 	}
-	m.openText("Save as:", name, func(m *Model, text string) tea.Cmd {
-		return saveCmd(m.sheet, withExt(text))
-	})
+	m.openText("Save as:", name, (*Model).saveAsFile)
 	return nil
 }
 
+// saveAsFile saves the sheet under a name typed for Save as or :w.
+func (m *Model) saveAsFile(text string) tea.Cmd {
+	return saveCmd(m.sheet, withExt(text))
+}
+
 func (m *Model) openRetrieve() tea.Cmd {
-	m.openText("Open file:", "", func(m *Model, text string) tea.Cmd {
-		if _, ok := fileio.KindOf(text); ok {
-			return m.confirmImport(text, fileio.Options{})
-		}
-		return loadCmd(withExt(text))
-	})
+	m.openText("Open file:", "", (*Model).openFile)
 	return listFilesCmd
+}
+
+// openFile opens a sheet, or imports a file of another format, named for
+// Open or :e.
+func (m *Model) openFile(text string) tea.Cmd {
+	if _, ok := fileio.KindOf(text); ok {
+		return m.confirmImport(text, fileio.Options{})
+	}
+	return loadCmd(withExt(text))
 }
 
 // reset starts over on s, as File > New and Open do. What belongs to the

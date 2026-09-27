@@ -78,22 +78,28 @@ func (m *Model) openDownload(k fileio.Kind) tea.Cmd {
 		label = "Download " + r.String() + " as " + k.String() + ":"
 	}
 	m.openText(label, m.displayBase()+k.Ext(), func(m *Model, text string) tea.Cmd {
-		if text == "" {
-			return nil
-		}
-		name := text
-		if filepath.Ext(name) == "" {
-			name += k.Ext()
-		}
-		if k.HasTables() {
-			m.openTableName(name, k, r)
-			return nil
-		}
-		return m.confirmReplace(filepath.Base(name)+" exists.", func(m *Model) tea.Cmd {
-			return m.download(name, k, r, "")
-		}, exists(name))
+		return m.downloadFile(k, r, text)
 	})
 	return nil
+}
+
+// downloadFile downloads r (the whole sheet when zero) as k to a file
+// named for Download or :w, asking before replacing a file or table.
+func (m *Model) downloadFile(k fileio.Kind, r sheet.Rect, text string) tea.Cmd {
+	if text == "" {
+		return nil
+	}
+	name := text
+	if filepath.Ext(name) == "" {
+		name += k.Ext()
+	}
+	if k.HasTables() {
+		m.openTableName(name, k, r)
+		return nil
+	}
+	return m.confirmReplace(filepath.Base(name)+" exists.", func(m *Model) tea.Cmd {
+		return m.download(name, k, r, "")
+	}, exists(name))
 }
 
 func exists(name string) bool {

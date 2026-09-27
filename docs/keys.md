@@ -97,7 +97,7 @@ The `:` line takes:
 |---|---|
 | `:B12`, `:Sheet2!A1`, `:C3:D9`, `:Sales` | Go to a cell, range or named range |
 | `:40` | Go to row 40 |
-| `:w`, `:w name`, `:w out.csv` | Save; save as; download as another format (`:w!` replaces without asking) |
+| `:w`, `:w name`, `:w out.csv` | Save, Save as, or Download as another format, just as the File menu does |
 | `:q`, `:q!` | Quit (asking about unsaved changes), quit discarding them |
 | `:wq`, `:x` | Save and quit; `:x` saves only if something changed |
 | `:e name`, `:e!` | Open a sheet or import a file; refused with unsaved changes unless `:e!` |
