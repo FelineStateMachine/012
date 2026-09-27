@@ -161,6 +161,18 @@ func (m *Model) recordAnswer(answer string, cancelled bool) {
 	}
 }
 
+// recordDialog records what a dialog did once it has, as its command
+// answered with the dialog's choices (see command.answer), which a
+// replay makes again.
+func (m *Model) recordDialog(id, answer string) {
+	r := m.rec
+	if r == nil || r.depth > 0 || m.mode == modeError {
+		return
+	}
+	r.flush(m)
+	r.add(m, macro.Call("run", id).With("answer", macro.JSON(answer)))
+}
+
 // recordEntry records an entry stored in the active cell, or in every
 // selected cell with fill (Ctrl+Enter).
 func (m *Model) recordEntry(input string, fill bool) {

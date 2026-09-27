@@ -276,11 +276,28 @@ func (h scriptHost) Run(id string, answer *string) error {
 		return fmt.Errorf("no command %q; the palette (Ctrl+K) lists them, and docs/reference/macro-api.md how to find ids", id)
 	case c.macro == macroNever:
 		return fmt.Errorf("%s (%s) can't run in a macro", c.title, id)
+	case c.answer != nil && answer != nil:
+		return h.answered(c, *answer)
 	case !c.available(m):
 		return fmt.Errorf("%s can't run now", c.title)
 	}
 	m.macros.cmds = append(m.macros.cmds, m.runCommand(id))
 	return h.answer(c, answer)
+}
+
+// answered runs a command that opens a dialog with the dialog's
+// choices, as a recording writes them.
+func (h scriptHost) answered(c *command, text string) error {
+	m := h.m
+	cmd, err := c.answer(m, text)
+	m.macros.cmds = append(m.macros.cmds, cmd)
+	if err != nil {
+		if m.overlay != nil {
+			m.closeOverlay()
+		}
+		return fmt.Errorf("%s: %w", c.title, err)
+	}
+	return h.answer(c, nil)
 }
 
 // answer answers the question a command left open, or backs out of it
@@ -321,7 +338,11 @@ func (h scriptHost) choose(c *command, answer *string) error {
 		return h.pickAnswer(c, p, answer)
 	}
 	bar, ok := m.overlay.(*choicebar.Bar)
-	if !ok {
+	switch {
+	case !ok && c.answer != nil:
+		m.closeOverlay()
+		return fmt.Errorf("%s opens a dialog: give run(%q, answer={...}) with its choices, as a recording writes them", c.title, c.id)
+	case !ok:
 		m.closeOverlay()
 		return fmt.Errorf("%s opens a dialog; it can't run in a macro", c.title)
 	}

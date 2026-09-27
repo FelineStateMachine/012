@@ -82,7 +82,8 @@ type Host interface {
 
 	// Run runs a registered command by id. A command that asks a
 	// question (a width, a name, a confirmation) gets answer, which is
-	// required then.
+	// required then; one that opens a dialog gets the dialog's choices
+	// as JSON text, from a dict or list the script gave.
 	Run(id string, answer *string) error
 	// SetWidth sets the width of the columns cols, e.g. "B" or "B:D".
 	SetWidth(cols string, width int) error
@@ -104,7 +105,7 @@ var JumpTargets = []string{"up", "down", "left", "right", "home", "start", "end"
 // can be kept, compared or saved before it becomes a script.
 type Action struct {
 	Func    string `json:"func,omitempty"`
-	Args    []any  `json:"args,omitempty"` // string, int or bool
+	Args    []any  `json:"args,omitempty"` // string, int, bool or JSON
 	Named   []Arg  `json:"named,omitempty"`
 	Comment string `json:"comment,omitempty"`
 }
@@ -156,6 +157,12 @@ func literal(v any) string {
 		return "False"
 	case nil:
 		return "None"
+	case JSON:
+		lit, err := starlarkLiteral(string(v))
+		if err != nil {
+			panic(fmt.Sprintf("macro: %v", err))
+		}
+		return lit
 	}
 	panic(fmt.Sprintf("macro: no literal for %T", v))
 }

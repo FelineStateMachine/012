@@ -118,11 +118,12 @@ func TestScriptErrorsShowWhere(t *testing.T) {
 	}
 
 	for src, want := range map[string]string{
-		`run("file.save")`:       "S:1:4: run: Save (file.save) can't run in a macro",
-		`run("column.width")`:    `S:1:4: run: Column width asks "Column width (1-240)": give run("column.width", answer=...)`,
-		`run("no.such")`:         `S:1:4: run: no command "no.such"`,
-		`run("data.sort_range")`: "S:1:4: run: Sort range opens a dialog; it can't run in a macro",
-		"move(0, -1)":            "S:1:5: move: moving 0, -1 from A1 goes off the sheet",
+		`run("file.save")`:         "S:1:4: run: Save (file.save) can't run in a macro",
+		`run("column.width")`:      `S:1:4: run: Column width asks "Column width (1-240)": give run("column.width", answer=...)`,
+		`run("no.such")`:           `S:1:4: run: no command "no.such"`,
+		`run("data.sort_range")`:   `S:1:4: run: Sort range opens a dialog: give run("data.sort_range", answer={...})`,
+		`run("data.named_ranges")`: "S:1:4: run: Named ranges opens a dialog; it can't run in a macro",
+		"move(0, -1)":              "S:1:5: move: moving 0, -1 from A1 goes off the sheet",
 	} {
 		m := newModel()
 		script(t, m, src)

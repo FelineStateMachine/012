@@ -350,7 +350,15 @@ func (r *Run) run(args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value,
 		return nil, err
 	}
 	var a *string
-	if answer != starlark.None {
+	switch answer.(type) {
+	case starlark.NoneType:
+	case *starlark.Dict, *starlark.List, starlark.Tuple:
+		text, err := answerJSON(answer)
+		if err != nil {
+			return nil, err
+		}
+		a = &text
+	default:
 		text, err := input("run", answer)
 		if err != nil {
 			return nil, err
