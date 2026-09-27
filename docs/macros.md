@@ -7,7 +7,7 @@ script (a small, deterministic dialect of Python) saved in the `.012`
 file, as Sheets saves Apps Script with a spreadsheet. Recorded macros are
 scripts too, so you can read them, change them, or write your own.
 
-![Recording a column total with relative references, then replaying it with its shortcut and from the palette](media/macros.gif)
+![Recording a column total with relative references, then replaying it from Run macro and the palette](media/macros.gif)
 
 ## Recording
 
