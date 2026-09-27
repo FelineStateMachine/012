@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/locale"
@@ -284,42 +285,112 @@ func (rd *fileReader) cells(s *Sheet, sc *scanner) error {
 		return err
 	}
 	implied := rd.version < 2
-	return sc.members(func(name string) error {
-		input, fm, st, note, err := cellValue(sc)
+	return sc.fields(func(key []byte, plain bool) error {
+		a, name, err := cellKey(key, plain)
 		if err != nil {
+			return err
+		}
+		if err := s.readCell(sc, a, implied); err != nil {
+			if name == "" {
+				name = a.String()
+			}
 			return fmt.Errorf("%s: %w", name, err)
-		}
-		a, ok := ParseAddr(name)
-		if !ok {
-			return fmt.Errorf("invalid cell %q", name)
-		}
-		c, err := newCell(input, fm, st, implied)
-		if err != nil {
-			return fmt.Errorf("%s: %w", name, err)
-		}
-		if c = c.withNote(CleanNote(note)); c != nil {
-			s.place(a, c)
 		}
 		return nil
 	})
 }
 
-// cellValue reads a cell's entry, formatting and note: a string for an
-// entry alone, an object otherwise (see fileFormat).
-func cellValue(sc *scanner) (string, Format, Style, string, error) {
+// cellKey is the cell a key of "cells" names, and its name when it isn't
+// a's (for errors). A plain key is parsed from its bytes, which are
+// valid only until the next read, without making a string of it.
+func cellKey(key []byte, plain bool) (Addr, string, error) {
+	if plain {
+		a, ok := ParseAddr(string(key))
+		if !ok {
+			return a, "", fmt.Errorf("invalid cell %q", key)
+		}
+		return a, "", nil
+	}
+	var name string
+	if err := json.Unmarshal(quote(key), &name); err != nil {
+		return Addr{}, "", err
+	}
+	a, ok := ParseAddr(name)
+	if !ok {
+		return a, "", fmt.Errorf("invalid cell %q", name)
+	}
+	return a, name, nil
+}
+
+// readCell reads the cell at a from sc: a string for an entry alone, an
+// object for one with formatting or a note (see fileFormat).
+func (s *Sheet) readCell(sc *scanner, a Addr, implied bool) error {
 	c, err := sc.peek()
 	if err != nil {
-		return "", Format{}, Style{}, "", err
+		return err
 	}
+	var input, note string
+	var fm Format
+	var st Style
 	if c == '"' {
-		input, err := sc.str()
-		return input, Format{}, Style{}, "", err
+		body, plain, err := sc.text()
+		if err != nil {
+			return err
+		}
+		if plain && s.loadNum(a, body, Format{}, Style{}) {
+			return nil
+		}
+		if input, err = unquote(body, plain); err != nil {
+			return err
+		}
+	} else {
+		raw, err := sc.raw()
+		if err != nil {
+			return err
+		}
+		if input, fm, st, note, err = decodeNoted(raw); err != nil {
+			return err
+		}
+		if note == "" && s.loadNum(a, []byte(input), fm, st) {
+			return nil
+		}
 	}
-	raw, err := sc.raw()
+	cell, err := newCell(input, fm, st, implied)
 	if err != nil {
-		return "", Format{}, Style{}, "", err
+		return err
 	}
-	return decodeNoted(raw)
+	// An empty entry leaves no cell, even where the key came before.
+	if cell = cell.withNote(CleanNote(note)); cell != nil || s.cells.has(a) {
+		s.place(a, cell)
+	}
+	return nil
+}
+
+// loadNum stores a number typed plainly ("12.5", "-3", "0.50", the most
+// common entry by far) at a, from a file, straight into its slot: what
+// newCell and place would store, without making a Cell or a string. It
+// reports false for any other entry, or a cell a holds with contents,
+// which go the general way. A sheet being read has no undo step, pivot
+// or spill yet for place to see to.
+func (s *Sheet) loadNum(a Addr, input []byte, f Format, st Style) bool {
+	if f.Kind == FmtText || s.cells.richAt(a) != nil {
+		return false
+	}
+	d, ok := plainForm(string(input))
+	if !ok {
+		return false
+	}
+	v, err := strconv.ParseFloat(string(input), 64)
+	if err != nil {
+		return false
+	}
+	lk, ok := s.cells.lookID(f, st)
+	if !ok {
+		return false
+	}
+	s.version++
+	s.cells.setSlot(a, slot{kind: slotNum, num: v, dec: d, look: lk})
+	return true
 }
 
 // unmarshalFields decodes an object's fields, as written, into v.

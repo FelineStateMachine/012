@@ -217,6 +217,21 @@ func (st *cellStore) set(a Addr, c *Cell) {
 	st.touch(a)
 }
 
+// setSlot stores sl, a plain slot whose strings and look st already
+// counts, at a: set for a slot made directly, as a file's numbers are.
+func (st *cellStore) setSlot(a Addr, sl slot) {
+	b, i := st.find(a)
+	if b == nil {
+		b = st.stored.mark(a)
+		i, _ = b.index(a.Row & (blockRows - 1))
+		b.vals = slices.Insert(b.vals, i, slot{kind: slotBlank})
+	}
+	st.releaseSlot(b.vals[i])
+	b.vals[i] = sl
+	st.filledAs(a, st.filled.has(a), sl.kind != slotBlank)
+	st.touch(a)
+}
+
 // filledAs updates the index of filled cells for a cell at a that was
 // and is filled or not.
 func (st *cellStore) filledAs(a Addr, was, is bool) {

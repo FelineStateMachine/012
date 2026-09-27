@@ -18,6 +18,7 @@ import (
 type scanner struct {
 	r   *bufio.Reader
 	buf []byte // scratch for a string longer than the reader's buffer or escaped
+	key []byte // the key being read
 }
 
 func newScanner(r io.Reader) *scanner { return &scanner{r: bufio.NewReaderSize(r, 64<<10)} }
@@ -88,18 +89,34 @@ func (sc *scanner) null() (bool, error) {
 // members reads an object, calling fn with each key once the reader is
 // at its value, which fn must read.
 func (sc *scanner) members(fn func(key string) error) error {
+	return sc.fields(func(key []byte, plain bool) error {
+		s := string(key)
+		if !plain {
+			if err := json.Unmarshal(quote(key), &s); err != nil {
+				return err
+			}
+		}
+		return fn(s)
+	})
+}
+
+// fields is members giving each key as written between its quotes, and
+// whether that is its text (see text); the bytes are valid until the
+// value is read.
+func (sc *scanner) fields(fn func(key []byte, plain bool) error) error {
 	if err := sc.expect('{'); err != nil {
 		return err
 	}
 	return sc.list('}', func() error {
-		key, err := sc.str()
+		text, plain, err := sc.text()
 		if err != nil {
 			return err
 		}
+		sc.key = append(sc.key[:0], text...) // reading on may move text
 		if err := sc.expect(':'); err != nil {
 			return err
 		}
-		return fn(key)
+		return fn(sc.key, plain)
 	})
 }
 
@@ -139,14 +156,14 @@ func (sc *scanner) list(end byte, fn func() error) error {
 	}
 }
 
-// str reads a string.
-func (sc *scanner) str() (string, error) {
-	body, plain, err := sc.text()
-	if err != nil || plain {
-		return string(body), err
+// unquote is the text of a string written as body between its quotes,
+// plain or not (see text).
+func unquote(body []byte, plain bool) (string, error) {
+	if plain {
+		return string(body), nil
 	}
 	var s string
-	err = json.Unmarshal(quote(body), &s)
+	err := json.Unmarshal(quote(body), &s)
 	return s, err
 }
 

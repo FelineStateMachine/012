@@ -112,12 +112,64 @@ func sameAsWhole(t *testing.T, data []byte) {
 	case errors.Is(gerr, errTwice):
 		// Refused, where decoding the whole file took the last (and for
 		// sheets, merged the two lists).
+	case gerr != nil && werr == nil && duplicateKeys(data):
+		// Streaming reads every entry of a cell given twice, and refuses
+		// an invalid one that decoding the whole file overwrote.
 	case (werr == nil) != (gerr == nil):
 		t.Fatalf("reading %q: streaming %v, whole %v", data, gerr, werr)
 	case werr == nil && !ambiguous:
 		if g, w := written(t, got), written(t, want); g != w {
 			t.Fatalf("reading %q: streaming writes\n%s\nwhole writes\n%s", data, g, w)
 		}
+	}
+}
+
+// duplicateKeys reports whether an object in data gives a key twice.
+func duplicateKeys(data []byte) bool {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	type level struct {
+		keys  map[string]bool
+		isKey bool // the next token in this object is a key
+	}
+	var stack []*level
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return false
+		}
+		top := (*level)(nil)
+		if len(stack) > 0 {
+			top = stack[len(stack)-1]
+		}
+		switch tok {
+		case json.Delim('{'), json.Delim('['):
+			if top != nil && top.keys != nil {
+				top.isKey = true // the object or array is the value
+			}
+			l := &level{}
+			if tok == json.Delim('{') {
+				l.keys, l.isKey = map[string]bool{}, true
+			}
+			stack = append(stack, l)
+			continue
+		case json.Delim('}'), json.Delim(']'):
+			stack = stack[:len(stack)-1]
+			if len(stack) == 0 {
+				return false
+			}
+			continue
+		}
+		if top == nil || top.keys == nil {
+			continue
+		}
+		if top.isKey {
+			k := tok.(string)
+			if top.keys[k] {
+				return true
+			}
+			top.keys[k] = true
+		}
+		top.isKey = !top.isKey
 	}
 }
 
@@ -141,13 +193,20 @@ func streamSeeds(t testing.TB) [][]byte {
 	}
 	s.Book().Sheet(1).Set(Addr{}, "=SUM(Sheet1!B1:B5)")
 	two := []byte(written(t, s.Book()))
-	return [][]byte{one, two,
+	// Many cells, so keys and values straddle the reader's buffer.
+	big := New()
+	for r := range 20000 {
+		big.Load(Addr{Row: r}, fmt.Sprintf("%d.%02d", r, r%100), Format{}, Style{})
+		big.Load(Addr{Col: 1, Row: r}, fmt.Sprintf("text %d", r%300), Format{}, Style{Bold: r%7 == 0})
+	}
+	return [][]byte{one, two, []byte(written(t, big.Book())),
 		[]byte(`{"version": 1, "widths": {"A": 14}, "cells": {"A1": "Rent", "B1": "$1,450", "B2": "=B1*12"}}`),
 		[]byte(`{"cells": {"A1": "5", "B1": "=A1+1"}, "version": 2}`),
 		[]byte(`{"Cells": {"A1": "5"}, "VERSION": 3, "cells": {"A1": "6", "A2": {"input": "7", "bold": true}}}`),
 		[]byte(`{"sheets": [{"cells": {"A1": "1"}, "name": "S"}], "version": 4}`),
 		[]byte(`{"version": 4, "sheets": [{"name": "A", "cells": {"A1": "1"}}, null], "sheets": [{"name": "B", "cells": {"B2": "A\n"}}]}`),
 		[]byte(`{"version": 2, "cells": {"A1": "x", "a1": "y"}}`),
+		[]byte(`{"version": 2, "cells": {"A1": "=(", "A1": "1", "B1": "2", "B1": ""}}`),
 		[]byte(`{"version": 2, "cells": null, "sheets": 5}`),
 		[]byte(`{"version": 4, "cells": "x", "sheets": []}`),
 		[]byte(`{"version": 2, "cells": {"A1": "😀", "A2": "bad \xff", "ZZ9": 5}}`),

@@ -49,7 +49,8 @@ func parseNumberFormat(s string) (float64, Format, bool) {
 		s = strings.ReplaceAll(s, ",", "")
 	}
 	v, err := strconv.ParseFloat(s, 64)
-	if err != nil || strings.ContainsAny(s, "xXpP_") || strings.EqualFold(s, "inf") {
+	dot, exp, odd := scanNumber(s)
+	if err != nil || odd || strings.EqualFold(s, "inf") {
 		return 0, Format{}, false
 	}
 	if pct {
@@ -66,7 +67,7 @@ func parseNumberFormat(s string) (float64, Format, bool) {
 	}
 	// The format Sheets infers: two decimals if any were typed.
 	dec := 0
-	if strings.Contains(s, ".") {
+	if dot {
 		dec = 2
 	}
 	var f Format
@@ -75,12 +76,29 @@ func parseNumberFormat(s string) (float64, Format, bool) {
 		f = Format{Kind: FmtCurrency, Decimals: dec}
 	case pct:
 		f = Format{Kind: FmtPercent, Decimals: dec}
-	case strings.ContainsAny(s, "eE"):
+	case exp:
 		f = Preset(FmtScientific)
 	case grouped:
 		f = Format{Kind: FmtNumber, Decimals: dec}
 	}
 	return v, f, true
+}
+
+// scanNumber reports whether s has a decimal point, an exponent, and
+// what ParseFloat accepts but an entry isn't: hexadecimal, underscores.
+// One pass, as every number loaded goes through it.
+func scanNumber(s string) (dot, exp, odd bool) {
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '.':
+			dot = true
+		case 'e', 'E':
+			exp = true
+		case 'x', 'X', 'p', 'P', '_':
+			odd = true
+		}
+	}
+	return dot, exp, odd
 }
 
 // validGrouping checks thousands separators: groups of three digits
