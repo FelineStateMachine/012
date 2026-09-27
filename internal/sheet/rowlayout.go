@@ -251,8 +251,16 @@ func (s *Sheet) recordHeight(row int) {
 	}
 	k := rowKey{s, row}
 	if _, seen := st.heights[k]; !seen {
-		st.heights[k] = s.heights[row]
+		st.keepHeight(k, s.heights[row])
 	}
+}
+
+// keepHeight records row k's height h as it was before the step.
+func (st *step) keepHeight(k rowKey, h int) {
+	if st.heights == nil {
+		st.heights = map[rowKey]int{}
+	}
+	st.heights[k] = h
 }
 
 // shiftHeights moves row heights along with inserted or deleted rows.

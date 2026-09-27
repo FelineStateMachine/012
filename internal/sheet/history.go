@@ -41,7 +41,7 @@ type step struct {
 	focus     Rect                // what the UI selects there
 	cells     map[loc]*Cell       // before the step; nil for blank
 	widths    map[colKey]int      // before the step; 0 for the default width
-	heights   map[rowKey]int      // rows' heights before the step; 0 for none
+	heights   map[rowKey]int      // rows' heights before the step, 0 for none; nil until one changes
 	lines     map[lineKey]lineFmt // column and row formats before the step
 	names     map[string]*Name    // before the step, by key; nil for undefined
 	views     map[*Sheet]*viewState
@@ -68,7 +68,7 @@ type colKey struct {
 }
 
 func newStep(label string, s *Sheet, focus Rect) *step {
-	return &step{label: label, sheet: s, focus: focus, cells: map[loc]*Cell{}, widths: map[colKey]int{}, heights: map[rowKey]int{}, lines: map[lineKey]lineFmt{},
+	return &step{label: label, sheet: s, focus: focus, cells: map[loc]*Cell{}, widths: map[colKey]int{}, lines: map[lineKey]lineFmt{},
 		names: map[string]*Name{}, views: map[*Sheet]*viewState{}, charts: map[*Sheet][]Chart{}, pivots: map[*Sheet]*Pivot{}, rules: map[*Sheet]rulesState{}}
 }
 
@@ -281,7 +281,7 @@ func (h *history) joinWidths(top, st *step) {
 	}
 	for k, h := range st.heights {
 		if _, ok := top.heights[k]; !ok {
-			top.heights[k] = h
+			top.keepHeight(k, h)
 		}
 	}
 	top.dropUnchangedLines()
@@ -386,7 +386,7 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		k.s.setWidth(k.col, width)
 	}
 	for k, h := range st.heights {
-		inv.heights[k] = k.s.heights[k.row]
+		inv.keepHeight(k, k.s.heights[k.row])
 		k.s.setHeight(k.row, h)
 	}
 	for k, l := range st.lines {
