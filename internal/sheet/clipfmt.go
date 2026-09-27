@@ -12,7 +12,8 @@ import (
 // already show. Copying whole columns or rows and pasting them as whole
 // lines (at the top of a column, the start of a row, or A1 for the whole
 // sheet) carries the line formats themselves, and cutting them moves the
-// line formats, leaving the source lines plain.
+// line formats, leaving the source lines plain. Cutting a block leaves
+// its cells plain, over whatever lines cross it.
 
 // clipFormats is the formatting of a copied range, taken at copy time.
 type clipFormats struct {
@@ -256,8 +257,44 @@ func (s *Sheet) moveFormats(from *Sheet, f *clipFormats, src, dst Rect) {
 		for n := range f.rowFmt {
 			from.setLine(true, src.From.Row+n, lineFmt{})
 		}
+	case lineBlock:
+		from.plainSource(src, dst, from == s)
 	}
 	s.pasteFormats(f, p)
+}
+
+// plainSource leaves the cells a block was cut from showing plain, as
+// Sheets clears them: where a formatted row, column or the sheet crosses
+// src, its blank cells get plain formatting of their own, up to
+// materializeLimit cells looked at, except those in dst when the block
+// lands on the same sheet.
+func (s *Sheet) plainSource(src, dst Rect, same bool) {
+	var areas []Rect
+	if !s.lines.sheet.IsZero() {
+		areas = []Rect{src}
+	} else {
+		for n := range linesIn(s.lines.rows, src.From.Row, src.To.Row) {
+			row := src.From.Row + n
+			areas = append(areas, Rect{From: Addr{Col: src.From.Col, Row: row}, To: Addr{Col: src.To.Col, Row: row}})
+		}
+		for n := range linesIn(s.lines.cols, src.From.Col, src.To.Col) {
+			col := src.From.Col + n
+			areas = append(areas, Rect{From: Addr{Col: col, Row: src.From.Row}, To: Addr{Col: col, Row: src.To.Row}})
+		}
+	}
+	seen := 0
+	for _, r := range areas {
+		for row := r.From.Row; row <= r.To.Row; row++ {
+			for c := r.From.Col; c <= r.To.Col; c++ {
+				if seen++; seen > materializeLimit {
+					return
+				}
+				if a := (Addr{Col: c, Row: row}); !(same && dst.Contains(a)) && s.cells.get(a) == nil {
+					s.placeFormat(a, lineFmt{})
+				}
+			}
+		}
+	}
 }
 
 // unionKeys are the keys of a and b, in order.

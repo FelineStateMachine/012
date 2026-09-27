@@ -121,21 +121,27 @@ func sheetList(sheets []*sheet.Sheet) string {
 }
 
 // chartFates tells what replacing a sheet did to its charts, for the
-// note: re-pointed to the new data, or kept on their range.
+// note: re-pointed to the new data, kept on their range, or removed, as
+// they no longer fit (undo brings them back).
 func chartFates(fates []sheet.ChartFate) string {
-	if len(fates) == 0 {
-		return ""
-	}
-	parts := make([]string, len(fates))
-	for i, f := range fates {
+	var kept, removed []string
+	for _, f := range fates {
 		switch {
+		case f.Removed:
+			removed = append(removed, f.Name+" ("+f.Was.String()+")")
 		case f.Now != f.Was:
-			parts[i] = f.Name + " re-pointed to " + f.Now.String()
-		case f.Empty:
-			parts[i] = f.Name + " kept on " + f.Now.String() + ", empty now"
+			kept = append(kept, f.Name+" re-pointed to "+f.Now.String())
 		default:
-			parts[i] = f.Name + " kept on " + f.Now.String()
+			kept = append(kept, f.Name+" kept on "+f.Now.String())
 		}
 	}
-	return "; charts: " + strings.Join(parts, ", ")
+	// Removals first: they matter more when the note is cut short.
+	out := ""
+	if len(removed) > 0 {
+		out += "; removed charts: " + strings.Join(removed, ", ")
+	}
+	if len(kept) > 0 {
+		out += "; charts: " + strings.Join(kept, ", ")
+	}
+	return out
 }

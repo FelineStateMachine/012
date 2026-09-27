@@ -217,14 +217,24 @@ func TestImportLocation(t *testing.T) {
 		t.Errorf("tabs after undo %q", l)
 	}
 
+	// A chart of the one-cell table in A1 doesn't fit the two columns
+	// replacing it: it goes, and undo brings it back.
+	s.keys("<ctrl+home>")
+	insertChart(s)
+	s.keys("<enter>", "<esc>")
+	s.waitFor("No numbers to chart")
 	openImportPicker(s)
 	s.keys("tsv", "<enter>")
 	s.waitFor("Import location")
 	s.keys("current", "<enter>")
-	s.waitFor("Imported budget.tsv into Sheet1 (2 rows)")
+	s.waitFor("Imported budget.tsv into Sheet1 (2 rows); removed charts: Chart 1 (A1)")
 	s.waitForBar("A1", "Rent")
+	if strings.Contains(s.screen(), "No numbers to chart") {
+		t.Errorf("the chart stayed:\n%s", s.screen())
+	}
 	s.keys("<ctrl+z>")
 	s.waitFor("Undid: import budget.tsv")
+	s.waitFor("No numbers to chart")
 	s.keys("<ctrl+home>")
 	s.waitForBar("A1", "Notes")
 }

@@ -24,7 +24,10 @@ Shift+Space) copied and pasted at the top of a column, or the start of a
 row, take their column or row formats along, so a pasted column is
 currency all the way down, not only where it had data; cut and pasted,
 they move them, leaving the source columns plain. Pasted anywhere else,
-they paste as a block of the cells that hold something. Formulas reading
+they paste as a block of the cells that hold something. A block cut and
+pasted leaves the cells it came from plain, as Sheets does, even where
+a formatted column or row crosses them. Vim's `yy` and `dd` copy whole
+rows, so `p` and `P` bring their row formats along. Formulas reading
 a column whose format changes, blank cells included, show the new format
 at once (`=B5*2` shows currency when column B becomes currency). Copies also go to the
 system clipboard as tab-separated text (OSC 52, so it works over SSH), and
@@ -84,15 +87,18 @@ opens docked at the right of the grid, with the results updating behind it:
 
 - **Rows** group the data by a field's values, one row per value; with two
   or more, the groups nest and each outer group gets a subtotal row.
-- **Columns** spread the groups across columns by a field's values.
+- **Columns** spread the groups across columns by a field's values; with
+  two or more, each outer group gets a subtotal column (`East Total`)
+  after its last column.
 - **Values** summarize a field for each group: SUM, COUNTA, COUNT,
   COUNTUNIQUE, AVERAGE, MAX or MIN (Sheets' "Summarize by"), shown as they
   are or as a share of their row, column or grand total ("Show as").
   A new value is summed when its field holds numbers, and counted
-  otherwise.
+  otherwise. Its header is Sheets' `SUM of Units` until you rename it.
 - **Filters** leave out rows by a field's values or a condition, in the
   same picker as a filter's column.
-- **Grand total row** and **Grand total column** add Sheets' totals.
+- **Grand total row** and **Grand total column** add Sheets' totals, and
+  turn the subtotal rows and columns on and off with them.
 
 Up and Down pick a line. Space adds a field to the section it's on (pick
 it from the fields of the data, type to narrow the list), opens a filter's
@@ -101,7 +107,9 @@ its sheet. On a row or column field, Left and Right order its groups A to
 Z, Z to A, or by a value's total, smallest or largest first, and
 Shift+Up and Shift+Down move it before or after the others, which changes
 how the groups nest. On a value, Left and Right change how it's
-summarized and S how it's shown. Del removes a field. Every change is an
+summarized, S how it's shown, and R (or F2) renames it on the context
+line, the name heading its columns; an empty name goes back to Sheets'.
+A value keeps its name when its summary changes. Del removes a field. Every change is an
 undo step; Enter keeps them, Esc undoes them, and removes a pivot just
 created. Data > Edit pivot table opens the editor again.
 
@@ -109,7 +117,10 @@ Groups follow Sheets: text ignoring case (`east` joins `East`), numbers
 and dates by value, with the source's format, so dates show as dates.
 Numbers and text never share a group: `1` and the text `'1` are two.
 Groups sort numbers first, then text, booleans and errors, and blank
-cells, shown as `(blank)`, last. Rows blank across the whole range are
+cells last; as in Sheets, the group of blank cells has a blank label,
+and its subtotal is just `Total`. Sorting an outer column field by a
+value's total orders whole outer groups, so their columns stay
+together. Rows blank across the whole range are
 left out, so a range can reach past the data. SUM, AVERAGE, MIN and MAX
 keep the column's number format; an error in a summed column shows as that
 error, as SUM would.

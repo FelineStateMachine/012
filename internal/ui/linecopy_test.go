@@ -6,6 +6,32 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
+// Vim's yy and dd copy whole rows, so p and P carry their row formats,
+// as a whole-row paste does: the pasted row is bold far past its data.
+func TestVimPutCarriesRowFormats(t *testing.T) {
+	m := vimModel(t)
+	press(t, m, "2G", "<shift+space>")
+	m.runCommand("format.bold")
+	press(t, m, "<esc>", "yy", "G", "p")
+	far := sheet.Addr{Col: 400, Row: 6} // row 7, the pasted one
+	if input(m, "A7") != "A2" || !m.sheet.CellStyle(far).Bold {
+		t.Fatalf("p: A7 %q, row 7 bold %v", input(m, "A7"), m.sheet.CellStyle(far).Bold)
+	}
+	if m.sheet.CellStyle(sheet.Addr{Col: 400, Row: 5}).Bold {
+		t.Error("row 6 turned bold")
+	}
+	press(t, m, "u")
+	if m.sheet.CellStyle(far).Bold {
+		t.Error("undo left row 7 bold")
+	}
+	// dd then P: the row format moves with the row.
+	press(t, m, "2G", "dd", "gg", "P")
+	if input(m, "A1") != "A2" || !m.sheet.CellStyle(sheet.Addr{Col: 400}).Bold || m.sheet.CellStyle(sheet.Addr{Col: 400, Row: 1}).Bold {
+		t.Errorf("dd P: A1 %q, row 1 bold %v, row 2 bold %v", input(m, "A1"),
+			m.sheet.CellStyle(sheet.Addr{Col: 400}).Bold, m.sheet.CellStyle(sheet.Addr{Col: 400, Row: 1}).Bold)
+	}
+}
+
 // Copying a whole column and pasting it at the top of another carries
 // its column format; cutting one moves it, one undo step each.
 func TestCopyColumnCarriesItsFormat(t *testing.T) {

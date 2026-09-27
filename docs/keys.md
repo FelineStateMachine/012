@@ -26,7 +26,7 @@ the app uses, so it never drifts from what the keys do.
 | View > Freeze | Keep rows or columns on screen while the rest scrolls |
 | Data > Sort sheet, Sort range | Sort by the active column A to Z or Z to A, or pick columns and order on a bar (Left/Right column, Space order, Alt+A add, Alt+H header row) |
 | Alt+Down, click ▾ in a header | With a filter (Data > Create a filter): pick the column's values (Space checks, type to search) or a condition |
-| Data > Pivot table | Summarize the table on a new sheet; in the pivot editor Up/Down pick a line, Space adds a field (or opens a filter, flips a total, changes the data range), Left/Right change a field's order or summary, S its "show as", Shift+Up/Down move it, Del removes it, Enter keeps, Esc undoes. Data > Edit pivot table reopens it |
+| Data > Pivot table | Summarize the table on a new sheet; in the pivot editor Up/Down pick a line, Space adds a field (or opens a filter, flips a total, changes the data range), Left/Right change a field's order or summary, S its "show as", R or F2 renames a value, Shift+Up/Down move it, Del removes it, Enter keeps, Esc undoes. Data > Edit pivot table reopens it |
 | Alt+Shift+F | Frequency table of the active column on a new sheet (Data > Frequency table), as VisiData's Shift+F |
 | Ctrl+Alt+= / Ctrl+Alt+- | Insert rows above / delete the selected rows (columns when whole columns are selected) |
 | Ctrl+Enter while typing | Enter the same entry in every selected cell |
@@ -85,7 +85,7 @@ are taken.
 | `o` `O` | Insert a row below or above and start typing in it |
 | `x` | Clear the cell (with a count, that many to the right) |
 | `dd` `yy` | Cut or copy the row (with a count, that many rows); `p` pastes them back |
-| `p` `P` | Paste rows cut or copied with `dd` or `yy` as new rows below or above; other copied cells paste at the active cell |
+| `p` `P` | Paste rows cut or copied with `dd` or `yy` as new rows below or above, with their row formats; other copied cells paste at the active cell |
 | `u`, Ctrl+R | Undo, redo |
 | `v` `V` | Select cells or whole rows (VISUAL); motions stretch the selection |
 | `/`, `n` `N` | Find (Enter stays on the match), next and previous match |
