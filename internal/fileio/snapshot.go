@@ -36,6 +36,11 @@ type Snapshot struct {
 	FrozenRows, FrozenCols int
 	Filter                 *sheet.Filter
 	HiddenRows             map[int]bool
+
+	// CondFormats and Validations are the sheet's rules, for formats
+	// that keep them (XLSX).
+	CondFormats []sheet.CondFormat
+	Validations []sheet.Validation
 }
 
 // SnapName is a named range: its name, and the range on the sheet
@@ -74,7 +79,8 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		r.To = r.From
 	}
 	snap := &Snapshot{Range: r, Cells: map[sheet.Addr]SnapCell{}, Widths: s.Widths(), Name: name,
-		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true), Filter: s.Filter()}
+		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true), Filter: s.Filter(),
+		CondFormats: s.CondFormats(), Validations: s.Validations()}
 	snap.FrozenRows, snap.FrozenCols = s.Frozen()
 	if f := snap.Filter; f != nil {
 		snap.HiddenRows = map[int]bool{}

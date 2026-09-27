@@ -104,7 +104,7 @@ func (v Validation) Check() error {
 	case v.Kind == ValidList && len(v.Items) == 0:
 		return errors.New("Enter the items, separated by commas")
 	case v.Kind == ValidRange:
-		if _, _, ok := v.sourceRange(); !ok {
+		if _, _, ok := v.SourceRange(); !ok {
 			return errors.New("Enter the range the items are in, e.g. Lists!A1:A20")
 		}
 	case v.Kind == ValidFormula:
@@ -141,9 +141,9 @@ func (v Validation) checkBounds() error {
 	return nil
 }
 
-// sourceRange is ValidRange's source: its sheet as written ("" for the
+// SourceRange is ValidRange's source: its sheet as written ("" for the
 // rule's own) and range.
-func (v Validation) sourceRange() (string, Rect, bool) {
+func (v Validation) SourceRange() (string, Rect, bool) {
 	sheet, rest := SplitSheet(strings.TrimPrefix(strings.TrimSpace(v.Source), "="))
 	r, ok := ParseRange(strings.ReplaceAll(rest, "$", ""))
 	return sheet, r, ok
@@ -397,7 +397,7 @@ const maxDropdown = 1000
 
 // sourceItems reads the distinct values shown in a rule's source range.
 func (s *Sheet) sourceItems(v Validation) []string {
-	name, r, ok := v.sourceRange()
+	name, r, ok := v.SourceRange()
 	t := s
 	if name != "" {
 		t = s.wb.resolve(s, name)

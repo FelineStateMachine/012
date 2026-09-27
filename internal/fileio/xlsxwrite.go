@@ -32,6 +32,7 @@ type xlsxWriter struct {
 	missingSheet string            // the sheet missing's example names
 	known        map[string]bool   // keys of the sheets written
 	renamed      map[string]string // the names of sheets written under another, by key
+	rules        ruleNotes         // rules left out, see xlsxrules.go
 }
 
 // valueCount counts formulas written as values, keeping the first one's
@@ -98,6 +99,7 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 	w.styledRows(bw, snap, styled, sheet.MaxRows)
 	bw.WriteString(`</sheetData>`)
 	writeAutoFilter(bw, snap)
+	w.writeRules(bw, ws, snap)
 	bw.WriteString(`</worksheet>`)
 	return r.To.Row - r.From.Row + 1
 }
@@ -268,6 +270,49 @@ type xlsxStyleTable struct {
 	xfs   []xlsxStyle // index 0 is the default
 	codes []string    // custom number formats, from id 164
 	fonts []sheet.Style
+	dxfs  []sheet.RuleStyle // conditional formats' styles, see xlsxrules.go
+}
+
+// dxf is the index of the differential style for a rule's style.
+func (t *xlsxStyleTable) dxf(st sheet.RuleStyle) int {
+	if i := slices.Index(t.dxfs, st); i >= 0 {
+		return i
+	}
+	t.dxfs = append(t.dxfs, st)
+	return len(t.dxfs) - 1
+}
+
+// dxfsXML writes the differential styles: a font with the text styles
+// and color, and a solid fill. Excel reads a dxf's fill from the
+// pattern's background color and some readers from its foreground, so
+// both are the fill.
+func (t *xlsxStyleTable) dxfsXML() string {
+	if len(t.dxfs) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, `<dxfs count="%d">`, len(t.dxfs))
+	for _, st := range t.dxfs {
+		b.WriteString(`<dxf><font>`)
+		for _, on := range []struct {
+			set bool
+			tag string
+		}{{st.Bold, `<b/>`}, {st.Italic, `<i/>`}, {st.Strikethrough, `<strike/>`}, {st.Underline, `<u/>`}} {
+			if on.set {
+				b.WriteString(on.tag)
+			}
+		}
+		if st.Text != sheet.ColorNone {
+			fmt.Fprintf(&b, `<color rgb="%s"/>`, ruleRGB[st.Text][0])
+		}
+		b.WriteString(`</font>`)
+		if st.Fill != sheet.ColorNone {
+			c := ruleRGB[st.Fill][1]
+			fmt.Fprintf(&b, `<fill><patternFill patternType="solid"><fgColor rgb="%s"/><bgColor rgb="%s"/></patternFill></fill>`, c, c)
+		}
+		b.WriteString(`</dxf>`)
+	}
+	return b.String() + `</dxfs>`
 }
 
 func newXLSXStyleTable() *xlsxStyleTable {
@@ -344,7 +389,7 @@ func (t *xlsxStyleTable) xml() string {
 		`<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
 		`<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>`)
 	fmt.Fprintf(&b, `<cellXfs count="%d">%s</cellXfs>`, len(t.xfs), xfs.String())
-	b.WriteString(`<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`)
+	b.WriteString(`<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` + t.dxfsXML() + `</styleSheet>`)
 	return b.String()
 }
 

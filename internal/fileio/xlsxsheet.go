@@ -55,6 +55,12 @@ type xlsxSheetReader struct {
 	paneRead               bool
 	frozenRows, frozenCols int
 
+	// The rules after the rows, see xlsxrulesread.go, and how many
+	// conditional formats Excel 2010's extension holds.
+	cfs      []xlsxCF
+	dvs      []xlsxDV
+	extRules int
+
 	inData bool // inside <sheetData>
 	row    xlsxRowData
 	shared map[int]sharedFormula

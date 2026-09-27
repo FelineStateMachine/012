@@ -59,7 +59,7 @@ type xlsxCustomFilter struct{ op, val string }
 const maxFilterValues = excelRows
 
 // readTail reads what follows the rows, returning the sheet's
-// autoFilter or nil.
+// autoFilter or nil, and keeping its rules in the reader.
 func (r *xlsxSheetReader) readTail() (*xlsxAutoFilter, error) {
 	var af *xlsxAutoFilter
 	for {
@@ -70,7 +70,15 @@ func (r *xlsxSheetReader) readTail() (*xlsxAutoFilter, error) {
 		if err != nil {
 			return nil, err
 		}
-		if se, ok := t.(xml.StartElement); ok && se.Name.Local == "autoFilter" && r.x.depth == 2 && af == nil {
+		se, ok := t.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		rule, err := r.readRuleElement(se)
+		if err != nil {
+			return nil, err
+		}
+		if !rule && se.Name.Local == "autoFilter" && r.x.depth == 2 && af == nil {
 			if af, err = r.readAutoFilter(se); err != nil {
 				return nil, err
 			}

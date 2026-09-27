@@ -87,6 +87,7 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 		res.Notes = append(res.Notes, fmt.Sprintf("%s naming a sheet that doesn't exist saved as values, e.g. %s (%s)",
 			count(w.missing.n, "formula", "formulas"), w.missing.example, sheet.QuoteSheet(w.missingSheet)))
 	}
+	res.Notes = append(res.Notes, w.rulesNotes()...)
 	return res, nil
 }
 
