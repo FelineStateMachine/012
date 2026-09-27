@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 )
@@ -79,6 +80,9 @@ type Options struct {
 	// MaxCells is the most cells to keep, whole rows at a time; 0 is the
 	// max-cells setting (sheet.MaxCells). WK1 files keep their own limits.
 	MaxCells int
+	// Locale is what CSV and TSV fields are read in (see numberLocale);
+	// nil is en-US.
+	Locale *locale.Locale
 }
 
 // Result is an imported sheet and what the import had to leave out or

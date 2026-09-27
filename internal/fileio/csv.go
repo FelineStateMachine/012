@@ -14,6 +14,7 @@ import (
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/unicode"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -32,10 +33,13 @@ type Dialect struct {
 
 // sniff picks the delimiter that splits the sample's records into the
 // same number of fields most consistently, preferring more fields.
-// Quoted fields may contain delimiters and line breaks.
-func sniff(sample []byte, truncated bool) rune {
-	best, bestScore := ',', 0.0
-	for _, d := range delimiters {
+// Quoted fields may contain delimiters and line breaks. Ties go to
+// first, the locale's own separator (see csvComma), then to delimiters'
+// order.
+func sniff(sample []byte, truncated bool, first rune) rune {
+	best, bestScore := first, 0.0
+	order := append([]rune{first}, delimiters...)
+	for _, d := range order {
 		counts := fieldCounts(sample, byte(d), truncated)
 		if len(counts) == 0 {
 			continue
@@ -54,6 +58,11 @@ func sniff(sample []byte, truncated bool) rune {
 			continue
 		}
 		score := float64(freq[mode]) / float64(len(counts)) * (1 + float64(min(mode, 20))/100)
+		if d == first && first != ',' {
+			// 1,5;2,5 splits evenly on both in a locale with decimal
+			// commas; its own separator wins.
+			score *= 1.25
+		}
 		if score > bestScore {
 			best, bestScore = d, score
 		}
@@ -166,7 +175,7 @@ func importDelimited(ctx context.Context, name string, k Kind, opt Options) (*Re
 		size = st.Size()
 	}
 	counter := &countingReader{r: f}
-	s, rows, notes, err := readDelimited(ctx, counter, k, opt.MaxCells, func(rows int) {
+	s, rows, notes, err := readDelimited(ctx, counter, k, opt.MaxCells, opt.Locale, func(rows int) {
 		prog.setRows(rows)
 		prog.setFrac(counter.n, size)
 	})
@@ -178,8 +187,10 @@ func importDelimited(ctx context.Context, name string, k Kind, opt Options) (*Re
 
 // readDelimited reads CSV or TSV text, sniffing the delimiter of CSV,
 // keeping up to maxCells cells (see newBuilder). Each field is entered as
-// if typed. progress is called every few hundred rows.
-func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, progress func(rows int)) (*sheet.Sheet, int, []string, error) {
+// if typed in loc, or with the other decimal separator when the file
+// writes its numbers that way (see numberLocale). progress is called
+// every few hundred rows.
+func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, loc *locale.Locale, progress func(rows int)) (*sheet.Sheet, int, []string, error) {
 	br := bufio.NewReaderSize(in, sniffSize)
 	text, enc, err := decode(br)
 	if err != nil {
@@ -189,7 +200,7 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, prog
 	sample, _ := tr.Peek(sniffSize)
 	comma := '\t'
 	if k == CSV {
-		comma = sniff(sample, len(sample) == sniffSize)
+		comma = sniff(sample, len(sample) == sniffSize, csvComma(loc))
 	}
 	cr := csv.NewReader(tr)
 	cr.Comma = comma
@@ -198,6 +209,8 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, prog
 	cr.ReuseRecord = true
 
 	b := newBuilder(ctx, maxCells)
+	var otherDecimal bool
+	b.loc, otherDecimal = numberLocale(sample, comma, loc)
 	row := 0
 	for ; ; row++ {
 		// Report before reading on: a pipe may keep the next read waiting.
@@ -229,6 +242,9 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, prog
 	if k == CSV && comma != ',' {
 		notes = append(notes, "separated by "+delimiterName(comma))
 	}
+	if otherDecimal {
+		notes = append(notes, decimalNote(b.loc))
+	}
 	if enc != "UTF-8" {
 		notes = append(notes, "read as "+enc)
 	}
@@ -249,12 +265,15 @@ func delimiterName(r rune) string {
 }
 
 // exportDelimited writes the snapshot's displayed values, as Sheets'
-// Download as CSV does: formulas become their results, formats show.
+// Download as CSV does: formulas become their results, formats show, in
+// the snapshot's locale, with ; between fields where its decimal
+// separator is a comma.
 // Rows are written as they are formatted, never all held at once.
 func exportDelimited(name string, k Kind, snap *Snapshot) (*ExportResult, error) {
 	rows := 0
 	err := writeFile(name, func(out io.Writer) error {
 		w := csv.NewWriter(out)
+		w.Comma = csvComma(snap.Locale)
 		if k == TSV {
 			w.Comma = '\t'
 		}
@@ -277,6 +296,9 @@ func exportDelimited(name string, k Kind, snap *Snapshot) (*ExportResult, error)
 		}
 	}
 	res := &ExportResult{Rows: rows}
+	if k == CSV && csvComma(snap.Locale) != ',' {
+		res.Notes = append(res.Notes, "separated by semicolons")
+	}
 	if formulas > 0 {
 		res.Notes = append(res.Notes, count(formulas, "formula", "formulas")+" saved as values")
 	}
