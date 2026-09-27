@@ -24,7 +24,7 @@ func TestNamedRanges(t *testing.T) {
 	s := start(t, "")
 	s.keys("10", "<enter>", "20", "<enter>", "=SUM(Pair)", "<enter>")
 	s.waitFor("#NAME?")
-	s.keys("<ctrl+home>", "<shift+down>", "<alt+d>", "d")
+	s.keys("<ctrl+home>", "<shift+down>", "<alt+d>", "d", "<enter>")
 	s.waitFor("Name for A1:A2:")
 	s.keys("Pair", "<enter>")
 	s.waitForName("Pair")

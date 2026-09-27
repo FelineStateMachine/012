@@ -13,7 +13,9 @@ type cfKind struct{}
 func (cfKind) title() string                { return "Conditional format rules" }
 func (cfKind) count(s *sheet.Sheet) int     { return len(s.CondFormats()) }
 func (cfKind) remove(s *sheet.Sheet, i int) { s.DeleteCondFormat(i) }
-func (cfKind) addHint() string              { return "A" }
+
+func (cfKind) ordered() bool    { return true }
+func (cfKind) listHint() string { return "The first rule that matches a cell wins" }
 
 func (cfKind) move(s *sheet.Sheet, i, to int) bool {
 	s.MoveCondFormat(i, to)

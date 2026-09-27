@@ -51,7 +51,10 @@ type kind interface {
 	remove(s *sheet.Sheet, i int)
 	// move moves rule i to to, and reports whether rules have an order.
 	move(s *sheet.Sheet, i, to int) bool
-	addHint() string
+	// ordered reports whether the rules' order matters, and listHint
+	// says how rules combine, for the status line.
+	ordered() bool
+	listHint() string
 }
 
 // form is a rule being added or edited.
@@ -311,7 +314,7 @@ func (e *Editor) listLines(inner int) []string {
 			base = th.MenuSelected
 		}
 		if i == 0 {
-			lines = append(lines, spread(base, base.Render(" + Add rule"), th.Muted.Inherit(base).Render(e.k.addHint()+" "), inner))
+			lines = append(lines, theme.Cells(base, " + Add rule", inner))
 			continue
 		}
 		lines = append(lines, e.k.item(th, e.h, i-1, inner, i == e.list.Sel))
@@ -348,8 +351,10 @@ func (e *Editor) Status() (string, string) {
 	case e.f == nil && e.list.Sel == 0:
 		desc, pairs = "Add a rule over the selection", []string{"Enter", "add", "Esc", "close"}
 	case e.f == nil:
-		desc, pairs = "Rules apply in order: the first that matches a cell formats it",
-			[]string{"Enter", "edit", "Del", "remove", "Shift+↑/↓", "move", "Esc", "close"}
+		desc, pairs = e.k.listHint(), []string{"Enter", "edit", "Del", "remove", "Esc", "close"}
+		if e.k.ordered() {
+			pairs = []string{"Enter", "edit", "Del", "remove", "Shift+↑/↓", "move", "Esc", "close"}
+		}
 	default:
 		r := e.rows()[e.sel]
 		desc = r.hint

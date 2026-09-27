@@ -13,13 +13,14 @@ var errRange = errors.New("Enter the range the rule applies to, e.g. B2:B100")
 // dvKind lists data validation rules.
 type dvKind struct{}
 
-func (dvKind) title() string                { return "Data validation rules" }
-func (dvKind) count(s *sheet.Sheet) int     { return len(s.Validations()) }
-func (dvKind) remove(s *sheet.Sheet, i int) { s.DeleteValidation(i) }
-func (dvKind) move(*sheet.Sheet, int, int) bool {
-	return false // a cell has one rule, so they have no order
+func (dvKind) title() string                    { return "Data validation rules" }
+func (dvKind) count(s *sheet.Sheet) int         { return len(s.Validations()) }
+func (dvKind) remove(s *sheet.Sheet, i int)     { s.DeleteValidation(i) }
+func (dvKind) move(*sheet.Sheet, int, int) bool { return false }
+func (dvKind) ordered() bool                    { return false }
+func (dvKind) listHint() string {
+	return "A cell has one rule: a new rule takes its cells from the others"
 }
-func (dvKind) addHint() string { return "A" }
 
 // marks are how the list shows each kind of rule, as the cells do.
 var marks = map[sheet.ValidKind]string{sheet.ValidList: " ▾ ", sheet.ValidRange: " ▾ ", sheet.ValidCheckbox: "[✓]"}
