@@ -7,7 +7,9 @@ real terminal emulator), and the telemetry described in
 [observability.md](observability.md), which tracks how they move.
 
 Machine: Apple M5 Pro (18 cores), 48 GB, macOS, Go 1.27.1, arm64. Times
-are single-threaded: the engine and the UI run on one goroutine.
+are single-threaded: the engine and the UI run on one goroutine. Last full
+run: commit 4dbe37d (after the engine and UI restructure), `BENCHTIME=2s`
+on an otherwise idle machine; it matched the numbers below within noise.
 
 The yardstick is a keystroke through to its frame: under 16 ms feels
 instant (one frame at 60 Hz), under 100 ms feels responsive, past that
