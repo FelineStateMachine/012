@@ -58,7 +58,7 @@ func (m *Model) rightClick(x, y int) {
 	switch h.kind {
 	case hitTab, hitTabAdd:
 		m.tabRightClick(h, x, y)
-	case hitCell:
+	case hitCell, hitCheckbox, hitDropdown:
 		if !m.hasRange() || !sel.Contains(h.addr) {
 			m.cur = h.addr
 			m.clearSelection()

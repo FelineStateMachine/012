@@ -49,6 +49,8 @@ const (
 	hitStatus
 	hitFilterButton // the filter mark in a column header
 	hitFillHandle   // the corner of the selection that drags out a fill
+	hitCheckbox     // a checkbox's glyph, which a click toggles
+	hitDropdown     // a dropdown's ▾, which a click opens
 	hitTab          // a sheet's tab on the status line; addr.Col is its index
 	hitTabAdd       // the + after the tabs
 	hitTabPrev      // the ‹ before tabs scrolled off to the left
@@ -111,7 +113,7 @@ func (m *Model) hitTest(x, y int) hit {
 		if m.mode == modeReady && a == m.fillCorner() && x == start+m.sheet.ColWidth(col)-1 {
 			return hit{kind: hitFillHandle, addr: a}
 		}
-		return hit{kind: hitCell, addr: a}
+		return hit{kind: m.ruleHit(a, x, start), addr: a}
 	case y == m.height-1:
 		if h, ok := m.tabAt(x); ok {
 			return h
@@ -213,6 +215,13 @@ func (m *Model) readyPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 		m.startFill()
 	case hitFilterButton:
 		m.openFilterPicker(h.addr.Col)
+	case hitCheckbox, hitDropdown:
+		m.cur = h.addr
+		m.clearSelection()
+		if h.kind == hitCheckbox {
+			return m.runCommand("data.checkbox_toggle")
+		}
+		return m.runCommand("data.dropdown")
 	case hitColBorder:
 		if double {
 			m.autofit(h.addr.Col)
@@ -360,7 +369,7 @@ func (m *Model) pointerShape() tea.Cmd {
 	case m.mouse.hover.kind == hitFormulaBar, m.mouse.hover.kind == hitEditLine:
 		shape = "text"
 	case m.mouse.hover.kind == hitColHeader, m.mouse.hover.kind == hitRowHeader, m.mouse.hover.kind == hitCorner, m.mouse.hover.kind == hitFilterButton,
-		isTabHit(m.mouse.hover.kind):
+		m.mouse.hover.kind == hitCheckbox, m.mouse.hover.kind == hitDropdown, isTabHit(m.mouse.hover.kind):
 		shape = "pointer"
 	}
 	if shape == m.mouse.shape {

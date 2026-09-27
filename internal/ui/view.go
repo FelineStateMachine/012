@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"strconv"
 	"strings"
 
@@ -147,6 +148,11 @@ func (m *Model) gridRow(row int) string {
 // roles for the pointer, the selection, search matches and errors.
 func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr, sel sheet.Rect, selecting bool) string {
 	var b strings.Builder
+	rules := m.sheet.HasRules()
+	var rgb func(int) color.Color
+	if rules {
+		rgb = m.slotColor
+	}
 	for i, sp := range spans {
 		a := sheet.Addr{Col: first + i, Row: row}
 		base, colored := m.th.Cell, true
@@ -166,19 +172,26 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 		default:
 			colored = false
 		}
-		// The copy marker is layered on the cell's own colors.
-		if m.copied.marks(m.sheet, a) {
-			base, colored = base.Inherit(m.th.Copied), true
-		}
+		var look sheet.Look
 		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() {
 			sp = rowtext.Span{Text: m.inCellText(m.sheet.ColWidth(a.Col))}
 		} else {
 			m.decorate(&sp, row) // links and error marks, see links.go
+			if rules {
+				base, colored, look = m.ruleSpan(a, &sp, base, colored, rgb) // looks.go
+			}
+		}
+		// The copy marker is layered on the cell's own colors.
+		if m.copied.marks(m.sheet, a) {
+			base, colored = base.Inherit(m.th.Copied), true
 		}
 		text := renderSpan(&m.th, sp, base, colored)
-		if m.showFillHandle(a) {
-			w := m.sheet.ColWidth(a.Col)
+		w := m.sheet.ColWidth(a.Col)
+		switch {
+		case m.showFillHandle(a):
 			text = ansi.Truncate(text, w-1, "") + base.Render("▟")
+		case look.Dropdown:
+			text = m.dropdownMark(text, w, base, colored)
 		}
 		b.WriteString(text)
 	}
@@ -206,7 +219,7 @@ func renderSpan(th *theme.Theme, sp rowtext.Span, base lipgloss.Style, colored b
 	lead, trail := strings.Repeat(" ", sp.Lead), strings.Repeat(" ", sp.Trail)
 	st := sp.Style
 	st.Align = sheet.AlignAuto
-	plain := st.IsZero() && sp.Link == "" && !sp.Error
+	plain := st.IsZero() && sp.Link == "" && !sp.Error && !sp.Invalid
 	switch {
 	case plain && !colored:
 		return lead + sp.Text + trail

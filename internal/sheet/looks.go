@@ -38,8 +38,8 @@ type looksCache struct {
 	gen    uint64 // the workbook's recalculation when filled
 	valid  bool
 	cells  map[Addr]Look
-	tests  map[int]*ruleTest    // compiled conditional formats by index
-	scales map[int]*scaleStats  // color scales' points by index
+	tests  map[int]*ruleTest       // compiled conditional formats by index
+	scales map[int]*scaleStats     // color scales' points by index
 	lists  map[int]map[string]bool // dropdown sources' values by validation index
 	rd     *reader
 }

@@ -122,6 +122,9 @@ func (h scriptHost) Enter(text string, fill bool, origin string) error {
 	if fill {
 		return m.sheet.FillEntry(m.selection(), m.cur, text)
 	}
+	if bad := m.sheet.CheckEntry(m.cur, text); bad != nil && bad.Reject {
+		return bad
+	}
 	if err := m.sheet.Set(m.cur, text); err != nil {
 		return err
 	}

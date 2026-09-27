@@ -69,7 +69,8 @@ var menuBar = []menuDef{
 		{cmd: "insert.col_left", title: "Column left"}, {cmd: "insert.col_right", title: "Column right"}, sep,
 		{cmd: "insert.selection"}, sep,
 		{cmd: "sheet.new", title: "Sheet"}, sep,
-		{cmd: "insert.chart"},
+		{cmd: "insert.chart"}, sep,
+		{cmd: "insert.checkbox"}, {cmd: "insert.dropdown"},
 	}},
 	{title: "Format", accel: 'o', items: []menuItem{
 		{title: "Number", items: []menuItem{
@@ -83,6 +84,7 @@ var menuBar = []menuDef{
 		{cmd: "format.bold", title: "Bold"}, {cmd: "format.italic", title: "Italic"}, {cmd: "format.underline", title: "Underline"}, {cmd: "format.strikethrough", title: "Strikethrough"}, sep,
 		{cmd: "format.align_left", title: "Align left"}, {cmd: "format.align_center", title: "Align center"}, {cmd: "format.align_right", title: "Align right"}, sep,
 		{cmd: "column.width"}, {cmd: "column.reset"}, sep,
+		{cmd: "format.conditional"}, sep,
 		{cmd: "format.clear", title: "Clear formatting"},
 	}},
 	{title: "Data", accel: 'd', items: []menuItem{
@@ -94,6 +96,7 @@ var menuBar = []menuDef{
 			{cmd: "data.sort_range", title: "Advanced range sorting options"},
 		}}, sep,
 		{cmd: "data.filter"}, {cmd: "data.filter_column"}, {cmd: "data.filter_remove"}, sep,
+		{cmd: "data.validation"}, {cmd: "data.validation_clear"}, sep,
 		{cmd: "data.pivot"}, {cmd: "data.pivot_edit"}, {cmd: "data.frequency"}, sep,
 		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, sep,
 		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,

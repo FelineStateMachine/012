@@ -37,6 +37,11 @@ type command struct {
 	// macro says how recording and scripts treat the command; see
 	// macroUse.
 	macro macroUse
+
+	// typed, when set, lets a key bound to the command type itself
+	// where the command isn't available, as Space checks a checkbox and
+	// starts an entry anywhere else.
+	typed bool
 }
 
 // macroUse is how macros treat a command.

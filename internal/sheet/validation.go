@@ -325,7 +325,7 @@ type InvalidEntry struct {
 }
 
 func (e *InvalidEntry) Error() string {
-	return fmt.Sprintf("The data you entered in %s violates the data validation rules set on this cell. %s", e.Addr, e.Help)
+	return fmt.Sprintf("Invalid entry in %s: %s", e.Addr, e.Help)
 }
 
 // CheckEntry reports whether the cell at a would accept input: nil when

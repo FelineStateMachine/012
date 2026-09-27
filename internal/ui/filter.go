@@ -43,7 +43,6 @@ func init() {
 			},
 			enabled: func(m *Model) bool { _, on := m.sheet.FilterRange(); return on }},
 	)
-	keymap["alt+down"] = "data.filter_column"
 }
 
 // createFilter filters the selection, or the data around the active cell.
