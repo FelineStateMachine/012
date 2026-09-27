@@ -85,6 +85,8 @@ style.
   the cells, widths, names, charts, view state and sheet list they change,
   on any sheet, so a step can be reversed exactly; multi-cell operations
   are one step. A deleted sheet keeps its cells, so undo brings it back.
+  The history keeps at most 100 steps and about 256 MB of before-images,
+  counted as they're recorded, dropping the oldest steps first.
 - **JEV.** The engine never touches the network. JEV functions describe a
   question and look up the answer in the workbook's `RemoteSource`, set
   with `SetRemote`; `internal/jev` answers from a cache and queues new

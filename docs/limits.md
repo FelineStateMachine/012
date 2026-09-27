@@ -25,7 +25,7 @@ it lags, and past a second it stalls.
 | Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
 | Selection statistics | Any selection, once computed (cached) | Extending a selection over 2 M cells: 30 ms per key | | Summing 2 M map entries per change |
 | Imports | CSV, SQLite, Parquet: 1 to 3 M cells/s (a full 2.1 M-cell sheet in about 1 s) | XLSX with formulas: 200 k cells/s | Data past the limits (dropped, with a note) | Building cells one at a time; XLSX formula translation |
-| Undo | One step of any size: undo costs what the edit cost | 100 steps that each rewrite a whole column: 217 MB held | | Whole-cell before-images, 264 B per cell per step |
+| Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 250 MB | | Whole-cell before-images, about 300 B per cell per step |
 | JEV | Up to about 1000 JEV cells: 0.3 ms of CPU per answer | 4000 JEV cells: 1.3 ms per answer, 5 s of CPU to answer them all | | Every answer recalculates every JEV cell (they're volatile) |
 | Formula depth | 10,000 nested parentheses or IFs: under 5 ms | | No explicit limit; recursion grows the stack | Recursive parser and evaluator |
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
@@ -131,11 +131,28 @@ XLSX worksheet in memory while its rows are read.
 
 ## Undo
 
-Each step keeps a copy of every cell it changed (`MaxUndo = 100`
-steps). Undoing costs about what the change cost, since it recalculates
-the same cells. Clearing 213 k cells and undoing it takes 158 ms. The
-history is bounded by steps, not bytes: 100 steps that each rewrite a
-whole column of 8192 cells hold 217 MB.
+Each step keeps a copy of every cell it changed. Undoing costs about
+what the change cost, since it recalculates the same cells. Clearing
+213 k cells and undoing it takes 158 ms.
+
+The history is bounded by steps (`MaxUndo = 100`) and by an estimate of
+the memory its before-images hold (`MaxUndoBytes = 256 MB`); past either,
+the oldest steps are dropped first, and the newest step is kept however
+large it is. Each cell is counted as it is recorded (a fixed cost per
+cell plus its text, more for a formula, whose parsed tree stays alive),
+so the budget costs nothing to check. The estimate follows the measured
+heap within about 10% (`BenchmarkHistoryFull`, `BenchmarkHistoryWide`,
+3 runs each, same machine):
+
+| Benchmark | Before | After |
+|---|---|---|
+| 100 edits rewriting a whole column (819 k before-images) | 250 MB held, all 100 kept | 250 MB held (239 MB estimated), all 100 kept |
+| 12 edits rewriting all of 8192 x 26 (2.6 M before-images) | 705 MB held, all 12 kept | 230 MB held (248 MB estimated), the last 4 kept |
+| BigUndo: clear 8192 x 26, undo | 154 ms, 430 k allocs | 158 ms, 430 k allocs |
+| Undo + redo of one cell (dense, names) | 0.98 us, 106 us | 1.0 us, 106 us |
+
+Counting cells as they're recorded costs about 20 ns a cell, which is
+BigUndo's 3%; everything else is unchanged.
 
 ## JEV
 
@@ -247,8 +264,9 @@ it.
    answered (and their dependents), and coalesce answers that arrive in
    the same frame: answering 4000 questions would cost 4000 small
    recalcs instead of 4000 full ones.
-6. **Undo bounded by bytes** (S, 1 day). Cap the history by the memory
-   its before-images hold, and store formatting-only changes as diffs.
+6. **Smaller undo steps** (S, 1 day). The history is capped by the
+   memory its before-images hold; storing formatting-only changes as
+   diffs rather than whole cells would let it keep more of them.
 7. **Frame rate** (S, hours). Bubble Tea draws at most 60 frames a
    second; asking for 120 would halve the key-to-screen floor from about
    16 ms to 8 ms at the cost of more redraws.

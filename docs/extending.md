@@ -114,7 +114,6 @@ a golden screen reviewed in the gallery for anything visible (see
 
 Where the code doesn't follow the patterns yet:
 
-- Undo history is capped by step count, not bytes (pattern 8).
 - Components in `internal/ui` are handed the whole `*Model` rather than a
   narrower interface, so they stay in package `ui` (pattern 2).
 - Movement keys, typing, F4 in formulas, Alt+letter menus and direct mouse

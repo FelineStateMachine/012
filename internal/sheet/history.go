@@ -7,7 +7,8 @@ import (
 	"github.com/FelineStateMachine/012/internal/formula"
 )
 
-// MaxUndo is how many steps of undo history a workbook keeps.
+// MaxUndo is how many steps of undo history a workbook keeps, at most;
+// MaxUndoBytes also bounds it.
 const MaxUndo = 100
 
 // History is a command log of before-images, shared by every sheet of a
@@ -27,6 +28,7 @@ type history struct {
 	depth      int   // nesting of change calls
 	dirty      []loc
 	lastID     int
+	bytes      int64 // estimated heap held by the undo steps; see historysize.go
 	// mergeWidths lets the next width-only step join the top one, so a
 	// live preview of a column width and its final value (or its
 	// cancellation) are one step. Seal ends the run.
@@ -34,14 +36,18 @@ type history struct {
 }
 
 type step struct {
-	id     int
-	label  string           // what the step did, e.g. "clear B3:B5"
-	sheet  *Sheet           // the sheet the UI shows when the step is undone or redone
-	focus  Rect             // what the UI selects there
-	cells  map[loc]*Cell    // before the step; nil for blank
-	widths map[colKey]int   // before the step; 0 for the default width
-	names  map[string]*Name // before the step, by key; nil for undefined
-	views  map[*Sheet]*viewState
+	id    int
+	bytes int64 // estimated heap held, set when pushed on the undo stack
+	// cellBytes is the estimated heap held by cells, kept as they are
+	// recorded so sizing a step doesn't walk them again.
+	cellBytes int64
+	label     string           // what the step did, e.g. "clear B3:B5"
+	sheet     *Sheet           // the sheet the UI shows when the step is undone or redone
+	focus     Rect             // what the UI selects there
+	cells     map[loc]*Cell    // before the step; nil for blank
+	widths    map[colKey]int   // before the step; 0 for the default width
+	names     map[string]*Name // before the step, by key; nil for undefined
+	views     map[*Sheet]*viewState
 	// charts holds each touched sheet's charts before the step.
 	charts map[*Sheet][]Chart
 	// sheets is the sheet list before the step, when it changed.
@@ -145,7 +151,7 @@ func (s *Sheet) record(a Addr) {
 	}
 	l := loc{s, a}
 	if _, seen := st.cells[l]; !seen {
-		st.cells[l] = s.cells.get(a).clone()
+		st.keep(l, s.cells.get(a).clone())
 	}
 	s.wb.hist.dirty = append(s.wb.hist.dirty, l)
 }
@@ -252,10 +258,7 @@ func (w *Workbook) push(st *step) {
 		return
 	}
 	st.id = h.lastID
-	h.undo = append(h.undo, st)
-	if len(h.undo) > MaxUndo {
-		h.undo = h.undo[len(h.undo)-MaxUndo:]
-	}
+	w.pushUndo(st)
 	h.mergeWidths = widthOnly
 }
 
@@ -269,6 +272,7 @@ func (w *Workbook) dropUnchanged(st *step) {
 	for l, c := range st.cells {
 		if c == nil && l.s.cells.get(l.a) == nil {
 			delete(st.cells, l)
+			st.cellBytes -= entryBytes
 		}
 	}
 	for k, n := range st.names {
@@ -318,8 +322,11 @@ func (h *history) joinWidths(top, st *step) {
 		}
 	}
 	top.id, top.focus = h.lastID, union(top.focus, st.focus)
+	h.bytes -= top.bytes
+	top.bytes = top.size()
+	h.bytes += top.bytes
 	if top.empty() {
-		h.undo = h.undo[:len(h.undo)-1]
+		h.popUndo()
 	}
 }
 
@@ -335,10 +342,10 @@ func (h *history) top() *step {
 func (w *Workbook) Seal() { w.hist.mergeWidths = false }
 
 // Undo reverts the last step and describes it.
-func (w *Workbook) Undo() (Change, bool) { return w.swap(&w.hist.undo, &w.hist.redo) }
+func (w *Workbook) Undo() (Change, bool) { return w.swap(true) }
 
 // Redo reapplies the last undone step and describes it.
-func (w *Workbook) Redo() (Change, bool) { return w.swap(&w.hist.redo, &w.hist.undo) }
+func (w *Workbook) Redo() (Change, bool) { return w.swap(false) }
 
 // CanUndo and CanRedo report whether there is a step to undo or redo.
 func (w *Workbook) CanUndo() bool { return len(w.hist.undo) > 0 }
@@ -368,14 +375,24 @@ func (s *Sheet) CanRedo() bool        { return s.wb.CanRedo() }
 func (s *Sheet) StateID() int         { return s.wb.StateID() }
 func (s *Sheet) ClearHistory()        { s.wb.ClearHistory() }
 
-// swap pops a step from one stack, restores its before-image, and pushes
-// the state it replaced onto the other stack.
-func (w *Workbook) swap(from, to *[]*step) (Change, bool) {
-	if len(*from) == 0 || w.hist.open != nil {
+// swap pops a step from the undo stack (or the redo stack), restores its
+// before-image, and pushes the state it replaced onto the other stack.
+func (w *Workbook) swap(undo bool) (Change, bool) {
+	h := &w.hist
+	from := &h.redo
+	if undo {
+		from = &h.undo
+	}
+	if len(*from) == 0 || h.open != nil {
 		return Change{}, false
 	}
-	st := (*from)[len(*from)-1]
-	*from = (*from)[:len(*from)-1]
+	var st *step
+	if undo {
+		st = h.popUndo()
+	} else {
+		st = h.redo[len(h.redo)-1]
+		h.redo = h.redo[:len(h.redo)-1]
+	}
 	// The inverse keeps the step's ID: on the redo stack, an ID names the
 	// state the step leads back to.
 	inv := newStep(st.label, st.sheet, st.focus)
@@ -387,7 +404,7 @@ func (w *Workbook) swap(from, to *[]*step) (Change, bool) {
 	}
 	changed := make([]loc, 0, len(st.cells))
 	for l, c := range st.cells {
-		inv.cells[l] = l.s.cells.get(l.a).clone()
+		inv.keep(l, l.s.cells.get(l.a).clone())
 		l.s.place(l.a, c.clone())
 		changed = append(changed, l)
 	}
@@ -420,8 +437,12 @@ func (w *Workbook) swap(from, to *[]*step) (Change, bool) {
 	} else {
 		w.recalc(changed)
 	}
-	*to = append(*to, inv)
-	w.hist.mergeWidths = false
+	if undo {
+		h.redo = append(h.redo, inv)
+	} else {
+		w.pushUndo(inv)
+	}
+	h.mergeWidths = false
 	return Change{st.label, st.focus, st.sheet, st.sheets != nil}, true
 }
 

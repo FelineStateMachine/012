@@ -94,6 +94,26 @@ func BenchmarkHistoryFull(b *testing.B) {
 			}
 		}
 		b.ReportMetric(float64(heap()-before)/(1<<20), "MB-history")
+		b.ReportMetric(float64(s.Book().HistoryBytes())/(1<<20), "MB-estimate")
+		runtime.KeepAlive(s)
+	}
+}
+
+// BenchmarkHistoryWide makes 12 edits that each rewrite a whole
+// 8192x26 block, more than the history's byte budget holds, and reports
+// the heap the history keeps.
+func BenchmarkHistoryWide(b *testing.B) {
+	all := sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 25, Row: sheet.MaxRows - 1})
+	for b.Loop() {
+		s := stress.Dense(sheet.MaxRows, 26)
+		before := heap()
+		for i := range 12 {
+			if err := s.FillEntry(all, all.From, fmt.Sprint(i)); err != nil {
+				b.Fatal(err)
+			}
+		}
+		b.ReportMetric(float64(heap()-before)/(1<<20), "MB-history")
+		b.ReportMetric(float64(s.Book().HistoryBytes())/(1<<20), "MB-estimate")
 		runtime.KeepAlive(s)
 	}
 }
