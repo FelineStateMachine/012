@@ -48,6 +48,9 @@ type step struct {
 	charts map[*Sheet][]Chart
 	// pivots holds each touched sheet's pivot definition before the step.
 	pivots map[*Sheet]*Pivot
+	// rules holds each touched sheet's conditional formats and data
+	// validation before the step.
+	rules map[*Sheet]rulesState
 	// sheets is the sheet list before the step, when it changed.
 	sheets *sheetList
 	// decimal is the arithmetic setting before the step, when it changed.
@@ -64,7 +67,7 @@ type colKey struct {
 
 func newStep(label string, s *Sheet, focus Rect) *step {
 	return &step{label: label, sheet: s, focus: focus, cells: map[loc]*Cell{}, widths: map[colKey]int{}, lines: map[lineKey]lineFmt{},
-		names: map[string]*Name{}, views: map[*Sheet]*viewState{}, charts: map[*Sheet][]Chart{}, pivots: map[*Sheet]*Pivot{}}
+		names: map[string]*Name{}, views: map[*Sheet]*viewState{}, charts: map[*Sheet][]Chart{}, pivots: map[*Sheet]*Pivot{}, rules: map[*Sheet]rulesState{}}
 }
 
 func (st *step) empty() bool {
@@ -73,7 +76,7 @@ func (st *step) empty() bool {
 
 // widthOnly reports whether the step changed nothing but column widths.
 func (st *step) widthOnly() bool {
-	return len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && st.sheets == nil && st.decimal == nil &&
+	return len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil && st.decimal == nil &&
 		st.macros == nil
 }
 
@@ -240,6 +243,7 @@ func (w *Workbook) push(st *step) {
 // dropUnchanged removes from st what ended the step as it began.
 func (w *Workbook) dropUnchanged(st *step) {
 	st.dropUnchangedLines()
+	st.dropUnchangedRules()
 	for l, c := range st.cells {
 		if c == nil && l.s.cells.get(l.a) == nil {
 			delete(st.cells, l)
@@ -288,6 +292,16 @@ func (st *step) dropUnchangedLines() {
 	for k, l := range st.lines {
 		if k.s.line(k.row, k.n) == l {
 			delete(st.lines, k)
+		}
+	}
+}
+
+// dropUnchangedRules removes the sheets' rules that ended the step as
+// they began.
+func (st *step) dropUnchangedRules() {
+	for s, r := range st.rules {
+		if r.equal(s.rules) {
+			delete(st.rules, s)
 		}
 	}
 }
@@ -432,6 +446,11 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		inv.pivots[s] = s.pivot.def
 		s.pivot.def, s.pivot.stale = p, true
 	}
+	for s, r := range st.rules {
+		inv.rules[s] = s.rules
+		s.rules = r
+		s.looks.reset()
+	}
 	if st.decimal != nil {
 		cur := w.decimal
 		inv.decimal, w.decimal = &cur, *st.decimal
@@ -459,7 +478,7 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		w.pushUndo(inv)
 	}
 	h.mergeWidths = false
-	macrosOnly := st.macros != nil && len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && st.sheets == nil
+	macrosOnly := st.macros != nil && len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil
 	return Change{Label: st.label, Focus: st.focus, Sheet: st.sheet, Tabs: st.sheets != nil, Macros: macrosOnly}, true
 }
 

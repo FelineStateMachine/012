@@ -89,6 +89,9 @@ type Sheet struct {
 
 	view   viewState   // frozen panes and the filter, see view.go
 	hidden hiddenCache // rows the filter hides, see filter.go
+
+	rules rulesState // conditional formats and data validation, see rules.go
+	looks looksCache // how the rules draw cells, see looks.go
 }
 
 // New returns an empty worksheet, the only sheet of a new workbook.

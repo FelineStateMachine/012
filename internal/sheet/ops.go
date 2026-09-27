@@ -146,6 +146,7 @@ func (s *Sheet) restructure(rows bool, sp formula.Span) {
 		s.shiftLines(rows, sp)
 		s.shiftView(rows, sp)
 		s.shiftPivots(rows, sp)
+		s.shiftRules(rows, sp)
 	})
 }
 
