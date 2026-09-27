@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
@@ -120,7 +121,7 @@ func detectSeries(cells []*Cell) func(i int) string {
 func numberSeries(cells []*Cell) func(int) string {
 	vals := make([]float64, len(cells))
 	for i, c := range cells {
-		if _, ok := c.expr.(numLit); !ok || c.Value.Kind != Number {
+		if _, ok := c.expr.(formula.Num); !ok || c.Value.Kind != Number {
 			return nil
 		}
 		vals[i] = c.Value.Num

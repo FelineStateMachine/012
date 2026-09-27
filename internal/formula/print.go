@@ -1,4 +1,4 @@
-package sheet
+package formula
 
 import (
 	"math"
@@ -6,12 +6,20 @@ import (
 	"strings"
 )
 
-// formulaText prints a parsed formula back to text, with a leading "=".
+// Text prints a parsed formula back to text, with a leading "=".
 // Rewritten formulas (after a paste or an inserted row) are stored this
 // way, in Sheets' spelling: ranges as A1:B3, functions without @.
-func formulaText(n Node) string {
+func Text(n Node) string {
 	var b strings.Builder
 	b.WriteByte('=')
+	printNode(&b, n)
+	return b.String()
+}
+
+// Expr prints an expression without the leading "=", e.g. to quote part
+// of a formula.
+func Expr(n Node) string {
+	var b strings.Builder
 	printNode(&b, n)
 	return b.String()
 }
@@ -23,10 +31,10 @@ const atomPower = 100
 // the printer adds parentheses exactly where the parser needs them.
 func power(n Node) int {
 	switch n := n.(type) {
-	case binaryNode:
-		return infixPower[n.op]
-	case unaryNode:
-		switch n.op {
+	case Binary:
+		return infixPower[n.Op]
+	case Unary:
+		switch n.Op {
 		case "%":
 			return percentPower
 		case "#NOT#":
@@ -39,40 +47,34 @@ func power(n Node) int {
 
 func printNode(b *strings.Builder, n Node) {
 	switch n := n.(type) {
-	case numLit:
-		b.WriteString(numText(n.v))
-	case strLit:
-		b.WriteString(`"` + strings.ReplaceAll(n.v, `"`, `""`) + `"`)
-	case boolLit:
-		b.WriteString(strings.ToUpper(strconv.FormatBool(n.v)))
-	case refNode:
-		writeSheet(b, n.sheet)
-		b.WriteString(refString(n.a, n.abs))
-	case rangeNode:
-		writeSheet(b, n.sheet)
-		b.WriteString(refString(n.r.From, n.abs[0]) + ":" + refString(n.r.To, n.abs[1]))
-	case refErrNode:
-		b.WriteString("#REF!")
-	case nameNode:
-		b.WriteString(n.name)
-	case unaryNode:
-		if n.op == "%" {
-			printChild(b, n.x, power(n.x) < percentPower)
-			b.WriteByte('%')
-			return
-		}
-		b.WriteString(n.op)
-		printChild(b, n.x, power(n.x) < power(n))
-	case binaryNode:
-		p := infixPower[n.op]
+	case Num:
+		b.WriteString(numText(n.V))
+	case Str:
+		b.WriteString(`"` + strings.ReplaceAll(n.V, `"`, `""`) + `"`)
+	case Bool:
+		b.WriteString(strings.ToUpper(strconv.FormatBool(n.V)))
+	case Ref:
+		writeSheet(b, n.Sheet)
+		b.WriteString(RefString(n.Addr, n.Abs))
+	case Range:
+		writeSheet(b, n.Sheet)
+		b.WriteString(RefString(n.Rect.From, n.Abs[0]) + ":" + RefString(n.Rect.To, n.Abs[1]))
+	case RefErr:
+		b.WriteString(refErrorText)
+	case Name:
+		b.WriteString(n.Name)
+	case Unary:
+		printUnary(b, n)
+	case Binary:
+		p := infixPower[n.Op]
 		// Operators associate to the left, so a right operand of equal
 		// power needs parentheses: 1-(2-3).
-		printChild(b, n.l, power(n.l) < p)
-		b.WriteString(n.op)
-		printChild(b, n.r, power(n.r) <= p)
-	case callNode:
-		b.WriteString(n.fn.Name + "(")
-		for i, a := range n.args {
+		printChild(b, n.L, power(n.L) < p)
+		b.WriteString(n.Op)
+		printChild(b, n.R, power(n.R) <= p)
+	case Call:
+		b.WriteString(n.Fn.Signature().Name + "(")
+		for i, a := range n.Args {
 			if i > 0 {
 				b.WriteByte(',')
 			}
@@ -82,10 +84,20 @@ func printNode(b *strings.Builder, n Node) {
 	}
 }
 
+func printUnary(b *strings.Builder, n Unary) {
+	if n.Op == "%" {
+		printChild(b, n.X, power(n.X) < percentPower)
+		b.WriteByte('%')
+		return
+	}
+	b.WriteString(n.Op)
+	printChild(b, n.X, power(n.X) < power(n))
+}
+
 // writeSheet writes a reference's sheet and its "!", quoted as needed.
 func writeSheet(b *strings.Builder, sheet string) {
 	if sheet != "" {
-		b.WriteString(quoteSheet(sheet) + "!")
+		b.WriteString(QuoteSheet(sheet) + "!")
 	}
 }
 

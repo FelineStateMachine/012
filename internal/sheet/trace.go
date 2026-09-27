@@ -3,6 +3,8 @@ package sheet
 import (
 	"cmp"
 	"slices"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // Tracing, as Excel's Trace Precedents and Trace Dependents: which cells
@@ -32,7 +34,7 @@ func (s *Sheet) Precedents(a Addr) []Target {
 			out = append(out, t)
 		}
 	}
-	walkRefs(s.bound(c), func(sheet string, a Addr) { add(sheet, Rect{a, a}) }, add)
+	formula.WalkRefs(s.bound(c), func(sheet string, a Addr) { add(sheet, Rect{From: a, To: a}) }, add)
 	return out
 }
 
@@ -66,7 +68,7 @@ func (s *Sheet) Dependents(a Addr) []Target {
 	}
 	out := make([]Target, 0, len(seen))
 	for l := range seen {
-		out = append(out, Target{l.s, Rect{l.a, l.a}})
+		out = append(out, Target{l.s, Rect{From: l.a, To: l.a}})
 	}
 	rank := func(t *Sheet) int {
 		if t == s {

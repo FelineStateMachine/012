@@ -4,6 +4,7 @@ import (
 	"math"
 	"slices"
 
+	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
@@ -164,19 +165,19 @@ type agg struct {
 // #VALUE!.
 func each(args []Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
 	for _, arg := range args {
-		if ref, ok := arg.(refNode); ok {
-			if e := fn(get(ref.sheet, ref.a), false); e != nil {
+		if ref, ok := arg.(formula.Ref); ok {
+			if e := fn(get(ref.Sheet, ref.Addr), false); e != nil {
 				return e
 			}
 			continue
 		}
-		if _, ok := arg.(emptyArg); ok {
+		if _, ok := arg.(formula.Empty); ok {
 			continue
 		}
-		if rn, ok := arg.(rangeNode); ok {
-			for r := rn.r.From.Row; r <= rn.r.To.Row; r++ {
-				for c := rn.r.From.Col; c <= rn.r.To.Col; c++ {
-					if e := fn(get(rn.sheet, Addr{Col: c, Row: r}), false); e != nil {
+		if rn, ok := arg.(formula.Range); ok {
+			for r := rn.Rect.From.Row; r <= rn.Rect.To.Row; r++ {
+				for c := rn.Rect.From.Col; c <= rn.Rect.To.Col; c++ {
+					if e := fn(get(rn.Sheet, Addr{Col: c, Row: r}), false); e != nil {
 						return e
 					}
 				}

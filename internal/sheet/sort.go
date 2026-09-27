@@ -3,6 +3,8 @@ package sheet
 import (
 	"slices"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // SortKey is one column to sort by.
@@ -98,7 +100,7 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 				to := Addr{Col: col, Row: dst}
 				switch c := old[Addr{Col: col, Row: src}]; {
 				case c != nil:
-					s.place(to, c.rewritten(shiftRefs(0, dst-src)))
+					s.place(to, c.rewritten(formula.Shift(0, dst-src)))
 				case s.cells[to] != nil:
 					s.place(to, nil)
 				}

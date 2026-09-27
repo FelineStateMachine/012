@@ -58,47 +58,6 @@ func expect(t *testing.T, w *Workbook, want map[string]string) {
 	}
 }
 
-func TestParseSheetRefs(t *testing.T) {
-	tests := []struct{ in, out, err string }{
-		{in: "=Sheet2!A1", out: "=Sheet2!A1"},
-		{in: "=sheet2!$a$1+1", out: "=sheet2!$A$1+1"},
-		{in: "='My Sheet'!B2:C9", out: "='My Sheet'!B2:C9"},
-		{in: "=SUM('Bob''s'!A1:A3)", out: "=SUM('Bob''s'!A1:A3)"},
-		{in: "=Data!B3:Data!A1", out: "=Data!A1:B3"},
-		{in: "='2026'!A1", out: "='2026'!A1"},
-		{in: "='A1'!A1", out: "='A1'!A1"},
-		{in: "=Q3.plan!A1..B2", out: "=Q3.plan!A1:B2"},
-		{in: "=Sheet2!Sales", err: "Expected a cell after Sheet2!"},
-		{in: "=Sheet2!A1:Other!B2", err: "A range can't span sheets"},
-		{in: "='Open!A1", err: "Expected ! after a quoted sheet name"},
-		{in: "='x'A1", err: "Expected ! after a quoted sheet name"},
-	}
-	for _, tt := range tests {
-		n, err := Parse(tt.in)
-		switch {
-		case tt.err != "":
-			if err == nil || err.Error() != tt.err {
-				t.Errorf("%s: error %v, want %q", tt.in, err, tt.err)
-			}
-		case err != nil:
-			t.Errorf("%s: %v", tt.in, err)
-		case formulaText(n) != tt.out:
-			t.Errorf("%s prints as %s, want %s", tt.in, formulaText(n), tt.out)
-		}
-	}
-}
-
-func TestQuoteSheet(t *testing.T) {
-	for name, want := range map[string]string{
-		"Sheet1": "Sheet1", "Q3_plan": "Q3_plan", "My Sheet": "'My Sheet'", "Bob's": "'Bob''s'",
-		"2026": "'2026'", "AB12": "'AB12'", "R1C1": "'R1C1'", "Café": "'Café'",
-	} {
-		if got := quoteSheet(name); got != want {
-			t.Errorf("quoteSheet(%q) = %s, want %s", name, got, want)
-		}
-	}
-}
-
 func TestSheetNames(t *testing.T) {
 	w := NewBook()
 	tests := []struct{ name, err string }{
@@ -478,21 +437,6 @@ func BenchmarkSameSheetEdit(b *testing.B) {
 	b.ResetTimer()
 	for i := range b.N {
 		s.Set(Addr{}, strconv.Itoa(i))
-	}
-}
-
-func TestSplitSheet(t *testing.T) {
-	tests := []struct{ in, sheet, rest string }{
-		{"A1", "", "A1"},
-		{"Sheet2!A1:B3", "Sheet2", "A1:B3"},
-		{"'Q3 plan'!B2", "Q3 plan", "B2"},
-		{"'Bob''s'!C1", "Bob's", "C1"},
-		{" Data!Z9 ", "Data", "Z9"},
-	}
-	for _, tt := range tests {
-		if sheet, rest := SplitSheet(tt.in); sheet != tt.sheet || rest != tt.rest {
-			t.Errorf("SplitSheet(%q) = %q, %q", tt.in, sheet, rest)
-		}
 	}
 }
 

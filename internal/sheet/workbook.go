@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // A Workbook is an ordered list of sheets, as a Google Sheets
@@ -97,7 +99,7 @@ func (w *Workbook) Sheet(i int) *Sheet { return w.sheets[i] }
 func (w *Workbook) Index(s *Sheet) int { return slices.Index(w.sheets, s) }
 
 // Lookup finds a sheet by name, ignoring case.
-func (w *Workbook) Lookup(name string) *Sheet { return w.byKey[sheetKey(name)] }
+func (w *Workbook) Lookup(name string) *Sheet { return w.byKey[formula.SheetKey(name)] }
 
 // Active returns the index of the sheet last shown, as saved in the file.
 func (w *Workbook) Active() int { return clampInt(w.active, 0, len(w.sheets)-1) }
@@ -139,79 +141,6 @@ func ValidSheetName(name string) error {
 		return errors.New("A sheet name can't contain control characters")
 	}
 	return nil
-}
-
-// sheetKey is how sheet names compare: ignoring case, as in Sheets.
-func sheetKey(name string) string { return strings.ToUpper(name) }
-
-// quoteSheet writes a sheet name as a formula needs it: bare when it reads
-// as a plain identifier (Sheet2), otherwise in single quotes with quotes
-// doubled, e.g. 'Q3 plan'.
-func quoteSheet(name string) string {
-	bare := name != "" && (isLetter(name[0]) || name[0] == '_') && !looksLikeCell(strings.ToUpper(name))
-	for i := 0; bare && i < len(name); i++ {
-		c := name[i]
-		bare = isLetter(c) || isDigit(c) || c == '_' || c == '.'
-	}
-	if bare {
-		return name
-	}
-	return "'" + strings.ReplaceAll(name, "'", "''") + "'"
-}
-
-// looksLikeCell reports whether an upper-case name reads as a cell in
-// Excel, A1 to XFD1048576 or R1C1, so a sheet of that name is quoted
-// everywhere its formulas may go. Sheet1 doesn't: SHEET is no column.
-func looksLikeCell(k string) bool {
-	digits := strings.TrimLeft(k, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	if n := len(k) - len(digits); n >= 1 && n <= 3 && digits != "" && strings.Trim(digits, "0123456789") == "" {
-		return true
-	}
-	return (strings.HasPrefix(k, "R") || strings.HasPrefix(k, "C")) && looksLikeRef(k)
-}
-
-// QuoteSheet is quoteSheet for the UI, e.g. to show 'Q3 plan'!B2.
-func QuoteSheet(name string) string { return quoteSheet(name) }
-
-// quotedName reads a quoted sheet name starting at the quote at src[i] and
-// returns it unquoted with the index just past the closing quote.
-func quotedName(src string, i int) (string, int, bool) {
-	var b strings.Builder
-	for j := i + 1; j < len(src); j++ {
-		if src[j] != '\'' {
-			b.WriteByte(src[j])
-			continue
-		}
-		if j+1 < len(src) && src[j+1] == '\'' {
-			b.WriteByte('\'')
-			j++
-			continue
-		}
-		return b.String(), j + 1, b.Len() > 0
-	}
-	return "", len(src), false
-}
-
-// SplitSheet splits a reference such as "Sheet2!A1:B3" or "'Q3 plan'!B2"
-// into the sheet name, unquoted, and the rest. Without a sheet, sheet is
-// "" and rest is s.
-func SplitSheet(s string) (sheet, rest string) {
-	s = strings.TrimSpace(s)
-	if strings.HasPrefix(s, "'") {
-		if name, end, ok := quotedName(s, 0); ok && end < len(s) && s[end] == '!' {
-			return name, s[end+1:]
-		}
-		return "", s
-	}
-	if i := strings.LastIndexByte(s, '!'); i > 0 {
-		return s[:i], s[i+1:]
-	}
-	return "", s
-}
-
-// Qualified writes r on sheet as a formula would: Sheet2!A1:B3.
-func Qualified(sheet string, r Rect) string {
-	return quoteSheet(sheet) + "!" + r.String()
 }
 
 // nextSheetName is the first free name among Sheet1, Sheet2, ... after
@@ -326,13 +255,13 @@ func (w *Workbook) RenameSheet(s *Sheet, name string) error {
 	if name == s.name {
 		return nil
 	}
-	old := sheetKey(s.name)
+	old := formula.SheetKey(s.name)
 	w.change(s, "rename "+s.name+" to "+name, Rect{}, func() {
 		w.recordSheets()
 		delete(w.byKey, old)
 		s.name = name
-		w.byKey[sheetKey(name)] = s
-		if old != sheetKey(name) {
+		w.byKey[formula.SheetKey(name)] = s
+		if old != formula.SheetKey(name) {
 			w.renameRefs(old, name)
 		}
 	})
@@ -341,16 +270,16 @@ func (w *Workbook) RenameSheet(s *Sheet, name string) error {
 
 // renameRefs rewrites references written with the sheet key old to name.
 func (w *Workbook) renameRefs(old, name string) {
-	rw := refRewrite{
-		ref: func(n refNode) Node {
-			if n.sheet != "" && sheetKey(n.sheet) == old {
-				n.sheet = name
+	rw := formula.Rewriter{
+		Ref: func(n formula.Ref) Node {
+			if n.Sheet != "" && formula.SheetKey(n.Sheet) == old {
+				n.Sheet = name
 			}
 			return n
 		},
-		rng: func(n rangeNode) Node {
-			if n.sheet != "" && sheetKey(n.sheet) == old {
-				n.sheet = name
+		Range: func(n formula.Range) Node {
+			if n.Sheet != "" && formula.SheetKey(n.Sheet) == old {
+				n.Sheet = name
 			}
 			return n
 		},
@@ -398,7 +327,7 @@ func (w *Workbook) attach(s *Sheet) {
 		return
 	}
 	s.live = true
-	w.byKey[sheetKey(s.name)] = s
+	w.byKey[formula.SheetKey(s.name)] = s
 	for a, c := range s.cells {
 		w.index(loc{s, a}, c)
 	}
@@ -412,8 +341,8 @@ func (w *Workbook) detach(s *Sheet) {
 		return
 	}
 	s.live = false
-	if w.byKey[sheetKey(s.name)] == s {
-		delete(w.byKey, sheetKey(s.name))
+	if w.byKey[formula.SheetKey(s.name)] == s {
+		delete(w.byKey, formula.SheetKey(s.name))
 	}
 	for a, c := range s.cells {
 		w.unindex(loc{s, a}, c)
@@ -469,7 +398,7 @@ func (w *Workbook) resolve(s *Sheet, sheet string) *Sheet {
 	if sheet == "" {
 		return s
 	}
-	return w.byKey[sheetKey(sheet)]
+	return w.byKey[formula.SheetKey(sheet)]
 }
 
 // onThis reports, for a formula on from, whether a reference written with

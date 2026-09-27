@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // DefaultWidth is the initial column width: nine characters plus padding.
@@ -182,13 +184,13 @@ func classify(input string) (Node, Format, error) {
 		return nil, Format{}, nil
 	}
 	if v, f, ok := ParseValue(input); ok {
-		return numLit{v}, f, nil
+		return formula.Num{V: v}, f, nil
 	}
 	switch strings.ToUpper(input) {
 	case "TRUE":
-		return boolLit{true}, Format{}, nil
+		return formula.Bool{V: true}, Format{}, nil
 	case "FALSE":
-		return boolLit{false}, Format{}, nil
+		return formula.Bool{V: false}, Format{}, nil
 	}
 	if IsFormulaEntry(input) {
 		n, err := Parse(input)
@@ -203,7 +205,7 @@ func classify(input string) (Node, Format, error) {
 // unchanged.
 func (s *Sheet) Set(a Addr, input string) error {
 	var err error
-	s.change("edit "+a.String(), Rect{a, a}, func() { err = s.put(a, input) })
+	s.change("edit "+a.String(), Rect{From: a, To: a}, func() { err = s.put(a, input) })
 	return err
 }
 
@@ -267,22 +269,22 @@ func formattingOnly(f Format, st Style) *Cell {
 func (c *Cell) setExpr(n Node) {
 	c.expr, c.refs, c.ranges, c.xrefs, c.names, c.volatile = n, nil, nil, nil, nil, false
 	if n != nil {
-		walkRefs(n,
+		formula.WalkRefs(n,
 			func(sheet string, r Addr) {
 				if sheet != "" {
-					c.xrefs = append(c.xrefs, xref{sheetKey(sheet), Rect{r, r}})
+					c.xrefs = append(c.xrefs, xref{formula.SheetKey(sheet), Rect{From: r, To: r}})
 					return
 				}
 				c.refs = append(c.refs, r)
 			},
 			func(sheet string, r Rect) {
 				if sheet != "" {
-					c.xrefs = append(c.xrefs, xref{sheetKey(sheet), r})
+					c.xrefs = append(c.xrefs, xref{formula.SheetKey(sheet), r})
 					return
 				}
 				c.ranges = append(c.ranges, r)
 			})
-		walkNames(n, func(nn nameNode) { c.names = append(c.names, nameKey(nn.name)) })
+		formula.WalkNames(n, func(nn formula.Name) { c.names = append(c.names, nameKey(nn.Name)) })
 		c.volatile = isVolatile(n)
 	}
 }
@@ -461,7 +463,7 @@ func (w *Workbook) affected(changed []loc) int {
 				}
 			}
 		}
-		if w.crossKeys[sheetKey(s.name)] == 0 {
+		if w.crossKeys[formula.SheetKey(s.name)] == 0 {
 			continue // no formula names this sheet
 		}
 		for u := range w.crossUsers {
@@ -505,9 +507,9 @@ func (w *Workbook) evaluate() {
 		case c.expr == nil:
 			c.Value = Value{Kind: Text, Str: strings.TrimPrefix(c.Input, "'")}
 		default:
-			expr := w.arith(s.bound(c))
-			c.Value = eval(expr, s.calcGet)
-			if _, lit := expr.(numLit); !lit {
+			expr := s.bound(c)
+			c.Value = eval(w.arith(expr), s.calcGet)
+			if _, lit := expr.(formula.Num); !lit {
 				c.auto = inferFormat(expr, s.calcFmt)
 			}
 		}
@@ -557,7 +559,7 @@ func (w *Workbook) lookupOn(s *Sheet, get func(*Sheet, Addr) Value) lookup {
 			return get(s, a)
 		}
 		if sheet != lastName || last == nil {
-			lastName, last = sheet, w.byKey[sheetKey(sheet)]
+			lastName, last = sheet, w.byKey[formula.SheetKey(sheet)]
 		}
 		if last == nil {
 			return ErrRef

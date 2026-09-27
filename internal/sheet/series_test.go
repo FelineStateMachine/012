@@ -63,7 +63,7 @@ func TestFillSeries(t *testing.T) {
 func TestFillSeriesDirections(t *testing.T) {
 	s := sheetOf(t, map[string]string{"C3": "5", "C4": "6", "D3": "Mon", "D4": "Tue"})
 	// Up continues backwards.
-	s.FillSeries(Rect{at("C3"), at("D4")}, Rect{at("C1"), at("D4")})
+	s.FillSeries(Rect{From: at("C3"), To: at("D4")}, Rect{From: at("C1"), To: at("D4")})
 	if got := column(s, "C", 1, 2); !reflect.DeepEqual(got, []string{"3", "4"}) {
 		t.Errorf("up: C = %q", got)
 	}
@@ -72,8 +72,8 @@ func TestFillSeriesDirections(t *testing.T) {
 	}
 	// Right and left, per row.
 	s = sheetOf(t, map[string]string{"B1": "1", "C1": "3", "B2": "x"})
-	s.FillSeries(Rect{at("B1"), at("C2")}, Rect{at("A1"), at("C2")})
-	s.FillSeries(Rect{at("A1"), at("C2")}, Rect{at("A1"), at("E2")})
+	s.FillSeries(Rect{From: at("B1"), To: at("C2")}, Rect{From: at("A1"), To: at("C2")})
+	s.FillSeries(Rect{From: at("A1"), To: at("C2")}, Rect{From: at("A1"), To: at("E2")})
 	want := map[string]string{"A1": "-1", "B1": "1", "C1": "3", "D1": "5", "E1": "7", "A2": "", "B2": "x", "D2": "", "E2": "x"}
 	for a, in := range want {
 		if got := input(s, a); got != in {
@@ -113,7 +113,7 @@ func TestFillDownContinuesSeries(t *testing.T) {
 		})
 	}
 	s := sheetOf(t, map[string]string{"A1": "Jan", "B1": "Feb"})
-	s.FillRight(Rect{at("A1"), at("D1")})
+	s.FillRight(Rect{From: at("A1"), To: at("D1")})
 	if got := input(s, "D1"); got != "Apr" {
 		t.Errorf("fill right: D1 = %q", got)
 	}

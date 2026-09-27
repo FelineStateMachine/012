@@ -1,5 +1,7 @@
 package sheet
 
+import "github.com/FelineStateMachine/012/internal/formula"
+
 // Some functions (JEV.*) are answered by a hosted model. The engine never
 // talks to the network: it describes each question as a RemoteCall and
 // asks Remote for the answer. Until the answer arrives the cell shows
@@ -65,18 +67,18 @@ func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
 	var walk func(Node)
 	walk = func(n Node) {
 		switch n := n.(type) {
-		case unaryNode:
-			walk(n.x)
-		case binaryNode:
-			walk(n.l)
-			walk(n.r)
-		case callNode:
-			if n.fn.remote != nil {
-				if call, err := n.fn.remote(n.args, get); err == nil {
+		case formula.Unary:
+			walk(n.X)
+		case formula.Binary:
+			walk(n.L)
+			walk(n.R)
+		case formula.Call:
+			if funcOf(n).remote != nil {
+				if call, err := funcOf(n).remote(n.Args, get); err == nil {
 					calls = append(calls, call)
 				}
 			}
-			for _, arg := range n.args {
+			for _, arg := range n.Args {
 				walk(arg)
 			}
 		}

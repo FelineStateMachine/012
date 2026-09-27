@@ -3,6 +3,8 @@ package sheet
 import (
 	"maps"
 	"slices"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // MaxUndo is how many steps of undo history a workbook keeps.
@@ -222,7 +224,7 @@ func (w *Workbook) setSheets(l *sheetList) {
 	for _, s := range w.sheets {
 		s.name = l.names[s]
 		if s.live {
-			w.byKey[sheetKey(s.name)] = s
+			w.byKey[formula.SheetKey(s.name)] = s
 		} else {
 			w.attach(s)
 		}
@@ -404,12 +406,12 @@ func (w *Workbook) swap(from, to *[]*step) (Change, bool) {
 
 // colRect is the range covering whole columns from..to.
 func colRect(from, to int) Rect {
-	return Rect{Addr{Col: from}, Addr{Col: to, Row: MaxRows - 1}}
+	return Rect{From: Addr{Col: from}, To: Addr{Col: to, Row: MaxRows - 1}}
 }
 
 // rowRect is the range covering whole rows from..to.
 func rowRect(from, to int) Rect {
-	return Rect{Addr{Row: from}, Addr{Col: MaxCols - 1, Row: to}}
+	return Rect{From: Addr{Row: from}, To: Addr{Col: MaxCols - 1, Row: to}}
 }
 
 func union(a, b Rect) Rect {

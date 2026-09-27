@@ -3,6 +3,7 @@ package sheet
 import (
 	"sync"
 
+	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/numfmt"
 	"github.com/cockroachdb/apd/v3"
 )
@@ -199,24 +200,31 @@ var decFuncs = sync.OnceValue(func() map[string]*FuncDef {
 	return out
 })
 
+// Operators computed in decimal are marked by these types, which eval
+// knows; parsed formulas never contain them.
+type (
+	decUnary  formula.Unary
+	decBinary formula.Binary
+)
+
 // decimalize returns a copy of n that evaluates in decimal: operators are
 // marked, and functions with a decimal twin call it.
 func decimalize(n Node) Node {
 	switch n := n.(type) {
-	case unaryNode:
-		n.x, n.dec = decimalize(n.x), true
-		return n
-	case binaryNode:
-		n.l, n.r, n.dec = decimalize(n.l), decimalize(n.r), true
-		return n
-	case callNode:
-		args := make([]Node, len(n.args))
-		for i, a := range n.args {
+	case formula.Unary:
+		n.X = decimalize(n.X)
+		return decUnary(n)
+	case formula.Binary:
+		n.L, n.R = decimalize(n.L), decimalize(n.R)
+		return decBinary(n)
+	case formula.Call:
+		args := make([]Node, len(n.Args))
+		for i, a := range n.Args {
 			args[i] = decimalize(a)
 		}
-		n.args = args
-		if twin, ok := decFuncs()[n.fn.Name]; ok {
-			n.fn = twin
+		n.Args = args
+		if twin, ok := decFuncs()[funcOf(n).Name]; ok {
+			n.Fn = twin
 		}
 		return n
 	}

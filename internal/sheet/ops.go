@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // Errors returned by operations that would lose data or don't fit.
@@ -22,7 +24,7 @@ const maxFill = 1 << 20
 // sheets, with cell and rng, as one undo step. References to other sheets
 // stay as they are.
 func (s *Sheet) remap(label string, focus Rect, cell func(Addr) (Addr, bool), rng func(Rect) (Rect, bool)) {
-	rw := relocate(s.onThis(s), cell, rng)
+	rw := formula.Relocate(s.onThis(s), cell, rng)
 	next := make(map[Addr]*Cell, len(s.cells))
 	for a, c := range s.cells {
 		if to, ok := cell(a); ok {
@@ -35,7 +37,7 @@ func (s *Sheet) remap(label string, focus Rect, cell func(Addr) (Addr, bool), rn
 			continue
 		}
 		c := l.s.cells[l.a]
-		if nc := c.rewritten(relocate(s.onThis(l.s), cell, rng)); nc != c {
+		if nc := c.rewritten(formula.Relocate(s.onThis(l.s), cell, rng)); nc != c {
 			others[l] = nc
 		}
 	}
@@ -70,12 +72,12 @@ func (s *Sheet) InsertCols(at, n int) error {
 // DeleteRows deletes n rows starting at row at. References to deleted
 // cells become #REF!; ranges that lose some of their rows shrink.
 func (s *Sheet) DeleteRows(at, n int) {
-	s.restructure(true, span{at, -n, MaxRows})
+	s.restructure(true, formula.Span{At: at, N: -n, Size: MaxRows})
 }
 
 // DeleteCols deletes n columns starting at column at.
 func (s *Sheet) DeleteCols(at, n int) {
-	s.restructure(false, span{at, -n, MaxCols})
+	s.restructure(false, formula.Span{At: at, N: -n, Size: MaxCols})
 }
 
 func (s *Sheet) insert(rows bool, at, n int) error {
@@ -92,26 +94,26 @@ func (s *Sheet) insert(rows bool, at, n int) error {
 			return ErrPushedOff
 		}
 	}
-	s.restructure(rows, span{at, n, size})
+	s.restructure(rows, formula.Span{At: at, N: n, Size: size})
 	return nil
 }
 
-func (s *Sheet) restructure(rows bool, sp span) {
-	cell, rng := axisRewrite(rows, sp)
-	last := sp.at + abs(sp.n) - 1
-	focus := colRect(sp.at, min(last, MaxCols-1))
+func (s *Sheet) restructure(rows bool, sp formula.Span) {
+	cell, rng := formula.AxisMaps(rows, sp)
+	last := sp.At + abs(sp.N) - 1
+	focus := colRect(sp.At, min(last, MaxCols-1))
 	if rows {
-		focus = rowRect(sp.at, min(last, MaxRows-1))
+		focus = rowRect(sp.At, min(last, MaxRows-1))
 	}
 	verb, noun := "insert", "column"
-	if sp.n < 0 {
+	if sp.N < 0 {
 		verb = "delete"
 	}
 	if rows {
 		noun = "row"
 	}
-	label := fmt.Sprintf("%s %d %s", verb, abs(sp.n), noun)
-	if abs(sp.n) > 1 {
+	label := fmt.Sprintf("%s %d %s", verb, abs(sp.N), noun)
+	if abs(sp.N) > 1 {
 		label += "s"
 	}
 	s.change(label, focus, func() {
@@ -126,10 +128,10 @@ func (s *Sheet) restructure(rows bool, sp span) {
 }
 
 // shiftWidths moves column widths along with inserted or deleted columns.
-func (s *Sheet) shiftWidths(sp span) {
+func (s *Sheet) shiftWidths(sp formula.Span) {
 	next := map[int]int{}
 	for c, w := range s.widths {
-		if to, ok := sp.point(c); ok {
+		if to, ok := sp.Point(c); ok {
 			next[to] = w
 		}
 	}
@@ -151,7 +153,7 @@ func (s *Sheet) shiftWidths(sp span) {
 // #REF!. It returns the destination range.
 func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
 	dc, dr := to.Col-src.From.Col, to.Row-src.From.Row
-	dst := Rect{to, Addr{Col: src.To.Col + dc, Row: src.To.Row + dr}}
+	dst := Rect{From: to, To: Addr{Col: src.To.Col + dc, Row: src.To.Row + dr}}
 	if !dst.To.Valid() {
 		return Rect{}, ErrPasteEdge
 	}
@@ -167,7 +169,7 @@ func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
 	}
 	rng := func(r Rect) (Rect, bool) {
 		if src.Contains(r.From) && src.Contains(r.To) {
-			return Rect{shift(r.From), shift(r.To)}, true
+			return Rect{From: shift(r.From), To: shift(r.To)}, true
 		}
 		return r, true
 	}
@@ -190,12 +192,12 @@ func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
 		return s.Move(src, to)
 	}
 	dc, dr := to.Col-src.From.Col, to.Row-src.From.Row
-	d := Rect{to, Addr{Col: src.To.Col + dc, Row: src.To.Row + dr}}
+	d := Rect{From: to, To: Addr{Col: src.To.Col + dc, Row: src.To.Row + dr}}
 	if !d.To.Valid() {
 		return Rect{}, ErrPasteEdge
 	}
 	shift := func(a Addr) Addr { return Addr{Col: a.Col + dc, Row: a.Row + dr} }
-	rw := func(orig, home *Sheet) refRewrite { return s.moveRewrite(dst, src, d, orig, home) }
+	rw := func(orig, home *Sheet) formula.Rewriter { return s.moveRewrite(dst, src, d, orig, home) }
 
 	moved := map[Addr]*Cell{}
 	for _, a := range s.cellsIn(src) {
@@ -221,7 +223,7 @@ func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
 			keep(l)
 		}
 	}
-	label := "move " + src.String() + " to " + quoteSheet(dst.name) + "!" + d.String()
+	label := "move " + src.String() + " to " + formula.QuoteSheet(dst.name) + "!" + d.String()
 	dst.change(label, d, func() {
 		for _, a := range s.cellsIn(src) {
 			s.place(a, nil)
@@ -237,7 +239,7 @@ func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
 		}
 		for k, n := range s.wb.names {
 			if n.Sheet == s && !n.Lost && src.Contains(n.Range.From) && src.Contains(n.Range.To) {
-				n.Sheet, n.Range = dst, Rect{shift(n.Range.From), shift(n.Range.To)}
+				n.Sheet, n.Range = dst, Rect{From: shift(n.Range.From), To: shift(n.Range.To)}
 				s.wb.putName(k, &n)
 			}
 		}
@@ -248,7 +250,7 @@ func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
 // moveRewrite maps the references of a formula that was on orig and is
 // on home after cells in src on s move to d on dst. A reference names its
 // sheet unless it points at home.
-func (s *Sheet) moveRewrite(dst *Sheet, src, d Rect, orig, home *Sheet) refRewrite {
+func (s *Sheet) moveRewrite(dst *Sheet, src, d Rect, orig, home *Sheet) formula.Rewriter {
 	dc, dr := d.From.Col-src.From.Col, d.From.Row-src.From.Row
 	shift := func(a Addr) Addr { return Addr{Col: a.Col + dc, Row: a.Row + dr} }
 	// written is how a reference names now, having named was as written.
@@ -261,28 +263,28 @@ func (s *Sheet) moveRewrite(dst *Sheet, src, d Rect, orig, home *Sheet) refRewri
 		}
 		return now.name
 	}
-	return refRewrite{
-		ref: func(n refNode) Node {
-			t := s.wb.resolve(orig, n.sheet)
+	return formula.Rewriter{
+		Ref: func(n formula.Ref) Node {
+			t := s.wb.resolve(orig, n.Sheet)
 			switch {
 			case t == nil:
 				return n
-			case t == s && src.Contains(n.a):
-				return refNode{shift(n.a), n.abs, written(n.sheet, t, dst)}
-			case t == dst && d.Contains(n.a):
-				return refErrNode{}
+			case t == s && src.Contains(n.Addr):
+				return formula.Ref{Addr: shift(n.Addr), Abs: n.Abs, Sheet: written(n.Sheet, t, dst)}
+			case t == dst && d.Contains(n.Addr):
+				return formula.RefErr{}
 			}
-			return refNode{n.a, n.abs, written(n.sheet, t, t)}
+			return formula.Ref{Addr: n.Addr, Abs: n.Abs, Sheet: written(n.Sheet, t, t)}
 		},
-		rng: func(n rangeNode) Node {
-			t := s.wb.resolve(orig, n.sheet)
+		Range: func(n formula.Range) Node {
+			t := s.wb.resolve(orig, n.Sheet)
 			switch {
 			case t == nil:
 				return n
-			case t == s && src.Contains(n.r.From) && src.Contains(n.r.To):
-				return rangeNode{Rect{shift(n.r.From), shift(n.r.To)}, n.abs, written(n.sheet, t, dst)}
+			case t == s && src.Contains(n.Rect.From) && src.Contains(n.Rect.To):
+				return formula.Range{Rect: Rect{From: shift(n.Rect.From), To: shift(n.Rect.To)}, Abs: n.Abs, Sheet: written(n.Sheet, t, dst)}
 			}
-			return rangeNode{n.r, n.abs, written(n.sheet, t, t)}
+			return formula.Range{Rect: n.Rect, Abs: n.Abs, Sheet: written(n.Sheet, t, t)}
 		},
 	}
 }
@@ -367,7 +369,7 @@ func (s *Sheet) pasteCell(a Addr, c *Cell, dc, dr int, values bool) {
 	case values:
 		s.put(a, valueInput(c.Value))
 	default:
-		s.place(a, c.rewritten(shiftRefs(dc, dr)).clone())
+		s.place(a, c.rewritten(formula.Shift(dc, dr)).clone())
 	}
 }
 
@@ -394,7 +396,7 @@ func (s *Sheet) FillDown(r Rect) (Rect, error) {
 	if src, ok := s.seriesStart(r, true); ok {
 		return s.FillSeries(src, r)
 	}
-	src := Rect{r.From, Addr{Col: r.To.Col, Row: r.From.Row}}
+	src := Rect{From: r.From, To: Addr{Col: r.To.Col, Row: r.From.Row}}
 	if r.From.Row == r.To.Row {
 		if r.From.Row == 0 {
 			return r, nil
@@ -415,7 +417,7 @@ func (s *Sheet) FillRight(r Rect) (Rect, error) {
 	if src, ok := s.seriesStart(r, false); ok {
 		return s.FillSeries(src, r)
 	}
-	src := Rect{r.From, Addr{Col: r.From.Col, Row: r.To.Row}}
+	src := Rect{From: r.From, To: Addr{Col: r.From.Col, Row: r.To.Row}}
 	if r.From.Col == r.To.Col {
 		if r.From.Col == 0 {
 			return r, nil

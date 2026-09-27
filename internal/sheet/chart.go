@@ -158,7 +158,7 @@ func (s *Sheet) displayText(a Addr) string {
 func (s *Sheet) clipToUsed(r Rect) Rect {
 	used, ok := s.UsedRange()
 	if !ok {
-		return Rect{r.From, r.From}
+		return Rect{From: r.From, To: r.From}
 	}
 	r.To.Col = max(min(r.To.Col, used.To.Col), r.From.Col)
 	r.To.Row = max(min(r.To.Row, used.To.Row), r.From.Row)
@@ -189,14 +189,14 @@ func (s *Sheet) Region(a Addr) Rect {
 	}
 	around(a)
 	if len(queue) == 0 {
-		return Rect{a, a}
+		return Rect{From: a, To: a}
 	}
-	r := Rect{queue[0], queue[0]}
+	r := Rect{From: queue[0], To: queue[0]}
 	for len(queue) > 0 {
 		for len(queue) > 0 {
 			p := queue[0]
 			queue = queue[1:]
-			r = union(r, Rect{p, p})
+			r = union(r, Rect{From: p, To: p})
 			around(p)
 		}
 		// Cells touching the bounding box join too.

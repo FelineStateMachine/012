@@ -3,6 +3,8 @@ package sheet
 import (
 	"strings"
 	"unicode/utf8"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // Argument helpers shared by the function library. Errors come back as a
@@ -22,7 +24,7 @@ func given(args []Node, i int) bool {
 	if i >= len(args) {
 		return false
 	}
-	_, empty := args[i].(emptyArg)
+	_, empty := args[i].(formula.Empty)
 	return !empty
 }
 
@@ -82,10 +84,10 @@ func (m matrix) vector() bool { return m.rows == 1 || m.cols == 1 }
 
 func matrixArg(n Node, get lookup) matrix {
 	switch n := n.(type) {
-	case rangeNode:
-		return rectMatrix(n.sheet, n.r, get)
-	case refNode:
-		return rectMatrix(n.sheet, Rect{From: n.a, To: n.a}, get)
+	case formula.Range:
+		return rectMatrix(n.Sheet, n.Rect, get)
+	case formula.Ref:
+		return rectMatrix(n.Sheet, Rect{From: n.Addr, To: n.Addr}, get)
 	}
 	v := eval(n, get)
 	return matrix{rows: 1, cols: 1, cell: func(int, int) Value { return v }}

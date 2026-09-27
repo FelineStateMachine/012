@@ -2,6 +2,8 @@ package sheet
 
 import (
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // JEV functions ask TypeSafe's hosted model (jev) typed questions about a
@@ -76,12 +78,12 @@ func (e inputError) Error() string { return e.v.Str }
 // jevState turns the value argument into what the model sees: text,
 // numbers and booleans as themselves, a range as rows of them.
 func jevState(n Node, get lookup) (any, error) {
-	if rn, ok := n.(rangeNode); ok {
+	if rn, ok := n.(formula.Range); ok {
 		var rows [][]any
-		for r := rn.r.From.Row; r <= rn.r.To.Row; r++ {
+		for r := rn.Rect.From.Row; r <= rn.Rect.To.Row; r++ {
 			var row []any
-			for c := rn.r.From.Col; c <= rn.r.To.Col; c++ {
-				v := get(rn.sheet, Addr{Col: c, Row: r})
+			for c := rn.Rect.From.Col; c <= rn.Rect.To.Col; c++ {
+				v := get(rn.Sheet, Addr{Col: c, Row: r})
 				if v.Kind == Error {
 					return nil, inputError{v}
 				}
@@ -134,10 +136,10 @@ func jevQuestion(n Node, get lookup) (string, error) {
 // skipped.
 func jevList(n Node, get lookup) ([]string, error) {
 	var out []string
-	if rn, ok := n.(rangeNode); ok {
-		for r := rn.r.From.Row; r <= rn.r.To.Row; r++ {
-			for c := rn.r.From.Col; c <= rn.r.To.Col; c++ {
-				v := get(rn.sheet, Addr{Col: c, Row: r})
+	if rn, ok := n.(formula.Range); ok {
+		for r := rn.Rect.From.Row; r <= rn.Rect.To.Row; r++ {
+			for c := rn.Rect.From.Col; c <= rn.Rect.To.Col; c++ {
+				v := get(rn.Sheet, Addr{Col: c, Row: r})
 				if v.Kind == Error {
 					return nil, inputError{v}
 				}
