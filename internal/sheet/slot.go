@@ -56,6 +56,7 @@ type strTable struct {
 	refs  []uint32
 	index map[string]uint32
 	free  []uint32
+	bytes int64 // the estimated heap the strings hold, strBytes and their text each
 }
 
 // add counts one more use of s and returns its entry.
@@ -77,6 +78,7 @@ func (t *strTable) add(s string) uint32 {
 		t.strs, t.refs = append(t.strs, s), append(t.refs, 1)
 	}
 	t.index[s] = i
+	t.bytes += strBytes + int64(len(s))
 	return i
 }
 
@@ -86,6 +88,7 @@ func (t *strTable) release(i uint32) {
 		return
 	}
 	if t.refs[i]--; t.refs[i] == 0 {
+		t.bytes -= strBytes + int64(len(t.strs[i]))
 		delete(t.index, t.strs[i])
 		t.strs[i] = ""
 		t.free = append(t.free, i)
@@ -316,10 +319,7 @@ func (st *cellStore) size() int64 {
 	for _, rc := range st.rich {
 		n += cellSize(rc.c)
 	}
-	for _, s := range st.strs.strs {
-		n += strBytes + int64(len(s))
-	}
-	return n
+	return n + st.strs.bytes
 }
 
 // richCell is a rich cell and where it is.

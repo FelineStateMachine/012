@@ -130,7 +130,8 @@ const MaxStepBytes = 1 << 30
 
 // UndoCost estimates the undo history a change to every cell of r would
 // hold: a slot a cell, the rich cells in r whole, and r's share of the
-// sheet's strings.
+// sheet's strings. The UI asks it before every command that edits, so
+// it costs the fewer of r's cells and the sheet's rich cells.
 func (s *Sheet) UndoCost(r Rect) int64 {
 	st := &s.cells
 	cells := 0
@@ -140,17 +141,22 @@ func (s *Sheet) UndoCost(r Rect) int64 {
 	if cells == 0 {
 		return 0
 	}
-	n := int64(cells) * slotBytes
+	n := int64(cells)*slotBytes + st.strs.bytes*int64(cells)/int64(st.len())
+	add := func(c *Cell) { n += richBytes + cellSize(c) }
+	if cells < len(st.rich)-len(st.richFree) { // the cheaper way to find r's rich cells
+		for a := range st.anyKeysIn(r) {
+			if c := st.richAt(a); c != nil {
+				add(c)
+			}
+		}
+		return n
+	}
 	for _, rc := range st.rich {
 		if rc.c != nil && r.Contains(rc.a) {
-			n += richBytes + cellSize(rc.c)
+			add(rc.c)
 		}
 	}
-	var strs int64
-	for _, str := range st.strs.strs {
-		strs += strBytes + int64(len(str))
-	}
-	return n + strs*int64(cells)/int64(st.len())
+	return n
 }
 
 // WithoutUndo runs fn, a change too large to undo (see MaxStepBytes),

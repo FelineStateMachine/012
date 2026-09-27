@@ -133,9 +133,15 @@ func TestUndoPlainCellsAsSlots(t *testing.T) {
 		s.Load(Addr{Row: r}, fmt.Sprintf("%d.25", r), Format{}, Style{})
 	}
 	s.RecalcAll()
-	s.EraseRange(NewRect(Addr{}, Addr{Row: n - 1}))
-	if got := s.Book().HistoryBytes(); got > n*(slotBytes+4) {
+	r := NewRect(Addr{}, Addr{Row: n - 1})
+	cost := s.UndoCost(r)
+	s.EraseRange(r)
+	got := s.Book().HistoryBytes()
+	if got > n*(slotBytes+4) {
 		t.Errorf("clearing %d numbers is estimated at %d bytes", n, got)
+	}
+	if cost < got*9/10 || cost > got*11/10 {
+		t.Errorf("clearing %d numbers was to cost %d bytes, and took %d", n, cost, got)
 	}
 }
 
