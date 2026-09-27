@@ -58,8 +58,8 @@ follow-up task.
   at odd widths and under overlays; draw them with `theme.Fill`.
 - Text on a colored background needs about 4.5:1 contrast against both
   reference palettes (`e2e/palette_test.go`). Check it in the gallery.
-- Never rely on color alone: state also shows as text (mode indicator,
-  `modified`, `#DIV/0!`, `Circular reference`).
+- Never rely on color alone: every state also shows as text, a glyph or
+  an attribute, listed in [Reading without color](#reading-without-color).
 - Numbers right-aligned, text left, booleans and errors centered, one
   column of padding, text overflowing into empty neighbors: as Sheets.
   Headers centered. Menu bar titles separated by two spaces. Keys shown
@@ -76,6 +76,34 @@ follow-up task.
   position between frames; overlays don't shift the grid.
 - Render only what's visible. A keystroke on a 10,000-cell sheet must feel
   instant.
+
+## Reading without color
+
+Each state has a cue that survives a terminal without color, or a reader
+who can't tell the colors apart. `internal/ui/monochrome_test.go` draws
+each with `theme.Monochrome` (every role in one gray) and checks the cue
+is in the cell's text or attributes; a new state gets a cue and a case
+there.
+
+| State | Cue without color |
+|---|---|
+| The pointer (active cell), the selection, their row and column headers | Reverse video; the active cell's headers are also bold, and the name box names the cell or range |
+| Errors | The error's text (`#DIV/0!`) with a curly underline, explained on the context line |
+| Warnings | Text on the context line or status line (`Invalid: ...`, `Circular reference`) |
+| Entries failing validation | A dotted underline, and `Invalid:` with the rule on the context line |
+| Values an array spilled | Italic, and `Spilled from B2` on the context line |
+| Pivot table results | Their headings (`SUM of Units`, `Grand Total`), and a note in words when an edit is refused |
+| Protected ranges | A question in words before an edit (`A1:B2 is protected.`) |
+| Notes | A `▝` in the cell's top-right corner |
+| Macro recording | `REC` beside the mode indicator |
+| Mode | The mode indicator's word (`READY`, `ENTER`, `POINT`, `MENU`) |
+| Search matches, traced cells | Reverse video, with a count or the list on the context line |
+| The copied range | A dashed underline |
+| Dropdowns, checkboxes, active filters | `▾`; `[ ]` and `[✓]`; `▼` instead of `▾` |
+
+The reverse-video roles (`Theme.standouts`) keep their look in color:
+their colors are stored swapped, so SGR 7 swaps them back. Conditional
+formats and color scales are colors the user chose, and stay colors.
 
 ## Required with every user-facing change
 

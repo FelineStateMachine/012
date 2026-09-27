@@ -54,8 +54,9 @@ type step struct {
 	rules map[*Sheet]rulesState
 	// sheets is the sheet list before the step, when it changed.
 	sheets *sheetList
-	// decimal is the arithmetic setting before the step, when it changed.
-	decimal *bool
+	// settings are the workbook's settings before the step, when they
+	// changed.
+	settings *settings
 	// macros is the macro list before the step, when it changed.
 	macros *[]Macro
 }
@@ -78,7 +79,7 @@ func (st *step) empty() bool {
 // widthOnly reports whether the step changed nothing but column widths
 // and row heights.
 func (st *step) widthOnly() bool {
-	return len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil && st.decimal == nil &&
+	return len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil && st.settings == nil &&
 		st.macros == nil
 }
 
@@ -164,7 +165,7 @@ func (s *Sheet) record(a Addr) {
 	}
 	l := loc{s, a}
 	if _, seen := st.cells[l]; !seen {
-		st.keep(l, s.cells.get(a).clone())
+		st.keep(l, s.cells.copyOf(a))
 	}
 	s.wb.hist.dirty = append(s.wb.hist.dirty, l)
 }
@@ -194,7 +195,7 @@ func (w *Workbook) dropUnchanged(st *step) {
 	st.dropUnchangedLines()
 	st.dropUnchangedRules()
 	for l, c := range st.cells {
-		if c == nil && l.s.cells.get(l.a) == nil {
+		if c == nil && !l.s.cells.has(l.a) {
 			delete(st.cells, l)
 			st.cellBytes -= entryBytes
 		}
@@ -222,8 +223,8 @@ func (w *Workbook) dropUnchanged(st *step) {
 	if st.sheets != nil && st.sheets.equal(w.sheetList()) {
 		st.sheets = nil
 	}
-	if st.decimal != nil && *st.decimal == w.decimal {
-		st.decimal = nil
+	if st.settings != nil && *st.settings == w.settings {
+		st.settings = nil
 	}
 	if st.macros != nil && slices.Equal(*st.macros, w.macros) {
 		st.macros = nil
@@ -376,7 +377,7 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 	}
 	changed := make([]loc, 0, len(st.cells))
 	for l, c := range st.cells {
-		inv.keep(l, l.s.cells.get(l.a).clone())
+		inv.keep(l, l.s.cells.copyOf(l.a))
 		l.s.place(l.a, c.clone())
 		changed = append(changed, l)
 	}
@@ -410,10 +411,11 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		s.rules = r
 		s.looks.reset()
 	}
-	if st.decimal != nil {
-		cur := w.decimal
-		inv.decimal, w.decimal = &cur, *st.decimal
-		w.structural = true // every formula computes differently
+	if st.settings != nil {
+		cur := w.settings
+		inv.settings, w.settings = &cur, *st.settings
+		// Every formula computes differently in the other arithmetic.
+		w.structural = w.structural || cur.decimal != w.decimal
 	}
 	if st.macros != nil {
 		cur := w.macros

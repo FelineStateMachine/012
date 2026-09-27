@@ -27,9 +27,12 @@ const barBlend = 0.12
 //     background is moved toward the scheme's text color just far enough
 //     to meet it, or toward black or white.
 func FromPalette(p Palette) Theme {
-	t := New(p.Dark)
+	t := roles(p.Dark)
 	t.Name, t.Palette = p.Name, &p
-	text := readable(p.Foreground, p.Background, nil, minText)
+	if p.HighContrast {
+		t.levels = aaa
+	}
+	text := readable(p.Foreground, p.Background, nil, t.levels.text)
 	t.Screen = lipgloss.NewStyle().Background(p.Background).Foreground(text)
 	eachRole(&t, func(_ string, s *lipgloss.Style) { *s = mapStyle(*s, &p) })
 	if p.Selection != nil && contrast(p.Selection, p.Background) >= minDistinct {
@@ -42,8 +45,9 @@ func FromPalette(p Palette) Theme {
 	}
 	bar := lipgloss.NewStyle().Background(blend(p.Background, text, barBlend)).Foreground(text)
 	t.MenuBarRow, t.StatusBarRow = bar, bar
-	eachRole(&t, func(name string, s *lipgloss.Style) { *s = fixContrast(name, *s, text, &p) })
+	eachRole(&t, func(name string, s *lipgloss.Style) { *s = fixContrast(name, *s, text, &p, t.levels) })
 	t.ColumnHeaderRow = lipgloss.NewStyle().Background(t.Header.GetBackground()).Foreground(t.Header.GetForeground())
+	t.standouts()
 	return t
 }
 
@@ -92,21 +96,38 @@ func slot(c color.Color, p *Palette) (color.Color, bool) {
 	return nil, false
 }
 
+// levels are the contrast minimums a theme's roles are held to.
+type levels struct {
+	text      float64 // cell text, bars, menus, chips: every other role
+	secondary float64 // hints, muted text, marks and chart labels
+	lines     float64 // borders, rules, chart axes and swatches, progress
+	disabled  float64 // unavailable items
+}
+
+var (
+	// aa is WCAG AA, every scheme's floor.
+	aa = levels{text: minText, secondary: minSecondary, lines: minSecondary, disabled: minDisabled}
+	// aaa is WCAG AAA, the high-contrast schemes': 7:1 for all text,
+	// hints included, and 4.5:1 for lines and unavailable items.
+	aaa = levels{text: minTextAAA, secondary: minTextAAA, lines: minText, disabled: minText}
+)
+
 // minContrast is the contrast minimum for a role's text.
-func minContrast(role string) float64 {
+func minContrast(role string, lv levels) float64 {
 	switch role {
 	case "Disabled":
-		return minDisabled
-	case "Hint", "Muted", "Border", "FrozenLine", "ChartFrame", "ChartAxis", "ChartLabel",
-		"Progress", "ProgressTodo", "Copied", "Series", "Match", "Dropdown", "NoteMark", "CellBorder":
-		return minSecondary
+		return lv.disabled
+	case "Hint", "Muted", "ChartLabel", "Match", "Dropdown", "NoteMark":
+		return lv.secondary
+	case "Border", "FrozenLine", "ChartFrame", "ChartAxis", "Progress", "ProgressTodo", "Copied", "Series", "CellBorder":
+		return lv.lines
 	}
-	return minText
+	return lv.text
 }
 
 // fixContrast keeps a role's background apart from the screen and its
 // text readable on it.
-func fixContrast(role string, s lipgloss.Style, text color.Color, p *Palette) lipgloss.Style {
+func fixContrast(role string, s lipgloss.Style, text color.Color, p *Palette, lv levels) lipgloss.Style {
 	if role == "Screen" {
 		return s
 	}
@@ -119,11 +140,11 @@ func fixContrast(role string, s lipgloss.Style, text color.Color, p *Palette) li
 		}
 	}
 	if c := s.GetForeground(); !isNoColor(c) && role != "SeriesBg" {
-		s = s.Foreground(readable(c, bg, text, minContrast(role)))
+		s = s.Foreground(readable(c, bg, text, minContrast(role, lv)))
 	} else if !isNoColor(s.GetBackground()) && role != "SeriesBg" {
 		// Text on a background role with no color of its own is drawn in
 		// the screen's text color.
-		s = s.Foreground(readable(text, bg, nil, minContrast(role)))
+		s = s.Foreground(readable(text, bg, nil, minContrast(role, lv)))
 	}
 	return s
 }
@@ -133,12 +154,18 @@ func isNoColor(c color.Color) bool {
 	return c == nil || none
 }
 
-// Resolve returns the theme called name: the terminal theme's variant
-// for a dark or light terminal, or a scheme found by Lookup in dir. An
-// unknown scheme gives the terminal theme and the error.
+// Resolve returns the theme called name: the terminal theme's or the
+// high-contrast scheme's variant for a dark or light terminal, or a
+// scheme found by Lookup in dir. An unknown scheme gives the terminal
+// theme and the error.
 func Resolve(name string, dark bool, dir string) (Theme, error) {
 	if name == "" || name == Terminal {
 		return New(dark), nil
+	}
+	if isHighContrast(name) {
+		t := FromPalette(highContrastFor(dark))
+		t.Name = HighContrast
+		return t, nil
 	}
 	p, err := Lookup(name, dir)
 	if err != nil {

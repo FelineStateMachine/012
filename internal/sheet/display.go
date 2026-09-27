@@ -4,6 +4,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
@@ -14,6 +15,12 @@ import (
 // Automatic first drops decimals and falls back to scientific notation.
 // Accounting returns AlignFill: exactly width columns, $ at the left.
 func Display(v Value, f Format, width int) (string, Align) {
+	return DisplayIn(v, f, width, locale.Canonical)
+}
+
+// DisplayIn is Display as shown in loc: its separators, currency and
+// date order (see Format.CodeIn).
+func DisplayIn(v Value, f Format, width int, loc *locale.Locale) (string, Align) {
 	inner := max(width-1, 0)
 	switch v.Kind {
 	case Empty:
@@ -25,16 +32,16 @@ func Display(v Value, f Format, width int) (string, Align) {
 	}
 	switch f.Kind {
 	case FmtAuto:
-		return numfmt.GeneralFit(v.Num, inner), AlignRight
+		return numfmt.GeneralFitIn(v.Num, inner, loc), AlignRight
 	case FmtText:
-		return numfmt.General(v.Num), AlignLeft
+		return numfmt.GeneralIn(v.Num, loc), AlignLeft
 	case FmtAccounting:
-		if s, ok := numfmt.Accounting(v.Num, f.Decimals, width); ok {
+		if s, ok := numfmt.AccountingIn(v.Num, f.Decimals, width, loc); ok {
 			return s, AlignFill
 		}
 		return strings.Repeat("#", inner), AlignRight
 	}
-	s := numfmt.Format(v.Num, f.Code())
+	s := numfmt.FormatIn(v.Num, f.CodeIn(loc), loc)
 	if utf8.RuneCountInString(s) > inner {
 		s = strings.Repeat("#", inner)
 	}
@@ -46,15 +53,19 @@ func FormatPattern(v float64, pat string) string { return numfmt.Format(v, pat) 
 
 // FormatText renders v under f with no width limit, e.g. for TEXT() or
 // copying out of the grid.
-func FormatText(v Value, f Format) string {
+func FormatText(v Value, f Format) string { return FormatTextIn(v, f, locale.Canonical) }
+
+// FormatTextIn is FormatText as shown in loc, e.g. for a CSV file
+// written in loc.
+func FormatTextIn(v Value, f Format, loc *locale.Locale) string {
 	if v.Kind != Number {
 		return text(v)
 	}
 	switch f.Kind {
 	case FmtAuto, FmtText:
-		return numfmt.General(v.Num)
+		return numfmt.GeneralIn(v.Num, loc)
 	}
-	return numfmt.Format(v.Num, f.Code())
+	return numfmt.FormatIn(v.Num, f.CodeIn(loc), loc)
 }
 
 // FormatValue renders v in width columns with one column of padding, the

@@ -59,7 +59,7 @@ func (m *Model) startEntry(md mode, text string) {
 func (m *Model) startEdit() tea.Cmd {
 	m.startEntry(modeEdit, "")
 	if c := m.sheet.Cell(m.cur); c != nil && m.mode == modeEdit {
-		m.line.Set(c.Input)
+		m.line.Set(m.shownEntry(c.Input))
 	}
 	return nil
 }
@@ -79,7 +79,7 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 		m.toggleAbsolute()
 		return nil
 	}
-	if m.line.IsFormula() && (m.pointAfterSheet(key) || m.line.CanPoint() && m.startPoint(key)) {
+	if m.line.IsFormula() && (m.pointAfterSheet(key) || m.canPoint() && m.startPoint(key)) {
 		return nil
 	}
 	if m.line.IsFormula() && (key == "left" || key == "right") {
@@ -102,7 +102,7 @@ func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 	if m.entry.assist.key(m, key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
-	if m.line.IsFormula() && strings.HasPrefix(key, "shift+") && (m.pointAfterSheet(key) || m.line.CanPoint() && m.startPoint(key)) {
+	if m.line.IsFormula() && strings.HasPrefix(key, "shift+") && (m.pointAfterSheet(key) || m.canPoint() && m.startPoint(key)) {
 		return nil
 	}
 	switch key {
@@ -228,7 +228,7 @@ func (m *Model) resumeEntry(ref string) {
 // commit stores the edit line in the active cell. An invalid formula stays
 // in EDIT mode with the caret at the problem and the reason on line 3.
 func (m *Model) commit() bool {
-	input := m.line.Text()
+	input := m.storedEntry(m.line.Text())
 	warn, ok := m.checkEntry(input) // data validation, rules.go
 	if !ok {
 		return false

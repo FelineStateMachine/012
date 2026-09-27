@@ -30,6 +30,13 @@ const (
 	Cols = 256
 )
 
+// MaxRows x MaxCols is sheet.DefaultMaxCells of numbers, the most an
+// import keeps by default: a tall table, as imports make.
+const (
+	MaxRows = 1_000_000
+	MaxCols = 10
+)
+
 func at(col, row int) sheet.Addr { return sheet.Addr{Col: col, Row: row} }
 
 func load(s *sheet.Sheet, a sheet.Addr, input string) {
@@ -333,5 +340,6 @@ func Shapes() []Shape {
 		{"criteria-60xSUMIF8192", func() *sheet.Sheet { return Criteria(Rows, 60) }, at(0, 4000), "7"},
 		{"lookup-300xVLOOKUP8192", func() *sheet.Sheet { return Lookup(Rows, 300) }, at(0, 4000), "4000"},
 		{"arrays-1000xFILTER8192", func() *sheet.Sheet { return Arrays(Rows, 1000) }, at(0, 4000), "7"},
+		{"dense-1Mx10", func() *sheet.Sheet { return Dense(MaxRows, MaxCols) }, at(0, 500000), "5"},
 	}
 }

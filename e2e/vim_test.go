@@ -9,7 +9,7 @@ import (
 // vimOn turns on File > Settings > Vim keys through the menus.
 func vimOn(s *session) {
 	s.t.Helper()
-	s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>")
+	s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>")
 	s.waitFor("Move with hjkl")
 	s.keys("<enter>")
 	s.waitFor("NORMAL")

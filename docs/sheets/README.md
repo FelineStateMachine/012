@@ -22,3 +22,4 @@ working with its data.
 | [Notes and protection](notes-protection.md) | Notes on cells; ranges that warn before an edit |
 | [Charts](charts.md) | Charts that float over the grid |
 | [Macros](macros.md) | Recording and running what you do |
+| [Locale](locale.md) | Decimal commas, date order, currency and `;` in formulas, as a country writes them |

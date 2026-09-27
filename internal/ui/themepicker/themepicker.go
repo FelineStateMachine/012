@@ -55,6 +55,8 @@ func New(h Host) *Picker {
 		switch {
 		case e.Name == theme.Terminal:
 			kind, desc = "your terminal's colors", "The terminal's own 16-color palette, following its light or dark background"
+		case e.Name == theme.HighContrast:
+			kind, desc = "high contrast", "White on black or black on white, following the terminal, with WCAG AAA contrast"
 		case e.User:
 			kind += ", your file"
 		}

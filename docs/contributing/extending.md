@@ -25,6 +25,7 @@ shows it is derived from the table rather than listing it again.
 | `chart.types`, with `sheet.ChartTypes` | a type: name and order (sheet, saved in files), a layout drawing text and image and the series its legend lists (chart) | `chart.Draw`, `chart.Image`, chart editor, Insert > Chart |
 | theme roles (`theme.Theme`) | a role: dark and light styles on the 16 ANSI colors, with a contrast minimum for schemes (`minContrast`) | every style in the UI, drawn in the terminal's palette or any color scheme (`FromPalette`); `TestEveryThemeReadable` checks each role under every built-in scheme |
 | `config.Options` | an option: name, type, default, environment variables, flag, live or not, description, check | parsing and warnings, flags, `012 config` and its default file, [Configuration](../reference/config.md), Reload config |
+| `locale.table` | a locale: tag, name, separators, date order and patterns, currency and its place | parsing typed entries, display, formula separators, CSV, File > Settings > Locale, the `locale` option's values |
 
 Adding a function, command, format, chart type, option or role means
 adding an entry (and its file), not editing switch statements elsewhere.
@@ -117,13 +118,21 @@ modified.
 
 Code reads and writes cells through a narrow API (`cellStore` in
 `internal/sheet/store.go`: get, set, delete, count, iterate everything or
-a range, a column being a range), not the map underneath. That lets the
-store change shape (compact column blocks, side tables for formulas and
-formats; see [Bounds of support](limits.md)) without touching the rest of the
-engine. Beside the map, occupancy indexes (`occupancy.go`) say which rows
-of each column hold a cell, and which hold contents, so a range yields its
-cells in row order at the cost of what it holds, and the used range, data
-edges and the next filled cell are found without scanning.
+a range, a column being a range), never the representation underneath:
+column blocks of 16-byte slots holding plain cells' values, with text,
+formats and whole formula cells in side tables (see
+[Bounds of support](limits.md#sheet-size)). `get` returns a `*Cell`:
+a formula's own, which recalculation updates, or for a plain cell one
+made for the caller, which it may keep but whose changes reach nothing;
+every change goes through `set`. Making that `Cell` costs an allocation
+or three, so code that visits many cells asks for only what it needs:
+`value` and `peek` for values, `has` and `filledAt` for presence,
+`look` for formatting, `richAt` and `richCells` for formulas and notes,
+and the key iterators (`keys`, `keysIn`, `anyKeysIn`) for addresses. The
+stored occupancy index (`occupancy.go`) holds the blocks; a second says
+which rows hold contents, so a range yields its cells in row order at
+the cost of what it holds, and the used range, data edges and the next
+filled cell are found without scanning.
 
 ### 7. Read ranges as ranges
 

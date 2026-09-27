@@ -134,9 +134,12 @@ func (g *grid) selectRect(r sheet.Rect) {
 }
 
 func (m *Model) fill(fn func(sheet.Rect) (sheet.Rect, error)) tea.Cmd {
-	if _, err := fn(m.selection()); err != nil {
+	r, err := fn(m.selection())
+	if err != nil {
 		m.fail(err.Error())
+		return nil
 	}
+	m.checkWritten(r, "Fill")
 	return nil
 }
 
@@ -151,9 +154,12 @@ func (m *Model) structural(err error) tea.Cmd {
 // fillEntry stores the entry being typed in every selected cell, adjusting
 // references as if it were copied from the active cell (Ctrl+Enter).
 func (m *Model) fillEntry() bool {
-	input := m.line.Text()
+	input := m.storedEntry(m.line.Text())
 	if err := m.entrySheet().FillEntry(m.selection(), m.cur, input); err != nil {
 		m.entryError(err, input)
+		return false
+	}
+	if m.checkEntryFill(m.entrySheet().InvalidIn(m.selection()), input) {
 		return false
 	}
 	m.cancelEntry()

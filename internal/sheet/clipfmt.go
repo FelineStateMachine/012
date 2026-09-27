@@ -217,7 +217,7 @@ func (s *Sheet) formatTargets(f *clipFormats, p pasteLayout) []Addr {
 				if len(targets) > materializeLimit {
 					return targets
 				}
-				if a := (Addr{Col: c, Row: row}); s.cells.get(a) == nil {
+				if a := (Addr{Col: c, Row: row}); !s.cells.has(a) {
 					targets = append(targets, a)
 				}
 			}
@@ -312,7 +312,7 @@ func (s *Sheet) plainSource(src, dst Rect, same bool) {
 				if seen++; seen > materializeLimit {
 					return
 				}
-				if a := (Addr{Col: c, Row: row}); !(same && dst.Contains(a)) && s.cells.get(a) == nil {
+				if a := (Addr{Col: c, Row: row}); !(same && dst.Contains(a)) && !s.cells.has(a) {
 					s.placeFormat(a, lineFmt{})
 				}
 			}

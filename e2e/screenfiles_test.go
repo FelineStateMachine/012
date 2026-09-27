@@ -33,7 +33,7 @@ var fileScreens = []screen{
 	}},
 	// Nothing listens on port 1: the key is stored, and its check fails.
 	{name: "api-key-check-failed", opts: options{env: []string{"TYPESAFE_BASE_URL=http://127.0.0.1:1"}}, setup: func(s *session) {
-		s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>", "<down>")
+		s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>", "<down>", "<down>")
 		s.waitFor("Store the TypeSafe API key")
 		s.keys("<enter>", "test-key", "<enter>")
 		s.waitFor("Key saved, but the check failed")

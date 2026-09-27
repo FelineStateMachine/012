@@ -36,8 +36,8 @@ type shaperIndex struct {
 
 // trackShape keeps the index as the cell at a becomes c.
 func (s *Sheet) trackShape(a Addr, c *Cell) {
-	was := s.cells.get(a)
-	had, has := was != nil && was.Style.shapes(), c != nil && c.Style.shapes()
+	_, was, _ := s.cells.look(a)
+	had, has := was.shapes(), c != nil && c.Style.shapes()
 	switch {
 	case has && !had:
 		if s.shapers.rows == nil {
@@ -125,7 +125,7 @@ func (s *Sheet) BorderedIn(r Rect) []Addr {
 		}
 		for c := range cols {
 			a := Addr{Col: c, Row: row}
-			if cell := s.cells.get(a); r.Contains(a) && cell.Blank() && !cell.Style.Borders.IsZero() {
+			if _, st, _ := s.cells.look(a); r.Contains(a) && !s.cells.filledAt(a) && !st.Borders.IsZero() {
 				out = append(out, a)
 			}
 		}
@@ -139,7 +139,7 @@ func (s *Sheet) WrappedIn(row int) []int {
 	var out []int
 	s.shapersIn(row, func(c int) {
 		a := Addr{Col: c, Row: row}
-		if cell := s.cells.get(a); cell.Blank() || s.CellStyle(a).Wrap != WrapOn {
+		if !s.cells.filledAt(a) || s.CellStyle(a).Wrap != WrapOn {
 			return
 		}
 		if _, merged := s.MergeAt(a); !merged {

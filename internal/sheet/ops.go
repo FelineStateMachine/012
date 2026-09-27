@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // Errors returned by operations that would lose data or don't fit.
@@ -16,9 +17,9 @@ var (
 	ErrFillTooBig = errors.New("That would write more cells than max-cells allows (see File > Settings)")
 )
 
-// DefaultMaxCells is the max-cells setting's default: about 600 MB of
-// cells at 300 bytes each.
-const DefaultMaxCells = 2_000_000
+// DefaultMaxCells is the max-cells setting's default: about 200 MB of
+// numbers at 20 bytes each (store.go).
+const DefaultMaxCells = 10_000_000
 
 // maxCells caps how many cells a paste or fill writes at once, and how
 // many an import keeps, so an accidental whole-sheet selection or a huge
@@ -65,13 +66,13 @@ func (s *Sheet) remap(label string, focus Rect, cell func(Addr) (Addr, bool), rn
 		for l, c := range others {
 			l.s.place(l.a, c)
 		}
-		for a, c := range s.cells.all() {
-			if next[a] != c {
-				s.place(a, next[a])
+		for a := range s.cells.keys() {
+			if c := next[a]; !s.cells.holds(a, c) {
+				s.place(a, c)
 			}
 		}
 		for a, c := range next {
-			if s.cells.get(a) != c {
+			if !s.cells.holds(a, c) {
 				s.place(a, c)
 			}
 		}
@@ -111,7 +112,7 @@ func (s *Sheet) insert(rows bool, at, n int) error {
 	if rows {
 		edge = rowRect(first, size-1)
 	}
-	for range s.cells.inRange(edge) {
+	for range s.cells.keysIn(edge) {
 		return ErrPushedOff
 	}
 	s.restructure(rows, formula.Span{At: at, N: n, Size: size})
@@ -218,12 +219,12 @@ func (c *Clip) Size() (cols, rows int) {
 	return c.Src.To.Col - c.Src.From.Col + 1, c.Src.To.Row - c.Src.From.Row + 1
 }
 
-// Text returns the clip's values as displayed in General format, row by
+// TextIn returns the clip's values as General shows them in loc, row by
 // row, for the system clipboard. Blank rows and columns past the last
 // value are left off, so copying whole columns gives their data; a block
 // of more than MaxCells cells, blanks between values included, is too
-// big for text, and Text returns nil.
-func (c *Clip) Text() [][]string {
+// big for text, and TextIn returns nil.
+func (c *Clip) TextIn(loc *locale.Locale) [][]string {
 	cols, rows := 0, 0
 	for off, cell := range c.cells {
 		if !cell.Blank() {
@@ -238,7 +239,7 @@ func (c *Clip) Text() [][]string {
 		out[r] = make([]string, cols)
 		for col := range out[r] {
 			if cell := c.cells[Addr{Col: col, Row: r}]; cell != nil {
-				out[r][col] = cell.Value.String()
+				out[r][col] = textIn(cell.Value, loc)
 			}
 		}
 	}
@@ -294,7 +295,7 @@ func (s *Sheet) Paste(c *Clip, dst Rect, values bool) (Rect, error) {
 func (s *Sheet) pasteCell(a Addr, c *Cell, dc, dr int, values bool) {
 	switch {
 	case c == nil:
-		if s.cells.get(a) != nil {
+		if s.cells.has(a) {
 			s.place(a, nil)
 		}
 	case values:
@@ -415,7 +416,7 @@ func (s *Sheet) seriesStart(r Rect, down bool) (Rect, bool) {
 	}
 	used := map[int]bool{}
 	for _, a := range s.cellsIn(r) {
-		if !s.cells.get(a).Blank() {
+		if s.cells.filledAt(a) {
 			used[line(a)] = true
 		}
 	}

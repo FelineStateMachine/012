@@ -20,7 +20,7 @@ it back in its format.
 
 | Format | Import | Download |
 |---|---|---|
-| CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, of the sheet shown, as Sheets' Download does; a selection of whole columns or rows downloads their data, not a million blank lines |
+| CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed in the sheet's [locale](../sheets/locale.md) (`;` wins a tie there when it has a decimal comma), or with the other decimal separator when the file's numbers are written that way; formulas stay text | Values as shown in the locale, of the sheet shown, as Sheets' Download does, CSV with `;` between fields where the locale has a decimal comma; a selection of whole columns or rows downloads their data, not a million blank lines |
 | Excel `.xlsx` | Every sheet, with formulas, formats and most of what a sheet holds: see [Excel files](excel.md) | The same |
 | SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet shown or the selection as a table, first row as column names; a table of that name is replaced |
 | Parquet | Every column, with dates and timestamps; lists joined with commas | |
@@ -49,9 +49,9 @@ which kept their range, and undo brings the removed ones back.
 
 **Size.** A sheet is 1,048,576 rows by 16,384 columns (A to XFD), as in
 Excel. Imports keep at most `max-cells` cells ([Configuration](../reference/config.md#max-cells),
-two million by default, about 600 MB): whole rows, as many as fit, and
+ten million by default, a few hundred MB): whole rows, as many as fit, and
 the context line says how many rows were left out, e.g. `only the first
-166,666 rows fit in max-cells (2,000,000 cells); 12,000 rows left out`.
+833,333 rows fit in max-cells (10,000,000 cells); 12,000 rows left out`.
 Data past the grid's edges is left out the same way. WK1 files keep their
 own 8,192 by 256. See [Bounds of support](../contributing/limits.md#imports) for speeds.
 

@@ -49,11 +49,11 @@ func (w *Workbook) recordSheets() {
 	}
 }
 
-// recordDecimal saves the arithmetic setting before its first change in
-// the open step.
-func (w *Workbook) recordDecimal() {
-	if st := w.hist.open; st != nil && st.decimal == nil {
-		d := w.decimal
-		st.decimal = &d
+// recordSettings saves the workbook's settings before their first change
+// in the open step.
+func (w *Workbook) recordSettings() {
+	if st := w.hist.open; st != nil && st.settings == nil {
+		cur := w.settings
+		st.settings = &cur
 	}
 }

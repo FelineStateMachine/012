@@ -39,6 +39,7 @@ func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
 		s.remapNames(rng) // a name for exactly the moved cells follows them
 		s.moveFormats(s, &f, src, dst)
 		s.moveMerges(s, src, dst)
+		s.moveRules(src, dst, cell, rng) // rulemove.go
 	})
 	return dst, nil
 }
@@ -105,7 +106,7 @@ func (mv sheetMove) readers() map[loc]*Cell {
 		}
 	}
 	for _, t := range []*Sheet{mv.from, mv.to} {
-		for a := range t.cells.all() {
+		for a := range t.cells.richCells() {
 			add(loc{t, a})
 		}
 	}

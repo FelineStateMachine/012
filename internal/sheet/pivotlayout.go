@@ -387,7 +387,7 @@ func (s *Sheet) writeDerived(want []pivotCell) []loc {
 		next[pc.a] = c
 	}
 	var changed []loc
-	for a, c := range s.cells.all() {
+	for a, c := range s.cells.richCells() {
 		if c.derived && next[a] == nil {
 			s.setDerived(a, nil)
 			changed = append(changed, loc{s, a})

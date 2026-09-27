@@ -7,13 +7,19 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e
+.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e dist
 
 build:
 	CGO_ENABLED=0 go build -o bin/012 ./cmd/012
 
 run: build
 	./bin/012
+
+# Release archives: 012 cross-compiled (pure Go, -trimpath, stamped with
+# VERSION) for macOS, Linux and Windows on amd64 and arm64 into dist/,
+# with SHA256SUMS. Nothing is uploaded; see docs/contributing/releasing.md.
+dist:
+	VERSION=$(VERSION) scripts/dist.sh
 
 test:
 	go test ./...
@@ -52,19 +58,21 @@ screens: $(GHOSTTY_STAMP)
 # Stress: fetch real datasets into .deps/stress, run the benchmarks built
 # with -tags stress, print a summary and record the run in
 # .deps/stress/results/runs.jsonl. BENCH, BENCHTIME and PKGS narrow it;
-# see docs/limits.md. Plain `go test ./...` never runs these.
+# see docs/contributing/limits.md. Plain `go test ./...` never runs these.
 stress:
 	scripts/stress/run.sh
 
 stress-data:
 	scripts/stress-data.sh
 
-# Compare the latest run with the previous one and a baseline (DuckDB).
+# Compare the latest run with the previous one, a baseline and the last
+# tagged release's run (DuckDB); exits 1 on a regression against the
+# release past THRESHOLD (0.10) plus the benchmark's noise.
 stress-report:
 	scripts/stress/report.sh
 
 # The observability stack (deploy/observability): an OpenTelemetry
-# Collector, ClickHouse and Grafana in Docker. See docs/observability.md.
+# Collector, ClickHouse and Grafana in Docker. See docs/contributing/observability.md.
 obs-up:
 	scripts/obs.sh up
 
@@ -104,7 +112,7 @@ demos: build
 	mkdir -p demos/out/stills
 	bin/fakejev -addr $(FAKEJEV_ADDR) & pid=$$!; trap "kill $$pid" EXIT; \
 	export DEMOS_TTYD="$$(command -v ttyd)" PATH="$(CURDIR)/demos/lib:$$PATH"; \
-	export XDG_CONFIG_HOME="$$(mktemp -d)" O12_JEV_CREDENTIAL_STORE=false O12_THEME=; \
+	export XDG_CONFIG_HOME="$$(mktemp -d)" O12_JEV_CREDENTIAL_STORE=false O12_THEME= O12_LOCALE=en-US; \
 	cd demos && for d in $(DEMOS); do echo "vhs $$d.tape"; vhs -q $$d.tape || exit 1; done
 	mkdir -p demos/out/media
 	for d in $(DEMOS); do ffmpeg -v error -y -i demos/out/$$d.gif -filter_complex \

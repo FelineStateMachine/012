@@ -30,6 +30,9 @@ func Reference() string {
 			if len(o.Env) > 0 {
 				fmt.Fprintf(&b, "| Environment | `%s` |\n", strings.Join(o.Env, "`, `"))
 			}
+			if len(o.Fallback) > 0 {
+				fmt.Fprintf(&b, "| When unset | `%s` |\n", strings.Join(o.Fallback, "`, `"))
+			}
 			if o.Flag != "" {
 				fmt.Fprintf(&b, "| Flag | `%s` |\n", o.Flag)
 			}

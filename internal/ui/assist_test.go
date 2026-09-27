@@ -38,7 +38,7 @@ func TestAutocompleteFunctions(t *testing.T) {
 		t.Errorf("signature %q", ctx)
 	}
 	press(t, m, "1,")
-	sig, _ := signature(&m.th, m.line.Buf, m.line.Pos)
+	sig, _ := signature(&m.th, m.line.Buf, m.line.Pos, ',')
 	if !strings.Contains(sig, m.th.Argument.Render("[value2, ...]")) {
 		t.Errorf("second argument not marked: %q", sig)
 	}

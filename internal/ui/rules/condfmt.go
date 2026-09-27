@@ -3,6 +3,7 @@ package rules
 import (
 	"strings"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -81,6 +82,7 @@ type cfForm struct {
 	under  bool
 	strike bool
 	pts    [3]cfPoint
+	loc    *locale.Locale // what args are typed in
 }
 
 // cfPoint is a color scale point being edited: kind is an index in its
@@ -101,7 +103,7 @@ var pointKinds = [3][]sheet.PointKind{
 }
 
 func (cfKind) form(h Host, i int, sel sheet.Rect) form {
-	f := &cfForm{i: i, ranges: sel.String(), fill: int(sheet.ColorGreen),
+	f := &cfForm{i: i, ranges: sel.String(), fill: int(sheet.ColorGreen), loc: h.Sheet().Locale(),
 		op:  indexOf(sheet.CondFormatOps(), sheet.RuleNotEmpty),
 		pts: [3]cfPoint{{color: int(sheet.ColorRed) - 1}, {value: "50", color: int(sheet.ColorYellow) - 1}, {color: int(sheet.ColorGreen) - 1}}}
 	if i < 0 {
@@ -116,11 +118,11 @@ func (cfKind) form(h Host, i int, sel sheet.Rect) form {
 			if k == len(r.Scale)-1 {
 				slot = 2
 			}
-			f.pts[slot] = cfPoint{kind: max(indexOf(pointKinds[slot], p.Kind), 0), value: p.Value, color: int(p.Color) - 1}
+			f.pts[slot] = cfPoint{kind: max(indexOf(pointKinds[slot], p.Kind), 0), value: sheet.LocalArg(p.Value, f.loc), color: int(p.Color) - 1}
 		}
 		return f
 	}
-	f.op, f.args = max(indexOf(sheet.CondFormatOps(), r.Op), 0), r.Args
+	f.op, f.args = max(indexOf(sheet.CondFormatOps(), r.Op), 0), localArgs(r.Args, f.loc)
 	st := r.Style
 	f.text, f.fill = int(st.Text), int(st.Fill)
 	f.bold, f.italic, f.under, f.strike = st.Bold, st.Italic, st.Underline, st.Strikethrough
@@ -155,12 +157,12 @@ func (f *cfForm) rule() (sheet.CondFormat, error) {
 			if k == 1 && p.kind == 0 {
 				continue // no midpoint
 			}
-			r.Scale = append(r.Scale, sheet.ScalePoint{Kind: pointKinds[k][p.kind], Value: strings.TrimSpace(p.value), Color: sheet.Color(p.color + 1)})
+			r.Scale = append(r.Scale, sheet.ScalePoint{Kind: pointKinds[k][p.kind], Value: sheet.CanonicalArg(strings.TrimSpace(p.value), f.loc), Color: sheet.Color(p.color + 1)})
 		}
 		return r, nil
 	}
 	r.Op = sheet.CondFormatOps()[f.op]
-	r.Args = [2]string{strings.TrimSpace(f.args[0]), strings.TrimSpace(f.args[1])}
+	r.Args = canonicalArgs(f.args, f.loc)
 	r.Style = sheet.RuleStyle{Text: sheet.Color(f.text), Fill: sheet.Color(f.fill), Bold: f.bold,
 		Italic: f.italic, Underline: f.under, Strikethrough: f.strike}
 	return r, nil

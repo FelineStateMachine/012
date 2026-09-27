@@ -262,7 +262,7 @@ var screens = []screen{
 		s.waitFor("│ › gruvbox")
 	}},
 	{name: "api-key-prompt", setup: func(s *session) {
-		s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>", "<down>")
+		s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>", "<down>", "<down>")
 		s.waitFor("Store the TypeSafe API key")
 		s.keys("<enter>", "ts-demo-0123456789")
 		s.waitFor("TypeSafe API key: ••••••••••••••••••")

@@ -48,43 +48,75 @@ func requireContrast(t *testing.T, theme, what string, fg, bg color.Color, min f
 
 // Every built-in scheme, run through the role derivation, keeps text
 // readable: on cells, on the bars, in the selection and the headers, and
-// every other role at its minimum.
+// every other role at its minimum. The high-contrast schemes are held to
+// WCAG AAA.
 func TestEveryThemeReadable(t *testing.T) {
 	for _, p := range Builtins() {
-		th := FromPalette(p)
-		screenBg, text := th.Screen.GetBackground(), th.Screen.GetForeground()
-		requireContrast(t, p.Name, "cell text", text, screenBg, minText)
-		for _, bar := range []struct {
-			name string
-			s    lipgloss.Style
-		}{{"menu bar", th.MenuBarRow}, {"status bar", th.StatusBarRow}, {"column header row", th.ColumnHeaderRow}} {
-			requireContrast(t, p.Name, bar.name+" text", bar.s.GetForeground(), bar.s.GetBackground(), minText)
-			if c := contrast(bar.s.GetBackground(), screenBg); c < minDistinct-0.01 {
-				t.Errorf("%s: %s doesn't stand out from the screen (%.2f)", p.Name, bar.name, c)
+		requireReadable(t, p.Name, FromPalette(p))
+	}
+}
+
+// requireReadable checks a scheme's roles against its minimums.
+func requireReadable(t *testing.T, name string, th Theme) {
+	t.Helper()
+	lv := th.levels
+	screenBg, text := th.Screen.GetBackground(), th.Screen.GetForeground()
+	requireContrast(t, name, "cell text", text, screenBg, lv.text)
+	for _, bar := range []struct {
+		name string
+		s    lipgloss.Style
+	}{{"menu bar", th.MenuBarRow}, {"status bar", th.StatusBarRow}, {"column header row", th.ColumnHeaderRow}} {
+		requireContrast(t, name, bar.name+" text", bar.s.GetForeground(), bar.s.GetBackground(), lv.text)
+		if c := contrast(bar.s.GetBackground(), screenBg); c < minDistinct-0.01 {
+			t.Errorf("%s: %s doesn't stand out from the screen (%.2f)", name, bar.name, c)
+		}
+	}
+	for _, r := range []struct {
+		name string
+		s    lipgloss.Style
+	}{
+		{"selection", th.Selection}, {"header", th.Header}, {"row header", th.RowHeader},
+		{"active header", th.HeaderActive}, {"selected header", th.HeaderSel}, {"pointer", th.Pointer},
+		{"key chip", th.KeyChip}, {"menu selection", th.MenuSelected}, {"indicator", th.Indicator},
+	} {
+		requireContrast(t, name, r.name, r.s.GetForeground(), r.s.GetBackground(), lv.text)
+	}
+	// Muted text and hints on the bars, where the status line shows them.
+	requireContrast(t, name, "muted text", th.Muted.GetForeground(), screenBg, lv.secondary)
+	eachRole(&th, func(role string, s *lipgloss.Style) {
+		fg, bg := s.GetForeground(), s.GetBackground()
+		if role == "SeriesBg" || isNoColor(fg) {
+			return
+		}
+		if isNoColor(bg) {
+			bg = screenBg
+		}
+		requireContrast(t, name, role, fg, bg, minContrast(role, lv))
+	})
+}
+
+// The high-contrast theme follows the terminal's background, and its
+// schemes are AAA: 7:1 for every text role, hints included.
+func TestHighContrast(t *testing.T) {
+	for _, dark := range []bool{true, false} {
+		th, err := Resolve("high-contrast", dark, "")
+		if err != nil || th.Name != HighContrast || th.Palette == nil || th.Palette.Dark != dark || th.levels != aaa {
+			t.Fatalf("dark %v: %q %v", dark, th.Name, err)
+		}
+		requireReadable(t, th.Palette.Name, th)
+		for _, role := range []string{"Hint", "Muted", "Warning", "Error", "ErrorCell", "Link", "Spilled", "NoteMark"} {
+			if minContrast(role, th.levels) < 7 {
+				t.Errorf("%s held to %.1f", role, minContrast(role, th.levels))
 			}
 		}
-		for _, r := range []struct {
-			name string
-			s    lipgloss.Style
-		}{
-			{"selection", th.Selection}, {"header", th.Header}, {"row header", th.RowHeader},
-			{"active header", th.HeaderActive}, {"selected header", th.HeaderSel}, {"pointer", th.Pointer},
-			{"key chip", th.KeyChip}, {"menu selection", th.MenuSelected}, {"indicator", th.Indicator},
-		} {
-			requireContrast(t, p.Name, r.name, r.s.GetForeground(), r.s.GetBackground(), minText)
+	}
+	for _, name := range []string{"High Contrast Dark", "high-contrast-light", "HIGH-CONTRAST"} {
+		if _, err := Resolve(name, true, ""); err != nil {
+			t.Error(err)
 		}
-		// Muted text and hints on the bars, where the status line shows them.
-		requireContrast(t, p.Name, "muted text", th.Muted.GetForeground(), screenBg, minSecondary)
-		eachRole(&th, func(role string, s *lipgloss.Style) {
-			fg, bg := s.GetForeground(), s.GetBackground()
-			if role == "SeriesBg" || isNoColor(fg) {
-				return
-			}
-			if isNoColor(bg) {
-				bg = screenBg
-			}
-			requireContrast(t, p.Name, role, fg, bg, minContrast(role))
-		})
+	}
+	if l := List(""); l[1].Name != HighContrast {
+		t.Errorf("list: %v", l[:3])
 	}
 }
 
@@ -103,7 +135,8 @@ func TestSchemeUsesPaletteColors(t *testing.T) {
 			}
 		}
 	})
-	if bg := th.Selection.GetBackground(); fmt.Sprint(bg) != fmt.Sprint(p.Selection) {
+	// The selection is in reverse video: its background is its foreground.
+	if bg := th.Selection.GetForeground(); fmt.Sprint(bg) != fmt.Sprint(p.Selection) || !th.Selection.GetReverse() {
 		t.Errorf("selection %v, scheme's %v", bg, p.Selection)
 	}
 	// The terminal theme keeps ANSI colors and no bands.

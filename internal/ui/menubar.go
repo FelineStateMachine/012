@@ -35,7 +35,7 @@ var menuBar = []menuDef{
 		{cmd: "file.new"}, {cmd: "file.open"}, {cmd: "file.import"}, sep,
 		{cmd: "file.save"}, {cmd: "file.saveas"}, {title: "Download", items: downloadItems()}, sep,
 		{title: "Settings", items: []menuItem{
-			{cmd: "settings.decimal"}, {cmd: "settings.vim"}, sep,
+			{cmd: "settings.decimal"}, {cmd: "settings.locale"}, {cmd: "settings.vim"}, sep,
 			{cmd: "settings.theme"}, {cmd: "settings.jev_key"}, sep,
 			{cmd: "settings.config_edit"}, {cmd: "settings.config_reload"},
 		}}, sep,

@@ -109,7 +109,7 @@ func TestUndoBytesCountDeletedSheet(t *testing.T) {
 	if err := w.DeleteSheet(data); err != nil {
 		t.Fatal(err)
 	}
-	if got := w.HistoryBytes(); got < 500*cellBytes {
+	if got := w.HistoryBytes(); got < 500*slotBytes {
 		t.Errorf("deleting a 500-cell sheet is estimated at %d bytes", got)
 	}
 }

@@ -192,7 +192,7 @@ func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
 		}
 		// The copy marker is layered on the cell's own colors.
 		if lc.bottom() && m.copied.marks(m.sheet, a) {
-			marked := base.Inherit(m.th.Copied)
+			marked := theme.Drawable(base.Inherit(m.th.Copied))
 			base, colored, shaded = &marked, true, false
 		}
 		var text string

@@ -91,20 +91,17 @@ func (s *Sheet) SheetFormat() (Format, Style) { return s.lines.sheet.Format, s.l
 // effective is the format (without what formulas infer) and style the
 // cell at a shows: its own, falling back part by part on its line's.
 func (s *Sheet) effective(a Addr) lineFmt {
-	c := s.cells.get(a)
-	if c != nil && c.Style.own {
-		st := c.Style
-		st.own = false
-		return lineFmt{c.Format, st}
+	f, sty, ok := s.cells.look(a)
+	if ok && sty.own {
+		sty.own = false
+		return lineFmt{f, sty}
 	}
 	l := s.inherited(a)
-	if c != nil {
-		if !c.Format.IsZero() {
-			l.Format = c.Format
-		}
-		if !c.Style.IsZero() {
-			l.Style = c.Style
-		}
+	if !f.IsZero() {
+		l.Format = f
+	}
+	if !sty.IsZero() {
+		l.Style = sty
 	}
 	return l
 }
@@ -267,7 +264,7 @@ func (s *Sheet) formatLines(r Rect, fn func(Addr, *lineFmt)) bool {
 				if !cols {
 					a = Addr{Col: n, Row: across.From.Row + i} // a row's cells in formatted column n
 				}
-				if s.cells.get(a) == nil {
+				if !s.cells.has(a) {
 					targets = append(targets, a)
 				}
 			}

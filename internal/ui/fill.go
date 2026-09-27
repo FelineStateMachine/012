@@ -93,6 +93,9 @@ func (m *Model) finishFill() {
 		m.fail(err.Error())
 		return
 	}
+	if !m.checkWritten(got, "Fill") {
+		return
+	}
 	m.changed = true
 	m.selectRect(got)
 	m.record(fillAction(m.rec, src, dst))

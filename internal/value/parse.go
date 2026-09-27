@@ -84,9 +84,12 @@ func parseNumberFormat(s string) (float64, Format, bool) {
 }
 
 // validGrouping checks thousands separators: groups of three digits
-// before the decimal point.
+// before the decimal point, and none after it (1.234,5 is text).
 func validGrouping(s string) bool {
-	intPart, _, _ := strings.Cut(s, ".")
+	intPart, frac, _ := strings.Cut(s, ".")
+	if strings.Contains(frac, ",") {
+		return false
+	}
 	groups := strings.Split(intPart, ",")
 	if len(groups[0]) == 0 || len(groups[0]) > 3 {
 		return false
