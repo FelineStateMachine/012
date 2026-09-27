@@ -121,6 +121,13 @@ func TestReadDelimited(t *testing.T) {
 			note:  "read as UTF-16",
 		},
 		{
+			name:  "UTF-16 big-endian, surrogate pair",
+			kind:  CSV,
+			text:  "\xFE\xFF\x00a\x00,\xD8\x3D\xDE\x00\x00\n",
+			cells: map[string]string{"A1": "a", "B1": "😀"},
+			note:  "read as UTF-16",
+		},
+		{
 			name:  "Windows-1252",
 			kind:  CSV,
 			text:  "caf\xE9,\x80 5\n",

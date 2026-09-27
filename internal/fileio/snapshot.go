@@ -1,6 +1,7 @@
 package fileio
 
 import (
+	"iter"
 	"strconv"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -99,19 +100,22 @@ func excelRange(ws string, r sheet.Rect) string {
 	return sheet.QuoteSheet(sheetName(ws)) + "!" + ref
 }
 
-// rows returns the snapshot's displayed text row by row across its
-// range, for text formats.
-func (s *Snapshot) rows() [][]string {
-	r := s.Range
-	out := make([][]string, 0, r.To.Row-r.From.Row+1)
-	for row := r.From.Row; row <= r.To.Row; row++ {
+// textRows yields the snapshot's displayed text row by row across its
+// range, for text formats. The slice is reused from row to row.
+func (s *Snapshot) textRows() iter.Seq[[]string] {
+	return func(yield func([]string) bool) {
+		r := s.Range
 		line := make([]string, r.To.Col-r.From.Col+1)
-		for col := r.From.Col; col <= r.To.Col; col++ {
-			if c, ok := s.Cells[sheet.Addr{Col: col, Row: row}]; ok {
-				line[col-r.From.Col] = c.Text()
+		for row := r.From.Row; row <= r.To.Row; row++ {
+			for col := r.From.Col; col <= r.To.Col; col++ {
+				line[col-r.From.Col] = ""
+				if c, ok := s.Cells[sheet.Addr{Col: col, Row: row}]; ok {
+					line[col-r.From.Col] = c.Text()
+				}
+			}
+			if !yield(line) {
+				return
 			}
 		}
-		out = append(out, line)
 	}
-	return out
 }

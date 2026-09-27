@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"unicode/utf16"
 	"unicode/utf8"
 
 	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/encoding/unicode"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
@@ -107,21 +107,12 @@ func decode(r *bufio.Reader) (io.Reader, string, error) {
 		r.Discard(3)
 		return r, "UTF-8", nil
 	case bytes.HasPrefix(head, []byte{0xFF, 0xFE}), bytes.HasPrefix(head, []byte{0xFE, 0xFF}):
-		big := head[0] == 0xFE
+		order := unicode.LittleEndian
+		if head[0] == 0xFE {
+			order = unicode.BigEndian
+		}
 		r.Discard(2)
-		all, err := io.ReadAll(r)
-		if err != nil {
-			return nil, "", err
-		}
-		u := make([]uint16, len(all)/2)
-		for i := range u {
-			if big {
-				u[i] = uint16(all[2*i])<<8 | uint16(all[2*i+1])
-			} else {
-				u[i] = uint16(all[2*i+1])<<8 | uint16(all[2*i])
-			}
-		}
-		return bytes.NewReader([]byte(string(utf16.Decode(u)))), "UTF-16", nil
+		return unicode.UTF16(order, unicode.IgnoreBOM).NewDecoder().Reader(r), "UTF-16", nil
 	}
 	// A sample cut mid-character is still UTF-8.
 	check := head
@@ -258,14 +249,24 @@ func delimiterName(r rune) string {
 
 // exportDelimited writes the snapshot's displayed values, as Sheets'
 // Download as CSV does: formulas become their results, formats show.
+// Rows are written as they are formatted, never all held at once.
 func exportDelimited(name string, k Kind, snap *Snapshot) (*ExportResult, error) {
-	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
-	if k == TSV {
-		w.Comma = '\t'
-	}
-	rows := snap.rows()
-	if err := w.WriteAll(rows); err != nil {
+	rows := 0
+	err := writeFile(name, func(out io.Writer) error {
+		w := csv.NewWriter(out)
+		if k == TSV {
+			w.Comma = '\t'
+		}
+		for line := range snap.textRows() {
+			if err := w.Write(line); err != nil {
+				return err
+			}
+			rows++
+		}
+		w.Flush()
+		return w.Error()
+	})
+	if err != nil {
 		return nil, err
 	}
 	formulas := 0
@@ -274,23 +275,9 @@ func exportDelimited(name string, k Kind, snap *Snapshot) (*ExportResult, error)
 			formulas++
 		}
 	}
-	res := &ExportResult{Rows: len(rows)}
+	res := &ExportResult{Rows: rows}
 	if formulas > 0 {
 		res.Notes = append(res.Notes, count(formulas, "formula", "formulas")+" saved as values")
 	}
-	return res, writeFile(name, buf.Bytes())
-}
-
-// writeFile writes data atomically: to a temporary file first, then
-// renamed over the target.
-func writeFile(name string, data []byte) error {
-	tmp := name + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, name); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-	return nil
+	return res, nil
 }

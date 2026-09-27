@@ -3,6 +3,7 @@ package fileio
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -260,15 +261,11 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 	if err := x.SetCalcProps(&excelize.CalcPropsOptions{FullCalcOnLoad: &yes}); err != nil {
 		return nil, err
 	}
-	buf, err := x.WriteToBuffer()
-	if err != nil {
-		return nil, err
-	}
 	if w.values > 0 {
 		res.Notes = append(res.Notes, fmt.Sprintf("%s with no Excel equivalent saved as values, e.g. %s",
 			count(w.values, "formula", "formulas"), w.example))
 	}
-	return res, writeFile(name, buf.Bytes())
+	return res, writeFile(name, func(w io.Writer) error { return x.Write(w) })
 }
 
 // xlsxWriter writes sheets into a workbook, sharing cell styles.

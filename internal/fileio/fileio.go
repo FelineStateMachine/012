@@ -6,9 +6,11 @@
 package fileio
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -281,4 +283,30 @@ func fileSize(name string) int64 {
 		return -1
 	}
 	return st.Size()
+}
+
+// writeFile writes a file atomically: write fills a temporary file
+// through a buffer, which is then renamed over the target, so a failed
+// export never leaves a half-written file behind.
+func writeFile(name string, write func(io.Writer) error) error {
+	tmp := name + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	bw := bufio.NewWriterSize(f, 64<<10)
+	err = write(bw)
+	if err == nil {
+		err = bw.Flush()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(tmp, name)
+	}
+	if err != nil {
+		os.Remove(tmp)
+	}
+	return err
 }
