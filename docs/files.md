@@ -36,7 +36,10 @@ A cell without formatting is just what was typed; a formatted cell is a
 small object. Version 3 adds named ranges, frozen panes and a filter, and is
 only written when a sheet uses one of them, so older builds of 012 can open
 everything else. Charts are an optional `charts` field that older builds
-ignore. Saves are atomic: 012 writes a temporary file and renames it.
+ignore. Saves are atomic: 012 writes a temporary file and renames it. Saving over
+the open file when something else wrote it since it was opened or last
+saved (another program, or another session of [012 serve](ssh.md)) asks
+first: Enter overwrites, S saves under another name, Esc cancels.
 
 Other formats import as one sheet named after the file (or the SQLite
 table); CSV and TSV downloads write the sheet shown, as Sheets' do.

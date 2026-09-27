@@ -29,6 +29,7 @@ it lags, and past a second it stalls.
 | JEV | Up to about 1000 JEV cells: 0.3 ms of CPU per answer | 4000 JEV cells: 1.3 ms per answer, 5 s of CPU to answer them all | | Every answer recalculates every JEV cell (they're volatile) |
 | Formula depth | 10,000 nested parentheses or IFs: under 5 ms | | No explicit limit; recursion grows the stack | Recursive parser and evaluator |
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
+| SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 16.6 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 60 fps pacing; per session, the terminal's cell buffers |
 
 ## Sheet size
 
@@ -187,6 +188,37 @@ Cell reads now go through one more function call to resolve the sheet,
 which is most of the 3 to 5% on read-heavy shapes; undo steps key their
 before-images by sheet and address, which is BigUndo's extra allocation.
 
+## Serving over SSH
+
+`BenchmarkSessions` (`internal/serve/stress_test.go`) opens N sessions,
+each over its own SSH connection on loopback at 120 x 40, optionally
+opening the same 1000 x 26 sheet of numbers in every one, then has every
+session press an arrow key at once, 200 times, timing each key from the
+client's write to the first bytes of its frame arriving. The clients
+run in the same process, so the heap and CPU figures include their side
+of the connections and are upper bounds for the server. Medians of 3
+runs, `-benchtime 200x`:
+
+| Sessions, sheet | Heap per session | Key to frame p50 / p95 / max | CPU per frame |
+|---|---|---|---|
+| 10, new sheet | 1.30 MiB | 10.7 / 16.6 / 17.1 ms | 0.95 ms |
+| 10, 1000 x 26 numbers | 8.5 MiB | 11.2 / 16.6 / 18.0 ms | 1.15 ms |
+| 50, new sheet | 1.30 MiB | 9.2 / 16.3 / 19.2 ms | 0.53 ms |
+| 50, 1000 x 26 numbers | 8.5 MiB | 9.4 / 16.7 / 20.5 ms | 0.69 ms |
+
+Latency doesn't move from 10 to 50 sessions: it's Bubble Tea's frame
+pacing (at most one frame every 16.7 ms, so a key waits half a frame on
+average), not load. A heap profile with 50 sessions open
+(`SERVE_HEAP_PROFILE=file`) puts three quarters of a session's heap in
+Bubble Tea's render buffers (about 1 MiB at 120 x 40, growing with the
+window), 130 KiB in its input key table and under 50 KiB in both ends
+of the SSH connection, so the figure is close to the server's own. On
+top come about 300 B per cell of the sheets a session has open;
+sessions opening the same file each hold a copy. CPU per frame covers both ends of the connection (the
+encryption twice, the client reading the frame); at 0.7 ms, 50 sessions
+typing continuously at 60 frames a second would keep about two cores
+busy.
+
 ## Hotspots found and fixed
 
 Each with its benchmark before and after, in the commit that fixed it.
@@ -271,7 +303,8 @@ fast. They live in `internal/sheet/stress_test.go` (engine),
 `internal/sheet/hotpath_stress_test.go` (parsing and number formats),
 `internal/ui/stress_test.go` (View, frames, keystrokes, JEV, telemetry
 overhead), `internal/fileio/stress_test.go` (imports and exports),
-`internal/chart/stress_test.go` (charts as text and images) and
+`internal/chart/stress_test.go` (charts as text and images),
+`internal/serve/stress_test.go` (concurrent SSH sessions) and
 `e2e/stress_test.go`; the synthetic sheets are built by
 `internal/stress`. Results accumulate in `.deps/stress/results` and, with
 the observability stack up, in ClickHouse.

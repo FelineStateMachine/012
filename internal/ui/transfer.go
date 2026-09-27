@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -85,18 +86,27 @@ func (m *Model) startupCmd() tea.Cmd {
 	return m.startImport(name, fileio.Options{})
 }
 
-// importable lists the files in the current directory that 012 can
-// import, by name.
-func importable() []string {
-	entries, _ := os.ReadDir(".")
+// importable lists the files in the directory names are relative to
+// (the current one, or the served one) that 012 can import, by name,
+// with their sizes.
+func importable(root confine.Root) ([]string, map[string]int64) {
+	dir, err := root.Resolve(".")
+	if err != nil {
+		return nil, nil
+	}
+	entries, _ := os.ReadDir(dir)
 	var out []string
+	sizes := map[string]int64{}
 	for _, e := range entries {
 		if _, ok := fileio.KindOf(e.Name()); ok && e.Type().IsRegular() && !strings.HasPrefix(e.Name(), ".") {
 			out = append(out, e.Name())
+			if info, err := e.Info(); err == nil {
+				sizes[e.Name()] = info.Size()
+			}
 		}
 	}
 	slices.SortFunc(out, func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) })
-	return out
+	return out, sizes
 }
 
 // openImport opens the import picker: the importable files here, with
@@ -104,7 +114,7 @@ func importable() []string {
 // too.
 func (m *Model) openImport() tea.Cmd {
 	var items []pickItem
-	names := importable()
+	names, sizes := importable(m.root)
 	lw := 0 // types line up, and sizes after them
 	for _, name := range names {
 		k, _ := fileio.KindOf(name)
@@ -113,9 +123,9 @@ func (m *Model) openImport() tea.Cmd {
 	for _, name := range names {
 		k, _ := fileio.KindOf(name)
 		detail, desc := k.Label(), "Import "+name+", "+strings.ToLower(k.Label()[:1])+k.Label()[1:]
-		if st, err := os.Stat(name); err == nil {
-			detail = fmt.Sprintf("%-*s %6s", lw, k.Label(), fileSize(st.Size()))
-			desc += ", " + fileSize(st.Size())
+		if size, ok := sizes[name]; ok {
+			detail = fmt.Sprintf("%-*s %6s", lw, k.Label(), fileSize(size))
+			desc += ", " + fileSize(size)
 		}
 		items = append(items, pickItem{title: name, name: len(name), detail: detail, desc: desc,
 			pick: func(m *Model) tea.Cmd {
@@ -183,11 +193,16 @@ func (m *Model) confirmImport(name string, opt fileio.Options) tea.Cmd {
 // startImport reads name in the background.
 func (m *Model) startImport(name string, opt fileio.Options) tea.Cmd {
 	m.note = ""
-	return m.xfer.start(name, opt)
+	path, ok := m.path("import", name)
+	if !ok {
+		return nil
+	}
+	return m.xfer.start(name, path, opt)
 }
 
-// start reads name in the background, replacing any import running.
-func (x *transfer) start(name string, opt fileio.Options) tea.Cmd {
+// start reads name, at path on disk, in the background, replacing any
+// import running.
+func (x *transfer) start(name, path string, opt fileio.Options) tea.Cmd {
 	if x.job != nil {
 		x.job.cancel()
 	}
@@ -198,7 +213,7 @@ func (x *transfer) start(name string, opt fileio.Options) tea.Cmd {
 	x.job = job
 	return tea.Batch(
 		func() tea.Msg {
-			res, err := fileio.Import(ctx, name, opt)
+			res, err := fileio.Import(ctx, path, opt)
 			return importedMsg{id: job.id, name: name, opt: opt, res: res, err: err}
 		},
 		tickImport(job.id),

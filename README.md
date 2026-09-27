@@ -23,6 +23,7 @@ Requires Go 1.27. Or from a clone: `make build` puts the binary in `bin/012`.
 012                  # a new sheet
 012 budget.012       # open or create a sheet
 012 sales.xlsx       # import .xlsx, .csv, .tsv, .sqlite, .parquet or Lotus .wk1
+012 serve ~/sheets   # serve a directory over SSH, a 012 per session
 ```
 
 F1 shows every shortcut, F10 or Alt+letter opens the menus, and Ctrl+K
@@ -79,6 +80,7 @@ kitty, Ghostty and WezTerm they are real images.
 - [Charts, links and the terminal](docs/charts.md)
 - [Files](docs/files.md)
 - [JEV functions](docs/jev.md)
+- [Serving over SSH](docs/ssh.md): `012 serve`, public-key only, confined to one directory
 - [Architecture](docs/architecture.md), [UX bar](docs/UX.md) and [testing](docs/testing.md)
 - [Limits](docs/limits.md): how big a sheet 012 handles and where it slows down
 - [Observability](docs/observability.md): event logs, DuckDB, and a local Collector, ClickHouse and Grafana stack

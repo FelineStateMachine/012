@@ -4,7 +4,7 @@
 Lip Gloss v2.
 
 ```
-cmd/012          entry point: flags, JEV setup, opening or importing a file
+cmd/012          entry point: flags, JEV setup, opening or importing a file, 012 serve
 internal/sheet   the engine: cells, evaluation, functions, recalculation, undo, files
 internal/formula the formula language: references, lexer, parser, printer, rewriting
 internal/numfmt  number formats, rounding, General, date serials
@@ -12,6 +12,8 @@ internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1
 internal/chart   chart layout, text rendering and kitty image encoding
 internal/jev     JEV configuration, answer cache and TypeSafe client
 internal/telemetry  opt-in JSON log and OTLP export of spans, events and frame stats
+internal/serve   the SSH server: auth, host key, a Model per session (charm.land/wish/v2)
+internal/confine resolving typed file names, confined to a directory when served
 internal/stress  synthetic worst-case sheets for the -tags stress benchmarks
 internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   theme          style roles and the widgets drawn with them (frames, key chips)
@@ -202,6 +204,26 @@ constants and their names belong to `internal/sheet`, since charts are
 saved with sheets. Work is bounded by the chart's size, not its data: only
 the categories that fit are drawn, pie slices are found by binary search,
 and a pie image supersamples only pixels on a slice edge or the rim.
+
+## Serving over SSH
+
+`internal/serve` wraps `charm.land/ssh` (wish's server) with only a
+session channel, public-key auth against authorized_keys and a shell
+request allowed. Each session builds a `ui.Model` of its own and runs it
+in its own `tea.Program` over the session (wish's emulated PTY), with
+the client's environment and window size; `Model.Serve` gives it the
+client's environment for terminal detection and a `confine.Root` for
+file names. Everything a model knows lives in the model, so sessions
+share nothing but read-only tables (the command and function
+registries), the process-wide telemetry and, with JEV on, the HTTP
+client; each gets its own `jev.Cache`, whose queue belongs to that
+session's program. See [ssh.md](ssh.md).
+
+**File names.** The UI keeps names as typed and turns them into paths
+only to read or write, through the model's `confine.Root`: the zero
+root (the local app) uses them as they are, a served session's root
+keeps them inside its directory. Every open, save, import, download and
+file listing goes through `Model.path` or the root.
 
 ## Telemetry
 

@@ -24,6 +24,10 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "serve" {
+		// A file called serve opens as ./serve.
+		return runServe(args[1:])
+	}
 	tc, args, err := telemetryFlags(args)
 	if err != nil || len(args) > 1 {
 		return errors.New("usage: 012 [--log file.jsonl] [--otlp http://localhost:4318] [file]: a " + sheet.FileExt + " sheet, or a .csv, .tsv, .xlsx, .sqlite, .parquet or .wk1 file to import")
