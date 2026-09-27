@@ -10,6 +10,9 @@ Machine: Apple M5 Pro (18 cores), 48 GB, macOS, Go 1.27.1, arm64. Times
 are single-threaded: the engine and the UI run on one goroutine. Last full
 run: commit 4dbe37d (after the engine and UI restructure), `BENCHTIME=2s`
 on an otherwise idle machine; it matched the numbers below within noise.
+The grid step (see [Step A: the grid](#step-a-the-grid)) was measured
+before and after back to back, `-benchtime 1s`, commits bdc5259 and
+bb4ff53.
 
 The yardstick is a keystroke through to its frame: under 16 ms feels
 instant (one frame at 60 Hz), under 100 ms feels responsive, past that
@@ -19,24 +22,28 @@ it lags, and past a second it stalls.
 
 | Dimension | Comfortable | Degraded | Unsupported | Dominant cost |
 |---|---|---|---|---|
-| Sheet size | Everything up to the hard limit, 8192 x 256 (2.1 M cells): navigation and drawing don't depend on size | Loading and saving a full sheet: 1 to 2 s; 600 MB of heap | More than 8192 rows or 256 columns: imports keep the first 8192 x 256 and say what they dropped | Heap per cell (about 300 B), JSON file format |
-| Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1 to 2 ms) | 1000 SUMs over a full column (1000 x 8192 reads): 170 ms per edit | 8192 running totals (`=SUM($A$1:An)`, 33 M reads): 0.8 s per edit | About 20 ns per cell read: two map lookups |
-| Full recalc | Any sheet without heavy range fan-in: under 40 ms for 213 k numbers | 1000 full-column SUMs: 170 ms | 8192 running totals: 0.7 s | Same as above |
+| Sheet size | A grid of 1,048,576 x 16,384 (A..XFD), with up to `max-cells` cells (two million by default): navigation, drawing and every command cost what the cells cost, not the grid | Loading and saving two million cells: 1 to 2 s; 600 MB of heap | More than `max-cells` cells: imports keep whole rows up to it and say what they dropped; larger pastes and fills are refused | Heap per cell (about 300 B), JSON file format |
+| Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1 to 2 ms); 1000 SUMs over a full column: 0.7 ms; 8192 running totals: 2.7 ms | | | About 20 ns per cell read: two map lookups |
+| Full recalc | Any sheet: under 40 ms for 213 k numbers; 1000 full-column SUMs 1.1 ms; 8192 running totals 2.6 ms | | | Same as above |
 | Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
 | Selection statistics | Any selection, once computed (cached) | Extending a selection over 2 M cells: 30 ms per key | | Summing 2 M map entries per change |
-| Imports | CSV, SQLite, Parquet: 1 to 3 M cells/s (a full 2.1 M-cell sheet in about 1 s) | XLSX with formulas: 200 k cells/s | Data past the limits (dropped, with a note) | Building cells one at a time; XLSX formula translation |
+| Imports | CSV, SQLite, Parquet: 1 to 3 M cells/s (two million cells in about 1 s) | XLSX with formulas: 200 k cells/s | Data past `max-cells` or the grid (dropped, with a note) | Building cells one at a time; XLSX formula translation |
 | Undo | One step of any size: undo costs what the edit cost | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 250 MB | | Whole-cell before-images, about 300 B per cell per step |
 | JEV | Up to about 1000 JEV cells: 0.3 ms of CPU per answer | 4000 JEV cells: 1.3 ms per answer, 5 s of CPU to answer them all | | Every answer recalculates every JEV cell (they're volatile) |
 | Formula depth | 10,000 nested parentheses or IFs: under 5 ms | | No explicit limit; recursion grows the stack | Recursive parser and evaluator |
 | Macros | Replaying 1000 recorded actions: 2.2 ms, one undo step; a script's call to the sheet: about 1.4 us | | Scripts past 10 M Starlark steps: stopped, with the line | One message per call to the sheet, served in batches on the UI goroutine |
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
 | SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 16.6 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 60 fps pacing; per session, the terminal's cell buffers |
-| Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 1 to 4 ms | | Results past 8192 x 256 (the pivot shows #REF!) | Reading each source cell of its fields: a map lookup each |
+| Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 1 to 4 ms | | Results past the grid (the pivot shows #REF!) | Reading each source cell of its fields: a map lookup each |
 
 ## Sheet size
 
-Hard limits: `sheet.MaxRows = 8192`, `sheet.MaxCols = 256` (A..IV), as in
-Lotus 1-2-3 Release 2.
+Hard limits: `sheet.MaxRows = 1,048,576`, `sheet.MaxCols = 16,384`
+(A..XFD), as in Excel. Memory is bounded by `max-cells` (the config file,
+two million cells by default): imports keep whole rows up to it, pastes
+and fills write at most that many cells at once. WK1 files keep their own
+8192 x 256. Past about two million cells the costs below grow with the
+cells, as they always did; only the grid is no longer a cost.
 
 | Measure | 8192 x 26 (213 k cells) | 8192 x 256 (2.1 M cells) |
 |---|---|---|
@@ -65,8 +72,9 @@ and a boxed number for the parsed literal.
 | Fan-out: one cell read by 8192 formulas | 1.3 ms | 0.9 ms | 2.7 ms |
 | Volatile: 8192 TODAY() and RAND() | 1.25 ms | 0.8 ms | 2.5 ms |
 | 1000 named ranges, one formula each | 48 us | 2.8 ms | 99 us |
-| Fan-in: 1000 x SUM(A1:A8192) | 174 ms | 172 ms | 350 ms |
-| Running totals: 8192 x SUM($A$1:An) | 0.73 to 0.80 s | 0.75 s | 1.45 s |
+| Fan-in: 1000 x SUM(A1:A8192), or SUM(A:A) | 0.72 ms | 1.1 ms | 1.4 ms |
+| Running totals: 8192 x SUM($A$1:An) | 2.7 ms | 2.6 ms | 5.4 ms |
+| Sparse: 10,000 numbers spread down a million rows, 1000 each of SUM(A:A), running totals and VLOOKUP over A:B | 2.6 ms | 3.9 ms | 5.1 ms |
 
 Every volatile formula is recomputed on every change, as in Sheets, so
 8192 volatile cells add about 1.2 ms to every edit anywhere.
@@ -124,11 +132,14 @@ Real, openly licensed datasets fetched by `scripts/stress-data.sh`
 | Chinook PlaylistTrack (SQLite) | 8715 x 2 | 5.5 ms | 3.0 M cells/s | 293 B |
 | Parquet alltypes_tiny_pages | 7300 x 13 | 40 ms | 2.4 M cells/s | 276 B |
 
-Past the limits, imports keep the first 8192 rows and 256 columns and
-say how much they left out. Parquet files and SQLite tables stop reading
-at the last row and take the count of the rest from the file; CSV, TSV
-and SQLite queries are read to their end to count it, without keeping
-it (the airport codes file is read to its end). Every importer but XLSX
+Past `max-cells` (or the grid), imports keep whole rows up to it and
+say how many rows they left out. Parquet files and SQLite tables stop
+reading at the last row and take the count of the rest from the file;
+CSV, TSV and SQLite queries are read to their end to count it, without
+keeping it. The table above is from before the grid grew, when files
+were cut at row 8192; now the airport codes (855 k cells, 0.80 s) and
+OWID energy (1.04 M cells, 0.95 s) come in whole, at the same rate of
+about a million cells a second. Every importer but XLSX
 streams, so memory follows the sheet, not the file; excelize holds an
 XLSX worksheet in memory while its rows are read.
 
@@ -275,10 +286,66 @@ step whatever its size (`BenchmarkMacroReplay`, `BenchmarkMacroScript`,
 | A script's loop: 5000 `set` and 5000 `get` calls | 13.7 ms | 1.4 us per call | 220 k, 7.8 MB |
 
 Reading a range walks its cells; a range larger than 4096 cells (whole
-columns) is first trimmed to the used range, which costs a pass over the
-sheet, so reading single cells never does. Every run stops after 10
+columns) is first trimmed to its last row and column with contents,
+found through the sheet's index. Every run stops after 10
 million Starlark steps (`macro.DefaultMaxSteps`), about a second of pure
 computation.
+
+## Step A: the grid
+
+The grid grew from 8192 x 256 to 1,048,576 x 16,384 once nothing cost
+what the grid costs. Beside the cell map, occupancy indexes (bitmaps of
+1024 rows per column) say which cells are stored and which have
+contents; ranges are read through them, so a whole column of ten cells is
+ten visits. Formats of whole columns, rows and the sheet live on the
+lines. `TestCommandsCostTheDataNotTheGrid` (`internal/ui`) runs every
+command with the whole sheet, a whole column and a whole row selected on
+the full grid and fails past 250 ms or 8 MB; each takes 0.1 to 4 ms.
+
+Code that cost the grid, and what it does now:
+
+| Where | Was | Now |
+|---|---|---|
+| Range reads for aggregates (`reader.cells`) | every address of the range | the stored cells, in row order |
+| SUMIF(S), COUNTIF(S), AVERAGEIF(S), SUMPRODUCT, COUNTBLANK | a mask over every cell | the cells any range holds; the blanks between counted at once |
+| MATCH, VLOOKUP, HLOOKUP, XLOOKUP | every entry of the column searched | the stored entries, the blanks between as one; ROWS and INDEX keep the full size |
+| Range users (`rangeIndex`) | a fixed array of 256 column buckets, scanned per change | interval trees per used column, whole rows in one |
+| Formatting whole columns or rows | up to 65,536 cells made, then only existing ones | column, row and sheet formats |
+| Used range, Ctrl+arrow, text running into view | every cell, or every row or column between | the index of filled cells |
+| Filter over whole columns | every row tested and hidden one by one | rows with data, one test for the blank rest, stepped over at once |
+| Sort | every row of the range | the rows with cells |
+| Paste, fill of blanks | every address of the destination | the clip's cells per tile; what blanks land on is cleared |
+| Copy to the system clipboard | every blank row between values | refused past `max-cells` cells |
+| Pivot sources, JEV value ranges, chart detection | every row of the range | the rows with data; JEV ranges past 4096 cells trimmed to their data |
+| Exports of a selection, script reads | every row of whole columns | trimmed to the data |
+| Row numbers, name box | 5 digits, IV | 7 digits (the header widens past 9999), XFD |
+| Column width reset, set | an undo step per column of the selection | one step; a reset touches only columns with a width |
+| XLSX column widths and styles | 256 columns | the data's width (at least 256), a style on A and XFD as the sheet's |
+
+Before and after, back to back (`-benchtime 1s`, medians of one run):
+
+| Benchmark | Before | After |
+|---|---|---|
+| Edit fan-in, 1000 x SUM(A1:A8192) | 176 ms | 0.72 ms |
+| Edit running totals, 8192 x SUM($A$1:An) | 0.73 s | 2.7 ms |
+| RecalcAll fan-in / running totals | 178 / 739 ms | 1.1 / 2.6 ms |
+| Undo + redo fan-in / running totals | 352 ms / 1.47 s | 1.4 / 5.4 ms |
+| Typing an entry under 1000 SUMs, through to its frame (200 x 60) | 59 ms | 0.91 ms |
+| Edit sparse-1M (10,000 numbers over a million rows, 3000 whole-column formulas) | | 2.6 ms |
+| Frame at 200 x 60 on sparse-1M; arrow keys at XFD1048576 | | 0.68 ms; 0.65 ms |
+| Edit a cell of 8192 x 26 numbers | 619 ns | 662 ns |
+| Open 8192 x 26 / 8192 x 256 | 127 ms / 1.97 s | 130 ms / 1.99 s |
+| Build 8192 x 26 through `Load` | 88 ms | 90 ms |
+| BigUndo: clear 8192 x 26, undo | 159 ms | 164 ms |
+| Sort 8191 rows | 31 ms | 32 ms |
+| Pivot over 8191 rows, 8 categories | 0.89 ms | 0.77 ms |
+| Extend a selection of 8192 x 256 by a row | 31 ms | 35 ms (measured alone) |
+
+The index costs a few percent on edits and loads (keeping two bitmaps
+current per cell), and running aggregates cost memory for their
+checkpoints (a 1000-SUM fan-in allocates 2 MB per recalculation instead
+of 0.2 MB). A range is shared only from its second read in a
+recalculation, so ranges read once cost nothing extra.
 
 ## Hotspots found and fixed
 
@@ -293,14 +360,17 @@ Each with its benchmark before and after, in the commit that fixed it.
 | `Names()` upper-cased both names in every sort comparison, every frame | 21 k allocations per View with 1000 names | View/names 80 x 24: 662 us | 197 us |
 | Status line summed a whole-sheet selection with 2 M map lookups, every frame | CPU profile: `RangeStats` 87% of a frame | 91 ms per frame | 0.3 ms (cached), 29 ms when the selection changes |
 | JEV cache keys encoded with `encoding/json` | CPU profile of answers: JSON 60% of recalc | JEV/1000 575 ms, JEV/4000 9.3 s | 263 ms, 5.1 s |
+| Aggregates read every cell of every range, 1000 identical SUMs a thousand times, running totals O(n^2) | Fan-in and running-total edits | Edit/fanin 176 ms, running 0.73 s | 0.72 ms, 2.7 ms (running aggregates shared per recalculation) |
+| Range users bucketed by a fixed array of 256 columns, scanned whole per changed cell | 16,384 columns; whole-row ranges in every bucket | | Interval trees per column, wide ranges in one tree |
+| A range read visited every address, blank or not | A whole column is a million addresses | | Occupancy index: only stored cells are visited |
 
 ## What would raise the bounds
 
-In order of value for effort. The first three are what raising the
-limits toward Google Sheets' 10 M cells (or Excel's 1,048,576 x 16,384)
+In order of value for effort. The grid is Excel's since step A; the
+first two are what raising `max-cells` toward Google Sheets' 10 M cells
 would take; without them a 10 M-cell sheet would need about 3 GB of
-heap, take 10 s to open and 140 ms per key to extend a selection over
-it.
+heap and take 10 s to open. (Shared range results, which was the second,
+is done: see Step A.)
 
 1. **Compact cell storage** (L, 2 to 3 weeks). Cells live in a
    `map[Addr]*Cell` behind `cellStore` (`internal/sheet/store.go`), 300 B
@@ -315,38 +385,29 @@ it.
    index (2 to 3 ns). Cells are already per sheet in a workbook, so the
    storage can change sheet by sheet, and nothing outside `cellStore`
    touches the map, so the change stays inside it.
-2. **Range dependency index and shared range results** (M, 1 week).
-   Range users are now indexed by column; an interval index per column
-   (or per row block) would make finding them independent of how many
-   share a column. Memoizing aggregate results per range within one
-   recalc would make 1000 identical `SUM(A1:A8192)` cost one, and
-   running totals could be computed from a prefix sum per column block:
-   the fan-in and running-total rows of the table above would drop to
-   milliseconds. Aggregates already read ranges through `lookup.cells`
-   (`internal/sheet/recalc.go`), where such results would be served.
-3. **Streaming, compact file format** (M, 1 week). The `.012` file is
+2. **Streaming, compact file format** (M, 1 week). The `.012` file is
    JSON decoded whole (1.3 GB allocated to open 47 MB). A streaming
    decoder over the same format would roughly halve open time and cut
    allocation tenfold; a columnar or gzip-compressed variant would cut
    the size about fourfold. The format is `internal/sheet/file.go`, apart
    from the cell store.
-4. **Incremental selection statistics** (S, 2 days). Keep per-column
+3. **Incremental selection statistics** (S, 2 days). Keep per-column
    sums and counts, updated in `place` and after recalc, and compute a
    selection's Sum and Count from column totals minus the rows outside
    it; extending a whole-sheet selection would drop from 29 ms to well
    under 1 ms.
-5. **JEV recalc by question** (S to M, 3 days). Index JEV cells by
+4. **JEV recalc by question** (S to M, 3 days). Index JEV cells by
    question key and recalculate only the cells whose question was
    answered (and their dependents), and coalesce answers that arrive in
    the same frame: answering 4000 questions would cost 4000 small
    recalcs instead of 4000 full ones.
-6. **Smaller undo steps** (S, 1 day). The history is capped by the
+5. **Smaller undo steps** (S, 1 day). The history is capped by the
    memory its before-images hold; storing formatting-only changes as
    diffs rather than whole cells would let it keep more of them.
-7. **Frame rate** (S, hours). Bubble Tea draws at most 60 frames a
+6. **Frame rate** (S, hours). Bubble Tea draws at most 60 frames a
    second; asking for 120 would halve the key-to-screen floor from about
    16 ms to 8 ms at the cost of more redraws.
-8. **Recursion limits** (S, hours). The parser (`internal/formula`) and
+7. **Recursion limits** (S, hours). The parser (`internal/formula`) and
    the evaluator recurse without a limit; a depth cap (Excel allows 64
    nested functions) would turn a pathological file into an error rather
    than a deep stack.
@@ -359,6 +420,10 @@ BENCH='Edit|Frame' make stress   # a subset; BENCHTIME=2s for steadier numbers
 make stress-report    # latest against previous and baseline, with trends
 make stress-e2e       # key press to screen through libghostty
 ```
+
+`TestCommandsCostTheDataNotTheGrid` runs with `go test ./internal/ui`
+(it skips under `-short`) and guards the grid: a command whose cost grows
+with its selection's area fails it.
 
 Benchmarks are built only with `-tags stress`, so `go test ./...` stays
 fast. They live in `internal/sheet/stress_test.go` (engine),

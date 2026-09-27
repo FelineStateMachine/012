@@ -93,21 +93,37 @@ Code reads and writes cells through a narrow API (`cellStore` in
 a range, a column being a range), not the map underneath. That lets the
 store change shape (compact column blocks, side tables for formulas and
 formats; see [limits.md](limits.md)) without touching the rest of the
-engine.
+engine. Beside the map, occupancy indexes (`occupancy.go`) say which rows
+of each column hold a cell, and which hold contents, so a range yields its
+cells in row order at the cost of what it holds, and the used range, data
+edges and the next filled cell are found without scanning.
 
 ### 7. Read ranges as ranges
 
 Formulas read single cells through `lookup.cell` and ranges through
-`lookup.cells`, so aggregates (`SUM(A:A)`, running totals) can be served
-from column blocks, prefix sums or cached aggregates instead of one lookup
-per cell.
+`lookup.cells`, which yields only the cells a range holds, so aggregates
+(`SUM(A:A)`, running totals) cost their data, and within a recalculation
+SUM-like functions share running aggregates per range (`rangememo.go`).
+Functions that need positions (`MATCH`, `SUMIF`, `INDEX`) take a `matrix`,
+which knows the range's full size and which cells hold something; they
+walk those and account for the blanks between at once.
 
 ### 8. Work proportional to what changed or what's visible
 
-Recalculation touches the cells an edit affects (dependency indexes by
-column and by sheet), rendering touches only the visible cells, and status
-statistics are cached against a version counter. A feature that scans the
-whole sheet per keystroke or per frame needs a cache or an index.
+Recalculation touches the cells an edit affects (interval trees of range
+users by column, dependency indexes by sheet), rendering touches only the
+visible cells, and status statistics are cached against a version
+counter. A feature that scans the whole sheet per keystroke or per frame
+needs a cache or an index.
+
+The grid is a million rows by 16,384 columns, so no loop may walk the
+addresses of a selection, a range or a line: walk the cells the store
+holds (`cellsIn`, `inRange`, the occupancy indexes), and keep formats of
+whole columns and rows on the line (`lines.go`). `TestCommandsCostTheDataNotTheGrid`
+(`internal/ui/vast_test.go`) holds every registered command to this: it
+runs each with the whole sheet, a whole column and a whole row selected
+and fails past 250 ms or 8 MB, so a new command that walks its selection
+fails it.
 
 ### 9. Additive, versioned files
 

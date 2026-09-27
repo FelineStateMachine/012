@@ -21,7 +21,10 @@ caret on the problem and says what's wrong on the context line, e.g.
 
 ## References
 
-- Cells: `A1`, ranges: `A1:B3` (1-2-3's `A1..B3` also works).
+- Cells: `A1`, ranges: `A1:B3` (1-2-3's `A1..B3` also works), whole
+  columns `A:C` and whole rows `2:5` (`$A:$A`, `$2:$2` absolute). Whole
+  columns and rows stay whole when copied, filled or when lines are
+  inserted and deleted; `A1:A1048576` reads back as `A:A`.
 - Absolute parts: `$A$1`, `A$1`, `$A1`. F4 while typing cycles the reference
   at the caret through them. Copying, filling, sorting and inserting or
   deleting rows and columns adjust the relative parts, as in Sheets;
@@ -38,8 +41,11 @@ caret on the problem and says what's wrong on the context line, e.g.
   and deleting rows moves references into that sheet from every sheet, and
   leaves references to other sheets alone. Named ranges belong to the whole
   file and may point into any sheet.
-- Each sheet is 256 columns (A to IV) by 8,192 rows, 1-2-3's size; see
-  [limits.md](limits.md) for what that means in practice.
+- Each sheet is 16,384 columns (A to XFD) by 1,048,576 rows, Excel's size;
+  a reference past them (`XFE1`, `A1048577`) reads as a name. Formulas cost
+  what their ranges hold, not their size: `SUM(A:A)` over ten numbers reads
+  ten cells, and `ROWS(A:A)` is still 1,048,576. See [limits.md](limits.md)
+  for what that means in practice.
 
 ## Building formulas
 

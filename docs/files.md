@@ -10,7 +10,7 @@ bar; Esc cancels. Saving an imported sheet asks whether to save it as a
 | Format | Import | Download |
 |---|---|---|
 | CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, as Sheets' Download does |
-| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths. Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed | Every sheet, the same, with formulas in Excel's syntax and their results cached. JEV functions and `#AND#` save as values, and so do pivot tables: Excel gets the results, not a pivot |
+| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths, column and row styles. Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed | Every sheet, the same, with formulas in Excel's syntax and their results cached, and column and row formats as column and row styles. JEV functions and `#AND#` save as values, and so do pivot tables: Excel gets the results, not a pivot |
 | SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet shown or the selection as a table, first row as column names; a table of that name is replaced |
 | Parquet | Every column, with dates and timestamps; lists joined with commas | |
 | Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
@@ -48,7 +48,39 @@ made or trusted on; neither raises the version, and older builds ignore
 them. Opening a file never runs its macros. See [macros.md](macros.md#in-the-file).
 
 Other formats import as one sheet named after the file (or the SQLite
-table); CSV and TSV downloads write the sheet shown, as Sheets' do.
+table); CSV and TSV downloads write the sheet shown, as Sheets' do, and
+a selection of whole columns or rows downloads their data, not a million
+blank lines.
+
+## Size
+
+A sheet is 1,048,576 rows by 16,384 columns (A to XFD), as in Excel.
+Imports keep at most `max-cells` cells ([config.md](config.md), two
+million by default, about 600 MB): whole rows, as many as fit, and the
+context line says how many rows were left out, e.g. `only the first
+166,666 rows fit in max-cells (2,000,000 cells); 12,000 rows left out`.
+Data past the grid's edges is left out the same way. WK1 files keep their
+own 8,192 by 256. Pastes and fills that would write more than `max-cells`
+cells at once are refused. See [limits.md](limits.md).
+
+## Column and row formats
+
+Formatting whole columns or rows (select them with Ctrl+Space or
+Shift+Space, or click their headers) keeps the format on the column or
+row, as Sheets does, rather than on each of their million cells: every
+cell of it shows the format unless it has its own, and a cell typed into
+later takes it. A cell's format comes from the cell, else its row, else
+its column, else the whole sheet's (Ctrl+A twice, then a format); the
+number format and the text style fall back separately. The file keeps
+them in a `lines` field after the widths, runs of lines with the same
+formatting together, and older builds ignore it:
+
+```json
+  "lines": {"A:XFD": {"italic":true}, "B:D": {"format":"currency","decimals":2}, "1:1": {"bold":true}},
+```
+
+`A:XFD` is the whole sheet's format. A cell whose formatting its lines
+can't express (Automatic in a currency column) has `"own": true`.
 
 ## Several sheets
 

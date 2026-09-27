@@ -82,12 +82,13 @@ Avoid in the main binary: DuckDB and automerge (both need cgo).
 
 ## Next: vast data
 
-The 8192 x 256 grid is 1-2-3's, not the engine's: cells are stored sparsely.
-Raise it in measured steps (see [docs/limits.md](docs/limits.md)):
+The grid is Excel's, 1,048,576 x 16,384, since step A; memory is bounded
+by the `max-cells` budget rather than the grid. Raise that budget in
+measured steps (see [docs/limits.md](docs/limits.md)):
 
 | Step | What | Result |
 |---|---|---|
-| A | Make every operation cost what the data costs, not the grid: clip whole-column and whole-row ranges to the used area, sparse range reads for aggregates, column and row formats instead of per-cell formatting, a range index sized to the used columns, three-letter columns (to XFD), wider row headers. Then raise the grid to 1,048,576 x 16,384 with a `max-cells` budget in the config file, and a stress test that fails when any command on an empty full-grid selection costs more than its data | Excel-sized grids, memory still bounded |
+| A | Make every operation cost what the data costs, not the grid: clip whole-column and whole-row ranges to the used area, sparse range reads for aggregates, column and row formats instead of per-cell formatting, a range index sized to the used columns, three-letter columns (to XFD), wider row headers. Then raise the grid to 1,048,576 x 16,384 with a `max-cells` budget in the config file, and a stress test that fails when any command on an empty full-grid selection costs more than its data. **Done**: occupancy indexes beside the cell map, sparse and clipped range reads, running aggregates shared per recalculation and interval trees of range users (1000 full-column SUMs: 174 ms to 0.5 ms per edit; 8192 running totals: 0.73 s to 2.6 ms), line formats for columns, rows and the sheet, `A:C` and `2:5` references, `max-cells` for imports and pastes, and `TestCommandsCostTheDataNotTheGrid` | Excel-sized grids, memory still bounded |
 | B | Compact column storage behind `cellStore`: typed value blocks, formulas and formats in side tables (about 20 to 40 B per cell instead of 300) | A budget of 10 M+ cells in a few hundred MB |
 | C | A streaming or binary file format next to the readable JSON one | Open and save scale with the data |
 | Later | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid |

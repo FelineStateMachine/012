@@ -66,7 +66,11 @@ style.
 - **Cells.** Each sheet keeps its cells in a `cellStore` (`store.go`):
   get, set, delete, count, iterate all or a range. Nothing else touches
   the map beneath, so the representation can change without the rest of
-  the engine noticing.
+  the engine noticing. Beside it, occupancy indexes (`occupancy.go`,
+  bitmaps of 1024 rows per column) record which cells are stored and
+  which have contents, so a range of the million-row grid is read at the
+  cost of what it holds. Formats of whole columns and rows, and of the
+  whole sheet, live on the lines (`lines.go`); a cell falls back on them.
 - **Parsing.** `internal/formula`'s hand-written Pratt parser turns
   formulas into an AST, keeping absolute markers so references can be
   rewritten when cells move. Its printer turns ASTs back into text in
@@ -81,8 +85,11 @@ style.
   reached again while it is being evaluated is part of a cycle. Volatile
   functions (TODAY, RAND, the JEV functions) are recomputed on every
   recalculation (`recalc.go`). Formulas read other cells through a
-  `lookup`: `cell` for one, `cells` for a whole range, which the
-  aggregates (SUM, AVERAGE, COUNT and the rest) use.
+  `lookup`: `cell` for one, `cells` for the cells a range holds, which
+  the aggregates (SUM, AVERAGE, COUNT and the rest) use, sharing running
+  aggregates within a recalculation (`rangememo.go`). The formulas whose
+  ranges contain a changed cell are found through interval trees per
+  column (`rangeindex.go`).
 - **Functions.** One table (`FuncDef`) holds every function's name,
   signature, description and arity; it drives parsing, evaluation,
   autocomplete, in-app help and [functions.md](functions.md).
