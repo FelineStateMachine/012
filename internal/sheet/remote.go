@@ -58,7 +58,7 @@ func (s *Sheet) RecalcVolatile() { s.wb.recalc(nil) }
 // RemoteCalls returns the questions the formula at a asks, with their
 // current inputs, so the UI can show details or re-ask them.
 func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	if c == nil || c.expr == nil {
 		return nil
 	}

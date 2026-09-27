@@ -29,7 +29,7 @@ const maxExplainExpr = 40
 
 func (s *Sheet) explain(a Addr, path []loc) string {
 	here := loc{s, a}
-	c := s.cells[a]
+	c := s.cells.get(a)
 	v := s.Value(a)
 	if c == nil || v.Kind != Error || !c.IsFormula() {
 		return ""

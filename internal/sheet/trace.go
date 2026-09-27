@@ -23,7 +23,7 @@ type Target struct {
 // repeats dropped. References to sheets that don't exist are left out. It
 // is empty for anything but a formula.
 func (s *Sheet) Precedents(a Addr) []Target {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	if c == nil || !c.IsFormula() {
 		return nil
 	}
@@ -48,7 +48,7 @@ func (s *Sheet) Dependents(a Addr) []Target {
 		seen[loc{s, d}] = true
 	}
 	for u := range s.rangeUsers.candidates(a.Col) {
-		for _, r := range s.cells[u].ranges {
+		for _, r := range s.cells.get(u).ranges {
 			if r.Contains(a) {
 				seen[loc{s, u}] = true
 			}

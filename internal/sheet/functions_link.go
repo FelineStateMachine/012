@@ -30,7 +30,7 @@ func init() {
 // (http, https or mailto), or the target of a HYPERLINK formula. It is
 // empty for other cells.
 func (s *Sheet) Link(a Addr) string {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	if c == nil || c.Value.Kind != Text {
 		return ""
 	}

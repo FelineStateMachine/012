@@ -75,7 +75,7 @@ func (s *Sheet) FillSeries(src, dst Rect) (Rect, error) {
 func (s *Sheet) fillLane(seq, targets []Addr) {
 	cells := make([]*Cell, len(seq))
 	for i, a := range seq {
-		cells[i] = s.cells[a]
+		cells[i] = s.cells.get(a)
 	}
 	next := detectSeries(cells)
 	for i, to := range targets {
@@ -91,7 +91,7 @@ func (s *Sheet) fillLane(seq, targets []Addr) {
 			fallthrough
 		case c != nil:
 			s.pasteCell(to, c, to.Col-seq[k].Col, to.Row-seq[k].Row, false)
-		case s.cells[to] != nil:
+		case s.cells.get(to) != nil:
 			s.place(to, nil)
 		}
 	}

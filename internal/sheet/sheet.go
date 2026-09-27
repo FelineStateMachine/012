@@ -54,7 +54,7 @@ type Sheet struct {
 	name string
 	live bool // in the workbook's list; false once deleted
 
-	cells  map[Addr]*Cell
+	cells  cellStore // see store.go
 	widths map[int]int
 
 	// dependents maps a cell to the formula cells that reference it
@@ -90,11 +90,11 @@ func New() *Sheet {
 
 // Cell returns the cell at a, or nil if it has neither contents nor
 // formatting. Use Blank to test for contents.
-func (s *Sheet) Cell(a Addr) *Cell { return s.cells[a] }
+func (s *Sheet) Cell(a Addr) *Cell { return s.cells.get(a) }
 
 // Value returns the computed value at a.
 func (s *Sheet) Value(a Addr) Value {
-	if c := s.cells[a]; c != nil {
+	if c := s.cells.get(a); c != nil {
 		return c.Value
 	}
 	return Value{}
@@ -103,7 +103,7 @@ func (s *Sheet) Value(a Addr) Value {
 // Len returns the number of non-blank cells.
 func (s *Sheet) Len() int {
 	n := 0
-	for _, c := range s.cells {
+	for _, c := range s.cells.all() {
 		if !c.Blank() {
 			n++
 		}
@@ -113,8 +113,8 @@ func (s *Sheet) Len() int {
 
 // Addrs returns every non-blank cell in row-major order.
 func (s *Sheet) Addrs() []Addr {
-	out := make([]Addr, 0, len(s.cells))
-	for a, c := range s.cells {
+	out := make([]Addr, 0, s.cells.len())
+	for a, c := range s.cells.all() {
 		if !c.Blank() {
 			out = append(out, a)
 		}
@@ -214,7 +214,7 @@ func (s *Sheet) Set(a Addr, input string) error {
 func (s *Sheet) put(a Addr, input string) error {
 	var f Format
 	var st Style
-	if old := s.cells[a]; old != nil {
+	if old := s.cells.get(a); old != nil {
 		f, st = old.Format, old.Style
 	}
 	c, err := newCell(input, f, st, true)
@@ -299,7 +299,7 @@ func (s *Sheet) place(a Addr, c *Cell) {
 	if c == nil {
 		return
 	}
-	s.cells[a] = c
+	s.cells.set(a, c)
 	for _, r := range c.refs {
 		if s.dependents[r] == nil {
 			s.dependents[r] = make(map[Addr]struct{})
@@ -320,7 +320,7 @@ func (s *Sheet) place(a Addr, c *Cell) {
 func (s *Sheet) EraseRange(r Rect) {
 	s.change("clear "+r.String(), r, func() {
 		for _, a := range s.cellsIn(r) {
-			if c := s.cells[a]; !c.Blank() {
+			if c := s.cells.get(a); !c.Blank() {
 				s.place(a, formattingOnly(c.Format, c.Style))
 			}
 		}
@@ -330,17 +330,15 @@ func (s *Sheet) EraseRange(r Rect) {
 // cellsIn returns the cells in r that have contents or formatting.
 func (s *Sheet) cellsIn(r Rect) []Addr {
 	var out []Addr
-	for a := range s.cells {
-		if r.Contains(a) {
-			out = append(out, a)
-		}
+	for a := range s.cells.inRange(r) {
+		out = append(out, a)
 	}
 	return out
 }
 
 // unlink removes the cell at a and its dependency edges.
 func (s *Sheet) unlink(a Addr) {
-	old := s.cells[a]
+	old := s.cells.get(a)
 	if old == nil {
 		return
 	}
@@ -355,5 +353,5 @@ func (s *Sheet) unlink(a Addr) {
 	}
 	s.rangeUsers.remove(a, old.ranges)
 	delete(s.volatile, a)
-	delete(s.cells, a)
+	s.cells.delete(a)
 }

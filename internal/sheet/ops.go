@@ -25,8 +25,8 @@ const maxFill = 1 << 20
 // stay as they are.
 func (s *Sheet) remap(label string, focus Rect, cell func(Addr) (Addr, bool), rng func(Rect) (Rect, bool)) {
 	rw := formula.Relocate(s.onThis(s), cell, rng)
-	next := make(map[Addr]*Cell, len(s.cells))
-	for a, c := range s.cells {
+	next := make(map[Addr]*Cell, s.cells.len())
+	for a, c := range s.cells.all() {
 		if to, ok := cell(a); ok {
 			next[to] = c.rewritten(rw)
 		}
@@ -36,7 +36,7 @@ func (s *Sheet) remap(label string, focus Rect, cell func(Addr) (Addr, bool), rn
 		if l.s == s {
 			continue
 		}
-		c := l.s.cells[l.a]
+		c := l.s.cells.get(l.a)
 		if nc := c.rewritten(formula.Relocate(s.onThis(l.s), cell, rng)); nc != c {
 			others[l] = nc
 		}
@@ -45,13 +45,13 @@ func (s *Sheet) remap(label string, focus Rect, cell func(Addr) (Addr, bool), rn
 		for l, c := range others {
 			l.s.place(l.a, c)
 		}
-		for a, c := range s.cells {
+		for a, c := range s.cells.all() {
 			if next[a] != c {
 				s.place(a, next[a])
 			}
 		}
 		for a, c := range next {
-			if s.cells[a] != c {
+			if s.cells.get(a) != c {
 				s.place(a, c)
 			}
 		}
@@ -85,14 +85,14 @@ func (s *Sheet) insert(rows bool, at, n int) error {
 	if rows {
 		size = MaxRows
 	}
-	for a := range s.cells {
-		line := a.Col
-		if rows {
-			line = a.Row
-		}
-		if line >= at && line >= size-n {
-			return ErrPushedOff
-		}
+	// The lines pushed past the edge must be empty.
+	first := max(at, size-n)
+	edge := colRect(first, size-1)
+	if rows {
+		edge = rowRect(first, size-1)
+	}
+	for range s.cells.inRange(edge) {
+		return ErrPushedOff
 	}
 	s.restructure(rows, formula.Span{At: at, N: n, Size: size})
 	return nil
@@ -201,20 +201,20 @@ func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
 
 	moved := map[Addr]*Cell{}
 	for _, a := range s.cellsIn(src) {
-		moved[shift(a)] = s.cells[a].rewritten(rw(s, dst))
+		moved[shift(a)] = s.cells.get(a).rewritten(rw(s, dst))
 	}
 	rest := map[loc]*Cell{}
 	keep := func(l loc) {
 		if src.Contains(l.a) && l.s == s || d.Contains(l.a) && l.s == dst {
 			return
 		}
-		c := l.s.cells[l.a]
+		c := l.s.cells.get(l.a)
 		if nc := c.rewritten(rw(l.s, l.s)); nc != c {
 			rest[l] = nc
 		}
 	}
 	for _, t := range []*Sheet{s, dst} {
-		for a := range t.cells {
+		for a := range t.cells.all() {
 			keep(loc{t, a})
 		}
 	}
@@ -299,7 +299,7 @@ type Clip struct {
 func (s *Sheet) Copy(r Rect) *Clip {
 	c := &Clip{Src: r, cells: map[Addr]*Cell{}}
 	for _, a := range s.cellsIn(r) {
-		c.cells[Addr{Col: a.Col - r.From.Col, Row: a.Row - r.From.Row}] = s.cells[a].clone()
+		c.cells[Addr{Col: a.Col - r.From.Col, Row: a.Row - r.From.Row}] = s.cells.get(a).clone()
 	}
 	return c
 }
@@ -363,7 +363,7 @@ func (s *Sheet) Paste(c *Clip, dst Rect, values bool) (Rect, error) {
 func (s *Sheet) pasteCell(a Addr, c *Cell, dc, dr int, values bool) {
 	switch {
 	case c == nil:
-		if s.cells[a] != nil {
+		if s.cells.get(a) != nil {
 			s.place(a, nil)
 		}
 	case values:
@@ -445,7 +445,7 @@ func (s *Sheet) FillEntry(r Rect, origin Addr, input string) error {
 		if err := s.put(origin, input); err != nil {
 			return err
 		}
-		c := s.cells[origin].clone()
+		c := s.cells.get(origin).clone()
 		for row := r.From.Row; row <= r.To.Row; row++ {
 			for col := r.From.Col; col <= r.To.Col; col++ {
 				if a := (Addr{Col: col, Row: row}); a != origin {
@@ -469,7 +469,7 @@ func (s *Sheet) seriesStart(r Rect, down bool) (Rect, bool) {
 	}
 	used := map[int]bool{}
 	for _, a := range s.cellsIn(r) {
-		if !s.cells[a].Blank() {
+		if !s.cells.get(a).Blank() {
 			used[line(a)] = true
 		}
 	}

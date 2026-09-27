@@ -145,7 +145,7 @@ func (s *Sheet) record(a Addr) {
 	}
 	l := loc{s, a}
 	if _, seen := st.cells[l]; !seen {
-		st.cells[l] = s.cells[a].clone()
+		st.cells[l] = s.cells.get(a).clone()
 	}
 	s.wb.hist.dirty = append(s.wb.hist.dirty, l)
 }
@@ -246,7 +246,7 @@ func (w *Workbook) push(st *step) {
 		}
 	}
 	for l, c := range st.cells {
-		if c == nil && l.s.cells[l.a] == nil {
+		if c == nil && l.s.cells.get(l.a) == nil {
 			delete(st.cells, l)
 		}
 	}
@@ -366,7 +366,7 @@ func (w *Workbook) swap(from, to *[]*step) (Change, bool) {
 	}
 	changed := make([]loc, 0, len(st.cells))
 	for l, c := range st.cells {
-		inv.cells[l] = l.s.cells[l.a].clone()
+		inv.cells[l] = l.s.cells.get(l.a).clone()
 		l.s.place(l.a, c.clone())
 		changed = append(changed, l)
 	}

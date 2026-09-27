@@ -79,7 +79,7 @@ func (w *Workbook) newSheet(name string) *Sheet {
 	return &Sheet{
 		wb:         w,
 		name:       name,
-		cells:      make(map[Addr]*Cell),
+		cells:      newCellStore(),
 		widths:     make(map[int]int),
 		dependents: make(map[Addr]map[Addr]struct{}),
 		volatile:   make(map[Addr]struct{}),
@@ -207,7 +207,7 @@ func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
 		return nil, errors.New("That sheet was deleted")
 	}
 	cp := w.newSheet(w.freeName("Copy of " + s.name))
-	for a, c := range s.cells {
+	for a, c := range s.cells.all() {
 		c := c.clone()
 		c.setExpr(c.expr) // fresh reference slices, shared with nothing
 		cp.place(a, c)
@@ -285,7 +285,7 @@ func (w *Workbook) renameRefs(old, name string) {
 		},
 	}
 	for _, l := range w.crossList() {
-		if c := l.s.cells[l.a]; c.readsSheet(old) {
+		if c := l.s.cells.get(l.a); c.readsSheet(old) {
 			l.s.place(l.a, c.rewritten(rw))
 		}
 	}
@@ -328,7 +328,7 @@ func (w *Workbook) attach(s *Sheet) {
 	}
 	s.live = true
 	w.byKey[formula.SheetKey(s.name)] = s
-	for a, c := range s.cells {
+	for a, c := range s.cells.all() {
 		w.index(loc{s, a}, c)
 	}
 	w.structural = true
@@ -344,7 +344,7 @@ func (w *Workbook) detach(s *Sheet) {
 	if w.byKey[formula.SheetKey(s.name)] == s {
 		delete(w.byKey, formula.SheetKey(s.name))
 	}
-	for a, c := range s.cells {
+	for a, c := range s.cells.all() {
 		w.unindex(loc{s, a}, c)
 	}
 	w.structural = true

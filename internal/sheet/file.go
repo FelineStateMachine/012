@@ -274,14 +274,14 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 	if err := s.writeView(b, indent); err != nil {
 		return err
 	}
-	addrs := make([]Addr, 0, len(s.cells))
-	for a := range s.cells {
+	addrs := make([]Addr, 0, s.cells.len())
+	for a := range s.cells.all() {
 		addrs = append(addrs, a)
 	}
 	sortAddrs(addrs)
 	b.WriteString(indent + `"cells": {`)
 	for i, a := range addrs {
-		raw, err := encodeCell(s.cells[a])
+		raw, err := encodeCell(s.cells.get(a))
 		if err != nil {
 			return err
 		}

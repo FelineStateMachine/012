@@ -30,8 +30,8 @@ func (w *Workbook) recalcAll() {
 	start := recalcStart()
 	n := 0
 	for _, s := range w.sheets {
-		s.calc = make(map[Addr]int, len(s.cells))
-		for a := range s.cells {
+		s.calc = make(map[Addr]int, s.cells.len())
+		for a := range s.cells.all() {
 			s.calc[a] = dirty
 		}
 		n += len(s.calc)
@@ -125,7 +125,7 @@ func (m *marking) readersOf(l loc) {
 		m.push(loc{s, d})
 	}
 	for u := range s.rangeUsers.candidates(a.Col) {
-		if s.cells[u].rangeHas(a) {
+		if s.cells.get(u).rangeHas(a) {
 			m.push(loc{s, u})
 		}
 	}
@@ -169,7 +169,7 @@ func (w *Workbook) evaluate() {
 	compute = func(s *Sheet, a Addr) Value {
 		// Every cell a formula reads comes through here, so it looks
 		// each map up once: a SUM over 8192 cells makes 8192 calls.
-		c := s.cells[a]
+		c := s.cells.get(a)
 		switch st := s.calc[a]; {
 		case c == nil:
 			return Value{}
@@ -217,7 +217,7 @@ func (w *Workbook) evaluate() {
 // crossReads reports whether the formula at u reads the cell l through a
 // reference that names l's sheet.
 func (w *Workbook) crossReads(u, l loc) bool {
-	c := u.s.cells[u.a]
+	c := u.s.cells.get(u.a)
 	if c == nil {
 		return false
 	}

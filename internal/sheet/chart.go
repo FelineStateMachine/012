@@ -171,7 +171,7 @@ func (s *Sheet) clipToUsed(r Rect) Rect {
 // nothing more touches it. A blank cell with no filled neighbors is a
 // region of its own.
 func (s *Sheet) Region(a Addr) Rect {
-	filled := func(a Addr) bool { return a.Valid() && !s.cells[a].Blank() }
+	filled := func(a Addr) bool { return a.Valid() && !s.cells.get(a).Blank() }
 	seen := map[Addr]bool{}
 	var queue []Addr
 	visit := func(p Addr) {

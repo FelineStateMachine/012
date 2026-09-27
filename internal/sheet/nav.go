@@ -5,7 +5,7 @@ package sheet
 func (s *Sheet) UsedRange() (Rect, bool) {
 	var last Addr
 	found := false
-	for a, c := range s.cells {
+	for a, c := range s.cells.all() {
 		if c.Blank() {
 			continue
 		}
@@ -22,7 +22,7 @@ func (s *Sheet) UsedRange() (Rect, bool) {
 // block, it goes to the next filled cell. With nothing filled ahead it
 // stops at the edge of the worksheet. Rows the filter hides are skipped.
 func (s *Sheet) Edge(a Addr, dc, dr int) Addr {
-	filled := func(a Addr) bool { return !s.cells[a].Blank() }
+	filled := func(a Addr) bool { return !s.cells.get(a).Blank() }
 	step := func(a Addr) Addr {
 		n := Addr{Col: a.Col + dc, Row: a.Row + dr}
 		for dr != 0 && n.Valid() && s.RowHidden(n.Row) {
@@ -72,10 +72,8 @@ type statsCache struct {
 	ok      bool
 }
 
-// RangeStats computes Stats over r, visiting whichever is cheaper: the
-// cells in r one lookup at a time, or every stored cell (iterating the
-// map costs about a quarter of a lookup per cell). The result is kept
-// until a cell or value changes.
+// RangeStats computes Stats over r. The result is kept until a cell or
+// value changes.
 func (s *Sheet) RangeStats(r Rect) Stats {
 	if c := s.stats; c.ok && c.r == r && c.version == s.version {
 		return c.st
@@ -88,20 +86,9 @@ func (s *Sheet) RangeStats(r Rect) Stats {
 			st.Sum += c.Value.Num
 		}
 	}
-	area := (r.To.Col - r.From.Col + 1) * (r.To.Row - r.From.Row + 1)
-	if area <= len(s.cells)/4 {
-		for row := r.From.Row; row <= r.To.Row; row++ {
-			for col := r.From.Col; col <= r.To.Col; col++ {
-				if c := s.cells[Addr{Col: col, Row: row}]; !c.Blank() {
-					add(c)
-				}
-			}
-		}
-	} else {
-		for a, c := range s.cells {
-			if r.Contains(a) && !c.Blank() {
-				add(c)
-			}
+	for _, c := range s.cells.inRange(r) {
+		if !c.Blank() {
+			add(c)
 		}
 	}
 	s.stats = statsCache{r: r, version: s.version, st: st, ok: true}

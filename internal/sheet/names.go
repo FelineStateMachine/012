@@ -167,7 +167,7 @@ func (w *Workbook) renameInFormulas(from, to string) {
 		return n
 	}}
 	for _, l := range slices.Collect(maps.Keys(w.nameUsers[from])) {
-		l.s.place(l.a, l.s.cells[l.a].rewritten(rw))
+		l.s.place(l.a, l.s.cells.get(l.a).rewritten(rw))
 	}
 }
 

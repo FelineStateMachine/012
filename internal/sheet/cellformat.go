@@ -14,7 +14,7 @@ const materializeLimit = 1 << 16
 // or for Automatic, the one inferred from its formula (=DATE() shows a
 // date, =SUM(B2:B4) of currency shows currency).
 func (s *Sheet) DisplayFormat(a Addr) Format {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	switch {
 	case c == nil:
 		return Format{}
@@ -83,7 +83,7 @@ func (s *Sheet) eachCell(r Rect, create bool, fn func(Addr, *Cell)) {
 		addrs = s.cellsIn(r)
 	}
 	for _, a := range addrs {
-		old := s.cells[a]
+		old := s.cells.get(a)
 		c := old.clone()
 		if c == nil {
 			c = &Cell{}

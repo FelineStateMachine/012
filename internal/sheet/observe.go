@@ -33,7 +33,7 @@ func (w *Workbook) observe(full bool, start time.Time, evaluated int) {
 	}
 	info := RecalcInfo{Full: full, Evaluated: evaluated, Circular: w.Circular}
 	for _, s := range w.sheets {
-		info.Cells += len(s.cells)
+		info.Cells += s.cells.len()
 		info.Volatile += len(s.volatile)
 	}
 	info.Duration = time.Since(start)

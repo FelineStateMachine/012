@@ -88,7 +88,7 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 	})
 	old := map[Addr]*Cell{}
 	for _, a := range s.cellsIn(r) {
-		old[a] = s.cells[a]
+		old[a] = s.cells.get(a)
 	}
 	s.change("sort "+r.String(), r, func() {
 		for k, src := range order {
@@ -101,7 +101,7 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 				switch c := old[Addr{Col: col, Row: src}]; {
 				case c != nil:
 					s.place(to, c.rewritten(formula.Shift(0, dst-src)))
-				case s.cells[to] != nil:
+				case s.cells.get(to) != nil:
 					s.place(to, nil)
 				}
 			}
