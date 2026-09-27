@@ -100,11 +100,11 @@ func (st *cellStore) inRange(r Rect) iter.Seq2[Addr, *Cell] {
 
 // anyInRange yields the stored cells in r in no particular order,
 // visiting whichever is cheaper: the index, row by row, or every stored
-// cell (iterating the map costs a fraction of a lookup per cell) when r
-// is as large as the sheet's cells are many.
+// cell (iterating the map costs a quarter of a lookup per cell) when r
+// is more than a quarter as large as the sheet's cells are many.
 func (st *cellStore) anyInRange(r Rect) iter.Seq2[Addr, *Cell] {
 	area := (r.To.Col - r.From.Col + 1) * (r.To.Row - r.From.Row + 1)
-	if area < len(st.m) {
+	if area <= len(st.m)/4 {
 		return st.inRange(r)
 	}
 	return func(yield func(Addr, *Cell) bool) {
