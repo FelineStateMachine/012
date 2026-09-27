@@ -105,7 +105,7 @@ func matrixArg(n Node, get lookup) matrix {
 	case formula.Ref:
 		return rectMatrix(n.Sheet, Rect{From: n.Addr, To: n.Addr}, get)
 	}
-	v := eval(n, get)
+	v := evalArray(n, get)
 	return matrix{rows: 1, cols: 1, cell: func(int, int) Value { return v }, dataRows: 1, dataCols: 1, blank: v}
 }
 

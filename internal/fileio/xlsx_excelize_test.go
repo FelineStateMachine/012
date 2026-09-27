@@ -4,9 +4,12 @@ package fileio
 // as the reference for TestXLSXDifferential.
 
 import (
+	"archive/zip"
 	"context"
+	"encoding/xml"
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 
@@ -65,7 +68,12 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 		if err != nil {
 			return nil, err
 		}
+		excelizePanes(x, ws, next)
 		done += rows
+	}
+	filters, err := referenceAutoFilters(name)
+	if err != nil {
+		return nil, err
 	}
 	notes = append(notes, excelizeNames(x, book)...)
 	active := book.Sheet(clamp(x.GetActiveSheetIndex(), 0, book.Len()-1))
@@ -78,7 +86,119 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 	b.s = active
 	prog.setRows(done)
 	s, notes := b.finish(notes)
-	return &Result{Sheet: s, Rows: done, Notes: notes}, nil
+	return &Result{Sheet: s, Rows: done, Notes: append(notes, applyFilters(book, filters)...)}, nil
+}
+
+// excelizePanes freezes s as sheet ws is frozen.
+func excelizePanes(x *excelize.File, ws string, s *sheet.Sheet) {
+	if p, err := x.GetPanes(ws); err == nil && p.Freeze {
+		s.LoadFrozen(p.YSplit, p.XSplit)
+	}
+}
+
+// refWorksheet is the part of a worksheet referenceAutoFilters reads.
+type refWorksheet struct {
+	AutoFilter *struct {
+		Ref  string `xml:"ref,attr"`
+		Cols []struct {
+			ColID   int `xml:"colId,attr"`
+			Filters *struct {
+				Blank  string `xml:"blank,attr"`
+				Filter []struct {
+					Val string `xml:"val,attr"`
+				} `xml:"filter"`
+				Dates []struct{} `xml:"dateGroupItem"`
+			} `xml:"filters"`
+			Custom *struct {
+				Filter []struct {
+					Op  string `xml:"operator,attr"`
+					Val string `xml:"val,attr"`
+				} `xml:"customFilter"`
+			} `xml:"customFilters"`
+			Top10   *struct{} `xml:"top10"`
+			Dynamic *struct{} `xml:"dynamicFilter"`
+			Color   *struct{} `xml:"colorFilter"`
+			Icon    *struct{} `xml:"iconFilter"`
+		} `xml:"filterColumn"`
+	} `xml:"autoFilter"`
+}
+
+// referenceAutoFilters reads each sheet's autoFilter by decoding the
+// whole worksheet with encoding/xml, as excelize has no API for reading
+// one: the reference for the streaming reader's. Only the parts' names
+// come from 012's reader.
+func referenceAutoFilters(name string) ([]*xlsxAutoFilter, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	bk, err := openXLSX(f, st.Size(), defaultXLSXLimits)
+	if err != nil {
+		return nil, err
+	}
+	zr, err := zip.NewReader(f, st.Size())
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*xlsxAutoFilter, len(bk.sheets))
+	for i, info := range bk.sheets {
+		if info.part == "" || info.kind != "worksheet" {
+			continue
+		}
+		rc, err := zr.Open(info.part)
+		if err != nil {
+			return nil, err
+		}
+		var ws refWorksheet
+		err = xml.NewDecoder(rc).Decode(&ws)
+		rc.Close()
+		if err != nil {
+			return nil, err
+		}
+		out[i] = ws.autoFilter()
+	}
+	return out, nil
+}
+
+func (ws refWorksheet) autoFilter() *xlsxAutoFilter {
+	a := ws.AutoFilter
+	if a == nil {
+		return nil
+	}
+	af := &xlsxAutoFilter{ref: a.Ref}
+	for _, c := range a.Cols {
+		fc := xlsxFilterColumn{col: c.ColID}
+		if fs := c.Filters; fs != nil {
+			fc.filters, fc.blank, fc.dates = true, fs.Blank == "1" || fs.Blank == "true", len(fs.Dates) > 0
+			for _, v := range fs.Filter {
+				fc.values = append(fc.values, v.Val)
+			}
+		}
+		if c.Custom != nil {
+			for _, cf := range c.Custom.Filter {
+				op := cf.Op
+				if op == "" {
+					op = "equal"
+				}
+				fc.custom = append(fc.custom, xlsxCustomFilter{op: op, val: cf.Val})
+			}
+		}
+		for _, o := range []struct {
+			set  bool
+			what string
+		}{{c.Top10 != nil, "top 10"}, {c.Dynamic != nil, "a dynamic filter"}, {c.Color != nil, "by color"}, {c.Icon != nil, "by icon"}} {
+			if o.set {
+				fc.other = o.what
+			}
+		}
+		af.cols = append(af.cols, fc)
+	}
+	return af
 }
 
 // excelizeSheet reads one sheet into b.s, reporting rows read, and

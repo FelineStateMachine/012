@@ -16,7 +16,7 @@ func (s *Sheet) Link(a Addr) string {
 		return ""
 	}
 	if call, ok := c.expr.(formula.Call); ok && funcOf(call).Name == "HYPERLINK" && c.IsFormula() {
-		v := functions.Eval(call.Args[0], s.wb.values(s).lib)
+		v := functions.EvalAt(call.Args[0], s.wb.values(s).lib, a)
 		if v.Kind == Error {
 			return ""
 		}

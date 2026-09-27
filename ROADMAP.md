@@ -102,7 +102,7 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 
 | Item | Why | Size |
 |---|---|---|
-| Open 012's XLSX output in real Excel and LibreOffice (a round-trip corpus, run by hand before releases). In progress: a first sample is being checked in Excel | The new writer is checked only by excelize and 012's reader | S |
+| Open 012's XLSX output in a real spreadsheet app before releases. Done for Google Sheets: sheets, hidden sheets, named ranges, implicit intersection, column and cell formats, widths, frozen panes, filters, links and missing-sheet values all match; repeat with Excel and LibreOffice when available | The writer is otherwise checked by excelize and 012's reader | S |
 | Column and row formats travel with copy, cut and move; formulas reading blanks of a newly formatted column re-infer at once | Left open by step A | S |
 | Save as onto another existing file asks before replacing (local and `012 serve`). Done: Save as, `:w name` and `:wq name` ask on the context line ([files.md](docs/files.md)) | Replacing a file by mistake loses it | S |
 | XLSX sheet names with characters Excel forbids: rewrite formulas that name them, not just the sheet | Formulas keep the old name today | S |
