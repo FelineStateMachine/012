@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -95,6 +96,9 @@ type Model struct {
 	borderColor sheet.Color
 	// painted is what borders drew this frame, by role: gridlines.go.
 	painted map[paintKey]string
+	// shaded are roles with their escape codes, for glyphs drawn one at a
+	// time (bars.go); kept for a frame as painted is.
+	shaded map[*lipgloss.Style]theme.Shade
 	// mergeLines are the lines merges show their values on, worked out
 	// once a frame (see mergeText).
 	mergeLines map[sheet.Rect][2]int

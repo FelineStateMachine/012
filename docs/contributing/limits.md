@@ -230,7 +230,19 @@ every cell on screen a shade), at 200 x 60 (`BenchmarkFrame`,
 Shades and rule colors keep their escape codes, so a plain cell on one
 costs a string concatenation, not a style render. A custom formula is
 evaluated for each cell drawn, once per recalculation, with its
-references moved for the cell.
+references moved for the cell. Top values, averages and duplicates
+read their ranges once per recalculation, as a scale does.
+
+Data bars and icons are drawn a column at a time, their glyphs with the
+escape codes of their roles kept for the frame, so a cell under one costs
+more than a shade. `bars-8192x26` puts a data bar over
+13 columns of 8192 x 26 numbers and arrows over the other 13
+(`BenchmarkFrame`):
+
+| | 80 x 24 | 200 x 60 | 400 x 120 |
+|---|---|---|---|
+| 8192 x 26 numbers, a frame | 0.18 ms | 0.89 ms | 3.1 ms |
+| The same with bars and icons on every cell | 0.27 ms | 1.5 ms | 4.9 ms |
 
 Wrapped text, borders, row heights and merged cells cost what the
 screen shows too. A sheet with none of them is drawn a line per row

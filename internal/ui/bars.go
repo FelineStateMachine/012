@@ -76,15 +76,25 @@ func (m *Model) barText(sp rowtext.Span, w int, look *sheet.Look, base *lipgloss
 	if look.Bar {
 		cover = theme.BarCover(look.BarLen, w-1) // the last column keeps bars apart
 	}
-	text := spanStyle(&m.th, *base, sp)
+	text := base
+	if !plainSpan(sp) {
+		st := spanStyle(&m.th, *base, sp)
+		text = &st
+	}
 	var b strings.Builder
 	var run strings.Builder
 	var cur *lipgloss.Style
 	flush := func() {
-		if run.Len() > 0 {
+		switch {
+		case run.Len() == 0:
+		case cur == base && !colored:
+			b.WriteString(run.String())
+		case cur == text || cur == base: // either may be the cell's own, made for it
 			b.WriteString(cur.Render(run.String()))
-			run.Reset()
+		default: // a theme's role, whose address stays put for the frame
+			b.WriteString(m.shade(cur).Wrap(run.String()))
 		}
+		run.Reset()
 	}
 	put := func(role *lipgloss.Style, s string) {
 		if role != cur {
@@ -105,11 +115,24 @@ func (m *Model) barText(sp rowtext.Span, w int, look *sheet.Look, base *lipgloss
 		case ch == " ":
 			put(base, ch)
 		default:
-			put(&text, ch)
+			put(text, ch)
 		}
 	}
 	flush()
 	return b.String()
+}
+
+// shade is role with its escape codes, kept for the frame.
+func (m *Model) shade(role *lipgloss.Style) theme.Shade {
+	if sh, ok := m.shaded[role]; ok {
+		return sh
+	}
+	if m.shaded == nil {
+		m.shaded = map[*lipgloss.Style]theme.Shade{}
+	}
+	sh := theme.ShadeOf(*role)
+	m.shaded[role] = sh
+	return sh
 }
 
 func coverAt(cover []int, x int) int {

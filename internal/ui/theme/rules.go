@@ -111,6 +111,10 @@ type Shade struct {
 	Open, Close string
 }
 
+// ShadeOf is s with the escape codes that open and close it, for text
+// drawn in it often.
+func ShadeOf(s lipgloss.Style) Shade { return shadeOf(s) }
+
 func shadeOf(s lipgloss.Style) Shade {
 	r := s.Render(shadeMark)
 	i := strings.Index(r, shadeMark)
