@@ -15,7 +15,7 @@ Noise that stays becomes invisible, and then real problems hide in it.
   with the reason written next to it (`staticcheck.conf`). Nothing is left
   standing because "it's always been there".
 - Docs and comments describe the code as it is and why. How it got there
-  (what changed, what it did before, before and after numbers, which commit
+  (what changed, what it did before, before and after numbers, which commit <!-- doclint:allow: names the phrases the rule forbids -->
   or merge, who did it) belongs in commit messages; doclint enforces this.
   Saying why the code stays compatible with a planned change is fine: that
   explains the code today. Plans go in ROADMAP.md.
