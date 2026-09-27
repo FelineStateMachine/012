@@ -176,13 +176,13 @@ func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
 		var look sheet.Look
 		var shade theme.Shade
 		shaded := false
-		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() && lc.bottom() {
-			sp = rowtext.Span{Text: m.inCellText(m.sheet.ColWidth(a.Col))}
+		if piece, typing := m.entryPiece(lc, a); typing { // gridlines.go
+			sp = rowtext.Span{Text: piece}
 		} else {
 			m.decorate(&sp, row) // links and error marks, see links.go
 			if rules {
 				look, shade, shaded = m.ruleSpan(a, &sp, colored, rgb) // looks.go
-				if look.Checkbox && !lc.bottom() {
+				if look.Checkbox && !m.valueLine(lc, a) {
 					sp = rowtext.Span{Trail: m.sheet.ColWidth(a.Col)}
 				}
 			}
@@ -240,7 +240,7 @@ func (m *Model) cellMarks(lc *lineCtx, a sheet.Addr, text string, look *sheet.Lo
 		text = ansi.Truncate(text, w-1, "") + base.Render("▟")
 	case lc.ln.K == 0 && m.sheet.Note(a) != "":
 		text = m.noteMark(text, a, *base, colored)
-	case lc.bottom() && look.Dropdown:
+	case look.Dropdown && m.valueLine(lc, a):
 		text = m.dropdownMark(text, w, *base, colored)
 	}
 	if lc.shaped {

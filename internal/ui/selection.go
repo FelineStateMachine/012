@@ -105,11 +105,21 @@ func (g *grid) moveKey(key string) bool {
 		return g.navigate(base, &g.ext)
 	}
 	if g.navigate(key, &g.cur) {
-		g.cur = g.snap(g.cur)
+		g.entered, g.cur = g.cur, g.snap(g.cur)
 		g.clearSelection()
 		return true
 	}
 	return false
+}
+
+// leaveFrom is where a step off the merge m leaves from: the cell the
+// active cell entered it by, when a is the active cell and that's in m,
+// otherwise a.
+func (g *grid) leaveFrom(a *sheet.Addr, m sheet.Rect) sheet.Addr {
+	if a == &g.cur && m.Contains(g.entered) {
+		return g.entered
+	}
+	return *a
 }
 
 // pointMoveKey handles movement in POINT mode and range prompts: arrows
@@ -168,15 +178,16 @@ func (g *grid) selectAll() tea.Cmd {
 func (g *grid) navigate(key string, a *sheet.Addr) bool {
 	rows, cols := g.scrollRows(), g.visibleCols(g.left)
 	if m, ok := g.sheet.MergeAt(*a); ok { // steps leave a merged cell from its edge
+		from := g.leaveFrom(a, m)
 		switch key {
 		case "up":
-			a.Row = m.From.Row
+			a.Row, a.Col = m.From.Row, from.Col
 		case "down":
-			a.Row = m.To.Row
+			a.Row, a.Col = m.To.Row, from.Col
 		case "left", "shift+tab":
-			a.Col = m.From.Col
+			a.Col, a.Row = m.From.Col, from.Row
 		case "right", "tab":
-			a.Col = m.To.Col
+			a.Col, a.Row = m.To.Col, from.Row
 		}
 	}
 	switch key {

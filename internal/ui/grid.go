@@ -22,6 +22,12 @@ type grid struct {
 	selecting bool
 	ext       sheet.Addr // the moving corner of the selection
 	whole     wholeKind
+
+	// entered is the cell of a merge the active cell last moved or was
+	// clicked into, before it moved to the merge's top-left: stepping
+	// off the merge sideways goes on along its row, and up or down along
+	// its column, as in Sheets.
+	entered sheet.Addr
 }
 
 func (g *grid) book() *sheet.Workbook { return g.sheet.Book() }

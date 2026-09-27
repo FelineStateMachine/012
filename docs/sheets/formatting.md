@@ -38,10 +38,20 @@ A formula left Automatic shows the format of what it reads
 
 ## Text
 
-Bold, italic, underline and strikethrough, and alignment left, center
-or right. Numbers align right, text left, booleans and errors center, as
-in Sheets, until you align them yourself. Format > Clear formatting resets
-number formats and text styles and keeps the contents.
+Bold, italic, underline and strikethrough, and Format > Alignment's
+left, center or right. Numbers align right, text left, booleans and
+errors center, as in Sheets, until you align them yourself. Format >
+Clear formatting resets number formats and text styles and keeps the
+contents.
+
+## Vertical alignment
+
+Format > Alignment's Top, Middle and Bottom say where a value sits in
+a row taller than it, as in Sheets: on the row's first line, its middle
+one or its last. Wrapped text starts there, so it fills the row from
+the top, around the middle, or up to the bottom. Until you choose, values
+sit at the bottom, as Sheets aligns them, and a
+[merged cell](#merged-cells)'s in its middle.
 
 ## Wrapping
 
@@ -57,9 +67,10 @@ Sheets:
 | Clip | Is cut off at the cell's edge |
 
 Values sit on the last line of a tall row, as Sheets aligns them to the
-bottom, and the row's number is on that line too, so a tall row ends on
-the line that numbers it. Text doesn't run on across a
-[border](#borders) or into [merged cells](#merged-cells).
+bottom, unless [aligned](#vertical-alignment) otherwise, and the row's
+number is on that line, so a tall row ends on the line that numbers it.
+Text doesn't run on across a [border](#borders) or into
+[merged cells](#merged-cells).
 
 ## Row heights
 
@@ -90,7 +101,25 @@ as tables printed in a terminal do: a bordered table is taller than a
 plain one. Where two cells share an edge, the heavier line shows, and
 drawing an edge again from one side replaces the other side's line.
 Borders are part of a cell's formatting: they fall back on rows and
-columns, travel with copies and go with Clear formatting.
+columns, travel with copies and go with Clear formatting. The outline
+of whole columns or rows runs along the sheet's own edges too: over
+row 1 and under the last row, or down column A and the last column.
+
+Unicode has no joint where a double line meets a thick one, so there
+the joint is drawn thick, the heavier look, and the double line starts
+beside it with a thick stub: a double line under the headers of a
+table with a thick outline reads `┣━═══════╪═══════━┫`.
+
+### Border colors
+
+Format > Borders > Border color picks the color borders draw with from
+here on, as the line style is kept: Automatic draws them in the text's
+color, as Sheets draws borders black, or red, yellow, green, cyan, blue
+or magenta, the terminal's own colors as
+[conditional formats](rules.md#conditional-formatting) use them, so the
+palette or the [color scheme](../terminal/themes.md) decides how they
+look. Where lines of two colors meet, the heavier line's color shows,
+and a line's color goes with it.
 
 ## Merged cells
 
@@ -102,13 +131,21 @@ Merging clears the values of the other cells, as Sheets does, so when
 any would be lost it asks first: Enter merges, Esc backs out, and undo
 brings them back. Unmerge splits merged cells back into cells.
 
+Its value sits on the middle one of the lines its rows take on screen,
+counting rows of any height and the border lines between them, unless
+its top-left cell is [aligned](#vertical-alignment) to the top or
+bottom.
+
 The active cell moves onto a merged cell's top-left and steps off it
-from its edges; clicking any part of it selects it, typing edits it,
-and a selection that touches it takes in all of it. Merges follow
-inserted and deleted lines, and a copy, cut or move carries the merges
-wholly inside it. Sorting a range that holds merged cells is refused,
-an array can't [spill](../formulas/arrays.md) over them, cells an array
-spills into or a pivot table's results can't be merged, and merging in a
+from its edges, along the row or column it came in by, as in Sheets:
+coming in from A2 into B1:C3, Right goes on to D2. Clicking any part
+of it selects it, typing edits it in an entry as wide as the merge, and
+a selection that touches it takes in all of it. Merges follow inserted
+and deleted lines, and a copy, cut or move carries the merges wholly
+inside it. Sorting a range that holds merged cells is refused, as is
+[freezing](sort-filter.md#freeze) rows or columns through one; an array
+can't [spill](../formulas/arrays.md) over them, cells an array spills
+into or a pivot table's results can't be merged, and merging in a
 [protected range](notes-protection.md#protected-sheets-and-ranges) asks
 first.
 

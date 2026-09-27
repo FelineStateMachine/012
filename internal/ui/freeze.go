@@ -39,6 +39,10 @@ func init() {
 // freeze sets the frozen rows (or columns) to n and says what happened,
 // including when the window is too small to show them all.
 func (m *Model) freeze(rows bool, n int) {
+	if mg, cut := m.sheet.MergeAcross(rows, n); cut {
+		m.fail("Can't freeze through the merged cells " + mg.String() + "; unmerge them first")
+		return
+	}
 	fr, fc := m.sheet.Frozen()
 	noun := "column"
 	if rows {

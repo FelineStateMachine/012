@@ -49,9 +49,10 @@ func Layout(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int) []Span {
 type Line struct{ K, N int }
 
 // LayoutLine is Layout for one line of a row N lines tall. Values sit on
-// the row's last line, as Sheets aligns them to the bottom, and text
-// that wraps (sheet.WrapOn) fills lines of its own column up to it, cut
-// at the top when the row is too short. Clipped text (sheet.WrapClip)
+// the row's last line, as Sheets aligns them to the bottom, or its first
+// or middle one as the cell's vertical alignment says, and text that
+// wraps (sheet.WrapOn) fills lines of its own column around there, cut
+// at the bottom when the row is too short. Clipped text (sheet.WrapClip)
 // stays in its column. Text doesn't run on across a border or into
 // merged cells, whose contents the caller draws (see Merged).
 func LayoutLine(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int, ln Line) []Span {
@@ -234,13 +235,13 @@ func (l *rowLayout) shape(c int, v sheet.Value, st sheet.Style, text string, w i
 	}
 	if st.Wrap == sheet.WrapOn && v.Kind == sheet.Text {
 		lines := Wrap(text, w-2)
-		i := l.ln.K - max(l.ln.N-len(lines), 0)
+		i := l.ln.K - st.VAlign.Offset(len(lines), l.ln.N, false)
 		if i < 0 || i >= len(lines) {
 			return "", false
 		}
 		return lines[i], true
 	}
-	return text, l.ln.K == l.ln.N-1
+	return text, l.ln.K == st.VAlign.Offset(1, l.ln.N, false)
 }
 
 // keepGaps keeps a gap where text that runs to the edge of its column

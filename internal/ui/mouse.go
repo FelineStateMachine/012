@@ -254,7 +254,7 @@ func (m *Model) readyPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 			m.clearSelection()
 			return m.runCommand("edit")
 		default:
-			m.cur = m.snap(h.addr)
+			m.entered, m.cur = h.addr, m.snap(h.addr)
 			m.clearSelection()
 		}
 		m.mouse.drag = dragCells

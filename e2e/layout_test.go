@@ -16,7 +16,7 @@ func TestLayoutDrawsAndSurvivesSave(t *testing.T) {
 	checkTrip := func(s *session) {
 		s.t.Helper()
 		screen := s.screen()
-		for _, want := range []string{"Trip to Lisbon", "┏━━━━━━━━━┯", "╠═════════╪", "│Tram 28  ┃", "┃Total    │", "┗━━━━━━━━━┷"} {
+		for _, want := range []string{"Trip to Lisbon", "┏━━━━━━━━━┯", "┣━════════╪", "│Tram 28  ┃", "┃Total    │", "┗━━━━━━━━━┷"} {
 			if !strings.Contains(screen, want) {
 				t.Errorf("no %q in\n%s", want, screen)
 			}
@@ -37,6 +37,40 @@ func TestLayoutDrawsAndSurvivesSave(t *testing.T) {
 	r.waitForBar("A1", "Trip to Lisbon")
 	r.keys("<right>")
 	r.waitForName("D1")
+}
+
+// A merged cell takes an entry as wide as it and can't be frozen
+// through; the total's middle alignment and the blue outline survive a
+// save.
+func TestMergeEntryAndAlignment(t *testing.T) {
+	dir := t.TempDir()
+	s := start(t, dir)
+	coloredPlan(s)
+	s.keys("<ctrl+home>", "A title as wide as the merge")
+	s.waitFor("A title as wide as the merge")
+	s.keys("<esc>", "<ctrl+g>", "E2:E4", "<enter>")
+	palette(s, "merge all")
+	s.waitFor("Merged E2:E4")
+	s.keys("<ctrl+g>", "F3", "<enter>")
+	palette(s, "freeze up to current row")
+	s.waitFor("Can't freeze through the merged cells E2:E4")
+	s.keys("<esc>", "<ctrl+s>", "plan", "<enter>")
+	s.eventually("saved", func() bool { return s.title() == "012 - plan.012" })
+	s.keys("<ctrl+q>")
+	s.waitExit()
+
+	r := start(t, dir, "plan.012")
+	r.waitFor("Trip to Lisbon")
+	lines := strings.Split(r.screen(), "\n")
+	for i, l := range lines {
+		if strings.Contains(l, "┃Total    │     225 │") {
+			if i+1 >= len(lines) || !strings.Contains(lines[i+1], "    6 ┃") {
+				t.Errorf("Total isn't in the middle of its row:\n%s", r.screen())
+			}
+			return
+		}
+	}
+	t.Errorf("no total:\n%s", r.screen())
 }
 
 // Dragging a row number's corner makes the row taller; double-clicking

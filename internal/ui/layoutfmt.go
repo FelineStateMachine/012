@@ -74,7 +74,7 @@ func init() {
 		k, title := bk.k, bk.title
 		register(&command{id: bk.id, title: title, desc: bk.desc, edits: (*Model).selection, keepsSpills: true,
 			run: func(m *Model) tea.Cmd {
-				m.sheet.SetBorders(m.selection(), k, m.lineStyle())
+				m.sheet.SetBorderStroke(m.selection(), k, sheet.Stroke{Line: m.lineStyle(), Color: m.borderColor})
 				m.formatted(title)
 				return nil
 			}})

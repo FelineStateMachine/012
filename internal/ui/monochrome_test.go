@@ -330,3 +330,22 @@ func TestMonochromeLayout(t *testing.T) {
 		t.Errorf("the pointer on a merged cell: %q %+v", cellText(merged), merged)
 	}
 }
+
+// Border colors are colors the user chose and stay colors; without
+// color their lines are the same characters. A value aligned to the top
+// of a tall row reads there.
+func TestMonochromeBorderColorAndVAlign(t *testing.T) {
+	m := newModel()
+	m.sheet.Set(addr("A2"), "top")
+	m.sheet.SetRowHeight(1, 1, 3)
+	m.sheet.SetStyle(rect("A2"), func(st *sheet.Style) { st.VAlign = sheet.VAlignTop })
+	m.sheet.SetBorderStroke(rect("A2:B2"), sheet.BorderOuter, sheet.Stroke{Line: sheet.LineThick, Color: sheet.ColorRed})
+	y, _ := m.rowY(1)
+	x := m.hdrW()
+	if rule := cellText(monoLine(m, y-1)[x : x+2*sheet.DefaultWidth+1]); rule != "┏━━━━━━━━━━━━━━━━━━━┓" {
+		t.Errorf("the red outline: %q", rule)
+	}
+	if got := strings.TrimSpace(cellText(monoLine(m, y)[x : x+sheet.DefaultWidth])); got != "┃top" {
+		t.Errorf("the first line of row 2: %q", got)
+	}
+}

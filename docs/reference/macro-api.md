@@ -93,7 +93,8 @@ menus, help, undo or macros. The ids are those in the recorded scripts; a few:
 |---|---|
 | `format.bold`, `format.italic`, `format.underline`, `format.strikethrough` | Text styles (toggles, as the keys) |
 | `format.currency`, `format.percent`, `format.date`, `format.decimals_more`, ... | Number formats |
-| `format.align_left`, `format.align_center`, `format.align_right`, `format.clear` | Alignment, clear formatting |
+| `format.align_left`, `format.align_center`, `format.align_right`, `format.valign_top`, `format.valign_middle`, `format.valign_bottom`, `format.clear` | Alignment, clear formatting |
+| `format.borders_all`, `format.borders_outer`, `format.border_top`, ..., `format.border_thick`, `format.border_color` (answer: the color, `"Red"` or `"Automatic"`) | Borders, their line and color |
 | `edit.copy`, `edit.cut`, `edit.paste`, `edit.paste_values` | Clipboard (within 012; copying also sets the system clipboard) |
 | `edit.fill_down`, `edit.fill_right`, `clear` | Fill, clear the selection |
 | `insert.row_above`, `insert.row_below`, `insert.col_left`, `insert.col_right`, `delete.row`, `delete.col` | Rows and columns |

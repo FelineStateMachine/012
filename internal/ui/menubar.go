@@ -82,7 +82,10 @@ var menuBar = []menuDef{
 		}},
 		{cmd: "format.decimals_more", title: "Increase decimal places"}, {cmd: "format.decimals_less", title: "Decrease decimal places"}, sep,
 		{cmd: "format.bold", title: "Bold"}, {cmd: "format.italic", title: "Italic"}, {cmd: "format.underline", title: "Underline"}, {cmd: "format.strikethrough", title: "Strikethrough"}, sep,
-		{cmd: "format.align_left", title: "Align left"}, {cmd: "format.align_center", title: "Align center"}, {cmd: "format.align_right", title: "Align right"},
+		{title: "Alignment", items: []menuItem{
+			{cmd: "format.align_left", title: "Left"}, {cmd: "format.align_center", title: "Center"}, {cmd: "format.align_right", title: "Right"}, sep,
+			{cmd: "format.valign_top", title: "Top"}, {cmd: "format.valign_middle", title: "Middle"}, {cmd: "format.valign_bottom", title: "Bottom"},
+		}},
 		{title: "Wrapping", items: []menuItem{
 			{cmd: "format.wrap_overflow"}, {cmd: "format.wrap"}, {cmd: "format.wrap_clip"},
 		}},
@@ -91,7 +94,7 @@ var menuBar = []menuDef{
 			{cmd: "format.border_top", title: "Top"}, {cmd: "format.border_bottom", title: "Bottom"},
 			{cmd: "format.border_left", title: "Left"}, {cmd: "format.border_right", title: "Right"}, sep,
 			{cmd: "format.borders_clear", title: "None"}, sep,
-			{cmd: "format.border_thin"}, {cmd: "format.border_thick"}, {cmd: "format.border_double"},
+			{cmd: "format.border_thin"}, {cmd: "format.border_thick"}, {cmd: "format.border_double"}, {cmd: "format.border_color"},
 		}},
 		{title: "Merge cells", items: []menuItem{
 			{cmd: "format.merge_all"}, {cmd: "format.merge_horizontal"}, {cmd: "format.merge_vertical"}, sep,

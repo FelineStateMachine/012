@@ -43,6 +43,9 @@ type Item struct {
 	Desc   string // what it does, for the status line
 	Off    bool   // unavailable right now
 	Pick   func() tea.Cmd
+	// Swatch, when set, is drawn before the title as it is, styled: a
+	// sample of a color or a line.
+	Swatch string
 }
 
 // haystack is what a search matches against.
@@ -404,7 +407,11 @@ func (p *Picker) resultRows(th *theme.Theme, inner, rows int) []string {
 		case pm.Item.Off:
 			base, dim, hl = th.Disabled, th.Disabled, th.Disabled
 		}
-		row := base.Render(" ") + theme.HighlightMatches(pm.Item.Title, pm.InTitle, tw, base, hl)
+		row := base.Render(" ")
+		if pm.Item.Swatch != "" {
+			row += pm.Item.Swatch + base.Render(" ")
+		}
+		row += theme.HighlightMatches(pm.Item.Title, pm.InTitle, tw, base, hl)
 		if dw >= 8 {
 			row += base.Render("   ") + theme.HighlightMatches(pm.Item.Detail, pm.InDetail, dw, dim, hl)
 		}

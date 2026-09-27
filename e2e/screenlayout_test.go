@@ -1,6 +1,10 @@
 package e2e
 
-import ghostty "go.mitchellh.com/libghostty"
+import (
+	"strings"
+
+	ghostty "go.mitchellh.com/libghostty"
+)
 
 // Golden screens for the grid's layout: a trip plan with its title merged
 // across the table, borders around and inside it (a double line under
@@ -48,8 +52,42 @@ func tripPlan(s *session) {
 	s.waitForBar("C4", "Tram 28 and the castle, before the crowds")
 }
 
+// coloredPlan is the trip plan with its outline drawn again in blue and
+// the total's values in the middle of its tall row.
+func coloredPlan(s *session) {
+	tripPlan(s)
+	s.keys("<down>", "<down>", "<left>", "<left>")
+	palette(s, "row height")
+	s.keys("<right>", "<enter>")
+	s.keys("<shift+right>", "<shift+right>")
+	palette(s, "align middle")
+	s.waitFor("Aligned to the middle")
+	s.keys("<esc>", "<ctrl+home>", "<down>")
+	for range 4 {
+		s.keys("<shift+down>")
+	}
+	s.keys("<shift+right>", "<shift+right>")
+	palette(s, "border color")
+	s.waitFor("Automatic")
+	s.keys("blue", "<enter>")
+	s.waitFor("Borders draw in blue now")
+	palette(s, "thick lines")
+	s.keys("<alt+shift+7>")
+	s.waitFor("Outer borders for A2:C6")
+	s.keys("<esc>", "<down>")
+	s.waitForBar("A3", "Fri")
+}
+
 var layoutScreens = []screen{
 	{name: "layout", setup: tripPlan},
+	{name: "layout-colors", setup: coloredPlan},
+	{name: "layout-colors-high-contrast", opts: options{config: highContrastConfig}, setup: coloredPlan},
+	{name: "border-color-picker", setup: func(s *session) {
+		budget(s)
+		palette(s, "border color")
+		s.waitFor("Automatic")
+		s.keys("<down>", "<down>")
+	}},
 	{name: "layout-narrow", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
 		tripPlan(s)
 		s.keys("<ctrl+home>") // the pointer on the merged title
@@ -78,7 +116,7 @@ var layoutScreens = []screen{
 func init() {
 	for _, sc := range layoutScreens {
 		screens = append(screens, sc)
-		if sc.name != "layout-narrow" && sc.name != "layout-high-contrast" {
+		if sc.name != "layout-narrow" && !strings.HasSuffix(sc.name, "-high-contrast") {
 			sc.name += "-light"
 			sc.opts.light = true
 			screens = append(screens, sc)

@@ -91,8 +91,13 @@ type Model struct {
 	errMsg    string // the message ERROR mode shows
 	// borderLine is the line Format > Borders draws with: layoutfmt.go.
 	borderLine sheet.Line
+	// borderColor is the color it draws in: alignfmt.go.
+	borderColor sheet.Color
 	// painted is what borders drew this frame, by role: gridlines.go.
 	painted map[paintKey]string
+	// mergeLines are the lines merges show their values on, worked out
+	// once a frame (see mergeText).
+	mergeLines map[sheet.Rect][2]int
 
 	// Components. Each owns its state and the handling of the input it
 	// takes; Model routes messages to them and composes what they draw.
