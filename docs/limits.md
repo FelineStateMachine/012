@@ -33,6 +33,7 @@ it lags, and past a second it stalls.
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
 | SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 8.7 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 120 fps pacing; per session, the terminal's cell buffers |
 | Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 1 to 4 ms | | Results past the grid (the pivot shows #REF!) | Reading each source cell of its fields: a map lookup each |
+| Arrays and spills | FILTER, SORT or UNIQUE over 8192 rows: about 0.1 ms each per edit; 1000 of them spilling 516 k cells, an edit recomputing 500: 55 ms | Full recalculation of those 1000: 204 ms | An array past `maxArray` values (2,097,152) stored: `#VALUE!`; a spill past the sheet's edge or `max-cells` cells: `#REF!` | Computing each array's values; writing only the spilled cells that changed |
 
 ## Sheet size
 
@@ -399,6 +400,39 @@ times the edit, the recalculation and the pivot together:
 | Rows: 8 x 8 categories with subtotals; columns: 8; SUM and AVERAGE | 75 | 2.7 to 2.9 ms | 2.5 k |
 | Rows: 1000 items sorted by their sum; SUM and COUNTUNIQUE | 1001 | 3.5 to 4.2 ms | 14 k |
 | Frequency table of the 1000 items | 1001 | 2.5 to 2.8 ms | 24 k |
+
+## Arrays and spills
+
+An array stores only its block holding data: a whole column read as one
+(`FILTER(A:A, ...)`, `SORT(B:B)`) holds the rows with data, and the
+blank rows past them are one fill value, spilled as nothing. A range
+read whole is read once per recalculation and shared by every formula
+reading it (`Reader.Forget`), so a thousand FILTERs of one column read
+it once. An array stores at most `maxArray` values (2,097,152; about 64
+MB), past which the formula is `#VALUE!`; a spill writes at most
+`max-cells` cells. Spilled cells are written after each evaluation pass
+(`spill.go`), only those that changed, and not at all when an anchor
+computes the array it already spilled with nothing in its cells
+changed; formulas reading spilled cells that changed are recalculated in
+another pass, at most 64 of them.
+
+`BenchmarkEdit/arrays-1000xFILTER8192` (`internal/stress`: a column of
+8192 numbers beside eight categories, 500 FILTERs of the numbers by a
+category, 1024 rows each, and 500 UNIQUEs of the categories, all from
+row 1, 516 k spilled cells) edits one number, recomputing the 500
+FILTERs, 63 of whose arrays change:
+
+| Measure | Time | Allocated |
+|---|---|---|
+| Edit a number | 55 ms | 161 MB, 8.3 k allocations |
+| Undo and redo it | 110 ms | |
+| Full recalculation | 204 ms | |
+| Build (load and recalculate) | 310 ms | |
+
+Most of an edit is the FILTERs' own work: comparing 8192 categories each
+(`B1:B8192="alpha"`, about 20 ns a value) and picking the rows that
+pass. Array arithmetic allocates the array it computes, so an edit
+allocates about 32 bytes per value its conditions compare.
 
 ## Macros
 

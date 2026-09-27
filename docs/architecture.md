@@ -142,6 +142,20 @@ style.
   constants to formulas, values to copies and exports, refused by `Set`,
   and never saved: the file keeps the definition (`pivotfile.go`). A
   frequency table is a pivot with a preset definition.
+- **Spills.** A formula computing an array (its anchor) shows the first
+  value and spills the rest into the cells to its right and below
+  (`spill.go`): spilled cells are derived cells as a pivot's results
+  are, flagged `spilled`. Each evaluation pass notes the arrays anchors
+  computed; after it, each is written (only the cells that changed, and
+  nothing when the array and its cells are as they were), outside the
+  undo history, then what reads the changed cells is recalculated, which
+  may spill again (at most 64 passes). A sheet indexes its anchors by
+  the cells they cover or would (an interval tree, as range users are),
+  so a cell placed in a spill or in the way of a blocked one has its
+  anchor recalculate, and a spilled cell placed (by undo, a move or a
+  format) keeps only its formatting and note. A blocked anchor shows
+  `#REF!` with the reason. `Set` refuses spilled cells; files keep only
+  the anchor.
 - **JEV.** The engine never touches the network. JEV functions describe a
   question and ask the `Book` for the answer, which the engine looks up
   in the workbook's `RemoteSource`, set with `SetRemote`; `internal/jev`
@@ -152,9 +166,11 @@ style.
 
 `internal/functions` holds the function library: the `FuncDef` table
 (one file per category: `everyday.go`, `math.go`, `stats.go`,
-`logic.go`, `text.go`, `lookup.go`, `date.go`, `finance.go`, `link.go`,
-`jev.go`, which [functions.md](functions.md) is grouped by), the
-evaluation of formulas (`eval.go`: operators and calls), the helpers
+`logic.go`, `text.go`, `regex.go`, `lookup.go`, `dynamic.go`,
+`lambda.go`, `date.go`, `finance.go`, `link.go`, `jev.go`, which
+[functions.md](functions.md) is grouped by), the evaluation of formulas
+(`eval.go`: operators and calls; arrays in `array.go`, functions mapped
+over them in `lift.go`, the names LET and LAMBDA bind in `scope.go`), the helpers
 functions share (arguments and blocks of cells in `args.go`, criteria
 over aligned ranges in `masked.go`, searched lines in `seq.go`), format
 inference for Automatic cells (`format.go`), the decimal twins and
@@ -177,10 +193,30 @@ the engine implements once per sheet (`reader` in `recalc.go`):
 Sheets are named as references write them, so resolving names, missing
 sheets (`#REF!`), cycles and the depth limit stay the engine's. The
 engine finds functions through the table (`LookupFunc`, which the parser
-uses) and evaluates a cell's formula with `functions.EvalAt`, giving the
+uses) and evaluates a cell's formula with `functions.EvalCell`, giving the
 cell's address, so a range used where one value is wanted reads the cell
 in the formula's row or column (implicit intersection; the `Reader`
-keeps the address, and the one before it while formulas nest).
+keeps the address, and the one before it while formulas nest), and
+getting back the array it computed, if any, to spill.
+
+Arrays (`functions.Array`: rows and columns of values, of which only the
+top-left block holding data is stored, the rest one fill value, so a
+whole column read as an array costs what it holds) travel through the
+evaluator as a `Value` of kind `value.Array` whose number indexes the
+`Reader`'s arena, so a cell's `Value` stays as small as it is; the arena
+is emptied when the outermost formula is done. Where an array goes
+depends on what asked: an operator works value by value, a function
+that takes ranges reads it whole (`arrayArg`, `matrixArg`, `each`), and
+anywhere else one value is wanted it reads as its first. In an array
+context (ARRAYFORMULA, or an argument taking ranges) a range reads whole
+and a function of one value is called once with its arguments standing
+in (`liftArg`): those it reads as one value are the ones mapped over, so
+VLOOKUP maps over its keys and not its table without a list of which
+argument is which. Each `FuncDef` says whether it takes one value, may
+pass an array through (IF, IFERROR, INDEX) or takes arrays itself
+(FILTER, LET). Ranges read whole are shared by the formulas of a
+recalculation (`Reader.Forget` empties them as one starts and ends), as
+running aggregates are.
 
 The boundary costs no allocation on the hot paths, which an interface
 usually would: a callback passed through an interface escapes to the

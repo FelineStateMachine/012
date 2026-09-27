@@ -118,8 +118,8 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 
 | Item | Notes | Size |
 |---|---|---|
-| Dynamic arrays: FILTER, SORT, UNIQUE, SEQUENCE, spill ranges, `#SPILL!`; then LET and LAMBDA | The biggest gap in the function library; spills need engine support for ranges a formula owns | L |
-| Text and regex: TEXTJOIN, SPLIT, REGEXMATCH, REGEXEXTRACT, REGEXREPLACE | Sheets staples | S |
+| Dynamic arrays: FILTER, SORT, UNIQUE, SEQUENCE, spill ranges, `#SPILL!`; then LET and LAMBDA. Done: arrays in array contexts and ARRAYFORMULA, spills owned by their formula (`#REF!` with Sheets' explanation when blocked), FILTER, SORT, SORTN, UNIQUE, SEQUENCE, TRANSPOSE, FLATTEN, CHOOSECOLS and CHOOSEROWS, LET, LAMBDA, MAP, REDUCE, SCAN, BYROW, BYCOL and MAKEARRAY, and XLSX's dynamic array formulas; see [formulas.md](docs/formulas.md#arrays-and-spills) | The biggest gap in the function library; spills need engine support for ranges a formula owns | L |
+| Text and regex: TEXTJOIN, SPLIT, REGEXMATCH, REGEXEXTRACT, REGEXREPLACE. Done, on RE2 as Sheets ([formulas.md](docs/formulas.md#regular-expressions)) | Sheets staples | S |
 | Conditional formatting (color scales, rules on values and formulas), drawn in theme roles | Visual; must read under all 349 schemes | M |
 | Data validation: dropdown lists (a picker in the cell), number and date rules, checkboxes | Pairs with the filter picker | M |
 | Wrap text, row heights, borders, merged cells | Layout changes in the grid renderer | M to L |

@@ -26,7 +26,9 @@ adding an entry (and its file), not editing switch statements elsewhere.
 A function goes in the category file of `internal/functions` it belongs
 to (a new file is a new section of functions.md: add it to the
 generator's `categories`), reads its arguments with the shared helpers
-(`numArg`, `matrixArg`, `each`, `criteriaArgs`), and `go test
+(`numArg`, `matrixArg`, `each`, `criteriaArgs`, `arrayArg` for arrays),
+says in `arrays` whether it takes arrays itself or may return one
+(otherwise array contexts map it over arrays for free), and `go test
 ./internal/functions -run FunctionsDoc -update-docs` regenerates the
 reference.
 A new process-wide setting is a `config.Options` entry read with
