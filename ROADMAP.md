@@ -119,4 +119,4 @@ by a gateway dialing the iroh ticket.
 
 **Upkeep**
 
-- `make check` before every push; demo tapes (`make demos`); version tags from v0.1.0: [Testing](docs/contributing/testing.md)
+- `make check` before every push; demo tapes (`make demos`); annotated version tags with release notes (v0.2.0 onward; v0.1.0 remains on the Go module proxy): [Testing](docs/contributing/testing.md)
