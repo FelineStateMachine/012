@@ -42,6 +42,12 @@ func (m *Model) startEntry(md mode, text string) {
 	if m.refusePivot(sheet.Rect{From: m.cur, To: m.cur}) {
 		return
 	}
+	if m.askProtected(sheet.Rect{From: m.cur, To: m.cur}, func(m *Model) tea.Cmd {
+		m.startEntry(md, text)
+		return nil
+	}) {
+		return
+	}
 	m.mode = md
 	m.entry.home = nil
 	m.line.Clear()
@@ -253,6 +259,12 @@ func (m *Model) cancelEntry() {
 func (m *Model) handlePaste(content string) {
 	switch m.mode {
 	case modeReady:
+		if m.askProtected(pasteTextRange(m.cur, content), func(m *Model) tea.Cmd {
+			m.handlePaste(content)
+			return nil
+		}) {
+			return
+		}
 		m.recordFlush()
 		if m.pasteText(content) {
 			m.record(macro.Call("paste_text", content))

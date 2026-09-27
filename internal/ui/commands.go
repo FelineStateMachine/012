@@ -34,6 +34,12 @@ type command struct {
 	// refused, as Sheets refuses (see pivot.go).
 	edits func(m *Model) sheet.Rect
 
+	// changes, when set, is the range whose cells the command changes,
+	// where that's narrower than edits, and false for none: inserting
+	// rows moves the cells below without changing them. Protected ranges
+	// ask before a change to them (see protect.go).
+	changes func(m *Model) (sheet.Rect, bool)
+
 	// macro says how recording and scripts treat the command; see
 	// macroUse.
 	macro macroUse
@@ -169,6 +175,9 @@ func (m *Model) runCommand(id string) tea.Cmd {
 	span := m.spans.Start("command", slog.String("id", id))
 	defer span.End()
 	if c.edits != nil && m.refusePivot(c.edits(m)) {
+		return nil
+	}
+	if m.askCommand(c) {
 		return nil
 	}
 	if m.rec != nil {
