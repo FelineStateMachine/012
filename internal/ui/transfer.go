@@ -182,6 +182,7 @@ func (m *Model) confirmImport(name string, opt fileio.Options) tea.Cmd {
 		return m.startImport(name, opt, placeBook)
 	}
 	m.openOverlay(&choiceBar{
+		m:    m,
 		msg:  "Importing replaces this spreadsheet, which has unsaved changes.",
 		warn: true,
 		choices: []choice{

@@ -83,13 +83,14 @@ func namesItems(m *Model, sel sheet.Rect) []pickItem {
 
 // current is the named range highlighted in the picker, if any.
 func (p *namesPicker) current(m *Model) (sheet.Name, bool) {
-	if p.picker.sel >= len(p.shown) {
+	if p.picker.Sel >= len(p.shown) {
 		return sheet.Name{}, false
 	}
-	return m.sheet.LookupName(p.shown[p.picker.sel].item.title)
+	return m.sheet.LookupName(p.shown[p.picker.Sel].item.title)
 }
 
-func (p *namesPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (p *namesPicker) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := p.m
 	p.msg = ""
 	switch k.String() {
 	case "f2":
@@ -104,16 +105,17 @@ func (p *namesPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 			m.changed = true
 			p.msg = "Deleted " + n.Name + "; Ctrl+Z brings it back"
 			p.items = namesItems(m, p.sel)
-			sel := p.picker.sel
-			p.changed(m)
-			p.picker.sel = max(min(sel, len(p.shown)-1), 0)
+			sel := p.picker.Sel
+			p.Changed()
+			p.picker.Sel = max(min(sel, len(p.shown)-1), 0)
 		}
 		return nil
 	}
-	return p.picker.key(m, k)
+	return p.picker.Key(k)
 }
 
-func (p *namesPicker) status(m *Model) (string, string) {
+func (p *namesPicker) Status() (string, string) {
+	m := p.m
 	keys := m.th.KeyHints("Enter", "go to", "F2", "edit", "Ctrl+D", "delete", "Esc", "close")
 	if _, ok := p.current(m); !ok {
 		keys = m.th.KeyHints("Enter", "add", "Esc", "close")
@@ -121,7 +123,7 @@ func (p *namesPicker) status(m *Model) (string, string) {
 	if p.msg != "" {
 		return p.msg, keys
 	}
-	desc, _ := p.picker.status(m)
+	desc, _ := p.picker.Status()
 	return desc, keys
 }
 

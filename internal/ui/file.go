@@ -269,6 +269,7 @@ func globEscape(dir string) string {
 func (m *Model) handleSaved(msg savedMsg) tea.Cmd {
 	if msg.conflict {
 		m.openOverlay(&choiceBar{
+			m:    m,
 			msg:  filepath.Base(msg.name) + " changed on disk since it was opened.",
 			warn: true,
 			choices: []choice{

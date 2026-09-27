@@ -5,64 +5,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 )
-
-// overlay is a floating box drawn over the grid: a dropdown or context
-// menu, the command palette or a dialog. While one is open it takes every
-// key and mouse event, and Esc closes one level. Overlays are composited
-// on top of the finished screen, so the grid underneath never moves.
-type overlay interface {
-	// indicator is the mode shown at the top right, e.g. "MENU".
-	indicator() string
-	// layout places the overlay's boxes on the screen, bottom first.
-	layout(m *Model) []box
-	key(m *Model, k tea.KeyPressMsg) tea.Cmd
-	mouse(m *Model, e mouseEvent) tea.Cmd
-	// status is what the status line says while the overlay is open: what
-	// the highlighted item does, and the keys that apply.
-	status(m *Model) (desc, keys string)
-}
-
-// textOverlay is an overlay with a text input, which gets the terminal
-// cursor. The text is edited in Model.line, like any other entry.
-type textOverlay interface {
-	overlay
-	cursor(m *Model) (x, y int)
-	changed(m *Model) // the text changed
-}
-
-// box is a rectangle of styled lines at a screen position. Every line has
-// the same display width.
-type box struct {
-	id    string // identifies the box in mouse hit tests
-	x, y  int
-	lines []string
-}
-
-func (b box) width() int  { return ansi.StringWidth(b.lines[0]) }
-func (b box) height() int { return len(b.lines) }
-
-type mouseKind int
-
-const (
-	mousePress mouseKind = iota
-	mouseMotion
-	mouseRelease
-	mouseWheel
-)
-
-// mouseEvent is a mouse event with what's under it already worked out.
-type mouseEvent struct {
-	kind     mouseKind
-	button   tea.MouseButton
-	x, y     int
-	box      string // id of the topmost box under the mouse, "" for none
-	col, row int    // position inside that box
-}
 
 // openOverlay shows o, replacing any open overlay.
-func (m *Model) openOverlay(o overlay) {
+func (m *Model) openOverlay(o overlay.Overlay) {
 	m.overlay = o
 	m.mode = modeMenu
 }
@@ -89,29 +36,29 @@ func (m *Model) runFromOverlay(id string) tea.Cmd {
 
 // compositor stacks boxes over the screen in order, each on its own
 // layer so hit tests find the topmost box.
-func compositor(boxes []box) *lipgloss.Compositor {
+func compositor(boxes []overlay.Box) *lipgloss.Compositor {
 	layers := make([]*lipgloss.Layer, len(boxes))
 	for i, b := range boxes {
-		layers[i] = lipgloss.NewLayer(strings.Join(b.lines, "\n")).X(b.x).Y(b.y).Z(i + 1).ID(b.id)
+		layers[i] = lipgloss.NewLayer(strings.Join(b.Lines, "\n")).X(b.X).Y(b.Y).Z(i + 1).ID(b.ID)
 	}
 	return lipgloss.NewCompositor(layers...)
 }
 
 // floating returns the boxes drawn over the screen: the open overlay's,
 // or the formula suggestions while typing.
-func (m *Model) floating() []box {
+func (m *Model) floating() []overlay.Box {
 	if m.overlay != nil {
-		return m.overlay.layout(m)
+		return m.overlay.Layout()
 	}
 	if b, ok := m.entry.assist.box(m); ok {
-		return []box{b}
+		return []overlay.Box{b}
 	}
 	return nil
 }
 
 // compose draws the charts floating over the grid, then boxes (the open
 // overlay or formula suggestions), over the rendered screen.
-func (m *Model) compose(screen string, boxes []box) string {
+func (m *Model) compose(screen string, boxes []overlay.Box) string {
 	c := lipgloss.NewCanvas(m.width, m.height)
 	c.Compose(lipgloss.NewLayer(screen))
 	if charts := m.chartBoxes(); len(charts) > 0 {
@@ -157,38 +104,20 @@ func (m *Model) shellMouse(msg tea.MouseMsg) (tea.Cmd, bool) {
 // position under the mouse.
 func (m *Model) overlayMouse(msg tea.MouseMsg) tea.Cmd {
 	mouse := msg.Mouse()
-	e := mouseEvent{button: mouse.Button, x: mouse.X, y: mouse.Y}
+	e := overlay.MouseEvent{Button: mouse.Button, X: mouse.X, Y: mouse.Y}
 	switch msg.(type) {
 	case tea.MouseClickMsg:
-		e.kind = mousePress
+		e.Kind = overlay.MousePress
 	case tea.MouseMotionMsg:
-		e.kind = mouseMotion
+		e.Kind = overlay.MouseMotion
 	case tea.MouseReleaseMsg:
-		e.kind = mouseRelease
+		e.Kind = overlay.MouseRelease
 	case tea.MouseWheelMsg:
-		e.kind = mouseWheel
+		e.Kind = overlay.MouseWheel
 	}
-	if h := compositor(m.overlay.layout(m)).Hit(e.x, e.y); !h.Empty() {
-		e.box = h.ID()
-		e.col, e.row = e.x-h.Bounds().Min.X, e.y-h.Bounds().Min.Y
+	if h := compositor(m.overlay.Layout()).Hit(e.X, e.Y); !h.Empty() {
+		e.Box = h.ID()
+		e.Col, e.Row = e.X-h.Bounds().Min.X, e.Y-h.Bounds().Min.Y
 	}
-	return m.overlay.mouse(m, e)
-}
-
-// list is the highlighted row and scroll position of a list in a box.
-type list struct {
-	sel, top int
-}
-
-// move highlights the row d steps away, wrapping around the ends.
-func (l *list) move(d, n int) {
-	if n > 0 {
-		l.sel = ((l.sel+d)%n + n) % n
-	}
-}
-
-// show scrolls so the highlighted row is among the rows visible ones.
-func (l *list) show(rows int) {
-	l.top = clamp(l.top, l.sel-rows+1, l.sel)
-	l.top = max(l.top, 0)
+	return m.overlay.Mouse(e)
 }

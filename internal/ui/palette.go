@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -96,13 +97,14 @@ type pickMatch struct {
 // the highlighted result's description on the status line. The search is
 // edited in Model.line with the usual line-editing keys.
 type picker struct {
+	m           *Model // the model it acts on
 	title       string
 	placeholder string
 	maxW        int
 	action      string // what Enter does, for the key hints
 	items       []pickItem
 	shown       []pickMatch
-	list
+	overlay.List
 
 	// enter, when set, gets the first look at Enter with the search text,
 	// e.g. to take a typed path; it reports whether it handled it.
@@ -120,18 +122,19 @@ const (
 )
 
 func newPicker(m *Model, title, placeholder string, maxW int, items []pickItem) *picker {
-	p := &picker{title: title, placeholder: placeholder, maxW: maxW, items: items}
+	p := &picker{m: m, title: title, placeholder: placeholder, maxW: maxW, items: items}
 	m.line.clear()
-	p.changed(m)
+	p.Changed()
 	return p
 }
 
-func (p *picker) indicator() string { return "MENU" }
+func (p *picker) Indicator() string { return "MENU" }
 
-// changed filters the items by the search. Best matches come first; ties
+// Changed filters the items by the search. Best matches come first; ties
 // keep menu order.
-func (p *picker) changed(m *Model) {
-	p.sel, p.top = 0, 0
+func (p *picker) Changed() {
+	m := p.m
+	p.Sel, p.Top = 0, 0
 	p.shown = p.shown[:0]
 	q := strings.TrimSpace(m.line.text())
 	if q == "" {
@@ -208,17 +211,18 @@ func wordPrefix(title, q string) bool {
 	return false
 }
 
-func (p *picker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (p *picker) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := p.m
 	rows := p.rows(m)
 	switch k.String() {
 	case "up", "ctrl+p", "shift+tab":
-		p.move(-1, len(p.shown))
+		p.Move(-1, len(p.shown))
 	case "down", "ctrl+n", "tab":
-		p.move(1, len(p.shown))
+		p.Move(1, len(p.shown))
 	case "pgup":
-		p.sel = max(p.sel-rows, 0)
+		p.Sel = max(p.Sel-rows, 0)
 	case "pgdown":
-		p.sel = max(min(p.sel+rows, len(p.shown)-1), 0)
+		p.Sel = max(min(p.Sel+rows, len(p.shown)-1), 0)
 	case "enter":
 		return p.pick(m)
 	case "esc":
@@ -227,7 +231,7 @@ func (p *picker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 		before := m.line.text()
 		m.line.key(k)
 		if m.line.text() != before {
-			p.changed(m)
+			p.Changed()
 		}
 	}
 	return nil
@@ -239,10 +243,10 @@ func (p *picker) pick(m *Model) tea.Cmd {
 			return cmd
 		}
 	}
-	if p.sel >= len(p.shown) || p.shown[p.sel].item.off {
+	if p.Sel >= len(p.shown) || p.shown[p.Sel].item.off {
 		return nil
 	}
-	it := p.shown[p.sel].item
+	it := p.shown[p.Sel].item
 	cmd := it.pick(m)
 	if p.answers {
 		m.recordAnswer(it.title, false)
@@ -274,35 +278,37 @@ func (p *picker) answer(m *Model, title string) (tea.Cmd, bool) {
 // the results.
 const pickerFirstRow = 3
 
-func (p *picker) mouse(m *Model, e mouseEvent) tea.Cmd {
-	if e.box != pickerID {
-		if e.kind == mousePress {
+func (p *picker) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := p.m
+	if e.Box != pickerID {
+		if e.Kind == overlay.MousePress {
 			p.close(m)
 		}
 		return nil
 	}
-	i := p.top + e.row - pickerFirstRow
+	i := p.Top + e.Row - pickerFirstRow
 	switch {
-	case e.kind == mouseWheel && e.button == tea.MouseWheelUp:
-		p.move(-1, len(p.shown))
-	case e.kind == mouseWheel && e.button == tea.MouseWheelDown:
-		p.move(1, len(p.shown))
-	case e.row < pickerFirstRow || i >= len(p.shown) || i >= p.top+p.rows(m):
-	case e.kind == mouseMotion:
-		p.sel = i
-	case e.kind == mousePress && e.button == tea.MouseLeft:
-		p.sel = i
+	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelUp:
+		p.Move(-1, len(p.shown))
+	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelDown:
+		p.Move(1, len(p.shown))
+	case e.Row < pickerFirstRow || i >= len(p.shown) || i >= p.Top+p.rows(m):
+	case e.Kind == overlay.MouseMotion:
+		p.Sel = i
+	case e.Kind == overlay.MousePress && e.Button == tea.MouseLeft:
+		p.Sel = i
 		return p.pick(m)
 	}
 	return nil
 }
 
-func (p *picker) status(m *Model) (string, string) {
+func (p *picker) Status() (string, string) {
+	m := p.m
 	keys := m.th.KeyHints("Up/Down", "move", "Enter", cmp.Or(p.action, "run"), "Esc", "close")
-	if p.sel >= len(p.shown) {
+	if p.Sel >= len(p.shown) {
 		return "", keys
 	}
-	it := p.shown[p.sel].item
+	it := p.shown[p.Sel].item
 	if it.off {
 		return it.desc + " (not available now)", keys
 	}
@@ -328,16 +334,18 @@ func (p *picker) box(m *Model) (x, y, inner int) {
 	return (m.width - inner - 2) / 2, menuLine + 1, inner
 }
 
-func (p *picker) cursor(m *Model) (int, int) {
+func (p *picker) Cursor() (int, int) {
+	m := p.m
 	x, y, _ := p.box(m)
 	return x + 1 + ansi.StringWidth(searchPrompt) + ansi.StringWidth(m.line.head()), y + 1
 }
 
-func (p *picker) layout(m *Model) []box {
+func (p *picker) Layout() []overlay.Box {
+	m := p.m
 	x, y, inner := p.box(m)
 	rows := p.rows(m)
 	if len(p.shown) > 0 {
-		p.show(rows)
+		p.Show(rows)
 	}
 	input := m.th.Title.Render(searchPrompt) + m.line.text()
 	if len(m.line.buf) == 0 {
@@ -346,7 +354,7 @@ func (p *picker) layout(m *Model) []box {
 	lines := []string{theme.Cells(m.th.MenuBar, input, inner), theme.SepRow}
 	lines = append(lines, p.resultRows(m, inner, rows)...)
 	footer := strconv.Itoa(len(p.shown)) + " of " + strconv.Itoa(len(p.items))
-	return []box{{id: pickerID, x: x, y: y, lines: m.th.Frame(inner, p.title, footer, lines)}}
+	return []overlay.Box{{ID: pickerID, X: x, Y: y, Lines: m.th.Frame(inner, p.title, footer, lines)}}
 }
 
 // resultRows lays out the visible results in columns: title, detail and
@@ -364,7 +372,7 @@ func (p *picker) resultRows(m *Model, inner, rows int) []string {
 	dw := inner - 1 - tw - 3 - kw - 2
 	out := make([]string, 0, rows)
 	for r := range rows {
-		i := p.top + r
+		i := p.Top + r
 		if i >= len(p.shown) {
 			text := ""
 			if r == 0 {
@@ -376,7 +384,7 @@ func (p *picker) resultRows(m *Model, inner, rows int) []string {
 		pm := p.shown[i]
 		base, dim, hl := m.th.MenuBar, m.th.Muted, m.th.Match
 		switch {
-		case i == p.sel:
+		case i == p.Sel:
 			base, dim, hl = m.th.MenuSelected, m.th.MenuSelected, m.th.MatchSelected
 		case pm.item.off:
 			base, dim, hl = m.th.Disabled, m.th.Disabled, m.th.Disabled
@@ -388,7 +396,7 @@ func (p *picker) resultRows(m *Model, inner, rows int) []string {
 		k := ""
 		switch {
 		case pm.item.key == "":
-		case i == p.sel:
+		case i == p.Sel:
 			k = base.Render(" " + pm.item.key + " ")
 		case pm.item.off:
 			k = m.th.Disabled.Render(" " + pm.item.key + " ")

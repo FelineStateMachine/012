@@ -14,6 +14,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -136,7 +137,7 @@ func (m *Model) indicator() string {
 	case m.macros.run != nil:
 		return "CMD" // 1-2-3's indicator while a macro runs
 	case m.overlay != nil:
-		return m.overlay.indicator()
+		return m.overlay.Indicator()
 	case m.mode == modePrompt:
 		return m.prompt.indicator
 	case m.vimActive() && m.visual() != visualNone:
@@ -220,15 +221,8 @@ func (m *Model) contextLineText() string {
 			left = m.recordingLine()
 		}
 	case m.mode == modeMenu:
-		switch o := m.overlay.(type) {
-		case *choiceBar:
-			left = o.line(m)
-		case *findBar:
-			left, right = o.line(m)
-		case contextLiner:
-			left, right = o.contextLine(m)
-		case *sortBar:
-			left = o.line(m)
+		if o, ok := m.overlay.(overlay.Liner); ok {
+			left, right = o.ContextLine()
 		}
 	case m.mode == modePrompt:
 		left, right = m.prompt.line(m)
@@ -264,8 +258,8 @@ func (m *Model) spread(left, right string) string {
 // while typing an entry, on the context line in a text prompt, or in an
 // overlay's search field.
 func (m *Model) cursorPos() (x, y int, ok bool) {
-	if o, isText := m.overlay.(textOverlay); isText {
-		x, y = o.cursor(m)
+	if o, isText := m.overlay.(overlay.Text); isText {
+		x, y = o.Cursor()
 		return x, y, true
 	}
 	switch {
@@ -305,7 +299,7 @@ func (m *Model) statusLayout() (string, []tabSpan) {
 func (m *Model) floatingStatus() (string, bool) {
 	desc, keys, floating := m.entry.assist.status(m)
 	if m.overlay != nil {
-		desc, keys = m.overlay.status(m)
+		desc, keys = m.overlay.Status()
 		floating = true
 	}
 	if !floating || desc == "" && keys == "" {

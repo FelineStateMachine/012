@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 )
 
 // chartEditor is the chart editor: a bar on the context line, in the
@@ -15,6 +16,7 @@ import (
 // as toggles. Changes show at once; Enter keeps them and Esc undoes them,
 // removing a chart that was just inserted.
 type chartEditor struct {
+	m     *Model // the model it acts on
 	i     int
 	start int // the sheet's state before editing, to undo back to
 	isNew bool
@@ -27,12 +29,12 @@ func (m *Model) openChartEditor(i int, isNew bool, start int) {
 		return
 	}
 	m.charts.last = i
-	m.openOverlay(&chartEditor{i: i, start: start, isNew: isNew})
+	m.openOverlay(&chartEditor{m: m, i: i, start: start, isNew: isNew})
 }
 
-func (e *chartEditor) indicator() string { return "CHART" }
+func (e *chartEditor) Indicator() string { return "CHART" }
 
-func (e *chartEditor) layout(*Model) []box { return nil }
+func (e *chartEditor) Layout() []overlay.Box { return nil }
 
 func (e *chartEditor) chart(m *Model) sheet.Chart { return m.sheet.Charts()[e.i] }
 
@@ -44,7 +46,8 @@ func (e *chartEditor) set(m *Model, fn func(c *sheet.Chart)) {
 	m.changed = m.sheet.StateID() != m.saved
 }
 
-func (e *chartEditor) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (e *chartEditor) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := e.m
 	if e.i >= len(m.sheet.Charts()) {
 		m.closeOverlay()
 		return nil
@@ -176,7 +179,8 @@ func (e *chartEditor) spans(m *Model) ([]editorPart, []int) {
 	}
 }
 
-func (e *chartEditor) contextLine(m *Model) (string, string) {
+func (e *chartEditor) ContextLine() (string, string) {
+	m := e.m
 	if e.i >= len(m.sheet.Charts()) {
 		return "", ""
 	}
@@ -189,25 +193,27 @@ func (e *chartEditor) contextLine(m *Model) (string, string) {
 	return b.String(), ""
 }
 
-func (e *chartEditor) mouse(m *Model, ev mouseEvent) tea.Cmd {
-	if ev.kind != mousePress {
+func (e *chartEditor) Mouse(ev overlay.MouseEvent) tea.Cmd {
+	m := e.m
+	if ev.Kind != overlay.MousePress {
 		return nil
 	}
-	if ev.y != contextLine {
+	if ev.Y != contextLine {
 		// A click elsewhere keeps the changes and acts as usual.
 		m.closeOverlay()
-		return m.handlePress(tea.Mouse{X: ev.x, Y: ev.y, Button: ev.button})
+		return m.handlePress(tea.Mouse{X: ev.X, Y: ev.Y, Button: ev.Button})
 	}
 	parts, xs := e.spans(m)
 	for i, p := range parts {
-		if ev.x >= xs[i] && ev.x < xs[i]+ansi.StringWidth(p.text) {
-			return e.key(m, tea.KeyPressMsg{Code: rune(p.key[0]), Text: p.key})
+		if ev.X >= xs[i] && ev.X < xs[i]+ansi.StringWidth(p.text) {
+			return e.Key(tea.KeyPressMsg{Code: rune(p.key[0]), Text: p.key})
 		}
 	}
 	return nil
 }
 
-func (e *chartEditor) status(m *Model) (string, string) {
+func (e *chartEditor) Status() (string, string) {
+	m := e.m
 	pairs := []string{"←/→", "type", "S", "switch rows/columns", "H", "header", "L", "labels", "R", "range", "T", "title", "Enter", "done", "Esc", "cancel"}
 	for {
 		keys := m.th.KeyHints(pairs...)
@@ -216,12 +222,6 @@ func (e *chartEditor) status(m *Model) (string, string) {
 		}
 		pairs = append(pairs[:len(pairs)-6], pairs[len(pairs)-4:]...) // keep Enter and Esc
 	}
-}
-
-// contextLiner is an overlay drawn on the context line, like the chart
-// editor.
-type contextLiner interface {
-	contextLine(m *Model) (left, right string)
 }
 
 // Editor keys, also the toggles' mouse targets.

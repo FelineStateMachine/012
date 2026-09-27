@@ -9,6 +9,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 )
 
 // Sorting follows Sheets' Data menu: sort the sheet or a range by the
@@ -127,6 +128,7 @@ func (g *grid) looksLikeHeader(r sheet.Rect) bool {
 
 // sortBar picks the columns and order to sort a range by.
 type sortBar struct {
+	m       *Model     // the model it acts on
 	rng     sheet.Rect // the whole range, header rows included
 	headers int        // header rows at the top of rng; 0 when switched off
 	guess   int        // header rows to use when switched on
@@ -136,7 +138,7 @@ type sortBar struct {
 
 func (m *Model) openSortBar() {
 	r := m.dataRange()
-	b := &sortBar{rng: r, headers: m.headerRows(r, m.hasRange())}
+	b := &sortBar{m: m, rng: r, headers: m.headerRows(r, m.hasRange())}
 	b.guess = max(b.headers, 1)
 	b.keys = []sheet.SortKey{{Col: clamp(m.cur.Col, r.From.Col, r.To.Col)}}
 	m.openOverlay(b)
@@ -166,8 +168,8 @@ func (m *Model) barActive() (sheet.Addr, bool) {
 	return sheet.Addr{}, false
 }
 
-func (b *sortBar) indicator() string   { return "SORT" }
-func (b *sortBar) layout(*Model) []box { return nil }
+func (b *sortBar) Indicator() string     { return "SORT" }
+func (b *sortBar) Layout() []overlay.Box { return nil }
 
 // setCol points the focused key at column c, if it's in the range.
 func (b *sortBar) setCol(c int) {
@@ -192,7 +194,8 @@ func (b *sortBar) add() {
 	}
 }
 
-func (b *sortBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (b *sortBar) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := b.m
 	key := k.String()
 	switch key {
 	case "esc":
@@ -269,32 +272,33 @@ func (b *sortBar) parts(m *Model) []sortPart {
 	return parts
 }
 
-// line renders the bar for the context line.
-func (b *sortBar) line(m *Model) string {
+// ContextLine renders the bar for the context line.
+func (b *sortBar) ContextLine() (string, string) {
 	var s strings.Builder
-	for _, p := range b.parts(m) {
+	for _, p := range b.parts(b.m) {
 		s.WriteString(p.text)
 	}
-	return s.String()
+	return s.String(), ""
 }
 
-// mouse focuses a key's chip (a second click flips its order) or flips
+// Mouse focuses a key's chip (a second click flips its order) or flips
 // the header row toggle; a click anywhere else cancels.
-func (b *sortBar) mouse(m *Model, e mouseEvent) tea.Cmd {
-	if e.kind != mousePress {
+func (b *sortBar) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := b.m
+	if e.Kind != overlay.MousePress {
 		return nil
 	}
-	if e.y != contextLine {
+	if e.Y != contextLine {
 		m.closeOverlay()
 		return nil
 	}
 	x := 0
 	for _, p := range b.parts(m) {
 		w := ansi.StringWidth(p.text)
-		if e.x >= x && e.x < x+w {
+		if e.X >= x && e.X < x+w {
 			switch {
 			case p.toggle:
-				return b.key(m, keyFor("alt+h"))
+				return b.Key(keyFor("alt+h"))
 			case p.key == b.cur:
 				b.keys[b.cur].Desc = !b.keys[b.cur].Desc
 			case p.key >= 0:
@@ -307,8 +311,9 @@ func (b *sortBar) mouse(m *Model, e mouseEvent) tea.Cmd {
 	return nil
 }
 
-// status shows the keys, the most useful ones first on narrow screens.
-func (b *sortBar) status(m *Model) (string, string) {
+// Status shows the keys, the most useful ones first on narrow screens.
+func (b *sortBar) Status() (string, string) {
+	m := b.m
 	pairs := []string{"Left/Right", "column", "Space", "order", "Enter", "sort", "Esc", "cancel"}
 	desc := "Alt+A add  Alt+H header  Tab next"
 	for {

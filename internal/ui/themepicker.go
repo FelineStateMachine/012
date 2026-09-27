@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/config"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -44,44 +45,47 @@ func newThemePicker(m *Model) *themePicker {
 	}
 	tp := &themePicker{picker: newPicker(m, "Theme", "Type a name, dark or light", 64, items)}
 	tp.action = "keep"
-	tp.sel = sel
+	tp.Sel = sel
 	tp.preview(m)
 	return tp
 }
 
-func (tp *themePicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (tp *themePicker) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := tp.m
 	if k.String() == "esc" {
 		tp.restore(m)
 	}
-	cmd := tp.picker.key(m, k)
+	cmd := tp.picker.Key(k)
 	if m.overlay == tp {
 		tp.preview(m)
 	}
 	return cmd
 }
 
-func (tp *themePicker) mouse(m *Model, e mouseEvent) tea.Cmd {
-	if e.box != pickerID && e.kind == mousePress {
+func (tp *themePicker) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := tp.m
+	if e.Box != pickerID && e.Kind == overlay.MousePress {
 		tp.restore(m)
 	}
-	cmd := tp.picker.mouse(m, e)
+	cmd := tp.picker.Mouse(e)
 	if m.overlay == tp {
 		tp.preview(m)
 	}
 	return cmd
 }
 
-func (tp *themePicker) changed(m *Model) {
-	tp.picker.changed(m)
+func (tp *themePicker) Changed() {
+	m := tp.m
+	tp.picker.Changed()
 	tp.preview(m)
 }
 
 // preview draws the highlighted theme.
 func (tp *themePicker) preview(m *Model) {
-	if tp.sel >= len(tp.shown) {
+	if tp.Sel >= len(tp.shown) {
 		return
 	}
-	name := tp.shown[tp.sel].item.title
+	name := tp.shown[tp.Sel].item.title
 	if name == tp.shownName {
 		return
 	}

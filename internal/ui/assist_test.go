@@ -101,7 +101,7 @@ func TestAutocompleteNamesAndMouse(t *testing.T) {
 	}
 	// Clicking a suggestion inserts it.
 	b, _ := m.entry.assist.box(m)
-	send(m, tea.MouseClickMsg{X: b.x + 3, Y: b.y + 1, Button: tea.MouseLeft})
+	send(m, tea.MouseClickMsg{X: b.X + 3, Y: b.Y + 1, Button: tea.MouseLeft})
 	if m.line.text() != "=SUM(Sales" || m.line.pos != start+5 {
 		t.Fatalf("click: %q", m.line.text())
 	}

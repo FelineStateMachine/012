@@ -10,6 +10,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/chart"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -190,8 +191,8 @@ func (m *Model) selectedChart() int {
 
 // chartBoxes draws the charts on screen, clipped to the grid, bottom
 // first.
-func (m *Model) chartBoxes() []box {
-	var boxes []box
+func (m *Model) chartBoxes() []overlay.Box {
+	var boxes []overlay.Box
 	sel := m.selectedChart()
 	top, bottom := gridTop, gridTop+m.visibleRows()
 	for i, c := range m.displayCharts() {
@@ -202,13 +203,13 @@ func (m *Model) chartBoxes() []box {
 		lines := m.drawChart(i, c, i == sel)
 		// Clip to the grid: the headers and panel stay on top.
 		from, to := max(m.hdrW()-x, 0), min(c.W, m.width-x)
-		b := box{id: chartBoxID(i), x: x + from, y: max(y, top)}
+		b := overlay.Box{ID: chartBoxID(i), X: x + from, Y: max(y, top)}
 		for k, l := range lines {
 			if y+k >= top && y+k < bottom {
-				b.lines = append(b.lines, ansi.Cut(l, from, to))
+				b.Lines = append(b.Lines, ansi.Cut(l, from, to))
 			}
 		}
-		if len(b.lines) > 0 && to > from {
+		if len(b.Lines) > 0 && to > from {
 			boxes = append(boxes, b)
 		}
 	}
@@ -336,7 +337,7 @@ var chartMenu = []menuItem{{cmd: "chart.edit"}, {cmd: "chart.delete"}}
 func (m *Model) selectChart(i int) {
 	m.clearSelection()
 	m.charts.last = i
-	m.openOverlay(&chartSel{i: i})
+	m.openOverlay(&chartSel{m: m, i: i})
 }
 
 // setShape sets the terminal's pointer shape, if it changed.

@@ -11,6 +11,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -22,7 +23,8 @@ import (
 // there's no second list of commands to keep up.
 
 type cmdLine struct {
-	list
+	m *Model // the model it acts on
+	overlay.List
 	shown  []cmdItem
 	tabbed bool // the text is a completion Tab put there; Tab again moves on
 }
@@ -52,21 +54,22 @@ func init() {
 	register(&command{id: "vim.command", macro: macroNever, title: "Command line",
 		desc: "Type a command: a cell to go to (B12), w, q, wq, e file, or any command by name",
 		run: func(m *Model) tea.Cmd {
-			c := &cmdLine{}
+			c := &cmdLine{m: m}
 			m.line.clear()
 			m.openOverlay(c)
-			c.changed(m)
+			c.Changed()
 			return nil
 		}})
 }
 
-func (c *cmdLine) indicator() string { return "COMMAND" }
+func (c *cmdLine) Indicator() string { return "COMMAND" }
 
-// changed completes what's typed: file commands, then commands whose ID
+// Changed completes what's typed: file commands, then commands whose ID
 // or title starts with it, then those that contain it. Nothing is
 // completed once a file command's argument follows.
-func (c *cmdLine) changed(m *Model) {
-	c.sel, c.top, c.tabbed = 0, 0, false
+func (c *cmdLine) Changed() {
+	m := c.m
+	c.Sel, c.Top, c.tabbed = 0, 0, false
 	c.shown = c.shown[:0]
 	q := strings.ToLower(strings.TrimPrefix(strings.TrimLeft(m.line.text(), " "), ":"))
 	if word, _, arg := strings.Cut(q, " "); arg && isFileWord(word) {
@@ -111,7 +114,8 @@ func commandIDs() []string {
 	return ids
 }
 
-func (c *cmdLine) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (c *cmdLine) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := c.m
 	switch key := k.String(); {
 	case key == "esc", key == "backspace" && len(m.line.buf) == 0:
 		m.closeOverlay()
@@ -122,14 +126,14 @@ func (c *cmdLine) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 	case key == "shift+tab":
 		c.complete(m, -1)
 	case key == "up", key == "ctrl+p":
-		c.move(-1, len(c.shown))
+		c.Move(-1, len(c.shown))
 	case key == "down", key == "ctrl+n":
-		c.move(1, len(c.shown))
+		c.Move(1, len(c.shown))
 	default:
 		before := m.line.text()
 		m.line.key(k)
 		if m.line.text() != before {
-			c.changed(m)
+			c.Changed()
 		}
 	}
 	return nil
@@ -142,9 +146,9 @@ func (c *cmdLine) complete(m *Model, d int) {
 		return
 	}
 	if c.tabbed {
-		c.move(d, len(c.shown))
+		c.Move(d, len(c.shown))
 	}
-	m.line.set(c.shown[c.sel].word)
+	m.line.set(c.shown[c.Sel].word)
 	c.tabbed = true
 }
 
@@ -154,8 +158,8 @@ func (c *cmdLine) complete(m *Model, d int) {
 func (c *cmdLine) run(m *Model) tea.Cmd {
 	text := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(m.line.text()), ":"))
 	fallback := ""
-	if c.sel < len(c.shown) {
-		fallback = c.shown[c.sel].word
+	if c.Sel < len(c.shown) {
+		fallback = c.shown[c.Sel].word
 	}
 	m.closeOverlay()
 	if text == "" {
@@ -264,20 +268,23 @@ func (m *Model) editFile(name string, force bool) tea.Cmd {
 	return m.openFile(name)
 }
 
-func (c *cmdLine) contextLine(m *Model) (string, string) {
+func (c *cmdLine) ContextLine() (string, string) {
+	m := c.m
 	return m.th.Title.Render(":") + m.line.text(), ""
 }
 
-func (c *cmdLine) cursor(m *Model) (int, int) {
+func (c *cmdLine) Cursor() (int, int) {
+	m := c.m
 	return 1 + ansi.StringWidth(m.line.head()), contextLine
 }
 
-func (c *cmdLine) status(m *Model) (string, string) {
+func (c *cmdLine) Status() (string, string) {
+	m := c.m
 	keys := m.th.KeyHints("Tab", "complete", "Enter", "run", "Esc", "cancel")
-	if c.sel >= len(c.shown) {
+	if c.Sel >= len(c.shown) {
 		return "", keys
 	}
-	it := c.shown[c.sel]
+	it := c.shown[c.Sel]
 	if it.off {
 		return it.desc + " (not available now)", keys
 	}
@@ -289,14 +296,15 @@ func (c *cmdLine) rows(m *Model) int {
 	return max(min(len(c.shown), 8, m.height-contextLine-4), 0)
 }
 
-// layout draws the completions in a box under the context line: title,
+// Layout draws the completions in a box under the context line: title,
 // what Tab types, and the shortcut.
-func (c *cmdLine) layout(m *Model) []box {
+func (c *cmdLine) Layout() []overlay.Box {
+	m := c.m
 	rows := c.rows(m)
 	if rows == 0 {
 		return nil
 	}
-	c.show(rows)
+	c.Show(rows)
 	tw, ww, kw := 0, 0, 0
 	for _, it := range c.shown {
 		tw = max(tw, ansi.StringWidth(it.title))
@@ -311,11 +319,11 @@ func (c *cmdLine) layout(m *Model) []box {
 	ww = max(min(ww, inner-1-tw-2-kw-2), 0)
 	lines := make([]string, rows)
 	for r := range rows {
-		i := c.top + r
+		i := c.Top + r
 		it := c.shown[i]
 		base, dim := m.th.MenuBar, m.th.Muted
 		switch {
-		case i == c.sel:
+		case i == c.Sel:
 			base, dim = m.th.MenuSelected, m.th.MenuSelected
 		case it.off:
 			base, dim = m.th.Disabled, m.th.Disabled
@@ -325,7 +333,7 @@ func (c *cmdLine) layout(m *Model) []box {
 		k := ""
 		switch {
 		case it.key == "":
-		case i == c.sel || it.off:
+		case i == c.Sel || it.off:
 			k = base.Render(" " + it.key + " ")
 		default:
 			k = m.th.Chip(it.key)
@@ -333,29 +341,30 @@ func (c *cmdLine) layout(m *Model) []box {
 		row += base.Render(strings.Repeat(" ", max(inner-ansi.StringWidth(row)-ansi.StringWidth(k)-1, 0))) + k + base.Render(" ")
 		lines[r] = ansi.Truncate(row, inner, "")
 	}
-	footer := strconv.Itoa(c.sel+1) + " of " + strconv.Itoa(len(c.shown))
-	return []box{{id: cmdLineID, x: 0, y: contextLine + 1, lines: m.th.Frame(inner, "Commands", footer, lines)}}
+	footer := strconv.Itoa(c.Sel+1) + " of " + strconv.Itoa(len(c.shown))
+	return []overlay.Box{{ID: cmdLineID, X: 0, Y: contextLine + 1, Lines: m.th.Frame(inner, "Commands", footer, lines)}}
 }
 
-func (c *cmdLine) mouse(m *Model, e mouseEvent) tea.Cmd {
-	if e.box != cmdLineID {
-		if e.kind == mousePress {
+func (c *cmdLine) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := c.m
+	if e.Box != cmdLineID {
+		if e.Kind == overlay.MousePress {
 			m.closeOverlay()
 		}
 		return nil
 	}
-	i := c.top + e.row - 1 // under the top border
+	i := c.Top + e.Row - 1 // under the top border
 	switch {
-	case e.kind == mouseWheel && e.button == tea.MouseWheelUp:
-		c.move(-1, len(c.shown))
-	case e.kind == mouseWheel && e.button == tea.MouseWheelDown:
-		c.move(1, len(c.shown))
-	case e.row < 1 || i >= len(c.shown) || i >= c.top+c.rows(m):
-	case e.kind == mouseMotion:
-		c.sel = i
-	case e.kind == mousePress && e.button == tea.MouseLeft:
+	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelUp:
+		c.Move(-1, len(c.shown))
+	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelDown:
+		c.Move(1, len(c.shown))
+	case e.Row < 1 || i >= len(c.shown) || i >= c.Top+c.rows(m):
+	case e.Kind == overlay.MouseMotion:
+		c.Sel = i
+	case e.Kind == overlay.MousePress && e.Button == tea.MouseLeft:
 		m.line.set(c.shown[i].word)
-		c.sel = i
+		c.Sel = i
 		return c.run(m)
 	}
 	return nil

@@ -10,6 +10,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/formula"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -149,14 +150,14 @@ func (a *assist) accept(m *Model, s suggestion, start int) {
 
 // box draws the list under the formula bar, its text aligned with
 // the word being typed: the name, then the signature or range dimmed.
-func (a *assist) box(m *Model) (box, bool) {
+func (a *assist) box(m *Model) (overlay.Box, bool) {
 	list, start := a.shown(m)
 	if list == nil {
-		return box{}, false
+		return overlay.Box{}, false
 	}
 	rows := min(len(list), assistRows, m.height-gridTop-2)
 	if rows < 1 {
-		return box{}, false
+		return overlay.Box{}, false
 	}
 	a.top = clamp(a.top, a.sel-rows+1, a.sel)
 	a.top = clamp(a.top, 0, len(list)-rows)
@@ -187,7 +188,7 @@ func (a *assist) box(m *Model) (box, bool) {
 	// The box's text starts one column in, under the word's first letter.
 	x := formulaBarTextX() + ansi.StringWidth(string(m.line.buf[:start])) - 2
 	x = clamp(x, 0, max(m.width-inner-2, 0))
-	return box{id: assistID, x: x, y: contextLine + 1, lines: m.th.Frame(inner, "", footer, lines)}, true
+	return overlay.Box{ID: assistID, X: x, Y: contextLine + 1, Lines: m.th.Frame(inner, "", footer, lines)}, true
 }
 
 // mouse lets the mouse hover and click suggestions and scroll the
@@ -198,12 +199,12 @@ func (a *assist) mouse(m *Model, msg tea.MouseMsg) bool {
 		return false
 	}
 	mouse := msg.Mouse()
-	h := compositor([]box{b}).Hit(mouse.X, mouse.Y)
+	h := compositor([]overlay.Box{b}).Hit(mouse.X, mouse.Y)
 	if h.Empty() {
 		return false
 	}
 	list, start := a.shown(m)
-	i := a.top + mouse.Y - b.y - 1
+	i := a.top + mouse.Y - b.Y - 1
 	switch msg.(type) {
 	case tea.MouseWheelMsg:
 		d := 1
@@ -212,11 +213,11 @@ func (a *assist) mouse(m *Model, msg tea.MouseMsg) bool {
 		}
 		a.sel = clamp(a.sel+d, 0, len(list)-1)
 	case tea.MouseMotionMsg:
-		if i >= a.top && i < min(len(list), a.top+b.height()-2) {
+		if i >= a.top && i < min(len(list), a.top+b.Height()-2) {
 			a.sel = i
 		}
 	case tea.MouseClickMsg:
-		if mouse.Button == tea.MouseLeft && i >= a.top && i < min(len(list), a.top+b.height()-2) {
+		if mouse.Button == tea.MouseLeft && i >= a.top && i < min(len(list), a.top+b.Height()-2) {
 			a.accept(m, list[i], start)
 		}
 	}

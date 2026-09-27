@@ -35,7 +35,7 @@ func (m *Model) openMacros(sel string) {
 	p.action = "run"
 	for i, pm := range p.shown {
 		if strings.EqualFold(pm.item.title, sel) {
-			p.sel = i
+			p.Sel = i
 		}
 	}
 	m.openOverlay(&macrosPicker{picker: p})
@@ -69,13 +69,14 @@ func macroManageItems(m *Model) []pickItem {
 
 // current is the macro highlighted, if any.
 func (p *macrosPicker) current(m *Model) (sheet.Macro, bool) {
-	if p.picker.sel >= len(p.shown) || p.shown[p.picker.sel].item.title == writeMacroTitle {
+	if p.picker.Sel >= len(p.shown) || p.shown[p.picker.Sel].item.title == writeMacroTitle {
 		return sheet.Macro{}, false
 	}
-	return m.book().Macro(p.shown[p.picker.sel].item.title)
+	return m.book().Macro(p.shown[p.picker.Sel].item.title)
 }
 
-func (p *macrosPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (p *macrosPicker) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := p.m
 	p.msg = ""
 	mc, ok := p.current(m)
 	switch k.String() {
@@ -84,7 +85,7 @@ func (p *macrosPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 			return nil
 		}
 	default:
-		return p.picker.key(m, k)
+		return p.picker.Key(k)
 	}
 	switch k.String() {
 	case "f2":
@@ -104,14 +105,15 @@ func (p *macrosPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 		m.book().DeleteMacro(mc.Name)
 		p.msg = "Deleted " + mc.Name + "; Ctrl+Z brings it back"
 		p.items = macroManageItems(m)
-		sel := p.picker.sel
-		p.changed(m)
-		p.picker.sel = max(min(sel, len(p.shown)-1), 0)
+		sel := p.picker.Sel
+		p.Changed()
+		p.picker.Sel = max(min(sel, len(p.shown)-1), 0)
 	}
 	return nil
 }
 
-func (p *macrosPicker) status(m *Model) (string, string) {
+func (p *macrosPicker) Status() (string, string) {
+	m := p.m
 	pairs := []string{"Enter", "run", "F2", "rename", "F3", "shortcut", "F4", "edit", "Ctrl+D", "delete", "Esc", "close"}
 	if !m.macros.editor {
 		pairs = slices.Delete(pairs, 6, 8)
@@ -127,7 +129,7 @@ func (p *macrosPicker) status(m *Model) (string, string) {
 	if p.msg != "" {
 		return p.msg, keys
 	}
-	desc, _ := p.picker.status(m)
+	desc, _ := p.picker.Status()
 	return desc, keys
 }
 

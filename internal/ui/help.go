@@ -11,13 +11,14 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 func init() {
 	register(
 		&command{id: "help", macro: macroNever, title: "Keyboard shortcuts", desc: "Show every key, grouped by what it does", run: func(m *Model) tea.Cmd {
-			m.openOverlay(&shortcuts{})
+			m.openOverlay(&shortcuts{m: m})
 			return nil
 		}},
 		&command{id: "help.functions", macro: macroNever, title: "Function list", desc: "Search the functions formulas can use", run: func(m *Model) tea.Cmd {
@@ -28,6 +29,7 @@ func init() {
 		}},
 		&command{id: "help.about", macro: macroNever, title: "About 012", desc: "Show the version", run: func(m *Model) tea.Cmd {
 			m.openOverlay(&choiceBar{
+				m:   m,
 				msg: "012 " + version() + ": Lotus 1-2-3 looks, Google Sheets keys.",
 				choices: []choice{
 					{key: "esc", label: "Close", run: func(*Model) tea.Cmd { return nil }},
@@ -172,12 +174,13 @@ func keyHelpRows(vim bool) []helpRow {
 // shortcuts is the keyboard shortcuts view: a scrollable box over the
 // grid, in two columns when the screen is wide enough.
 type shortcuts struct {
+	m   *Model // the model it acts on
 	top int
 }
 
 const shortcutsID = "shortcuts"
 
-func (s *shortcuts) indicator() string { return "HELP" }
+func (s *shortcuts) Indicator() string { return "HELP" }
 
 // lines renders the rows, as one or two columns, and returns their width.
 func (s *shortcuts) lines(m *Model) ([]string, int) {
@@ -239,7 +242,8 @@ func (s *shortcuts) visible(m *Model, total int) int {
 	return max(min(total, m.height-2-2-1), 1)
 }
 
-func (s *shortcuts) layout(m *Model) []box {
+func (s *shortcuts) Layout() []overlay.Box {
+	m := s.m
 	lines, w := s.lines(m)
 	inner := w + 1
 	n := s.visible(m, len(lines)+1)
@@ -259,10 +263,11 @@ func (s *shortcuts) layout(m *Model) []box {
 	}
 	b := m.th.Frame(inner, "Keyboard shortcuts", footer, rows)
 	w, h := ansi.StringWidth(b[0]), len(b)
-	return []box{{id: shortcutsID, x: (m.width - w) / 2, y: max(menuLine+1, (m.height-1-h)/2), lines: b}}
+	return []overlay.Box{{ID: shortcutsID, X: (m.width - w) / 2, Y: max(menuLine+1, (m.height-1-h)/2), Lines: b}}
 }
 
-func (s *shortcuts) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (s *shortcuts) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := s.m
 	lines, _ := s.lines(m)
 	page := s.visible(m, len(lines)+1)
 	switch k.String() {
@@ -285,18 +290,20 @@ func (s *shortcuts) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-func (s *shortcuts) mouse(m *Model, e mouseEvent) tea.Cmd {
+func (s *shortcuts) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := s.m
 	switch {
-	case e.kind == mouseWheel && e.button == tea.MouseWheelUp:
+	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelUp:
 		s.top = max(s.top-3, 0)
-	case e.kind == mouseWheel && e.button == tea.MouseWheelDown:
+	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelDown:
 		s.top += 3 // layout clamps
-	case e.kind == mousePress && e.box != shortcutsID:
+	case e.Kind == overlay.MousePress && e.Box != shortcutsID:
 		m.closeOverlay()
 	}
 	return nil
 }
 
-func (s *shortcuts) status(m *Model) (string, string) {
+func (s *shortcuts) Status() (string, string) {
+	m := s.m
 	return "", m.th.KeyHints("Up/Down", "scroll", "Esc", "close")
 }

@@ -349,7 +349,7 @@ func TestWithoutAnEditorScriptsAreReadOnly(t *testing.T) {
 	if strings.Contains(screen(m), "+ Write a macro") {
 		t.Error("the manager offers to write a macro")
 	}
-	if cmd := m.overlay.key(m, tea.KeyPressMsg{Code: tea.KeyF4}); cmd != nil || !strings.Contains(line(m, m.height-1), "No editor in this session") {
+	if cmd := m.overlay.Key(tea.KeyPressMsg{Code: tea.KeyF4}); cmd != nil || !strings.Contains(line(m, m.height-1), "No editor in this session") {
 		t.Errorf("F4: %v %q", cmd, line(m, m.height-1))
 	}
 }

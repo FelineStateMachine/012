@@ -9,6 +9,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 )
 
 // Find and replace is a bar on the context line rather than a dialog, in
@@ -20,8 +21,9 @@ import (
 // goes through them.
 
 type findBar struct {
-	replace bool // Ctrl+H: a replacement field follows the query
-	field   int  // 0 is the query, 1 the replacement
+	m       *Model // the model it acts on
+	replace bool   // Ctrl+H: a replacement field follows the query
+	field   int    // 0 is the query, 1 the replacement
 	fields  [2]string
 	opts    sheet.FindOptions
 	scope   *sheet.Rect  // the selection when the bar opened, if any
@@ -112,7 +114,7 @@ func (m *Model) openFind(replace bool) {
 	if !ok {
 		f = m.find
 		if f == nil {
-			f = &findBar{cur: -1}
+			f = &findBar{m: m, cur: -1}
 		}
 		f.scope, f.home = nil, m.sheet
 		if f.where == inRange || f.where == inAll && len(m.book().Visible()) == 1 {
@@ -137,9 +139,9 @@ func (m *Model) openFind(replace bool) {
 	f.search(m)
 }
 
-func (f *findBar) indicator() string { return "FIND" }
+func (f *findBar) Indicator() string { return "FIND" }
 
-func (f *findBar) layout(*Model) []box { return nil }
+func (f *findBar) Layout() []overlay.Box { return nil }
 
 // focus moves editing to field i, keeping the other field's text.
 func (f *findBar) focus(m *Model, i int) {
@@ -148,8 +150,9 @@ func (f *findBar) focus(m *Model, i int) {
 	m.line.set(f.fields[i])
 }
 
-// changed re-runs the search as the query is typed.
-func (f *findBar) changed(m *Model) {
+// Changed re-runs the search as the query is typed.
+func (f *findBar) Changed() {
+	m := f.m
 	f.fields[f.field] = m.line.text()
 	if f.field == 0 {
 		f.search(m)
@@ -246,7 +249,8 @@ func (f *findBar) nextScope(m *Model) findScope {
 	return order[(slices.Index(order, f.where)+1)%len(order)]
 }
 
-func (f *findBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (f *findBar) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := f.m
 	switch k.String() {
 	case "esc":
 		m.find = f
@@ -302,7 +306,7 @@ func (f *findBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 		before := m.line.text()
 		m.line.key(k)
 		if m.line.text() != before {
-			f.changed(m)
+			f.Changed()
 		}
 	}
 	return nil

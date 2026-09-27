@@ -20,10 +20,10 @@ func openPicker(t *testing.T, m *Model) *picker {
 func selected(t *testing.T, m *Model) string {
 	t.Helper()
 	p := openPicker(t, m)
-	if p.sel >= len(p.shown) {
+	if p.Sel >= len(p.shown) {
 		return ""
 	}
-	return p.shown[p.sel].item.title
+	return p.shown[p.Sel].item.title
 }
 
 func TestPaletteKeys(t *testing.T) {
@@ -50,8 +50,8 @@ func TestPaletteSearchRunsCommand(t *testing.T) {
 		t.Errorf("result should show its menu path:\n%s", screen(m))
 	}
 	x, y, _ := m.cursorPos()
-	if b := p.layout(m)[0]; y != b.y+1 || x != b.x+1+3+len("colwid") {
-		t.Errorf("cursor at %d,%d, box at %d,%d", x, y, b.x, b.y)
+	if b := p.Layout()[0]; y != b.Y+1 || x != b.X+1+3+len("colwid") {
+		t.Errorf("cursor at %d,%d, box at %d,%d", x, y, b.X, b.Y)
 	}
 	press(t, m, "<enter>")
 	if m.overlay != nil || m.mode != modePrompt || m.prompt.kind != promptWidth {
@@ -81,8 +81,8 @@ func TestPaletteMatchesMenuPath(t *testing.T) {
 	}
 	// Up from the top wraps to the bottom.
 	press(t, m, "<up>", "<up>", "<up>", "<up>")
-	if p := openPicker(t, m); p.sel != len(p.shown)-1 {
-		t.Errorf("wrapped to %d of %d", p.sel, len(p.shown))
+	if p := openPicker(t, m); p.Sel != len(p.shown)-1 {
+		t.Errorf("wrapped to %d of %d", p.Sel, len(p.shown))
 	}
 }
 
@@ -168,18 +168,18 @@ func TestPaletteMouse(t *testing.T) {
 	m := newModel()
 	press(t, m, "<ctrl+k>", "go")
 	p := openPicker(t, m)
-	b := p.layout(m)[0]
+	b := p.Layout()[0]
 	var row int
 	for i, pm := range p.shown {
 		if pm.item.title == "Go to" {
 			row = i
 		}
 	}
-	mouseAt(m, tea.MouseMotionMsg{X: b.x + 4, Y: b.y + pickerFirstRow + row})
+	mouseAt(m, tea.MouseMotionMsg{X: b.X + 4, Y: b.Y + pickerFirstRow + row})
 	if selected(t, m) != "Go to" {
 		t.Fatalf("hover selected %q", selected(t, m))
 	}
-	leftClick(m, b.x+4, b.y+pickerFirstRow+row)
+	leftClick(m, b.X+4, b.Y+pickerFirstRow+row)
 	if m.mode != modePrompt || m.prompt.label != "Go to:" {
 		t.Errorf("click ran: mode %v", m.mode)
 	}

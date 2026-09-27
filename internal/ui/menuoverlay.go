@@ -7,14 +7,16 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // menuOverlay is an open dropdown from the menu bar, or a context menu,
 // with any submenus opened from it.
 type menuOverlay struct {
-	bar    int // index in barMenus of the open title; -1 for a context menu
-	x, y   int // where a context menu opened
+	m      *Model // the model it acts on
+	bar    int    // index in barMenus of the open title; -1 for a context menu
+	x, y   int    // where a context menu opened
 	levels []*menuLevel
 }
 
@@ -32,13 +34,13 @@ func (m *Model) showBarMenu(i int) {
 		return
 	}
 	i = (i%len(menus) + len(menus)) % len(menus)
-	m.openOverlay(&menuOverlay{bar: i, levels: []*menuLevel{m.newLevel(visibleItems(menus[i].def.items), true)}})
+	m.openOverlay(&menuOverlay{m: m, bar: i, levels: []*menuLevel{m.newLevel(visibleItems(menus[i].def.items), true)}})
 }
 
 // showContextMenu opens a menu of items with its corner at x, y.
 func (m *Model) showContextMenu(items []menuItem, x, y int) {
 	if items = visibleItems(items); len(items) > 0 {
-		m.openOverlay(&menuOverlay{bar: -1, x: x, y: y, levels: []*menuLevel{m.newLevel(items, true)}})
+		m.openOverlay(&menuOverlay{m: m, bar: -1, x: x, y: y, levels: []*menuLevel{m.newLevel(items, true)}})
 	}
 }
 
@@ -73,13 +75,14 @@ func (l *menuLevel) step(m *Model, d int) {
 
 func (o *menuOverlay) top() *menuLevel { return o.levels[len(o.levels)-1] }
 
-func (o *menuOverlay) indicator() string { return "MENU" }
+func (o *menuOverlay) Indicator() string { return "MENU" }
 
-// key handles a key in an open menu: Up/Down highlight, Right opens a
+// Key handles a key in an open menu: Up/Down highlight, Right opens a
 // submenu or the next menu, Left closes a submenu or opens the previous
 // menu, Enter runs, Esc closes one level, and a letter jumps to the items
 // starting with it, running the item if it's the only one.
-func (o *menuOverlay) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (o *menuOverlay) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := o.m
 	l := o.top()
 	key := k.String()
 	if i := barMenuFor(key); i >= 0 {
@@ -179,24 +182,25 @@ func (o *menuOverlay) choose(m *Model) tea.Cmd {
 
 func menuBoxID(level int) string { return "menu" + strconv.Itoa(level) }
 
-// mouse handles hovering and clicking items, switching menus by hovering
+// Mouse handles hovering and clicking items, switching menus by hovering
 // or clicking the menu bar, and closing the menu on a click elsewhere.
-func (o *menuOverlay) mouse(m *Model, e mouseEvent) tea.Cmd {
+func (o *menuOverlay) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := o.m
 	for lv, l := range o.levels {
-		if e.box == menuBoxID(lv) {
+		if e.Box == menuBoxID(lv) {
 			return o.levelMouse(m, e, lv, l)
 		}
 	}
-	if e.y == menuLine && e.box == "" {
-		if t := barMenuAt(e.x); t >= 0 {
+	if e.Y == menuLine && e.Box == "" {
+		if t := barMenuAt(e.X); t >= 0 {
 			o.barMouse(m, e, t)
 			return nil
 		}
 	}
-	if e.kind == mousePress {
+	if e.Kind == overlay.MousePress {
 		m.closeOverlay()
-		if e.button == tea.MouseRight {
-			m.rightClick(e.x, e.y) // right-clicking elsewhere opens a menu there
+		if e.Button == tea.MouseRight {
+			m.rightClick(e.X, e.Y) // right-clicking elsewhere opens a menu there
 		}
 	}
 	return nil
@@ -204,25 +208,25 @@ func (o *menuOverlay) mouse(m *Model, e mouseEvent) tea.Cmd {
 
 // levelMouse handles the mouse over open box lv: hovering highlights an
 // item and opens its submenu, clicking chooses it, the wheel moves.
-func (o *menuOverlay) levelMouse(m *Model, e mouseEvent, lv int, l *menuLevel) tea.Cmd {
-	i := l.top + e.row - 1
-	if e.kind == mouseWheel {
+func (o *menuOverlay) levelMouse(m *Model, e overlay.MouseEvent, lv int, l *menuLevel) tea.Cmd {
+	i := l.top + e.Row - 1
+	if e.Kind == overlay.MouseWheel {
 		o.levels = o.levels[:lv+1]
-		l.wheel(m, e.button)
+		l.wheel(m, e.Button)
 		return nil
 	}
-	if e.row < 1 || i >= len(l.items) || !l.selectable(m, i) {
+	if e.Row < 1 || i >= len(l.items) || !l.selectable(m, i) {
 		return nil
 	}
-	switch e.kind {
-	case mouseMotion:
+	switch e.Kind {
+	case overlay.MouseMotion:
 		if i != l.sel || len(o.levels) == lv+1 {
 			o.levels, l.sel = o.levels[:lv+1], i
 			if sub := l.items[i].items; sub != nil {
 				o.levels = append(o.levels, m.newLevel(sub, false))
 			}
 		}
-	case mousePress:
+	case overlay.MousePress:
 		o.levels, l.sel = o.levels[:lv+1], i
 		return o.choose(m)
 	}
@@ -231,11 +235,11 @@ func (o *menuOverlay) levelMouse(m *Model, e mouseEvent, lv int, l *menuLevel) t
 
 // barMouse handles the mouse over menu bar title t: clicking the open
 // title closes its menu, and clicking or hovering another opens that one.
-func (o *menuOverlay) barMouse(m *Model, e mouseEvent, t int) {
+func (o *menuOverlay) barMouse(m *Model, e overlay.MouseEvent, t int) {
 	switch {
-	case e.kind == mousePress && t == o.bar:
+	case e.Kind == overlay.MousePress && t == o.bar:
 		m.closeOverlay()
-	case e.kind == mousePress, e.kind == mouseMotion && o.bar >= 0 && t != o.bar:
+	case e.Kind == overlay.MousePress, e.Kind == overlay.MouseMotion && o.bar >= 0 && t != o.bar:
 		m.showBarMenu(t)
 	}
 }
@@ -250,7 +254,8 @@ func (l *menuLevel) wheel(m *Model, b tea.MouseButton) {
 	}
 }
 
-func (o *menuOverlay) status(m *Model) (string, string) {
+func (o *menuOverlay) Status() (string, string) {
+	m := o.m
 	keys := m.th.KeyHints("Up/Down", "move", "Enter", "choose", "Esc", "close")
 	if o.bar >= 0 {
 		keys = m.th.KeyHints("Arrows", "move", "Enter", "choose", "Esc", "close")
@@ -272,11 +277,12 @@ func (o *menuOverlay) status(m *Model) (string, string) {
 	return commands[it.cmd].desc, keys
 }
 
-// layout places the dropdown under its title (or a context menu at the
+// Layout places the dropdown under its title (or a context menu at the
 // mouse) and each submenu beside the item that opened it, flipping left or
 // up where the screen runs out. The status line stays visible.
-func (o *menuOverlay) layout(m *Model) []box {
-	boxes := make([]box, 0, len(o.levels))
+func (o *menuOverlay) Layout() []overlay.Box {
+	m := o.m
+	boxes := make([]overlay.Box, 0, len(o.levels))
 	maxRows := max(m.height-4, 3)
 	for i, l := range o.levels {
 		rows := min(len(l.items), maxRows)
@@ -290,12 +296,12 @@ func (o *menuOverlay) layout(m *Model) []box {
 		switch {
 		case i > 0:
 			p := boxes[i-1]
-			x, y = p.x+p.width(), p.y+o.levels[i-1].sel-o.levels[i-1].top
+			x, y = p.X+p.Width(), p.Y+o.levels[i-1].sel-o.levels[i-1].top
 			// Open to the right; else to the left; and if neither fits,
 			// against the screen's right edge, where it covers the parent's
 			// shortcuts rather than its labels.
 			if x+w > m.width {
-				x = p.x - w
+				x = p.X - w
 				if x < 0 {
 					x = m.width - w
 				}
@@ -310,7 +316,7 @@ func (o *menuOverlay) layout(m *Model) []box {
 		}
 		x = clamp(x, 0, m.width-w)
 		y = clamp(y, 0, m.height-1-h)
-		boxes = append(boxes, box{id: menuBoxID(i), x: x, y: y, lines: lines})
+		boxes = append(boxes, overlay.Box{ID: menuBoxID(i), X: x, Y: y, Lines: lines})
 	}
 	return boxes
 }

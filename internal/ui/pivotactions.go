@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 )
 
 // What the pivot editor's keys do to the pivot, and how its fields read.
@@ -265,22 +266,24 @@ type fieldPicker struct {
 	back *pivotEditor
 }
 
-func (f *fieldPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+func (f *fieldPicker) Key(k tea.KeyPressMsg) tea.Cmd {
+	m := f.m
 	if k.String() == "esc" {
 		m.closeOverlay()
 		f.back.reopen(m)
 		return nil
 	}
-	return f.picker.key(m, k)
+	return f.picker.Key(k)
 }
 
-func (f *fieldPicker) mouse(m *Model, e mouseEvent) tea.Cmd {
-	if e.box != pickerID && e.kind == mousePress {
+func (f *fieldPicker) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := f.m
+	if e.Box != pickerID && e.Kind == overlay.MousePress {
 		m.closeOverlay()
 		f.back.reopen(m)
 		return nil
 	}
-	return f.picker.mouse(m, e)
+	return f.picker.Mouse(e)
 }
 
 // editFilter opens the values list of filter i, in the manner of a

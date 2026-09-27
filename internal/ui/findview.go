@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -82,9 +83,10 @@ func (f *findBar) spans(m *Model) ([]findPart, []int) {
 	return parts, xs
 }
 
-// line renders the bar for the context line, with the match count on the
-// right.
-func (f *findBar) line(m *Model) (left, right string) {
+// ContextLine renders the bar for the context line, with the match count
+// on the right.
+func (f *findBar) ContextLine() (left, right string) {
+	m := f.m
 	var b strings.Builder
 	parts := f.parts(m)
 	for i, p := range parts {
@@ -109,9 +111,10 @@ func (f *findBar) line(m *Model) (left, right string) {
 	return b.String(), right
 }
 
-// cursor puts the terminal cursor in the focused field, whose text ends
+// Cursor puts the terminal cursor in the focused field, whose text ends
 // its part.
-func (f *findBar) cursor(m *Model) (x, y int) {
+func (f *findBar) Cursor() (x, y int) {
+	m := f.m
 	parts, xs := f.spans(m)
 	for i, p := range parts {
 		if p.field == f.field {
@@ -121,25 +124,26 @@ func (f *findBar) cursor(m *Model) (x, y int) {
 	return 0, contextLine
 }
 
-// mouse focuses a field or flips a chip on the bar; a click anywhere
+// Mouse focuses a field or flips a chip on the bar; a click anywhere
 // else closes the bar and lands where it was clicked.
-func (f *findBar) mouse(m *Model, e mouseEvent) tea.Cmd {
-	if e.kind != mousePress {
+func (f *findBar) Mouse(e overlay.MouseEvent) tea.Cmd {
+	m := f.m
+	if e.Kind != overlay.MousePress {
 		return nil
 	}
-	if e.y != contextLine {
+	if e.Y != contextLine {
 		m.find = f
 		m.closeOverlay()
-		return m.handlePress(tea.Mouse{X: e.x, Y: e.y, Button: e.button})
+		return m.handlePress(tea.Mouse{X: e.X, Y: e.Y, Button: e.Button})
 	}
 	parts, xs := f.spans(m)
 	for i, p := range parts {
-		if e.x >= xs[i] && e.x < xs[i]+ansi.StringWidth(p.text) {
+		if e.X >= xs[i] && e.X < xs[i]+ansi.StringWidth(p.text) {
 			if p.field >= 0 {
 				f.focus(m, p.field)
 				return nil
 			}
-			return f.key(m, keyFor(p.toggle))
+			return f.Key(keyFor(p.toggle))
 		}
 	}
 	return nil
@@ -158,9 +162,10 @@ func keyFor(s string) tea.KeyPressMsg {
 	return k
 }
 
-// status shows the keys for moving and replacing, and a reminder of the
+// Status shows the keys for moving and replacing, and a reminder of the
 // option keys when there's room. Narrow screens keep the most useful keys.
-func (f *findBar) status(m *Model) (string, string) {
+func (f *findBar) Status() (string, string) {
+	m := f.m
 	pairs := []string{"Enter", "next", "Shift+Enter", "previous", "Esc", "close"}
 	if f.replace {
 		pairs = []string{"Enter", "replace", "Ctrl+Enter", "all", "Tab", "field", "Esc", "close"}

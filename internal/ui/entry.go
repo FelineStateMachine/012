@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/overlay"
 )
 
 // Entry follows Google Sheets: typing replaces the cell (ENTER), Enter or
@@ -267,9 +268,9 @@ func (m *Model) handlePaste(content string) {
 			m.prompt.paste(m, content)
 		}
 	case modeMenu:
-		if o, ok := m.overlay.(textOverlay); ok {
+		if o, ok := m.overlay.(overlay.Text); ok {
 			m.line.insert(content)
-			o.changed(m)
+			o.Changed()
 		}
 	}
 }
