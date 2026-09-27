@@ -37,6 +37,7 @@ type Cell struct {
 	xrefs    []xref   // references that name a sheet, e.g. Sheet2!A1
 	names    []string // names in expr, as keys of Workbook.names
 	volatile bool     // expr calls TODAY, NOW, RAND...
+	derived  bool     // a pivot table's result, owned by the engine: see pivot.go
 }
 
 // IsFormula reports whether the cell holds a formula.
@@ -77,7 +78,8 @@ type Sheet struct {
 	calcGet lookup
 	calcFmt func(string, Addr) Format
 
-	charts []Chart // floating charts, bottom first; see chart.go
+	charts []Chart    // floating charts, bottom first; see chart.go
+	pivot  pivotState // the sheet's pivot table, if any; see pivot.go
 
 	view   viewState   // frozen panes and the filter, see view.go
 	hidden hiddenCache // rows the filter hides, see filter.go
@@ -202,8 +204,11 @@ func classify(input string) (Node, Format, error) {
 // Set stores an entry at a and recalculates affected cells. An empty input
 // erases the contents but keeps the cell's formatting. A formula that
 // fails to parse is rejected with a *ParseError and the sheet is left
-// unchanged.
+// unchanged. A pivot table's results can't be set: that's ErrPivotEdit.
 func (s *Sheet) Set(a Addr, input string) error {
+	if s.InPivot(Rect{From: a, To: a}) {
+		return ErrPivotEdit
+	}
 	var err error
 	s.change("edit "+a.String(), Rect{From: a, To: a}, func() { err = s.put(a, input) })
 	return err
@@ -291,10 +296,14 @@ func (c *Cell) setExpr(n Node) {
 
 // place stores c at a (nil blanks it), recording the old cell for undo and
 // keeping the dependency indexes current. Every cell mutation goes through
-// here.
+// here, except a pivot table writing its results (setDerived). Anything
+// placed over those has the pivot recomputed, which reports it in the way.
 func (s *Sheet) place(a Addr, c *Cell) {
 	s.version++
 	s.record(a)
+	if s.pivot.def != nil && s.pivot.out.Contains(a) {
+		s.pivot.stale = true
+	}
 	s.unlink(a)
 	if c == nil {
 		return

@@ -57,5 +57,9 @@ func startTelemetry(c telemetry.Config) (func() error, error) {
 			slog.Bool("full", i.Full), slog.Int("evaluated", i.Evaluated), slog.Int("cells", i.Cells),
 			slog.Int("volatile", i.Volatile), slog.Bool("circular", i.Circular))
 	}
+	sheet.OnPivot = func(i sheet.PivotInfo) {
+		telemetry.Event("pivot", i.Duration,
+			slog.Int("records", i.Records), slog.Int("groups", i.Groups), slog.Int("cells", i.Cells), slog.Bool("failed", i.Failed))
+	}
 	return stop, nil
 }

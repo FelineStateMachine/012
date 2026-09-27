@@ -38,6 +38,7 @@ func (w *Workbook) recalcAll() {
 	}
 	w.evaluate()
 	w.observe(true, start, n)
+	w.refreshPivots(w.allPivots())
 }
 
 // Recalculation states of a cell.
@@ -52,8 +53,10 @@ const (
 func (w *Workbook) recalc(changed []loc) {
 	start := recalcStart()
 	n := w.affected(changed)
+	stale := w.stalePivots()
 	w.evaluate()
 	w.observe(false, start, n)
+	w.refreshPivots(stale)
 }
 
 // affected marks dirty, in each sheet's calc, the changed cells, volatile
@@ -177,6 +180,9 @@ func (w *Workbook) evaluate() {
 			w.Circular = true
 			return ErrRef
 		case st != dirty:
+			return c.Value
+		case c.derived: // a pivot's result, set when the pivot was computed
+			s.calc[a] = done
 			return c.Value
 		}
 		s.calc[a] = visiting
