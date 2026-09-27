@@ -153,6 +153,16 @@ func TestOTLPExport(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	checkRequests(t, c)
+	imp := checkLogs(t, c)
+	checkSpans(t, c, imp)
+	checkMetrics(t, c)
+}
+
+// checkRequests checks every request is gzipped JSON with the configured
+// headers, and that all three signals were sent.
+func checkRequests(t *testing.T, c *collector) {
+	t.Helper()
 	reqs := c.requests()
 	paths := map[string]bool{}
 	for _, r := range reqs {
@@ -168,6 +178,12 @@ func TestOTLPExport(t *testing.T) {
 		t.Fatalf("paths %v", paths)
 	}
 
+}
+
+// checkLogs checks the resource and the log records, returning the
+// import's record for checkSpans.
+func checkLogs(t *testing.T, c *collector) map[string]any {
+	t.Helper()
 	logs, res := c.items("/v1/logs")
 	for k, want := range map[string]string{"service.name": "012", "service.version": "v-test", "os.type": "", "host.arch": "", "service.instance.id": ""} {
 		v, ok := res[k].(map[string]any)["stringValue"].(string)
@@ -210,6 +226,12 @@ func TestOTLPExport(t *testing.T) {
 		t.Errorf("otlp event %v", oa)
 	}
 
+	return imp
+}
+
+// checkSpans checks the spans, and that the import's matches its log.
+func checkSpans(t *testing.T, c *collector, imp map[string]any) {
+	t.Helper()
 	spans, _ := c.items("/v1/traces")
 	if len(spans) != 2 {
 		t.Fatalf("%d spans: %v", len(spans), spans)
@@ -233,6 +255,12 @@ func TestOTLPExport(t *testing.T) {
 		t.Errorf("failed span %v", spans[1])
 	}
 
+}
+
+// checkMetrics checks the frame summary, counters, gauges and the
+// operation histogram.
+func checkMetrics(t *testing.T, c *collector) {
+	t.Helper()
 	metrics, _ := c.items("/v1/metrics")
 	byName := map[string]map[string]any{}
 	for _, m := range metrics {
