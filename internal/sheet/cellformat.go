@@ -13,21 +13,21 @@ const materializeLimit = 1 << 16
 // formula (=DATE() shows a date, =SUM(B2:B4) of currency shows
 // currency).
 func (s *Sheet) DisplayFormat(a Addr) Format {
-	c := s.cells.get(a)
+	f, sty, ok := s.cells.look(a)
 	switch {
-	case c != nil && !c.Format.IsZero():
-		return c.Format
+	case !f.IsZero():
+		return f
 	case s.lines.none():
-	case c != nil && c.Style.own:
+	case ok && sty.own:
 	default:
 		if f := s.inherited(a).Format; !f.IsZero() {
 			return f
 		}
 	}
-	if c == nil {
-		return Format{}
+	if c := s.cells.richAt(a); c != nil { // only formulas infer formats
+		return c.auto
 	}
-	return c.auto
+	return Format{}
 }
 
 // SetFormat gives every cell in r the number format f, including blank

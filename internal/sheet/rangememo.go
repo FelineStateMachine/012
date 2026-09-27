@@ -102,7 +102,7 @@ func (rd *reader) Fold(sheet string, r Rect, s functions.Agg) (functions.Agg, *V
 			return add(Addr{Col: r.From.Col, Row: row})
 		})
 	default:
-		for a := range t.cells.inRange(r) {
+		for a := range t.cells.keysIn(r) {
 			if !add(a) {
 				break
 			}
@@ -135,7 +135,7 @@ func (run *runAgg) extend(rd *reader, t *Sheet, key aggKey, to int) {
 	if key.c0 == key.c1 {
 		t.cells.colScan(key.c0, run.next, to, func(r int) bool { return visit(Addr{Col: key.c0, Row: r}) })
 	} else {
-		for a := range t.cells.inRange(Rect{From: Addr{Col: key.c0, Row: run.next}, To: Addr{Col: key.c1, Row: to}}) {
+		for a := range t.cells.keysIn(Rect{From: Addr{Col: key.c0, Row: run.next}, To: Addr{Col: key.c1, Row: to}}) {
 			if !visit(a) {
 				break
 			}

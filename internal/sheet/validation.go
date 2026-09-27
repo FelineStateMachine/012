@@ -407,7 +407,7 @@ func (s *Sheet) sourceItems(v Validation) []string {
 	}
 	seen := map[string]bool{}
 	var out []string
-	for a := range t.cells.inRange(r) {
+	for a := range t.cells.keysIn(r) {
 		text := strings.TrimSpace(t.ShownText(a))
 		key := strings.ToLower(text)
 		if text == "" || seen[key] {

@@ -198,8 +198,8 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 		return err
 	}
 	addrs := make([]Addr, 0, s.cells.len())
-	for a, c := range s.cells.all() {
-		if c.saved() != nil {
+	for a := range s.cells.keys() {
+		if c := s.cells.richAt(a); c == nil || c.saved() != nil {
 			addrs = append(addrs, a)
 		}
 	}

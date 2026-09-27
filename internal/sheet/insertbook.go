@@ -153,7 +153,7 @@ func (s *Sheet) repoint(old *Sheet, d Rect, byRow bool) (Rect, bool) {
 		return d, true
 	}
 	now := s.Region(d.From)
-	if now.From != d.From || s.cells.get(now.From).Blank() && now.From == now.To {
+	if now.From != d.From || !s.cells.filledAt(now.From) && now.From == now.To {
 		return d, false
 	}
 	if byRow && now.To.Row-now.From.Row != d.To.Row-d.From.Row ||

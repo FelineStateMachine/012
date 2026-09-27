@@ -15,6 +15,7 @@ import (
 type occupancy struct {
 	cols   []*colIndex // by column; nil for none
 	colIDs []int       // the columns holding cells, ascending
+	n      int         // the cells marked
 }
 
 // Rows of a column are indexed in blocks of blockRows, one bit each.
@@ -25,9 +26,28 @@ const (
 )
 
 type rowBlock struct {
-	bits  [blockWords]uint64
+	bits [blockWords]uint64
+	// rank counts the rows set in the words before each, so a row's
+	// position among the block's is a popcount away (index).
+	rank  [blockWords]uint16
 	n     int
 	stats *blockStats // the filled index's statistics, made on first use; see stats.go
+	vals  []slot      // the stored index's cells, one per set row in order; see slot.go
+}
+
+// index is the position of row bit of the block among its set rows, and
+// whether it is set.
+func (b *rowBlock) index(bit int) (int, bool) {
+	w, m := bit>>6, uint64(1)<<(bit&63)
+	x := b.bits[w]
+	return int(b.rank[w]) + bits.OnesCount64(x&(m-1)), x&m != 0
+}
+
+// count adds d to the rank of the words after word w.
+func (b *rowBlock) count(w, d int) {
+	for j := w + 1; j < blockWords; j++ {
+		b.rank[j] = uint16(int(b.rank[j]) + d)
+	}
 }
 
 // colIndex is the occupancy of one column: its blocks by number (nil
@@ -61,8 +81,8 @@ func (o *occupancy) has(a Addr) bool {
 	return b != nil && b.bits[bit>>6]&(1<<(bit&63)) != 0
 }
 
-// mark records a cell at a, which had none.
-func (o *occupancy) mark(a Addr) {
+// mark records a cell at a, which had none, and returns its block.
+func (o *occupancy) mark(a Addr) *rowBlock {
 	ci := o.col(a.Col)
 	if ci == nil {
 		ci = &colIndex{}
@@ -84,8 +104,11 @@ func (o *occupancy) mark(a Addr) {
 	}
 	bit := a.Row & (blockRows - 1)
 	b.bits[bit>>6] |= 1 << (bit & 63)
+	b.count(bit>>6, 1)
 	b.n++
 	ci.n++
+	o.n++
+	return b
 }
 
 // unmark records that a no longer holds a cell.
@@ -95,8 +118,10 @@ func (o *occupancy) unmark(a Addr) {
 	b := ci.blocks[id]
 	bit := a.Row & (blockRows - 1)
 	b.bits[bit>>6] &^= 1 << (bit & 63)
+	b.count(bit>>6, -1)
 	b.n--
 	ci.n--
+	o.n--
 	if b.n == 0 {
 		ci.blocks[id] = nil
 		ci.ids = removeSorted(ci.ids, id)

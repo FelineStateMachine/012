@@ -118,30 +118,21 @@ func New() *Sheet {
 // formatting. Use Blank to test for contents.
 func (s *Sheet) Cell(a Addr) *Cell { return s.cells.get(a) }
 
+// Filled reports whether the cell at a has contents: !Cell(a).Blank(),
+// without making the cell.
+func (s *Sheet) Filled(a Addr) bool { return s.cells.filledAt(a) }
+
 // Value returns the computed value at a.
-func (s *Sheet) Value(a Addr) Value {
-	if c := s.cells.get(a); c != nil {
-		return c.Value
-	}
-	return Value{}
-}
+func (s *Sheet) Value(a Addr) Value { return s.cells.value(a) }
 
 // Len returns the number of non-blank cells.
-func (s *Sheet) Len() int {
-	n := 0
-	for _, c := range s.cells.all() {
-		if !c.Blank() {
-			n++
-		}
-	}
-	return n
-}
+func (s *Sheet) Len() int { return s.cells.filledLen() }
 
 // Addrs returns every non-blank cell in row-major order.
 func (s *Sheet) Addrs() []Addr {
-	out := make([]Addr, 0, s.cells.len())
-	for a, c := range s.cells.all() {
-		if !c.Blank() {
+	out := make([]Addr, 0, s.cells.filledLen())
+	for a := range s.cells.keys() {
+		if s.cells.filledAt(a) {
 			out = append(out, a)
 		}
 	}
@@ -388,8 +379,8 @@ func (s *Sheet) place(a Addr, c *Cell) {
 func (s *Sheet) EraseRange(r Rect) {
 	s.change("clear "+r.String(), r, func() {
 		for _, a := range s.cellsIn(r) {
-			if c := s.cells.get(a); !c.Blank() {
-				s.place(a, c.leftover())
+			if s.cells.filledAt(a) {
+				s.place(a, s.cells.get(a).leftover())
 			}
 		}
 	})
@@ -398,7 +389,7 @@ func (s *Sheet) EraseRange(r Rect) {
 // cellsIn returns the cells in r that have contents or formatting.
 func (s *Sheet) cellsIn(r Rect) []Addr {
 	var out []Addr
-	for a := range s.cells.anyInRange(r) {
+	for a := range s.cells.anyKeysIn(r) {
 		out = append(out, a)
 	}
 	return out
@@ -414,9 +405,9 @@ func (s *Sheet) unlink(a Addr) {
 // unindex removes the dependency edges of the cell at a, reporting
 // whether there is one.
 func (s *Sheet) unindex(a Addr) bool {
-	old := s.cells.get(a)
+	old := s.cells.richAt(a) // plain cells have no edges
 	if old == nil {
-		return false
+		return s.cells.has(a)
 	}
 	for _, r := range old.refs {
 		delete(s.dependents[r], a)
