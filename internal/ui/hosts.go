@@ -27,6 +27,13 @@ var (
 	_ themepicker.Host = host{}
 )
 
+// The in-package hosts the model implements itself.
+var (
+	_ menuHost   = (*Model)(nil)
+	_ pivotHost  = (*Model)(nil)
+	_ macrosHost = (*Model)(nil)
+)
+
 // Components that stay in package ui are handed interfaces of their own
 // (menuHost and the like), which the model implements with unexported
 // methods, these among them.
