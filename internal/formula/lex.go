@@ -55,7 +55,9 @@ type lexer struct {
 }
 
 func lex(src string) ([]token, error) {
-	lx := lexer{src: src}
+	// Most formulas have a token for every two or three bytes; growing
+	// the slice as it fills cost more than lexing in deep formulas.
+	lx := lexer{src: src, toks: make([]token, 0, len(src)/2+1)}
 	for lx.i < len(src) {
 		if err := lx.next(); err != nil {
 			return nil, err
