@@ -15,8 +15,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	uv "github.com/charmbracelet/ultraviolet"
 	typesafe "github.com/FelineStateMachine/typesafe-go"
+	uv "github.com/charmbracelet/ultraviolet"
 
 	"012/internal/jev"
 	"012/internal/sheet"
@@ -75,10 +75,10 @@ func sized(s *sheet.Sheet, w, h int) *Model {
 // BenchmarkView is View alone: 012's share of a frame.
 func BenchmarkView(b *testing.B) {
 	for _, sh := range uiShapes() {
-		s := sh.build()
+		s := lazy(sh.build)
 		for _, sz := range termSizes {
 			b.Run(fmt.Sprintf("%s/%dx%d", sh.name, sz.w, sz.h), func(b *testing.B) {
-				m := sized(s, sz.w, sz.h)
+				m := sized(s(), sz.w, sz.h)
 				for b.Loop() {
 					m.View()
 				}
@@ -90,10 +90,10 @@ func BenchmarkView(b *testing.B) {
 // BenchmarkFrame is a whole frame: View, parse and diff.
 func BenchmarkFrame(b *testing.B) {
 	for _, sh := range uiShapes() {
-		s := sh.build()
+		s := lazy(sh.build)
 		for _, sz := range termSizes {
 			b.Run(fmt.Sprintf("%s/%dx%d", sh.name, sz.w, sz.h), func(b *testing.B) {
-				m := sized(s, sz.w, sz.h)
+				m := sized(s(), sz.w, sz.h)
 				t := newFakeTerm(sz.w, sz.h)
 				for b.Loop() {
 					t.frame(m)
@@ -133,7 +133,9 @@ func key(k string) tea.KeyPressMsg {
 }
 
 // BenchmarkKeystroke is a key press through to its frame, alternating
-// keys that undo each other so the state stays put.
+// keys that undo each other so the state stays put. Cases without keys
+// draw frames over a standing selection (whose statistics the status
+// line shows).
 func BenchmarkKeystroke(b *testing.B) {
 	cases := []struct {
 		name  string
@@ -147,24 +149,28 @@ func BenchmarkKeystroke(b *testing.B) {
 		{"arrow/longtext", uiShapes()[3], nil, []string{"down", "up"}},
 		{"arrow/names-1000", uiShapes()[4], nil, []string{"down", "up"}},
 		{"arrow/charts-20", uiShapes()[5], nil, []string{"down", "up"}},
-		{"select-all/dense-8192x256", uiShapes()[2], []string{"ctrl+a", "ctrl+a"}, []string{"shift+down", "shift+up"}},
+		{"select-data/dense-8192x256", uiShapes()[2], []string{"ctrl+a"}, nil},
+		{"select-sheet/dense-8192x256", uiShapes()[2], []string{"ctrl+a", "ctrl+a"}, nil},
+		{"extend-data/dense-8192x256", uiShapes()[2], []string{"ctrl+a"}, []string{"shift+up", "shift+down"}},
 		{"extend/dense-8192x26", uiShapes()[1], []string{"shift+down"}, []string{"shift+down", "shift+up"}},
 		{"type/fanin-1000", uiShape{"fanin", func() *sheet.Sheet { return stress.FanIn(sheet.MaxRows, 1000) }},
 			nil, []string{"7", "enter", "up"}},
 		{"type/dense-8192x26", uiShapes()[1], nil, []string{"7", "enter", "up"}},
 	}
 	for _, c := range cases {
-		s := c.shape.build()
+		s := lazy(c.shape.build)
 		for _, sz := range termSizes[:2] {
 			b.Run(fmt.Sprintf("%s/%dx%d", c.name, sz.w, sz.h), func(b *testing.B) {
-				m := sized(s, sz.w, sz.h)
+				m := sized(s(), sz.w, sz.h)
 				t := newFakeTerm(sz.w, sz.h)
 				for _, k := range c.setup {
 					m.Update(key(k))
 				}
 				i := 0
 				for b.Loop() {
-					m.Update(key(c.keys[i%len(c.keys)]))
+					if len(c.keys) > 0 {
+						m.Update(key(c.keys[i%len(c.keys)]))
+					}
 					t.frame(m)
 					i++
 				}
@@ -207,6 +213,18 @@ func BenchmarkJEV(b *testing.B) {
 				sheet.Remote = prev
 			}
 		})
+	}
+}
+
+// lazy builds a sheet on first use, so running one sub-benchmark doesn't
+// build every shape.
+func lazy(build func() *sheet.Sheet) func() *sheet.Sheet {
+	var s *sheet.Sheet
+	return func() *sheet.Sheet {
+		if s == nil {
+			s = build()
+		}
+		return s
 	}
 }
 
