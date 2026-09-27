@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -291,6 +292,7 @@ type xlsxStyleTable struct {
 	fonts   []sheet.Style
 	borders []sheet.Borders   // see xlsxlayout.go; index 0 is none
 	dxfs    []sheet.RuleStyle // conditional formats' styles, see xlsxrules.go
+	loc     *locale.Locale    // the workbook's, whose Currency and Date codes it writes
 }
 
 // dxf is the index of the differential style for a rule's style.
@@ -335,8 +337,8 @@ func (t *xlsxStyleTable) dxfsXML() string {
 	return b.String() + `</dxfs>`
 }
 
-func newXLSXStyleTable() *xlsxStyleTable {
-	return &xlsxStyleTable{ids: map[xlsxStyle]int{{}: 0}, xfs: []xlsxStyle{{}}, fonts: []sheet.Style{{}}, borders: []sheet.Borders{0}}
+func newXLSXStyleTable(loc *locale.Locale) *xlsxStyleTable {
+	return &xlsxStyleTable{loc: loc, ids: map[xlsxStyle]int{{}: 0}, xfs: []xlsxStyle{{}}, fonts: []sheet.Style{{}}, borders: []sheet.Borders{0}}
 }
 
 // id is the index of the cell format for f and st.
@@ -356,7 +358,7 @@ func (t *xlsxStyleTable) xml() string {
 	var xfs strings.Builder
 	for _, x := range t.xfs {
 		numFmt := 0
-		if code := excelCode(x.format); code != "" {
+		if code := excelCodeIn(x.format, t.loc); code != "" {
 			i := slices.Index(t.codes, code)
 			if i < 0 {
 				i = len(t.codes)

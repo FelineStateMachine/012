@@ -25,7 +25,7 @@ shows it is derived from the table rather than listing it again.
 | `chart.types`, with `sheet.ChartTypes` | a type: name and order (sheet, saved in files), a layout drawing text and image and the series its legend lists (chart) | `chart.Draw`, `chart.Image`, chart editor, Insert > Chart |
 | theme roles (`theme.Theme`) | a role: dark and light styles on the 16 ANSI colors, with a contrast minimum for schemes (`minContrast`) | every style in the UI, drawn in the terminal's palette or any color scheme (`FromPalette`); `TestEveryThemeReadable` checks each role under every built-in scheme |
 | `config.Options` | an option: name, type, default, environment variables, flag, live or not, description, check | parsing and warnings, flags, `012 config` and its default file, [Configuration](../reference/config.md), Reload config |
-| `locale.table` | a locale: tag, name, separators, date order and patterns, currency and its place | parsing typed entries, display, formula separators, CSV, File > Settings > Locale, the `locale` option's values |
+| `locale.table` | a locale: tag, name, Windows LCID, separators, date order and patterns, currency and its place; its language's month and day names (`locale.names`) | parsing typed entries, display, formula separators, CSV, File > Settings > Locale, the `locale` option's values |
 
 Adding a function, command, format, chart type, option or role means
 adding an entry (and its file), not editing switch statements elsewhere.

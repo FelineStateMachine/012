@@ -68,13 +68,26 @@ one, an ordinary space does.
   (Format > Number) show the locale's symbol and order; a
   [custom format](formatting.md) keeps its own symbols and order, only
   its separators follow the locale, as in Sheets.
+- **Month and day names.** `mmm`, `mmmm`, `ddd` and `dddd` in a format
+  show the locale's language (`Sa 26. September` in German), in the
+  form a date with its day takes where the language has one (Polish
+  `26 września 2026`, but `wrzesień 2026`); `AM/PM` shows 午前 and 午後
+  in Japanese and 上午 and 下午 in Chinese. A format tagged with a
+  locale as Excel writes them (`[$-407]mmmm`) shows that locale's
+  names. Dates typed with the locale's month names (`26. Okt. 2026`)
+  are read as dates too.
 - **Formulas.** Where the decimal separator is a comma, arguments are
   separated by `;` and the values of an array's row by `\`: `=IF(A1>1,5;
   "yes"; "no")`, `={1\2;3\4}`. Function names stay in English, as in
   Sheets. The formula bar, editing a cell and the function hints
   (`ROUND(value; [places])`) all use the locale's form, as do formulas
   in [conditional formatting, data validation](rules.md) and filter
-  conditions.
+  conditions. A formula that doesn't parse says so in the locale's
+  syntax: `Expected ; or ) in ROUND`.
+- **Filters and text conditions.** A filter's list of values shows them
+  as the sheet does (`1.234,50`), and conditions on text (contains,
+  starts with, is exactly) test the text the locale shows, in filters
+  and conditional formats alike, so their values are kept as typed.
 - **The clipboard and CSV files.** Copying writes numbers with the
   locale's decimal separator and pasting reads text the locale's way.
   CSV files are [read and written](../files/README.md) in the locale
@@ -90,6 +103,11 @@ en-US (`1,234.5`, `09/26/2026`, `=ROUND(A1*1.19, 2)`; see
 the sheet and changes no value. Functions compute the same everywhere
 too: `VALUE("1,5")` and `TEXT(A1, "0.00")` read and write en-US's form
 in any locale, and macros and their [API](../reference/macro-api.md)
-set and read entries in en-US's form. [Excel files](../files/excel.md)
-are written with en-US's Currency (`$`) and Date (`m/d/yyyy`) formats
-whatever the locale, so their formats read back as the same formats.
+set and read entries in en-US's form.
+
+[Excel files](../files/excel.md) are downloaded with the locale's
+Currency, Date, Time and Date time formats, tagged with it as Excel
+writes them (`#,##0.00\ [$€-407]`, `[$-407]d.m.yyyy`), so Excel shows
+them as the sheet does. Opened in a sheet of the same locale they are
+those formats again; in another they keep their symbol and order as
+custom formats.

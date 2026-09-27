@@ -1,6 +1,7 @@
 package formula
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/FelineStateMachine/012/internal/locale"
@@ -70,5 +71,41 @@ func TestLocalizePartial(t *testing.T) {
 		if got := Delocalize(typed, de); got != want {
 			t.Errorf("%q = %q, want %q", typed, got, want)
 		}
+	}
+}
+
+// TestLocalizeError checks parse errors name what was typed in the
+// locale: its separators and the text at the error.
+func TestLocalizeError(t *testing.T) {
+	de := mustLocale(t, "de-DE")
+	for typed, want := range map[string]string{
+		"=SUM(1;2 3)": "Expected ; or ) in SUM",
+		"=1;5":        "Unexpected ;",
+		"={1\\2 3}":   "Expected \\ ; or } in an array",
+		"=SUM(1;2":    "Expected ; or ) in SUM",
+	} {
+		stored := Delocalize(typed, de)
+		_, err := Parse(stored, testFuncs)
+		if err == nil {
+			t.Errorf("%q parsed", typed)
+			continue
+		}
+		got := LocalizeError(err, de)
+		if got.Error() != want {
+			t.Errorf("%q: %q, want %q", typed, got, want)
+		}
+		pe, ok := got.(*ParseError)
+		if !ok || pe.Pos != err.(*ParseError).Pos {
+			t.Errorf("%q: %T lost the position", typed, got)
+		}
+		wrapped := LocalizeError(fmt.Errorf("Formula: %w", err), de)
+		if wrapped.Error() != "Formula: "+want {
+			t.Errorf("%q wrapped: %q", typed, wrapped)
+		}
+	}
+	en := mustLocale(t, "en-US")
+	_, err := Parse("=SUM(1,2 3)", testFuncs)
+	if got := LocalizeError(err, en); got != err {
+		t.Errorf("en-US changed %v", got)
 	}
 }

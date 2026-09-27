@@ -72,6 +72,13 @@ func TestParseValueInLocales(t *testing.T) {
 		{"ja-JP", "¥1,000", true, 1000, value.FmtCurrency, "$1,000"},
 		{"zh-CN", "26/9/26", true, date, value.FmtDate, "9/26/26"},
 		{"de-CH", "26.9", true, 26.9, value.FmtAuto, "26.9"},
+		{"de-DE", "26. September 2026", true, date, value.FmtDate, "26 September 2026"},
+		{"de-DE", "26 Sep 2026", true, date, value.FmtDate, "26 Sep 2026"},
+		{"de-DE", "26. Okt. 2026", true, date + 30, value.FmtDate, "26 Oct 2026"},
+		{"fr-FR", "26 sept. 2026", true, date, value.FmtDate, "26 Sep 2026"},
+		{"pl-PL", "26 września 2026", true, date, value.FmtDate, "26 September 2026"},
+		{"cs-CZ", "26. září 2026", true, date, value.FmtDate, "26 September 2026"},
+		{"es-ES", "26 de septiembre", false, 0, 0, ""},
 	}
 	for _, c := range cases {
 		l := loc(t, c.tag)

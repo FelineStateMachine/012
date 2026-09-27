@@ -47,7 +47,56 @@ func Canonicalize(s string, loc *locale.Locale) (string, bool) {
 			return c, true
 		}
 	}
+	if c, ok := canonicalMonthDate(t, loc); ok {
+		if _, _, ok := ParseDateTime(c); ok {
+			return c, true
+		}
+	}
 	return s, false
+}
+
+// canonicalMonthDate rewrites a date whose month is named in loc's
+// language (26. September 2026, 26 wrz 2026) with the month's English
+// name, which dates read everywhere, dropping the dot German and Czech
+// put after the day. It reports false when no word names a month.
+func canonicalMonthDate(t string, loc *locale.Locale) (string, bool) {
+	n := loc.Names()
+	if n == locale.English {
+		return "", false
+	}
+	words := strings.Fields(t)
+	found := false
+	for i, w := range words {
+		if m, long, ok := localMonth(w, n); ok && !found {
+			words[i], found = locale.English.Short[m], true
+			if long {
+				words[i] = locale.English.Months[m]
+			}
+			continue
+		}
+		if d, ok := strings.CutSuffix(w, "."); ok && d != "" && strings.Trim(d, "0123456789") == "" {
+			words[i] = d
+		}
+	}
+	return strings.Join(words, " "), found
+}
+
+// localMonth finds the month (0 to 11) a word names in n, ignoring case
+// and a trailing dot, and whether it's the full name.
+func localMonth(w string, n *locale.Names) (m int, long, ok bool) {
+	w = strings.ToLower(w)
+	bare := strings.TrimSuffix(w, ".")
+	for i := range 12 {
+		switch bare {
+		case strings.ToLower(n.Months[i]), strings.ToLower(n.Alone[i]):
+			if bare != "" {
+				return i, true, true
+			}
+		case strings.ToLower(strings.TrimSuffix(n.Short[i], ".")):
+			return i, false, true
+		}
+	}
+	return 0, false, false
 }
 
 // Localize is the inverse of Canonicalize: a number, date or time entry

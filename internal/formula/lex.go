@@ -30,6 +30,7 @@ type token struct {
 type ParseError struct {
 	Pos int
 	Msg string
+	src string // the formula parsed, for LocalizeError
 }
 
 func (e *ParseError) Error() string { return e.Msg }
@@ -147,7 +148,7 @@ func (lx *lexer) str() error {
 		lx.emit(tokStr, text, start)
 		return nil
 	}
-	return &ParseError{start, "Missing closing quote"}
+	return &ParseError{Pos: start, Msg: "Missing closing quote"}
 }
 
 // quotedSheet reads a quoted sheet name and its "!", with ” for a
@@ -156,7 +157,7 @@ func (lx *lexer) quotedSheet() error {
 	start := lx.i
 	name, end, ok := quotedName(lx.src, start)
 	if !ok || end >= len(lx.src) || lx.src[end] != '!' {
-		return &ParseError{start, "Expected ! after a quoted sheet name"}
+		return &ParseError{Pos: start, Msg: "Expected ! after a quoted sheet name"}
 	}
 	lx.i = end + 1
 	lx.emit(tokSheet, name, start)
@@ -184,7 +185,7 @@ func (lx *lexer) ident() error {
 		name = name[1:]
 	}
 	if name == "" {
-		return &ParseError{start, "Missing function name after @"}
+		return &ParseError{Pos: start, Msg: "Missing function name after @"}
 	}
 	kind := tokIdent
 	if at || lx.parenFollows() {
@@ -213,7 +214,7 @@ func (lx *lexer) hash() error {
 	}
 	end := strings.IndexByte(rest[1:], '#')
 	if end < 0 {
-		return &ParseError{start, "Unexpected #"}
+		return &ParseError{Pos: start, Msg: "Unexpected #"}
 	}
 	op := strings.ToUpper(rest[:end+2])
 	for _, known := range hashOps {
@@ -223,7 +224,7 @@ func (lx *lexer) hash() error {
 			return nil
 		}
 	}
-	return &ParseError{start, "Unknown operator " + op}
+	return &ParseError{Pos: start, Msg: "Unknown operator " + op}
 }
 
 func (lx *lexer) operator() error {
@@ -240,5 +241,5 @@ func (lx *lexer) operator() error {
 		lx.emit(tokOp, rest[:1], start)
 		return nil
 	}
-	return &ParseError{start, fmt.Sprintf("Unexpected %q", rest[0])}
+	return &ParseError{Pos: start, Msg: fmt.Sprintf("Unexpected %q", rest[0])}
 }

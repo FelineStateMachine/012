@@ -7,6 +7,7 @@ package numfmt
 
 import (
 	"math"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -62,9 +63,32 @@ func FormatIn(v float64, pat string, loc *locale.Locale) string {
 	}
 	toks := lexPattern(sec)
 	if isDatePattern(toks) {
-		return formatDate(v, toks)
+		return formatDate(v, toks, patternNames(sec, loc))
 	}
 	return formatNumber(math.Abs(v), neg, toks, loc)
+}
+
+// patternNames are the names of months and days a date pattern shows:
+// those of the locale its [$-407] tag names, as in Excel, or else loc's.
+func patternNames(sec string, loc *locale.Locale) *locale.Names {
+	for rest := sec; ; {
+		i := strings.Index(rest, "[$")
+		if i < 0 {
+			return loc.Names()
+		}
+		rest = rest[i+2:]
+		end := strings.IndexByte(rest, ']')
+		if end < 0 {
+			return loc.Names()
+		}
+		_, hex, ok := strings.Cut(rest[:end], "-")
+		if id, err := strconv.ParseUint(hex, 16, 32); ok && err == nil {
+			if l, found := locale.ByLCID(uint16(id)); found {
+				return l.Names()
+			}
+		}
+		rest = rest[end:]
+	}
 }
 
 // splitSections splits a pattern on ; outside quotes and escapes.

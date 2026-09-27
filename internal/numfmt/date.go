@@ -4,6 +4,9 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode/utf8"
+
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // clock is a serial broken into the fields date and time patterns show.
@@ -16,10 +19,11 @@ type clock struct {
 	elapsed              int64 // whole seconds since day 0, for [h], [m] and [s]
 	fracDigits           int   // decimals of a second shown
 	sub                  int   // the fraction of the second, in fracDigits digits
+	names                *locale.Names
 }
 
-func newClock(v float64, toks []ptok) clock {
-	c := clock{toks: toks, ampm: hasKind(toks, ptAMPM), fracDigits: secondDecimals(toks)}
+func newClock(v float64, toks []ptok, names *locale.Names) clock {
+	c := clock{toks: toks, ampm: hasKind(toks, ptAMPM), fracDigits: secondDecimals(toks), names: names}
 	unit := math.Pow(10, float64(c.fracDigits))
 	ticks := int64(math.Round(v * 86400 * unit)) // in 10^-fracDigits seconds
 	perDay := int64(86400 * unit)
@@ -52,14 +56,15 @@ func secondDecimals(toks []ptok) int {
 	return n
 }
 
-// formatDate renders serial v as a date, time or duration.
-func formatDate(v float64, toks []ptok) string {
+// formatDate renders serial v as a date, time or duration, with the
+// names of months and days in names' language.
+func formatDate(v float64, toks []ptok, names *locale.Names) string {
 	var b strings.Builder
 	if v < 0 && hasKind(toks, ptElapsed) {
 		b.WriteByte('-') // a negative duration
 		v = -v
 	}
-	c := newClock(v, toks)
+	c := newClock(v, toks, names)
 	for i := range toks {
 		c.write(&b, i)
 	}
@@ -107,8 +112,9 @@ func (c *clock) write(b *strings.Builder, i int) {
 }
 
 // monthText writes m to mmmmm at token i: minutes (see isMinute), the
-// month's number, or its name abbreviated to three letters, one, or
-// spelled out.
+// month's number, or its name abbreviated, as its first letter, or
+// spelled out, in the form a date with a day of the month takes where
+// the language has one ("26 września", "wrzesień 2026").
 func (c *clock) monthText(n, i int) string {
 	switch {
 	case n <= 2 && isMinute(c.toks, i):
@@ -116,11 +122,24 @@ func (c *clock) monthText(n, i int) string {
 	case n <= 2:
 		return padN(c.month, n)
 	case n == 3:
-		return MonthNames[c.month-1][:3]
-	case n == 5:
-		return MonthNames[c.month-1][:1]
+		return c.names.Short[c.month-1]
 	}
-	return MonthNames[c.month-1]
+	name := c.names.Month(c.month, !hasDayOfMonth(c.toks))
+	if n == 5 {
+		r, _ := utf8.DecodeRuneInString(name)
+		return strings.ToUpper(string(r))
+	}
+	return name
+}
+
+// hasDayOfMonth reports whether a pattern shows the day of the month.
+func hasDayOfMonth(toks []ptok) bool {
+	for _, t := range toks {
+		if t.kind == ptDay && t.n <= 2 {
+			return true
+		}
+	}
+	return false
 }
 
 // dayText writes d to dddd: the day of the month or of the week.
@@ -129,9 +148,9 @@ func (c *clock) dayText(n int) string {
 	case 1, 2:
 		return padN(c.day, n)
 	case 3:
-		return DayNames[c.weekday][:3]
+		return c.names.DaysShort[c.weekday]
 	}
-	return DayNames[c.weekday]
+	return c.names.Days[c.weekday]
 }
 
 func (c *clock) hour12() int {
@@ -152,10 +171,14 @@ func (c *clock) elapsedText(t ptok) string {
 	return padN(int(c.elapsed), t.n)
 }
 
-// meridiem writes AM/PM or A/P.
+// meridiem writes AM/PM or A/P, or the language's words for them.
 func (c *clock) meridiem(style string) string {
 	pm := c.hour >= 12
 	switch {
+	case c.names.AM != "" && pm:
+		return c.names.PM
+	case c.names.AM != "":
+		return c.names.AM
 	case style == "A/P" && pm:
 		return "P"
 	case style == "A/P":

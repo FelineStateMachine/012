@@ -79,6 +79,11 @@ func (op CondOp) String() string { return condNames[op] }
 // Title names the condition for people, e.g. "Greater than".
 func (op CondOp) Title() string { return condTitles[op] }
 
+// OnText reports whether the condition tests the text a cell shows
+// (contains, starts with ...), which is in the locale's rendering, so
+// its value is kept as typed rather than read as a number or date.
+func (op CondOp) OnText() bool { return op >= CondContains && op <= CondExactly }
+
 // TakesArg reports whether the condition compares with a value.
 func (op CondOp) TakesArg() bool { return op != CondNone && op != CondEmpty && op != CondNotEmpty }
 
@@ -258,6 +263,7 @@ type colTest struct {
 	col    int
 	hidden map[string]bool
 	cond   func(Value, string) bool
+	local  bool // cond tests the text as the locale shows it
 }
 
 // criteriaTests prepares the filter's criteria, leaving out column skip.
@@ -268,7 +274,7 @@ func (s *Sheet) criteriaTests(f *Filter, skip int) []colTest {
 		if c == skip || cr.IsZero() {
 			continue
 		}
-		t := colTest{col: c, cond: cr.Cond.test()}
+		t := colTest{col: c, cond: cr.Cond.test(), local: cr.Cond.Op.OnText() && !s.Locale().IsCanonical()}
 		if len(cr.Hidden) > 0 {
 			t.hidden = make(map[string]bool, len(cr.Hidden))
 			for _, h := range cr.Hidden {
@@ -284,7 +290,13 @@ func (s *Sheet) rowPasses(row int, tests []colTest) bool {
 	for _, t := range tests {
 		a := Addr{Col: t.col, Row: row}
 		shown := s.ShownText(a)
-		if t.hidden[shown] || !t.cond(s.Value(a), shown) {
+		if t.hidden[shown] {
+			return false
+		}
+		if t.local {
+			shown = s.LocalText(a)
+		}
+		if !t.cond(s.Value(a), shown) {
 			return false
 		}
 	}
@@ -363,7 +375,8 @@ func (c Condition) test() func(v Value, shown string) bool {
 // FilterValue is one entry of a filter's values list: a value as shown,
 // how many rows have it, and whether it is checked (shown).
 type FilterValue struct {
-	Text  string // "" for blanks
+	Text  string // as en-US shows it, as filters keep it; "" for blanks
+	Label string // as the sheet's locale shows it, for the list
 	Count int
 	Shown bool
 }
@@ -390,6 +403,7 @@ func (s *Sheet) valuesList(r Rect, col int, tests []colTest, hide []string, skip
 	}
 	counts := map[string]int{}
 	values := map[string]Value{}
+	labels := map[string]string{}
 	data := s.filterData(r)
 	for row := r.From.Row + 1; row <= data.To.Row; row++ {
 		if !s.rowPasses(row, tests) || skipBlank && s.rowBlank(row, r) {
@@ -398,7 +412,7 @@ func (s *Sheet) valuesList(r Rect, col int, tests []colTest, hide []string, skip
 		a := Addr{Col: col, Row: row}
 		t := s.ShownText(a)
 		if _, seen := counts[t]; !seen {
-			values[t] = s.Value(a)
+			values[t], labels[t] = s.Value(a), s.localLabel(a, t)
 		}
 		counts[t]++
 	}
@@ -411,7 +425,7 @@ func (s *Sheet) valuesList(r Rect, col int, tests []colTest, hide []string, skip
 	// they can be checked again.
 	for h := range hidden {
 		if _, ok := counts[h]; !ok {
-			counts[h] = 0
+			counts[h], labels[h] = 0, LocalArg(h, s.Locale())
 			values[h] = Value{Kind: Text, Str: h}
 			if n, _, ok := ParseValue(h); ok {
 				values[h] = Value{Kind: Number, Num: n}
@@ -420,7 +434,7 @@ func (s *Sheet) valuesList(r Rect, col int, tests []colTest, hide []string, skip
 	}
 	out := make([]FilterValue, 0, len(counts))
 	for t, n := range counts {
-		out = append(out, FilterValue{Text: t, Count: n, Shown: !hidden[t]})
+		out = append(out, FilterValue{Text: t, Label: labels[t], Count: n, Shown: !hidden[t]})
 	}
 	slices.SortFunc(out, func(a, b FilterValue) int {
 		if (a.Text == "") != (b.Text == "") {

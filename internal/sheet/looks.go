@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/functions"
+	"github.com/FelineStateMachine/012/internal/locale"
 )
 
 // Look is how a sheet's rules draw a cell: a conditional format's style
@@ -196,13 +197,16 @@ func (t *ruleTest) arg(c *looksCache, s *Sheet, k int, a Addr) Value {
 func (t *ruleTest) match(c *looksCache, s *Sheet, a Addr, v Value) bool {
 	switch {
 	case t.shared != nil:
-		return t.shared(v, s.ShownText(a))
+		return t.shared(v, s.LocalText(a))
 	case t.op == RuleFormula:
 		return t.args[0] != nil && truthy(c.evalFrom(s, t.args[0], t.from, a))
 	}
 	if cop, ok := filterOps[t.op]; ok { // a shared test with a formula value
-		arg := t.arg(c, s, 0, a)
-		return Condition{Op: cop, Arg: FormatText(arg, Format{})}.test()(v, s.ShownText(a))
+		arg, loc := t.arg(c, s, 0, a), locale.Canonical
+		if cop.OnText() {
+			loc = s.Locale()
+		}
+		return Condition{Op: cop, Arg: FormatTextIn(arg, Format{}, loc)}.test()(v, s.LocalText(a))
 	}
 	if v.Kind != Number {
 		return false

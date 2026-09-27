@@ -27,6 +27,7 @@ What changes on the way:
 | | |
 |---|---|
 | Formulas 012 can't read (unknown functions) | Keep their values |
+| Currency, Date and Time formats in a sheet in another [locale](../sheets/locale.md#what-doesnt) than en-US | Go out in the locale's form, tagged with it (`[$€-407]`), and come back as those formats in that locale |
 | Excel pivot tables | Come in as the values they showed; 012's go out as their results, not a pivot |
 | Excel's sheet protection | Comes in unprotected, with a note saying so: Excel's protection locks cells where 012's only warns. Protected ranges aren't written |
 | Array formulas (Excel 365's dynamic arrays and older `{=...}` ones) | Come in as formulas that spill again, without the values Excel kept in the cells they spill into |

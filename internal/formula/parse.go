@@ -51,22 +51,23 @@ func Parse(src string, funcs Funcs) (Node, error) {
 	offset := len(src) - len(body)
 	toks, err := lex(body)
 	if err != nil {
-		return nil, shift(err, offset)
+		return nil, shift(err, offset, src)
 	}
 	p := &parser{src: body, toks: toks, funcs: funcs}
 	n, err := p.expr(0)
 	if err == nil && p.peek().kind != tokEOF {
-		err = &ParseError{p.peek().pos, "Unexpected " + p.peek().text}
+		err = &ParseError{Pos: p.peek().pos, Msg: "Unexpected " + p.peek().text}
 	}
 	if err != nil {
-		return nil, shift(err, offset)
+		return nil, shift(err, offset, src)
 	}
 	return n, nil
 }
 
-func shift(err error, offset int) error {
+func shift(err error, offset int, src string) error {
 	if pe, ok := err.(*ParseError); ok {
 		pe.Pos += offset
+		pe.src = src
 	}
 	return err
 }
@@ -90,7 +91,7 @@ func (p *parser) isOp(op string) bool {
 // Every level of nesting passes through here, so here it's counted.
 func (p *parser) expr(minPower int) (Node, error) {
 	if p.depth >= MaxDepth {
-		return nil, &ParseError{p.peek().pos, fmt.Sprintf("Formula is nested too deeply (more than %d levels)", MaxDepth)}
+		return nil, &ParseError{Pos: p.peek().pos, Msg: fmt.Sprintf("Formula is nested too deeply (more than %d levels)", MaxDepth)}
 	}
 	p.depth++
 	n, err := p.climb(minPower)
@@ -134,7 +135,7 @@ func (p *parser) prefix() (Node, error) {
 		}
 		v, err := strconv.ParseFloat(t.text, 64)
 		if err != nil {
-			return nil, &ParseError{t.pos, "Invalid number " + t.text}
+			return nil, &ParseError{Pos: t.pos, Msg: "Invalid number " + t.text}
 		}
 		return Num{v}, nil
 	case tokStr:
@@ -147,7 +148,7 @@ func (p *parser) prefix() (Node, error) {
 			return r, nil
 		}
 		if ref.kind != tokIdent {
-			return nil, &ParseError{ref.pos, "Expected a cell after " + QuoteSheet(t.text) + "!"}
+			return nil, &ParseError{Pos: ref.pos, Msg: "Expected a cell after " + QuoteSheet(t.text) + "!"}
 		}
 		return p.ident(ref, t.text)
 	case tokFunc:
@@ -157,9 +158,9 @@ func (p *parser) prefix() (Node, error) {
 	case tokOp:
 		return p.prefixOp(t)
 	case tokEOF:
-		return nil, &ParseError{t.pos, "Formula is incomplete"}
+		return nil, &ParseError{Pos: t.pos, Msg: "Formula is incomplete"}
 	}
-	return nil, &ParseError{t.pos, "Unexpected " + t.text}
+	return nil, &ParseError{Pos: t.pos, Msg: "Unexpected " + t.text}
 }
 
 // prefixOp parses what starts with an operator: a parenthesized
@@ -172,7 +173,7 @@ func (p *parser) prefixOp(t token) (Node, error) {
 			return nil, err
 		}
 		if !p.isOp(")") {
-			return nil, &ParseError{p.peek().pos, "Missing )"}
+			return nil, &ParseError{Pos: p.peek().pos, Msg: "Missing )"}
 		}
 		p.next()
 		return n, nil
@@ -189,7 +190,7 @@ func (p *parser) prefixOp(t token) (Node, error) {
 		}
 		return Unary{Op: t.text, X: x}, nil
 	}
-	return nil, &ParseError{t.pos, "Unexpected " + t.text}
+	return nil, &ParseError{Pos: t.pos, Msg: "Unexpected " + t.text}
 }
 
 // ident parses a reference, a range, a boolean or a name. sheet is the
@@ -201,7 +202,7 @@ func (p *parser) ident(t token, sheet string) (Node, error) {
 	a, abs, isRef := ParseRef(t.text)
 	if !isRef {
 		if sheet != "" {
-			return nil, &ParseError{t.pos, "Expected a cell after " + QuoteSheet(sheet) + "!"}
+			return nil, &ParseError{Pos: t.pos, Msg: "Expected a cell after " + QuoteSheet(sheet) + "!"}
 		}
 		switch t.text {
 		case "TRUE":
@@ -224,13 +225,13 @@ func (p *parser) ident(t token, sheet string) (Node, error) {
 	// The second corner may repeat the sheet: Sheet2!A1:Sheet2!B3.
 	if end.kind == tokSheet {
 		if SheetKey(end.text) != SheetKey(sheet) {
-			return nil, &ParseError{end.pos, "A range can't span sheets"}
+			return nil, &ParseError{Pos: end.pos, Msg: "A range can't span sheets"}
 		}
 		end = p.next()
 	}
 	b, bAbs, ok := ParseRef(end.text)
 	if end.kind != tokIdent || !ok {
-		return nil, &ParseError{end.pos, "Expected a cell after " + sep.text}
+		return nil, &ParseError{Pos: end.pos, Msg: "Expected a cell after " + sep.text}
 	}
 	r := NewRange(a, b, abs, bAbs)
 	r.Sheet = sheet
@@ -290,7 +291,7 @@ func (p *parser) call(t token) (Node, error) {
 	}
 	fn, ok := p.funcs(t.text)
 	if !ok {
-		return nil, &ParseError{t.pos, "Unknown function " + t.text}
+		return nil, &ParseError{Pos: t.pos, Msg: "Unknown function " + t.text}
 	}
 	sig := fn.Signature()
 	n := Call{Fn: fn}
@@ -305,7 +306,7 @@ func (p *parser) call(t token) (Node, error) {
 		n.Args = args
 	}
 	if !sig.accepts(len(n.Args)) {
-		return nil, &ParseError{t.pos, fmt.Sprintf("Wrong number of arguments to %s(%s)", sig.Name, sig.Args)}
+		return nil, &ParseError{Pos: t.pos, Msg: fmt.Sprintf("Wrong number of arguments to %s(%s)", sig.Name, sig.Args)}
 	}
 	if err := checkBinds(sig, n.Args, t.pos); err != nil {
 		return nil, err
@@ -349,7 +350,7 @@ func (p *parser) args(name string, binds Binding) ([]Node, error) {
 		case sep.kind == tokOp && sep.text == ")":
 			return args, nil
 		case sep.kind != tokOp || (sep.text != "," && sep.text != ";"):
-			return nil, &ParseError{sep.pos, "Expected , or ) in " + name}
+			return nil, &ParseError{Pos: sep.pos, Msg: "Expected , or ) in " + name}
 		}
 	}
 }
@@ -393,7 +394,7 @@ func checkBinds(sig Signature, args []Node, pos int) error {
 			continue
 		}
 		if _, ok := a.(Local); !ok {
-			return &ParseError{pos, fmt.Sprintf("Argument %d of %s must be a name, like x or total", i+1, sig.Name)}
+			return &ParseError{Pos: pos, Msg: fmt.Sprintf("Argument %d of %s must be a name, like x or total", i+1, sig.Name)}
 		}
 	}
 	return nil
@@ -403,7 +404,7 @@ func checkBinds(sig Signature, args []Node, pos int) error {
 // in a row and rows by ";", through the "}".
 func (p *parser) array(open token) (Node, error) {
 	if p.isOp("}") {
-		return nil, &ParseError{open.pos, "An array needs at least one value"}
+		return nil, &ParseError{Pos: open.pos, Msg: "An array needs at least one value"}
 	}
 	rows := [][]Node{nil}
 	for {
@@ -420,7 +421,7 @@ func (p *parser) array(open token) (Node, error) {
 		case sep.kind == tokOp && sep.text == ";":
 			rows = append(rows, nil)
 		default:
-			return nil, &ParseError{sep.pos, "Expected , ; or } in an array"}
+			return nil, &ParseError{Pos: sep.pos, Msg: "Expected , ; or } in an array"}
 		}
 	}
 }

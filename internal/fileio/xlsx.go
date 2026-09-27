@@ -41,7 +41,7 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 	if len(sheets) == 0 {
 		sheets = []*Snapshot{snap}
 	}
-	w := &xlsxWriter{styles: newXLSXStyleTable(), multi: len(sheets) > 1, known: map[string]bool{}, renamed: map[string]string{}}
+	w := &xlsxWriter{styles: newXLSXStyleTable(snap.Locale), multi: len(sheets) > 1, known: map[string]bool{}, renamed: map[string]string{}}
 	res := &ExportResult{}
 	names, hidden, active := make([]string, len(sheets)), make([]bool, len(sheets)), 0
 	used := map[string]bool{}

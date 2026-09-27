@@ -192,7 +192,7 @@ func (e *Editor) formKey(k tea.KeyPressMsg) {
 	case key == "enter":
 		e.leave()
 		if err := e.f.save(e.h); err != nil {
-			e.msg = err.Error()
+			e.msg = sheet.LocalizeError(err, e.h.Sheet().Locale()).Error()
 			return
 		}
 		e.f, e.msg = nil, ""

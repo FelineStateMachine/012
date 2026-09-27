@@ -111,13 +111,13 @@ func TestFilterValues(t *testing.T) {
 	s := fruit(t)
 	s.CreateFilter(Rect{From: at("A1"), To: at("B6")})
 	s.FilterColumn(1, Criteria{Hidden: []string{"3", "gone"}})
-	want := []FilterValue{{"3", 2, false}, {"10", 1, true}, {"$25", 1, true}, {"gone", 0, false}, {"", 1, true}}
+	want := []FilterValue{{"3", "3", 2, false}, {"10", "10", 1, true}, {"$25", "$25", 1, true}, {"gone", "gone", 0, false}, {"", "", 1, true}}
 	if got := s.FilterValues(1); !reflect.DeepEqual(got, want) {
 		t.Errorf("values\n got %v\nwant %v", got, want)
 	}
 	// Other columns' criteria narrow the list.
 	s.FilterColumn(0, Criteria{Cond: Condition{CondContains, "apple"}})
-	want = []FilterValue{{"3", 0, false}, {"10", 1, true}, {"$25", 1, true}, {"gone", 0, false}}
+	want = []FilterValue{{"3", "3", 0, false}, {"10", "10", 1, true}, {"$25", "$25", 1, true}, {"gone", "gone", 0, false}}
 	if got := s.FilterValues(1); !reflect.DeepEqual(got, want) {
 		t.Errorf("narrowed values\n got %v\nwant %v", got, want)
 	}

@@ -64,3 +64,30 @@ func TestTable(t *testing.T) {
 		t.Errorf("en-US date time %q", got)
 	}
 }
+
+// TestNames checks every locale has a whole set of names, abbreviations
+// no longer than the names, and both or neither of AM and PM.
+func TestNames(t *testing.T) {
+	for _, l := range locale.All() {
+		n := l.Names()
+		for m := range 12 {
+			if n.Months[m] == "" || n.Short[m] == "" {
+				t.Errorf("%s: month %d unnamed", l.Tag, m+1)
+			}
+		}
+		for d := range 7 {
+			if n.Days[d] == "" || n.DaysShort[d] == "" || len(n.DaysShort[d]) > len(n.Days[d]) {
+				t.Errorf("%s: day %d is %q, %q", l.Tag, d, n.Days[d], n.DaysShort[d])
+			}
+		}
+		if (n.AM == "") != (n.PM == "") {
+			t.Errorf("%s: AM %q PM %q", l.Tag, n.AM, n.PM)
+		}
+		if got, ok := locale.ByLCID(l.LCID); !ok || got != l {
+			t.Errorf("%s: LCID %X finds %v", l.Tag, l.LCID, got)
+		}
+	}
+	if de, _ := locale.Lookup("de-DE"); de.Names().Months[2] != "März" {
+		t.Errorf("de-DE March is %q", de.Names().Months[2])
+	}
+}

@@ -1,9 +1,11 @@
 package fileio
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -45,6 +47,84 @@ func excelCode(f sheet.Format) string {
 		return f.Pattern
 	}
 	return ""
+}
+
+// excelCodeIn is the Excel code for f in a workbook in loc: the
+// Currency, Date, Time and Date time formats in loc's form, tagged with
+// its LCID as Excel writes them ([$€-407], [$-407]d.m.yyyy), so Excel
+// shows them as the sheet does and they read back as the same formats.
+// Other formats, and every format in en-US, are excelCode's.
+func excelCodeIn(f sheet.Format, loc *locale.Locale) string {
+	if loc.IsCanonical() || f.Pattern != "" {
+		return excelCode(f)
+	}
+	tag := fmt.Sprintf("-%X]", loc.LCID)
+	switch f.Kind {
+	case sheet.FmtCurrency:
+		num := "#,##0"
+		if f.Decimals > 0 {
+			num += "." + strings.Repeat("0", min(f.Decimals, sheet.MaxDecimals))
+		}
+		sym, gap := "[$"+loc.Currency+tag, ""
+		if loc.Space {
+			gap = `\ `
+		}
+		if loc.After {
+			return num + gap + sym
+		}
+		return sym + gap + num
+	case sheet.FmtDate:
+		return "[$" + tag + loc.Date
+	case sheet.FmtTime:
+		return "[$" + tag + excelAMPM(loc.Time)
+	case sheet.FmtDateTime:
+		return "[$" + tag + excelAMPM(loc.DateTime())
+	}
+	return excelCode(f)
+}
+
+// excelAMPM spells a pattern's am/pm as Excel does.
+func excelAMPM(pat string) string { return strings.Replace(pat, "am/pm", "AM/PM", 1) }
+
+// localFormat is a format as excelCodeIn writes it in a locale.
+type localFormat struct {
+	f   sheet.Format
+	loc *locale.Locale
+}
+
+var (
+	localOnce  sync.Once
+	localCodes map[string]localFormat // normalized code -> format and locale
+)
+
+// formatIn maps an Excel number format to a 012 format for a workbook
+// in loc. A code excelCodeIn writes for loc is its format again; one
+// written for another locale keeps its own symbol and order, as a
+// custom or date pattern.
+func formatIn(id int, code string, loc *locale.Locale) sheet.Format {
+	if code != "" && !loc.IsCanonical() {
+		localOnce.Do(func() {
+			localCodes = map[string]localFormat{}
+			for _, l := range locale.All()[1:] {
+				for _, f := range localKinds() {
+					localCodes[normCode(excelCodeIn(f, l))] = localFormat{f, l}
+				}
+			}
+		})
+		if lf, ok := localCodes[normCode(code)]; ok && lf.loc == loc {
+			return lf.f
+		}
+	}
+	return formatOf(id, code)
+}
+
+// localKinds are the formats written in the workbook's locale.
+func localKinds() []sheet.Format {
+	out := []sheet.Format{{Kind: sheet.FmtDate}, {Kind: sheet.FmtTime}, {Kind: sheet.FmtDateTime}}
+	for d := range sheet.MaxDecimals + 1 {
+		out = append(out, sheet.Format{Kind: sheet.FmtCurrency, Decimals: d})
+	}
+	return out
 }
 
 func orDefault(s, def string) string {

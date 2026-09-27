@@ -163,6 +163,45 @@ func LocalArg(arg string, loc *locale.Locale) string {
 	return arg
 }
 
+// LocalizeError writes a formula's parse error, alone or wrapped, as the
+// formula was typed in loc: "Expected ; or ) in ROUND" in de-DE.
+func LocalizeError(err error, loc *locale.Locale) error { return formula.LocalizeError(err, loc) }
+
+// LocalText is the cell's value as its format displays it in the
+// sheet's locale, with no width limit: what text conditions test.
+func (s *Sheet) LocalText(a Addr) string {
+	if !s.cells.filledAt(a) {
+		return ""
+	}
+	return FormatTextIn(s.cells.value(a), s.DisplayFormat(a), s.Locale())
+}
+
+// localLabel is the cell at a, shown as shown in en-US, as its
+// locale shows it.
+func (s *Sheet) localLabel(a Addr, shown string) string {
+	if shown == "" || s.Locale().IsCanonical() {
+		return shown
+	}
+	return s.LocalText(a)
+}
+
+// CondArg is a condition's value typed in loc as it's kept: as typed
+// for a condition on text, as CanonicalArg for the rest.
+func CondArg(op CondOp, typed string, loc *locale.Locale) string {
+	if op.OnText() {
+		return typed
+	}
+	return CanonicalArg(typed, loc)
+}
+
+// LocalCondArg is the inverse of CondArg, for editing a value again.
+func LocalCondArg(op CondOp, arg string, loc *locale.Locale) string {
+	if op.OnText() {
+		return arg
+	}
+	return LocalArg(arg, loc)
+}
+
 // textIn is v as General shows it in loc: 1,5 in de-DE.
 func textIn(v Value, loc *locale.Locale) string {
 	if v.Kind == Number {

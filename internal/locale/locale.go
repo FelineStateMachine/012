@@ -26,6 +26,9 @@ func (o DateOrder) String() string { return [...]string{"MDY", "DMY", "YMD"}[o] 
 type Locale struct {
 	Tag  string // BCP 47, as written in files and the config: "de-DE"
 	Name string // as the picker lists it: "German (Germany)"
+	// LCID is Windows' number for the locale, which Excel's format
+	// codes name it by: [$€-407], [$-407]d.m.yyyy.
+	LCID uint16
 
 	Decimal byte   // the decimal separator: '.' or ','
 	Group   string // the thousands separator shown: ",", ".", a no-break space, an apostrophe
@@ -38,6 +41,8 @@ type Locale struct {
 	Currency string // the currency symbol: "€"
 	After    bool   // the symbol follows the number: "1.234,56 €"
 	Space    bool   // a space between the symbol and the number: "R$ 1.234,56"
+
+	names *Names // the language's month and day names, see Names
 }
 
 // Canonical is en-US: what cells, formulas and files store, whatever the
@@ -56,30 +61,30 @@ const (
 // leading zeros, as en-US's m/d/yyyy does, so most fit a default column
 // (26.9.2026); where a country writes ISO dates they keep theirs.
 var table = []Locale{
-	{Tag: "en-US", Name: "English (United States)", Decimal: '.', Group: ",", Order: MDY, DateSep: '/', Date: "m/d/yyyy", Time: "h:mm:ss am/pm", Currency: "$"},
-	{Tag: "en-GB", Name: "English (United Kingdom)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "£"},
-	{Tag: "en-CA", Name: "English (Canada)", Decimal: '.', Group: ",", Order: YMD, DateSep: '-', Date: "yyyy-mm-dd", Time: "h:mm:ss am/pm", Currency: "$"},
-	{Tag: "en-AU", Name: "English (Australia)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "h:mm:ss am/pm", Currency: "$"},
-	{Tag: "de-DE", Name: "German (Germany)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "de-CH", Name: "German (Switzerland)", Decimal: '.', Group: "’", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "CHF", Space: true},
-	{Tag: "fr-FR", Name: "French (France)", Decimal: ',', Group: nnbsp, Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "fr-CA", Name: "French (Canada)", Decimal: ',', Group: nbsp, Order: YMD, DateSep: '-', Date: "yyyy-mm-dd", Time: "hh:mm:ss", Currency: "$", After: true, Space: true},
-	{Tag: "es-ES", Name: "Spanish (Spain)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "h:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "es-MX", Name: "Spanish (Mexico)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "$"},
-	{Tag: "it-IT", Name: "Italian (Italy)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "pt-BR", Name: "Portuguese (Brazil)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "R$", Space: true},
-	{Tag: "pt-PT", Name: "Portuguese (Portugal)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "nl-NL", Name: "Dutch (Netherlands)", Decimal: ',', Group: ".", Order: DMY, DateSep: '-', Date: "d-m-yyyy", Time: "hh:mm:ss", Currency: "€", Space: true},
-	{Tag: "sv-SE", Name: "Swedish (Sweden)", Decimal: ',', Group: nbsp, Order: YMD, DateSep: '-', Date: "yyyy-mm-dd", Time: "hh:mm:ss", Currency: "kr", After: true, Space: true},
-	{Tag: "da-DK", Name: "Danish (Denmark)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "kr.", After: true, Space: true},
-	{Tag: "nb-NO", Name: "Norwegian (Norway)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "kr", Space: true},
-	{Tag: "fi-FI", Name: "Finnish (Finland)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "h:mm:ss", Currency: "€", After: true, Space: true},
-	{Tag: "pl-PL", Name: "Polish (Poland)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "zł", After: true, Space: true},
-	{Tag: "cs-CZ", Name: "Czech (Czechia)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "h:mm:ss", Currency: "Kč", After: true, Space: true},
-	{Tag: "ru-RU", Name: "Russian (Russia)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "h:mm:ss", Currency: "₽", After: true, Space: true},
-	{Tag: "tr-TR", Name: "Turkish (Türkiye)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "₺"},
-	{Tag: "ja-JP", Name: "Japanese (Japan)", Decimal: '.', Group: ",", Order: YMD, DateSep: '/', Date: "yyyy/m/d", Time: "h:mm:ss", Currency: "¥"},
-	{Tag: "zh-CN", Name: "Chinese (China)", Decimal: '.', Group: ",", Order: YMD, DateSep: '/', Date: "yyyy/m/d", Time: "h:mm:ss", Currency: "¥"},
+	{Tag: "en-US", LCID: 0x409, Name: "English (United States)", Decimal: '.', Group: ",", Order: MDY, DateSep: '/', Date: "m/d/yyyy", Time: "h:mm:ss am/pm", Currency: "$"},
+	{Tag: "en-GB", LCID: 0x809, Name: "English (United Kingdom)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "£"},
+	{Tag: "en-CA", LCID: 0x1009, Name: "English (Canada)", Decimal: '.', Group: ",", Order: YMD, DateSep: '-', Date: "yyyy-mm-dd", Time: "h:mm:ss am/pm", Currency: "$"},
+	{Tag: "en-AU", LCID: 0xC09, Name: "English (Australia)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "h:mm:ss am/pm", Currency: "$"},
+	{Tag: "de-DE", LCID: 0x407, Name: "German (Germany)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "de-CH", LCID: 0x807, Name: "German (Switzerland)", Decimal: '.', Group: "’", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "CHF", Space: true},
+	{Tag: "fr-FR", LCID: 0x40C, Name: "French (France)", Decimal: ',', Group: nnbsp, Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "fr-CA", LCID: 0xC0C, Name: "French (Canada)", Decimal: ',', Group: nbsp, Order: YMD, DateSep: '-', Date: "yyyy-mm-dd", Time: "hh:mm:ss", Currency: "$", After: true, Space: true},
+	{Tag: "es-ES", LCID: 0xC0A, Name: "Spanish (Spain)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "h:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "es-MX", LCID: 0x80A, Name: "Spanish (Mexico)", Decimal: '.', Group: ",", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "$"},
+	{Tag: "it-IT", LCID: 0x410, Name: "Italian (Italy)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "pt-BR", LCID: 0x416, Name: "Portuguese (Brazil)", Decimal: ',', Group: ".", Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "R$", Space: true},
+	{Tag: "pt-PT", LCID: 0x816, Name: "Portuguese (Portugal)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '/', Date: "d/m/yyyy", Time: "hh:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "nl-NL", LCID: 0x413, Name: "Dutch (Netherlands)", Decimal: ',', Group: ".", Order: DMY, DateSep: '-', Date: "d-m-yyyy", Time: "hh:mm:ss", Currency: "€", Space: true},
+	{Tag: "sv-SE", LCID: 0x41D, Name: "Swedish (Sweden)", Decimal: ',', Group: nbsp, Order: YMD, DateSep: '-', Date: "yyyy-mm-dd", Time: "hh:mm:ss", Currency: "kr", After: true, Space: true},
+	{Tag: "da-DK", LCID: 0x406, Name: "Danish (Denmark)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "kr.", After: true, Space: true},
+	{Tag: "nb-NO", LCID: 0x414, Name: "Norwegian (Norway)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "kr", Space: true},
+	{Tag: "fi-FI", LCID: 0x40B, Name: "Finnish (Finland)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "h:mm:ss", Currency: "€", After: true, Space: true},
+	{Tag: "pl-PL", LCID: 0x415, Name: "Polish (Poland)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "zł", After: true, Space: true},
+	{Tag: "cs-CZ", LCID: 0x405, Name: "Czech (Czechia)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "h:mm:ss", Currency: "Kč", After: true, Space: true},
+	{Tag: "ru-RU", LCID: 0x419, Name: "Russian (Russia)", Decimal: ',', Group: nbsp, Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "h:mm:ss", Currency: "₽", After: true, Space: true},
+	{Tag: "tr-TR", LCID: 0x41F, Name: "Turkish (Türkiye)", Decimal: ',', Group: ".", Order: DMY, DateSep: '.', Date: "d.m.yyyy", Time: "hh:mm:ss", Currency: "₺"},
+	{Tag: "ja-JP", LCID: 0x411, Name: "Japanese (Japan)", Decimal: '.', Group: ",", Order: YMD, DateSep: '/', Date: "yyyy/m/d", Time: "h:mm:ss", Currency: "¥"},
+	{Tag: "zh-CN", LCID: 0x804, Name: "Chinese (China)", Decimal: '.', Group: ",", Order: YMD, DateSep: '/', Date: "yyyy/m/d", Time: "h:mm:ss", Currency: "¥"},
 }
 
 // All returns every locale, en-US first, then as the table lists them.
@@ -118,6 +123,17 @@ func Lookup(tag string) (*Locale, bool) {
 			if lang, _, _ := strings.Cut(table[i].Tag, "-"); strings.EqualFold(lang, tag) {
 				return &table[i], true
 			}
+		}
+	}
+	return nil, false
+}
+
+// ByLCID finds a locale by its Windows number, as Excel's format codes
+// write it.
+func ByLCID(id uint16) (*Locale, bool) {
+	for i := range table {
+		if table[i].LCID == id {
+			return &table[i], true
 		}
 	}
 	return nil, false

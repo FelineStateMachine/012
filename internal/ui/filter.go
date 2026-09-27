@@ -126,7 +126,7 @@ func (m *Model) openFilterPicker(col int) {
 		return
 	}
 	title := "Filter " + sheet.ColName(col)
-	if h := m.sheet.ShownText(sheet.Addr{Col: col, Row: r.From.Row}); h != "" {
+	if h := m.sheet.LocalText(sheet.Addr{Col: col, Row: r.From.Row}); h != "" {
 		title += "  " + h
 	}
 	m.openValuesPicker(title, m.colStart(col), m.sheet.FilterValues(col), m.sheet.Filter().Cols[col].Cond,
@@ -141,7 +141,7 @@ func (m *Model) openValuesPicker(title string, x int, values []sheet.FilterValue
 	for _, v := range p.values {
 		p.checked[v.Text] = v.Shown
 	}
-	p.fields[1] = sheet.LocalArg(p.cond.Arg, m.locale())
+	p.fields[1] = sheet.LocalCondArg(p.cond.Op, p.cond.Arg, m.locale())
 	m.openOverlay(p)
 	m.line.Clear()
 	p.search()
@@ -173,12 +173,16 @@ func (p *filterPicker) Changed() {
 	}
 }
 
-// valueLabel is how a value shows in the list.
-func valueLabel(text string) string {
-	if text == "" {
+// valueLabel is how a value shows in the list: as the sheet's locale
+// shows it.
+func valueLabel(v sheet.FilterValue) string {
+	switch {
+	case v.Text == "":
 		return "(Blanks)"
+	case v.Label != "":
+		return v.Label
 	}
-	return text
+	return v.Text
 }
 
 // search narrows the list to the values matching the search.
@@ -194,7 +198,7 @@ func (p *filterPicker) search() {
 	}
 	labels := make([]string, len(p.values))
 	for i, v := range p.values {
-		labels[i] = valueLabel(v.Text)
+		labels[i] = valueLabel(v)
 	}
 	for _, mt := range fuzzy.Find(q, labels) {
 		p.shown = append(p.shown, mt.Index)
@@ -239,7 +243,7 @@ func (p *filterPicker) apply(m *Model) {
 			cr.Hidden = append(cr.Hidden, v.Text)
 		}
 	}
-	cr.Cond = sheet.Condition{Op: p.cond.Op, Arg: sheet.CanonicalArg(strings.TrimSpace(p.fields[1]), m.locale())}
+	cr.Cond = sheet.Condition{Op: p.cond.Op, Arg: sheet.CondArg(p.cond.Op, strings.TrimSpace(p.fields[1]), m.locale())}
 	if !cr.Cond.Op.TakesArg() {
 		cr.Cond.Arg = ""
 	} else if cr.Cond.Arg == "" {
@@ -374,7 +378,7 @@ func (p *filterPicker) rows(m *Model) int {
 func (p *filterPicker) box(m *Model) (x, y, inner int) {
 	w := 0
 	for _, v := range p.values {
-		w = max(w, ansi.StringWidth(valueLabel(v.Text))+len(strconv.Itoa(v.Count)))
+		w = max(w, ansi.StringWidth(valueLabel(v))+len(strconv.Itoa(v.Count)))
 	}
 	inner = clamp(w+10, 36, 48)
 	inner = min(inner, m.width-2)
@@ -439,7 +443,7 @@ func (p *filterPicker) Layout() []overlay.Box {
 		dim := false
 		if i > 0 {
 			v := p.values[p.shown[i-1]]
-			label, count, checked, dim = valueLabel(v.Text), strconv.Itoa(v.Count), p.checked[v.Text], v.Text == ""
+			label, count, checked, dim = valueLabel(v), strconv.Itoa(v.Count), p.checked[v.Text], v.Text == ""
 		}
 		box := "[ ] "
 		if checked {

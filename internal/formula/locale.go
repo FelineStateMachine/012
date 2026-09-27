@@ -1,6 +1,11 @@
 package formula
 
-import "github.com/FelineStateMachine/012/internal/locale"
+import (
+	"errors"
+	"strings"
+
+	"github.com/FelineStateMachine/012/internal/locale"
+)
 
 // Formulas are stored and parsed in en-US's syntax: 1.5 for a number, ,
 // between arguments and ; between an array's rows. A locale whose
@@ -21,6 +26,47 @@ func Localize(src string, loc *locale.Locale) string {
 // stored and parsed in. It works on unfinished formulas too.
 func Delocalize(src string, loc *locale.Locale) string {
 	return translate(src, loc, false)
+}
+
+// LocalizeError writes the message of a parse error in err (the error
+// itself, or one it wraps) in loc's syntax, as the formula was typed:
+// "Expected ; or ) in ROUND" where arguments are separated by ;, and
+// the text typed where it names what it didn't expect. The position is
+// the same in both syntaxes.
+func LocalizeError(err error, loc *locale.Locale) error {
+	var pe *ParseError
+	if SameSyntax(loc) || !errors.As(err, &pe) {
+		return err
+	}
+	msg := localMessage(pe, loc)
+	if msg == pe.Msg {
+		return err
+	}
+	if err == error(pe) {
+		return &ParseError{Pos: pe.Pos, Msg: msg, src: pe.src}
+	}
+	return errors.New(strings.Replace(err.Error(), pe.Msg, msg, 1))
+}
+
+// localMessage is a parse error's message in loc's syntax.
+func localMessage(pe *ParseError, loc *locale.Locale) string {
+	typed := Localize(pe.src, loc)
+	arg, col := string(loc.ArgSep()), string(loc.ColSep())
+	switch msg := pe.Msg; {
+	case strings.HasPrefix(msg, "Expected , or ) in "):
+		return "Expected " + arg + " or )" + strings.TrimPrefix(msg, "Expected , or )")
+	case msg == "Expected , ; or } in an array":
+		return "Expected " + col + " ; or } in an array"
+	case strings.HasPrefix(msg, "Wrong number of arguments to "):
+		return strings.ReplaceAll(msg, ", ", arg+" ")
+	}
+	for _, lead := range []string{"Unexpected ", "Invalid number "} {
+		tok, ok := strings.CutPrefix(pe.Msg, lead)
+		if end := pe.Pos + len(tok); ok && pe.Pos >= 0 && end <= len(typed) && len(typed) == len(pe.src) {
+			return lead + typed[pe.Pos:end]
+		}
+	}
+	return pe.Msg
 }
 
 // SameSyntax reports whether loc writes formulas as they are stored.

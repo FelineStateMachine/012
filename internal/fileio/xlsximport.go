@@ -45,6 +45,10 @@ func (bk *xlsxBook) importBook(ctx context.Context, opt Options) (*Result, error
 	}
 	b := newBuilder(ctx, opt.MaxCells)
 	book := b.s.Book()
+	bk.styles.loc = opt.Locale
+	if bk.styles.loc == nil {
+		bk.styles.loc = book.Locale()
+	}
 	done := 0
 	filters := make([]*xlsxAutoFilter, len(bk.sheets))
 	var err error

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -20,6 +21,9 @@ type xlsxStyles struct {
 	xfs     []xlsxXf
 	cache   map[int]xlsxStyle
 	dxfs    []sheet.RuleStyle // conditional formats' styles, see xlsxrulesread.go
+	// loc is the importing workbook's locale, whose Currency and Date
+	// codes read as those formats (see formatIn).
+	loc *locale.Locale
 }
 
 type xlsxFont struct{ bold, italic, strike, underline bool }
@@ -75,7 +79,7 @@ func (s *xlsxStyles) format(id int) sheet.Format {
 	if builtinNumFmt(id) {
 		return formatOf(id, "")
 	}
-	return formatOf(0, s.numFmts[id])
+	return formatIn(0, s.numFmts[id], s.loc)
 }
 
 // builtinNumFmt reports whether id is one of Excel's built-in number

@@ -122,7 +122,10 @@ func (cfKind) form(h Host, i int, sel sheet.Rect) form {
 		}
 		return f
 	}
-	f.op, f.args = max(indexOf(sheet.CondFormatOps(), r.Op), 0), localArgs(r.Args, f.loc)
+	f.op, f.args = max(indexOf(sheet.CondFormatOps(), r.Op), 0), r.Args
+	if !r.Op.OnText() {
+		f.args = localArgs(r.Args, f.loc)
+	}
 	st := r.Style
 	f.text, f.fill = int(st.Text), int(st.Fill)
 	f.bold, f.italic, f.under, f.strike = st.Bold, st.Italic, st.Underline, st.Strikethrough
@@ -163,6 +166,9 @@ func (f *cfForm) rule() (sheet.CondFormat, error) {
 	}
 	r.Op = sheet.CondFormatOps()[f.op]
 	r.Args = canonicalArgs(f.args, f.loc)
+	if r.Op.OnText() {
+		r.Args = [2]string{strings.TrimSpace(f.args[0]), strings.TrimSpace(f.args[1])}
+	}
 	r.Style = sheet.RuleStyle{Text: sheet.Color(f.text), Fill: sheet.Color(f.fill), Bold: f.bold,
 		Italic: f.italic, Underline: f.under, Strikethrough: f.strike}
 	return r, nil

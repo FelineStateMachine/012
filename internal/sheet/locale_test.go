@@ -2,6 +2,7 @@ package sheet
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -129,5 +130,34 @@ func TestDefaultLocale(t *testing.T) {
 	SetDefaultLocale(nil)
 	if NewBook().Locale().Tag != "en-US" {
 		t.Error("the default isn't en-US")
+	}
+}
+
+// TestFilterInLocale checks the filter's values list shows values as
+// the locale does while keeping them in en-US's form, and text
+// conditions test the text the locale shows.
+func TestFilterInLocale(t *testing.T) {
+	s := fruit(t)
+	if !s.Book().SetLocale("de-DE") {
+		t.Fatal("no de-DE")
+	}
+	s.Set(at("B2"), "1,234.5")
+	s.CreateFilter(Rect{From: at("A1"), To: at("B6")})
+	labels := map[string]string{}
+	for _, v := range s.FilterValues(1) {
+		labels[v.Text] = v.Label
+	}
+	if labels["1,234.50"] != "1.234,50" || labels["$25"] != "25\u00a0€" {
+		t.Errorf("labels %q", labels)
+	}
+	s.FilterColumn(1, Criteria{Hidden: []string{"$25"}, Cond: Condition{CondContains, "4,5"}})
+	if got := shownRows(s); !reflect.DeepEqual(got, []int{1, 2, 7, 8}) {
+		t.Errorf("contains 4,5 shows rows %v", got)
+	}
+	if got := CondArg(CondContains, "4,5", s.Locale()); got != "4,5" {
+		t.Errorf("text condition kept as %q", got)
+	}
+	if got := CondArg(CondGreater, "4,5", s.Locale()); got != "4.5" {
+		t.Errorf("number condition kept as %q", got)
 	}
 }

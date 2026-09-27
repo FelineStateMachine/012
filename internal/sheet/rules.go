@@ -146,6 +146,10 @@ func (op RuleOp) Args() int {
 	return 1
 }
 
+// OnText reports whether the test is on the text a cell shows, in the
+// locale's rendering, so its value is kept as typed (see CondOp.OnText).
+func (op RuleOp) OnText() bool { return op >= RuleContains && op <= RuleExactly }
+
 // ParseRuleOp is the inverse of RuleOp.String.
 func ParseRuleOp(s string) (RuleOp, bool) {
 	i := slices.Index(ruleOpNames[:], s)

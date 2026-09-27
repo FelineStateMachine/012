@@ -1,6 +1,10 @@
 package numfmt
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/FelineStateMachine/012/internal/locale"
+)
 
 func TestFormat(t *testing.T) {
 	tests := []struct {
@@ -75,5 +79,46 @@ func TestAdjustDecimals(t *testing.T) {
 	}
 	if got := AdjustDecimals("0.0", -1); got != "0" {
 		t.Errorf("AdjustDecimals(0.0, -1) = %q", got)
+	}
+}
+
+// TestFormatNames checks month and day names follow the locale's
+// language, in the form a date with a day takes where the language has
+// one, and its words for AM and PM.
+func TestFormatNames(t *testing.T) {
+	const sat = 46291.6041666667 // 2026-09-26 14:30, a Saturday
+	for _, tt := range []struct{ tag, pat, want string }{
+		{"de-DE", "dddd, d. mmmm yyyy", "Samstag, 26. September 2026"},
+		{"de-DE", "ddd d mmm", "Sa 26 Sep"},
+		{"fr-FR", "dddd d mmmm", "samedi 26 septembre"},
+		{"fr-FR", "d mmm yy", "26 sept. 26"},
+		{"pl-PL", "d mmmm yyyy", "26 września 2026"},
+		{"pl-PL", "mmmm yyyy", "wrzesień 2026"},
+		{"ru-RU", "mmmmm", "С"},
+		{"ja-JP", "h:mm AM/PM", "2:30 午後"},
+		{"zh-CN", "dddd", "星期六"},
+		{"en-GB", "ddd d mmm", "Sat 26 Sep"},
+		{"de-DE", "h:mm AM/PM", "2:30 PM"},
+	} {
+		l, _ := locale.Lookup(tt.tag)
+		if got := FormatIn(sat, tt.pat, l); got != tt.want {
+			t.Errorf("%s FormatIn(%q) = %q, want %q", tt.tag, tt.pat, got, tt.want)
+		}
+	}
+}
+
+// TestFormatLCID checks a [$-407] tag shows its locale's names, as in
+// Excel, whatever the locale shown in.
+func TestFormatLCID(t *testing.T) {
+	for _, tt := range []struct{ pat, want string }{
+		{"[$-407]d. mmmm yyyy", "26. September 2026"},
+		{"[$-40C]dddd", "samedi"},
+		{"[$-10407]mmm", "Sep"},
+		{"[$€-407]mmmm", "€September"},
+		{"[$-F800]dddd", "Saturday"},
+	} {
+		if got := Format(46291, tt.pat); got != tt.want {
+			t.Errorf("Format(%q) = %q, want %q", tt.pat, got, tt.want)
+		}
 	}
 }

@@ -99,7 +99,7 @@ func TestPivotFilterValues(t *testing.T) {
 	p, _ := s.Pivot()
 	// Region's values among the rows Product's filter lets through.
 	got := w.PivotFilterValues(p, 0)
-	want := []FilterValue{{"East", 1, true}, {"North", 1, true}, {"West", 1, false}}
+	want := []FilterValue{{"East", "East", 1, true}, {"North", "North", 1, true}, {"West", "West", 1, false}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("values %v, want %v", got, want)
 	}

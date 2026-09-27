@@ -71,3 +71,20 @@ func TestLocalePasteAndCopy(t *testing.T) {
 		t.Errorf("copied %q", got)
 	}
 }
+
+// In German, a formula that doesn't parse says which separator was
+// expected in German's syntax, and dates show German month names.
+func TestLocaleErrorsAndNames(t *testing.T) {
+	m := newModel()
+	m.book().SetLocale("de-DE")
+	press(t, m, "=SUM(1;2 3)", "<enter>")
+	if ctx := line(m, contextLine); !strings.Contains(ctx, "Expected ; or ) in SUM") {
+		t.Errorf("context %q", ctx)
+	}
+	press(t, m, "<esc>", "26.10.2026", "<enter>")
+	m.sheet.SetFormat(sheet.NewRect(addr("A1"), addr("A1")), sheet.Format{Kind: sheet.FmtCustom, Pattern: "dddd d. mmmm"})
+	m.sheet.SetColWidth(0, 22)
+	if !strings.Contains(screen(m), "Montag 26. Oktober") {
+		t.Errorf("no German names:\n%s", screen(m))
+	}
+}

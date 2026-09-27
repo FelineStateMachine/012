@@ -172,7 +172,7 @@ func (m *Model) fillEntry() bool {
 func (m *Model) entryError(err error, input string) {
 	var pe *sheet.ParseError
 	m.mode = modeEdit
-	m.entry.hint = err.Error()
+	m.entry.hint = sheet.LocalizeError(err, m.locale()).Error()
 	if errors.As(err, &pe) {
 		m.line.Pos = utf8.RuneCountInString(input[:min(pe.Pos, len(input))])
 	}
