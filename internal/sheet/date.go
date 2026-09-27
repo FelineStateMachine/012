@@ -56,44 +56,14 @@ func parseDateTime(s string) (float64, Format, bool) {
 // parseTime recognizes H:MM, H:MM:SS(.fff) and H AM/PM forms. Hours of
 // 24 or more make a duration.
 func parseTime(s string) (float64, Format, bool) {
-	up := strings.ToUpper(strings.TrimSpace(s))
-	meridiem := ""
-	for _, m := range []string{"AM", "PM"} {
-		if strings.HasSuffix(up, m) {
-			meridiem, up = m[:1], strings.TrimSpace(strings.TrimSuffix(up, m))
-			break
-		}
-	}
-	parts := strings.Split(up, ":")
+	clock, meridiem := cutMeridiem(strings.ToUpper(strings.TrimSpace(s)))
+	parts := strings.Split(clock, ":")
 	if len(parts) > 3 || (len(parts) == 1 && meridiem == "") {
 		return 0, Format{}, false
 	}
-	var h, m int
-	var sec float64
-	for i, p := range parts {
-		if p == "" || !isDigit(p[0]) {
-			return 0, Format{}, false
-		}
-		if i == 2 {
-			v, err := strconv.ParseFloat(p, 64)
-			if err != nil || v >= 60 || strings.ContainsAny(p, "eE+-") {
-				return 0, Format{}, false
-			}
-			sec = v
-			continue
-		}
-		if len(p) > 2 && i > 0 || strings.Trim(p, "0123456789") != "" {
-			return 0, Format{}, false
-		}
-		n, _ := strconv.Atoi(p)
-		if i == 0 {
-			h = n
-		} else {
-			if n >= 60 || len(p) != 2 {
-				return 0, Format{}, false
-			}
-			m = n
-		}
+	h, m, sec, ok := clockParts(parts)
+	if !ok {
+		return 0, Format{}, false
 	}
 	f := Format{Kind: FmtTime, Pattern: "h:mm:ss"}
 	switch {
@@ -110,6 +80,44 @@ func parseTime(s string) (float64, Format, bool) {
 		f = Preset(FmtDuration)
 	}
 	return numfmt.TimeSerial(h, m, sec), f, true
+}
+
+// cutMeridiem cuts a trailing AM or PM off an upper-case time, returning
+// the rest and "A", "P" or "".
+func cutMeridiem(up string) (string, string) {
+	for _, m := range [...]string{"AM", "PM"} {
+		if rest, ok := strings.CutSuffix(up, m); ok {
+			return strings.TrimSpace(rest), m[:1]
+		}
+	}
+	return up, ""
+}
+
+// clockParts reads the parts of H:MM:SS: hours of any number of digits,
+// then minutes of two digits and seconds of two, which may have decimals.
+func clockParts(parts []string) (h, m int, sec float64, ok bool) {
+	for i, p := range parts {
+		if p == "" || !isDigit(p[0]) {
+			return 0, 0, 0, false
+		}
+		whole := strings.Trim(p, "0123456789") == ""
+		switch i {
+		case 0:
+			h, _ = strconv.Atoi(p)
+			ok = whole
+		case 1:
+			m, _ = strconv.Atoi(p)
+			ok = whole && len(p) == 2 && m < 60
+		default:
+			v, err := strconv.ParseFloat(p, 64)
+			sec = v
+			ok = err == nil && v < 60 && !strings.ContainsAny(p, "eE+-")
+		}
+		if !ok {
+			return 0, 0, 0, false
+		}
+	}
+	return h, m, sec, true
 }
 
 // parseDate recognizes the date forms listed at parseDateTime.

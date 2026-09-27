@@ -239,7 +239,28 @@ func (l *sheetList) equal(m *sheetList) bool {
 // push adds a finished step to the undo stack and clears redo, dropping
 // no-op changes.
 func (w *Workbook) push(st *step) {
+	w.dropUnchanged(st)
+	if st.empty() {
+		return
+	}
 	h := &w.hist
+	h.redo = nil
+	h.lastID++
+	widthOnly := st.widthOnly()
+	if top := h.top(); widthOnly && h.mergeWidths && top != nil && top.widthOnly() {
+		h.joinWidths(top, st)
+		return
+	}
+	st.id = h.lastID
+	h.undo = append(h.undo, st)
+	if len(h.undo) > MaxUndo {
+		h.undo = h.undo[len(h.undo)-MaxUndo:]
+	}
+	h.mergeWidths = widthOnly
+}
+
+// dropUnchanged removes from st what ended the step as it began.
+func (w *Workbook) dropUnchanged(st *step) {
 	for k, width := range st.widths {
 		if k.s.widths[k.col] == width {
 			delete(st.widths, k)
@@ -251,7 +272,7 @@ func (w *Workbook) push(st *step) {
 		}
 	}
 	for k, n := range st.names {
-		if cur := w.namePtr(k); n == nil && cur == nil || n != nil && cur != nil && *n == *cur {
+		if sameName(n, w.namePtr(k)) {
 			delete(st.names, k)
 		}
 	}
@@ -271,35 +292,35 @@ func (w *Workbook) push(st *step) {
 	if st.decimal != nil && *st.decimal == w.decimal {
 		st.decimal = nil
 	}
-	if st.empty() {
-		return
+}
+
+// sameName reports whether two named ranges (nil for undefined) are the
+// same.
+func sameName(a, b *Name) bool {
+	if a == nil || b == nil {
+		return a == b
 	}
-	h.redo = nil
-	h.lastID++
-	widthOnly := st.widthOnly()
-	if top := h.top(); widthOnly && h.mergeWidths && top != nil && top.widthOnly() {
-		for k, width := range st.widths {
-			if _, ok := top.widths[k]; !ok {
-				top.widths[k] = width
-			}
+	return *a == *b
+}
+
+// joinWidths folds the width-only step st into the width-only step on
+// top, so a live preview of a column width and its final value (or its
+// cancellation) are one step.
+func (h *history) joinWidths(top, st *step) {
+	for k, width := range st.widths {
+		if _, ok := top.widths[k]; !ok {
+			top.widths[k] = width
 		}
-		for k, width := range top.widths {
-			if k.s.widths[k.col] == width {
-				delete(top.widths, k)
-			}
-		}
-		top.id, top.focus = h.lastID, union(top.focus, st.focus)
-		if top.empty() {
-			h.undo = h.undo[:len(h.undo)-1]
-		}
-		return
 	}
-	st.id = h.lastID
-	h.undo = append(h.undo, st)
-	if len(h.undo) > MaxUndo {
-		h.undo = h.undo[len(h.undo)-MaxUndo:]
+	for k, width := range top.widths {
+		if k.s.widths[k.col] == width {
+			delete(top.widths, k)
+		}
 	}
-	h.mergeWidths = widthOnly
+	top.id, top.focus = h.lastID, union(top.focus, st.focus)
+	if top.empty() {
+		h.undo = h.undo[:len(h.undo)-1]
+	}
 }
 
 func (h *history) top() *step {

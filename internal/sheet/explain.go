@@ -72,58 +72,93 @@ func (s *Sheet) explain(a Addr, path []loc) string {
 // itself rather than passing it on. When the error comes from a
 // referenced cell, it returns that cell.
 func (s *Sheet) errorOrigin(n Node, want Value) (Node, *loc) {
-	same := func(v Value) bool { return v.Kind == Error && v.Str == want.Str }
-	get := s.wb.values(s)
-	at := func(sheet string, a Addr) *loc {
-		if t := s.wb.resolve(s, sheet); t != nil {
-			return &loc{t, a}
-		}
-		return nil // an unresolved sheet name is the error itself
+	return errorSearch{s: s, want: want, get: s.wb.values(s)}.find(n)
+}
+
+// errorSearch follows an error through a formula on s to where it starts.
+type errorSearch struct {
+	s    *Sheet
+	want Value
+	get  lookup
+}
+
+func (e errorSearch) same(v Value) bool { return v.Kind == Error && v.Str == e.want.Str }
+
+// at is the cell a reference points at, or nil when its sheet name is
+// unresolved: then the reference is the error itself.
+func (e errorSearch) at(sheet string, a Addr) *loc {
+	if t := e.s.wb.resolve(e.s, sheet); t != nil {
+		return &loc{t, a}
 	}
+	return nil
+}
+
+func (e errorSearch) find(n Node) (Node, *loc) {
 	switch n := n.(type) {
 	case formula.Ref:
-		if same(get.cell(n.Sheet, n.Addr)) {
-			return n, at(n.Sheet, n.Addr)
+		if e.same(e.get.cell(n.Sheet, n.Addr)) {
+			return n, e.at(n.Sheet, n.Addr)
 		}
 	case formula.Range:
-		if n.Rect.From == n.Rect.To && same(get.cell(n.Sheet, n.Rect.From)) {
-			return n, at(n.Sheet, n.Rect.From)
+		if n.Rect.From == n.Rect.To && e.same(e.get.cell(n.Sheet, n.Rect.From)) {
+			return n, e.at(n.Sheet, n.Rect.From)
 		}
 	case formula.Unary:
-		if same(eval(n.X, get)) {
-			return s.errorOrigin(n.X, want)
-		}
+		return e.operand(n, n.X)
 	case formula.Binary:
-		for _, x := range []Node{n.L, n.R} {
-			if same(eval(x, get)) {
-				return s.errorOrigin(x, want)
-			}
-		}
+		return e.operand(n, n.L, n.R)
 	case formula.Call:
-		if funcOf(n).remote != nil {
-			return n, nil // JEV explains its own answers
-		}
-		for _, arg := range n.Args {
-			if r, ok := arg.(formula.Range); ok && r.Rect.From != r.Rect.To {
-				t := s.wb.resolve(s, r.Sheet)
-				if t == nil {
-					return arg, nil
-				}
-				cells := t.cellsIn(r.Rect)
-				sortAddrs(cells)
-				for _, a := range cells {
-					if same(t.Value(a)) {
-						return arg, &loc{t, a}
-					}
-				}
-				continue
-			}
-			if same(eval(arg, get)) {
-				return s.errorOrigin(arg, want)
-			}
+		return e.inCall(n)
+	}
+	return n, nil
+}
+
+// operand follows the first of n's operands that has the error, or stops
+// at n when none has.
+func (e errorSearch) operand(n Node, operands ...Node) (Node, *loc) {
+	for _, x := range operands {
+		if e.same(eval(x, e.get)) {
+			return e.find(x)
 		}
 	}
 	return n, nil
+}
+
+// inCall follows the first argument of a call that has the error: for a
+// range, its first cell with it.
+func (e errorSearch) inCall(n formula.Call) (Node, *loc) {
+	if funcOf(n).remote != nil {
+		return n, nil // JEV explains its own answers
+	}
+	for _, arg := range n.Args {
+		if r, ok := arg.(formula.Range); ok && r.Rect.From != r.Rect.To {
+			if l, found := e.inRange(r); found {
+				return arg, l
+			}
+			continue
+		}
+		if e.same(eval(arg, e.get)) {
+			return e.find(arg)
+		}
+	}
+	return n, nil
+}
+
+// inRange finds the first cell of r, row by row, with the error. An
+// unresolved sheet name is found, as the error itself, with no cell.
+func (e errorSearch) inRange(r formula.Range) (*loc, bool) {
+	t := e.s.wb.resolve(e.s, r.Sheet)
+	if t == nil {
+		return nil, true
+	}
+	cells := t.cellsIn(r.Rect)
+	sortAddrs(cells)
+	for _, a := range cells {
+		if e.same(t.Value(a)) {
+			return &loc{t, a}, true
+		}
+	}
+	return nil, false
 }
 
 // lookupFuncs report #N/A when they find no match.
