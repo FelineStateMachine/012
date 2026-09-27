@@ -7,6 +7,15 @@ through File > Download. Imports run in the background with a progress
 bar; Esc cancels. Saving an imported sheet asks whether to save it as a
 `.012` file or download it back in its format.
 
+File > Import asks where the data goes, as Sheets' Import location does
+(a new, empty spreadsheet is simply replaced):
+
+| Location | Does |
+|---|---|
+| Insert new sheet(s) | Adds the file's sheets after the others: every sheet of an `.xlsx`, named after the file for other formats. A name already taken gets a number (`Sales 2`) and the file's formulas follow it; named ranges come along unless their name is taken. One undo step, and the spreadsheet stays the file you're editing |
+| Replace current sheet | Puts the data in place of the sheet shown, keeping its name and position, so formulas and named ranges that read it read the new data. One undo step. Not offered for `.xlsx`, which holds several sheets |
+| Replace spreadsheet | Opens the file instead, as File > Open and the command line do, asking first when there are unsaved changes |
+
 | Format | Import | Download |
 |---|---|---|
 | CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, as Sheets' Download does |

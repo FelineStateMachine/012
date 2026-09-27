@@ -40,14 +40,16 @@ type importJob struct {
 	name   string
 	prog   *fileio.Progress
 	cancel context.CancelFunc
+	place  importPlace // where the result goes; see importplace.go
 }
 
 type importedMsg struct {
-	id   int
-	name string
-	opt  fileio.Options
-	res  *fileio.Result
-	err  error
+	id    int
+	name  string
+	opt   fileio.Options
+	place importPlace
+	res   *fileio.Result
+	err   error
 }
 
 type importTickMsg struct{ id int }
@@ -57,7 +59,7 @@ const importTick = 100 * time.Millisecond
 
 func init() {
 	register(&command{id: "file.import", macro: macroNever, title: "Import",
-		desc: "Import a " + importNouns() + " file, replacing this sheet",
+		desc: "Import a " + importNouns() + " file as new sheets, or in place of this sheet or spreadsheet",
 		run:  (*Model).openImport})
 }
 
@@ -83,7 +85,7 @@ func (m *Model) startupCmd() tea.Cmd {
 		return nil
 	}
 	m.xfer.startup = ""
-	return m.startImport(name, fileio.Options{})
+	return m.startImport(name, fileio.Options{}, placeBook)
 }
 
 // importable lists the files in the directory names are relative to
@@ -130,7 +132,7 @@ func (m *Model) openImport() tea.Cmd {
 		items = append(items, pickItem{title: name, name: len(name), detail: detail, desc: desc,
 			pick: func(m *Model) tea.Cmd {
 				m.closeOverlay()
-				return m.confirmImport(name, fileio.Options{})
+				return m.askImportPlace(name)
 			}})
 	}
 	p := newPicker(m, "Import", "Type to filter, or a path", 72, items)
@@ -145,7 +147,7 @@ func (m *Model) openImport() tea.Cmd {
 			m.fail(fmt.Sprintf("Can't import %s: 012 imports %s", query, importExts()))
 			return nil, true
 		}
-		return m.confirmImport(query, fileio.Options{}), true
+		return m.askImportPlace(query), true
 	}
 	m.openOverlay(p)
 	return nil
@@ -177,13 +179,13 @@ func fileSize(n int64) string {
 // unsaved changes.
 func (m *Model) confirmImport(name string, opt fileio.Options) tea.Cmd {
 	if !m.changed {
-		return m.startImport(name, opt)
+		return m.startImport(name, opt, placeBook)
 	}
 	m.openOverlay(&choiceBar{
-		msg:  "Importing replaces this sheet, which has unsaved changes.",
+		msg:  "Importing replaces this spreadsheet, which has unsaved changes.",
 		warn: true,
 		choices: []choice{
-			{key: "enter", label: "Import", run: func(m *Model) tea.Cmd { return m.startImport(name, opt) }},
+			{key: "enter", label: "Import", run: func(m *Model) tea.Cmd { return m.startImport(name, opt, placeBook) }},
 			{key: "esc", label: "Cancel", run: func(*Model) tea.Cmd { return nil }},
 		},
 	})
@@ -191,30 +193,30 @@ func (m *Model) confirmImport(name string, opt fileio.Options) tea.Cmd {
 }
 
 // startImport reads name in the background.
-func (m *Model) startImport(name string, opt fileio.Options) tea.Cmd {
+func (m *Model) startImport(name string, opt fileio.Options, place importPlace) tea.Cmd {
 	m.note = ""
 	path, ok := m.path("import", name)
 	if !ok {
 		return nil
 	}
-	return m.xfer.start(name, path, opt)
+	return m.xfer.start(name, path, opt, place)
 }
 
 // start reads name, at path on disk, in the background, replacing any
 // import running.
-func (x *transfer) start(name, path string, opt fileio.Options) tea.Cmd {
+func (x *transfer) start(name, path string, opt fileio.Options, place importPlace) tea.Cmd {
 	if x.job != nil {
 		x.job.cancel()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	x.lastID++
-	job := &importJob{id: x.lastID, name: name, prog: fileio.NewProgress(), cancel: cancel}
+	job := &importJob{id: x.lastID, name: name, prog: fileio.NewProgress(), cancel: cancel, place: place}
 	opt.Progress = job.prog
 	x.job = job
 	return tea.Batch(
 		func() tea.Msg {
 			res, err := fileio.Import(ctx, path, opt)
-			return importedMsg{id: job.id, name: name, opt: opt, res: res, err: err}
+			return importedMsg{id: job.id, name: name, opt: opt, place: place, res: res, err: err}
 		},
 		tickImport(job.id),
 	)
@@ -310,14 +312,12 @@ func (m *Model) handleImported(msg importedMsg) tea.Cmd {
 		m.note = "Import of " + filepath.Base(msg.name) + " cancelled"
 		return nil
 	case errors.As(msg.err, &need):
-		m.openTablePicker(msg.name, need.Tables)
+		m.openTablePicker(msg.name, need.Tables, msg.place)
 		return nil
 	case msg.err != nil:
 		m.fail(fmt.Sprintf("Couldn't import %s: %v", filepath.Base(msg.name), msg.err))
 		return nil
 	}
-	m.reset(msg.res.Sheet, "")
-	m.xfer.source, m.xfer.kind = msg.name, msg.res.Kind
 	what := filepath.Base(msg.name)
 	switch {
 	case msg.opt.Table != "":
@@ -325,6 +325,11 @@ func (m *Model) handleImported(msg importedMsg) tea.Cmd {
 	case msg.opt.Query != "":
 		what = "the query from " + what
 	}
+	if m.placeImport(msg, what) {
+		return m.term.notify("Imported " + what)
+	}
+	m.reset(msg.res.Sheet, "")
+	m.xfer.source, m.xfer.kind = msg.name, msg.res.Kind
 	m.note = "Imported " + what + " (" + countRows(msg.res.Rows) + ")"
 	if len(msg.res.Notes) > 0 {
 		m.note += "; " + strings.Join(msg.res.Notes, "; ")
@@ -335,7 +340,7 @@ func (m *Model) handleImported(msg importedMsg) tea.Cmd {
 
 // openTablePicker asks which table of a SQLite database to import, or
 // for a query.
-func (m *Model) openTablePicker(name string, tables []fileio.TableInfo) {
+func (m *Model) openTablePicker(name string, tables []fileio.TableInfo, place importPlace) {
 	var items []pickItem
 	for _, t := range tables {
 		detail := countRows(t.Rows) + ", " + plural(len(t.Cols), "1 column", fmt.Sprintf("%d columns", len(t.Cols)))
@@ -346,7 +351,7 @@ func (m *Model) openTablePicker(name string, tables []fileio.TableInfo) {
 		items = append(items, pickItem{title: t.Name, name: len(t.Name), detail: detail, desc: desc,
 			pick: func(m *Model) tea.Cmd {
 				m.closeOverlay()
-				return m.startImport(name, fileio.Options{Table: t.Name})
+				return m.startImport(name, fileio.Options{Table: t.Name}, place)
 			}})
 	}
 	first := "table"
@@ -361,7 +366,7 @@ func (m *Model) openTablePicker(name string, tables []fileio.TableInfo) {
 				if text == "" {
 					return nil
 				}
-				return m.startImport(name, fileio.Options{Query: text})
+				return m.startImport(name, fileio.Options{Query: text}, place)
 			})
 			m.prompt.indicator = "SQL"
 			return nil

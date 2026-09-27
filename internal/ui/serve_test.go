@@ -100,7 +100,7 @@ func TestServedFilesStayInside(t *testing.T) {
 	if !slices.Equal(names, []string{"data.csv"}) {
 		t.Errorf("importable = %v", names)
 	}
-	run(m, m.startImport("../elsewhere/other.csv", fileio.Options{}))
+	run(m, m.startImport("../elsewhere/other.csv", fileio.Options{}, placeBook))
 	if m.mode != modeError || m.xfer.job != nil {
 		t.Errorf("import outside: mode %v job %v", m.mode, m.xfer.job)
 	}

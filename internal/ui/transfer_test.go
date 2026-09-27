@@ -64,7 +64,7 @@ func TestImportPicker(t *testing.T) {
 
 	// A typed path imports a file that isn't listed.
 	m.runCommand("file.import")
-	press(t, m, "sub/deep.tsv", "<enter>")
+	press(t, m, "sub/deep.tsv", "<enter>", "Replace spreadsheet", "<enter>")
 	if input(m, "B1") != "b" || m.xfer.source != "sub/deep.tsv" {
 		t.Errorf("typed path: B1 %q source %q err %q", input(m, "B1"), m.xfer.source, m.errMsg)
 	}
@@ -76,7 +76,7 @@ func TestImportPicker(t *testing.T) {
 	}
 	press(t, m, "<esc>")
 	m.runCommand("file.import")
-	press(t, m, "old", "<enter>")
+	press(t, m, "old", "<enter>", "Replace spreadsheet", "<enter>")
 	if m.mode != modeError || m.errMsg != "Couldn't import Old.WK1: not a Lotus 1-2-3 worksheet: the file is empty" &&
 		!strings.Contains(m.errMsg, "Couldn't import Old.WK1: not a Lotus 1-2-3 worksheet") {
 		t.Errorf("wk1: %v %q", m.mode, m.errMsg)
@@ -89,8 +89,8 @@ func TestImportAsksBeforeReplacingChanges(t *testing.T) {
 	m := newModel()
 	press(t, m, "keep me", "<enter>")
 	m.runCommand("file.import")
-	press(t, m, "<enter>")
-	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(line(m, contextLine), "Importing replaces this sheet, which has unsaved changes.") {
+	press(t, m, "<enter>", "Replace spreadsheet", "<enter>")
+	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(line(m, contextLine), "Importing replaces this spreadsheet, which has unsaved changes.") {
 		t.Fatalf("no warning: %q", line(m, contextLine))
 	}
 	press(t, m, "<esc>")
@@ -98,7 +98,7 @@ func TestImportAsksBeforeReplacingChanges(t *testing.T) {
 		t.Errorf("Esc imported anyway")
 	}
 	m.runCommand("file.import")
-	press(t, m, "<enter>", "<enter>")
+	press(t, m, "<enter>", "Replace spreadsheet", "<enter>", "<enter>")
 	if input(m, "A1") != "1" {
 		t.Errorf("Enter didn't import: %q", input(m, "A1"))
 	}
@@ -162,7 +162,7 @@ func TestSQLiteTablePicker(t *testing.T) {
 	}
 
 	m.runCommand("file.import")
-	press(t, m, "<enter>", "query", "<enter>")
+	press(t, m, "<enter>", "Replace spreadsheet", "<enter>", "query", "<enter>")
 	if m.mode != modePrompt || m.line.text() != "SELECT * FROM orders" {
 		t.Fatalf("query prompt %v %q", m.mode, m.line.text())
 	}
