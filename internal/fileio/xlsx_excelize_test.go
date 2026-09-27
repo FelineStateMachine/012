@@ -68,10 +68,6 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 		if err != nil {
 			return nil, err
 		}
-		excelizePanes(x, ws, next)
-		if err := excelizeNotes(x, ws, next); err != nil {
-			return nil, err
-		}
 		done += rows
 	}
 	filters, protected, err := referenceAutoFilters(name)
@@ -93,11 +89,12 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 	return &Result{Sheet: s, Rows: done, Notes: append(notes, applyFilters(book, filters)...)}, nil
 }
 
-// excelizePanes freezes s as sheet ws is frozen.
-func excelizePanes(x *excelize.File, ws string, s *sheet.Sheet) {
+// excelizeView freezes s as sheet ws is frozen and loads its notes.
+func excelizeView(x *excelize.File, ws string, s *sheet.Sheet) error {
 	if p, err := x.GetPanes(ws); err == nil && p.Freeze {
 		s.LoadFrozen(p.YSplit, p.XSplit)
 	}
+	return excelizeNotes(x, ws, s)
 }
 
 // excelizeNotes loads sheet ws's notes (Excel's legacy comments) into s.
@@ -283,7 +280,7 @@ func excelizeSheet(ctx context.Context, x *excelize.File, b *builder, ws string,
 		}
 		b.s.LoadColWidth(c, max(int(math.Round(w))+excelPadding, 1))
 	}
-	return row, nil
+	return row, excelizeView(x, ws, b.s)
 }
 
 // excelizeNames defines the workbook's named ranges that are a range on
