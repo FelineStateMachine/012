@@ -82,6 +82,9 @@ type options struct {
 	// program runs instead of 012, such as an ssh client reaching 012
 	// serve.
 	program string
+	// startsOn is what the first screen shows once it's up: READY
+	// unless set, such as a question asked at once.
+	startsOn string
 }
 
 // start launches 012 in dir (a fresh temp dir if empty) with args.
@@ -181,7 +184,10 @@ func startWith(t *testing.T, o options, args ...string) *session {
 		s.enc.Close()
 		s.vt.Close()
 	})
-	s.waitFor("READY")
+	if o.startsOn == "" {
+		o.startsOn = "READY"
+	}
+	s.waitFor(o.startsOn)
 	return s
 }
 

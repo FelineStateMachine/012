@@ -88,7 +88,7 @@ func TestSetKeyThenJEV(t *testing.T) {
 }
 
 // File > Settings > JEV API key takes the key masked, stores it and turns
-// JEV on at once.
+// JEV on at once, after one test call with it.
 func TestAPIKeyPrompt(t *testing.T) {
 	srv, _ := fakeTypeSafe(t)
 	cfg := t.TempDir()
@@ -102,7 +102,7 @@ func TestAPIKeyPrompt(t *testing.T) {
 		t.Fatal("the key is on screen")
 	}
 	s.keys("<enter>")
-	s.waitFor("API key saved in the test credential store")
+	s.waitFor("Key saved and checked; it's in the test credential store")
 	s.waitForLine(gridRow1, "    1    TRUE")
 	data, err := os.ReadFile(filepath.Join(cfg, "012", "test-credential-store"))
 	if err != nil || string(data) != "test-key" {

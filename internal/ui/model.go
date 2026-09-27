@@ -80,6 +80,8 @@ type Model struct {
 	quitAfterSave bool         // "Save and quit" is waiting for the save to finish
 	disk          stamp        // the file on disk as last opened or saved here, to notice others' saves
 	root          confine.Root // where file names resolve; confined when served over SSH
+	start         *string      // the file a served session opens first (OpenOnStart); nil once opened
+	recovered     string       // the recovery file restored into this book, removed once it's saved: recovery.go
 
 	mode   mode
 	note   string // feedback on the last action, e.g. "Undid: clear B3"
@@ -133,7 +135,7 @@ func (m *Model) TraceUnder(p telemetry.Parent) { m.spans.Enter(p) }
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
 	// jev.send starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd())
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startOpenCmd())
 }
 
 // Update implements tea.Model.
@@ -184,6 +186,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.handleSaved(msg)
 	case loadedMsg:
 		m.handleLoaded(msg)
+	case restoredMsg:
+		m.restored(msg)
 	case filesMsg:
 		if m.prompt != nil {
 			m.prompt.files = msg

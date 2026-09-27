@@ -136,13 +136,19 @@ func (m *Model) reloadConfig() {
 	m.note = "Config reloaded from " + config.Tilde(c.Path)
 }
 
-// keySavedMsg reports storing the API key, and the client made with it.
+// keySavedMsg reports storing the API key, the client made with it, and
+// how the test call with it went.
 type keySavedMsg struct {
 	client jev.Client
-	err    error
+	err    error  // storing it or connecting failed
+	check  string // why the test call failed, "" when it worked
 }
 
-// askKey asks for the API key on the context line, masked, and stores it.
+// keyCheckTimeout bounds the test call made with a new key.
+const keyCheckTimeout = 15 * time.Second
+
+// askKey asks for the API key on the context line, masked, stores it,
+// and checks it with one small test call (jev.Check).
 func (m *Model) askKey() tea.Cmd {
 	m.openPrompt(&prompt{kind: promptText, label: "TypeSafe API key:", indicator: "KEY", secret: true,
 		onText: func(m *Model, key string) tea.Cmd {
@@ -150,25 +156,41 @@ func (m *Model) askKey() tea.Cmd {
 				m.note = "No key entered; nothing changed"
 				return nil
 			}
-			m.note = "Saving the key in the " + m.prefs.Keys.Name() + "…"
-			store, connect := m.prefs.Keys, m.prefs.Connect
-			return func() tea.Msg {
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
-				if err := store.Set(ctx, key); err != nil {
-					return keySavedMsg{err: err}
-				}
-				if connect == nil {
-					return keySavedMsg{err: errors.New("JEV isn't available in this session")}
-				}
-				client, err := connect(key)
-				return keySavedMsg{client: client, err: err}
-			}
+			m.note = "Saving the key in the " + m.prefs.Keys.Name() + " and checking it…"
+			return saveKeyCmd(m.prefs.Keys, m.prefs.Connect, key)
 		}}, "")
 	return nil
 }
 
-// keySaved turns JEV on with the new key.
+// saveKeyCmd stores key, connects with it and makes the test call.
+func saveKeyCmd(store keyring.Store, connect func(string) (jev.Client, error), key string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := store.Set(ctx, key); err != nil {
+			return keySavedMsg{err: err}
+		}
+		if connect == nil {
+			return keySavedMsg{err: errors.New("JEV isn't available in this session")}
+		}
+		client, err := connect(key)
+		if err != nil {
+			return keySavedMsg{err: err}
+		}
+		cctx, ccancel := context.WithTimeout(context.Background(), keyCheckTimeout)
+		defer ccancel()
+		msg := keySavedMsg{client: client}
+		if err := jev.Check(cctx, client); err != nil {
+			// Whatever the service said, it never gets to show the key.
+			msg.check = strings.ReplaceAll(err.Error(), key, "…")
+		}
+		return msg
+	}
+}
+
+// keySaved turns JEV on with the new key and says how its check went.
+// A key whose check failed is kept and used: a check can fail because
+// the service can't be reached, not the key.
 func (m *Model) keySaved(msg keySavedMsg) {
 	if msg.err != nil {
 		m.fail("Couldn't save the API key: " + msg.err.Error())
@@ -180,7 +202,11 @@ func (m *Model) keySaved(msg keySavedMsg) {
 		m.jev.client = msg.client
 	}
 	m.sheet.RecalcVolatile()
-	m.note = fmt.Sprintf("API key saved in the %s; JEV functions are on", m.prefs.Keys.Name())
+	if msg.check != "" {
+		m.note = m.th.Warning.Render("Key saved, but the check failed: " + msg.check)
+		return
+	}
+	m.note = fmt.Sprintf("Key saved and checked; it's in the %s and JEV functions are on", m.prefs.Keys.Name())
 }
 
 // handlePrefs handles the messages settings get: the terminal's

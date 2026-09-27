@@ -9,8 +9,16 @@ sessions are two separate spreadsheets (see
 
 ```sh
 012 serve ~/sheets                 # serve ~/sheets on 127.0.0.1:2312
-ssh -p 2312 localhost              # from this machine
+ssh -p 2312 localhost              # from this machine, on a new sheet
+ssh -t -p 2312 localhost budget.012   # opening budget.012 from ~/sheets
 ```
+
+A file name after the host opens that file, as `012 budget.012` does
+locally: a `.012` sheet, a new sheet to be saved under that name when
+there's no such file, or a file to import (`data.csv`). It must be one
+word (quote a name with spaces twice: `ssh -t host "'my book.012'"`)
+and needs `-t`, since ssh only asks for a terminal on its own when
+there's no command.
 
 ```
 012 serve [--listen addr] [--authorized-keys file] [--host-key file]
@@ -23,7 +31,7 @@ ssh -p 2312 localhost              # from this machine
 | `--listen` | `127.0.0.1:2312` | Address to listen on. Loopback only unless you change it |
 | `--authorized-keys` | `~/.ssh/authorized_keys` | Public keys allowed in, in OpenSSH's format |
 | `--host-key` | `<config dir>/012/ssh_host_ed25519_key` | The server's key, generated on first run |
-| `--idle-timeout` | `30m` | End a session after this long without input; `0` never does |
+| `--idle-timeout` | `30m` | End a session after this long without input, keeping its unsaved changes; `0` never does |
 | `--max-sessions` | `8` | Sessions at once; more are turned away with a message |
 | `--log`, `--otlp` | off | Telemetry, as for the app ([observability.md](observability.md)) |
 
@@ -53,8 +61,8 @@ connect.
    a private network such as Tailscale with `--listen 100.x.y.z:2312`.
    Listening beyond loopback prints a warning.
 
-Stop the server with Ctrl+C. Running sessions end with it, and unsaved
-changes in them are lost.
+Stop the server with Ctrl+C. Running sessions end with it, keeping
+their unsaved changes (see [Unsaved work](#unsaved-work)).
 
 ## Security model
 
@@ -73,18 +81,28 @@ the authorized keys. Everything else is closed.
 - **Host key.** An ed25519 key generated on first run, written `0600`
   in a `0700` directory. 012 refuses to start if the key is readable by
   others.
-- **What a session can do.** Run 012, nothing else. Exec requests
-  (`ssh host cat /etc/passwd`), subsystems (`sftp`, `scp`), local and
-  remote port forwarding and X11 are refused; agent forwarding requests
-  are accepted by the SSH library but never used. A session without a
+- **What a session can do.** Run 012, nothing else; no command is ever
+  executed. A shell request starts 012 on a new sheet. An exec request
+  is accepted only with a terminal (`ssh -t`) and only when it is one
+  word, which is taken as a file name and never run: it resolves inside
+  the served directory like a name typed in File > Open, and anything
+  that doesn't (see Files below), or holds control characters, ends the
+  session with the reason before 012 starts. Other exec requests
+  (`ssh host cat /etc/passwd`, `ssh -t host sh -c id`, any exec without
+  a terminal) are refused, as are subsystems (`sftp`, `scp`), local and
+  remote port forwarding and X11; agent forwarding requests are
+  accepted by the SSH library but never used. A shell without a
   terminal is told to use `ssh -t` and closed.
-- **Files.** Names typed in File > Open, Save as, Import and Download
-  resolve inside the served directory. Refused, with "outside the served
-  directory": absolute paths, `..` that climbs out, hidden files and
-  directories (`.env`, `.git`, `.ssh`), and symbolic links that lead
-  outside or nowhere. Links that stay inside work. Error messages name
-  files relative to the served directory, not where it is on the
-  server. Files are written with the server's user and permissions.
+- **Files.** Names typed in File > Open, Save as, Import and Download,
+  and a file name given on the ssh command line, resolve inside the
+  served directory. Refused, with "outside the served directory":
+  absolute paths, `..` that climbs out, hidden files and directories
+  (`.env`, `.git`, `.ssh`, `.012-recovery`), and symbolic links that
+  lead outside or nowhere. Links that stay inside work. Error messages
+  name files relative to the served directory, not where it is on the
+  server. Files are written with the server's user and permissions;
+  recovery files are the one thing 012 writes that no one named, always
+  in `.012-recovery/` (see [Unsaved work](#unsaved-work)).
 - **JEV.** On only when the server process's own environment has
   `TYPESAFE_API_KEY`; sessions never read `.env` files. Every session
   has its own answer cache, and all of them spend the server's key.
@@ -95,8 +113,8 @@ the authorized keys. Everything else is closed.
 
 | Event | When | Attributes |
 |---|---|---|
-| `ssh.session` | a session starts | `user`, `key`, `remote`, `term`, `width`, `height` |
-| `ssh.session_end` | it ends | `user`, `key`, `remote`, `duration`, `idle` (closed for idling) |
+| `ssh.session` | a session starts | `user`, `key`, `remote`, `term`, `width`, `height`, `file` (a file was named on the command line; the name isn't logged) |
+| `ssh.session_end` | it ends | `user`, `key`, `remote`, `duration`, `idle` (closed for idling), `stopped` (the server stopped), `recovered` (unsaved work was kept) |
 | `ssh.rejected` | a key not in authorized_keys | `user`, `key`, `remote` |
 | `ssh.full` | a session turned away at `--max-sessions` | `user`, `key`, `remote` |
 | `ssh.failed` | a handshake or login fails | `remote`, `error` |
@@ -125,6 +143,35 @@ server. A file's macros ask for trust once per session, since the
 session isn't the server's own computer, and scripts have no file,
 network or clock access in any case.
 
+## Unsaved work
+
+A session that ends without the user quitting, because it was idle for
+`--idle-timeout` or because the server is stopping (Ctrl+C, SIGTERM),
+keeps its unsaved changes: the whole workbook is written to
+`.012-recovery/<name>-<time>.012` in the served directory, and the
+client's terminal is told where before the connection closes:
+
+```
+012: closed after 30m0s without input
+012: unsaved changes kept in .012-recovery/budget-20260927-140203.012; open budget.012 again to restore them
+```
+
+The next session opening `budget.012` (from File > Open or
+`ssh -t host budget.012`) asks on the context line: Enter restores them
+as unsaved changes to `budget.012`, D deletes them, Esc leaves them for
+next time. Saving a restored workbook removes its recovery file, and
+saving over a file that changed on disk still asks first. A sheet never
+saved is kept as `(untitled)-<time>.012` and offered when a session
+starts on a new sheet.
+
+It stays small: nothing is kept for a workbook without changes or with
+no cells, and only the newest three files per name are kept. The
+directory is created `0700` and its files `0600`, and it's hidden, so no
+name typed in a session reaches it; only 012 itself reads and writes
+it. A session whose client just goes away (a dropped connection)
+keeps nothing, and neither does quitting, which asks about unsaved
+changes as the local app does.
+
 ## Two sessions, one file
 
 Opening the same file in two sessions gives two copies. Saving over a
@@ -135,9 +182,9 @@ check protects the local app from other programs writing the file.
 
 ## Limits
 
-- Sessions start on a new sheet; there's no way to open a file from the
-  ssh command line, since commands are refused.
-- An idle session is closed without saving.
+- An idle session is closed without saving over its file; unsaved
+  changes go to a recovery file instead.
+- A dropped connection loses unsaved changes.
 - Each session holds about 1.3 MiB of heap on a new sheet, plus about
   300 B per cell of the sheets it opens; two sessions opening one file
   hold two copies. With 50 sessions typing at once on loopback, frames

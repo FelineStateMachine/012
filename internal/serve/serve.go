@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -35,6 +36,36 @@ type Server struct {
 	hostPub gossh.PublicKey
 	slots   chan struct{} // one per running session
 	active  atomic.Int64
+
+	// stop is closed when the server shuts down, ending every session,
+	// which keeps its unsaved work first; running counts the sessions
+	// still doing so. mu orders sessions starting against stopping.
+	mu      sync.Mutex
+	stopped bool
+	stop    chan struct{}
+	running sync.WaitGroup
+}
+
+// halt tells every session to end; no new one starts after it.
+func (s *Server) halt() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.stopped {
+		s.stopped = true
+		close(s.stop)
+	}
+}
+
+// begin counts a session as running, or reports false when the server
+// is stopping. A session that began calls s.running.Done when it ends.
+func (s *Server) begin() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stopped {
+		return false
+	}
+	s.running.Add(1)
+	return true
 }
 
 // Deps are what a Server takes from its surroundings rather than its
@@ -72,7 +103,8 @@ func New(o Options, d Deps) (*Server, error) {
 	if d.Log == nil {
 		d.Log = slog.New(slog.DiscardHandler)
 	}
-	s := &Server{opts: o, root: root, log: d.Log, jev: d.JEV, hostPub: signer.PublicKey(), slots: make(chan struct{}, o.MaxSessions)}
+	s := &Server{opts: o, root: root, log: d.Log, jev: d.JEV, hostPub: signer.PublicKey(), slots: make(chan struct{}, o.MaxSessions),
+		stop: make(chan struct{})}
 	s.ssh = &ssh.Server{
 		Addr:             o.Listen,
 		Handler:          s.session,
@@ -84,7 +116,7 @@ func New(o Options, d Deps) (*Server, error) {
 		ChannelHandlers:        map[string]ssh.ChannelHandler{"session": ssh.DefaultSessionHandler},
 		RequestHandlers:        map[string]ssh.RequestHandler{},
 		SubsystemHandlers:      map[string]ssh.SubsystemHandler{},
-		SessionRequestCallback: allowShell,
+		SessionRequestCallback: allowSession,
 		ConnectionFailedCallback: func(c net.Conn, err error) {
 			s.event("ssh.failed", slog.String("remote", c.RemoteAddr().String()), slog.String("error", err.Error()))
 		},
@@ -99,10 +131,20 @@ func New(o Options, d Deps) (*Server, error) {
 	return s, nil
 }
 
-// allowShell lets a session start 012 and nothing else: exec requests
-// (ssh host command) and subsystems (sftp) are refused.
-func allowShell(sess ssh.Session, requestType string) bool {
-	return requestType == "shell"
+// allowSession lets a session start 012 and nothing else. A shell
+// request starts it on a new sheet. An exec request is taken only as the
+// name of a file to open, with a terminal and in one word (ssh -t host
+// file.012); it is never run. Other exec requests (ssh host command) and
+// subsystems (sftp) are refused.
+func allowSession(sess ssh.Session, requestType string) bool {
+	switch requestType {
+	case "shell":
+		return true
+	case "exec":
+		_, _, pty := sess.Pty()
+		return pty && len(sess.Command()) == 1
+	}
+	return false
 }
 
 // HostKey is the server's public key, for known_hosts.
@@ -134,12 +176,48 @@ func (s *Server) Serve(l net.Listener) error {
 	return err
 }
 
-// Shutdown stops listening and waits for sessions to end, until ctx is
-// done.
-func (s *Server) Shutdown(ctx context.Context) error { return s.ssh.Shutdown(ctx) }
+// Shutdown ends every session, which keeps its unsaved work in a
+// recovery file and tells the client, waits for them to end until ctx is
+// done, then closes the listener and the connections left. Those hold no
+// session, and a connection can hold nothing else.
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.halt()
+	err := s.waitSessions(ctx)
+	if cerr := s.ssh.Close(); err == nil {
+		err = cerr
+	}
+	return err
+}
 
-// Close stops the server and drops every connection at once.
-func (s *Server) Close() error { return s.ssh.Close() }
+// closeWait bounds how long Close waits for sessions to keep their
+// unsaved work.
+const closeWait = 5 * time.Second
+
+// Close stops the server and drops every connection at once. Sessions
+// still keep their unsaved work, for up to closeWait.
+func (s *Server) Close() error {
+	s.halt()
+	err := s.ssh.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), closeWait)
+	defer cancel()
+	s.waitSessions(ctx)
+	return err
+}
+
+// waitSessions waits for running sessions to end, until ctx is done.
+func (s *Server) waitSessions(ctx context.Context) error {
+	done := make(chan struct{})
+	go func() {
+		s.running.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
 
 // authorize accepts key if the authorized_keys file lists it, reading
 // the file again so edits apply without a restart.
@@ -176,6 +254,18 @@ func (s *Server) session(sess ssh.Session) {
 		sess.Exit(1)
 		return
 	}
+	name, err := s.fileArg(sess)
+	if err != nil {
+		fmt.Fprintf(sess.Stderr(), "012: %v\r\n", err)
+		sess.Exit(1)
+		return
+	}
+	if !s.begin() {
+		fmt.Fprint(sess.Stderr(), "012: the server is stopping\r\n")
+		sess.Exit(1)
+		return
+	}
+	defer s.running.Done()
 	select {
 	case s.slots <- struct{}{}:
 	default:
@@ -186,7 +276,8 @@ func (s *Server) session(sess ssh.Session) {
 	}
 	n := s.active.Add(1)
 	telemetry.Set("ssh_sessions", n)
-	s.event("ssh.session", append(who, slog.String("term", pty.Term), slog.Int("width", pty.Window.Width), slog.Int("height", pty.Window.Height))...)
+	s.event("ssh.session", append(who, slog.String("term", pty.Term), slog.Int("width", pty.Window.Width), slog.Int("height", pty.Window.Height),
+		slog.Bool("file", name != ""))...)
 	start := time.Now()
 	defer func() {
 		telemetry.Set("ssh_sessions", s.active.Add(-1))
@@ -195,23 +286,24 @@ func (s *Server) session(sess ssh.Session) {
 
 	// The session's span holds what its program does, in one trace.
 	span := telemetry.Start("serve.session", slog.String("term", pty.Term))
-	idle := s.run(sess, pty, winch, span.Parent())
-	span.End(slog.Bool("idle", idle))
+	end := s.run(sess, pty, winch, name, span.Parent())
+	span.End(slog.Bool("idle", end.idle))
 	d := time.Since(start)
-	s.event("ssh.session_end", append(who, slog.Duration("duration", d), slog.Bool("idle", idle))...)
-	if idle {
-		fmt.Fprintf(sess, "012: closed after %v without input\r\n", s.opts.IdleTimeout)
-	}
+	s.event("ssh.session_end", append(who, slog.Duration("duration", d), slog.Bool("idle", end.idle),
+		slog.Bool("stopped", end.stopped), slog.Bool("recovered", end.kept != ""))...)
+	end.tell(sess, s.opts.IdleTimeout, s.root)
 	sess.Exit(0)
 }
 
-// run runs the program until it quits, the client goes away or the
-// session goes idle, which it reports.
-func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, parent telemetry.Parent) (idle bool) {
+// run runs the program, on the file name when there's one, until it
+// quits, the client goes away, the session goes idle or the server
+// stops, and keeps unsaved work for the last two.
+func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, name string, parent telemetry.Parent) ending {
 	m := ui.New(sheet.New(), "")
 	m.TraceUnder(parent)
 	env := append(sess.Environ(), "TERM="+pty.Term)
 	m.Serve(s.root, env)
+	m.OpenOnStart(name)
 	if s.jev != nil {
 		// Each session has its own cache: it queues that session's
 		// questions, and its answers recalculate that session's sheets.
@@ -225,6 +317,13 @@ func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, par
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
 	go resize(ctx, p, winch)
+	go func() {
+		select {
+		case <-s.stop:
+			p.Quit()
+		case <-ctx.Done():
+		}
+	}()
 	var idled atomic.Bool
 	if s.opts.IdleTimeout > 0 {
 		go func() {
@@ -238,7 +337,19 @@ func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, par
 		s.log.Error("session", "error", err.Error())
 	}
 	p.Kill()
-	return idled.Load()
+	end := ending{idle: idled.Load(), stopped: s.stopping()}
+	end.keep(m)
+	return end
+}
+
+// stopping reports whether the server is shutting down.
+func (s *Server) stopping() bool {
+	select {
+	case <-s.stop:
+		return true
+	default:
+		return false
+	}
 }
 
 // resize tells p about the client's window changes, and quits it when

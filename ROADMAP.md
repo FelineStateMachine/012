@@ -104,12 +104,12 @@ work left open. Sizes: S (a day or two), M (about a week), L (weeks).
 |---|---|---|
 | Open 012's XLSX output in a real spreadsheet app before releases. Done for Google Sheets: sheets, hidden sheets, named ranges, implicit intersection, column and cell formats, widths, frozen panes, filters, links and missing-sheet values all match; repeat with Excel and LibreOffice when available | The writer is otherwise checked by excelize and 012's reader | S |
 | Column and row formats travel with copy, cut and move; formulas reading blanks of a newly formatted column re-infer at once. Done: pastes and moves carry what cells show, whole lines their line formats; see [data.md](docs/data.md#copy-paste-and-fill) | Left open by step A | S |
-| Save as onto another existing file asks before replacing (local and `012 serve`) | Only the open file is checked today | S |
+| Save as onto another existing file asks before replacing (local and `012 serve`). Done: Save as, `:w name` and `:wq name` ask on the context line ([files.md](docs/files.md)) | Replacing a file by mistake loses it | S |
 | XLSX sheet names with characters Excel forbids: rewrite formulas that name them, not just the sheet | Formulas keep the old name today | S |
 | Replace current sheet keeps its charts; Insert new sheet(s) goes after the current tab. Done: charts of a whole table are re-pointed to the new one when it has as many series, and the note says which; see [files.md](docs/files.md) | Import location details | S |
 | Precedent tracing explains when every precedent is on a hidden sheet. Done, for dependents too | A generic "no formula" hides why nothing shows | S |
-| Settings > JEV API key checks the key with a test call | Left open by the config work | S |
-| `012 serve`: open a file from the ssh command line (`ssh -t host file.012` as a request, not exec), and save unsaved work to a recovery file on shutdown or idle timeout | Sessions start empty; unsaved work is lost today | M |
+| Settings > JEV API key checks the key with a test call. Done: one fixed question, "Key saved and checked" or why the check failed ([jev.md](docs/jev.md#setup)) | A mistyped key otherwise shows only as `#ERROR!` in cells | S |
+| `012 serve`: open a file from the ssh command line, and save unsaved work to a recovery file on shutdown or idle timeout. Done: `ssh -t host file.012` (a one-word exec request taken as a file name inside the served directory, never run) and `.012-recovery/`, offered back on the next open ([ssh.md](docs/ssh.md#unsaved-work)) | Sessions reach a file in one step, and stopping the server or idling out keeps work | M |
 
 ### 2. Spreadsheet features Sheets users reach for
 
