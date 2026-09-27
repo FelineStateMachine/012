@@ -21,7 +21,7 @@ up)
 Observability stack is up:
   Grafana     http://localhost:3000   (dashboards: 012 runtime, 012 stress runs)
   ClickHouse  http://localhost:8123   (user o12, password o12; databases otel, stress)
-  Collector   OTLP on localhost:4317 (gRPC) and localhost:4318 (HTTP)
+  Collector   OTLP on localhost:4317 (gRPC) and localhost:4318 (HTTP); health on localhost:13133
 
 Point 012 at it, one way or the other (both would store its logs twice):
   export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318  # OTLP: logs, traces, metrics
