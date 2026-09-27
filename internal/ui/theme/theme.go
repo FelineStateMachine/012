@@ -92,14 +92,14 @@ type Theme struct {
 // ImageID is the style of an image's Unicode placeholders: the
 // foreground color is not a color but the image's id, in the 256-color
 // palette, which is how the terminal knows which image to draw there.
-func (t Theme) ImageID(id int) lipgloss.Style {
+func (t *Theme) ImageID(id int) lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(id))
 }
 
 // Text adds a cell's bold, italic, underline and strikethrough to base,
 // one of the cell roles (cell, pointer, selection, errorCell), so text
 // styles show through the pointer and selection colors.
-func (t Theme) Text(base lipgloss.Style, st sheet.Style) lipgloss.Style {
+func (t *Theme) Text(base lipgloss.Style, st sheet.Style) lipgloss.Style {
 	if st.Bold {
 		base = base.Bold(true)
 	}

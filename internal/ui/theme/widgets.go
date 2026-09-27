@@ -17,7 +17,7 @@ const SepRow = "\x00"
 
 // Frame draws a border around rows. A title sits in the top border and a
 // footer at the right of the bottom border.
-func (t Theme) Frame(inner int, title, footer string, rows []string) []string {
+func (t *Theme) Frame(inner int, title, footer string, rows []string) []string {
 	inner = max(inner, 2) // screens smaller than the box get a clipped box
 	b := t.Border
 	top := "┌" + strings.Repeat("─", inner) + "┐"
@@ -45,12 +45,12 @@ func (t Theme) Frame(inner int, title, footer string, rows []string) []string {
 }
 
 // Chip draws a key name as a key cap, e.g. "Ctrl+S".
-func (t Theme) Chip(label string) string {
+func (t *Theme) Chip(label string) string {
 	return t.KeyChip.Render(" " + label + " ")
 }
 
 // Chips renders keys as key chips, e.g. [Ctrl+/] [F1].
-func (t Theme) Chips(keys []string) string {
+func (t *Theme) Chips(keys []string) string {
 	parts := make([]string, len(keys))
 	for i, k := range keys {
 		parts[i] = t.Chip(k)
@@ -60,7 +60,7 @@ func (t Theme) Chips(keys []string) string {
 
 // KeyHints renders key and description pairs, e.g. "Enter accept", each
 // key as a chip.
-func (t Theme) KeyHints(pairs ...string) string {
+func (t *Theme) KeyHints(pairs ...string) string {
 	parts := make([]string, 0, len(pairs)/2)
 	for i := 0; i+1 < len(pairs); i += 2 {
 		parts = append(parts, t.Chip(pairs[i])+" "+t.Muted.Render(pairs[i+1]))
