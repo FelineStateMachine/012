@@ -32,12 +32,12 @@ func (m *Model) decorate(sp *span, row int) {
 func (m *Model) textStyle(base lipgloss.Style, sp span) lipgloss.Style {
 	st := sp.style
 	st.Align = sheet.AlignAuto
-	s := m.th.text(base, st)
+	s := m.th.Text(base, st)
 	switch {
 	case sp.link != "":
-		s = s.Inherit(m.th.link).Hyperlink(sp.link)
+		s = s.Inherit(m.th.Link).Hyperlink(sp.link)
 	case sp.error:
-		s = s.Inherit(m.th.errorMark)
+		s = s.Inherit(m.th.ErrorMark)
 	}
 	return s
 }
@@ -50,5 +50,5 @@ func (m *Model) errorLine() string {
 	if v.Kind != sheet.Error || why == "" {
 		return ""
 	}
-	return m.th.errorCell.Render(v.Str) + "  " + m.th.muted.Render(why)
+	return m.th.ErrorCell.Render(v.Str) + "  " + m.th.Muted.Render(why)
 }

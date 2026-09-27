@@ -175,47 +175,6 @@ func (m *Model) overlayMouse(msg tea.MouseMsg) tea.Cmd {
 	return m.overlay.mouse(m, e)
 }
 
-// A box is framed with light box-drawing lines, which keep the crisp
-// character-grid look. Rows are exactly the inner width; separator rows
-// become a line joined to the frame.
-
-// sepRow marks a separator in the rows passed to frame.
-const sepRow = "\x00"
-
-// frame draws a border around rows. A title sits in the top border and a
-// footer at the right of the bottom border.
-func (m *Model) frame(inner int, title, footer string, rows []string) []string {
-	inner = max(inner, 2) // screens smaller than the box get a clipped box
-	b := m.th.border
-	top := "┌" + strings.Repeat("─", inner) + "┐"
-	if title != "" {
-		t := ansi.Truncate(" "+title+" ", inner-1, "…")
-		top = b.Render("┌─") + m.th.title.Render(t) + b.Render(strings.Repeat("─", inner-1-ansi.StringWidth(t))+"┐")
-	} else {
-		top = b.Render(top)
-	}
-	bottom := b.Render("└" + strings.Repeat("─", inner) + "┘")
-	if footer != "" && ansi.StringWidth(footer)+4 <= inner {
-		f := " " + footer + " "
-		bottom = b.Render("└"+strings.Repeat("─", inner-1-ansi.StringWidth(f))) + m.th.muted.Render(f) + b.Render("─┘")
-	}
-	lines := make([]string, 0, len(rows)+2)
-	lines = append(lines, top)
-	for _, r := range rows {
-		if r == sepRow {
-			lines = append(lines, b.Render("├"+strings.Repeat("─", inner)+"┤"))
-			continue
-		}
-		lines = append(lines, b.Render("│")+r+b.Render("│"))
-	}
-	return append(lines, bottom)
-}
-
-// cells pads or truncates s to exactly w columns, then styles it.
-func cells(style lipgloss.Style, s string, w int) string {
-	return style.Render(padRight(ansi.Truncate(s, w, "…"), w))
-}
-
 // clampBox keeps a w by h box at x, y on screen, shifting it left and up
 // as needed.
 func (m *Model) clampBox(x, y, w, h int) (int, int) {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 func TestShortcutsListEveryBoundCommand(t *testing.T) {
@@ -16,12 +17,12 @@ func TestShortcutsListEveryBoundCommand(t *testing.T) {
 		}
 		found := false
 		for _, r := range rows {
-			if r.action == c.title && strings.Contains(strings.Join(r.keys, " "), keyLabel(key)) {
+			if r.action == c.title && strings.Contains(strings.Join(r.keys, " "), theme.KeyLabel(key)) {
 				found = true
 			}
 		}
 		if !found {
-			t.Errorf("%s (%s) missing from the shortcuts", c.title, keyLabel(key))
+			t.Errorf("%s (%s) missing from the shortcuts", c.title, theme.KeyLabel(key))
 		}
 	}
 }

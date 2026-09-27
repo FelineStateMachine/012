@@ -377,7 +377,7 @@ func quoteSQL(s string) string {
 
 // importLine is the context line during an import.
 func (m *Model) importLine() string {
-	return "Importing " + filepath.Base(m.xfer.job.name) + "…   " + m.keyHints("Esc", "cancel")
+	return "Importing " + filepath.Base(m.xfer.job.name) + "…   " + m.th.KeyHints("Esc", "cancel")
 }
 
 // importStatus is the status line during an import: the file, the rows
@@ -385,15 +385,15 @@ func (m *Model) importLine() string {
 func (m *Model) importStatus() string {
 	job := m.xfer.job
 	rows, frac := job.prog.Get()
-	left := m.th.key.Render("Importing " + filepath.Base(job.name))
+	left := m.th.Key.Render("Importing " + filepath.Base(job.name))
 	right := countRows(rows) + " read"
 	if frac >= 0 {
 		pct := fmt.Sprintf(" %3d%%", int(frac*100))
 		w := clamp(m.width-ansi.StringWidth(left)-ansi.StringWidth(right)-len(pct)-6, 0, 30)
 		if w >= 8 {
 			done := int(frac * float64(w))
-			right += "  " + m.th.progress.Render(strings.Repeat("━", done)) +
-				m.th.progressTodo.Render(strings.Repeat("─", w-done)) + pct
+			right += "  " + m.th.Progress.Render(strings.Repeat("━", done)) +
+				m.th.ProgressTodo.Render(strings.Repeat("─", w-done)) + pct
 		} else {
 			right += pct
 		}

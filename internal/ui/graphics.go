@@ -129,7 +129,7 @@ func (t *terminal) color(i int) color.RGBA {
 // chartPalette is the theme's series colors as the terminal draws them.
 func (m *Model) chartPalette() chart.Palette {
 	var p chart.Palette
-	for i, idx := range m.th.seriesANSI {
+	for i, idx := range m.th.SeriesANSI {
 		p.Series[i] = m.term.color(idx)
 	}
 	p.Grid = m.term.color(8) // bright black, like the text axes

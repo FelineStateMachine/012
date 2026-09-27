@@ -128,7 +128,7 @@ func (m *Model) jevLine() string {
 		return ""
 	}
 	if m.jev == nil {
-		return m.th.warning.Render("JEV functions need TYPESAFE_API_KEY, in the environment or a .env file")
+		return m.th.Warning.Render("JEV functions need TYPESAFE_API_KEY, in the environment or a .env file")
 	}
 	var parts []string
 	for _, c := range calls {
@@ -143,5 +143,5 @@ func (m *Model) jevLine() string {
 	for _, p := range parts[1:] {
 		line += "   " + p
 	}
-	return m.th.muted.Render(line)
+	return m.th.Muted.Render(line)
 }

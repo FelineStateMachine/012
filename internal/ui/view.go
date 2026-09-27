@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // active is the cell drawn as the cell pointer: the pointer while
@@ -59,41 +60,41 @@ func (m *Model) screenCols() []int {
 
 func (m *Model) headerRow() string {
 	var b strings.Builder
-	b.WriteString(m.th.header.Render(strings.Repeat(" ", rowHdrW)))
+	b.WriteString(m.th.Header.Render(strings.Repeat(" ", rowHdrW)))
 	focus := m.active()
 	sel, selecting := m.highlight()
 	for _, c := range m.screenCols() {
 		if c == divider {
-			b.WriteString(m.th.frozenLine.Render("│"))
+			b.WriteString(m.th.FrozenLine.Render("│"))
 			continue
 		}
 		w := m.sheet.ColWidth(c)
-		style, plain := m.th.header, false
+		style, plain := m.th.Header, false
 		switch {
 		case c == focus.Col:
-			style = m.th.headerActive
+			style = m.th.HeaderActive
 		case selecting && c >= sel.From.Col && c <= sel.To.Col:
-			style = m.th.headerSel
+			style = m.th.HeaderSel
 		case m.hover.addr.Col == c && (m.hover.kind == hitColHeader || m.hover.kind == hitColBorder || m.hover.kind == hitFilterButton):
-			style = m.th.headerHover
+			style = m.th.HeaderHover
 		default:
 			plain = true
 		}
 		name := sheet.ColName(c)
-		label := style.Render(center(name, w))
+		label := style.Render(theme.Center(name, w))
 		if mark, on := m.filterMark(c); mark != "" && w >= len(name)+3 {
 			// The filter's button follows the letter, e.g. "B ▾".
-			text := center(name+" "+mark, w)
+			text := theme.Center(name+" "+mark, w)
 			k := strings.Index(text, mark)
 			markStyle := style
 			if on && plain {
-				markStyle = m.th.filterOn
+				markStyle = m.th.FilterOn
 			}
 			label = style.Render(text[:k]) + markStyle.Render(mark) + style.Render(text[k+len(mark):])
 		}
 		if m.showHandle(c) && w > 1 {
 			// Draw the resize handle in the header's last cell.
-			b.WriteString(ansi.Truncate(label, w-1, "") + m.th.handle.Render("▐"))
+			b.WriteString(ansi.Truncate(label, w-1, "") + m.th.Handle.Render("▐"))
 			continue
 		}
 		b.WriteString(label)
@@ -119,22 +120,22 @@ func (m *Model) gridRow(row int) string {
 	}
 	focus := m.active()
 	sel, selecting := m.highlight()
-	hdr := m.th.header
+	hdr := m.th.Header
 	switch {
 	case row == focus.Row:
-		hdr = m.th.headerActive
+		hdr = m.th.HeaderActive
 	case selecting && row >= sel.From.Row && row <= sel.To.Row:
-		hdr = m.th.headerSel
+		hdr = m.th.HeaderSel
 	case m.hover.kind == hitRowHeader && m.hover.addr.Row == row:
-		hdr = m.th.headerHover
+		hdr = m.th.HeaderHover
 	}
 	var b strings.Builder
-	b.WriteString(hdr.Render(padLeft(strconv.Itoa(row+1), rowHdrW-1) + " "))
+	b.WriteString(hdr.Render(theme.PadLeft(strconv.Itoa(row+1), rowHdrW-1) + " "))
 
 	_, fc := m.frozen()
 	if fc > 0 {
 		b.WriteString(m.cellsText(row, 0, m.rowText(row, 0, fc, 0, fc-1), focus, sel, selecting))
-		b.WriteString(m.th.frozenLine.Render("│"))
+		b.WriteString(m.th.FrozenLine.Render("│"))
 	}
 	ncols := m.visibleCols(m.left)
 	b.WriteString(m.cellsText(row, m.left, m.rowText(row, m.left, ncols, fc, sheet.MaxCols-1), focus, sel, selecting))
@@ -147,26 +148,26 @@ func (m *Model) cellsText(row, first int, spans []span, focus sheet.Addr, sel sh
 	var b strings.Builder
 	for i, sp := range spans {
 		a := sheet.Addr{Col: first + i, Row: row}
-		base, colored := m.th.cell, true
+		base, colored := m.th.Cell, true
 		switch {
 		case a == focus:
-			base = m.th.pointer
+			base = m.th.Pointer
 		case selecting && sel.Contains(a):
-			base = m.th.selection
+			base = m.th.Selection
 		case m.found(a):
-			base = m.th.found
+			base = m.th.Found
 		case m.traced(a):
-			base = m.th.traced
+			base = m.th.Traced
 		case sheet.IsPending(m.sheet.Value(a)):
-			base = m.th.muted
+			base = m.th.Muted
 		case m.sheet.Value(a).Kind == sheet.Error:
-			base = m.th.errorCell
+			base = m.th.ErrorCell
 		default:
 			colored = false
 		}
 		// The copy marker is layered on the cell's own colors.
 		if m.copyMarked(a) {
-			base, colored = base.Inherit(m.th.copied), true
+			base, colored = base.Inherit(m.th.Copied), true
 		}
 		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() {
 			sp = span{text: m.inCellText(m.sheet.ColWidth(a.Col))}
@@ -195,7 +196,7 @@ func (m *Model) dividerRow() string {
 		}
 		b.WriteString(strings.Repeat("─", m.sheet.ColWidth(c)))
 	}
-	return m.th.frozenLine.Render(ansi.Truncate(b.String(), m.width, ""))
+	return m.th.FrozenLine.Render(ansi.Truncate(b.String(), m.width, ""))
 }
 
 // span is what one grid column shows in a row: blank columns, the text,
@@ -237,7 +238,7 @@ func (m *Model) inCellText(w int) string {
 	if over := ansi.StringWidth(text) - w; over > 0 {
 		text = ansi.TruncateLeft(text, over+1, "…")
 	}
-	return padRight(text, w)
+	return theme.PadRight(text, w)
 }
 
 // rowText lays out ncols columns of row from lo, each span exactly its
@@ -393,42 +394,4 @@ func nextCluster(s string) (n, w int) {
 	}
 	g, w := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
 	return len(g), w
-}
-
-// keyLabel formats a key binding for display, e.g. "ctrl+s" -> "Ctrl+S".
-func keyLabel(k string) string {
-	switch k {
-	case "delete":
-		return "Del"
-	case "backspace":
-		return "Backspace"
-	case "esc":
-		return "Esc"
-	}
-	k = strings.NewReplacer("pgdown", "PgDn", "pgup", "PgUp").Replace(k)
-	parts := strings.Split(k, "+")
-	for i, p := range parts {
-		switch {
-		case len(p) == 1:
-			parts[i] = strings.ToUpper(p)
-		case p[0] == 'f' && len(p) <= 3 && p[1] >= '0' && p[1] <= '9':
-			parts[i] = strings.ToUpper(p)
-		default:
-			parts[i] = strings.ToUpper(p[:1]) + p[1:]
-		}
-	}
-	return strings.Join(parts, "+")
-}
-
-func padRight(s string, w int) string {
-	return s + strings.Repeat(" ", max(w-ansi.StringWidth(s), 0))
-}
-
-func padLeft(s string, w int) string {
-	return strings.Repeat(" ", max(w-ansi.StringWidth(s), 0)) + s
-}
-
-func center(s string, w int) string {
-	pad := max(w-ansi.StringWidth(s), 0)
-	return strings.Repeat(" ", pad/2) + s + strings.Repeat(" ", pad-pad/2)
 }

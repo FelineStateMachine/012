@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -170,9 +171,9 @@ func barMenus() []barMenu {
 func (m *Model) menuBarTitles() string {
 	var b strings.Builder
 	for i, bm := range barMenus() {
-		style, accel := m.th.menuBar, m.th.menuAccel
+		style, accel := m.th.MenuBar, m.th.MenuAccel
 		if i == m.openBarMenu() {
-			style, accel = m.th.menuSelected, m.th.menuAccelSelected
+			style, accel = m.th.MenuSelected, m.th.MenuAccelSelected
 		}
 		t := bm.def.title
 		k := strings.IndexByte(strings.ToLower(t), bm.def.accel)
@@ -452,9 +453,9 @@ func (l *menuLevel) wheel(m *Model, b tea.MouseButton) {
 }
 
 func (o *menuOverlay) status(m *Model) (string, string) {
-	keys := m.keyHints("Up/Down", "move", "Enter", "choose", "Esc", "close")
+	keys := m.th.KeyHints("Up/Down", "move", "Enter", "choose", "Esc", "close")
 	if o.bar >= 0 {
-		keys = m.keyHints("Arrows", "move", "Enter", "choose", "Esc", "close")
+		keys = m.th.KeyHints("Arrows", "move", "Enter", "choose", "Esc", "close")
 	}
 	l := o.top()
 	if l.sel < 0 {
@@ -530,22 +531,22 @@ func (m *Model) dropdown(l *menuLevel, rows int) []string {
 	for i := l.top; i < l.top+rows; i++ {
 		it := l.items[i]
 		if it.sep {
-			out = append(out, sepRow)
+			out = append(out, theme.SepRow)
 			continue
 		}
-		style := m.th.menuBar
+		style := m.th.MenuBar
 		switch {
 		case i == l.sel:
-			style = m.th.menuSelected
+			style = m.th.MenuSelected
 		case !l.selectable(m, i):
-			style = m.th.disabled
+			style = m.th.Disabled
 		}
 		k := m.itemKey(it, !l.selectable(m, i))
 		if it.items != nil || i == l.sel {
 			// The highlight runs unbroken across the row.
 			k = style.Render(ansi.Strip(k))
 		}
-		out = append(out, cells(style, " "+it.label(), inner-ansi.StringWidth(k)-1)+k+style.Render(" "))
+		out = append(out, theme.Cells(style, " "+it.label(), inner-ansi.StringWidth(k)-1)+k+style.Render(" "))
 	}
 	var up, down string
 	if l.top > 0 {
@@ -554,7 +555,7 @@ func (m *Model) dropdown(l *menuLevel, rows int) []string {
 	if l.top+rows < len(l.items) {
 		down = "▼"
 	}
-	return m.frame(inner, up, down, out)
+	return m.th.Frame(inner, up, down, out)
 }
 
 // isChecked reports whether the command is a setting that is on.
@@ -576,7 +577,7 @@ func (m *Model) itemKey(it menuItem, disabled bool) string {
 	case k == "":
 		return ""
 	case disabled:
-		return m.th.disabled.Render(" " + k + " ")
+		return m.th.Disabled.Render(" " + k + " ")
 	}
-	return m.chip(k)
+	return m.th.Chip(k)
 }

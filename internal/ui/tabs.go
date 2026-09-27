@@ -425,15 +425,15 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 		x += ansi.StringWidth(text) + 1
 	}
 	if first > 0 {
-		part(hitTabPrev, 0, m.th.muted.Render("‹"))
+		part(hitTabPrev, 0, m.th.Muted.Render("‹"))
 	}
 	for i := first; i <= last; i++ {
-		style := m.th.tab
+		style := m.th.Tab
 		switch {
 		case i == active:
-			style = m.th.tabActive
+			style = m.th.TabActive
 		case m.hover.kind == hitTab && m.hover.addr.Col == i && (m.drag == dragNone || m.drag == dragTab):
-			style = m.th.tabHover
+			style = m.th.TabHover
 		}
 		label := tabLabel(sheets[i])
 		if i == active && x+ansi.StringWidth(label)+add > room {
@@ -442,11 +442,11 @@ func (m *Model) tabStrip(room int) (string, []tabSpan) {
 		part(hitTab, i, style.Render(label))
 	}
 	if last < len(sheets)-1 {
-		part(hitTabNext, 0, m.th.muted.Render("›"))
+		part(hitTabNext, 0, m.th.Muted.Render("›"))
 	}
-	addStyle := m.th.muted
+	addStyle := m.th.Muted
 	if m.hover.kind == hitTabAdd {
-		addStyle = m.th.tabHover
+		addStyle = m.th.TabHover
 	}
 	part(hitTabAdd, 0, addStyle.Render(" + "))
 	return strings.TrimSuffix(b.String(), " "), spans

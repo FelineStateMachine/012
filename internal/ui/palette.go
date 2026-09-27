@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 )
@@ -243,7 +243,7 @@ func (p *picker) mouse(m *Model, e mouseEvent) tea.Cmd {
 }
 
 func (p *picker) status(m *Model) (string, string) {
-	keys := m.keyHints("Up/Down", "move", "Enter", cmp.Or(p.action, "run"), "Esc", "close")
+	keys := m.th.KeyHints("Up/Down", "move", "Enter", cmp.Or(p.action, "run"), "Esc", "close")
 	if p.sel >= len(p.shown) {
 		return "", keys
 	}
@@ -284,14 +284,14 @@ func (p *picker) layout(m *Model) []box {
 	if len(p.shown) > 0 {
 		p.show(rows)
 	}
-	input := m.th.title.Render(searchPrompt) + string(m.buf)
+	input := m.th.Title.Render(searchPrompt) + string(m.buf)
 	if len(m.buf) == 0 {
-		input += m.th.muted.Render(p.placeholder)
+		input += m.th.Muted.Render(p.placeholder)
 	}
-	lines := []string{cells(m.th.menuBar, input, inner), sepRow}
+	lines := []string{theme.Cells(m.th.MenuBar, input, inner), theme.SepRow}
 	lines = append(lines, p.resultRows(m, inner, rows)...)
 	footer := strconv.Itoa(len(p.shown)) + " of " + strconv.Itoa(len(p.items))
-	return []box{{id: pickerID, x: x, y: y, lines: m.frame(inner, p.title, footer, lines)}}
+	return []box{{id: pickerID, x: x, y: y, lines: m.th.Frame(inner, p.title, footer, lines)}}
 }
 
 // resultRows lays out the visible results in columns: title, detail and
@@ -313,22 +313,22 @@ func (p *picker) resultRows(m *Model, inner, rows int) []string {
 		if i >= len(p.shown) {
 			text := ""
 			if r == 0 {
-				text = m.th.muted.Render(" No matches")
+				text = m.th.Muted.Render(" No matches")
 			}
-			out = append(out, cells(m.th.menuBar, text, inner))
+			out = append(out, theme.Cells(m.th.MenuBar, text, inner))
 			continue
 		}
 		pm := p.shown[i]
-		base, dim, hl := m.th.menuBar, m.th.muted, m.th.match
+		base, dim, hl := m.th.MenuBar, m.th.Muted, m.th.Match
 		switch {
 		case i == p.sel:
-			base, dim, hl = m.th.menuSelected, m.th.menuSelected, m.th.matchSelected
+			base, dim, hl = m.th.MenuSelected, m.th.MenuSelected, m.th.MatchSelected
 		case pm.item.off:
-			base, dim, hl = m.th.disabled, m.th.disabled, m.th.disabled
+			base, dim, hl = m.th.Disabled, m.th.Disabled, m.th.Disabled
 		}
-		row := base.Render(" ") + m.highlightMatches(pm.item.title, pm.inTitle, tw, base, hl)
+		row := base.Render(" ") + theme.HighlightMatches(pm.item.title, pm.inTitle, tw, base, hl)
 		if dw >= 8 {
-			row += base.Render("   ") + m.highlightMatches(pm.item.detail, pm.inDesc, dw, dim, hl)
+			row += base.Render("   ") + theme.HighlightMatches(pm.item.detail, pm.inDesc, dw, dim, hl)
 		}
 		k := ""
 		switch {
@@ -336,37 +336,12 @@ func (p *picker) resultRows(m *Model, inner, rows int) []string {
 		case i == p.sel:
 			k = base.Render(" " + pm.item.key + " ")
 		case pm.item.off:
-			k = m.th.disabled.Render(" " + pm.item.key + " ")
+			k = m.th.Disabled.Render(" " + pm.item.key + " ")
 		default:
-			k = m.chip(pm.item.key)
+			k = m.th.Chip(pm.item.key)
 		}
 		row += base.Render(strings.Repeat(" ", max(inner-ansi.StringWidth(row)-ansi.StringWidth(k)-1, 0))) + k + base.Render(" ")
 		out = append(out, ansi.Truncate(row, inner, ""))
 	}
 	return out
-}
-
-// highlightMatches renders s in w columns with the bytes at idx in the hl style,
-// truncating with an ellipsis.
-func (m *Model) highlightMatches(s string, idx []int, w int, base, hl lipgloss.Style) string {
-	s = ansi.Truncate(s, w, "…")
-	var b strings.Builder
-	run, lit := "", false
-	flush := func() {
-		if lit {
-			b.WriteString(hl.Render(run))
-		} else {
-			b.WriteString(base.Render(run))
-		}
-		run = ""
-	}
-	for i, r := range s {
-		if on := slices.Contains(idx, i); on != lit {
-			flush()
-			lit = on
-		}
-		run += string(r)
-	}
-	flush()
-	return b.String() + base.Render(strings.Repeat(" ", max(w-ansi.StringWidth(s), 0)))
 }

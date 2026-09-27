@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // Formula assistance, as in Sheets: while a function or range name is
@@ -235,15 +236,15 @@ func (m *Model) assistBox() (box, bool) {
 	lines := make([]string, 0, rows)
 	for i := a.top; i < a.top+rows; i++ {
 		s := list[i]
-		base, dim := m.th.menuBar, m.th.muted
+		base, dim := m.th.MenuBar, m.th.Muted
 		if i == a.sel {
-			base, dim = m.th.menuSelected, m.th.menuSelected
+			base, dim = m.th.MenuSelected, m.th.MenuSelected
 		}
 		detail := s.detail
 		if s.fn {
 			detail = s.detail[len(s.name):] // just the arguments: (value1, ...)
 		}
-		row := base.Render(" "+padRight(s.name, nw)+"   ") + dim.Render(detail)
+		row := base.Render(" "+theme.PadRight(s.name, nw)+"   ") + dim.Render(detail)
 		lines = append(lines, ansi.Truncate(row, inner, "…")+base.Render(strings.Repeat(" ", max(inner-ansi.StringWidth(row), 0))))
 	}
 	footer := ""
@@ -253,7 +254,7 @@ func (m *Model) assistBox() (box, bool) {
 	// The box's text starts one column in, under the word's first letter.
 	x := formulaBarTextX() + ansi.StringWidth(string(m.buf[:start])) - 2
 	x = clamp(x, 0, max(m.width-inner-2, 0))
-	return box{id: assistID, x: x, y: contextLine + 1, lines: m.frame(inner, "", footer, lines)}, true
+	return box{id: assistID, x: x, y: contextLine + 1, lines: m.th.Frame(inner, "", footer, lines)}, true
 }
 
 // assistMouse lets the mouse hover and click suggestions and scroll the
@@ -296,7 +297,7 @@ func (m *Model) assistStatus() (desc, keys string, ok bool) {
 	if list == nil {
 		return "", "", false
 	}
-	return list[m.assist.sel].desc, m.keyHints("Up/Down", "move", "Tab", "insert", "Esc", "hide"), true
+	return list[m.assist.sel].desc, m.th.KeyHints("Up/Down", "move", "Tab", "insert", "Esc", "hide"), true
 }
 
 // inFunction reports whether the caret is inside a known function's
@@ -314,7 +315,7 @@ func (m *Model) signatureLine(buf []rune, pos int, hints string) (left, right st
 	if sig == "" {
 		return "", "", false
 	}
-	full := sig + "   " + m.th.muted.Render(desc)
+	full := sig + "   " + m.th.Muted.Render(desc)
 	for _, try := range [][2]string{{full, hints}, {sig, hints}, {full, ""}} {
 		if ansi.StringWidth(try[0])+3+ansi.StringWidth(try[1]) <= m.width {
 			return try[0], try[1], true
@@ -335,13 +336,13 @@ func (m *Model) signature(buf []rune, pos int) (sig, desc string) {
 	parts := splitArgs(f.Args)
 	cur := argPart(parts, c.arg, f.Max < 0)
 	var b strings.Builder
-	b.WriteString(m.th.key.Render(f.Name) + "(")
+	b.WriteString(m.th.Key.Render(f.Name) + "(")
 	for i, p := range parts {
 		if i > 0 {
 			b.WriteString(", ")
 		}
 		if i == cur {
-			b.WriteString(m.th.argument.Render(p))
+			b.WriteString(m.th.Argument.Render(p))
 		} else {
 			b.WriteString(p)
 		}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // Filters follow Sheets' Data > Create a filter: the headers of the
@@ -50,7 +51,7 @@ func (m *Model) createFilter() tea.Cmd {
 	r := m.dataRange()
 	m.sheet.CreateFilter(r)
 	m.changed = true
-	m.note = "Created a filter on " + r.String() + "   " + m.keyHints(shortcut("data.filter_column"), "filter the active column")
+	m.note = "Created a filter on " + r.String() + "   " + m.th.KeyHints(shortcut("data.filter_column"), "filter the active column")
 	return nil
 }
 
@@ -310,15 +311,15 @@ func (p *filterPicker) mouse(m *Model, e mouseEvent) tea.Cmd {
 
 func (p *filterPicker) status(m *Model) (string, string) {
 	if p.field == 1 {
-		return "Rows must also meet the condition", m.keyHints("Up/Down", "condition", "Tab", "values", "Enter", "apply", "Esc", "cancel")
+		return "Rows must also meet the condition", m.th.KeyHints("Up/Down", "condition", "Tab", "values", "Enter", "apply", "Esc", "cancel")
 	}
 	pairs := []string{"Space", "check", "Tab", "condition", "Enter", "apply", "Esc", "cancel"}
 	desc := "Type to search the values"
 	for {
-		keys := m.keyHints(pairs...)
+		keys := m.th.KeyHints(pairs...)
 		switch {
 		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
-			return m.th.muted.Render(desc), keys
+			return m.th.Muted.Render(desc), keys
 		case desc != "":
 			desc = ""
 		case len(pairs) > 4:
@@ -366,18 +367,18 @@ func (p *filterPicker) layout(m *Model) []box {
 	rows := p.rows(m)
 	p.show(rows)
 
-	chipStyle := m.th.keyChip
+	chipStyle := m.th.KeyChip
 	if p.field == 1 {
-		chipStyle = m.th.menuSelected
+		chipStyle = m.th.MenuSelected
 	}
-	cond := m.th.muted.Render(" If ") + chipStyle.Render(p.condChip())
+	cond := m.th.Muted.Render(" If ") + chipStyle.Render(p.condChip())
 	if p.cond.Op.TakesArg() {
 		arg := p.fields[1]
 		if p.field == 1 {
 			arg = string(m.buf)
 		}
 		if arg == "" && p.field != 1 {
-			arg = m.th.muted.Render("value")
+			arg = m.th.Muted.Render("value")
 		}
 		cond += "  " + arg
 	}
@@ -385,16 +386,16 @@ func (p *filterPicker) layout(m *Model) []box {
 	if p.field == 0 {
 		search = string(m.buf)
 	}
-	input := m.th.title.Render(searchPrompt) + search
+	input := m.th.Title.Render(searchPrompt) + search
 	if search == "" {
-		input += m.th.muted.Render("Search values")
+		input += m.th.Muted.Render("Search values")
 	}
-	lines := []string{cells(m.th.menuBar, cond, inner), sepRow, cells(m.th.menuBar, input, inner), sepRow}
+	lines := []string{theme.Cells(m.th.MenuBar, cond, inner), theme.SepRow, theme.Cells(m.th.MenuBar, input, inner), theme.SepRow}
 
 	for r := range rows {
 		i := p.top + r
 		if i > len(p.shown) {
-			lines = append(lines, cells(m.th.menuBar, "", inner))
+			lines = append(lines, theme.Cells(m.th.MenuBar, "", inner))
 			continue
 		}
 		label, count, checked := "Select all", "", p.allChecked()
@@ -407,16 +408,16 @@ func (p *filterPicker) layout(m *Model) []box {
 		if checked {
 			box = "[x] "
 		}
-		base, muted := m.th.menuBar, m.th.muted
+		base, muted := m.th.MenuBar, m.th.Muted
 		if i == p.sel {
-			base, muted = m.th.menuSelected, m.th.menuSelected
+			base, muted = m.th.MenuSelected, m.th.MenuSelected
 		}
 		labelStyle := base
 		if dim {
 			labelStyle = muted
 		}
-		text := base.Render(" "+box) + cells(labelStyle, label, inner-6-len(count)-1)
-		text += muted.Render(padLeft(count, len(count)+1)) + base.Render(" ")
+		text := base.Render(" "+box) + theme.Cells(labelStyle, label, inner-6-len(count)-1)
+		text += muted.Render(theme.PadLeft(count, len(count)+1)) + base.Render(" ")
 		lines = append(lines, ansi.Truncate(text, inner, ""))
 	}
 	title := "Filter " + sheet.ColName(p.col)
@@ -426,5 +427,5 @@ func (p *filterPicker) layout(m *Model) []box {
 		}
 	}
 	footer := strconv.Itoa(len(p.shown)) + " of " + strconv.Itoa(len(p.values))
-	return []box{{id: filterID, x: x, y: y, lines: m.frame(inner, title, footer, lines)}}
+	return []box{{id: filterID, x: x, y: y, lines: m.th.Frame(inner, title, footer, lines)}}
 }

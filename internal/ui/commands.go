@@ -10,6 +10,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // command is a user-facing action. Every action is registered once here
@@ -100,7 +101,7 @@ func keyRank(k string) int {
 // e.g. "Ctrl+S", or "" if it has none.
 func shortcut(id string) string {
 	if keys := keysFor(id); len(keys) > 0 {
-		return keyLabel(keys[0])
+		return theme.KeyLabel(keys[0])
 	}
 	return ""
 }

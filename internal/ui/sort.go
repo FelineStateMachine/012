@@ -241,10 +241,10 @@ type sortPart struct {
 }
 
 func (b *sortBar) parts(m *Model) []sortPart {
-	parts := []sortPart{{text: m.th.key.Render("Sort "+b.data().String()) + m.th.muted.Render(" by "), key: -1}}
+	parts := []sortPart{{text: m.th.Key.Render("Sort "+b.data().String()) + m.th.Muted.Render(" by "), key: -1}}
 	for i, k := range b.keys {
 		if i > 0 {
-			parts = append(parts, sortPart{text: m.th.muted.Render(" then "), key: -1})
+			parts = append(parts, sortPart{text: m.th.Muted.Render(" then "), key: -1})
 		}
 		label := sheet.ColName(k.Col)
 		if b.headers > 0 {
@@ -252,15 +252,15 @@ func (b *sortBar) parts(m *Model) []sortPart {
 				label += " " + ansi.Truncate(h, 16, "…")
 			}
 		}
-		style := m.th.keyChip
+		style := m.th.KeyChip
 		if i == b.cur {
-			style = m.th.menuSelected
+			style = m.th.MenuSelected
 		}
 		parts = append(parts, sortPart{text: style.Render(" " + label + "  " + orderName(k.Desc) + " "), key: i})
 	}
-	style := m.th.muted
+	style := m.th.Muted
 	if b.headers > 0 {
-		style = m.th.menuSelected
+		style = m.th.MenuSelected
 	}
 	parts = append(parts, sortPart{text: "   ", key: -1}, sortPart{text: style.Render(" Header row "), key: -1, toggle: true})
 	return parts
@@ -309,10 +309,10 @@ func (b *sortBar) status(m *Model) (string, string) {
 	pairs := []string{"Left/Right", "column", "Space", "order", "Enter", "sort", "Esc", "cancel"}
 	desc := "Alt+A add  Alt+H header  Tab next"
 	for {
-		keys := m.keyHints(pairs...)
+		keys := m.th.KeyHints(pairs...)
 		switch {
 		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
-			return m.th.muted.Render(desc), keys
+			return m.th.Muted.Render(desc), keys
 		case desc != "":
 			desc = ""
 		case len(pairs) > 4:

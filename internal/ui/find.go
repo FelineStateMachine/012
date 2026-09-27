@@ -336,20 +336,20 @@ type findPart struct {
 
 func (f *findBar) parts(m *Model) []findPart {
 	label := func(name string, i int) string {
-		style := m.th.muted
+		style := m.th.Muted
 		if f.field == i {
-			style = m.th.key
+			style = m.th.Key
 		}
-		return style.Render(name) + m.th.muted.Render(searchPrompt)
+		return style.Render(name) + m.th.Muted.Render(searchPrompt)
 	}
 	parts := []findPart{{text: label("Find", 0) + f.fieldText(m, 0), field: 0}}
 	if f.replace {
 		parts = append(parts, findPart{text: label("Replace", 1) + f.fieldText(m, 1), field: 1})
 	}
 	chip := func(on bool, name, key string) findPart {
-		style := m.th.muted
+		style := m.th.Muted
 		if on {
-			style = m.th.menuSelected
+			style = m.th.MenuSelected
 		}
 		return findPart{text: style.Render(" " + name + " "), field: -1, toggle: key}
 	}
@@ -411,16 +411,16 @@ func (f *findBar) line(m *Model) (left, right string) {
 	}
 	switch {
 	case f.err != "":
-		right = m.th.warning.Render(f.err)
+		right = m.th.Warning.Render(f.err)
 	case f.fields[0] == "":
 	case len(f.matches) == 0:
-		right = m.th.warning.Render("No matches")
+		right = m.th.Warning.Render("No matches")
 	default:
 		where := ""
 		if f.where == inAll {
 			where = " on " + f.matches[f.cur].s.Name()
 		}
-		right = m.th.muted.Render(strconv.Itoa(f.cur+1) + " of " + strconv.Itoa(len(f.matches)) + where)
+		right = m.th.Muted.Render(strconv.Itoa(f.cur+1) + " of " + strconv.Itoa(len(f.matches)) + where)
 	}
 	return b.String(), right
 }
@@ -486,10 +486,10 @@ func (f *findBar) status(m *Model) (string, string) {
 		desc = "Alt+C/W/R/=/S options"
 	}
 	for {
-		keys := m.keyHints(pairs...)
+		keys := m.th.KeyHints(pairs...)
 		switch {
 		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
-			return m.th.muted.Render(desc), keys
+			return m.th.Muted.Render(desc), keys
 		case desc != "":
 			desc = ""
 		case len(pairs) > 2:

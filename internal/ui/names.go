@@ -111,9 +111,9 @@ func (p *namesPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 }
 
 func (p *namesPicker) status(m *Model) (string, string) {
-	keys := m.keyHints("Enter", "go to", "F2", "edit", "Ctrl+D", "delete", "Esc", "close")
+	keys := m.th.KeyHints("Enter", "go to", "F2", "edit", "Ctrl+D", "delete", "Esc", "close")
 	if _, ok := p.current(m); !ok {
-		keys = m.keyHints("Enter", "add", "Esc", "close")
+		keys = m.th.KeyHints("Enter", "add", "Esc", "close")
 	}
 	if p.msg != "" {
 		return p.msg, keys

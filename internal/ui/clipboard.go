@@ -225,14 +225,14 @@ func (m *Model) readyLine() string {
 	case m.note != "":
 		return m.note
 	case m.copied.marked && m.copied.cut:
-		return "Cut " + m.clipLabel(m.copied) + "   " + m.keyHints("Ctrl+V", "move here", "Esc", "cancel")
+		return "Cut " + m.clipLabel(m.copied) + "   " + m.th.KeyHints("Ctrl+V", "move here", "Esc", "cancel")
 	case m.copied.marked:
 		text := "Copied " + m.clipLabel(m.copied) + "   "
-		full := text + m.keyHints("Ctrl+V", "paste", "Ctrl+Shift+V", "paste values", "Esc", "clear")
+		full := text + m.th.KeyHints("Ctrl+V", "paste", "Ctrl+Shift+V", "paste values", "Esc", "clear")
 		if ansi.StringWidth(full) <= m.width {
 			return full
 		}
-		return text + m.keyHints("Ctrl+V", "paste", "Esc", "clear")
+		return text + m.th.KeyHints("Ctrl+V", "paste", "Esc", "clear")
 	}
 	return ""
 }

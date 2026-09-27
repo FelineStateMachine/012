@@ -112,7 +112,7 @@ func (m *Model) traceLine() (left, right string) {
 	if len(t.targets) != 1 {
 		noun += "s"
 	}
-	right = m.keyHints(shortcut(id), "next", "Esc", "back")
+	right = m.th.KeyHints(shortcut(id), "next", "Esc", "back")
 	origin := t.origin.String()
 	if t.home != m.sheet {
 		origin = sheet.Qualified(t.home.Name(), sheet.Rect{From: t.origin, To: t.origin})
@@ -127,14 +127,14 @@ func (m *Model) traceLine() (left, right string) {
 	for i, tg := range t.targets {
 		part := m.rangeLabel(tg, t.home)
 		if i == t.at {
-			part = m.th.key.Render(part)
+			part = m.th.Key.Render(part)
 		}
 		if i > 0 {
 			part = ", " + part
 		}
 		more := " +" + strconv.Itoa(len(t.targets)-i) + " more"
 		if ansi.StringWidth(b.String()+part)+len(more) > room && i < len(t.targets)-1 {
-			b.WriteString(m.th.muted.Render(more))
+			b.WriteString(m.th.Muted.Render(more))
 			break
 		}
 		b.WriteString(part)

@@ -95,7 +95,7 @@ func (m *Model) cancelFill() {
 // fillLine is the context line while dragging the fill handle.
 func (m *Model) fillLine() string {
 	if m.fillTo == m.selection() {
-		return m.th.key.Render("Fill") + m.th.muted.Render("   drag down, up, right or left to fill a series or copy   ") + m.keyHints("Esc", "cancel")
+		return m.th.Key.Render("Fill") + m.th.Muted.Render("   drag down, up, right or left to fill a series or copy   ") + m.th.KeyHints("Esc", "cancel")
 	}
-	return m.th.key.Render("Fill "+m.fillTo.String()) + m.th.muted.Render("   release to fill   ") + m.keyHints("Esc", "cancel")
+	return m.th.Key.Render("Fill "+m.fillTo.String()) + m.th.Muted.Render("   release to fill   ") + m.th.KeyHints("Esc", "cancel")
 }

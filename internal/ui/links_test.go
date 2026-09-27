@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -93,7 +94,7 @@ func TestLiveLightDark(t *testing.T) {
 		}
 	}
 	send(m, tea.BackgroundColorMsg{Color: color.White})
-	if m.th.link.GetForeground() != newTheme(false).link.GetForeground() {
+	if m.th.Link.GetForeground() != theme.New(false).Link.GetForeground() {
 		t.Error("theme didn't follow a light background")
 	}
 }

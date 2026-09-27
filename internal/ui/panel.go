@@ -13,6 +13,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // The control panel is three lines: the menu bar with the mode indicator,
@@ -100,7 +101,7 @@ func (m *Model) indicator() string {
 // menuBarLine is the menu bar with the mode indicator on the right.
 func (m *Model) menuBarLine() string {
 	left := m.menuBarTitles()
-	ind := m.th.indicator.Render(" " + m.indicator() + " ")
+	ind := m.th.Indicator.Render(" " + m.indicator() + " ")
 	gap := m.width - ansi.StringWidth(left) - ansi.StringWidth(ind)
 	return left + strings.Repeat(" ", max(gap, 1)) + ind
 }
@@ -123,12 +124,12 @@ func (m *Model) formulaBar() string {
 	if n, ok := m.namedSelection(); ok && (m.mode == modeReady || m.mode == modeMenu) {
 		name = ansi.Truncate(n, nameBoxW-1, "…")
 	}
-	box := m.th.header.Render(padRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
+	box := m.th.Header.Render(theme.PadRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
 	switch m.mode {
 	case modeEnter, modeEdit:
 		return box + string(m.buf)
 	case modePoint:
-		return box + m.pointPrefix + m.th.selection.Render(m.pointRef()) + m.pointSuffix
+		return box + m.pointPrefix + m.th.Selection.Render(m.pointRef()) + m.pointSuffix
 	}
 	if c := m.sheet.Cell(m.cur); c != nil {
 		return box + c.Input
@@ -144,12 +145,12 @@ func (m *Model) contextLineText() string {
 	case m.xfer.job != nil:
 		left = m.importLine()
 	case m.drag == dragResize:
-		left = m.th.key.Render("Column "+sheet.ColName(m.resizeCol)) + m.th.muted.Render(" width ") +
-			strconv.Itoa(m.sheet.ColWidth(m.resizeCol)) + m.th.muted.Render("   double-click the border to fit")
+		left = m.th.Key.Render("Column "+sheet.ColName(m.resizeCol)) + m.th.Muted.Render(" width ") +
+			strconv.Itoa(m.sheet.ColWidth(m.resizeCol)) + m.th.Muted.Render("   double-click the border to fit")
 	case m.drag == dragFill:
 		left = m.fillLine()
 	case m.hint != "":
-		left = m.th.warning.Render(m.hint)
+		left = m.th.Warning.Render(m.hint)
 	case m.mode == modeReady && m.trace != nil:
 		left, right = m.traceLine()
 	case m.mode == modeReady:
@@ -175,17 +176,17 @@ func (m *Model) contextLineText() string {
 	case m.mode == modePoint:
 		prefix := []rune(m.pointPrefix)
 		var ok bool
-		if left, right, ok = m.signatureLine(prefix, len(prefix), m.keyHints("Shift+arrows", "range", "Esc", "back")); !ok {
-			left = m.keyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
+		if left, right, ok = m.signatureLine(prefix, len(prefix), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
+			left = m.th.KeyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
 		}
 	case (m.mode == modeEnter || m.mode == modeEdit) && m.isFormula() && m.inFunction():
-		left, right, _ = m.signatureLine(m.buf, m.bufPos, m.keyHints("Enter", "accept", "Esc", "cancel"))
+		left, right, _ = m.signatureLine(m.buf, m.bufPos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
 	case m.mode == modeEnter && m.isFormula():
-		left = m.keyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
+		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
 	case m.mode == modeEnter:
-		left = m.keyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "accept and move", "Esc", "cancel")
+		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "accept and move", "Esc", "cancel")
 	case m.mode == modeEdit:
-		left = m.keyHints("Enter", "accept", "Left/Right", "move the caret", "Esc", "cancel")
+		left = m.th.KeyHints("Enter", "accept", "Left/Right", "move the caret", "Esc", "cancel")
 	}
 	return m.spread(left, right)
 }
@@ -205,33 +206,18 @@ func (m *Model) spread(left, right string) string {
 func (m *Model) promptLine() (left, right string) {
 	switch {
 	case m.pointing():
-		return m.promptPrefix() + m.th.selection.Render(m.point.text()),
-			m.keyHints("Arrows", "move", "Shift+arrows", "extend", "Enter", "apply", "Esc", "cancel")
+		return m.promptPrefix() + m.th.Selection.Render(m.point.text()),
+			m.th.KeyHints("Arrows", "move", "Shift+arrows", "extend", "Enter", "apply", "Esc", "cancel")
 	case len(m.files) > 0:
-		return m.promptPrefix() + string(m.buf), m.th.muted.Render(strings.Join(m.files, "  "))
+		return m.promptPrefix() + string(m.buf), m.th.Muted.Render(strings.Join(m.files, "  "))
 	case m.prompt.kind == promptWidth:
-		return m.promptPrefix() + string(m.buf), m.keyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
+		return m.promptPrefix() + string(m.buf), m.th.KeyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
 	}
-	return m.promptPrefix() + string(m.buf), m.keyHints("Enter", "apply", "Esc", "cancel")
+	return m.promptPrefix() + string(m.buf), m.th.KeyHints("Enter", "apply", "Esc", "cancel")
 }
 
 func (m *Model) promptPrefix() string {
 	return m.prompt.label + " "
-}
-
-// keyHints renders key and description pairs, e.g. "Enter accept", each
-// key as a chip.
-func (m *Model) keyHints(pairs ...string) string {
-	parts := make([]string, 0, len(pairs)/2)
-	for i := 0; i+1 < len(pairs); i += 2 {
-		parts = append(parts, m.chip(pairs[i])+" "+m.th.muted.Render(pairs[i+1]))
-	}
-	return strings.Join(parts, "  ")
-}
-
-// chip draws a key name as a key cap, e.g. "Ctrl+S".
-func (m *Model) chip(label string) string {
-	return m.th.keyChip.Render(" " + label + " ")
 }
 
 // cursorPos returns where the terminal cursor goes: in the formula bar
@@ -263,7 +249,7 @@ func (m *Model) statusLine() string {
 // scroll.
 func (m *Model) statusLayout() (string, []tabSpan) {
 	if m.mode == modeError {
-		return m.th.error.Render(m.errMsg) + m.th.muted.Render("   press any key"), nil
+		return m.th.Error.Render(m.errMsg) + m.th.Muted.Render("   press any key"), nil
 	}
 	if m.xfer.job != nil {
 		return m.importStatus(), nil
@@ -289,7 +275,7 @@ func (m *Model) statusLayout() (string, []tabSpan) {
 	for _, need := range []int{m.allTabs(), min(m.allTabs(), m.width/2), m.minTabs()} {
 		for _, info := range infos {
 			if info != "" {
-				info = m.th.frozenLine.Render(" │ ") + info // like a tmux pane border
+				info = m.th.FrozenLine.Render(" │ ") + info // like a tmux pane border
 			}
 			for _, right := range m.statusRights() {
 				room := m.width - ansi.StringWidth(info)
@@ -315,19 +301,19 @@ func (m *Model) statusLayout() (string, []tabSpan) {
 func (m *Model) statusState() string {
 	var b strings.Builder
 	if m.changed {
-		b.WriteString(m.th.muted.Render("  modified"))
+		b.WriteString(m.th.Muted.Render("  modified"))
 	}
 	if m.book().Decimal() {
-		b.WriteString(m.th.muted.Render("  decimal"))
+		b.WriteString(m.th.Muted.Render("  decimal"))
 	}
 	if m.book().Circular {
-		b.WriteString("  " + m.th.warning.Render("Circular reference"))
+		b.WriteString("  " + m.th.Warning.Render("Circular reference"))
 	}
 	if n := m.sheet.HiddenRows(); n > 0 {
-		b.WriteString("  " + m.th.hint.Render("Filter hides "+rowCount(n)))
+		b.WriteString("  " + m.th.Hint.Render("Filter hides "+rowCount(n)))
 	}
 	if busy := m.jevBusy(); busy != "" {
-		b.WriteString("  " + m.th.hint.Render(busy))
+		b.WriteString("  " + m.th.Hint.Render(busy))
 	}
 	return b.String()
 }
@@ -340,13 +326,13 @@ func (m *Model) statusRights() []string {
 	if m.hasRange() && m.mode == modeReady {
 		r := m.selection()
 		st := m.sheet.RangeStats(r)
-		rng := m.th.key.Render(r.String())
+		rng := m.th.Key.Render(r.String())
 		sum, avg := "", ""
 		if st.Nums > 0 {
-			sum = m.th.muted.Render("Sum ") + fmtStat(st.Sum)
-			avg = m.th.muted.Render("Avg ") + fmtStat(st.Sum/float64(st.Nums))
+			sum = m.th.Muted.Render("Sum ") + fmtStat(st.Sum)
+			avg = m.th.Muted.Render("Avg ") + fmtStat(st.Sum/float64(st.Nums))
 		}
-		count := m.th.muted.Render("Count ") + strconv.Itoa(st.Count)
+		count := m.th.Muted.Render("Count ") + strconv.Itoa(st.Count)
 		// As many stats as fit: Avg goes first, then Sum, then Count.
 		for _, parts := range [][]string{{rng, sum, avg, count}, {rng, sum, count}, {rng, count}, {rng}} {
 			out = append(out, strings.Join(slices.DeleteFunc(parts, func(p string) bool { return p == "" }), "   "))
@@ -355,7 +341,7 @@ func (m *Model) statusRights() []string {
 	}
 	pairs := []string{shortcut("palette"), "search", shortcut("help"), "shortcuts", shortcut("menu"), "menu"}
 	for ; len(pairs) > 0; pairs = pairs[:len(pairs)-2] {
-		out = append(out, m.keyHints(pairs...))
+		out = append(out, m.th.KeyHints(pairs...))
 	}
 	return append(out, "")
 }

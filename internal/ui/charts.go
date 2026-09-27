@@ -133,7 +133,7 @@ func (m *Model) deleteChart(i int) {
 	if _, ok := m.overlay.(*chartSel); ok {
 		m.closeOverlay()
 	}
-	m.note = "Deleted the chart   " + m.keyHints(shortcut("edit.undo"), "undo")
+	m.note = "Deleted the chart   " + m.th.KeyHints(shortcut("edit.undo"), "undo")
 }
 
 // displayCharts are the charts as drawn: with the one being dragged at
@@ -219,9 +219,9 @@ func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 		o.Image = false
 	}
 	g := chart.Draw(c.Type, m.sheet.ChartData(c), w, h, o)
-	border := m.th.chartFrame
+	border := m.th.ChartFrame
 	if selected {
-		border = m.th.chartSelected
+		border = m.th.ChartSelected
 	}
 	title := c.Title
 	if title == "" {
@@ -230,7 +230,7 @@ func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 	title = ansi.Truncate(" "+title+" ", c.W-4, "…")
 	footer := " " + c.Data.String() + " "
 	lines := make([]string, 0, c.H)
-	lines = append(lines, border.Render("┌─")+m.th.title.Render(title)+
+	lines = append(lines, border.Render("┌─")+m.th.Title.Render(title)+
 		border.Render(strings.Repeat("─", max(c.W-3-ansi.StringWidth(title), 0))+"┐"))
 	for y := range h {
 		lines = append(lines, border.Render("│")+" "+m.chartRow(g, y, firstImageID+i, o.Image)+" "+border.Render("│"))
@@ -243,7 +243,7 @@ func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 	if fill < 1 {
 		lines = append(lines, border.Render("└"+strings.Repeat("─", c.W-2)+corner))
 	} else {
-		lines = append(lines, border.Render("└"+strings.Repeat("─", fill))+m.th.muted.Render(footer)+border.Render("─"+corner))
+		lines = append(lines, border.Render("└"+strings.Repeat("─", fill))+m.th.Muted.Render(footer)+border.Render("─"+corner))
 	}
 	return lines
 }
@@ -272,7 +272,7 @@ func (m *Model) chartRow(g *chart.Grid, y, imageID int, image bool) string {
 		text := c.Text
 		switch {
 		case image && y >= g.Plot.Min.Y && y < g.Plot.Max.Y && x >= g.Plot.Min.X && x < g.Plot.Max.X:
-			key, st = 1, m.th.imageID(imageID)
+			key, st = 1, m.th.ImageID(imageID)
 			text = chart.Placeholder(y-g.Plot.Min.Y, x-g.Plot.Min.X)
 		case c.Fg == chart.None && c.Bg == chart.None:
 			key, isStyled = 2, false
@@ -280,7 +280,7 @@ func (m *Model) chartRow(g *chart.Grid, y, imageID int, image bool) string {
 			key = 3 + int(c.Fg)*32 + int(c.Bg)
 			st = m.chartRole(c.Fg)
 			if c.Bg >= chart.Series {
-				st = st.Inherit(m.th.seriesBg[int(c.Bg-chart.Series)%chart.Colors])
+				st = st.Inherit(m.th.SeriesBg[int(c.Bg-chart.Series)%chart.Colors])
 			}
 		}
 		if key != prev {
@@ -296,15 +296,15 @@ func (m *Model) chartRow(g *chart.Grid, y, imageID int, image bool) string {
 func (m *Model) chartRole(r chart.Role) lipgloss.Style {
 	switch {
 	case r == chart.Axis:
-		return m.th.chartAxis
+		return m.th.ChartAxis
 	case r == chart.Label:
-		return m.th.chartLabel
+		return m.th.ChartLabel
 	case r == chart.Muted:
-		return m.th.muted
+		return m.th.Muted
 	case r >= chart.Series:
-		return m.th.series[int(r-chart.Series)%chart.Colors]
+		return m.th.Series[int(r-chart.Series)%chart.Colors]
 	}
-	return m.th.cell
+	return m.th.Cell
 }
 
 // chartClick handles a press on the grid in READY: pressing a chart
@@ -522,10 +522,10 @@ func (s *chartSel) status(m *Model) (string, string) {
 	if !ok {
 		return "", ""
 	}
-	desc := m.th.muted.Render("Chart of " + c.Data.String())
+	desc := m.th.Muted.Render("Chart of " + c.Data.String())
 	pairs := []string{"Enter", "edit", "Del", "delete", "Arrows", "move", "Shift+arrows", "resize", "Esc", "done"}
 	for {
-		keys := m.keyHints(pairs...)
+		keys := m.th.KeyHints(pairs...)
 		switch {
 		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
 			return desc, keys
@@ -545,8 +545,8 @@ func (s *chartSel) contextLine(m *Model) (string, string) {
 	if !ok {
 		return "", ""
 	}
-	return m.th.key.Render(c.Type.Title()+" chart") + m.th.muted.Render(" of ") + c.Data.String() +
-		m.th.muted.Render("   drag to move, drag the corner to resize"), ""
+	return m.th.Key.Render(c.Type.Title()+" chart") + m.th.Muted.Render(" of ") + c.Data.String() +
+		m.th.Muted.Render("   drag to move, drag the corner to resize"), ""
 }
 
 // chartEditor is the chart editor: a bar on the context line, in the
@@ -677,9 +677,9 @@ type editorPart struct {
 func (e *chartEditor) parts(m *Model) []editorPart {
 	c := e.chart(m)
 	chip := func(on bool, name, key string) editorPart {
-		style := m.th.muted
+		style := m.th.Muted
 		if on {
-			style = m.th.menuSelected
+			style = m.th.MenuSelected
 		}
 		return editorPart{text: style.Render(" " + name + " "), key: key}
 	}
@@ -696,7 +696,7 @@ func (e *chartEditor) parts(m *Model) []editorPart {
 		header, labels = "Header column", "Labels in row"
 	}
 	return append(parts,
-		editorPart{text: m.th.key.Render(c.Data.String()), key: editorRange},
+		editorPart{text: m.th.Key.Render(c.Data.String()), key: editorRange},
 		chip(true, series, editorSwitch),
 		chip(c.Header, header, editorHeader),
 		chip(c.Labels, labels, editorLabels))
@@ -757,7 +757,7 @@ func (e *chartEditor) mouse(m *Model, ev mouseEvent) tea.Cmd {
 func (e *chartEditor) status(m *Model) (string, string) {
 	pairs := []string{"←/→", "type", "S", "switch rows/columns", "H", "header", "L", "labels", "R", "range", "T", "title", "Enter", "done", "Esc", "cancel"}
 	for {
-		keys := m.keyHints(pairs...)
+		keys := m.th.KeyHints(pairs...)
 		if ansi.StringWidth(keys) <= m.width || len(pairs) <= 4 {
 			return "", keys
 		}

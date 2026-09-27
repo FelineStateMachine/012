@@ -10,6 +10,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // mode is the state shown in the mode indicator.
@@ -115,12 +116,12 @@ type Model struct {
 
 	keyAt time.Time // when the key the next frame answers was pressed, for telemetry
 
-	th theme
+	th theme.Theme
 }
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	return &Model{sheet: s, filename: filename, width: 80, height: 24, th: newTheme(true), term: newTerminal(), lastChart: -1}
+	return &Model{sheet: s, filename: filename, width: 80, height: 24, th: theme.New(true), term: newTerminal(), lastChart: -1}
 }
 
 // Init implements tea.Model. It asks the terminal for its background color
@@ -152,7 +153,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		beforeMode = -1 // keep the focus visible after a resize
 	case tea.BackgroundColorMsg:
-		m.th = newTheme(msg.IsDark())
+		m.th = theme.New(msg.IsDark())
 	case tea.KeyPressMsg:
 		cmd = m.handleKey(msg)
 	case tea.PasteMsg:
