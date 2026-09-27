@@ -4,22 +4,19 @@ import (
 	"cmp"
 	"runtime/debug"
 	"slices"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
 )
 
 func init() {
 	register(
 		&command{id: "help", macro: macroNever, title: "Keyboard shortcuts", desc: "Show every key, grouped by what it does", run: func(m *Model) tea.Cmd {
-			m.openOverlay(&shortcuts{m: m})
+			m.openOverlay(shortcuts.New(m.host()))
 			return nil
 		}},
 		&command{id: "help.functions", macro: macroNever, title: "Function list", desc: "Search the functions formulas can use", run: func(m *Model) tea.Cmd {
@@ -171,139 +168,13 @@ func keyHelpRows(vim bool) []helpRow {
 	return rows
 }
 
-// shortcuts is the keyboard shortcuts view: a scrollable box over the
-// grid, in two columns when the screen is wide enough.
-type shortcuts struct {
-	m   *Model // the model it acts on
-	top int
-}
-
-const shortcutsID = "shortcuts"
-
-func (s *shortcuts) Indicator() string { return "HELP" }
-
-// lines renders the rows, as one or two columns, and returns their width.
-func (s *shortcuts) lines(m *Model) ([]string, int) {
-	rows := helpRows(m.prefs.vim)
-	keyW, actW := 0, 0
-	for _, r := range rows {
-		keyW = max(keyW, ansi.StringWidth(m.th.Chips(r.keys)))
-		actW = max(actW, ansi.StringWidth(r.action))
-	}
-	// On narrow screens actions give way (truncated) so the keys fit.
-	room := min(m.width-4, 160)
-	if 1+keyW+2+actW > room {
-		actW = max(room-3-keyW, 16)
-	}
-	colW := 1 + keyW + 2 + actW
-	render := func(rows []helpRow) []string {
-		var out []string
-		for i, r := range rows {
-			switch {
-			case r.heading != "" && i > 0:
-				out = append(out, "", m.th.Title.Render(" "+r.heading))
-			case r.heading != "":
-				out = append(out, m.th.Title.Render(" "+r.heading))
-			default:
-				out = append(out, " "+theme.PadRight(ansi.Truncate(r.action, actW, "…"), actW)+"  "+m.th.Chips(r.keys))
-			}
-		}
-		return out
-	}
-	if 2*colW+3 > room {
-		return render(rows), min(colW, room)
-	}
-	// Two columns, split at the group boundary nearest the middle.
-	split, best := 0, len(rows)
+// Shortcuts are the rows of the shortcuts view (package shortcuts),
+// with the keys in use.
+func (h host) Shortcuts() []shortcuts.Row {
+	rows := helpRows(h.m.prefs.vim)
+	out := make([]shortcuts.Row, len(rows))
 	for i, r := range rows {
-		if d := abs(len(rows) - 2*i); r.heading != "" && d < best {
-			split, best = i, d
-		}
+		out[i] = shortcuts.Row{Heading: r.heading, Keys: r.keys, Action: r.action}
 	}
-	left, right := render(rows[:split]), render(rows[split:])
-	out := make([]string, max(len(left), len(right)))
-	for i := range out {
-		var l, r string
-		if i < len(left) {
-			l = left[i]
-		}
-		if i < len(right) {
-			r = right[i]
-		}
-		out[i] = theme.PadRight(l, colW) + "   " + r
-	}
-	return out, 2*colW + 3
-}
-
-func abs(x int) int { return max(x, -x) }
-
-// visible is how many lines fit between the menu bar and the status line.
-func (s *shortcuts) visible(m *Model, total int) int {
-	return max(min(total, m.height-2-2-1), 1)
-}
-
-func (s *shortcuts) Layout() []overlay.Box {
-	m := s.m
-	lines, w := s.lines(m)
-	inner := w + 1
-	n := s.visible(m, len(lines)+1)
-	s.top = clamp(s.top, 0, max(len(lines)+1-n, 0))
-	lines = append([]string{""}, lines...) // breathing room under the title
-	rows := make([]string, n)
-	for i := range rows {
-		if j := s.top + i; j < len(lines) {
-			rows[i] = theme.Cells(m.th.MenuBar, lines[j], inner)
-		} else {
-			rows[i] = strings.Repeat(" ", inner)
-		}
-	}
-	footer := ""
-	if n < len(lines) {
-		footer = strconv.Itoa(s.top+1) + "-" + strconv.Itoa(s.top+n) + " of " + strconv.Itoa(len(lines))
-	}
-	b := m.th.Frame(inner, "Keyboard shortcuts", footer, rows)
-	w, h := ansi.StringWidth(b[0]), len(b)
-	return []overlay.Box{{ID: shortcutsID, X: (m.width - w) / 2, Y: max(menuLine+1, (m.height-1-h)/2), Lines: b}}
-}
-
-func (s *shortcuts) Key(k tea.KeyPressMsg) tea.Cmd {
-	m := s.m
-	lines, _ := s.lines(m)
-	page := s.visible(m, len(lines)+1)
-	switch k.String() {
-	case "up", "k":
-		s.top--
-	case "down", "j":
-		s.top++
-	case "pgup":
-		s.top -= page
-	case "pgdown", "space":
-		s.top += page
-	case "home":
-		s.top = 0
-	case "end":
-		s.top = len(lines)
-	case "esc", "enter", "q", "f1", "ctrl+/":
-		m.closeOverlay()
-	}
-	s.top = clamp(s.top, 0, max(len(lines)+1-page, 0))
-	return nil
-}
-
-func (s *shortcuts) Mouse(e overlay.MouseEvent) tea.Cmd {
-	m := s.m
-	switch {
-	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelUp:
-		s.top = max(s.top-3, 0)
-	case e.Kind == overlay.MouseWheel && e.Button == tea.MouseWheelDown:
-		s.top += 3 // layout clamps
-	case e.Kind == overlay.MousePress && e.Box != shortcutsID:
-		m.closeOverlay()
-	}
-	return nil
-}
-
-func (s *shortcuts) Status() (string, string) {
-	m := s.m
-	return "", m.th.KeyHints("Up/Down", "scroll", "Esc", "close")
+	return out
 }
