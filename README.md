@@ -29,97 +29,57 @@ Requires Go 1.27. Or from a clone: `make build` puts the binary in `bin/012`.
 F1 shows every shortcut, F10 or Alt+letter opens the menus, and Ctrl+K
 searches every command. `012 config edit` opens the settings file.
 
-## What it does
+## A short tour
 
-- **Sheets-style editing.** Formulas with 120 Sheets-compatible functions,
-  autocomplete and argument hints, pointing at cells with the arrows or the
-  mouse, named ranges, undo and redo for everything, copy and paste with
-  reference adjustment and the system clipboard, fill series, insert and
-  delete rows and columns.
-- **Formats and styles.** Currency, percent, dates and times detected as you
-  type; number formats, bold, italic, underline, strikethrough, alignment.
-- **Several sheets.** Sheet tabs on the status line, references between
-  sheets (`=Sheet2!A1`) that follow renames, pointing into another sheet
-  while typing a formula, hiding sheets, and Sheets' keys for moving
-  between them.
-- **Data tools.** Freeze rows and columns, multi-column sort, filters with
-  value pickers and conditions, find and replace with regular expressions,
-  tracing precedents and dependents, live pivot tables and frequency
-  tables on sheets of their own.
-- **Charts.** Column, bar, line, area, pie and scatter charts (stacked,
-  with trend lines, log and fixed axes) that float over the grid and
-  update live; real images in terminals with the kitty graphics protocol
-  (kitty, Ghostty, WezTerm), text elsewhere.
-- **Files.** A diff-friendly JSON format, plus import from CSV, TSV, XLSX,
-  SQLite, Parquet and Lotus 1-2-3 `.wk1`, and export to CSV, TSV, XLSX and
-  SQLite.
-- **Macros.** Record what you do with absolute or relative references and
-  replay it with Ctrl+Alt+Shift+digit, as one undo step; macros are readable
-  Starlark scripts saved in the file, with step limits and no file or
-  network access ([docs](docs/macros.md)).
-- **JEV functions.** `JEV.TEST`, `JEV.PROB`, `JEV.CLASSIFY` and `JEV.SCORE`
-  ask TypeSafe's hosted JEV model about your data, answered in the background
-  and cached ([docs](docs/jev.md)).
-- **Made for terminals.** Mouse with hover and resize handles, hyperlinks,
-  light and dark themes that follow the terminal, desktop notifications,
-  menus and a command palette styled like terminal software, not a GUI,
-  and optional vim keys (hjkl, counts, dd/yy/p, visual selection, `:`
-  commands) in File > Settings.
-- **Themes and a config file.** Your terminal's colors by default, or any
-  of 349 color schemes (or your own Ghostty theme) with solid menu and
-  status bars; one Ghostty-style config file for every setting, and the
-  JEV API key kept in the OS keychain ([config](docs/config.md),
-  [themes](docs/themes.md)).
-
-## Demos
+- **Formulas as in Sheets**, with [Sheets' functions](docs/functions.md),
+  suggestions and argument hints, pointing at cells with the arrows or the
+  mouse, named ranges, references between sheets, optional decimal
+  arithmetic for money, and undo for everything
+  ([formulas](docs/formulas.md)).
+- **Data tools**: freeze, sort, filter, find and replace, conditional
+  formatting, dropdowns and checkboxes, notes, protected ranges, and live
+  pivot tables ([working with data](docs/data.md)).
+- **Charts** that float over the grid and follow their data, drawn as real
+  images in kitty, Ghostty and WezTerm and as text elsewhere
+  ([charts](docs/charts.md)).
+- **Files**: a diff-friendly JSON format, import from CSV, TSV, XLSX,
+  SQLite, Parquet and Lotus 1-2-3, export to CSV, TSV, XLSX and SQLite
+  ([files](docs/files.md)).
+- **Macros**, recorded or written as Starlark scripts saved with the sheet
+  ([macros](docs/macros.md)).
+- **Made for terminals**: the mouse, hyperlinks, the system clipboard over
+  SSH, your terminal's colors or any of hundreds of schemes, optional vim
+  keys, and `012 serve` to reach your sheets over SSH
+  ([keys](docs/keys.md), [themes](docs/themes.md), [SSH](docs/ssh.md)).
+- **JEV functions** ask TypeSafe's hosted model about your data from a
+  formula ([JEV](docs/jev.md)).
 
 | | |
 |---|---|
 | ![Menus and the command palette](docs/media/menus-palette.gif) | ![Inserting a chart that follows its data](docs/media/charts.gif) |
 | Menus and the command palette (Ctrl+K) | Charts that float over the grid and follow their data |
+| ![A task list with a color scale, a dropdown and checkboxes](docs/media/rules.gif) | ![A pivot table of sales by region and quarter](docs/media/pivot.gif) |
+| Conditional formatting and data validation | Pivot tables, live |
 | ![Freezing, sorting and filtering](docs/media/freeze-sort-filter.gif) | ![Find and replace](docs/media/find-replace.gif) |
 | Freeze, sort and filter | Find and replace |
 | ![JEV functions classifying reviews](docs/media/jev.gif) | ![Currency formats and totals](docs/media/formats-budget.png) |
 | JEV functions in formulas | Formats detected as you type |
 
 The recordings are [VHS](https://github.com/charmbracelet/vhs) tapes in
-[`demos/`](demos); `make demos` renders them in a terminal using the
-Catppuccin Mocha palette, which 012 follows by default ([themes](docs/themes.md)).
-Charts show as text here; in kitty, Ghostty and WezTerm they are real images.
+[`demos/`](demos), rendered by `make demos` in the Catppuccin Mocha
+palette; 012 draws in your terminal's own colors by default
+([themes](docs/themes.md)). Charts show as text here.
 
-## Documentation
+## More
 
-- [Keys and mouse](docs/keys.md)
-- [Entries and formulas](docs/formulas.md) and [functions](docs/functions.md)
-- [Working with data](docs/data.md)
-- [Charts, links and the terminal](docs/charts.md)
-- [Files](docs/files.md)
-- [JEV functions](docs/jev.md)
-- [Serving over SSH](docs/ssh.md): `012 serve`, public-key only, confined to one directory
-- [Configuration](docs/config.md) and [themes](docs/themes.md)
-- [Macros](docs/macros.md): recording, running, and the scripting API
-- [Architecture](docs/architecture.md), [UX bar](docs/UX.md) and [testing](docs/testing.md)
-- [Limits](docs/limits.md): how big a sheet 012 handles and where it slows down
-- [Observability](docs/observability.md): event logs, DuckDB, and a local Collector, ClickHouse and Grafana stack
+- [Documentation](docs/README.md): every guide, for using 012 and for
+  working on it
 - [Roadmap](ROADMAP.md)
+- Working on 012: `make build`, then `make check` before a push; see
+  [testing](docs/testing.md) and [CLAUDE.md](CLAUDE.md)
 
-## Development
-
-```sh
-make build    # pure Go, CGO_ENABLED=0
-make test     # unit tests
-make e2e      # the real binary in libghostty, Ghostty's terminal core (needs Zig 0.16+ and pkg-config)
-make screens  # golden screens and the review gallery
-make oracle   # formulas and formats against excelize
-make stress   # benchmarks on synthetic and real data; make stress-report compares runs
-```
-
-See [docs/testing.md](docs/testing.md).
-
-## Status
-
-Young and moving quickly. The file format is versioned and older files keep
-loading; the Go packages are internal and may change at any time.
+Young and moving quickly. The file format is versioned and older files
+keep loading; the Go packages are internal and may change at any time.
 
 ## License
 

@@ -132,6 +132,8 @@ Ctrl+D, Ctrl+U and Ctrl+R are vim's, so fill down and fill right are in
 the Edit menu. F1 lists the vim keys first, and the menus and palette
 show them where Sheets' keys are taken.
 
+![Vim keys: counts, dd and p, / search, VISUAL rows and the : line](media/vim.gif)
+
 | Keys (NORMAL) | Action |
 |---|---|
 | `h` `j` `k` `l`, arrows | Left, down, up, right |

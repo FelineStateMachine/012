@@ -30,6 +30,8 @@ writes `theme = ...` to the config file, and Esc goes back to the theme you
 had. With a `light:`/`dark:` pair, the picker changes the one in use.
 `012 config themes` lists every theme, with a `*` on the current one.
 
+![The theme picker previewing 1-2-3 Classic](media/theme-classic.png)
+
 ## Built-in schemes
 
 012 embeds the 348 schemes of [VHS](https://github.com/charmbracelet/vhs)

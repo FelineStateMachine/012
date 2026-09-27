@@ -9,6 +9,8 @@ select whole columns and rows. The active cell stays distinct from the rest
 of the selection, and the status line shows Sum, Avg and Count, dropping the
 ones that don't fit on a narrow terminal.
 
+![A column selected, with its Sum, Avg and Count on the status line](media/selection-stats.png)
+
 ## Copy, paste and fill
 
 Ctrl+C, Ctrl+X and Ctrl+V work as in Sheets: relative references shift,
@@ -97,6 +99,8 @@ Left/Right change a choice, Space flips a check, text lines are typed
 into, Enter saves and Esc goes back without saving. Every change is an
 undo step.
 
+![Checking a task off, picking an owner from a dropdown, a rejected entry, and the rules panel](media/rules.gif)
+
 A rule applies to ranges (`A2:A100`, or several: `A2:A9,C2:C9`) and is
 one of:
 
@@ -177,6 +181,8 @@ it doesn't ask first (on a protected sheet it does); checking a box or
 picking an item asks as typing does ([protection](#protected-sheets-and-ranges)).
 
 ## Pivot tables
+
+![Building a pivot table of revenue by region and quarter, then changing its data](media/pivot.gif)
 
 Data > Pivot table summarizes the selection, or the table around the
 active cell, on a new sheet named `Pivot Table 1`, as Sheets' Insert >
