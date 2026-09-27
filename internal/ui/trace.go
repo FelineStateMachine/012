@@ -55,13 +55,11 @@ func (m *Model) stepTrace(dependents bool) {
 			t.targets = m.sheet.Precedents(m.cur)
 		}
 		// Cells on hidden sheets can't be shown, so the trace skips them.
+		hidden := hiddenSheets(t.targets)
 		t.targets = slices.DeleteFunc(t.targets, func(tg sheet.Target) bool { return tg.Sheet.Hidden() })
 		if len(t.targets) == 0 {
 			m.trace = nil
-			m.note = "No formulas read " + m.cur.String()
-			if !dependents {
-				m.note = m.cur.String() + " has no formula reading other cells"
-			}
+			m.note = noTrace(dependents, m.cur, hidden)
 			return
 		}
 		m.trace = t
@@ -70,6 +68,37 @@ func (m *Model) stepTrace(dependents bool) {
 	m.showSheet(t.targets[t.at].Sheet)
 	m.clearSelection()
 	m.cur = t.targets[t.at].Range.From
+}
+
+// hiddenSheets names the hidden sheets targets are on, in order.
+func hiddenSheets(targets []sheet.Target) []string {
+	var out []string
+	for _, tg := range targets {
+		if tg.Sheet.Hidden() && !slices.Contains(out, tg.Sheet.Name()) {
+			out = append(out, tg.Sheet.Name())
+		}
+	}
+	return out
+}
+
+// noTrace says why a trace from a found nothing to show: nothing to
+// find, or only cells on hidden sheets, which it names.
+func noTrace(dependents bool, a sheet.Addr, hidden []string) string {
+	if len(hidden) == 0 {
+		if dependents {
+			return "No formulas read " + a.String()
+		}
+		return a.String() + " has no formula reading other cells"
+	}
+	names, what, it := hidden[0], "a hidden sheet", "it"
+	if n := len(hidden); n > 1 {
+		names = strings.Join(hidden[:n-1], ", ") + " and " + hidden[n-1]
+		what, it = "hidden sheets", "them"
+	}
+	if dependents {
+		return "Only formulas on " + names + ", " + what + ", read " + a.String() + "; View > Hidden sheets shows " + it
+	}
+	return "Reads only " + names + ", " + what + "; View > Hidden sheets shows " + it
 }
 
 // traceKey ends the trace on any key but the trace commands, and returns

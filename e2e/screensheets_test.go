@@ -16,6 +16,19 @@ func hideSummary(s *session) {
 	s.waitFor("Hid Summary")
 }
 
+// traceHidden hides Sheet1 and traces the precedents of Summary!B1,
+// which reads only Sheet1.
+func traceHidden(s *session) {
+	summary(s)
+	s.click(ghostty.MouseButtonRight, tabX(s.t, s, "Sheet1"), int(s.rows)-1)
+	s.waitFor("Hide sheet")
+	s.keys("<down>", "<down>", "<down>", "<enter>")
+	s.waitFor("Hid Sheet1")
+	s.waitForBar("B1", "=Sheet1!B7*12")
+	s.keys("<alt+,>")
+	s.waitFor("Reads only Sheet1, a hidden sheet; View > Hidden sheets shows it")
+}
+
 // importLocation opens the import location picker for budget.tsv on a
 // spreadsheet with something in it.
 func importLocation(s *session) {
@@ -40,6 +53,7 @@ var sheetScreens = []screen{
 		s.keys("<enter>")
 		s.waitFor("1 of 1")
 	}},
+	{name: "trace-hidden", setup: traceHidden},
 	{name: "autocomplete-sheet", setup: func(s *session) {
 		summary(s)
 		s.keys("<ctrl+pgup>", "<down>", "<down>", "<down>", "=B7/sum")
