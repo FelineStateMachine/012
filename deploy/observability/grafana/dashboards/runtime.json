@@ -1,0 +1,365 @@
+{
+  "uid": "o12-runtime",
+  "title": "012 runtime",
+  "description": "012's own event log (012 --log), via the collector's filelog receiver",
+  "tags": [
+    "012"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Recalculation time",
+      "description": "recalc events: incremental and full recalculations, in milliseconds",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT $__timeInterval(Timestamp) AS time, quantile(0.5)(toFloat64OrZero(LogAttributes['dur_ms'])) AS p50, quantile(0.95)(toFloat64OrZero(LogAttributes['dur_ms'])) AS p95, max(toFloat64OrZero(LogAttributes['dur_ms'])) AS max FROM otel.otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = '012' AND LogAttributes['event'] = 'recalc' GROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Frame and key-to-frame time (p95 per second)",
+      "description": "frames summaries: View() time and the time from a key press to its frame; 16 ms is one frame at 60 Hz",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT $__timeInterval(Timestamp) AS time, max(toFloat64OrZero(LogAttributes['render_p95_ms'])) AS render_p95, max(toFloat64OrZero(LogAttributes['key_p95_ms'])) AS key_to_frame_p95, max(toFloat64OrZero(LogAttributes['key_max_ms'])) AS key_to_frame_max FROM otel.otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = '012' AND LogAttributes['event'] = 'frames' GROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Heap and cells",
+      "description": "Live heap (left) and stored cells (right), from the per-second frame summaries",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT $__timeInterval(Timestamp) AS time, max(toFloat64OrZero(LogAttributes['heap_bytes'])) AS heap, max(toFloat64OrZero(LogAttributes['cells'])) AS cells FROM otel.otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = '012' AND LogAttributes['event'] = 'frames' GROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cells"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "JEV answer time",
+      "description": "jev events: request latency and questions still queued when it was sent",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT $__timeInterval(Timestamp) AS time, quantile(0.5)(toFloat64OrZero(LogAttributes['dur_ms'])) AS p50, quantile(0.95)(toFloat64OrZero(LogAttributes['dur_ms'])) AS p95, max(toFloat64OrZero(LogAttributes['queued'])) AS queued FROM otel.otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = '012' AND LogAttributes['event'] = 'jev' GROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Imports and exports",
+      "description": "File operations with their sizes and throughput",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT Timestamp AS time, LogAttributes['event'] AS event, LogAttributes['format'] AS format, toFloat64OrZero(LogAttributes['rows']) AS rows, toFloat64OrZero(LogAttributes['cells']) AS cells, round(toFloat64OrZero(LogAttributes['dur_ms']), 1) AS ms, round(toFloat64OrZero(LogAttributes['bytes']) / 1048576 / (toFloat64OrZero(LogAttributes['dur_ms']) / 1000), 1) AS mb_per_s FROM otel.otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = '012' AND LogAttributes['event'] IN ('import', 'export', 'save', 'open') ORDER BY time DESC LIMIT 50",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Slowest operations",
+      "description": "The 25 slowest spans in the range: recalcs, commands, sorts, finds, imports",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT Timestamp AS time, LogAttributes['event'] AS event, LogAttributes['id'] AS command, round(toFloat64OrZero(LogAttributes['dur_ms']), 2) AS ms, toFloat64OrZero(LogAttributes['evaluated']) AS evaluated, toFloat64OrZero(LogAttributes['cells']) AS cells FROM otel.otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = '012' AND LogAttributes['event'] NOT IN ('frames', 'start', 'frame') ORDER BY ms DESC LIMIT 25",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Events per minute",
+      "description": "What 012 has been doing, by event type",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT toStartOfMinute(Timestamp) AS time, LogAttributes['event'] AS event, count() AS n FROM otel.otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = '012' GROUP BY time, event ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  }
+}

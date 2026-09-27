@@ -1,0 +1,82 @@
+# Local observability stack for 012: an OpenTelemetry Collector feeding
+# ClickHouse, and Grafana on top. See docs/observability.md.
+#
+#   make obs-up      start it and print the environment for 012
+#   make obs-status  containers, endpoints and row counts
+#   make obs-down    stop it (data stays in the named volumes)
+#
+# Everything listens on 127.0.0.1 only. The credentials are for this
+# local stack; don't expose it.
+name: o12-obs
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.3.34.136
+    environment:
+      CLICKHOUSE_DB: otel
+      CLICKHOUSE_USER: o12
+      CLICKHOUSE_PASSWORD: o12
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "127.0.0.1:8123:8123" # HTTP: stress-load, queries
+      - "127.0.0.1:9000:9000" # native
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse/config.d/memory.xml:/etc/clickhouse-server/config.d/memory.xml:ro
+      - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8123/ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    user: "0:0" # to write its checkpoint volume and read the bind-mounted logs
+    command: ["--config=/etc/otelcol/config.yaml"]
+    depends_on:
+      clickhouse: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:4317:4317" # OTLP gRPC
+      - "127.0.0.1:4318:4318" # OTLP HTTP
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      # 012 writes JSON logs here (O12_LOG); the filelog receiver tails them.
+      - ${O12_LOG_DIR:-../../.deps/obs/logs}:/var/log/012:ro
+      - collector-state:/var/lib/otelcol
+    mem_limit: 512m
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    depends_on:
+      clickhouse: { condition: service_healthy }
+    environment:
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource 4.21.3
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: o12
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/runtime.json
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  clickhouse-data:
+  collector-state:
+  grafana-data:

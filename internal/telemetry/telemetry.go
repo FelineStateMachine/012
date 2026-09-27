@@ -63,7 +63,7 @@ func Setup(c Config) (func() error, error) {
 		return nil, err
 	}
 	start(f, c)
-	slog.Info("start", "version", c.Version, "go", runtime.Version(), "os", runtime.GOOS, "arch", runtime.GOARCH,
+	Logger().Info("start", "event", "start", "version", c.Version, "go", runtime.Version(), "os", runtime.GOOS, "arch", runtime.GOARCH,
 		"cpus", runtime.NumCPU(), "pid", os.Getpid())
 	return Close, nil
 }

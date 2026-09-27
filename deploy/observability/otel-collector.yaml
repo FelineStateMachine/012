@@ -1,0 +1,73 @@
+# OpenTelemetry Collector for 012: OTLP (gRPC and HTTP) for any
+# instrumented process, and the filelog receiver for 012's own JSON
+# event logs (012 --log .deps/obs/logs/012.jsonl), all into ClickHouse.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: /var/lib/otelcol # remembers how far each log was read
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  file_log/012:
+    include: [/var/log/012/*.jsonl]
+    start_at: beginning
+    storage: file_storage
+    operators:
+      # One slog JSON object per line: time, level, msg, service, event,
+      # dur_ms and the event's counts become the record's attributes.
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: "2006-01-02T15:04:05.999999999Z07:00"
+        severity:
+          parse_from: attributes.level
+      - type: move
+        from: attributes.msg
+        to: body
+      - type: move
+        from: attributes.service
+        to: resource["service.name"]
+      - type: remove
+        field: attributes.time
+      - type: remove
+        field: attributes.level
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 400
+    spike_limit_mib: 100
+  batch:
+    timeout: 2s
+
+exporters:
+  clickhouse:
+    endpoint: tcp://clickhouse:9000?dial_timeout=10s
+    database: otel
+    username: o12
+    password: o12
+    ttl: 720h
+    create_schema: true
+
+service:
+  extensions: [health_check, file_storage]
+  pipelines:
+    logs:
+      receivers: [otlp, file_log/012]
+      processors: [memory_limiter, batch]
+      exporters: [clickhouse]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [clickhouse]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [clickhouse]
