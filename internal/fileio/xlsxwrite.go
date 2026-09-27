@@ -29,10 +29,11 @@ type xlsxWriter struct {
 	// refuse.
 	values       valueCount
 	missing      valueCount
-	missingSheet string            // the sheet missing's example names
-	known        map[string]bool   // keys of the sheets written
-	renamed      map[string]string // the names of sheets written under another, by key
-	dynamic      bool              // a dynamic array formula was written: see xlsxarray.go
+	missingSheet string                    // the sheet missing's example names
+	known        map[string]bool           // keys of the sheets written
+	renamed      map[string]string         // the names of sheets written under another, by key
+	dynamic      bool                      // a dynamic array formula was written: see xlsxarray.go
+	spills       map[sheet.Addr]sheet.Rect // the sheet being written's Snapshot.Spills
 }
 
 // valueCount counts formulas written as values, keeping the first one's
@@ -66,6 +67,7 @@ func (w *xlsxWriter) unknownSheet(c SnapCell) (string, bool) {
 // Errors stick in bw.
 func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active bool) int {
 	r := snap.Range
+	w.spills = snap.Spills
 	bw.WriteString(xmlHead + `<worksheet xmlns="` + sheetMain + `" xmlns:r="` + officeRel + `">`)
 	if len(snap.HiddenRows) > 0 {
 		bw.WriteString(`<sheetPr filterMode="1"/>`) // a filter is hiding rows
@@ -140,7 +142,7 @@ func (w *xlsxWriter) cell(b []byte, ws string, a sheet.Addr, c SnapCell) []byte 
 	switch {
 	case fx != "" && arrays:
 		b = append(b, `<f t="array" ref="`...)
-		b = append(b, arrayRef(a, c.Spill)...)
+		b = append(b, arrayRef(a, w.spills[a])...)
 		b = append(b, `">`...)
 		b = appendEscaped(b, fx, false)
 		b = append(b, "</f>"...)
@@ -180,7 +182,8 @@ func (w *xlsxWriter) formula(ws string, a sheet.Addr, c SnapCell) (string, bool)
 	if !ok {
 		w.values.add(w.multi, ws, a)
 	}
-	return fx, arrays || c.Spill != (sheet.Rect{})
+	_, spills := w.spills[a]
+	return fx, arrays || spills
 }
 
 // cellValue is a cell's value as Excel stores it: the type attribute,

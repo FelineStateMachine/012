@@ -57,6 +57,8 @@ type Reader struct {
 	// (array.go), emptied when the outermost is done; nest counts them.
 	arena []any
 	nest  int
+	outer   []evalState // the states of the formulas nest counts, but the innermost
+	spilled *Array      // the array the last formula computed; see Spilled
 	// ranges are the ranges read whole as arrays since Forget, shared by
 	// the formulas reading them: a thousand FILTERs of one column read it
 	// once. See Forget.

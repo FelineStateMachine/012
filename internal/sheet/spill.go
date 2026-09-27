@@ -58,10 +58,13 @@ type pendingSpill struct {
 	v   Value            // what the formula computed, before spilling
 }
 
-// noteSpill records what the formula at l computed, when it spills or
-// did.
-func (w *Workbook) noteSpill(l loc, arr *functions.Array, v Value) {
-	if arr == nil && l.s.spills[l.a] == nil {
+// noteSpill records what the formula of c, at a on s, computed, when it
+// spills or did.
+//
+//go:noinline
+func (w *Workbook) noteSpill(s *Sheet, a Addr, c *Cell) {
+	arr, v, l := s.calcGet.lib.Spilled(), c.Value, loc{s, a}
+	if arr == nil && s.spills[a] == nil {
 		return
 	}
 	if w.spillWork == nil {

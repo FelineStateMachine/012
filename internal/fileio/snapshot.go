@@ -37,6 +37,10 @@ type Snapshot struct {
 	Filter                 *sheet.Filter
 	HiddenRows             map[int]bool
 
+	// Spills are the cells each formula whose array spills covers, by
+	// the formula's cell, for formats that keep formulas (XLSX).
+	Spills map[sheet.Addr]sheet.Rect
+
 	// Notes are the cells' notes in the range, for formats that keep
 	// them (XLSX, as comments). A note may be on a cell with no contents.
 	Notes map[sheet.Addr]string
@@ -57,8 +61,7 @@ type SnapCell struct {
 	Own     sheet.Format // the cell's own format
 	Style   sheet.Style
 	Formula bool
-	Sheets  []string   // the sheets a formula names, as written
-	Spill   sheet.Rect // the cells a formula's array spills into, when it spills
+	Sheets  []string // the sheets a formula names, as written
 }
 
 // Text is the cell as displayed, without a width limit.
@@ -102,7 +105,12 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 			continue
 		}
 		c := s.Cell(a)
-		spill, _ := s.SpillArea(a)
+		if area, ok := s.SpillArea(a); ok {
+			if snap.Spills == nil {
+				snap.Spills = map[sheet.Addr]sheet.Rect{}
+			}
+			snap.Spills[a] = area
+		}
 		snap.Cells[a] = SnapCell{
 			Input:   c.Input,
 			Value:   c.Value,
@@ -111,7 +119,6 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 			Style:   s.CellStyle(a),
 			Formula: c.IsFormula(),
 			Sheets:  s.NamedSheets(a),
-			Spill:   spill,
 		}
 	}
 	return snap

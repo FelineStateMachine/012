@@ -59,22 +59,14 @@ func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
 	var calls []RemoteCall
 	var walk func(Node)
 	walk = func(n Node) {
-		switch n := n.(type) {
-		case formula.Unary:
-			walk(n.X)
-		case formula.Binary:
-			walk(n.L)
-			walk(n.R)
-		case formula.Call:
-			if f := funcOf(n); f.Remote() {
-				if call, err := f.Question(n.Args, get); err == nil {
-					calls = append(calls, call)
+		if call, ok := n.(formula.Call); ok {
+			if f := funcOf(call); f.Remote() {
+				if q, err := f.Question(call.Args, get); err == nil {
+					calls = append(calls, q)
 				}
 			}
-			for _, arg := range n.Args {
-				walk(arg)
-			}
 		}
+		formula.EachChild(n, walk)
 	}
 	walk(s.bound(c))
 	return calls

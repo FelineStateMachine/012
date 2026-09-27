@@ -118,10 +118,9 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 	expr := s.bound(c)
 	outer := w.evaluating
 	w.evaluating = loc{s, a}
-	v, arr := functions.EvalCell(w.arith(expr), s.calcGet.lib, a)
-	c.Value = v
-	if arr != nil || s.spills != nil {
-		w.noteSpill(loc{s, a}, arr, v)
+	c.Value = functions.EvalCell(w.arith(expr), s.calcGet.lib, a)
+	if s.calcGet.lib.Spilled() != nil || s.spills != nil {
+		w.noteSpill(s, a, c)
 	}
 	w.evaluating = outer
 	c.auto = functions.InferFormat(expr, s.calcFmt)

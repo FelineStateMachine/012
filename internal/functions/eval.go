@@ -18,54 +18,98 @@ func Eval(n Node, get *Reader) Value { return EvalAt(n, get, get.here) }
 // column (implicit intersection, as Sheets and Excel do). Evaluations
 // nest, one cell's formula reading another's through the same Reader, so
 // the cell before is given back afterwards.
-func EvalAt(n Node, get *Reader, at Addr) Value {
-	v, _ := evalTop(n, get, at, false)
+func EvalAt(n Node, get *Reader, at Addr) Value { return evalTop(n, get, at, false) }
+
+// EvalCell computes the formula in the cell at, as EvalAt, keeping the
+// array it computes when that is several values for Spilled: the cell
+// shows the first, and the engine spills the array from it. A 1x1 array
+// is one value. A range that is the whole formula is an array, as Sheets
+// spills =B2:B9.
+func EvalCell(n Node, get *Reader, at Addr) Value { return evalTop(n, get, at, true) }
+
+// Spilled returns the array the formula EvalCell computed last spills,
+// or nil when it computed one value.
+func (rd *Reader) Spilled() *Array { return rd.spilled }
+
+// wholeRange is a range that is a cell's whole formula read through
+// ARRAYFORMULA, so it spills.
+//
+//go:noinline
+func wholeRange(n Node) Node { return formula.Call{Fn: arrayFormula, Args: []Node{n}} }
+
+// evalTop evaluates a cell's formula with a fresh evaluation state,
+// giving the state of the formula it nests in (a cell read while another
+// is evaluated) back afterwards. A chain of formulas nests once per
+// cell, and the goroutine's stack grows with every level, so evalTop
+// keeps its frame small: the common state, outside any array context or
+// LET, in two locals, the rest on the Reader's own stack.
+func evalTop(n Node, get *Reader, at Addr, arrays bool) Value {
+	if _, ok := n.(formula.Range); ok && arrays {
+		n = wholeRange(n)
+	}
+	here, want := get.here, get.wantArr
+	rich := get.lift > 0 || get.scope != nil
+	if rich {
+		get.push()
+	}
+	get.here, get.wantArr = at, arrays
+	get.nest++
+	v := eval(n, get)
+	get.spilled = nil
+	if v.Kind == value.Array {
+		v = get.spill(v)
+	}
+	get.here, get.wantArr = here, want
+	if rich {
+		get.pop()
+	}
+	if get.nest--; get.nest == 0 && len(get.arena) > 0 {
+		get.empty()
+	}
 	return v
 }
 
-// EvalCell computes the formula in the cell at, as EvalAt, and the array
-// it computes when that is several values: the cell shows the first, and
-// the engine spills the array from it. A 1x1 array is one value. A range
-// that is the whole formula is an array, as Sheets spills =B2:B9.
-func EvalCell(n Node, get *Reader, at Addr) (Value, *Array) {
-	if r, ok := n.(formula.Range); ok {
-		n = formula.Call{Fn: arrayFormula, Args: []Node{r}}
-	}
-	return evalTop(n, get, at, true)
+// push saves the evaluation state on the Reader's stack, and pop gives
+// it back.
+//
+//go:noinline
+func (rd *Reader) push() {
+	rd.outer = append(rd.outer, rd.evalState)
+	rd.lift, rd.scope = 0, nil
 }
 
-// evalTop evaluates a cell's formula with a fresh evaluation state,
-// saving the state of the formula it nests in (a cell read while another
-// is evaluated).
-func evalTop(n Node, get *Reader, at Addr, arrays bool) (Value, *Array) {
-	nested := get.nest > 0
-	var saved evalState
-	if nested {
-		saved = get.evalState
-	}
-	get.evalState = evalState{here: at, wantArr: arrays}
-	get.nest++
-	v := eval(n, get)
-	var a *Array
-	if v.Kind == value.Array {
-		v, a = get.first(v), get.arrayOf(v)
-	}
-	if get.nest--; get.nest == 0 && len(get.arena) > 0 {
-		clear(get.arena)
-		get.arena = get.arena[:0]
-	}
-	if nested {
-		get.evalState = saved
-	}
-	return v, a
+//go:noinline
+func (rd *Reader) pop() {
+	last := len(rd.outer) - 1
+	rd.evalState = rd.outer[last]
+	rd.outer[last] = evalState{}
+	rd.outer = rd.outer[:last]
+}
+
+// spill keeps the array v stands for, for Spilled, and returns its
+// first value.
+//
+//go:noinline
+func (rd *Reader) spill(v Value) Value {
+	rd.spilled = rd.arrayOf(v)
+	return rd.first(v)
+}
+
+// empty empties the arena.
+//
+//go:noinline
+func (rd *Reader) empty() {
+	clear(rd.arena)
+	rd.arena = rd.arena[:0]
 }
 
 // Reset forgets the evaluations in progress, which the engine abandoned
 // part way (its evaluate.go), so the next starts afresh.
 func (rd *Reader) Reset() {
-	rd.evalState, rd.nest = evalState{}, 0
-	clear(rd.arena)
-	rd.arena = rd.arena[:0]
+	rd.evalState, rd.nest, rd.spilled = evalState{}, 0, nil
+	clear(rd.outer)
+	rd.outer = rd.outer[:0]
+	rd.empty()
 }
 
 func eval(n Node, get lookup) Value {
@@ -194,7 +238,7 @@ func evalBinary(n formula.Binary, get lookup, dec bool) Value {
 	*get.depth--
 	switch {
 	case l.Kind == value.Array || r.Kind == value.Array:
-		return get.reduce(get.elementwise(l, r, func(l, r Value) Value { return binaryOp(n.Op, l, r, dec) }))
+		return get.binaryArrays(n.Op, l, r, dec)
 	case l.Kind == value.Error:
 		return l
 	case r.Kind == value.Error:
@@ -211,6 +255,13 @@ func evalBinary(n formula.Binary, get lookup, dec bool) Value {
 		}
 	}
 	return binaryOp(n.Op, l, r, dec)
+}
+
+// binaryArrays applies a binary operator to arrays, value by value.
+//
+//go:noinline
+func (rd *Reader) binaryArrays(op string, l, r Value, dec bool) Value {
+	return rd.reduce(rd.elementwise(l, r, func(l, r Value) Value { return binaryOp(op, l, r, dec) }))
 }
 
 func binaryOp(op string, l, r Value, dec bool) Value {
