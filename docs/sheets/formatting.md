@@ -31,7 +31,8 @@ Format > Number, as Sheets names them:
 | Date time | 9/26/2026 15:59:00 |
 | Duration | Elapsed hours, minutes and seconds: 24:01:00 |
 
-Format > Increase and Decrease decimal places show one more or one less.
+Format > Increase decimal places and Format > Decrease decimal places
+show one more or one less.
 A formula left Automatic shows the format of what it reads
 ([building formulas](../formulas/building.md)).
 
