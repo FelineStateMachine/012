@@ -3,10 +3,11 @@ package functions
 import (
 	"sync"
 
+	"github.com/cockroachdb/apd/v3"
+
 	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/numfmt"
 	"github.com/FelineStateMachine/012/internal/value"
-	"github.com/cockroachdb/apd/v3"
 )
 
 // Decimal arithmetic is an opt-in, per-workbook calculation setting for
