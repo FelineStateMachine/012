@@ -41,7 +41,7 @@ follow-up task.
 
 ## Visual rules
 
-- Style only through `theme` roles (`internal/ui/theme.go`). No inline
+- Style only through `theme` roles (`internal/ui/theme`). No inline
   `lipgloss.NewStyle()` in views. Need a new role? Add it to `theme` with a
   comment saying what it's for, in both the dark and light variants.
 - Use the 16 ANSI colors so the user's terminal palette applies. No
@@ -53,10 +53,10 @@ follow-up task.
 - Numbers right-aligned, text left, booleans and errors centered, one
   column of padding, text overflowing into empty neighbors: as Sheets.
   Headers centered. Menu bar titles separated by two spaces. Keys shown
-  as `F2`, `Ctrl+Z`, `Del` (see `keyLabel`), drawn as key chips
-  (`chip`) in hints, menus, the palette and the shortcuts.
+  as `F2`, `Ctrl+Z`, `Del` (see `theme.KeyLabel`), drawn as key chips
+  (`Theme.Chip`) in hints, menus, the palette and the shortcuts.
 - Menus, the palette and the shortcuts are overlays: boxes framed with
-  light box-drawing lines (`frame`), composited over the grid without
+  light box-drawing lines (`Theme.Frame`), composited over the grid without
   moving it, with a title in the top border and a position or count in
   the bottom one. Small questions (quit with unsaved changes) go on the
   context line as a choice bar, not in a box.

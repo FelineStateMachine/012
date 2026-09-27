@@ -106,7 +106,9 @@ func shortcut(id string) string {
 	return ""
 }
 
-// runCommand runs a registered command by ID.
+// runCommand runs a registered command by ID. It is the one place a
+// command runs, whatever reached it (a key, a menu, the palette, a click
+// on a tab or a chart), so a command log or macro recorder attaches here.
 func (m *Model) runCommand(id string) tea.Cmd {
 	c, ok := commands[id]
 	if !ok {

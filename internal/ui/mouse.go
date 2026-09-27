@@ -63,20 +63,20 @@ type hit struct {
 
 // formulaBarAt returns where the active cell's contents are drawn in READY
 // mode: the screen line and the x of the first character.
-func (m *Model) formulaBarAt() (line, x int) { return formulaLine, formulaBarTextX() }
+func formulaBarAt() (line, x int) { return formulaLine, formulaBarTextX() }
 
 // editLineAt returns where the entry being typed is drawn: in place, in the
 // formula bar.
-func (m *Model) editLineAt() (line, x int) { return formulaLine, formulaBarTextX() }
+func editLineAt() (line, x int) { return formulaLine, formulaBarTextX() }
 
 // hitTest maps a screen position to what's there.
 func (m *Model) hitTest(x, y int) hit {
 	switch {
 	case y < panelLines:
-		if line, tx := m.editLineAt(); y == line && m.editing() {
+		if line, tx := editLineAt(); y == line && m.editing() {
 			return hit{kind: hitEditLine, x: x - tx}
 		}
-		if line, tx := m.formulaBarAt(); y == line && x >= tx && m.mode == modeReady {
+		if line, tx := formulaBarAt(); y == line && x >= tx && m.mode == modeReady {
 			return hit{kind: hitFormulaBar, x: x - tx}
 		}
 		return hit{kind: hitPanel}
@@ -119,61 +119,6 @@ func (m *Model) hitTest(x, y int) hit {
 		return hit{kind: hitStatus}
 	}
 	return hit{}
-}
-
-// dragTarget maps a position during a drag to a cell, clamping to the
-// visible grid, and reports which way to autoscroll when it's outside.
-// Dragging from the scrolling area into the frozen panes scrolls back
-// toward them, as in Sheets, until the two meet.
-func (m *Model) dragTarget(x, y int) (a sheet.Addr, dc, dr int) {
-	rows := m.screenRows()
-	fr, fc := m.frozen()
-	anchor := m.dragAnchor()
-	firstRow := m.visibleRow(fr)
-	scrolledDown := m.top > firstRow
-	var last int
-	for _, r := range rows {
-		if r != divider {
-			last = r
-		}
-	}
-	switch row, ok := m.rowAt(y); {
-	case ok && (row >= fr || !scrolledDown || anchor.Row < fr):
-		a.Row = row
-	case y >= gridTop+len(rows):
-		a.Row, dr = last, 1
-	case y >= gridTop && !scrolledDown: // the divider, with nothing scrolled
-		a.Row = m.top
-	case scrolledDown && anchor.Row >= fr:
-		a.Row, dr = m.top, -1
-	default: // above the grid
-		a.Row = rows[0]
-		if scrolledDown {
-			dr = -1
-		}
-	}
-	scrolledRight := m.left > fc
-	cols := m.visibleCols(m.left)
-	right := m.colStart(m.left + cols)
-	switch col, _, ok := m.colSpan(x); {
-	case x >= right:
-		a.Col, dc = m.left+cols-1, 1
-	case ok && (col >= fc || !scrolledRight || anchor.Col < fc):
-		a.Col = col
-	case x >= rowHdrW && !scrolledRight:
-		a.Col = m.left
-	case scrolledRight && anchor.Col >= fc:
-		a.Col, dc = m.left, -1
-	default: // over the row numbers
-		a.Col = 0
-		if fc == 0 {
-			a.Col = m.left
-		}
-		if scrolledRight || fc == 0 && m.left > 0 {
-			dc = -1
-		}
-	}
-	return clampAddr(a), dc, dr
 }
 
 // dragAnchor is where the drag in progress started.
@@ -326,7 +271,7 @@ func (m *Model) dragTo(x, y int) tea.Cmd {
 	case dragTab:
 		return nil // handleMotion tracks the tab under the mouse
 	}
-	a, dc, dr := m.dragTarget(x, y)
+	a, dc, dr := m.dragTarget(x, y, m.dragAnchor())
 	switch m.mouse.drag {
 	case dragPoint:
 		m.point.at, m.point.anchored = a, a != m.point.anchor || m.point.anchored
@@ -359,7 +304,7 @@ func (m *Model) handleAutoscroll() tea.Cmd {
 		m.mouse.autoscrolling = false
 		return nil
 	}
-	_, dc, dr := m.dragTarget(m.mouse.x, m.mouse.y)
+	_, dc, dr := m.dragTarget(m.mouse.x, m.mouse.y, m.dragAnchor())
 	if dc == 0 && dr == 0 {
 		m.mouse.autoscrolling = false
 		return nil

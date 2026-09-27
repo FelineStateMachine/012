@@ -261,3 +261,58 @@ func (g *grid) cellPos(a sheet.Addr) (x, y int) {
 func (g *grid) clampBox(x, y, w, h int) (int, int) {
 	return max(min(x, g.width-w), 0), max(min(y, g.height-h), 0)
 }
+
+// dragTarget maps a position during a drag to a cell, clamping to the
+// visible grid, and reports which way to autoscroll when it's outside.
+// Dragging from the scrolling area into the frozen panes scrolls back
+// toward them, as in Sheets, until the two meet; anchor is where the
+// drag started.
+func (g *grid) dragTarget(x, y int, anchor sheet.Addr) (a sheet.Addr, dc, dr int) {
+	rows := g.screenRows()
+	fr, fc := g.frozen()
+	firstRow := g.visibleRow(fr)
+	scrolledDown := g.top > firstRow
+	var last int
+	for _, r := range rows {
+		if r != divider {
+			last = r
+		}
+	}
+	switch row, ok := g.rowAt(y); {
+	case ok && (row >= fr || !scrolledDown || anchor.Row < fr):
+		a.Row = row
+	case y >= gridTop+len(rows):
+		a.Row, dr = last, 1
+	case y >= gridTop && !scrolledDown: // the divider, with nothing scrolled
+		a.Row = g.top
+	case scrolledDown && anchor.Row >= fr:
+		a.Row, dr = g.top, -1
+	default: // above the grid
+		a.Row = rows[0]
+		if scrolledDown {
+			dr = -1
+		}
+	}
+	scrolledRight := g.left > fc
+	cols := g.visibleCols(g.left)
+	right := g.colStart(g.left + cols)
+	switch col, _, ok := g.colSpan(x); {
+	case x >= right:
+		a.Col, dc = g.left+cols-1, 1
+	case ok && (col >= fc || !scrolledRight || anchor.Col < fc):
+		a.Col = col
+	case x >= rowHdrW && !scrolledRight:
+		a.Col = g.left
+	case scrolledRight && anchor.Col >= fc:
+		a.Col, dc = g.left, -1
+	default: // over the row numbers
+		a.Col = 0
+		if fc == 0 {
+			a.Col = g.left
+		}
+		if scrolledRight || fc == 0 && g.left > 0 {
+			dc = -1
+		}
+	}
+	return clampAddr(a), dc, dr
+}
