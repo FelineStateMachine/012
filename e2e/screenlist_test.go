@@ -426,12 +426,29 @@ var screens = []screen{
 		s.keys("<enter>")
 		s.waitFor("1 of 2 on Sheet1")
 	}},
+	{name: "pivot-editor", setup: pivotEditor},
+	{name: "pivot-editor-narrow", opts: options{cols: 60, rows: 16}, setup: pivotEditor},
+	{name: "pivot", setup: func(s *session) {
+		pivotEditor(s)
+		s.keys("<enter>", "<down>", "<down>", "<right>", "<right>", "5")
+		s.waitFor("Pivot table results can't be edited")
+	}},
+	{name: "pivot-filter", setup: func(s *session) {
+		pivotEditor(s)
+		s.keys("<down>", "<space>", "item", "<enter>", "<space>", "bolts")
+		s.waitFor("Filter Item")
+	}},
+	{name: "frequency", setup: func(s *session) {
+		inventory(s)
+		s.keys("<right>", "<right>", "<down>", "<alt+shift+f>")
+		s.waitFor("Counted Bin: 12 distinct values")
+	}},
 }
 
 // Key screens are also recorded on a light terminal, where the app picks
 // its light theme from the reported background color.
 func init() {
-	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents", "sheets", "sheets-point", "sheets-menu", "sheets-many", "vim-normal", "vim-visual", "vim-command"} {
+	for _, name := range []string{"budget", "point-range", "selection-stats", "menu", "palette-search", "context-menu-column", "functions", "quit-confirm", "help", "resizing-column", "copy-marker", "copy-marker-selected", "formats", "menu-format-number", "find", "replace", "jev", "import-picker", "import-progress", "import-xlsx", "frozen", "filter-picker", "filtered", "sort-bar", "fill-handle", "chart", "chart-editor", "chart-line", "chart-pie", "links-errors", "autocomplete", "signature", "named-ranges", "trace-precedents", "sheets", "sheets-point", "sheets-menu", "sheets-many", "vim-normal", "vim-visual", "vim-command", "pivot-editor", "pivot", "frequency"} {
 		for _, sc := range screens {
 			if sc.name == name {
 				sc.name += "-light"

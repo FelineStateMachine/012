@@ -29,6 +29,11 @@ type command struct {
 	// checked, when set, makes the command a setting: menus show a ✓
 	// while it is on.
 	checked func(m *Model) bool
+
+	// edits, when set, is the range of the sheet shown that the command
+	// changes. A command that would change a pivot table's results is
+	// refused, as Sheets refuses (see pivot.go).
+	edits func(m *Model) sheet.Rect
 }
 
 // available reports whether the command can run in m's current state.
@@ -141,17 +146,20 @@ func (m *Model) runCommand(id string) tea.Cmd {
 	// one span times every one of them.
 	span := telemetry.Start("command", slog.String("id", id))
 	defer span.End()
+	if c.edits != nil && m.refusePivot(c.edits(m)) {
+		return nil
+	}
 	return c.run(m)
 }
 
 func init() {
 	register(
-		&command{id: "edit", title: "Edit cell", desc: "Edit the active cell's contents", run: (*Model).startEdit},
+		&command{id: "edit", title: "Edit cell", desc: "Edit the active cell's contents", run: (*Model).startEdit, edits: cellTarget},
 		&command{id: "goto", title: "Go to", desc: "Move to a cell address", run: func(m *Model) tea.Cmd {
 			m.openGoto()
 			return nil
 		}},
-		&command{id: "clear", title: "Clear", desc: "Clear the contents of the selected cells", run: func(m *Model) tea.Cmd {
+		&command{id: "clear", title: "Clear", desc: "Clear the contents of the selected cells", edits: (*Model).selection, run: func(m *Model) tea.Cmd {
 			m.sheet.EraseRange(m.selection())
 			m.changed = true
 			return nil

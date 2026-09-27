@@ -94,16 +94,23 @@ func (g *grid) filterButtonX(c int) int {
 	return g.colStart(c) + (w-lw)/2 + lw - 1
 }
 
-// filterPicker is the values list and condition for one column.
+// filterPicker is the values list and condition for one column: of the
+// sheet's filter, or of a pivot table's (pivoteditor.go), which set what
+// applying and cancelling do.
 type filterPicker struct {
-	col     int
-	values  []sheet.FilterValue
-	checked map[string]bool
-	cond    sheet.Condition
-	field   int       // 0 is the search, 1 the condition's value
-	fields  [2]string // the text of each field
-	shown   []int     // values matching the search, best first
-	list              // over the rows: "Select all", then shown
+	title   string
+	x       int // where the box goes, e.g. over its column
+	onApply func(m *Model, cr sheet.Criteria)
+	// onCancel, when set, runs after Esc or a click outside closes the
+	// picker.
+	onCancel func(m *Model)
+	values   []sheet.FilterValue
+	checked  map[string]bool
+	cond     sheet.Condition
+	field    int       // 0 is the search, 1 the condition's value
+	fields   [2]string // the text of each field
+	shown    []int     // values matching the search, best first
+	list               // over the rows: "Select all", then shown
 }
 
 const filterID = "filter"
@@ -118,8 +125,19 @@ func (m *Model) openFilterPicker(col int) {
 	if !on || col < r.From.Col || col > r.To.Col {
 		return
 	}
-	f := m.sheet.Filter()
-	p := &filterPicker{col: col, values: m.sheet.FilterValues(col), checked: map[string]bool{}, cond: f.Cols[col].Cond}
+	title := "Filter " + sheet.ColName(col)
+	if h := m.sheet.ShownText(sheet.Addr{Col: col, Row: r.From.Row}); h != "" {
+		title += "  " + h
+	}
+	m.openValuesPicker(title, m.colStart(col), m.sheet.FilterValues(col), m.sheet.Filter().Cols[col].Cond,
+		func(m *Model, cr sheet.Criteria) { m.filterColumn(col, cr) })
+}
+
+// openValuesPicker opens a filter picker titled title at screen column x
+// over values, with cond as the condition, calling apply with the
+// criteria chosen.
+func (m *Model) openValuesPicker(title string, x int, values []sheet.FilterValue, cond sheet.Condition, apply func(*Model, sheet.Criteria)) *filterPicker {
+	p := &filterPicker{title: title, x: x, onApply: apply, values: values, checked: map[string]bool{}, cond: cond}
 	for _, v := range p.values {
 		p.checked[v.Text] = v.Shown
 	}
@@ -127,6 +145,15 @@ func (m *Model) openFilterPicker(col int) {
 	m.openOverlay(p)
 	m.line.clear()
 	p.search()
+	return p
+}
+
+// close closes the picker without applying it.
+func (p *filterPicker) close(m *Model) {
+	m.closeOverlay()
+	if p.onCancel != nil {
+		p.onCancel(m)
+	}
 }
 
 func (p *filterPicker) indicator() string { return "FILTER" }
@@ -218,12 +245,17 @@ func (p *filterPicker) apply(m *Model) {
 		cr.Cond = sheet.Condition{}
 	}
 	m.closeOverlay()
+	p.onApply(m, cr)
+}
+
+// filterColumn sets the criteria of column col of the sheet's filter.
+func (m *Model) filterColumn(col int, cr sheet.Criteria) {
 	span := telemetry.Start("filter")
-	m.sheet.FilterColumn(p.col, cr)
+	m.sheet.FilterColumn(col, cr)
 	span.End(slog.Int("hidden", m.sheet.HiddenRows()))
 	m.changed = true
 	if n := m.sheet.HiddenRows(); n > 0 {
-		m.note = "Filtered column " + sheet.ColName(p.col) + ": " + rowCount(n) + " hidden"
+		m.note = "Filtered column " + sheet.ColName(col) + ": " + rowCount(n) + " hidden"
 	} else {
 		m.note = "The filter shows every row"
 	}
@@ -240,7 +272,7 @@ func (p *filterPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 	n := len(p.shown) + 1
 	switch key := k.String(); {
 	case key == "esc":
-		m.closeOverlay()
+		p.close(m)
 	case key == "enter":
 		p.apply(m)
 	case key == "tab" || key == "shift+tab":
@@ -274,7 +306,7 @@ func (p *filterPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 func (p *filterPicker) mouse(m *Model, e mouseEvent) tea.Cmd {
 	if e.box != filterID {
 		if e.kind == mousePress {
-			m.closeOverlay()
+			p.close(m)
 		}
 		return nil
 	}
@@ -343,7 +375,7 @@ func (p *filterPicker) box(m *Model) (x, y, inner int) {
 	inner = clamp(w+10, 36, 48)
 	inner = min(inner, m.width-2)
 	h := p.rows(m) + filterFirstRow + 1
-	x, y = m.clampBox(m.colStart(p.col), gridTop, inner+2, h)
+	x, y = m.clampBox(p.x, gridTop, inner+2, h)
 	return x, min(y, max(m.height-1-h, 0)), inner
 }
 
@@ -419,12 +451,7 @@ func (p *filterPicker) layout(m *Model) []box {
 		text += muted.Render(theme.PadLeft(count, len(count)+1)) + base.Render(" ")
 		lines = append(lines, ansi.Truncate(text, inner, ""))
 	}
-	title := "Filter " + sheet.ColName(p.col)
-	if r, ok := m.sheet.FilterRange(); ok {
-		if h := m.sheet.ShownText(sheet.Addr{Col: p.col, Row: r.From.Row}); h != "" {
-			title += "  " + h
-		}
-	}
+	title := p.title
 	footer := strconv.Itoa(len(p.shown)) + " of " + strconv.Itoa(len(p.values))
 	return []box{{id: filterID, x: x, y: y, lines: m.th.Frame(inner, title, footer, lines)}}
 }

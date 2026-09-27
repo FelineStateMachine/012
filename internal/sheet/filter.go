@@ -334,15 +334,21 @@ func (s *Sheet) FilterValues(col int) []FilterValue {
 	if f == nil {
 		return nil
 	}
-	tests := s.criteriaTests(f, col)
+	return s.valuesList(f.Range, col, s.criteriaTests(f, col), f.Cols[col].Hidden, false)
+}
+
+// valuesList lists the distinct values shown in column col of r's data
+// rows among those passing tests, with hidden unchecked, as a filter's
+// values list. With skipBlank, rows blank across r are left out.
+func (s *Sheet) valuesList(r Rect, col int, tests []colTest, hide []string, skipBlank bool) []FilterValue {
 	hidden := map[string]bool{}
-	for _, h := range f.Cols[col].Hidden {
+	for _, h := range hide {
 		hidden[h] = true
 	}
 	counts := map[string]int{}
 	values := map[string]Value{}
-	for row := f.Range.From.Row + 1; row <= f.Range.To.Row; row++ {
-		if !s.rowPasses(row, tests) {
+	for row := r.From.Row + 1; row <= r.To.Row; row++ {
+		if !s.rowPasses(row, tests) || skipBlank && s.rowBlank(row, r) {
 			continue
 		}
 		a := Addr{Col: col, Row: row}

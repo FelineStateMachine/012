@@ -50,6 +50,8 @@ type step struct {
 	views     map[*Sheet]*viewState
 	// charts holds each touched sheet's charts before the step.
 	charts map[*Sheet][]Chart
+	// pivots holds each touched sheet's pivot definition before the step.
+	pivots map[*Sheet]*Pivot
 	// sheets is the sheet list before the step, when it changed.
 	sheets *sheetList
 	// decimal is the arithmetic setting before the step, when it changed.
@@ -70,7 +72,7 @@ type sheetList struct {
 
 func newStep(label string, s *Sheet, focus Rect) *step {
 	return &step{label: label, sheet: s, focus: focus, cells: map[loc]*Cell{}, widths: map[colKey]int{},
-		names: map[string]*Name{}, views: map[*Sheet]*viewState{}, charts: map[*Sheet][]Chart{}}
+		names: map[string]*Name{}, views: map[*Sheet]*viewState{}, charts: map[*Sheet][]Chart{}, pivots: map[*Sheet]*Pivot{}}
 }
 
 func (st *step) empty() bool {
@@ -79,7 +81,7 @@ func (st *step) empty() bool {
 
 // widthOnly reports whether the step changed nothing but column widths.
 func (st *step) widthOnly() bool {
-	return len(st.cells) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && st.sheets == nil && st.decimal == nil
+	return len(st.cells) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && st.sheets == nil && st.decimal == nil
 }
 
 func (c *Cell) clone() *Cell {
@@ -290,6 +292,11 @@ func (w *Workbook) dropUnchanged(st *step) {
 			delete(st.views, s)
 		}
 	}
+	for s, p := range st.pivots {
+		if samePivot(p, s.pivot.def) {
+			delete(st.pivots, s)
+		}
+	}
 	if st.sheets != nil && st.sheets.equal(w.sheetList()) {
 		st.sheets = nil
 	}
@@ -419,6 +426,10 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 	for s, charts := range st.charts {
 		inv.charts[s] = s.charts
 		s.charts = slices.Clone(charts)
+	}
+	for s, p := range st.pivots {
+		inv.pivots[s] = s.pivot.def
+		s.pivot.def, s.pivot.stale = p, true
 	}
 	if st.decimal != nil {
 		cur := w.decimal

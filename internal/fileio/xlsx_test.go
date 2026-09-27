@@ -251,6 +251,37 @@ func TestExcelFormulas(t *testing.T) {
 	}
 }
 
+// A pivot table goes out as the values it shows: Excel gets no pivot
+// cache, and its results read back as plain cells.
+func TestXLSXPivotAsValues(t *testing.T) {
+	src := build(t, map[string]string{"A1": "Item", "B1": "Qty", "A2": "Pen", "B2": "3", "A3": "Ink", "B3": "4", "A4": "Pen", "B4": "5"})
+	r := sheet.NewRect(addr(t, "A1"), addr(t, "B4"))
+	p := sheet.NewPivot(src, r)
+	p.Rows = []sheet.PivotGroup{{Col: 0}}
+	p.Values = []sheet.PivotValue{{Col: 1, Summarize: sheet.SumBy}}
+	pv, err := src.Book().CreatePivot(src, r, "", p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Join(t.TempDir(), "pivot.xlsx")
+	if _, err := Export(context.Background(), name, XLSX, SnapBook(pv), ExportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	x, err := excelize.OpenFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer x.Close()
+	for cell, want := range map[string]string{"A1": "Item", "B1": "SUM of Qty", "A3": "Pen", "B3": "8", "B4": "12"} {
+		if got, _ := x.GetCellValue("Pivot Table 1", cell); got != want {
+			t.Errorf("%s = %q, want %q", cell, got, want)
+		}
+		if f, _ := x.GetCellFormula("Pivot Table 1", cell); f != "" {
+			t.Errorf("%s has formula %q", cell, f)
+		}
+	}
+}
+
 // Every sheet goes out to Excel and comes back, with references between
 // sheets, the sheet shown and named ranges.
 func TestXLSXWorkbookRoundTrip(t *testing.T) {

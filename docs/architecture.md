@@ -91,6 +91,19 @@ style.
   are one step. A deleted sheet keeps its cells, so undo brings it back.
   The history keeps at most 100 steps and about 256 MB of before-images,
   counted as they're recorded, dropping the oldest steps first.
+- **Pivot tables.** A sheet may hold a pivot (`pivot.go`): a definition
+  naming its source by sheet name, as formulas do, and a region of
+  derived cells from A1 that the engine owns. When a recalculation marks
+  a cell of a pivot's source range, or its definition changes, the pivot
+  is recomputed after the formulas (`pivotcalc.go` groups the source
+  rows into a tree of accumulators, `pivotlayout.go` lays out Sheets'
+  table) and only the result cells that changed are rewritten, outside
+  the undo history, then what reads them recalculates, pivots of pivots
+  included (bounded, as a loop can't be defined). Undo restores the
+  source and the definition, and the results follow. Derived cells are
+  constants to formulas, values to copies and exports, refused by `Set`,
+  and never saved: the file keeps the definition (`pivotfile.go`). A
+  frequency table is a pivot with a preset definition.
 - **JEV.** The engine never touches the network. JEV functions describe a
   question and look up the answer in the workbook's `RemoteSource`, set
   with `SetRemote`; `internal/jev` answers from a cache and queues new
@@ -130,7 +143,10 @@ context menus, the command palette, the help overlay and mouse gestures
 that stand for one (double-clicking a tab renames it through
 `sheet.rename`), so they can't disagree. `runCommand` is the one place a
 command runs: telemetry times it there, and a command log or macro
-recorder would attach there.
+recorder would attach there. A command that writes cells declares the
+range it writes (`edits`), and `runCommand` refuses it over a pivot
+table's results, so a new editing command is guarded by saying what it
+edits.
 
 **Model and components.** `Model` (`model.go`) is the root: it holds the
 file, the mode and the note on the context line, owns one component for
@@ -144,7 +160,7 @@ draw. The components:
 | edit line | `lineEdit` | the one-line editor shared by cell entries, prompts and search fields (`line.go`) |
 | cell entry | `entry`, `assist` | typing into a cell, pointing at references, other sheets while pointing, formula suggestions and signatures (`entry.go`, `assist.go`) |
 | prompt | `prompt` | a question on the context line, typed or pointed at (`prompt.go`) |
-| overlays | `overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (`palette.go`, `names.go`), the filter picker, the find, sort and choice bars, the chart editor and selection, the shortcuts |
+| overlays | `overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (`palette.go`, `names.go`), the filter picker, the find, sort and choice bars, the chart editor and selection, the pivot editor (`pivoteditor.go`, `pivotactions.go`), the shortcuts |
 | sheet tabs | `tabStrip` | where each sheet was left, the tab strip's scroll, layout and clicks (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer` | the import in progress, its progress display and cancelling (`transfer.go`) |

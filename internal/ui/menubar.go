@@ -93,6 +93,7 @@ var menuBar = []menuDef{
 			{cmd: "data.sort_range", title: "Advanced range sorting options"},
 		}}, sep,
 		{cmd: "data.filter"}, {cmd: "data.filter_column"}, {cmd: "data.filter_remove"}, sep,
+		{cmd: "data.pivot"}, {cmd: "data.pivot_edit"}, {cmd: "data.frequency"}, sep,
 		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, sep,
 		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,
 		{cmd: "jev.refresh"},

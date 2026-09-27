@@ -39,7 +39,7 @@ quality keep pace with features: see [docs/UX.md](docs/UX.md).
 | Search (`n`/`N`) and non-destructive row filter | csvlens | | M |
 | Fill down / fill series (1,2,3, Jan, Feb) | Excel, Sheets | needs Copy ref adjustment | S-M |
 | Optional vim keymap (`hjkl`, counts, `:` commands). Done: File > Settings > Vim keys, [keys.md](docs/keys.md#vim-keys) | sc-im, csvlens | tables of command bindings, the command registry for `:` | M |
-| Frequency table of a column as a derived sheet | VisiData Shift+F | | M |
+| Frequency table of a column as a derived sheet | VisiData Shift+F | a preset pivot table | M, done: Data > Frequency table, Alt+Shift+F |
 
 ## Phase 3: terminal-native features
 
@@ -74,7 +74,7 @@ Avoid in the main binary: DuckDB and automerge (both need cgo).
 ## Phase 5: beyond
 
 - Multiple sheets with references between them, in Sheets' style (`Sheet2!A1`) rather than 1-2-3 R3's `B:A1`, and sheet tabs. Done.
-- Pivot tables as derived sheets. L.
+- Pivot tables as derived sheets. Done: Data > Pivot table and its editor, live results the engine owns, saved as their definition (file version 5), values in XLSX; see [docs/data.md](docs/data.md#pivot-tables).
 - Macros: replay the command log; Starlark (`go.starlark.net`) for scripts, with step limits.
 - Serve over SSH with `charm.land/wish/v2`. Done: `012 serve [dir]`, a 012 per session confined to the directory, public-key auth only ([docs/ssh.md](docs/ssh.md)). Not shared editing: see below.
 - Decimal mode for currency (`cockroachdb/apd/v3`), opt-in. Done: File > Settings > Decimal arithmetic, boundary in the README.

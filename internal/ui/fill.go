@@ -72,7 +72,7 @@ func (m *Model) dragFillTo(a sheet.Addr) {
 func (m *Model) finishFill() {
 	m.mouse.drag = dragNone
 	src, dst := m.selection(), m.mouse.fillTo
-	if dst == src {
+	if dst == src || m.refusePivot(dst) {
 		return
 	}
 	span := telemetry.Start("fill", slog.Int("cells", (dst.To.Row-dst.From.Row+1)*(dst.To.Col-dst.From.Col+1)))

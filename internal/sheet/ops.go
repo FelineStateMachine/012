@@ -124,6 +124,7 @@ func (s *Sheet) restructure(rows bool, sp formula.Span) {
 			s.shiftWidths(sp)
 		}
 		s.shiftView(rows, sp)
+		s.shiftPivots(rows, sp)
 	})
 }
 
@@ -157,7 +158,7 @@ type Clip struct {
 func (s *Sheet) Copy(r Rect) *Clip {
 	c := &Clip{Src: r, cells: map[Addr]*Cell{}}
 	for _, a := range s.cellsIn(r) {
-		c.cells[Addr{Col: a.Col - r.From.Col, Row: a.Row - r.From.Row}] = s.cells.get(a).clone()
+		c.cells[Addr{Col: a.Col - r.From.Col, Row: a.Row - r.From.Row}] = s.cells.get(a).plain()
 	}
 	return c
 }

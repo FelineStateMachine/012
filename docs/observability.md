@@ -58,6 +58,8 @@ same, as an attribute for queries), `service` (`012`) and `dur_ms`.
 | `frame` | every frame, at debug level | `key_ms` |
 | `command` | every registered command | `id`, e.g. `data.sort` |
 | `sort`, `filter`, `find`, `replace`, `fill` | the operation itself | `rows`, `cols`, `keys`; `hidden`; `matches`; `replaced`; `cells` |
+| `pivot` | every pivot table recomputation (a change to its data or definition) | `records` (source rows summarized), `groups` (row groups at every depth), `cells` (results), `failed` (shows `#REF!`) |
+| `frequency` | making a frequency table | `rows` (data rows counted) |
 | `import`, `export` | file transfers (`internal/fileio`) | `format`, `bytes`, `rows`, `cells`, `notes` |
 | `save`, `open` | the native `.012` file | `cells`, `bytes` (save times serializing, on the UI goroutine) |
 | `jev` | each question sent | `kind`, `queued` (waiting when sent), `outcome` (`ok` or `failed`) |
@@ -66,7 +68,8 @@ same, as an attribute for queries), `service` (`012`) and `dur_ms`.
 Failures are logged at `WARN` with an `error` message.
 
 The engine doesn't log: `sheet.OnRecalc` hands each recalculation's
-counts to `cmd/012`, which logs them. The call sites use
+counts to `cmd/012`, which logs them, and `sheet.OnPivot` each pivot
+table's. The call sites use
 `internal/telemetry` (`Start`/`End` spans, `Event`, `Frame`, `Set`), so
 the backends (the JSON file, OTLP) sit behind it without touching them.
 

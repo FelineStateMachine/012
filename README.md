@@ -43,7 +43,8 @@ searches every command. `012 config edit` opens the settings file.
   while typing a formula, and Sheets' keys for moving between them.
 - **Data tools.** Freeze rows and columns, multi-column sort, filters with
   value pickers and conditions, find and replace with regular expressions,
-  tracing precedents and dependents.
+  tracing precedents and dependents, live pivot tables and frequency
+  tables on sheets of their own.
 - **Charts.** Column, bar, line and pie charts that float over the grid and
   update live; real images in terminals with the kitty graphics protocol
   (kitty, Ghostty, WezTerm), text elsewhere.

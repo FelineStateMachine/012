@@ -20,7 +20,9 @@ const FileExt = ".012"
 // Version 4 holds several sheets; a workbook of one sheet whose formulas
 // name no sheet is still written as version 2 or 3, its sheet's name in
 // a "name" field that earlier builds ignore.
-const fileVersion = 4
+// Version 5 is version 4 with pivot tables; a workbook without one is
+// still written as version 4.
+const fileVersion = 5
 
 // The file is JSON with one entry per cell, keyed by address. A cell
 // without formatting is just its input, as in version 1; a formatted cell
@@ -58,6 +60,7 @@ type fileSheet struct {
 	fileView
 	Cells  map[string]json.RawMessage `json:"cells"`
 	Charts []fileChart                `json:"charts,omitempty"`
+	Pivot  *filePivot                 `json:"pivot,omitempty"` // version 5
 }
 
 // fileChart is a chart, one per line after the cells:
@@ -188,7 +191,11 @@ func (w *Workbook) Write(out io.Writer) error {
 		}
 		b.WriteString("\n}\n")
 	} else {
-		fmt.Fprintf(&b, "{\n  \"version\": %d,\n", fileVersion)
+		version := 4
+		if w.hasPivots() {
+			version = fileVersion
+		}
+		fmt.Fprintf(&b, "{\n  \"version\": %d,\n", version)
 		if head := w.headLines(); head != "" {
 			b.WriteString("  " + head + ",\n")
 		}
@@ -215,7 +222,7 @@ func (w *Workbook) Write(out io.Writer) error {
 // single reports whether the workbook fits the single-sheet format of
 // versions 2 and 3: one sheet, and no formula naming a sheet.
 func (w *Workbook) single() bool {
-	return len(w.sheets) == 1 && len(w.crossUsers) == 0
+	return len(w.sheets) == 1 && len(w.crossUsers) == 0 && !w.hasPivots()
 }
 
 func jsonString(s string) string {
@@ -275,8 +282,10 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 		return err
 	}
 	addrs := make([]Addr, 0, s.cells.len())
-	for a := range s.cells.all() {
-		addrs = append(addrs, a)
+	for a, c := range s.cells.all() {
+		if !c.derived { // a pivot's results are computed, not saved
+			addrs = append(addrs, a)
+		}
 	}
 	sortAddrs(addrs)
 	b.WriteString(indent + `"cells": {`)
@@ -294,6 +303,12 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 		b.WriteString("\n" + indent)
 	}
 	b.WriteString("}")
+	return s.writeObjects(b, indent)
+}
+
+// writeObjects writes the fields after the cells: the charts, one per
+// line, and the pivot table's definition.
+func (s *Sheet) writeObjects(b *bytes.Buffer, indent string) error {
 	if len(s.charts) > 0 {
 		b.WriteString(",\n" + indent + `"charts": [`)
 		for i, c := range s.charts {
@@ -307,6 +322,13 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 			fmt.Fprintf(b, "\n%s  %s", indent, raw)
 		}
 		b.WriteString("\n" + indent + "]")
+	}
+	if p := s.pivot.def; p != nil {
+		raw, err := encodePivot(p)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(b, ",\n%s\"pivot\": %s", indent, raw)
 	}
 	return nil
 }
@@ -428,6 +450,13 @@ func (s *Sheet) read(f fileSheet, version int) error {
 			return fmt.Errorf("chart %d: %w", i+1, err)
 		}
 		s.charts = append(s.charts, c)
+	}
+	if f.Pivot != nil {
+		p, err := decodePivot(*f.Pivot)
+		if err != nil {
+			return err
+		}
+		s.pivot = pivotState{def: p, stale: true}
 	}
 	return s.readView(f.fileView)
 }

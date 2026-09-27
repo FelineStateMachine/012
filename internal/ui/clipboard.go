@@ -27,9 +27,9 @@ type clipboard struct {
 func init() {
 	register(
 		&command{id: "edit.copy", title: "Copy", desc: "Copy the selection", run: func(m *Model) tea.Cmd { return m.copy(false) }},
-		&command{id: "edit.cut", title: "Cut", desc: "Cut the selection, to move it where you paste", run: func(m *Model) tea.Cmd { return m.copy(true) }},
-		&command{id: "edit.paste", title: "Paste", desc: "Paste into the selection, adjusting references", run: func(m *Model) tea.Cmd { return m.paste(false) }},
-		&command{id: "edit.paste_values", title: "Paste values only", desc: "Paste the copied values without formulas", run: func(m *Model) tea.Cmd { return m.paste(true) }},
+		&command{id: "edit.cut", title: "Cut", desc: "Cut the selection, to move it where you paste", edits: (*Model).selection, run: func(m *Model) tea.Cmd { return m.copy(true) }},
+		&command{id: "edit.paste", title: "Paste", desc: "Paste into the selection, adjusting references", edits: (*Model).pasteTarget, run: func(m *Model) tea.Cmd { return m.paste(false) }},
+		&command{id: "edit.paste_values", title: "Paste values only", desc: "Paste the copied values without formulas", edits: (*Model).pasteTarget, run: func(m *Model) tea.Cmd { return m.paste(true) }},
 	)
 	keymap["ctrl+c"] = "edit.copy"
 	keymap["ctrl+x"] = "edit.cut"
@@ -136,6 +136,9 @@ func (m *Model) pasteText(content string) bool {
 	r := sheet.Rect{From: m.cur, To: sheet.Addr{Col: m.cur.Col + width - 1, Row: m.cur.Row + len(rows) - 1}}
 	if !r.To.Valid() {
 		m.fail(sheet.ErrPasteEdge.Error())
+		return true
+	}
+	if m.refusePivot(r) {
 		return true
 	}
 	m.sheet.Batch(sheet.Change{Label: "paste into " + r.String(), Focus: r}, func() error {

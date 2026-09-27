@@ -31,6 +31,9 @@ func (s *Sheet) explain(a Addr, path []loc) string {
 	here := loc{s, a}
 	c := s.cells.get(a)
 	v := s.Value(a)
+	if c != nil && c.derived && v.Kind == Error && s.pivot.err != "" {
+		return s.pivot.err
+	}
 	if c == nil || v.Kind != Error || !c.IsFormula() {
 		return ""
 	}

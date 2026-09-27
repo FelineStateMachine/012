@@ -30,6 +30,7 @@ it lags, and past a second it stalls.
 | Formula depth | 10,000 nested parentheses or IFs: under 5 ms | | No explicit limit; recursion grows the stack | Recursive parser and evaluator |
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
 | SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 16.6 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 60 fps pacing; per session, the terminal's cell buffers |
+| Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 1 to 4 ms | | Results past 8192 x 256 (the pivot shows #REF!) | Reading each source cell of its fields: a map lookup each |
 
 ## Sheet size
 
@@ -235,6 +236,27 @@ sessions opening the same file each hold a copy. CPU per frame covers both ends 
 encryption twice, the client reading the frame); at 0.7 ms, 50 sessions
 typing continuously at 60 frames a second would keep about two cores
 busy.
+
+## Pivot tables
+
+A pivot table is recomputed whole whenever a cell of its source range is
+recalculated: it reads every source row once, groups it, and rewrites
+only the result cells that changed, so what reads the results
+recalculates only when they move. `BenchmarkPivot` edits one cell of a
+full 8191-row table (an id, a category of 8, a number and one of 1000
+items, twice) under a pivot and times the edit, the recalculation and
+the pivot together:
+
+| Pivot | Result rows | Edit | Allocations |
+|---|---|---|---|
+| Rows: 8 categories; SUM and COUNTA | 10 | 0.95 ms | 196 |
+| Rows: 8 x 8 categories with subtotals; columns: 8; SUM and AVERAGE | 75 | 2.7 to 2.9 ms | 2.5 k |
+| Rows: 1000 items sorted by their sum; SUM and COUNTUNIQUE | 1001 | 3.5 to 4.2 ms | 14 k |
+| Frequency table of the 1000 items | 1001 | 2.5 to 2.8 ms | 24 k |
+
+Groups are found by a comparable key struct rather than a string built
+per row: that took the 8-category pivot from 8.4 k to 196 allocations
+per edit, the others from 32 to 39 k to the figures above.
 
 ## Hotspots found and fixed
 
