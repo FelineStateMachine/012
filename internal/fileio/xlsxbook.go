@@ -19,6 +19,7 @@ type xlsxBook struct {
 	date1904 bool
 	sst      sharedStrings
 	styles   xlsxStyles
+	expanded int64 // bytes of shared formulas expanded, see formula
 }
 
 // xlsxSheetInfo is a sheet as the workbook lists it.

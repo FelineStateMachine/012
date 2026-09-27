@@ -31,6 +31,7 @@ type xlsxLimits struct {
 	strings int   // shared strings
 	styles  int   // cell formats, fonts and number formats, each
 	sheets  int
+	shared  int64 // bytes of shared formulas expanded
 }
 
 var defaultXLSXLimits = xlsxLimits{
@@ -44,6 +45,7 @@ var defaultXLSXLimits = xlsxLimits{
 	strings: 1 << 24,
 	styles:  1 << 16,
 	sheets:  4096,
+	shared:  256 << 20,
 }
 
 // errXLSXLimit is wrapped by every error for a file past a limit.

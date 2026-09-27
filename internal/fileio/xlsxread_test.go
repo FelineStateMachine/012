@@ -173,7 +173,7 @@ func TestXLSXBeyondExcelize(t *testing.T) {
 
 func TestXLSXLimits(t *testing.T) {
 	small := defaultXLSXLimits
-	small.part, small.total, small.slack, small.token, small.ratio, small.entries = 1<<20, 2<<20, 64<<10, 64<<10, 100, 50
+	small.part, small.total, small.slack, small.token, small.ratio, small.entries, small.shared = 1<<20, 2<<20, 64<<10, 64<<10, 100, 50, 1<<20
 	bomb := oneSheetParts("", strings.Repeat(`<row><c><v>0</v></c></row>`, 100_000))
 	var rows, text strings.Builder
 	for i := range 60_000 {
@@ -205,7 +205,9 @@ func TestXLSXLimits(t *testing.T) {
 		"absolute name":  {mergeParts(kitchenParts(), "/etc/passwd", "x"), "unsafe name", 0},
 		"duplicate":      {mergeParts(kitchenParts(), "XL/Workbook.xml", "x"), "twice", 0},
 		"entity":         {oneSheetParts("", `<row><c t="inlineStr"><is><t>&bomb;</t></is></c></row>`), "invalid character entity &bomb;", 0},
-		"not xml":        {oneSheetParts("", `<row><c>`), "closed by </sheetData>", 0},
+		"shared formulas": {oneSheetParts("", `<row r="1"><c r="A1"><f t="shared" ref="A1:A9" si="0">`+strings.Repeat("B1+", 1000)+`1</f></c></row>`+
+			strings.Repeat(`<row><c r="A2"><f t="shared" si="0"/></c></row>`, 400)), "shared formulas expand to more than 1 MB", 0},
+		"not xml": {oneSheetParts("", `<row><c>`), "closed by </sheetData>", 0},
 	} {
 		t.Run(name, func(t *testing.T) {
 			lim := small

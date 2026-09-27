@@ -6,6 +6,8 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // Excel's own limits on a worksheet. A reference past them is an error,
@@ -17,12 +19,12 @@ const (
 
 // xlsxCell is a cell of a worksheet row, as the reader passes it on.
 type xlsxCell struct {
-	col     int    // from 1
-	style   int    // the cell format index (s), 0 when not given
-	typ     string // the type (t): s, str, inlineStr, b, e, n, d or ""
-	value   string // the value, a shared string looked up
-	formula string // the formula, a shared formula expanded
-	hasF    bool   // the cell has a formula element, even an empty one
+	col   int         // from 1
+	style int         // the cell format index (s), 0 when not given
+	typ   string      // the type (t): s, str, inlineStr, b, e, n, d or ""
+	value string      // the value, a shared string looked up
+	f     cellFormula // its <f>, see xlsxSheetReader.formula
+	hasF  bool        // the cell has a formula element, even an empty one
 }
 
 // kept reports whether excelize's row reader would return the cell: it
@@ -46,6 +48,8 @@ type xlsxSheetReader struct {
 	// sheetFormatPr's defaultColWidth and baseColWidth.
 	defaultWidth float64
 	baseWidth    int
+
+	colStyles []int // by column, see colStyle
 
 	inData bool // inside <sheetData>
 	row    xlsxRowData
@@ -120,8 +124,22 @@ func (r *xlsxSheetReader) readHead() error {
 }
 
 // colStyle is the cell format of column col (from 1): the first <col>
-// covering it with a style.
+// covering it with a style. Columns up to sheet.MaxCols, the ones asked
+// for once per cell, are looked up once.
 func (r *xlsxSheetReader) colStyle(col int) int {
+	if r.colStyles == nil {
+		r.colStyles = make([]int, sheet.MaxCols)
+		for _, c := range r.cols {
+			for i := max(c.min, 1); i <= min(c.max, sheet.MaxCols); i++ {
+				if r.colStyles[i-1] == 0 {
+					r.colStyles[i-1] = c.style
+				}
+			}
+		}
+	}
+	if col >= 1 && col <= len(r.colStyles) {
+		return r.colStyles[col-1]
+	}
 	for _, c := range r.cols {
 		if c.min <= col && col <= c.max && c.style != 0 {
 			return c.style
@@ -258,7 +276,10 @@ func (r *xlsxSheetReader) readCell(se xml.StartElement, prev int) (int, error) {
 	}
 	c.value = r.value(c.typ, v, is, hasIS)
 	if c.hasF {
-		c.formula = r.formula(f, c.col, r.row.num)
+		c.f = f
+		if _, ok := r.shared[f.si]; !ok && f.typ == "shared" && f.si >= 0 && f.ref != "" {
+			r.shared[f.si] = sharedFormula{text: f.text, col: c.col, row: r.row.num}
+		}
 	}
 	r.row.cells = append(r.row.cells, c)
 	return c.col, nil
@@ -302,22 +323,26 @@ func (r *xlsxSheetReader) readFormula(se xml.StartElement) (cellFormula, error) 
 	return f, err
 }
 
-// formula is the formula of the cell at col, row: its own text, or for
-// a cell sharing a formula, the master's with its relative references
-// moved by the distance between the cells.
-func (r *xlsxSheetReader) formula(f cellFormula, col, row int) string {
-	if f.typ != "shared" || f.si < 0 {
-		return f.text
+// formula is the formula of cell c of the current row: its own text,
+// or for a cell sharing a formula, the first cell's with its relative
+// references moved by the distance between the cells ("" when the first
+// is missing). Shared formulas are expanded only on request, and only
+// up to the limit on their text: a small file of shared formulas could
+// otherwise expand to gigabytes.
+func (r *xlsxSheetReader) formula(c *xlsxCell) (string, error) {
+	f := c.f
+	if !c.hasF || f.typ != "shared" || f.si < 0 {
+		return f.text, nil
 	}
 	m, ok := r.shared[f.si]
 	if !ok {
-		if f.ref == "" {
-			return "" // the master is missing
-		}
-		m = sharedFormula{text: f.text, col: col, row: row}
-		r.shared[f.si] = m
+		return "", nil
 	}
-	return shiftFormula(m.text, col-m.col, row-m.row)
+	out := shiftFormula(m.text, c.col-m.col, r.row.num-m.row)
+	if r.bk.expanded += int64(len(out)); r.bk.expanded > r.bk.pkg.lim.shared {
+		return "", fmt.Errorf("shared formulas expand to more than %s: %w", mb(r.bk.pkg.lim.shared), errXLSXLimit)
+	}
+	return out, nil
 }
 
 // parseCellRef parses an A1 reference (without $) into a column and row

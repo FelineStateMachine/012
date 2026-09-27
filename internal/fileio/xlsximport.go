@@ -97,7 +97,9 @@ func (bk *xlsxBook) importSheet(ctx context.Context, b *builder, i int, report f
 			}
 			report(r.row.num)
 		}
-		bk.importRow(b, r)
+		if err := bk.importRow(b, r); err != nil {
+			return 0, fmt.Errorf("sheet %s: %w", bk.sheets[i].name, err)
+		}
 		last = max(last, r.row.num)
 	}
 	for c := range sheet.MaxCols {
@@ -114,7 +116,7 @@ func (bk *xlsxBook) importSheet(ctx context.Context, b *builder, i int, report f
 // with neither a value nor a formula only counts for its format, and
 // only up to the row's last cell with one: formatted blanks after it are
 // left out.
-func (bk *xlsxBook) importRow(b *builder, r *xlsxSheetReader) {
+func (bk *xlsxBook) importRow(b *builder, r *xlsxSheetReader) error {
 	row := &r.row
 	cells := row.cells
 	if !slices.IsSortedFunc(cells, func(a, b xlsxCell) int { return a.col - b.col }) {
@@ -127,7 +129,7 @@ func (bk *xlsxBook) importRow(b *builder, r *xlsxSheetReader) {
 		}
 	}
 	if lastCol == 0 || !b.fits(sheet.Addr{Col: lastCol - 1, Row: row.num - 1}) && row.num > sheet.MaxRows {
-		return
+		return nil
 	}
 	j := 0
 	for col := 1; col <= min(lastCol, sheet.MaxCols); col++ {
@@ -152,13 +154,18 @@ func (bk *xlsxBook) importRow(b *builder, r *xlsxSheetReader) {
 			b.put(a, "", st.format, st.style)
 			continue
 		}
-		bk.importCell(b, a, c, st)
+		f, err := r.formula(c)
+		if err != nil {
+			return err
+		}
+		bk.importCell(b, a, c, f, st)
 	}
+	return nil
 }
 
-func (bk *xlsxBook) importCell(b *builder, a sheet.Addr, c *xlsxCell, st xlsxStyle) {
-	if c.formula != "" {
-		b.formula(a, fromExcelFormula(c.formula), st.format, st.style, func() { bk.keep(b, a, c, st) })
+func (bk *xlsxBook) importCell(b *builder, a sheet.Addr, c *xlsxCell, formula string, st xlsxStyle) {
+	if formula != "" {
+		b.formula(a, fromExcelFormula(formula), st.format, st.style, func() { bk.keep(b, a, c, st) })
 		return
 	}
 	if c.value == "" {
