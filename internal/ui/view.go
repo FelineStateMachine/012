@@ -94,6 +94,8 @@ func (m *Model) gridRow(row int) string {
 			base = m.th.selection
 		case m.found(a):
 			base = m.th.found
+		case m.traced(a):
+			base = m.th.traced
 		case sheet.IsPending(m.sheet.Value(a)):
 			base = m.th.muted
 		case m.sheet.Value(a).Kind == sheet.Error:

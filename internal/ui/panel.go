@@ -29,8 +29,8 @@ func (m *Model) View() tea.View {
 	}
 
 	content := strings.Join(lines, "\n")
-	if m.overlay != nil {
-		content = m.compose(content)
+	if boxes := m.floating(); len(boxes) > 0 {
+		content = m.compose(content, boxes)
 	}
 	v := tea.NewView(content)
 	v.AltScreen = true
@@ -88,6 +88,9 @@ func (m *Model) formulaBar() string {
 	if m.hasRange() && (m.mode == modeReady || m.mode == modeMenu) {
 		name = m.selection().String()
 	}
+	if n, ok := m.namedSelection(); ok && (m.mode == modeReady || m.mode == modeMenu) {
+		name = ansi.Truncate(n, nameBoxW-1, "…")
+	}
 	box := m.th.header.Render(padRight(" "+name, nameBoxW)) + " "
 	switch m.mode {
 	case modeEnter, modeEdit:
@@ -111,6 +114,8 @@ func (m *Model) contextLineText() string {
 			strconv.Itoa(m.sheet.ColWidth(m.resizeCol)) + m.th.muted.Render("   double-click the border to fit")
 	case m.hint != "":
 		left = m.th.warning.Render(m.hint)
+	case m.mode == modeReady && m.trace != nil:
+		left, right = m.traceLine()
 	case m.mode == modeReady:
 		if left = m.readyLine(); left == "" {
 			left = m.jevLine()
@@ -125,7 +130,13 @@ func (m *Model) contextLineText() string {
 	case m.mode == modePrompt:
 		left, right = m.promptLine()
 	case m.mode == modePoint:
-		left = m.keyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
+		prefix := []rune(m.pointPrefix)
+		var ok bool
+		if left, right, ok = m.signatureLine(prefix, len(prefix), m.keyHints("Shift+arrows", "range", "Esc", "back")); !ok {
+			left = m.keyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
+		}
+	case (m.mode == modeEnter || m.mode == modeEdit) && m.isFormula() && m.inFunction():
+		left, right, _ = m.signatureLine(m.buf, m.bufPos, m.keyHints("Enter", "accept", "Esc", "cancel"))
 	case m.mode == modeEnter && m.isFormula():
 		left = m.keyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
 	case m.mode == modeEnter:
@@ -201,9 +212,14 @@ func (m *Model) statusLine() string {
 	if m.mode == modeError {
 		return m.th.error.Render(m.errMsg) + m.th.muted.Render("   press any key")
 	}
+	desc, keys, floating := m.assistStatus()
 	if m.overlay != nil {
+		desc, keys, floating = "", "", true
+		desc, keys = m.overlay.status(m)
+	}
+	if floating {
 		// What the highlighted item does and the keys that apply.
-		if desc, keys := m.overlay.status(m); desc != "" || keys != "" {
+		if desc != "" || keys != "" {
 			if room := m.width - ansi.StringWidth(keys) - 3; room >= 12 {
 				desc = ansi.Truncate(desc, room, "…")
 			}

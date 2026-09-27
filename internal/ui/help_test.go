@@ -100,7 +100,7 @@ func TestFunctionListInsertsFunction(t *testing.T) {
 // Overlays must survive screens smaller than they are.
 func TestOverlaysOnTinyScreens(t *testing.T) {
 	for _, size := range [][2]int{{60, 16}, {20, 6}, {3, 2}} {
-		for _, keys := range [][]string{{"<alt+o>", "<right>"}, {"<ctrl+k>", "s"}, {"<f1>", "<end>"}, {"1", "<enter>", "<ctrl+q>"}} {
+		for _, keys := range [][]string{{"<alt+o>", "<right>"}, {"<ctrl+k>", "s"}, {"<f1>", "<end>"}, {"1", "<enter>", "<ctrl+q>"}, {"=su"}, {"<alt+d>", "n"}} {
 			m := newModel()
 			m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
 			press(t, m, keys...)

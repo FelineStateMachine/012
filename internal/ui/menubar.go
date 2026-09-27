@@ -67,8 +67,10 @@ var menuBar = []menuDef{
 		{cmd: "column.width"}, {cmd: "column.reset"}, sep,
 		{cmd: "format.clear", title: "Clear formatting"},
 	}},
-	// Data: sort, filter and named ranges will go here.
+	// Data: sort and filter will go here.
 	{title: "Data", accel: 'd', items: []menuItem{
+		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, sep,
+		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,
 		{cmd: "jev.refresh"},
 	}},
 	{title: "Help", accel: 'h', items: []menuItem{

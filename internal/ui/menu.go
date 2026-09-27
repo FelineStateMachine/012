@@ -60,12 +60,21 @@ func (m *Model) openRange(label string, onRange func(*Model, sheet.Rect) tea.Cmd
 
 func (m *Model) openGoto() {
 	m.openText("Go to:", m.cur.String(), func(m *Model, text string) tea.Cmd {
-		a, ok := sheet.ParseAddr(strings.TrimSpace(text))
-		if !ok {
-			m.fail("Not a cell address: " + text)
+		text = strings.TrimSpace(text)
+		if a, ok := sheet.ParseAddr(text); ok {
+			m.clearSelection()
+			m.cur = a
 			return nil
 		}
-		m.cur = a
+		r, ok := sheet.ParseRange(text)
+		if n, named := m.sheet.LookupName(text); named && !n.Lost {
+			r, ok = n.Range, true
+		}
+		if !ok {
+			m.fail("Not a cell, range or named range: " + text)
+			return nil
+		}
+		m.selectRect(r)
 		return nil
 	})
 	m.prompt.indicator = "POINT"

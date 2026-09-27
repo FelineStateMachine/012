@@ -90,6 +90,9 @@ type Model struct {
 	point       pointer // POINT mode and range prompts
 	pointPrefix string  // entry text before the reference being pointed at
 	pointSuffix string  // entry text after the caret while pointing
+	assist      assist  // function and name suggestions while typing, see assist.go
+
+	trace *trace // precedents or dependents being shown, see trace.go
 
 	overlay  overlay    // open menu, palette or dialog, if any (modeMenu)
 	lastFind *findBar   // the last search, reopened by Ctrl+F
@@ -173,6 +176,9 @@ func (m *Model) beginUpdate(msg tea.Msg) int {
 	switch msg.(type) {
 	case tea.KeyPressMsg, tea.MouseClickMsg, tea.PasteMsg:
 		m.note = ""
+		if _, key := msg.(tea.KeyPressMsg); !key {
+			m.trace = nil // keys end a trace in handleKey
+		}
 		if m.mode != modePrompt {
 			m.sheet.Seal()
 		}
@@ -194,6 +200,9 @@ func (m *Model) endUpdate(state int) {
 }
 
 func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
+	if m.traceKey(k) {
+		return nil
+	}
 	switch m.mode {
 	case modeReady:
 		return m.readyKey(k)

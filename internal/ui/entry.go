@@ -19,7 +19,7 @@ import (
 
 func (m *Model) startEntry(md mode, text string) {
 	m.mode = md
-	m.buf, m.bufPos, m.hint = nil, 0, ""
+	m.buf, m.bufPos, m.hint, m.assist = nil, 0, "", assist{}
 	m.insert(text)
 }
 
@@ -42,7 +42,7 @@ func (m *Model) isFormula() bool {
 // in a formula where a reference may follow the caret: then they point.
 func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
-	if m.commitKey(key) || m.cancelKey(key) {
+	if m.assistKey(key) || m.commitKey(key) || m.cancelKey(key) {
 		return nil
 	}
 	if key == "f2" {
@@ -57,7 +57,7 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	if m.isFormula() && (key == "left" || key == "right") {
-		m.lineKey(k) // move the caret within a formula
+		m.typeKey(k) // move the caret within a formula
 		return nil
 	}
 	if isMoveKey(key) {
@@ -66,14 +66,14 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	}
-	m.lineKey(k)
+	m.typeKey(k)
 	return nil
 }
 
 // editKey handles EDIT mode, where left and right move the caret.
 func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
-	if m.commitKey(key) || m.cancelKey(key) {
+	if m.assistKey(key) || m.commitKey(key) || m.cancelKey(key) {
 		return nil
 	}
 	if m.isFormula() && m.canPoint() && strings.HasPrefix(key, "shift+") && m.startPoint(key) {
@@ -87,7 +87,7 @@ func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 			m.navigate(key, &m.cur)
 		}
 	default:
-		m.lineKey(k)
+		m.typeKey(k)
 	}
 	return nil
 }
@@ -217,6 +217,7 @@ func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 	if text := typed(k); text != "" {
 		m.resumeEntry(m.point.text())
 		m.insert(text)
+		m.assist = assist{active: true}
 	}
 	return nil
 }
@@ -251,7 +252,7 @@ func (m *Model) set(a sheet.Addr, input string) error {
 
 func (m *Model) cancelEntry() {
 	m.mode = modeReady
-	m.buf, m.bufPos, m.hint = nil, 0, ""
+	m.buf, m.bufPos, m.hint, m.assist = nil, 0, "", assist{}
 }
 
 func (m *Model) insert(text string) {

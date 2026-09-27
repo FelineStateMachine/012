@@ -97,11 +97,23 @@ func compositor(boxes []box) *lipgloss.Compositor {
 	return lipgloss.NewCompositor(layers...)
 }
 
-// compose draws the open overlay over the rendered screen.
-func (m *Model) compose(screen string) string {
+// floating returns the boxes drawn over the screen: the open overlay's,
+// or the formula suggestions while typing.
+func (m *Model) floating() []box {
+	if m.overlay != nil {
+		return m.overlay.layout(m)
+	}
+	if b, ok := m.assistBox(); ok {
+		return []box{b}
+	}
+	return nil
+}
+
+// compose draws boxes over the rendered screen.
+func (m *Model) compose(screen string, boxes []box) string {
 	c := lipgloss.NewCanvas(m.width, m.height)
 	c.Compose(lipgloss.NewLayer(screen))
-	c.Compose(compositor(m.overlay.layout(m)))
+	c.Compose(compositor(boxes))
 	return c.Render()
 }
 
@@ -110,6 +122,9 @@ func (m *Model) compose(screen string) string {
 func (m *Model) shellMouse(msg tea.MouseMsg) (tea.Cmd, bool) {
 	if m.overlay != nil {
 		return m.overlayMouse(msg), true
+	}
+	if m.assistMouse(msg) {
+		return nil, true
 	}
 	click, ok := msg.(tea.MouseClickMsg)
 	if !ok || m.mode != modeReady {
