@@ -50,3 +50,14 @@ reason.
 
 `JEV_LIVE_TEST=1 go test ./internal/jev -run TestLive` asks the real JEV
 service one question of each kind, using `TYPESAFE_API_KEY`.
+
+## Demo recordings
+
+`demos/` holds [VHS](https://github.com/charmbracelet/vhs) tapes for the
+recordings in the README. `make demos` renders all of them (or
+`make demos DEMOS=jev` for one) into `demos/out/`: full GIFs, PNG stills of
+key moments in `demos/out/stills/`, and smaller GIFs in `demos/out/media/`.
+It needs vhs 0.12+, ttyd and ffmpeg. The JEV tape talks to `demos/fakejev`, a
+local stand-in the target starts on 127.0.0.1, never the real service. On
+macOS, `demos/lib/ttyd` wraps ttyd so Alt+letter reaches the app. VHS has no
+mouse commands, so the tapes use the keyboard.
