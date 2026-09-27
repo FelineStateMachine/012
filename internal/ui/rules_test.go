@@ -218,3 +218,45 @@ func TestRulesRespectPivots(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// Data bars, icon sets and the rules that compare cells are recorded
+// from the panel as the other rules are, and replay the same.
+func TestRecordBarsAndIcons(t *testing.T) {
+	m := newModel()
+	press(t, m, "<shift+down>")
+	send(m, nil)
+	run(m, m.runCommand("macro.record"))
+	run(m, m.runCommand("format.conditional"))
+	press(t, m, "<enter>", "<down>", "<right>", "<right>", "<enter>")            // a data bar
+	press(t, m, "<enter>", "<down>", "<right>", "<right>", "<right>", "<enter>") // an icon set
+	press(t, m, "<esc>")
+	for _, line := range []string{
+		`{"ranges":"B1:B9","condition":"top_percent","values":["10"],"fill":"green"}`,
+		`{"ranges":"C1:C9","condition":"date_is","values":["last month"],"bold":true}`,
+	} {
+		run(m, m.runCommand("format.conditional_add"))
+		m.line.Set(line)
+		press(t, m, "<enter>")
+	}
+	run(m, m.runCommand("macro.stop"))
+	m.line.Set("Bars")
+	press(t, m, "<enter>", "<enter>")
+	mc, ok := m.book().Macro("Bars")
+	if !ok {
+		t.Fatalf("no macro: %q", m.errMsg)
+	}
+	if !strings.Contains(mc.Source, `"dataBar": {`) || !strings.Contains(mc.Source, `"iconSet": {`) {
+		t.Errorf("script:\n%s", mc.Source)
+	}
+	fresh := newModel()
+	script(t, fresh, mc.Source)
+	want, got := m.sheet.CondFormats(), fresh.sheet.CondFormats()
+	if len(got) != 4 || len(want) != 4 {
+		t.Fatalf("replay: %d rules, want %d; %q", len(got), len(want), fresh.warn)
+	}
+	for i := range want {
+		if got[i].JSON() != want[i].JSON() {
+			t.Errorf("rule %d replayed as %s, want %s", i+1, got[i].JSON(), want[i].JSON())
+		}
+	}
+}

@@ -99,7 +99,8 @@ there.
 | Mode | The mode indicator's word (`READY`, `ENTER`, `POINT`, `MENU`) |
 | Search matches, traced cells | Reverse video, with a count or the list on the context line |
 | The copied range | A dashed underline |
-| Dropdowns, checkboxes, active filters | `▾`; `[ ]` and `[✓]`; `▼` instead of `▾` |
+| Dropdowns, checkboxes, active filters | `▾`, or a chip in reverse video between `▐` and `▌`; `[ ]` and `[✓]`; `▼` instead of `▾` |
+| Data bars, icon sets | Eighth blocks as long as the number, and reverse video under the text they run beneath; the icon's glyph (`↑`, `◑`, `✓`, `▆`) |
 | Borders (of any color), wrapped text, merged cells, tall rows, vertical alignment | Characters: box-drawing lines, the text's own lines, one value across the merge, the row's number on its last line, the value on the line it's aligned to; the pointer on a merged cell reverses all of it |
 
 The reverse-video roles (`Theme.standouts`) keep their look in color:

@@ -349,3 +349,34 @@ func TestMonochromeBorderColorAndVAlign(t *testing.T) {
 		t.Errorf("the first line of row 2: %q", got)
 	}
 }
+
+// Data bars, icons and dropdown chips read without color: blocks as
+// long as the number, text under a bar and a chip in reverse video, an
+// icon's glyph.
+func TestMonochromeBarsIconsChips(t *testing.T) {
+	m := newModel()
+	m.sheet.Set(addr("A1"), "50")
+	m.sheet.Set(addr("A2"), "100")
+	m.sheet.Set(addr("B1"), "1")
+	m.sheet.Set(addr("B2"), "9")
+	m.sheet.Set(addr("C1"), "Yes")
+	mustFormat(t, m, `{"ranges":"A1:A2","dataBar":{"color":"green","min":{"type":"min"},"max":{"type":"max"}}}`)
+	mustFormat(t, m, `{"ranges":"B1:B2","iconSet":{"icons":"symbols","points":[{"type":"percent","value":"33"},{"type":"percent","value":"67"}]}}`)
+	mustValidate(t, m, `{"ranges":"C1","criteria":"list","items":["Yes","No"],"display":"chip"}`)
+	m.cur = addr("E5")
+	a1 := cellAt(m, addr("A1"))
+	if !strings.HasPrefix(cellText(a1), "████") {
+		t.Errorf("A1's bar %q", cellText(a1))
+	}
+	a2 := cellAt(m, addr("A2"))
+	if got := cellText(a2); !strings.Contains(got, "100") || !a2[7].reverse {
+		t.Errorf("A2 under its bar %q %+v", got, a2[7])
+	}
+	if b1, b2 := cellText(cellAt(m, addr("B1"))), cellText(cellAt(m, addr("B2"))); !strings.HasPrefix(b1, " ✗") || !strings.HasPrefix(b2, " ✓") {
+		t.Errorf("icons %q %q", b1, b2)
+	}
+	c1 := cellAt(m, addr("C1"))
+	if got := cellText(c1); !strings.HasPrefix(got, " ▐Yes ▾▌") || !c1[2].reverse {
+		t.Errorf("chip %q %+v", got, c1[2])
+	}
+}

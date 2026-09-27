@@ -68,3 +68,55 @@ func TestRules(t *testing.T) {
 	s2.keys("<ctrl+k>", "conditional formatting", "<enter>")
 	s2.waitFor("4 rules")
 }
+
+// Rules that draw their own, as a user meets them: bars, icons and
+// chips on opening, a checkbox of its own values toggled with Space, a
+// data bar added from the panel, and cells cut to another sheet taking
+// their rules along.
+func TestBarsIconsAndChips(t *testing.T) {
+	dir := t.TempDir()
+	scoresFile(t, dir)
+	s := start(t, dir, "scores.012")
+	s.waitFor("Dee")
+	for _, want := range []string{"▐Math ▾▌", "██████92", "↑    12", "●"} {
+		s.waitFor(want)
+	}
+	// F3's checkbox holds No; Space checks it, entering Yes.
+	s.keys("<ctrl+g>", "F3", "<enter>", "<space>")
+	s.waitForBar("F3", "Yes")
+
+	// A data bar from the panel, over C2:C6.
+	s.keys("<ctrl+g>", "C2:C6", "<enter>")
+	s.keys("<ctrl+k>", "conditional formatting", "<enter>")
+	s.waitFor("4 rules")
+	s.keys("<enter>")
+	s.waitFor("Add conditional format")
+	s.keys("<down>", "<right>", "<right>")
+	s.waitFor("Show bar only")
+	s.keys("<enter>")
+	s.waitFor("5 rules")
+	s.keys("<esc>")
+
+	// Cut to another sheet, the points take their bars along.
+	s.keys("<shift+f11>")
+	s.waitFor("Sheet2")
+	s.keys("<alt+left>")
+	s.waitFor("Dee")
+	s.keys("<ctrl+g>", "B2:B6", "<enter>")
+	s.waitForName("B2:B6")
+	s.keys("<ctrl+x>")
+	s.waitFor("Ctrl+V  move here")
+	s.keys("<alt+right>", "<ctrl+v>")
+	s.waitFor("██████92")
+	s.keys("<ctrl+s>")
+	s.eventually("saved", func() bool { return !strings.Contains(s.line(29), "modified") })
+	body, err := os.ReadFile(filepath.Join(dir, "scores.012"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"F3": "Yes"`, `{"ranges":"C2:C6","dataBar":{"color":"blue"`, `{"ranges":"A1:A5","dataBar":`} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf("file lacks %s:\n%s", want, body)
+		}
+	}
+}
