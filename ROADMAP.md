@@ -19,7 +19,7 @@ Sizes: S (a day or two), M (about a week), L (weeks).
 | Item | Why | Size |
 |---|---|---|
 | Open 012's XLSX output in Excel and LibreOffice before releases, as was done for Google Sheets | The writer is otherwise checked by excelize and 012's reader | S |
-| Conditional formatting and validation, what's left: data bars and icon sets, "top 10", "duplicate values", date periods (this week, last month), validation on pastes and fills, rules moving with cut and paste, a dropdown's chip look, and custom checkbox values | Excel's other rule types come in as notes | M |
+| Conditional formatting and validation, what's left: data bars and icon sets, "top 10", "duplicate values", date periods (this week, last month), rules moving with cells cut to another sheet, a dropdown's chip look, and custom checkbox values | Excel's other rule types come in as notes | M |
 | Remaining overlays get narrow hosts: filter picker, sort and choice bars, chart editor, shortcuts, named ranges, cell entry and prompts | Components testable without the model ([Architecture](docs/contributing/architecture.md#the-ui)) | M |
 
 ### 2. Spreadsheet features Sheets users reach for
@@ -50,15 +50,6 @@ steps; see [Bounds of support](docs/contributing/limits.md#what-would-raise-the-
 | Vim: `.` repeat, registers, marks, `cc`/`s`, command-line history, `:w!` | M |
 | Hold-to-preview and Shift+Enter on terminals with the kitty keyboard protocol (`View.KeyboardEnhancements`) | S |
 | Sixel chart images, redrawn on resize, for terminals without kitty graphics | M |
-
-### 5. Distribution and upkeep
-
-| Item | Size |
-|---|---|
-| Prebuilt binaries attached to version tags, built locally (the GitHub repo is hosting only); tags carry release notes in their message | S |
-| `make stress-report` thresholds that flag regressions over a set percentage against the last release | S |
-| Grafana: a trace panel for the nested spans | S |
-| Accessibility: a high-contrast theme, and an audit that every state reads without color (a [UX rule](docs/contributing/ux.md#visual-rules)) | S |
 
 ## Later: sharing a live sheet (shelved)
 
@@ -99,7 +90,7 @@ by a gateway dialing the iroh ticket.
 
 - Freeze, multi-column sort, filters with value pickers and conditions: [Freeze, sort and filter](docs/sheets/sort-filter.md#freeze)
 - Find and replace, with regular expressions, across sheets: [Find and replace](docs/sheets/find-replace.md)
-- Conditional formatting (single-color rules, color scales) and data validation (dropdowns, checkboxes, bounds): [Conditional formatting and data validation](docs/sheets/rules.md#conditional-formatting)
+- Conditional formatting (single-color rules, color scales) and data validation (dropdowns, checkboxes, bounds), checked on pastes and fills and moving with cut and paste: [Conditional formatting and data validation](docs/sheets/rules.md#conditional-formatting)
 - Pivot tables and frequency tables, live, with subtotals and renamed values: [Pivot tables](docs/sheets/pivots.md)
 - Notes on cells: [Notes and protection](docs/sheets/notes-protection.md#notes)
 - Protected sheets and ranges that warn on edit: [Notes and protection](docs/sheets/notes-protection.md#protected-sheets-and-ranges)
@@ -111,6 +102,7 @@ by a gateway dialing the iroh ticket.
 
 - System clipboard, hyperlinks, curly error underlines, cursor shapes, progress and notifications, light and dark: [The terminal](docs/terminal/README.md#terminal-features-012-uses)
 - Color schemes and a config file: [Themes](docs/terminal/themes.md), [Configuration](docs/reference/config.md)
+- A high-contrast theme at WCAG AAA, and every state readable without color: [Themes](docs/terminal/themes.md#high-contrast), [UX](docs/contributing/ux.md#reading-without-color)
 - `012 serve` over SSH, with files on the ssh command line and recovery of unsaved work: [Serving over SSH](docs/terminal/ssh.md)
 
 **Files**
@@ -120,3 +112,6 @@ by a gateway dialing the iroh ticket.
 **Upkeep**
 
 - `make check` before every push; demo tapes (`make demos`); annotated version tags with release notes (v0.2.0 onward; v0.1.0 remains on the Go module proxy): [Testing](docs/contributing/testing.md)
+- A release checklist and `make dist`, release archives cross-compiled locally with SHA256SUMS: [Releasing](docs/contributing/releasing.md)
+- `make stress-report` flags regressions against the last release's run, allowing for noise: [Observability](docs/contributing/observability.md#regressions-against-the-last-release)
+- Grafana: recent traces and a trace view of the nested spans: [Observability](docs/contributing/observability.md#the-stack)
