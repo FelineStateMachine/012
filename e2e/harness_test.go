@@ -72,6 +72,9 @@ type options struct {
 	// images; off by default, so screens show the text charts every
 	// terminal gets.
 	graphics bool
+	// program runs instead of 012, such as an ssh client reaching 012
+	// serve.
+	program string
 }
 
 // start launches 012 in dir (a fresh temp dir if empty) with args.
@@ -118,7 +121,11 @@ func startWith(t *testing.T, o options, args ...string) *session {
 		t.Fatal(err)
 	}
 
-	s.cmd = exec.Command(binPath, args...)
+	program := binPath
+	if o.program != "" {
+		program = o.program
+	}
+	s.cmd = exec.Command(program, args...)
 	s.cmd.Dir = o.dir
 	// Tests never reach the real JEV service: the key is cleared unless a
 	// test points JEV at a fake server through o.env.
