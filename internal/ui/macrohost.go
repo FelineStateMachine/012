@@ -86,9 +86,13 @@ func wholeRef(r sheet.Rect) string {
 	return r.String()
 }
 
-// readRange is r to read, trimmed to the used range when it's larger
-// than that.
+// readRange is r to read: a large range (whole columns, say) is trimmed
+// to the used range. Small ones aren't, as finding the used range takes
+// a pass over the sheet.
 func readRange(s *sheet.Sheet, r sheet.Rect) (sheet.Rect, error) {
+	if (r.To.Col-r.From.Col+1)*(r.To.Row-r.From.Row+1) <= 1<<12 {
+		return r, nil
+	}
 	if used, ok := s.UsedRange(); ok && (r.To.Col > used.To.Col || r.To.Row > used.To.Row) {
 		r.To = sheet.Addr{Col: max(min(r.To.Col, used.To.Col), r.From.Col), Row: max(min(r.To.Row, used.To.Row), r.From.Row)}
 	}
