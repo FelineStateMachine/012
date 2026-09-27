@@ -343,3 +343,29 @@ func Shapes() []Shape {
 		{"dense-1Mx10", func() *sheet.Sheet { return Dense(MaxRows, MaxCols) }, at(0, 500000), "5"},
 	}
 }
+
+// Laidout is a report of rows x cols: every cell bordered, a last column
+// of notes that wrap over three lines, and a title merged across the
+// top: what borders, tall rows and merged cells cost a frame.
+func Laidout(rows, cols int) *sheet.Sheet {
+	s := sheet.New()
+	r := rand.New(rand.NewPCG(5, 6))
+	lines := sheet.Style{Borders: sheet.Borders{Top: sheet.LineThin, Bottom: sheet.LineThin, Left: sheet.LineThin, Right: sheet.LineThin}}
+	notes := lines
+	notes.Wrap = sheet.WrapOn
+	put := func(a sheet.Addr, input string, st sheet.Style) {
+		if err := s.Load(a, input, sheet.Format{}, st); err != nil {
+			panic(err)
+		}
+	}
+	put(at(0, 0), "Report", sheet.Style{Bold: true})
+	s.LoadMerge(sheet.Rect{From: at(0, 0), To: at(cols-1, 0)})
+	for row := 1; row <= rows; row++ {
+		for col := range cols - 1 {
+			put(at(col, row), fmt.Sprintf("%.2f", r.Float64()*1000), lines)
+		}
+		put(at(cols-1, row), "a note that wraps over three lines", notes)
+	}
+	s.RecalcAll()
+	return s
+}

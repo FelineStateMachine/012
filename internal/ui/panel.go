@@ -29,6 +29,7 @@ func (m *Model) View() tea.View {
 	if telemetry.Enabled() {
 		defer m.timeFrame(time.Now())
 	}
+	clear(m.painted) // the theme may have changed since the last frame
 	lines := []string{m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.headerRow()}
 	for _, b := range m.bands() {
 		lines = m.appendBand(lines, b)

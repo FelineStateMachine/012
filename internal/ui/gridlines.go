@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -156,7 +157,31 @@ func (m *Model) leftEdge(a sheet.Addr, text string) string {
 	if e == sheet.LineNone {
 		return text
 	}
-	return m.th.CellBorder.Render(theme.Junction(e, e, sheet.LineNone, sheet.LineNone)) + ansi.Cut(text, 1, m.sheet.ColWidth(a.Col))
+	glyph := m.paint(&m.th.CellBorder, theme.Junction(e, e, sheet.LineNone, sheet.LineNone))
+	if strings.HasPrefix(text, " ") { // padding, as it mostly is
+		return glyph + text[1:]
+	}
+	return glyph + ansi.Cut(text, 1, m.sheet.ColWidth(a.Col))
+}
+
+// paintKey is a text drawn in a role.
+type paintKey struct {
+	role *lipgloss.Style
+	text string
+}
+
+// paint draws text in role, as role.Render does, keeping what it drew
+// until the next frame: borders draw the same few strings over and over.
+func (m *Model) paint(role *lipgloss.Style, text string) string {
+	if s, ok := m.painted[paintKey{role, text}]; ok {
+		return s
+	}
+	if m.painted == nil {
+		m.painted = map[paintKey]string{}
+	}
+	s := role.Render(text)
+	m.painted[paintKey{role, text}] = s
+	return s
 }
 
 // ruleLine draws the border line above row: each column's top edge,
@@ -180,35 +205,33 @@ func (m *Model) ruleLine(row int) string {
 
 // ruleCols draws the rule line of ncols columns from first.
 func (m *Model) ruleCols(b *strings.Builder, lc *lineCtx, above, first, ncols int) {
+	left := sheet.LineNone // the edge of the column before, on the screen
 	for c := first; c < first+ncols; c++ {
 		a := sheet.Addr{Col: c, Row: lc.row}
 		w := m.sheet.ColWidth(c)
-		style, colored := m.th.CellBorder, false
+		style, colored := &m.th.CellBorder, false
 		if lc.selecting && lc.sel.Contains(a) && lc.sel.Contains(sheet.Addr{Col: c, Row: above}) {
-			style, colored = m.th.Selection, true
+			style, colored = &m.th.Selection, true
 		}
 		mg, inMerge := lc.mergeOf(c)
 		inside := inMerge && lc.row > mg.From.Row
 		if inside && mg.From == lc.focus {
-			style, colored = m.th.Pointer, true
+			style, colored = &m.th.Pointer, true
 		}
 		h := m.hEdge(a)
-		left := sheet.LineNone
-		if c > first {
-			left = m.hEdge(sheet.Addr{Col: c - 1, Row: lc.row})
-		}
 		joint := theme.Junction(m.vEdge(sheet.Addr{Col: c, Row: above}), m.vEdge(a), left, h)
 		if inside && c > mg.From.Col {
 			joint = " "
 		}
+		left = h
 		run := strings.Repeat(theme.Junction(sheet.LineNone, sheet.LineNone, h, h), w-1)
 		switch {
 		case !colored && joint == " " && h == sheet.LineNone:
 			b.WriteString(strings.Repeat(" ", w))
 		case joint == " ":
-			b.WriteString(style.Render(joint + run))
+			b.WriteString(m.paint(style, joint+run))
 		default: // the joint in the border's role, as leftEdge draws the lines through it
-			b.WriteString(m.th.CellBorder.Render(joint) + style.Render(run))
+			b.WriteString(m.paint(&m.th.CellBorder, joint) + m.paint(style, run))
 		}
 	}
 }

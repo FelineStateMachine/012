@@ -48,6 +48,7 @@ func uiShapes() []uiShape {
 		}},
 		{"sparse-1M", func() *sheet.Sheet { return stress.Sparse(10000, 100, 1000) }},
 		{"scale-8192x26", scaled},
+		{"laidout-8192x26", func() *sheet.Sheet { return stress.Laidout(stress.Rows, 26) }},
 	}
 }
 
