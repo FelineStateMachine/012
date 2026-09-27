@@ -80,6 +80,7 @@ func run(args []string) error {
 	}
 	m := ui.New(s, name)
 	m.SetMachine(machineID())
+	m.AllowEditor()
 	if importName != "" {
 		m.Import(importName)
 	}

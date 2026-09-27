@@ -416,6 +416,7 @@ func TestPaletteAndPickerRunMacros(t *testing.T) {
 
 func TestManageMacros(t *testing.T) {
 	m := newModel()
+	m.AllowEditor()
 	record(t, m, false, "One", "1", "1", "<enter>")
 	run(m, m.runCommand("macro.manage"))
 	if !strings.Contains(screen(m), "+ Write a macro") || !strings.Contains(screen(m), "One") {
@@ -441,8 +442,24 @@ func TestManageMacros(t *testing.T) {
 	}
 }
 
+func TestWithoutAnEditorScriptsAreReadOnly(t *testing.T) {
+	m := newModel()
+	record(t, m, false, "One", "", "1", "<enter>")
+	if commands["macro.new"].available(m) {
+		t.Error("Write a macro is available without an editor")
+	}
+	run(m, m.runCommand("macro.manage"))
+	if strings.Contains(screen(m), "+ Write a macro") {
+		t.Error("the manager offers to write a macro")
+	}
+	if cmd := m.overlay.key(m, tea.KeyPressMsg{Code: tea.KeyF4}); cmd != nil || !strings.Contains(line(m, m.height-1), "No editor in this session") {
+		t.Errorf("F4: %v %q", cmd, line(m, m.height-1))
+	}
+}
+
 func TestEditedScriptsAreSavedAndChecked(t *testing.T) {
 	m := newModel()
+	m.AllowEditor()
 	record(t, m, false, "Ed", "", "a", "<enter>")
 	path := filepath.Join(t.TempDir(), "ed.star")
 	os.WriteFile(path, []byte("set(\"B1\", 2)\nset(\"B2\",\n"), 0o600)

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"cmp"
+	"slices"
 	"fmt"
 	"os"
 	"os/exec"
@@ -42,13 +43,16 @@ func (m *Model) openMacros(sel string) {
 
 // macroManageItems lists "Write a macro" and then every macro.
 func macroManageItems(m *Model) []pickItem {
-	items := []pickItem{{
-		title: writeMacroTitle, name: len(writeMacroTitle), desc: "Write a new macro script in your editor",
-		pick: func(m *Model) tea.Cmd {
-			m.closeOverlay()
-			return m.newMacro()
-		},
-	}}
+	var items []pickItem
+	if m.macros.editor {
+		items = append(items, pickItem{
+			title: writeMacroTitle, name: len(writeMacroTitle), desc: "Write a new macro script in your editor",
+			pick: func(m *Model) tea.Cmd {
+				m.closeOverlay()
+				return m.newMacro()
+			},
+		})
+	}
 	for _, mc := range m.book().Macros() {
 		lines := strings.Count(strings.TrimRight(mc.Source, "\n"), "\n") + 1
 		items = append(items, pickItem{
@@ -90,6 +94,10 @@ func (p *macrosPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 		m.closeOverlay()
 		m.setMacroShortcut(mc)
 	case "f4":
+		if !m.macros.editor {
+			p.msg = "No editor in this session"
+			return nil
+		}
 		m.closeOverlay()
 		return m.editScript(mc.Name, mc.Source, false)
 	case "ctrl+d":
@@ -104,10 +112,15 @@ func (p *macrosPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 }
 
 func (p *macrosPicker) status(m *Model) (string, string) {
-	keys := m.th.KeyHints("Enter", "run", "F2", "rename", "F3", "shortcut", "F4", "edit", "Ctrl+D", "delete", "Esc", "close")
-	if m.width < 100 {
-		keys = m.th.KeyHints("Enter", "run", "F2", "rename", "F3", "key", "F4", "edit", "Ctrl+D", "delete")
+	pairs := []string{"Enter", "run", "F2", "rename", "F3", "shortcut", "F4", "edit", "Ctrl+D", "delete", "Esc", "close"}
+	if !m.macros.editor {
+		pairs = slices.Delete(pairs, 6, 8)
 	}
+	if m.width < 100 {
+		pairs = slices.DeleteFunc(pairs[:len(pairs)-2], func(s string) bool { return s == "shortcut" })
+		pairs = slices.Insert(pairs, slices.Index(pairs, "F3")+1, "key")
+	}
+	keys := m.th.KeyHints(pairs...)
 	if _, ok := p.current(m); !ok {
 		keys = m.th.KeyHints("Enter", "write", "Esc", "close")
 	}

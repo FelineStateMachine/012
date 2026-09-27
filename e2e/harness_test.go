@@ -67,6 +67,10 @@ type options struct {
 	cols, rows uint16   // defaults to 100x30
 	light      bool     // use the light reference palette
 	env        []string // extra environment, e.g. a fake JEV endpoint
+	// config is where 012 keeps its machine id for macros
+	// (O12_CONFIG_DIR); by default inside dir, so sessions sharing a
+	// directory are one computer and nothing touches the real one's.
+	config string
 	jev        bool     // answer JEV functions with a fake service (screens)
 	// graphics turns on the kitty graphics protocol, so charts become
 	// images; off by default, so screens show the text charts every
@@ -123,6 +127,10 @@ func startWith(t *testing.T, o options, args ...string) *session {
 	// Tests never reach the real JEV service: the key is cleared unless a
 	// test points JEV at a fake server through o.env.
 	s.cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor", "TYPESAFE_API_KEY=", "TYPESAFE_BASE_URL=")
+	if o.config == "" {
+		o.config = filepath.Join(o.dir, ".config")
+	}
+	s.cmd.Env = append(s.cmd.Env, "O12_CONFIG_DIR="+o.config)
 	s.cmd.Env = append(s.cmd.Env, o.env...)
 	s.pty, err = pty.StartWithSize(s.cmd, &pty.Winsize{Cols: s.cols, Rows: s.rows})
 	if err != nil {

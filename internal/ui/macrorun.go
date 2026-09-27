@@ -31,6 +31,10 @@ type macroState struct {
 	// once the user has agreed to run macros from a file made elsewhere.
 	machine string
 	trusted bool
+
+	// editor allows editing scripts in the user's editor, a program of
+	// their own; only the local app does (see AllowEditor).
+	editor bool
 }
 
 // macroRun is a script running.

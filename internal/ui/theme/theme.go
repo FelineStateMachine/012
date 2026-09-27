@@ -143,7 +143,7 @@ func New(dark bool) Theme {
 	accent := lipgloss.NewStyle().Background(lipgloss.Cyan).Foreground(lipgloss.Black)
 	t := Theme{
 		Indicator:    accent.Bold(true),
-		Recording:    lipgloss.NewStyle().Background(lipgloss.Red).Foreground(lipgloss.BrightWhite).Bold(true),
+		Recording:    lipgloss.NewStyle().Background(lipgloss.Red).Foreground(selFg).Bold(true),
 		Header:       lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
 		HeaderActive: accent.Bold(true),
 		HeaderSel:    lipgloss.NewStyle().Background(lipgloss.Blue).Foreground(selFg),

@@ -62,7 +62,6 @@ func (s selState) rect() sheet.Rect {
 // startRecording starts recording, from the selection as it is.
 func (m *Model) startRecording(relative bool) {
 	m.rec = &recorder{relative: relative, base: m.selState()}
-	m.note = "Recording a macro: what you do now is saved when you stop"
 }
 
 // add records a, taking the selection after it as the new base.

@@ -57,9 +57,10 @@ func init() {
 		&command{id: "macro.manage", title: "Manage macros", macro: macroNever, enabled: idle,
 			desc: "Rename, delete, give shortcuts to or edit the saved macros",
 			run:  func(m *Model) tea.Cmd { m.openMacros(""); return nil }},
-		&command{id: "macro.new", title: "Write a macro", macro: macroNever, enabled: idle,
-			desc: "Write a macro script in your editor ($VISUAL or $EDITOR)",
-			run:  (*Model).newMacro},
+		&command{id: "macro.new", title: "Write a macro", macro: macroNever,
+			enabled: func(m *Model) bool { return idle(m) && m.macros.editor },
+			desc:    "Write a macro script in your editor ($VISUAL or $EDITOR)",
+			run:     (*Model).newMacro},
 	)
 	// Ctrl+Alt+Shift+digit arrives as Ctrl+Alt with the shifted symbol
 	// from terminals without the kitty keyboard protocol (US layout).
@@ -158,6 +159,12 @@ func (m *Model) trustHere() {
 		m.book().SetMacroOrigin(m.macros.machine)
 	}
 }
+
+// AllowEditor lets the user edit macro scripts in their own editor
+// ($VISUAL or $EDITOR), which runs as a program of theirs with the
+// screen handed over. Only the local app allows it: a session served
+// over SSH must not start programs on the server.
+func (m *Model) AllowEditor() { m.macros.editor = true }
 
 // SetMachine tells the model which computer it runs on, as an id kept in
 // the user's configuration, so macros saved here run without asking and
