@@ -186,6 +186,28 @@ func RunningTotals(n int) *sheet.Sheet {
 	return s
 }
 
+// Arrays is a column of n numbers beside a column of eight categories,
+// and k formulas in row 1 spilling from them, alternating a FILTER of the
+// numbers by one category (n/8 rows each) and the UNIQUE categories: k
+// arrays over n rows, every number's change recomputing half of them.
+func Arrays(n, k int) *sheet.Sheet {
+	s := sheet.New()
+	cats := []string{"alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"}
+	for row := range n {
+		load(s, at(0, row), fmt.Sprint(row%100))
+		load(s, at(1, row), cats[row%len(cats)])
+	}
+	for i := range k {
+		f := fmt.Sprintf(`=FILTER(A1:A%d, B1:B%d="%s")`, n, n, cats[i/2%len(cats)])
+		if i%2 == 1 {
+			f = fmt.Sprintf("=UNIQUE(B1:B%d)", n)
+		}
+		load(s, at(2+i, 0), f)
+	}
+	s.RecalcAll()
+	return s
+}
+
 // Volatile is k cells alternating TODAY() and RAND(), recalculated on
 // every change anywhere.
 func Volatile(k int) *sheet.Sheet {
@@ -310,5 +332,6 @@ func Shapes() []Shape {
 		{"sparse-1M", func() *sheet.Sheet { return Sparse(10000, 100, 1000) }, at(0, 500000), "5"},
 		{"criteria-60xSUMIF8192", func() *sheet.Sheet { return Criteria(Rows, 60) }, at(0, 4000), "7"},
 		{"lookup-300xVLOOKUP8192", func() *sheet.Sheet { return Lookup(Rows, 300) }, at(0, 4000), "4000"},
+		{"arrays-1000xFILTER8192", func() *sheet.Sheet { return Arrays(Rows, 1000) }, at(0, 4000), "7"},
 	}
 }
