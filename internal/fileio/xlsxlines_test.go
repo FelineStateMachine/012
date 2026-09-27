@@ -47,4 +47,20 @@ func TestXLSXLineFormats(t *testing.T) {
 	if n := len(got.ColFormats()); n != 2 {
 		t.Errorf("%d column formats, want 2", n)
 	}
+
+	// The whole sheet's format goes out on every column and comes back
+	// as the sheet's.
+	src.SetStyle(sheet.Rect{To: sheet.Addr{Col: sheet.MaxCols - 1, Row: sheet.MaxRows - 1}}, func(st *sheet.Style) { st.Underline = true })
+	if _, err := Export(context.Background(), name, XLSX, Snap(src, sheet.Rect{}, "Lines"), ExportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if res, err = Import(context.Background(), name, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, st := res.Sheet.SheetFormat(); !st.Underline || !res.Sheet.CellStyle(addr(t, "ZZ9")).Underline {
+		t.Errorf("the sheet's style came back as %+v", st)
+	}
+	if f := res.Sheet.DisplayFormat(addr(t, "C9")); f.Kind != sheet.FmtCurrency || !res.Sheet.CellStyle(addr(t, "C9")).Underline {
+		t.Errorf("column C came back as %v", f.Kind)
+	}
 }

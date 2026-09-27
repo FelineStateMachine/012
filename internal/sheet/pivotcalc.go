@@ -209,7 +209,8 @@ func (c *pivotCalc) valueFormat(v PivotValue) Format {
 func (c *pivotCalc) gather() {
 	tests := pivotTests(c.p.Filters)
 	r := c.p.Range
-	for row := r.From.Row + 1; row <= c.src.filterData(r).To.Row; row++ {
+	last := c.src.filterData(r).To.Row
+	for row := r.From.Row + 1; row <= last; row++ {
 		if c.src.rowBlank(row, r) || !c.src.rowPasses(row, tests) {
 			continue
 		}

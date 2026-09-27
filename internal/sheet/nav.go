@@ -147,7 +147,7 @@ func (s *Sheet) RangeStats(r Rect) Stats {
 			st.Sum += c.Value.Num
 		}
 	}
-	for _, c := range s.cells.inRange(r) {
+	for _, c := range s.cells.anyInRange(r) {
 		if !c.Blank() {
 			add(c)
 		}

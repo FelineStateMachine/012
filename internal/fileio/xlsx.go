@@ -90,7 +90,7 @@ func importXLSXSheet(ctx context.Context, x *excelize.File, b *builder, ws strin
 		return 0, err
 	}
 	defer rows.Close()
-	row := 0
+	row, width := 0, 0
 	for ; rows.Next(); row++ {
 		if row%128 == 0 {
 			if err := ctx.Err(); err != nil {
@@ -103,6 +103,7 @@ func importXLSXSheet(ctx context.Context, x *excelize.File, b *builder, ws strin
 			return 0, err
 		}
 		importXLSXRowStyle(x, b, rows, row, styles)
+		width = max(width, len(cols))
 		for col, raw := range cols {
 			a := sheet.Addr{Col: col, Row: row}
 			if !b.fits(a) {
@@ -115,7 +116,7 @@ func importXLSXSheet(ctx context.Context, x *excelize.File, b *builder, ws strin
 	if err := rows.Error(); err != nil {
 		return 0, err
 	}
-	importXLSXColumns(x, b, ws, styles)
+	importXLSXColumns(x, b, ws, styles, width)
 	return row, nil
 }
 

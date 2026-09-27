@@ -345,7 +345,7 @@ func (s *Sheet) EraseRange(r Rect) {
 // cellsIn returns the cells in r that have contents or formatting.
 func (s *Sheet) cellsIn(r Rect) []Addr {
 	var out []Addr
-	for a := range s.cells.inRange(r) {
+	for a := range s.cells.anyInRange(r) {
 		out = append(out, a)
 	}
 	return out

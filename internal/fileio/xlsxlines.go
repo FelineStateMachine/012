@@ -46,24 +46,33 @@ func snapLines(s *sheet.Sheet, row bool) map[int]LineFormat {
 	return out
 }
 
-// importXLSXColumns reads the sheet's column widths and styles; a style
-// on every column is the sheet's.
-func importXLSXColumns(x *excelize.File, b *builder, ws string, styles map[int]xlsxStyle) {
+// importXLSXColumns reads the widths and styles of the sheet's columns
+// up to its data's width (at least 256); a style on every column, the
+// last included, is the sheet's.
+func importXLSXColumns(x *excelize.File, b *builder, ws string, styles map[int]xlsxStyle, width int) {
+	styleOfCol := func(name string) (xlsxStyle, bool) {
+		if id, err := x.GetColStyle(ws, name); err == nil && id != 0 {
+			st := styleOf(x, id, styles)
+			return st, st != (xlsxStyle{})
+		}
+		return xlsxStyle{}, false
+	}
+	var whole xlsxStyle
+	if first, ok := styleOfCol("A"); ok {
+		if last, _ := styleOfCol("XFD"); last == first {
+			whole = first
+			b.s.LoadLineFormat(false, -1, first.format, first.style)
+		}
+	}
 	cols := map[int]xlsxStyle{}
-	for c := range sheet.MaxCols {
+	for c := range min(max(width, 256), sheet.MaxCols) {
 		colName, _ := excelize.ColumnNumberToName(c + 1)
 		if w, err := x.GetColWidth(ws, colName); err == nil && math.Abs(w-excelDefaultWidth) >= 0.01 && math.Abs(w-9.140625) >= 0.01 {
 			b.s.SetColWidth(c, max(int(math.Round(w))+excelPadding, 1))
 		}
-		if id, err := x.GetColStyle(ws, colName); err == nil && id != 0 {
-			if st := styleOf(x, id, styles); st != (xlsxStyle{}) {
-				cols[c] = st
-			}
+		if st, ok := styleOfCol(colName); ok && st != whole {
+			cols[c] = st
 		}
-	}
-	if st := cols[0]; len(cols) == sheet.MaxCols && !slices.ContainsFunc(slices.Collect(maps.Values(cols)), func(o xlsxStyle) bool { return o != st }) {
-		b.s.LoadLineFormat(false, -1, st.format, st.style)
-		return
 	}
 	for c, st := range cols {
 		b.s.LoadLineFormat(false, c, st.format, st.style)
