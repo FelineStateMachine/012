@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 func init() {
@@ -90,7 +91,7 @@ func helpRows() []helpRow {
 			}
 			listed[id] = true
 			for i, k := range keys {
-				keys[i] = keyLabel(k)
+				keys[i] = theme.KeyLabel(k)
 			}
 			cmds = append(cmds, helpRow{keys: keys, action: commands[id].title})
 		}
@@ -171,7 +172,7 @@ func (s *shortcuts) lines(m *Model) ([]string, int) {
 	rows := helpRows()
 	keyW, actW := 0, 0
 	for _, r := range rows {
-		keyW = max(keyW, ansi.StringWidth(m.chips(r.keys)))
+		keyW = max(keyW, ansi.StringWidth(m.th.Chips(r.keys)))
 		actW = max(actW, ansi.StringWidth(r.action))
 	}
 	// On narrow screens actions give way (truncated) so the keys fit.
@@ -185,11 +186,11 @@ func (s *shortcuts) lines(m *Model) ([]string, int) {
 		for i, r := range rows {
 			switch {
 			case r.heading != "" && i > 0:
-				out = append(out, "", m.th.title.Render(" "+r.heading))
+				out = append(out, "", m.th.Title.Render(" "+r.heading))
 			case r.heading != "":
-				out = append(out, m.th.title.Render(" "+r.heading))
+				out = append(out, m.th.Title.Render(" "+r.heading))
 			default:
-				out = append(out, " "+padRight(ansi.Truncate(r.action, actW, "…"), actW)+"  "+m.chips(r.keys))
+				out = append(out, " "+theme.PadRight(ansi.Truncate(r.action, actW, "…"), actW)+"  "+m.th.Chips(r.keys))
 			}
 		}
 		return out
@@ -214,21 +215,12 @@ func (s *shortcuts) lines(m *Model) ([]string, int) {
 		if i < len(right) {
 			r = right[i]
 		}
-		out[i] = padRight(l, colW) + "   " + r
+		out[i] = theme.PadRight(l, colW) + "   " + r
 	}
 	return out, 2*colW + 3
 }
 
 func abs(x int) int { return max(x, -x) }
-
-// chips renders keys as key chips, e.g. [Ctrl+/] [F1].
-func (m *Model) chips(keys []string) string {
-	parts := make([]string, len(keys))
-	for i, k := range keys {
-		parts[i] = m.chip(k)
-	}
-	return strings.Join(parts, " ")
-}
 
 // visible is how many lines fit between the menu bar and the status line.
 func (s *shortcuts) visible(m *Model, total int) int {
@@ -244,7 +236,7 @@ func (s *shortcuts) layout(m *Model) []box {
 	rows := make([]string, n)
 	for i := range rows {
 		if j := s.top + i; j < len(lines) {
-			rows[i] = cells(m.th.menuBar, lines[j], inner)
+			rows[i] = theme.Cells(m.th.MenuBar, lines[j], inner)
 		} else {
 			rows[i] = strings.Repeat(" ", inner)
 		}
@@ -253,7 +245,7 @@ func (s *shortcuts) layout(m *Model) []box {
 	if n < len(lines) {
 		footer = strconv.Itoa(s.top+1) + "-" + strconv.Itoa(s.top+n) + " of " + strconv.Itoa(len(lines))
 	}
-	b := m.frame(inner, "Keyboard shortcuts", footer, rows)
+	b := m.th.Frame(inner, "Keyboard shortcuts", footer, rows)
 	w, h := ansi.StringWidth(b[0]), len(b)
 	return []box{{id: shortcutsID, x: (m.width - w) / 2, y: max(menuLine+1, (m.height-1-h)/2), lines: b}}
 }
@@ -294,5 +286,5 @@ func (s *shortcuts) mouse(m *Model, e mouseEvent) tea.Cmd {
 }
 
 func (s *shortcuts) status(m *Model) (string, string) {
-	return "", m.keyHints("Up/Down", "scroll", "Esc", "close")
+	return "", m.th.KeyHints("Up/Down", "scroll", "Esc", "close")
 }

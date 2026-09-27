@@ -111,9 +111,9 @@ func (p *namesPicker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 }
 
 func (p *namesPicker) status(m *Model) (string, string) {
-	keys := m.keyHints("Enter", "go to", "F2", "edit", "Ctrl+D", "delete", "Esc", "close")
+	keys := m.th.KeyHints("Enter", "go to", "F2", "edit", "Ctrl+D", "delete", "Esc", "close")
 	if _, ok := p.current(m); !ok {
-		keys = m.keyHints("Enter", "add", "Esc", "close")
+		keys = m.th.KeyHints("Enter", "add", "Esc", "close")
 	}
 	if p.msg != "" {
 		return p.msg, keys
@@ -171,10 +171,10 @@ func (m *Model) editName(n sheet.Name, sel sheet.Rect) {
 
 // namedSelection is the name of the selected range, if it has one, for
 // the name box, as in Sheets.
-func (m *Model) namedSelection() (string, bool) {
-	r := m.selection()
-	for _, n := range m.sheet.Names() {
-		if !n.Gone() && n.Sheet == m.sheet && n.Range == r {
+func (g *grid) namedSelection() (string, bool) {
+	r := g.selection()
+	for _, n := range g.sheet.Names() {
+		if !n.Gone() && n.Sheet == g.sheet && n.Range == r {
 			return n.Name, true
 		}
 	}

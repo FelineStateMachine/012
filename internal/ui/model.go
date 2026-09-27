@@ -10,6 +10,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // mode is the state shown in the mode indicator.
@@ -45,89 +46,58 @@ const (
 // doubleClick is the longest gap between two clicks that edits a cell.
 const doubleClick = 400 * time.Millisecond
 
-// Model is the whole application state.
+// Model is the root of the UI, the tea.Model Bubble Tea runs. It holds
+// the file, the mode and the grid, owns a component for everything that
+// takes input or draws a part of the screen, routes each message to the
+// one it's for, and composes the screen from what they draw (panel.go,
+// view.go, overlay.go).
 type Model struct {
-	sheet    *sheet.Sheet // the sheet shown; its workbook is the file
-	filename string
-	changed  bool
-	saved    int // the sheet's StateID when last saved or loaded
+	// grid is the sheet shown, the active cell, the scroll position, the
+	// window size and the selection; see grid.go.
+	grid
 
-	copied clipboard // see clipboard.go
-	note   string    // feedback on the last action, e.g. "Undid: clear B3"
-
+	// The file.
+	filename      string
+	changed       bool
+	saved         int  // the sheet's StateID when last saved or loaded
 	quitAfterSave bool // "Save and quit" is waiting for the save to finish
 
-	cur           sheet.Addr // the active cell
-	top, left     int        // first visible row and column
-	width, height int
+	mode   mode
+	note   string // feedback on the last action, e.g. "Undid: clear B3"
+	errMsg string // the message ERROR mode shows
 
-	// Selection: see selection.go.
-	selecting bool
-	ext       sheet.Addr // the moving corner of the selection
-	whole     wholeKind
-
-	// Mouse: see mouse.go.
-	drag           dragKind
-	lastClick      time.Time
-	lastHit        hit
-	hover          hit        // what's under the mouse, for hover styling
-	mouseX, mouseY int        // last mouse position, for autoscroll
-	autoscrolling  bool       // an autoscroll tick is pending
-	resizeCol      int        // column being resized by its header border
-	fillAt         sheet.Addr // where a fill handle drag points, see fill.go
-	fillTo         sheet.Rect // the range that drag would fill
-	shape          string     // pointer shape last sent to the terminal
-
-	// Sheets: see tabs.go.
-	home    *sheet.Sheet           // while pointing into another sheet, the entry's sheet
-	places  map[*sheet.Sheet]place // where each sheet's cursor and scroll were left
-	tabLeft int                    // the first tab shown when they don't all fit
-
-	// tabStart remembers where a run of Tab-committed entries began, so
-	// Enter returns to that column on the next row, as in Sheets.
-	tabStart int
-	tabbing  bool
-
-	mode mode
-
-	// buf is the edit line used by ENTER, EDIT and text prompts.
-	buf    []rune
-	bufPos int
-	hint   string // shown on the third panel line, e.g. a formula error
-
-	point       pointer // POINT mode and range prompts
-	pointPrefix string  // entry text before the reference being pointed at
-	pointSuffix string  // entry text after the caret while pointing
-	assist      assist  // function and name suggestions while typing, see assist.go
-
-	trace *trace // precedents or dependents being shown, see trace.go
-
-	overlay  overlay    // open menu, palette or dialog, if any (modeMenu)
-	lastFind *findBar   // the last search, reopened by Ctrl+F
-	jev      *jevRunner // answers JEV functions; nil without an API key
-	xfer     transfer   // imports and downloads, see transfer.go
-	prompt   *prompt
-	files    []string // file list shown by File Open
-	errMsg   string
-
-	term      terminal // what the terminal supports, see graphics.go
-	lastChart int      // the chart last selected, for chart commands; -1 for none
+	// Components. Each owns its state and the handling of the input it
+	// takes; Model routes messages to them and composes what they draw.
+	line    lineEdit   // the edit line of entries, prompts and search fields: line.go
+	entry   entry      // typing into a cell: entry.go
+	point   pointer    // the cell or range pointed at in POINT mode and range prompts
+	prompt  *prompt    // a question on the context line: prompt.go
+	overlay overlay    // the open menu, picker or bar, if any (modeMenu): overlay.go
+	mouse   mouseState // drags, hover and double clicks: mouse.go
+	tabs    tabStrip   // the sheet tabs and where each sheet was left: tabstrip.go
+	find    *findBar   // the last search, reopened by Ctrl+F: find.go
+	charts  chartState // chart commands' target: charts.go
+	copied  clipboard  // what Ctrl+V pastes: clipboard.go
+	trace   *trace     // precedents or dependents being shown: trace.go
+	xfer    transfer   // imports and downloads: transfer.go
+	jev     *jevRunner // answers JEV functions; nil without an API key: jev.go
+	term    terminal   // what the terminal supports: graphics.go
 
 	keyAt time.Time // when the key the next frame answers was pressed, for telemetry
 
-	th theme
+	th theme.Theme
 }
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	return &Model{sheet: s, filename: filename, width: 80, height: 24, th: newTheme(true), term: newTerminal(), lastChart: -1}
+	return &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(), charts: chartState{last: -1}}
 }
 
 // Init implements tea.Model. It asks the terminal for its background color
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
-	// sendJEV starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.probes(), m.sendJEV(), m.startupCmd())
+	// jev.send starts any questions queued while loading the file.
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(), m.startupCmd())
 }
 
 // Update implements tea.Model.
@@ -152,7 +122,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		beforeMode = -1 // keep the focus visible after a resize
 	case tea.BackgroundColorMsg:
-		m.th = newTheme(msg.IsDark())
+		m.th = theme.New(msg.IsDark())
 	case tea.KeyPressMsg:
 		cmd = m.handleKey(msg)
 	case tea.PasteMsg:
@@ -175,17 +145,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case loadedMsg:
 		m.handleLoaded(msg)
 	case filesMsg:
-		m.files = msg
-	case jevAnswerMsg:
-		busy := m.jevBusy() != ""
-		m.handleJEVAnswer(msg)
-		if busy && m.jevBusy() == "" {
-			cmd = m.notifyDone("JEV finished answering in " + m.displayName())
+		if m.prompt != nil {
+			m.prompt.files = msg
 		}
+	case jevAnswerMsg:
+		cmd = m.answerJEV(msg)
 	case importedMsg, importTickMsg, exportedMsg:
 		cmd = m.handleTransfer(msg)
 	default:
-		cmd = m.handleTerminal(msg)
+		cmd = m.term.handle(msg)
 	}
 	// Scroll only when the focus moves, so the mouse wheel can look around
 	// without the view snapping back, as in Sheets.
@@ -196,7 +164,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.clampView()
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
-	return m, tea.Batch(cmd, m.sendJEV(), m.syncImages())
+	return m, tea.Batch(cmd, m.jev.send(), m.term.syncImages(m.sheet, m.displayCharts, &m.th))
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state
@@ -225,14 +193,14 @@ func (m *Model) endUpdate(state int) {
 		// An edit, a sort or a filter may hide the active cell's row.
 		m.cur.Row = m.visibleRow(m.cur.Row)
 		if !m.copied.keep {
-			m.clearCopyMark()
+			m.copied.clearMark()
 		}
 	}
 	m.copied.keep = false
 }
 
 func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
-	if m.drag == dragFill {
+	if m.mouse.drag == dragFill {
 		if k.String() == "esc" {
 			m.cancelFill()
 		}
@@ -253,7 +221,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 	case modeMenu:
 		return m.overlay.key(m, k)
 	case modePrompt:
-		return m.promptKey(k)
+		return m.prompt.key(m, k)
 	case modeError:
 		m.errMsg = ""
 		m.mode = modeReady
@@ -264,7 +232,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
 	if m.moveKey(key) {
-		m.tabbing = false
+		m.entry.tabbing = false
 		return nil
 	}
 	if i := barMenuFor(key); i >= 0 {
@@ -278,75 +246,6 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 		m.startEntry(modeEnter, text)
 	}
 	return nil
-}
-
-// navigate applies a movement key to a, returning false if it isn't one.
-// Keys follow Google Sheets.
-func (m *Model) navigate(key string, a *sheet.Addr) bool {
-	rows, cols := m.scrollRows(), m.visibleCols(m.left)
-	switch key {
-	case "up":
-		a.Row = m.stepRow(a.Row, -1)
-	case "down":
-		a.Row = m.stepRow(a.Row, 1)
-	case "left", "shift+tab":
-		a.Col--
-	case "right", "tab":
-		a.Col++
-	case "ctrl+up":
-		*a = m.sheet.Edge(*a, 0, -1)
-	case "ctrl+down":
-		*a = m.sheet.Edge(*a, 0, 1)
-	case "ctrl+left":
-		*a = m.sheet.Edge(*a, -1, 0)
-	case "ctrl+right", "end":
-		*a = m.sheet.Edge(*a, 1, 0)
-	case "pgup":
-		a.Row = m.stepRow(a.Row, -rows)
-		m.top = m.stepRow(m.top, -rows)
-	case "pgdown":
-		a.Row = m.stepRow(a.Row, rows)
-		m.top = m.stepRow(m.top, rows)
-	case "alt+pgup":
-		a.Col -= cols
-		m.left -= cols
-	case "alt+pgdown":
-		a.Col += cols
-		m.left += cols
-	case "home":
-		a.Col = 0
-	case "ctrl+home":
-		*a = sheet.Addr{}
-	case "ctrl+end":
-		used, _ := m.sheet.UsedRange()
-		*a = used.To
-	default:
-		return false
-	}
-	*a = clampAddr(*a)
-	a.Row = m.visibleRow(a.Row)
-	// Moving into the frozen panes by keyboard scrolls the rest back to
-	// the start, as in Sheets (Ctrl+Home shows A1 with row 2 under it).
-	if fr, fc := m.frozen(); a.Row < fr || a.Col < fc {
-		if a.Row < fr {
-			m.top = 0
-		}
-		if a.Col < fc {
-			m.left = 0
-		}
-	}
-	m.clampView()
-	return true
-}
-
-func isMoveKey(key string) bool {
-	switch key {
-	case "up", "down", "left", "right", "tab", "shift+tab", "pgup", "pgdown",
-		"alt+pgup", "alt+pgdown", "home", "end", "ctrl+home", "ctrl+end",
-		"ctrl+up", "ctrl+down", "ctrl+left", "ctrl+right":
-		return true
-	}
-	return false
 }
 
 func (m *Model) handleWheel(mouse tea.Mouse) {
@@ -379,30 +278,12 @@ func (m *Model) focus() *sheet.Addr {
 	switch {
 	case m.mode == modePoint || m.pointing() || m.away():
 		return &m.point.at
-	case m.drag == dragFill:
-		return &m.fillAt
+	case m.mouse.drag == dragFill:
+		return &m.mouse.fillAt
 	case m.selecting && m.whole == wholeNone:
 		return &m.ext
 	}
 	return &m.cur
-}
-
-func (m *Model) visibleRows() int {
-	return max(m.height-gridTop-1, 1)
-}
-
-// visibleCols returns how many whole scrolling columns fit starting at
-// left.
-func (m *Model) visibleCols(left int) int {
-	n, w := 0, m.scrollX()
-	for c := left; c < sheet.MaxCols; c++ {
-		w += m.sheet.ColWidth(c)
-		if w > m.width {
-			break
-		}
-		n++
-	}
-	return max(n, 1)
 }
 
 // typed returns the printable text of a key press, if any.
@@ -422,4 +303,9 @@ func clampAddr(a sheet.Addr) sheet.Addr {
 		Col: clamp(a.Col, 0, sheet.MaxCols-1),
 		Row: clamp(a.Row, 0, sheet.MaxRows-1),
 	}
+}
+
+func (m *Model) fail(msg string) {
+	m.mode = modeError
+	m.errMsg = msg
 }

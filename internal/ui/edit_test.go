@@ -85,8 +85,8 @@ func TestCopyPaste(t *testing.T) {
 	if got := clipboardText(t, m, "edit.copy"); got != "1\t2" {
 		t.Errorf("system clipboard %q", got)
 	}
-	if l := line(m, 2); !m.copyMarked(addr("B1")) || !strings.HasPrefix(l, "Copied A1:B1") || !strings.Contains(l, "Ctrl+V") {
-		t.Fatalf("marker %v, line %q", m.copyMarked(addr("B1")), line(m, 2))
+	if l := line(m, 2); !m.copied.marks(m.sheet, addr("B1")) || !strings.HasPrefix(l, "Copied A1:B1") || !strings.Contains(l, "Ctrl+V") {
+		t.Fatalf("marker %v, line %q", m.copied.marks(m.sheet, addr("B1")), line(m, 2))
 	}
 	press(t, m, "<down>", "<ctrl+v>")
 	if input(m, "B2") != "=A2*2" || m.sheet.Value(addr("B2")).Num != 2 || m.selection().String() != "A2:B2" {
@@ -171,8 +171,8 @@ func TestPasteTSVFromTerminal(t *testing.T) {
 	}
 	// A single line still starts an entry.
 	send(m, tea.PasteMsg{Content: "hello\n"})
-	if m.mode != modeEnter || string(m.buf) != "hello" {
-		t.Errorf("mode %v buf %q", m.mode, string(m.buf))
+	if m.mode != modeEnter || m.line.text() != "hello" {
+		t.Errorf("mode %v buf %q", m.mode, m.line.text())
 	}
 }
 
@@ -254,41 +254,14 @@ func TestF4CyclesReferences(t *testing.T) {
 	press(t, m, "=A1+B2")
 	for _, want := range []string{"=A1+$B$2", "=A1+B$2", "=A1+$B2", "=A1+B2"} {
 		press(t, m, "<f4>")
-		if string(m.buf) != want {
-			t.Errorf("F4 gave %q, want %q", string(m.buf), want)
+		if m.line.text() != want {
+			t.Errorf("F4 gave %q, want %q", m.line.text(), want)
 		}
 	}
 	// F4 while pointing puts the reference in first.
 	press(t, m, "*", "<up>", "<f4>")
-	if string(m.buf) != "=A1+B2*$A$1" || m.mode != modeEnter {
-		t.Errorf("F4 in POINT: %q mode %v", string(m.buf), m.mode)
-	}
-}
-
-func TestCycleRef(t *testing.T) {
-	tests := []struct {
-		in    string
-		caret int
-		want  string
-		ok    bool
-	}{
-		{"=a1", 3, "=$A$1", true},
-		{"=A1+1", 1, "=$A$1+1", true},
-		{"=SUM(A1:B2)", 10, "=SUM($A$1:$B$2)", true},
-		{"=SUM(A1:B2)", 7, "=SUM($A$1:$B$2)", true},
-		{"=SUM($A$1..B2)", 12, "=SUM(A$1..B$2)", true},
-		{`="A1"`, 3, "", false},
-		{"=LOG10(2)", 6, "", false},
-		{"=1+2", 2, "", false},
-	}
-	for _, tt := range tests {
-		out, pos, ok := cycleRef([]rune(tt.in), tt.caret)
-		if ok != tt.ok || string(out) != tt.want {
-			t.Errorf("cycleRef(%q, %d) = %q, %v; want %q", tt.in, tt.caret, string(out), ok, tt.want)
-		}
-		if ok && pos > len(out) {
-			t.Errorf("caret %d past end of %q", pos, string(out))
-		}
+	if m.line.text() != "=A1+B2*$A$1" || m.mode != modeEnter {
+		t.Errorf("F4 in POINT: %q mode %v", m.line.text(), m.mode)
 	}
 }
 

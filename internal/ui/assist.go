@@ -4,12 +4,13 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/formula"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // Formula assistance, as in Sheets: while a function or range name is
@@ -20,7 +21,9 @@ import (
 // (Up/Down, Tab, Enter, Esc) and only while it shows, so arrows after an
 // operator still point at cells.
 
-// assist is the state of the suggestion list.
+// assist is the suggestion list: its state, and the keys, mouse, box
+// and status line it takes over while it shows. Like an overlay, it is
+// handed the model, for the entry and the sheet's names.
 type assist struct {
 	active   bool // the last key typed or deleted text; moving the caret hides the list
 	sel, top int  // highlighted suggestion and first one shown; reset as the word changes
@@ -40,90 +43,12 @@ type suggestion struct {
 	fn     bool // a function: accepting it adds "("
 }
 
-// caret describes the formula text before the caret: the word being
-// typed, if it may be a function or name, and the innermost function call
-// the caret is in.
-type caret struct {
-	word      string
-	wordStart int
-	fn        string // e.g. "SUM", or "" outside any function's parentheses
-	arg       int    // index of the argument the caret is in
-}
-
-func isWordRune(r rune) bool {
-	return r < unicode.MaxASCII && (unicode.IsLetter(r) || unicode.IsDigit(r)) || r == '_' || r == '.' || r == '$' || r == '@'
-}
-
-// scanCaret reads a formula up to pos the way the lexer does: strings are
-// skipped, parentheses nest, and commas or semicolons at the innermost
-// level separate arguments.
-func scanCaret(buf []rune, pos int) caret {
-	type frame struct {
-		fn  string
-		arg int
-	}
-	var stack []frame
-	var c caret
-	inStr := false
-	start := -1                // start of the word being read
-	prev := ""                 // the word just before a space or "(" (SUM ( is allowed)
-	for i := 1; i < pos; i++ { // buf[0] is "=", "+" or "-"
-		r := buf[i]
-		if inStr {
-			inStr = r != '"'
-			continue
-		}
-		if isWordRune(r) {
-			if start < 0 {
-				start = i
-			}
-			continue
-		}
-		if start >= 0 {
-			prev, start = string(buf[start:i]), -1
-		}
-		switch r {
-		case ' ':
-			continue // keep prev for "SUM ("
-		case '"':
-			inStr = true
-		case '(':
-			stack = append(stack, frame{fn: strings.ToUpper(strings.TrimPrefix(prev, "@"))})
-		case ')':
-			if len(stack) > 0 {
-				stack = stack[:len(stack)-1]
-			}
-		case ',', ';':
-			if len(stack) > 0 {
-				stack[len(stack)-1].arg++
-			}
-		}
-		prev = ""
-	}
-	if inStr {
-		return caret{}
-	}
-	for i := len(stack) - 1; i >= 0; i-- {
-		if stack[i].fn != "" {
-			c.fn, c.arg = stack[i].fn, stack[i].arg
-			break
-		}
-	}
-	if start >= 0 && (pos == len(buf) || !isWordRune(buf[pos])) {
-		w := []rune(strings.TrimPrefix(string(buf[start:pos]), "@"))
-		if len(w) > 0 && (unicode.IsLetter(w[0]) || w[0] == '_') {
-			c.word, c.wordStart = string(w), pos-len(w)
-		}
-	}
-	return c
-}
-
 // suggestions lists the functions and named ranges for word: those
 // starting with it first (names before functions), then, from two
 // letters on, those containing it, such as COUNTIFS for "ifs". A word
 // that is already a cell reference only gets names and functions that
 // start with it.
-func (m *Model) suggestions(word string) []suggestion {
+func suggestions(sh *sheet.Sheet, word string) []suggestion {
 	w := strings.ToUpper(word)
 	var prefix, inner []suggestion
 	add := func(s suggestion, name string) {
@@ -134,7 +59,7 @@ func (m *Model) suggestions(word string) []suggestion {
 			inner = append(inner, s)
 		}
 	}
-	for _, n := range m.sheet.Names() {
+	for _, n := range sh.Names() {
 		add(suggestion{name: n.Name, detail: n.Ref(), desc: "Named range " + n.Name + ": " + n.Ref()}, strings.ToUpper(n.Name))
 	}
 	for _, f := range sheet.Funcs() {
@@ -146,60 +71,60 @@ func (m *Model) suggestions(word string) []suggestion {
 	return append(prefix, inner...)
 }
 
-// shownSuggestions returns the list for the word at the caret, and where
+// shown returns the list for the word at the caret, and where
 // the word starts, or nothing when the list is hidden: outside ENTER and
 // EDIT, in plain text, after the caret moved, or when the word already
 // names a range exactly and nothing else matches.
-func (m *Model) shownSuggestions() ([]suggestion, int) {
-	if (m.mode != modeEnter && m.mode != modeEdit) || !m.isFormula() || !m.assist.active || m.overlay != nil {
+func (a *assist) shown(m *Model) ([]suggestion, int) {
+	if (m.mode != modeEnter && m.mode != modeEdit) || !m.line.isFormula() || !a.active || m.overlay != nil {
 		return nil, 0
 	}
-	c := scanCaret(m.buf, m.bufPos)
-	if c.word == "" {
+	c := formula.ScanCaret(m.line.buf, m.line.pos)
+	if c.Word == "" {
 		return nil, 0
 	}
-	list := m.suggestions(c.word)
-	if len(list) == 0 || len(list) == 1 && !list[0].fn && strings.EqualFold(list[0].name, c.word) {
+	list := suggestions(m.sheet, c.Word)
+	if len(list) == 0 || len(list) == 1 && !list[0].fn && strings.EqualFold(list[0].name, c.Word) {
 		return nil, 0
 	}
-	m.assist.sel = min(m.assist.sel, len(list)-1)
-	return list, c.wordStart
+	a.sel = min(a.sel, len(list)-1)
+	return list, c.WordStart
 }
 
 // typeKey applies a line-editing key to the entry. Typing or deleting
 // shows suggestions; moving the caret hides them, as in Sheets.
 func (m *Model) typeKey(k tea.KeyPressMsg) {
-	before := string(m.buf)
-	m.lineKey(k)
-	m.assist = assist{active: string(m.buf) != before}
+	before := m.line.text()
+	m.line.key(k)
+	m.entry.assist = assist{active: m.line.text() != before}
 }
 
-// assistKey handles the keys the suggestion list takes while it shows.
-func (m *Model) assistKey(key string) bool {
-	list, start := m.shownSuggestions()
+// key handles the keys the suggestion list takes while it shows.
+func (a *assist) key(m *Model, key string) bool {
+	list, start := a.shown(m)
 	if list == nil {
 		return false
 	}
 	switch key {
 	case "up", "ctrl+p":
-		m.assist.sel = (m.assist.sel - 1 + len(list)) % len(list)
+		a.sel = (a.sel - 1 + len(list)) % len(list)
 	case "down", "ctrl+n":
-		m.assist.sel = (m.assist.sel + 1) % len(list)
+		a.sel = (a.sel + 1) % len(list)
 	case "tab", "enter":
-		m.acceptSuggestion(list[m.assist.sel], start)
+		a.accept(m, list[a.sel], start)
 	case "esc":
-		m.assist.active = false
+		a.active = false
 	default:
 		return false
 	}
 	return true
 }
 
-// acceptSuggestion replaces the word at the caret with s, adding "(" after
+// accept replaces the word at the caret with s, adding "(" after
 // a function unless one is already there.
-func (m *Model) acceptSuggestion(s suggestion, start int) {
+func (a *assist) accept(m *Model, s suggestion, start int) {
 	text := []rune(s.name)
-	rest := m.buf[m.bufPos:]
+	rest := m.line.buf[m.line.pos:]
 	if s.fn && (len(rest) == 0 || rest[0] != '(') {
 		text = append(text, '(')
 	}
@@ -207,15 +132,15 @@ func (m *Model) acceptSuggestion(s suggestion, start int) {
 	if s.fn && len(rest) > 0 && rest[0] == '(' {
 		pos++ // into the existing parentheses
 	}
-	m.buf = slices.Concat(m.buf[:start], text, rest)
-	m.bufPos = pos
-	m.assist.active = false
+	m.line.buf = slices.Concat(m.line.buf[:start], text, rest)
+	m.line.pos = pos
+	a.active = false
 }
 
-// assistBox draws the list under the formula bar, its text aligned with
+// box draws the list under the formula bar, its text aligned with
 // the word being typed: the name, then the signature or range dimmed.
-func (m *Model) assistBox() (box, bool) {
-	list, start := m.shownSuggestions()
+func (a *assist) box(m *Model) (box, bool) {
+	list, start := a.shown(m)
 	if list == nil {
 		return box{}, false
 	}
@@ -223,7 +148,6 @@ func (m *Model) assistBox() (box, bool) {
 	if rows < 1 {
 		return box{}, false
 	}
-	a := &m.assist
 	a.top = clamp(a.top, a.sel-rows+1, a.sel)
 	a.top = clamp(a.top, 0, len(list)-rows)
 	nw, dw := 0, 0
@@ -235,15 +159,15 @@ func (m *Model) assistBox() (box, bool) {
 	lines := make([]string, 0, rows)
 	for i := a.top; i < a.top+rows; i++ {
 		s := list[i]
-		base, dim := m.th.menuBar, m.th.muted
+		base, dim := m.th.MenuBar, m.th.Muted
 		if i == a.sel {
-			base, dim = m.th.menuSelected, m.th.menuSelected
+			base, dim = m.th.MenuSelected, m.th.MenuSelected
 		}
 		detail := s.detail
 		if s.fn {
 			detail = s.detail[len(s.name):] // just the arguments: (value1, ...)
 		}
-		row := base.Render(" "+padRight(s.name, nw)+"   ") + dim.Render(detail)
+		row := base.Render(" "+theme.PadRight(s.name, nw)+"   ") + dim.Render(detail)
 		lines = append(lines, ansi.Truncate(row, inner, "…")+base.Render(strings.Repeat(" ", max(inner-ansi.StringWidth(row), 0))))
 	}
 	footer := ""
@@ -251,15 +175,15 @@ func (m *Model) assistBox() (box, bool) {
 		footer = strconv.Itoa(a.sel+1) + " of " + strconv.Itoa(len(list))
 	}
 	// The box's text starts one column in, under the word's first letter.
-	x := formulaBarTextX() + ansi.StringWidth(string(m.buf[:start])) - 2
+	x := formulaBarTextX() + ansi.StringWidth(string(m.line.buf[:start])) - 2
 	x = clamp(x, 0, max(m.width-inner-2, 0))
-	return box{id: assistID, x: x, y: contextLine + 1, lines: m.frame(inner, "", footer, lines)}, true
+	return box{id: assistID, x: x, y: contextLine + 1, lines: m.th.Frame(inner, "", footer, lines)}, true
 }
 
-// assistMouse lets the mouse hover and click suggestions and scroll the
+// mouse lets the mouse hover and click suggestions and scroll the
 // list. It reports false for events outside the list.
-func (m *Model) assistMouse(msg tea.MouseMsg) bool {
-	b, ok := m.assistBox()
+func (a *assist) mouse(m *Model, msg tea.MouseMsg) bool {
+	b, ok := a.box(m)
 	if !ok {
 		return false
 	}
@@ -268,55 +192,55 @@ func (m *Model) assistMouse(msg tea.MouseMsg) bool {
 	if h.Empty() {
 		return false
 	}
-	list, start := m.shownSuggestions()
-	i := m.assist.top + mouse.Y - b.y - 1
+	list, start := a.shown(m)
+	i := a.top + mouse.Y - b.y - 1
 	switch msg.(type) {
 	case tea.MouseWheelMsg:
 		d := 1
 		if mouse.Button == tea.MouseWheelUp {
 			d = -1
 		}
-		m.assist.sel = clamp(m.assist.sel+d, 0, len(list)-1)
+		a.sel = clamp(a.sel+d, 0, len(list)-1)
 	case tea.MouseMotionMsg:
-		if i >= m.assist.top && i < min(len(list), m.assist.top+b.height()-2) {
-			m.assist.sel = i
+		if i >= a.top && i < min(len(list), a.top+b.height()-2) {
+			a.sel = i
 		}
 	case tea.MouseClickMsg:
-		if mouse.Button == tea.MouseLeft && i >= m.assist.top && i < min(len(list), m.assist.top+b.height()-2) {
-			m.acceptSuggestion(list[i], start)
+		if mouse.Button == tea.MouseLeft && i >= a.top && i < min(len(list), a.top+b.height()-2) {
+			a.accept(m, list[i], start)
 		}
 	}
 	return true
 }
 
-// assistStatus is the status line while the list shows: what the
+// status is the status line while the list shows: what the
 // highlighted suggestion is, and the keys that apply.
-func (m *Model) assistStatus() (desc, keys string, ok bool) {
-	list, _ := m.shownSuggestions()
+func (a *assist) status(m *Model) (desc, keys string, ok bool) {
+	list, _ := a.shown(m)
 	if list == nil {
 		return "", "", false
 	}
-	return list[m.assist.sel].desc, m.keyHints("Up/Down", "move", "Tab", "insert", "Esc", "hide"), true
+	return list[a.sel].desc, m.th.KeyHints("Up/Down", "move", "Tab", "insert", "Esc", "hide"), true
 }
 
 // inFunction reports whether the caret is inside a known function's
 // parentheses.
-func (m *Model) inFunction() bool {
-	_, ok := sheet.LookupFunc(scanCaret(m.buf, m.bufPos).fn)
+func (l *lineEdit) inFunction() bool {
+	_, ok := sheet.LookupFunc(formula.ScanCaret(l.buf, l.pos).Fn)
 	return ok
 }
 
 // signatureLine puts the signature of the function around the caret on
 // the context line, with what the function does and the keys that apply
 // (hints) as room allows. It reports false outside a function.
-func (m *Model) signatureLine(buf []rune, pos int, hints string) (left, right string, ok bool) {
-	sig, desc := m.signature(buf, pos)
+func signatureLine(th *theme.Theme, width int, buf []rune, pos int, hints string) (left, right string, ok bool) {
+	sig, desc := signature(th, buf, pos)
 	if sig == "" {
 		return "", "", false
 	}
-	full := sig + "   " + m.th.muted.Render(desc)
+	full := sig + "   " + th.Muted.Render(desc)
 	for _, try := range [][2]string{{full, hints}, {sig, hints}, {full, ""}} {
-		if ansi.StringWidth(try[0])+3+ansi.StringWidth(try[1]) <= m.width {
+		if ansi.StringWidth(try[0])+3+ansi.StringWidth(try[1]) <= width {
 			return try[0], try[1], true
 		}
 	}
@@ -326,64 +250,26 @@ func (m *Model) signatureLine(buf []rune, pos int, hints string) (left, right st
 // signature renders the signature of the function around the caret, e.g.
 // SUM(value1, [value2, ...]), with the current argument marked, and what
 // the function does. It is "" outside a function.
-func (m *Model) signature(buf []rune, pos int) (sig, desc string) {
-	c := scanCaret(buf, pos)
-	f, ok := sheet.LookupFunc(c.fn)
-	if c.fn == "" || !ok {
+func signature(th *theme.Theme, buf []rune, pos int) (sig, desc string) {
+	c := formula.ScanCaret(buf, pos)
+	f, ok := sheet.LookupFunc(c.Fn)
+	if c.Fn == "" || !ok {
 		return "", ""
 	}
-	parts := splitArgs(f.Args)
-	cur := argPart(parts, c.arg, f.Max < 0)
+	parts := formula.SplitArgs(f.Args)
+	cur := formula.ArgPart(parts, c.Arg, f.Max < 0)
 	var b strings.Builder
-	b.WriteString(m.th.key.Render(f.Name) + "(")
+	b.WriteString(th.Key.Render(f.Name) + "(")
 	for i, p := range parts {
 		if i > 0 {
 			b.WriteString(", ")
 		}
 		if i == cur {
-			b.WriteString(m.th.argument.Render(p))
+			b.WriteString(th.Argument.Render(p))
 		} else {
 			b.WriteString(p)
 		}
 	}
 	b.WriteString(")")
 	return b.String(), f.Desc
-}
-
-// splitArgs splits a signature's arguments at the top-level commas, so
-// "[value2, ...]" stays one part.
-func splitArgs(args string) []string {
-	var out []string
-	depth, start := 0, 0
-	for i, r := range args {
-		switch r {
-		case '[':
-			depth++
-		case ']':
-			depth--
-		case ',':
-			if depth == 0 {
-				out = append(out, strings.TrimSpace(args[start:i]))
-				start = i + 1
-			}
-		}
-	}
-	if s := strings.TrimSpace(args[start:]); s != "" {
-		out = append(out, s)
-	}
-	return out
-}
-
-// argPart maps an argument index to the part of the signature that
-// describes it: a repeating part like "[value2, ...]" covers every
-// argument from its position on. It returns -1 past the last argument.
-func argPart(parts []string, arg int, variadic bool) int {
-	rep := slices.IndexFunc(parts, func(p string) bool { return strings.Contains(p, "...") })
-	switch {
-	case rep >= 0 && variadic && arg >= rep:
-		return rep
-	case arg < len(parts):
-		return arg
-	}
-	return -1
 }

@@ -202,8 +202,8 @@ func TestPointMode(t *testing.T) {
 func TestInvalidFormulaStaysInEdit(t *testing.T) {
 	m := newModel()
 	press(t, m, "=B1+", "<enter>")
-	if m.mode != modeEdit || m.hint != "Formula is incomplete" || m.sheet.Cell(addr("A1")) != nil {
-		t.Fatalf("mode %v hint %q", m.mode, m.hint)
+	if m.mode != modeEdit || m.entry.hint != "Formula is incomplete" || m.sheet.Cell(addr("A1")) != nil {
+		t.Fatalf("mode %v hint %q", m.mode, m.entry.hint)
 	}
 	press(t, m, "1", "<enter>")
 	if m.mode != modeReady || m.sheet.Value(addr("A1")).Num != 1 || m.cur != addr("A2") {
@@ -219,8 +219,8 @@ func TestEditExisting(t *testing.T) {
 		t.Errorf("input %q, want =243", got)
 	}
 	press(t, m, "<up>", "<enter>")
-	if m.mode != modeEdit || string(m.buf) != "=243" {
-		t.Errorf("Enter should edit: mode %v buf %q", m.mode, string(m.buf))
+	if m.mode != modeEdit || m.line.text() != "=243" {
+		t.Errorf("Enter should edit: mode %v buf %q", m.mode, m.line.text())
 	}
 }
 
@@ -321,11 +321,11 @@ func TestDoubleClickEdits(t *testing.T) {
 	press(t, m, "hi", "<enter>")
 	click(m, cellX(0), gridTop, 0)
 	click(m, cellX(0), gridTop, 0)
-	if m.mode != modeEdit || string(m.buf) != "hi" {
-		t.Errorf("mode %v buf %q", m.mode, string(m.buf))
+	if m.mode != modeEdit || m.line.text() != "hi" {
+		t.Errorf("mode %v buf %q", m.mode, m.line.text())
 	}
 	press(t, m, "<esc>")
-	m.lastClick = time.Time{}
+	m.mouse.lastClick = time.Time{}
 	click(m, cellX(0), gridTop, 0)
 	if m.mode != modeReady {
 		t.Error("a single click edited")

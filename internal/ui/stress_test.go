@@ -264,7 +264,7 @@ func BenchmarkJEV(b *testing.B) {
 				m := sized(s, 200, 60)
 				m.EnableJEV(stressJEV{}, cache)
 				start := time.Now()
-				drain(m, m.sendJEV())
+				drain(m, m.jev.send())
 				if in, q := cache.Busy(); in+q > 0 {
 					b.Fatalf("%d in flight, %d queued", in, q)
 				}

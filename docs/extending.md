@@ -116,4 +116,10 @@ Where the code doesn't follow the patterns yet:
   (pattern 6).
 - Aggregates read ranges cell by cell through `lookup` (pattern 7).
 - Undo history is capped by step count, not bytes (pattern 8).
-- `Model` holds many components' fields directly (pattern 2).
+- Components in `internal/ui` are handed the whole `*Model` rather than a
+  narrower interface, so they stay in package `ui` (pattern 2).
+- Movement keys, typing, F4 in formulas, Alt+letter menus and direct mouse
+  manipulation (resizing columns, the fill handle, dragging charts and tabs,
+  filter buttons) act without a registered command. Making them commands
+  would add palette and help entries, so they wait for the command log
+  (pattern 3).

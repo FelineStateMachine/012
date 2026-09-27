@@ -10,6 +10,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // command is a user-facing action. Every action is registered once here
@@ -100,12 +101,14 @@ func keyRank(k string) int {
 // e.g. "Ctrl+S", or "" if it has none.
 func shortcut(id string) string {
 	if keys := keysFor(id); len(keys) > 0 {
-		return keyLabel(keys[0])
+		return theme.KeyLabel(keys[0])
 	}
 	return ""
 }
 
-// runCommand runs a registered command by ID.
+// runCommand runs a registered command by ID. It is the one place a
+// command runs, whatever reached it (a key, a menu, the palette, a click
+// on a tab or a chart), so a command log or macro recorder attaches here.
 func (m *Model) runCommand(id string) tea.Cmd {
 	c, ok := commands[id]
 	if !ok {
@@ -132,7 +135,7 @@ func init() {
 		}},
 		&command{id: "select.none", title: "Deselect", desc: "Collapse the selection and clear the copy marker", run: func(m *Model) tea.Cmd {
 			m.clearSelection()
-			m.clearCopyMark()
+			m.copied.clearMark()
 			return nil
 		}},
 		&command{id: "select.all", title: "Select all", desc: "Select the data, then the whole sheet", run: (*Model).selectAll},
@@ -156,15 +159,4 @@ func init() {
 		&command{id: "file.open", title: "Open", desc: "Open a sheet, replacing this one", run: (*Model).openRetrieve},
 		&command{id: "quit", title: "Quit", desc: "Close 012", run: (*Model).quit},
 	)
-}
-
-// save writes to the current file, asking for a name the first time.
-func (m *Model) save() tea.Cmd {
-	if m.filename == "" && m.xfer.source != "" {
-		return m.saveImported()
-	}
-	if m.filename == "" {
-		return m.openSave()
-	}
-	return saveCmd(m.sheet, m.filename)
 }

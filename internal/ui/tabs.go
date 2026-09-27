@@ -1,11 +1,7 @@
 package ui
 
 import (
-	"strconv"
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
@@ -14,25 +10,12 @@ import (
 // and Alt+Left, for terminals that keep Ctrl+PgUp/PgDn for their own
 // tabs) move between sheets, Shift+F11 adds one, and each sheet remembers
 // its cursor and scroll position. The tabs sit at the left of the status
-// line, the way tmux lists windows: the sheet shown is highlighted, a +
-// adds a sheet, and when they don't all fit, ‹ and › step through them.
-// Clicking a tab shows it, double-clicking renames it, right-clicking
-// opens its menu, and dragging it moves it.
+// line (tabstrip.go).
 //
 // While a formula is being typed, switching sheets points into the other
 // sheet, as clicking a tab does in Sheets: the entry stays with its cell
-// (m.home), and the pointer inserts references such as Sheet2!A1. Enter
-// stores the formula and returns to its sheet.
-
-// place is where a sheet's cursor and scroll position were when it was
-// last shown.
-type place struct {
-	cur       sheet.Addr
-	top, left int
-}
-
-// maxTabName is how much of a long sheet name a tab shows.
-const maxTabName = 20
+// (entry.home), and the pointer inserts references such as Sheet2!A1.
+// Enter stores the formula and returns to its sheet.
 
 func init() {
 	register(
@@ -91,16 +74,14 @@ var tabMenu = []menuItem{
 	{cmd: "sheet.new"}, {cmd: "sheet.goto"},
 }
 
-func (m *Model) book() *sheet.Workbook { return m.sheet.Book() }
-
 // sheetAt returns the sheet d tabs from the one shown, or nil past the
 // ends: moving between sheets doesn't wrap around, as in Sheets.
-func (m *Model) sheetAt(d int) *sheet.Sheet {
-	i := m.book().Index(m.sheet) + d
-	if i < 0 || i >= m.book().Len() {
+func (g *grid) sheetAt(d int) *sheet.Sheet {
+	i := g.book().Index(g.sheet) + d
+	if i < 0 || i >= g.book().Len() {
 		return nil
 	}
-	return m.book().Sheet(i)
+	return g.book().Sheet(i)
 }
 
 func (m *Model) stepSheet(d int) tea.Cmd {
@@ -135,33 +116,33 @@ func (m *Model) showSheet(s *sheet.Sheet) {
 	}
 	m.leave()
 	m.sheet = s
-	p := m.places[s]
+	p := m.tabs.places[s]
 	m.cur, m.top, m.left = p.cur, p.top, p.left
 	m.clearSelection()
-	m.lastChart = -1
+	m.charts.last = -1
 	m.book().SetActive(s)
 }
 
 // leave remembers where the sheet shown is, before another is shown.
 func (m *Model) leave() {
-	if m.places == nil {
-		m.places = map[*sheet.Sheet]place{}
+	if m.tabs.places == nil {
+		m.tabs.places = map[*sheet.Sheet]place{}
 	}
 	cur := m.cur
 	if m.away() {
 		cur = m.point.at // the entry's cell is on another sheet
 	}
-	m.places[m.sheet] = place{cur: cur, top: m.top, left: m.left}
+	m.tabs.places[m.sheet] = place{cur: cur, top: m.top, left: m.left}
 }
 
 // away reports whether an entry is being typed for a cell on another
 // sheet than the one shown.
-func (m *Model) away() bool { return m.home != nil && m.home != m.sheet }
+func (m *Model) away() bool { return m.entry.home != nil && m.entry.home != m.sheet }
 
 // entrySheet is the sheet the entry being typed goes to.
 func (m *Model) entrySheet() *sheet.Sheet {
-	if m.home != nil {
-		return m.home
+	if m.entry.home != nil {
+		return m.entry.home
 	}
 	return m.sheet
 }
@@ -175,24 +156,24 @@ func (m *Model) pointInto(s *sheet.Sheet) {
 		return
 	}
 	if m.mode != modePoint {
-		if !m.isFormula() || !m.canPoint() {
+		if !m.line.isFormula() || !m.line.canPoint() {
 			if m.commit() {
 				m.showSheet(s)
 			}
 			return
 		}
-		m.pointPrefix = string(m.buf[:m.bufPos])
-		m.pointSuffix = string(m.buf[m.bufPos:])
+		m.entry.prefix = m.line.head()
+		m.entry.suffix = m.line.tail()
 		m.mode = modePoint
 	}
-	if m.home == nil {
-		m.home = m.sheet
+	if m.entry.home == nil {
+		m.entry.home = m.sheet
 	}
 	cur := m.cur
 	m.leave()
 	m.sheet = s
-	p := m.places[s]
-	if s == m.home {
+	p := m.tabs.places[s]
+	if s == m.entry.home {
 		p.cur = cur // back home, pointing starts at the entry's cell
 	}
 	m.top, m.left = p.top, p.left
@@ -204,15 +185,15 @@ func (m *Model) pointInto(s *sheet.Sheet) {
 // returnHome shows the entry's sheet again once the entry is stored or
 // cancelled.
 func (m *Model) returnHome() {
-	home := m.home
-	m.home = nil
+	home := m.entry.home
+	m.entry.home = nil
 	if home == nil || home == m.sheet || !home.Live() {
 		return
 	}
 	cur := m.cur
-	m.places[m.sheet] = place{cur: m.point.at, top: m.top, left: m.left}
+	m.tabs.places[m.sheet] = place{cur: m.point.at, top: m.top, left: m.left}
 	m.sheet = home
-	p := m.places[home]
+	p := m.tabs.places[home]
 	m.cur, m.top, m.left = cur, p.top, p.left
 	m.book().SetActive(home)
 }
@@ -236,10 +217,10 @@ func (m *Model) afterSheetsChange(prefer *sheet.Sheet, index int) {
 	case !m.sheet.Live():
 		s := book.Sheet(clamp(index, 0, book.Len()-1))
 		m.sheet = s // the old sheet is gone: nothing to remember of it
-		p := m.places[s]
+		p := m.tabs.places[s]
 		m.cur, m.top, m.left = p.cur, p.top, p.left
 		m.clearSelection()
-		m.lastChart = -1
+		m.charts.last = -1
 		book.SetActive(s)
 	}
 }
@@ -317,208 +298,13 @@ func (m *Model) openSheetPicker() {
 	m.openOverlay(p)
 }
 
-// sheetKey handles the keys that switch sheets while an entry is typed.
+// sheetKey runs the commands that switch sheets while an entry is typed,
+// which point into the other sheet (see switchTo).
 func (m *Model) sheetKey(key string) bool {
-	switch keymap[key] {
-	case "sheet.next":
-		if s := m.sheetAt(1); s != nil {
-			m.pointInto(s)
-		}
-	case "sheet.prev":
-		if s := m.sheetAt(-1); s != nil {
-			m.pointInto(s)
-		}
-	default:
-		return false
+	switch id := keymap[key]; id {
+	case "sheet.next", "sheet.prev":
+		m.runCommand(id)
+		return true
 	}
-	return true
-}
-
-// tabSpan is a clickable part of the tab strip on the status line.
-type tabSpan struct {
-	kind  hitKind // hitTab, hitTabAdd, hitTabPrev or hitTabNext
-	index int     // the sheet, for hitTab
-	x, w  int
-}
-
-// tabLabel is a sheet's name as its tab shows it.
-func tabLabel(s *sheet.Sheet) string {
-	return " " + ansi.Truncate(s.Name(), maxTabName, "…") + " "
-}
-
-// minTabs is the narrowest the tab strip gets: the shown sheet's tab,
-// the arrows and the +.
-func (m *Model) minTabs() int {
-	w := ansi.StringWidth(tabLabel(m.sheet)) + 4
-	if m.book().Len() > 1 {
-		w += 4
-	}
-	return w
-}
-
-// allTabs is how wide the tab strip is with every tab showing.
-func (m *Model) allTabs() int {
-	w := 3 // the +
-	for _, s := range m.book().Sheets() {
-		w += ansi.StringWidth(tabLabel(s)) + 1
-	}
-	return w
-}
-
-// tabStrip lays out the tabs in room columns from the left of the status
-// line: as many as fit, always the shown one, the first shown staying put
-// until the shown one would fall off (m.tabLeft), ‹ and › where tabs are
-// hidden, then the +.
-func (m *Model) tabStrip(room int) (string, []tabSpan) {
-	sheets := m.book().Sheets()
-	active := m.book().Index(m.sheet)
-	widths := make([]int, len(sheets))
-	for i, s := range sheets {
-		widths[i] = ansi.StringWidth(tabLabel(s))
-	}
-	const add, arrow = 3, 2 // " + ", and "‹" or "›" with the space after it
-	fits := func(first int) (last int, ok bool) {
-		w := add
-		if first > 0 {
-			w += arrow
-		}
-		last = first - 1
-		for i := first; i < len(sheets); i++ {
-			more := 0
-			if i < len(sheets)-1 {
-				more = arrow
-			}
-			if w+widths[i]+1+more > room {
-				break
-			}
-			w += widths[i] + 1
-			last = i
-		}
-		return last, last >= active
-	}
-	first := clamp(m.tabLeft, 0, active)
-	last, ok := fits(first)
-	for !ok && first < active {
-		first++
-		last, ok = fits(first)
-	}
-	// Show tabs to the left again when there's room, e.g. once the
-	// screen is wider.
-	for first > 0 {
-		l, ok := fits(first - 1)
-		if !ok || l < last {
-			break
-		}
-		first, last = first-1, l
-	}
-	m.tabLeft = first
-	if last < active {
-		last = active // a name too long for the room is cut below
-	}
-
-	var b strings.Builder
-	var spans []tabSpan
-	x := 0
-	part := func(kind hitKind, index int, text string) {
-		spans = append(spans, tabSpan{kind: kind, index: index, x: x, w: ansi.StringWidth(text)})
-		b.WriteString(text + " ")
-		x += ansi.StringWidth(text) + 1
-	}
-	if first > 0 {
-		part(hitTabPrev, 0, m.th.muted.Render("‹"))
-	}
-	for i := first; i <= last; i++ {
-		style := m.th.tab
-		switch {
-		case i == active:
-			style = m.th.tabActive
-		case m.hover.kind == hitTab && m.hover.addr.Col == i && (m.drag == dragNone || m.drag == dragTab):
-			style = m.th.tabHover
-		}
-		label := tabLabel(sheets[i])
-		if i == active && x+ansi.StringWidth(label)+add > room {
-			label = ansi.Truncate(label, max(room-x-add, 3), "…")
-		}
-		part(hitTab, i, style.Render(label))
-	}
-	if last < len(sheets)-1 {
-		part(hitTabNext, 0, m.th.muted.Render("›"))
-	}
-	addStyle := m.th.muted
-	if m.hover.kind == hitTabAdd {
-		addStyle = m.th.tabHover
-	}
-	part(hitTabAdd, 0, addStyle.Render(" + "))
-	return strings.TrimSuffix(b.String(), " "), spans
-}
-
-// tabAt returns the part of the tab strip at x on the status line.
-func (m *Model) tabAt(x int) (tabSpan, bool) {
-	_, spans := m.statusLayout()
-	for _, sp := range spans {
-		if x >= sp.x && x < sp.x+sp.w {
-			return sp, true
-		}
-	}
-	return tabSpan{}, false
-}
-
-// tabPress handles a click on the tab strip: show the tab (renaming it on
-// a double click, or starting to drag it), add a sheet, or step through
-// tabs with the arrows.
-func (m *Model) tabPress(h hit, double bool) tea.Cmd {
-	switch h.kind {
-	case hitTabPrev:
-		m.stepEntrySheet(-1)
-	case hitTabNext:
-		m.stepEntrySheet(1)
-	case hitTabAdd:
-		if m.mode == modePoint {
-			m.resumeEntry(m.pointRef())
-		}
-		if m.editing() && !m.commit() {
-			return nil
-		}
-		return m.runCommand("sheet.new")
-	case hitTab:
-		s := m.book().Sheet(h.addr.Col)
-		if m.editing() {
-			m.pointInto(s)
-			return nil
-		}
-		m.showSheet(s)
-		if double {
-			m.openRename()
-			return nil
-		}
-		m.drag = dragTab
-	}
-	return nil
-}
-
-func (m *Model) stepEntrySheet(d int) {
-	if s := m.sheetAt(d); s != nil {
-		m.switchTo(s)
-	}
-}
-
-// dropTab moves the dragged sheet to the tab it was released over.
-func (m *Model) dropTab() {
-	if m.hover.kind == hitTab && m.hover.addr.Col != m.book().Index(m.sheet) {
-		to := m.hover.addr.Col
-		m.book().MoveSheet(m.sheet, to)
-		m.note = "Moved " + m.sheet.Name() + " to position " + strconv.Itoa(to+1)
-	}
-}
-
-// tabRightClick shows the tab's sheet and opens its menu.
-func (m *Model) tabRightClick(h hit, x, y int) {
-	if h.kind != hitTab {
-		if h.kind == hitTabAdd {
-			m.showContextMenu([]menuItem{{cmd: "sheet.new"}, {cmd: "sheet.goto"}}, x, y)
-		}
-		return
-	}
-	m.showSheet(m.book().Sheet(h.addr.Col))
-	m.showContextMenu(tabMenu, x, y)
+	return false
 }

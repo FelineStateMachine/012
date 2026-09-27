@@ -13,6 +13,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // The control panel is three lines: the menu bar with the mode indicator,
@@ -47,11 +48,11 @@ func (m *Model) View() tea.View {
 	v.MouseMode = tea.MouseModeAllMotion // hover feedback; see mouse.go
 	v.ReportFocus = true                 // notifications only when the window is in the background
 	v.WindowTitle = "012 - " + m.displayName()
-	if m.jevBusy() != "" {
+	if m.jev.busy() != "" {
 		// Terminals that support it (OSC 9;4) show activity in the tab.
 		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarIndeterminate, 0)
 	}
-	if bar := m.progressBar(); bar != nil {
+	if bar := m.xfer.progressBar(); bar != nil {
 		v.ProgressBar = bar
 	}
 	if m.changed {
@@ -100,7 +101,7 @@ func (m *Model) indicator() string {
 // menuBarLine is the menu bar with the mode indicator on the right.
 func (m *Model) menuBarLine() string {
 	left := m.menuBarTitles()
-	ind := m.th.indicator.Render(" " + m.indicator() + " ")
+	ind := m.th.Indicator.Render(" " + m.indicator() + " ")
 	gap := m.width - ansi.StringWidth(left) - ansi.StringWidth(ind)
 	return left + strings.Repeat(" ", max(gap, 1)) + ind
 }
@@ -115,7 +116,7 @@ func formulaBarTextX() int { return nameBoxW + 1 }
 func (m *Model) formulaBar() string {
 	name := m.cur.String()
 	if m.away() {
-		name = sheet.Qualified(m.home.Name(), sheet.Rect{From: m.cur, To: m.cur})
+		name = sheet.Qualified(m.entry.home.Name(), sheet.Rect{From: m.cur, To: m.cur})
 	}
 	if m.hasRange() && (m.mode == modeReady || m.mode == modeMenu) {
 		name = m.selection().String()
@@ -123,12 +124,12 @@ func (m *Model) formulaBar() string {
 	if n, ok := m.namedSelection(); ok && (m.mode == modeReady || m.mode == modeMenu) {
 		name = ansi.Truncate(n, nameBoxW-1, "…")
 	}
-	box := m.th.header.Render(padRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
+	box := m.th.Header.Render(theme.PadRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
 	switch m.mode {
 	case modeEnter, modeEdit:
-		return box + string(m.buf)
+		return box + m.line.text()
 	case modePoint:
-		return box + m.pointPrefix + m.th.selection.Render(m.pointRef()) + m.pointSuffix
+		return box + m.entry.prefix + m.th.Selection.Render(m.pointRef()) + m.entry.suffix
 	}
 	if c := m.sheet.Cell(m.cur); c != nil {
 		return box + c.Input
@@ -142,19 +143,19 @@ func (m *Model) contextLineText() string {
 	var left, right string
 	switch {
 	case m.xfer.job != nil:
-		left = m.importLine()
-	case m.drag == dragResize:
-		left = m.th.key.Render("Column "+sheet.ColName(m.resizeCol)) + m.th.muted.Render(" width ") +
-			strconv.Itoa(m.sheet.ColWidth(m.resizeCol)) + m.th.muted.Render("   double-click the border to fit")
-	case m.drag == dragFill:
+		left = m.xfer.line(&m.th)
+	case m.mouse.drag == dragResize:
+		left = m.th.Key.Render("Column "+sheet.ColName(m.mouse.resizeCol)) + m.th.Muted.Render(" width ") +
+			strconv.Itoa(m.sheet.ColWidth(m.mouse.resizeCol)) + m.th.Muted.Render("   double-click the border to fit")
+	case m.mouse.drag == dragFill:
 		left = m.fillLine()
-	case m.hint != "":
-		left = m.th.warning.Render(m.hint)
+	case m.entry.hint != "":
+		left = m.th.Warning.Render(m.entry.hint)
 	case m.mode == modeReady && m.trace != nil:
-		left, right = m.traceLine()
+		left, right = m.trace.line(&m.th, m.width, m.sheet)
 	case m.mode == modeReady:
 		if left = m.readyLine(); left == "" {
-			left = m.jevLine()
+			left = m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur))
 		}
 		if left == "" {
 			left = m.errorLine()
@@ -171,21 +172,21 @@ func (m *Model) contextLineText() string {
 			left = o.line(m)
 		}
 	case m.mode == modePrompt:
-		left, right = m.promptLine()
+		left, right = m.prompt.line(m)
 	case m.mode == modePoint:
-		prefix := []rune(m.pointPrefix)
+		prefix := []rune(m.entry.prefix)
 		var ok bool
-		if left, right, ok = m.signatureLine(prefix, len(prefix), m.keyHints("Shift+arrows", "range", "Esc", "back")); !ok {
-			left = m.keyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
+		if left, right, ok = signatureLine(&m.th, m.width, prefix, len(prefix), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
+			left = m.th.KeyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
 		}
-	case (m.mode == modeEnter || m.mode == modeEdit) && m.isFormula() && m.inFunction():
-		left, right, _ = m.signatureLine(m.buf, m.bufPos, m.keyHints("Enter", "accept", "Esc", "cancel"))
-	case m.mode == modeEnter && m.isFormula():
-		left = m.keyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
+	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.isFormula() && m.line.inFunction():
+		left, right, _ = signatureLine(&m.th, m.width, m.line.buf, m.line.pos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
+	case m.mode == modeEnter && m.line.isFormula():
+		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
 	case m.mode == modeEnter:
-		left = m.keyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "accept and move", "Esc", "cancel")
+		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "accept and move", "Esc", "cancel")
 	case m.mode == modeEdit:
-		left = m.keyHints("Enter", "accept", "Left/Right", "move the caret", "Esc", "cancel")
+		left = m.th.KeyHints("Enter", "accept", "Left/Right", "move the caret", "Esc", "cancel")
 	}
 	return m.spread(left, right)
 }
@@ -200,40 +201,6 @@ func (m *Model) spread(left, right string) string {
 	return left + strings.Repeat(" ", gap) + right
 }
 
-// promptLine is an open prompt, e.g. "Save as: budget.012", and the keys
-// or choices that go with it.
-func (m *Model) promptLine() (left, right string) {
-	switch {
-	case m.pointing():
-		return m.promptPrefix() + m.th.selection.Render(m.point.text()),
-			m.keyHints("Arrows", "move", "Shift+arrows", "extend", "Enter", "apply", "Esc", "cancel")
-	case len(m.files) > 0:
-		return m.promptPrefix() + string(m.buf), m.th.muted.Render(strings.Join(m.files, "  "))
-	case m.prompt.kind == promptWidth:
-		return m.promptPrefix() + string(m.buf), m.keyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
-	}
-	return m.promptPrefix() + string(m.buf), m.keyHints("Enter", "apply", "Esc", "cancel")
-}
-
-func (m *Model) promptPrefix() string {
-	return m.prompt.label + " "
-}
-
-// keyHints renders key and description pairs, e.g. "Enter accept", each
-// key as a chip.
-func (m *Model) keyHints(pairs ...string) string {
-	parts := make([]string, 0, len(pairs)/2)
-	for i := 0; i+1 < len(pairs); i += 2 {
-		parts = append(parts, m.chip(pairs[i])+" "+m.th.muted.Render(pairs[i+1]))
-	}
-	return strings.Join(parts, "  ")
-}
-
-// chip draws a key name as a key cap, e.g. "Ctrl+S".
-func (m *Model) chip(label string) string {
-	return m.th.keyChip.Render(" " + label + " ")
-}
-
 // cursorPos returns where the terminal cursor goes: in the formula bar
 // while typing an entry, on the context line in a text prompt, or in an
 // overlay's search field.
@@ -244,9 +211,9 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 	}
 	switch {
 	case m.mode == modeEnter, m.mode == modeEdit:
-		return formulaBarTextX() + ansi.StringWidth(string(m.buf[:m.bufPos])), formulaLine, true
+		return formulaBarTextX() + ansi.StringWidth(m.line.head()), formulaLine, true
 	case m.mode == modePrompt && !m.pointing():
-		return ansi.StringWidth(m.promptPrefix() + string(m.buf[:m.bufPos])), contextLine, true
+		return ansi.StringWidth(m.prompt.prefix() + m.line.head()), contextLine, true
 	}
 	return 0, 0, false
 }
@@ -257,56 +224,79 @@ func (m *Model) statusLine() string {
 }
 
 // statusLayout is the status line and where its sheet tabs are. From the
-// left: the tabs, a divider, the file name and its state, then selection statistics
-// or the ways in to everything else on the right. When space runs out,
-// the right side gives up detail first, then the file name, then tabs
-// scroll.
+// left: the tabs, a divider, the file name and its state, then selection
+// statistics or the ways in to everything else on the right. While a
+// menu, picker or suggestion list is open, it says what the highlighted
+// item does instead.
 func (m *Model) statusLayout() (string, []tabSpan) {
 	if m.mode == modeError {
-		return m.th.error.Render(m.errMsg) + m.th.muted.Render("   press any key"), nil
+		return m.th.Error.Render(m.errMsg) + m.th.Muted.Render("   press any key"), nil
 	}
 	if m.xfer.job != nil {
-		return m.importStatus(), nil
+		return m.spread(m.xfer.status(&m.th, m.width)), nil
 	}
-	desc, keys, floating := m.assistStatus()
+	if line, ok := m.floatingStatus(); ok {
+		return line, nil
+	}
+	return m.fileStatus()
+}
+
+// floatingStatus is what the highlighted item of the open overlay or the
+// formula suggestions does, and the keys that apply.
+func (m *Model) floatingStatus() (string, bool) {
+	desc, keys, floating := m.entry.assist.status(m)
 	if m.overlay != nil {
-		desc, keys, floating = "", "", true
 		desc, keys = m.overlay.status(m)
+		floating = true
 	}
-	if floating {
-		// What the highlighted item does and the keys that apply.
-		if desc != "" || keys != "" {
-			if room := m.width - ansi.StringWidth(keys) - 3; room >= 12 {
-				desc = ansi.Truncate(desc, room, "…")
-			}
-			return m.spread(desc, keys), nil
-		}
+	if !floating || desc == "" && keys == "" {
+		return "", false
 	}
-	name, state := m.displayName(), m.statusState()
-	infos := []string{name + state, strings.TrimPrefix(state, "  ")}
-	// First try to show every tab, then half the line of them, then just
-	// the one shown.
-	for _, need := range []int{m.allTabs(), min(m.allTabs(), m.width/2), m.minTabs()} {
+	if room := m.width - ansi.StringWidth(keys) - 3; room >= 12 {
+		desc = ansi.Truncate(desc, room, "…")
+	}
+	return m.spread(desc, keys), true
+}
+
+// fileStatus is the tabs, the file and the right side. When space runs
+// out, the right side gives up detail first, then the file name, then
+// tabs scroll: first every tab is tried, then half the line of them, then
+// just the one shown.
+func (m *Model) fileStatus() (string, []tabSpan) {
+	v := m.tabView()
+	state := m.statusState()
+	infos := []string{m.displayName() + state, strings.TrimPrefix(state, "  ")}
+	rights := m.statusRights()
+	for _, need := range []int{v.fullWidth(), min(v.fullWidth(), m.width/2), v.minWidth()} {
 		for _, info := range infos {
 			if info != "" {
-				info = m.th.frozenLine.Render(" │ ") + info // like a tmux pane border
+				info = m.th.FrozenLine.Render(" │ ") + info // like a tmux pane border
 			}
-			for _, right := range m.statusRights() {
-				room := m.width - ansi.StringWidth(info)
-				if right != "" {
-					room -= ansi.StringWidth(right) + 3
-				}
-				if room < need && (right != "" || info != "") {
-					continue
-				}
-				tabs, spans := m.tabStrip(room)
-				left := tabs + info
-				gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
-				return left + strings.Repeat(" ", gap) + right, spans
+			if line, spans, ok := m.statusFits(v, need, info, rights); ok {
+				return line, spans
 			}
 		}
 	}
 	return "", nil // not reached: the last choice has no right side or info
+}
+
+// statusFits lays out the status line with info after the tabs and the
+// most detailed of rights that leaves the tabs need columns.
+func (m *Model) statusFits(v tabView, need int, info string, rights []string) (string, []tabSpan, bool) {
+	for _, right := range rights {
+		room := m.width - ansi.StringWidth(info)
+		if right != "" {
+			room -= ansi.StringWidth(right) + 3
+		}
+		if room < need && (right != "" || info != "") {
+			continue
+		}
+		tabs, spans := m.tabs.layout(&m.th, v, room)
+		left := tabs + info
+		gap := max(m.width-ansi.StringWidth(left)-ansi.StringWidth(right), 1)
+		return left + strings.Repeat(" ", gap) + right, spans, true
+	}
+	return "", nil, false
 }
 
 // statusState is what the status line says about the file after its
@@ -315,19 +305,19 @@ func (m *Model) statusLayout() (string, []tabSpan) {
 func (m *Model) statusState() string {
 	var b strings.Builder
 	if m.changed {
-		b.WriteString(m.th.muted.Render("  modified"))
+		b.WriteString(m.th.Muted.Render("  modified"))
 	}
 	if m.book().Decimal() {
-		b.WriteString(m.th.muted.Render("  decimal"))
+		b.WriteString(m.th.Muted.Render("  decimal"))
 	}
 	if m.book().Circular {
-		b.WriteString("  " + m.th.warning.Render("Circular reference"))
+		b.WriteString("  " + m.th.Warning.Render("Circular reference"))
 	}
 	if n := m.sheet.HiddenRows(); n > 0 {
-		b.WriteString("  " + m.th.hint.Render("Filter hides "+rowCount(n)))
+		b.WriteString("  " + m.th.Hint.Render("Filter hides "+rowCount(n)))
 	}
-	if busy := m.jevBusy(); busy != "" {
-		b.WriteString("  " + m.th.hint.Render(busy))
+	if busy := m.jev.busy(); busy != "" {
+		b.WriteString("  " + m.th.Hint.Render(busy))
 	}
 	return b.String()
 }
@@ -340,13 +330,13 @@ func (m *Model) statusRights() []string {
 	if m.hasRange() && m.mode == modeReady {
 		r := m.selection()
 		st := m.sheet.RangeStats(r)
-		rng := m.th.key.Render(r.String())
+		rng := m.th.Key.Render(r.String())
 		sum, avg := "", ""
 		if st.Nums > 0 {
-			sum = m.th.muted.Render("Sum ") + fmtStat(st.Sum)
-			avg = m.th.muted.Render("Avg ") + fmtStat(st.Sum/float64(st.Nums))
+			sum = m.th.Muted.Render("Sum ") + fmtStat(st.Sum)
+			avg = m.th.Muted.Render("Avg ") + fmtStat(st.Sum/float64(st.Nums))
 		}
-		count := m.th.muted.Render("Count ") + strconv.Itoa(st.Count)
+		count := m.th.Muted.Render("Count ") + strconv.Itoa(st.Count)
 		// As many stats as fit: Avg goes first, then Sum, then Count.
 		for _, parts := range [][]string{{rng, sum, avg, count}, {rng, sum, count}, {rng, count}, {rng}} {
 			out = append(out, strings.Join(slices.DeleteFunc(parts, func(p string) bool { return p == "" }), "   "))
@@ -355,7 +345,7 @@ func (m *Model) statusRights() []string {
 	}
 	pairs := []string{shortcut("palette"), "search", shortcut("help"), "shortcuts", shortcut("menu"), "menu"}
 	for ; len(pairs) > 0; pairs = pairs[:len(pairs)-2] {
-		out = append(out, m.keyHints(pairs...))
+		out = append(out, m.th.KeyHints(pairs...))
 	}
 	return append(out, "")
 }

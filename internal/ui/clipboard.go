@@ -46,12 +46,12 @@ func (m *Model) copy(cut bool) tea.Cmd {
 
 // copyRange is the selection, trimmed to the data when whole rows or
 // columns are selected, as there's no point copying thousands of blanks.
-func (m *Model) copyRange() sheet.Rect {
-	r := m.selection()
-	if m.whole == wholeNone {
+func (g *grid) copyRange() sheet.Rect {
+	r := g.selection()
+	if g.whole == wholeNone {
 		return r
 	}
-	used, ok := m.sheet.UsedRange()
+	used, ok := g.sheet.UsedRange()
 	r.To = sheet.Addr{Col: min(r.To.Col, used.To.Col), Row: min(r.To.Row, used.To.Row)}
 	if !ok || r.To.Col < r.From.Col || r.To.Row < r.From.Row {
 		r.To = r.From
@@ -88,7 +88,7 @@ func (m *Model) paste(values bool) tea.Cmd {
 	m.selectRect(r)
 	switch {
 	case c.cut && !values:
-		m.note = "Moved " + m.clipLabel(c) + " to " + r.String()
+		m.note = "Moved " + c.label(m.sheet) + " to " + r.String()
 	case values:
 		m.note = "Pasted values into " + countCells(r) + " at " + r.String()
 	default:
@@ -97,27 +97,27 @@ func (m *Model) paste(values bool) tea.Cmd {
 	return nil
 }
 
-// copyMarked reports whether a shows the copy marker.
-func (m *Model) copyMarked(a sheet.Addr) bool {
-	return m.copied.marked && m.copied.sheet == m.sheet && m.copied.clip.Src.Contains(a)
+// marks reports whether a, on the sheet shown, shows the copy marker.
+func (c *clipboard) marks(shown *sheet.Sheet, a sheet.Addr) bool {
+	return c.marked && c.sheet == shown && c.clip.Src.Contains(a)
 }
 
-// clipLabel names the copied range, with its sheet when that isn't the
+// label names the copied range, with its sheet when that isn't the
 // one shown: A1:B3, or Sheet1!A1:B3.
-func (m *Model) clipLabel(c clipboard) string {
-	if c.sheet != m.sheet {
+func (c *clipboard) label(shown *sheet.Sheet) string {
+	if c.sheet != shown {
 		return sheet.Qualified(c.sheet.Name(), c.clip.Src)
 	}
 	return c.clip.Src.String()
 }
 
-// clearCopyMark hides the copy marker; a pending cut is cancelled, as in
+// clearMark hides the copy marker; a pending cut is cancelled, as in
 // Sheets, since the cells it would move may have changed.
-func (m *Model) clearCopyMark() {
-	if m.copied.cut {
-		m.copied = clipboard{}
+func (c *clipboard) clearMark() {
+	if c.cut {
+		*c = clipboard{}
 	}
-	m.copied.marked = false
+	c.marked = false
 }
 
 // pasteText fills a block of cells from pasted text with tabs or line
@@ -225,14 +225,14 @@ func (m *Model) readyLine() string {
 	case m.note != "":
 		return m.note
 	case m.copied.marked && m.copied.cut:
-		return "Cut " + m.clipLabel(m.copied) + "   " + m.keyHints("Ctrl+V", "move here", "Esc", "cancel")
+		return "Cut " + m.copied.label(m.sheet) + "   " + m.th.KeyHints("Ctrl+V", "move here", "Esc", "cancel")
 	case m.copied.marked:
-		text := "Copied " + m.clipLabel(m.copied) + "   "
-		full := text + m.keyHints("Ctrl+V", "paste", "Ctrl+Shift+V", "paste values", "Esc", "clear")
+		text := "Copied " + m.copied.label(m.sheet) + "   "
+		full := text + m.th.KeyHints("Ctrl+V", "paste", "Ctrl+Shift+V", "paste values", "Esc", "clear")
 		if ansi.StringWidth(full) <= m.width {
 			return full
 		}
-		return text + m.keyHints("Ctrl+V", "paste", "Esc", "clear")
+		return text + m.th.KeyHints("Ctrl+V", "paste", "Esc", "clear")
 	}
 	return ""
 }

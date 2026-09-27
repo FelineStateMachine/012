@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // Tracing precedents and dependents, after Excel's Ctrl+[ and Ctrl+]: the
@@ -88,23 +89,23 @@ func (m *Model) traceKey(k tea.KeyPressMsg) bool {
 	return false
 }
 
-// traced reports whether a is in a range being traced.
-func (m *Model) traced(a sheet.Addr) bool {
-	if m.trace == nil {
+// covers reports whether a, on the sheet shown, is in a range being
+// traced.
+func (t *trace) covers(shown *sheet.Sheet, a sheet.Addr) bool {
+	if t == nil {
 		return false
 	}
-	for _, t := range m.trace.targets {
-		if t.Sheet == m.sheet && t.Range.Contains(a) {
+	for _, tg := range t.targets {
+		if tg.Sheet == shown && tg.Range.Contains(a) {
 			return true
 		}
 	}
 	return false
 }
 
-// traceLine is the context line during a trace, e.g. "2 precedents of
+// line is the context line during a trace, e.g. "2 precedents of
 // C7: B3, Sales", the current one emphasized, and the keys.
-func (m *Model) traceLine() (left, right string) {
-	t := m.trace
+func (t *trace) line(th *theme.Theme, width int, shown *sheet.Sheet) (left, right string) {
 	noun, id := "precedent", "data.precedents"
 	if t.dependents {
 		noun, id = "dependent", "data.dependents"
@@ -112,29 +113,29 @@ func (m *Model) traceLine() (left, right string) {
 	if len(t.targets) != 1 {
 		noun += "s"
 	}
-	right = m.keyHints(shortcut(id), "next", "Esc", "back")
+	right = th.KeyHints(shortcut(id), "next", "Esc", "back")
 	origin := t.origin.String()
-	if t.home != m.sheet {
+	if t.home != shown {
 		origin = sheet.Qualified(t.home.Name(), sheet.Rect{From: t.origin, To: t.origin})
 	}
 	left = strconv.Itoa(len(t.targets)) + " " + noun + " of " + origin + ": "
-	room := m.width - ansi.StringWidth(right) - 3
+	room := width - ansi.StringWidth(right) - 3
 	if room < ansi.StringWidth(left)+12 {
-		right, room = "", m.width
+		right, room = "", width
 	}
 	var b strings.Builder
 	b.WriteString(left)
 	for i, tg := range t.targets {
-		part := m.rangeLabel(tg, t.home)
+		part := targetLabel(shown, tg, t.home)
 		if i == t.at {
-			part = m.th.key.Render(part)
+			part = th.Key.Render(part)
 		}
 		if i > 0 {
 			part = ", " + part
 		}
 		more := " +" + strconv.Itoa(len(t.targets)-i) + " more"
 		if ansi.StringWidth(b.String()+part)+len(more) > room && i < len(t.targets)-1 {
-			b.WriteString(m.th.muted.Render(more))
+			b.WriteString(th.Muted.Render(more))
 			break
 		}
 		b.WriteString(part)
@@ -142,10 +143,10 @@ func (m *Model) traceLine() (left, right string) {
 	return b.String(), right
 }
 
-// rangeLabel names a range the way a formula on from refers to it: by
+// targetLabel names a range the way a formula on from refers to it: by
 // its name if it has one, with its sheet if it's on another.
-func (m *Model) rangeLabel(t sheet.Target, from *sheet.Sheet) string {
-	for _, n := range m.sheet.Names() {
+func targetLabel(shown *sheet.Sheet, t sheet.Target, from *sheet.Sheet) string {
+	for _, n := range shown.Names() {
 		if !n.Gone() && n.Sheet == t.Sheet && n.Range == t.Range && t.Range.From != t.Range.To {
 			return n.Name
 		}

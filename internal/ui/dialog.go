@@ -5,6 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // choiceBar is a small question asked on the context line and answered
@@ -66,13 +68,13 @@ const choiceGap = "   "
 
 func (c *choiceBar) prefix(m *Model) string {
 	if c.warn {
-		return m.th.warning.Render(c.msg) + choiceGap
+		return m.th.Warning.Render(c.msg) + choiceGap
 	}
 	return c.msg + choiceGap
 }
 
 func (c *choiceBar) item(m *Model, ch choice) string {
-	return m.chip(keyLabel(ch.key)) + " " + ch.label
+	return m.th.Chip(theme.KeyLabel(ch.key)) + " " + ch.label
 }
 
 // line renders the bar for the context line.

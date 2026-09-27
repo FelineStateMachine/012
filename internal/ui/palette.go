@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
+
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // The command palette ("Search the menus" in Sheets, Alt+/) finds any
@@ -92,7 +93,7 @@ type pickMatch struct {
 // picker is a searchable list in a box, in the manner of fzf: a search
 // field on top, results below with matched characters highlighted, and
 // the highlighted result's description on the status line. The search is
-// edited in m.buf with the usual line-editing keys.
+// edited in Model.line with the usual line-editing keys.
 type picker struct {
 	title       string
 	placeholder string
@@ -114,7 +115,7 @@ const (
 
 func newPicker(m *Model, title, placeholder string, maxW int, items []pickItem) *picker {
 	p := &picker{title: title, placeholder: placeholder, maxW: maxW, items: items}
-	m.buf, m.bufPos = nil, 0
+	m.line.clear()
 	p.changed(m)
 	return p
 }
@@ -126,7 +127,7 @@ func (p *picker) indicator() string { return "MENU" }
 func (p *picker) changed(m *Model) {
 	p.sel, p.top = 0, 0
 	p.shown = p.shown[:0]
-	q := strings.TrimSpace(string(m.buf))
+	q := strings.TrimSpace(m.line.text())
 	if q == "" {
 		for i := range p.items {
 			p.shown = append(p.shown, pickMatch{item: &p.items[i]})
@@ -194,9 +195,9 @@ func (p *picker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 	case "esc":
 		m.closeOverlay()
 	default:
-		before := string(m.buf)
-		m.lineKey(k)
-		if string(m.buf) != before {
+		before := m.line.text()
+		m.line.key(k)
+		if m.line.text() != before {
 			p.changed(m)
 		}
 	}
@@ -205,7 +206,7 @@ func (p *picker) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 
 func (p *picker) pick(m *Model) tea.Cmd {
 	if p.enter != nil {
-		if cmd, ok := p.enter(m, strings.TrimSpace(string(m.buf))); ok {
+		if cmd, ok := p.enter(m, strings.TrimSpace(m.line.text())); ok {
 			return cmd
 		}
 	}
@@ -243,7 +244,7 @@ func (p *picker) mouse(m *Model, e mouseEvent) tea.Cmd {
 }
 
 func (p *picker) status(m *Model) (string, string) {
-	keys := m.keyHints("Up/Down", "move", "Enter", cmp.Or(p.action, "run"), "Esc", "close")
+	keys := m.th.KeyHints("Up/Down", "move", "Enter", cmp.Or(p.action, "run"), "Esc", "close")
 	if p.sel >= len(p.shown) {
 		return "", keys
 	}
@@ -275,7 +276,7 @@ func (p *picker) box(m *Model) (x, y, inner int) {
 
 func (p *picker) cursor(m *Model) (int, int) {
 	x, y, _ := p.box(m)
-	return x + 1 + ansi.StringWidth(searchPrompt) + ansi.StringWidth(string(m.buf[:m.bufPos])), y + 1
+	return x + 1 + ansi.StringWidth(searchPrompt) + ansi.StringWidth(m.line.head()), y + 1
 }
 
 func (p *picker) layout(m *Model) []box {
@@ -284,14 +285,14 @@ func (p *picker) layout(m *Model) []box {
 	if len(p.shown) > 0 {
 		p.show(rows)
 	}
-	input := m.th.title.Render(searchPrompt) + string(m.buf)
-	if len(m.buf) == 0 {
-		input += m.th.muted.Render(p.placeholder)
+	input := m.th.Title.Render(searchPrompt) + m.line.text()
+	if len(m.line.buf) == 0 {
+		input += m.th.Muted.Render(p.placeholder)
 	}
-	lines := []string{cells(m.th.menuBar, input, inner), sepRow}
+	lines := []string{theme.Cells(m.th.MenuBar, input, inner), theme.SepRow}
 	lines = append(lines, p.resultRows(m, inner, rows)...)
 	footer := strconv.Itoa(len(p.shown)) + " of " + strconv.Itoa(len(p.items))
-	return []box{{id: pickerID, x: x, y: y, lines: m.frame(inner, p.title, footer, lines)}}
+	return []box{{id: pickerID, x: x, y: y, lines: m.th.Frame(inner, p.title, footer, lines)}}
 }
 
 // resultRows lays out the visible results in columns: title, detail and
@@ -313,22 +314,22 @@ func (p *picker) resultRows(m *Model, inner, rows int) []string {
 		if i >= len(p.shown) {
 			text := ""
 			if r == 0 {
-				text = m.th.muted.Render(" No matches")
+				text = m.th.Muted.Render(" No matches")
 			}
-			out = append(out, cells(m.th.menuBar, text, inner))
+			out = append(out, theme.Cells(m.th.MenuBar, text, inner))
 			continue
 		}
 		pm := p.shown[i]
-		base, dim, hl := m.th.menuBar, m.th.muted, m.th.match
+		base, dim, hl := m.th.MenuBar, m.th.Muted, m.th.Match
 		switch {
 		case i == p.sel:
-			base, dim, hl = m.th.menuSelected, m.th.menuSelected, m.th.matchSelected
+			base, dim, hl = m.th.MenuSelected, m.th.MenuSelected, m.th.MatchSelected
 		case pm.item.off:
-			base, dim, hl = m.th.disabled, m.th.disabled, m.th.disabled
+			base, dim, hl = m.th.Disabled, m.th.Disabled, m.th.Disabled
 		}
-		row := base.Render(" ") + m.highlightMatches(pm.item.title, pm.inTitle, tw, base, hl)
+		row := base.Render(" ") + theme.HighlightMatches(pm.item.title, pm.inTitle, tw, base, hl)
 		if dw >= 8 {
-			row += base.Render("   ") + m.highlightMatches(pm.item.detail, pm.inDesc, dw, dim, hl)
+			row += base.Render("   ") + theme.HighlightMatches(pm.item.detail, pm.inDesc, dw, dim, hl)
 		}
 		k := ""
 		switch {
@@ -336,37 +337,12 @@ func (p *picker) resultRows(m *Model, inner, rows int) []string {
 		case i == p.sel:
 			k = base.Render(" " + pm.item.key + " ")
 		case pm.item.off:
-			k = m.th.disabled.Render(" " + pm.item.key + " ")
+			k = m.th.Disabled.Render(" " + pm.item.key + " ")
 		default:
-			k = m.chip(pm.item.key)
+			k = m.th.Chip(pm.item.key)
 		}
 		row += base.Render(strings.Repeat(" ", max(inner-ansi.StringWidth(row)-ansi.StringWidth(k)-1, 0))) + k + base.Render(" ")
 		out = append(out, ansi.Truncate(row, inner, ""))
 	}
 	return out
-}
-
-// highlightMatches renders s in w columns with the bytes at idx in the hl style,
-// truncating with an ellipsis.
-func (m *Model) highlightMatches(s string, idx []int, w int, base, hl lipgloss.Style) string {
-	s = ansi.Truncate(s, w, "…")
-	var b strings.Builder
-	run, lit := "", false
-	flush := func() {
-		if lit {
-			b.WriteString(hl.Render(run))
-		} else {
-			b.WriteString(base.Render(run))
-		}
-		run = ""
-	}
-	for i, r := range s {
-		if on := slices.Contains(idx, i); on != lit {
-			flush()
-			lit = on
-		}
-		run += string(r)
-	}
-	flush()
-	return b.String() + base.Render(strings.Repeat(" ", max(w-ansi.StringWidth(s), 0)))
 }

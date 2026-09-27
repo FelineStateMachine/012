@@ -137,10 +137,10 @@ func TestDragIntoFrozenRowsScrollsBack(t *testing.T) {
 	// Dragging onto the frozen header row scrolls up instead of jumping
 	// to row 1.
 	send(m, tea.MouseMotionMsg(leftAt(cellX(1), gridTop)))
-	if m.ext != addr("B7") || !m.autoscrolling {
-		t.Fatalf("ext %v autoscrolling %v", m.ext, m.autoscrolling)
+	if m.ext != addr("B7") || !m.mouse.autoscrolling {
+		t.Fatalf("ext %v autoscrolling %v", m.ext, m.mouse.autoscrolling)
 	}
-	for i := 0; i < 10 && m.autoscrolling; i++ {
+	for i := 0; i < 10 && m.mouse.autoscrolling; i++ {
 		send(m, autoscrollMsg{})
 	}
 	if m.top != 1 || m.ext.Row > 1 {

@@ -84,15 +84,15 @@ func orderName(desc bool) string {
 // headerRows is how many rows at the top of r are headers that sorting
 // leaves in place: frozen rows, the filter's header row, and, for a range
 // found around the active cell, a first row of text over numbers.
-func (m *Model) headerRows(r sheet.Rect, selected bool) int {
+func (g *grid) headerRows(r sheet.Rect, selected bool) int {
 	n := 0
-	if fr, _ := m.sheet.Frozen(); fr > r.From.Row {
+	if fr, _ := g.sheet.Frozen(); fr > r.From.Row {
 		n = fr - r.From.Row
 	}
-	if f, ok := m.sheet.FilterRange(); ok && f.From.Row == r.From.Row {
+	if f, ok := g.sheet.FilterRange(); ok && f.From.Row == r.From.Row {
 		n = max(n, 1)
 	}
-	if n == 0 && !selected && m.looksLikeHeader(r) {
+	if n == 0 && !selected && g.looksLikeHeader(r) {
 		n = 1
 	}
 	return min(n, r.To.Row-r.From.Row)
@@ -100,13 +100,13 @@ func (m *Model) headerRows(r sheet.Rect, selected bool) int {
 
 // looksLikeHeader reports whether r's first row is all text above a row
 // with numbers, like "Item, Amount" above "Rent, 1450".
-func (m *Model) looksLikeHeader(r sheet.Rect) bool {
+func (g *grid) looksLikeHeader(r sheet.Rect) bool {
 	if r.To.Row == r.From.Row {
 		return false
 	}
 	text, numbers := false, false
 	for c := r.From.Col; c <= r.To.Col; c++ {
-		switch m.sheet.Value(sheet.Addr{Col: c, Row: r.From.Row}).Kind {
+		switch g.sheet.Value(sheet.Addr{Col: c, Row: r.From.Row}).Kind {
 		case sheet.Empty:
 			continue
 		case sheet.Text:
@@ -114,7 +114,7 @@ func (m *Model) looksLikeHeader(r sheet.Rect) bool {
 		default:
 			return false
 		}
-		switch m.sheet.Value(sheet.Addr{Col: c, Row: r.From.Row + 1}).Kind {
+		switch g.sheet.Value(sheet.Addr{Col: c, Row: r.From.Row + 1}).Kind {
 		case sheet.Number, sheet.Bool:
 			numbers = true
 		}
@@ -241,10 +241,10 @@ type sortPart struct {
 }
 
 func (b *sortBar) parts(m *Model) []sortPart {
-	parts := []sortPart{{text: m.th.key.Render("Sort "+b.data().String()) + m.th.muted.Render(" by "), key: -1}}
+	parts := []sortPart{{text: m.th.Key.Render("Sort "+b.data().String()) + m.th.Muted.Render(" by "), key: -1}}
 	for i, k := range b.keys {
 		if i > 0 {
-			parts = append(parts, sortPart{text: m.th.muted.Render(" then "), key: -1})
+			parts = append(parts, sortPart{text: m.th.Muted.Render(" then "), key: -1})
 		}
 		label := sheet.ColName(k.Col)
 		if b.headers > 0 {
@@ -252,15 +252,15 @@ func (b *sortBar) parts(m *Model) []sortPart {
 				label += " " + ansi.Truncate(h, 16, "…")
 			}
 		}
-		style := m.th.keyChip
+		style := m.th.KeyChip
 		if i == b.cur {
-			style = m.th.menuSelected
+			style = m.th.MenuSelected
 		}
 		parts = append(parts, sortPart{text: style.Render(" " + label + "  " + orderName(k.Desc) + " "), key: i})
 	}
-	style := m.th.muted
+	style := m.th.Muted
 	if b.headers > 0 {
-		style = m.th.menuSelected
+		style = m.th.MenuSelected
 	}
 	parts = append(parts, sortPart{text: "   ", key: -1}, sortPart{text: style.Render(" Header row "), key: -1, toggle: true})
 	return parts
@@ -309,10 +309,10 @@ func (b *sortBar) status(m *Model) (string, string) {
 	pairs := []string{"Left/Right", "column", "Space", "order", "Enter", "sort", "Esc", "cancel"}
 	desc := "Alt+A add  Alt+H header  Tab next"
 	for {
-		keys := m.keyHints(pairs...)
+		keys := m.th.KeyHints(pairs...)
 		switch {
 		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
-			return m.th.muted.Render(desc), keys
+			return m.th.Muted.Render(desc), keys
 		case desc != "":
 			desc = ""
 		case len(pairs) > 4:
