@@ -6,7 +6,7 @@
 // arriving back while every session types at once, and the CPU spent per
 // frame. The clients run in the same process, so heap and CPU include
 // their side of the connections: upper bounds for the server. Only built
-// with -tags stress (see `make stress` and docs/limits.md).
+// with -tags stress (see `make stress` and docs/contributing/limits.md).
 package serve
 
 import (

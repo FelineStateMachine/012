@@ -5,7 +5,7 @@
 // and/or an OTLP/HTTP endpoint (012 --otlp URL, or
 // OTEL_EXPORTER_OTLP_ENDPOINT) that gets the events as logs, spans as
 // traces and frame summaries as metrics. Stdout belongs to the terminal
-// UI. See docs/observability.md.
+// UI. See docs/contributing/observability.md.
 //
 // Events carry sizes, counts and durations only: never cell contents,
 // file contents or secrets.

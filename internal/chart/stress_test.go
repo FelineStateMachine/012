@@ -3,7 +3,7 @@
 // Stress benchmarks of chart drawing: every chart type as text and as an
 // image, at a typical size and a large one, over a few categories and
 // over a full column of them (only what fits is drawn). Only built with
-// -tags stress (see `make stress` and docs/limits.md).
+// -tags stress (see `make stress` and docs/contributing/limits.md).
 package chart
 
 import (

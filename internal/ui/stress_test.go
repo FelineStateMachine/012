@@ -4,7 +4,7 @@
 // through to the next frame, on big sheets at typical and large terminal
 // sizes. A frame is View plus what Bubble Tea does with it: parse the
 // string into a cell buffer and diff it onto the terminal. Only built
-// with -tags stress (see `make stress` and docs/limits.md).
+// with -tags stress (see `make stress` and docs/contributing/limits.md).
 package ui
 
 import (

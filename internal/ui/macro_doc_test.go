@@ -9,12 +9,12 @@ import (
 	"github.com/FelineStateMachine/012/internal/macro"
 )
 
-// docs/macros.md documents the scripting API and names command ids; these
+// docs/reference/macro-api.md documents the scripting API and names command ids; these
 // tests keep it honest.
 
 func readMacroDoc(t *testing.T) string {
 	t.Helper()
-	data, err := os.ReadFile("../../docs/macros.md")
+	data, err := os.ReadFile("../../docs/reference/macro-api.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestMacroDocCommandIDs(t *testing.T) {
 	}
 	for _, id := range ids {
 		if c, ok := commands[id[1]]; !ok || c.macro == macroNever {
-			t.Errorf("docs/macros.md names %q, which scripts can't run", id[1])
+			t.Errorf("docs/reference/macro-api.md names %q, which scripts can't run", id[1])
 		}
 	}
 }
@@ -43,7 +43,7 @@ func TestMacroDocFunctions(t *testing.T) {
 	doc := readMacroDoc(t)
 	for _, name := range macro.Functions() {
 		if !strings.Contains(doc, "`"+name+"(") {
-			t.Errorf("docs/macros.md doesn't document %s", name)
+			t.Errorf("docs/reference/macro-api.md doesn't document %s", name)
 		}
 	}
 }

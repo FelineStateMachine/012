@@ -7,12 +7,12 @@ import (
 	"testing"
 )
 
-// TestFileDocNamesFields checks docs/files.md names every field the .012
-// format has, and docs/macros.md a macro's, so a new field comes with its
+// TestFileDocNamesFields checks docs/files/format.md names every field the .012
+// format has, and docs/reference/macro-api.md a macro's, so a new field comes with its
 // documentation.
 func TestFileDocNamesFields(t *testing.T) {
-	files := readDoc(t, "../../docs/files.md")
-	macros := readDoc(t, "../../docs/macros.md")
+	files := readDoc(t, "../../docs/files/format.md")
+	macros := readDoc(t, "../../docs/reference/macro-api.md")
 	seen := map[reflect.Type]bool{reflect.TypeFor[fileMacro](): true}
 	text := files
 	var walk func(reflect.Type, string)

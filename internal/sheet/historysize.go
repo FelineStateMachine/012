@@ -6,7 +6,7 @@ import "slices"
 // estimated by step.size. When a new step takes the history past it, the
 // oldest steps are dropped first; the newest step is always kept, however
 // large, so any single change can be undone. 256 MB keeps MaxUndo steps
-// that each rewrite a whole column (about 250 MB, see docs/limits.md).
+// that each rewrite a whole column (about 250 MB, see docs/contributing/limits.md).
 const MaxUndoBytes = 256 << 20
 
 // undoBudget is MaxUndoBytes; tests lower it.

@@ -305,13 +305,13 @@ func TestDir(t *testing.T) {
 	}
 }
 
-var updateDocs = flag.Bool("update-docs", false, "rewrite the reference in docs/config.md")
+var updateDocs = flag.Bool("update-docs", false, "rewrite the reference in docs/reference/config.md")
 
-// TestConfigDoc keeps docs/config.md's reference in step with the
+// TestConfigDoc keeps docs/reference/config.md's reference in step with the
 // registry: run `go test ./internal/config -update-docs` after changing
 // an option.
 func TestConfigDoc(t *testing.T) {
-	const path = "../../docs/config.md"
+	const path = "../../docs/reference/config.md"
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

@@ -3,7 +3,7 @@
 // Stress benchmarks of import and export: the real datasets fetched by
 // scripts/stress-data.sh into .deps/stress (skipped when missing), and
 // synthetic sheets written in every export format. Only built with
-// -tags stress (see `make stress` and docs/limits.md).
+// -tags stress (see `make stress` and docs/contributing/limits.md).
 package fileio
 
 import (

@@ -52,7 +52,7 @@ func system() env {
 func usage() error {
 	return errors.New("usage: 012 " + config.FlagUsage() + " [file]: a " + sheet.FileExt +
 		" sheet, or a .csv, .tsv, .xlsx, .sqlite, .parquet or .wk1 file to import\n" +
-		"       012 serve [flags] [dir]: serve sheets in dir over SSH (see docs/ssh.md)\n" +
+		"       012 serve [flags] [dir]: serve sheets in dir over SSH (see docs/terminal/ssh.md)\n" +
 		"       012 config [path|edit|default|themes|set-key|delete-key]")
 }
 

@@ -2,7 +2,7 @@
 
 // Stress benchmarks of the engine: build and full recalc, single-edit
 // latency per dependency topology, undo, and whole-sheet operations. They
-// only build with -tags stress (see `make stress` and docs/limits.md).
+// only build with -tags stress (see `make stress` and docs/contributing/limits.md).
 package sheet_test
 
 import (

@@ -17,7 +17,7 @@ import (
 )
 
 // Opening a file named on the ssh command line, and keeping a session's
-// unsaved work when it ends without the user quitting. See docs/ssh.md.
+// unsaved work when it ends without the user quitting. See docs/terminal/ssh.md.
 
 // fileArg is the file an exec request names (ssh -t host file.012), ""
 // for a shell request. The request is never run: its one word is a file

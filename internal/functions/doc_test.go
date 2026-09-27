@@ -14,10 +14,10 @@ import (
 	"testing"
 )
 
-var updateDocs = flag.Bool("update-docs", false, "rewrite docs/functions.md from the function table")
+var updateDocs = flag.Bool("update-docs", false, "rewrite docs/reference/functions.md from the function table")
 
 // docsPath is the generated function reference.
-const docsPath = "../../docs/functions.md"
+const docsPath = "../../docs/reference/functions.md"
 
 // categories names the group of the functions each file defines, in the
 // order the reference lists them.
@@ -37,7 +37,7 @@ var categories = []struct{ file, title string }{
 	{"jev.go", "JEV (hosted model)"},
 }
 
-// TestFunctionsDoc keeps docs/functions.md in step with the function
+// TestFunctionsDoc keeps docs/reference/functions.md in step with the function
 // table, as help is: run `go test ./internal/functions -run FunctionsDoc
 // -update-docs` after adding a function.
 func TestFunctionsDoc(t *testing.T) {
@@ -54,7 +54,7 @@ func TestFunctionsDoc(t *testing.T) {
 	}
 	want, err := os.ReadFile(docsPath)
 	if err != nil || string(want) != got {
-		t.Errorf("docs/functions.md is stale; run go test ./internal/functions -run FunctionsDoc -update-docs")
+		t.Errorf("docs/reference/functions.md is stale; run go test ./internal/functions -run FunctionsDoc -update-docs")
 	}
 }
 
@@ -95,7 +95,7 @@ func definingFiles() (map[string]string, error) {
 
 func functionsDoc(byFile map[string]string) string {
 	var b strings.Builder
-	b.WriteString("# Functions\n\n")
+	b.WriteString("---\ntitle: \"Functions\"\nsidebar_position: 3\n---\n\n# Functions\n\n")
 	b.WriteString("<!-- Generated from the engine's function table by TestFunctionsDoc; do not edit. -->\n\n")
 	fmt.Fprintf(&b, "012 has %d functions. They follow Google Sheets' names, arguments and\n", len(Funcs()))
 	b.WriteString("semantics; `[brackets]` mark optional arguments. Function names are\n")

@@ -255,7 +255,7 @@ func (h scriptHost) Run(id string, answer *string) error {
 	c, ok := commands[id]
 	switch {
 	case !ok:
-		return fmt.Errorf("no command %q; the palette (Ctrl+K) lists them, and docs/macros.md how to find ids", id)
+		return fmt.Errorf("no command %q; the palette (Ctrl+K) lists them, and docs/reference/macro-api.md how to find ids", id)
 	case c.macro == macroNever:
 		return fmt.Errorf("%s (%s) can't run in a macro", c.title, id)
 	case !c.available(m):

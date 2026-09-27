@@ -195,7 +195,7 @@ The JEV model to ask; the service's default when empty.
 
 #### `log-file`
 
-Append telemetry events to this JSON log file. See docs/observability.md.
+Append telemetry events to this JSON log file. See docs/contributing/observability.md.
 
 | | |
 |---|---|
@@ -232,7 +232,7 @@ Send telemetry to this OTLP/HTTP collector, e.g. http://localhost:4318. The othe
 
 #### `serve-listen`
 
-The address 012 serve listens on. Anything but the loopback address lets other machines reach it (with an authorized key). See docs/ssh.md.
+The address 012 serve listens on. Anything but the loopback address lets other machines reach it (with an authorized key). See docs/terminal/ssh.md.
 
 | | |
 |---|---|

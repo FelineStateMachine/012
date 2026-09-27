@@ -1,6 +1,7 @@
 package config
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,7 +20,7 @@ var (
 )
 
 // notOptions are variables the docs name that aren't options: the JEV key
-// never goes through the config (see docs/jev.md).
+// never goes through the config (see docs/formulas/jev.md).
 var notOptions = []string{"TYPESAFE_API_KEY"}
 
 // TestDocsNameOptions checks the settings and variables the docs name are
@@ -27,7 +28,13 @@ var notOptions = []string{"TYPESAFE_API_KEY"}
 // comment naming the file, `# ~/.config/012/config`; other blocks (theme
 // files, shell) aren't read.
 func TestDocsNameOptions(t *testing.T) {
-	paths, err := filepath.Glob("../../docs/*.md")
+	var paths []string
+	err := filepath.WalkDir("../../docs", func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && filepath.Ext(p) == ".md" {
+			paths = append(paths, p)
+		}
+		return err
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

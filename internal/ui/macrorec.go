@@ -256,8 +256,8 @@ func (m *Model) recordingLine() string {
 func recordingHeader(relative bool) string {
 	if relative {
 		return "Recorded with relative references: moves count from the active cell.\n" +
-			"Edit it in Data > Macros > Manage macros; docs/macros.md lists what it can call."
+			"Edit it in Data > Macros > Manage macros; docs/reference/macro-api.md lists what it can call."
 	}
 	return "Recorded with absolute references: cells are named as they were.\n" +
-		"Edit it in Data > Macros > Manage macros; docs/macros.md lists what it can call."
+		"Edit it in Data > Macros > Manage macros; docs/reference/macro-api.md lists what it can call."
 }

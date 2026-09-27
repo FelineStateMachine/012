@@ -26,7 +26,7 @@ import (
 // served directory, and the next session opening that file offers it
 // back. The directory is hidden, so names typed in a session never reach
 // it (internal/confine); only this file reads and writes it. See
-// docs/ssh.md.
+// docs/terminal/ssh.md.
 
 // RecoveryDir is the directory, inside the served one, recovery files
 // are kept in.

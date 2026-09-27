@@ -450,7 +450,7 @@ func TestPivotFileRoundTrip(t *testing.T) {
 	}
 }
 
-// The example in docs/files.md reads.
+// The example in docs/files/format.md reads.
 func TestPivotFileExample(t *testing.T) {
 	file := `{"version": 5, "sheets": [
 	  {"name": "Sales", "cells": {"A1": "Region", "B1": "Item", "C1": "Year", "D1": "Units", "A2": "East", "B2": "Pens", "C2": "2026", "D2": "3"}},

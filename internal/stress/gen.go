@@ -1,5 +1,5 @@
 // Package stress builds synthetic worst-case sheets for the stress
-// benchmarks (see docs/limits.md and `make stress`). Every generator is
+// benchmarks (see docs/contributing/limits.md and `make stress`). Every generator is
 // deterministic, so runs compare, and builds through the public API the
 // way importers do: Load cell by cell, then one RecalcAll.
 package stress

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// DocsMarker divides docs/config.md: the introduction above it is
+// DocsMarker divides docs/reference/config.md: the introduction above it is
 // written by hand, the reference below it is Reference's output.
 const DocsMarker = "<!-- Generated from internal/config/registry.go by `go test ./internal/config -update-docs`. Don't edit below. -->"
 

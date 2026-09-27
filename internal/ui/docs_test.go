@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,17 +15,29 @@ import (
 // The docs name menus, commands and keys; these tests keep what they name
 // true of the registry. scripts/doccheck checks links, the index and media.
 
-// userDocs reads README.md and docs/*.md with fenced code blocks and
+// docPages lists the Markdown pages under docs/, in every folder.
+func docPages(t *testing.T) []string {
+	t.Helper()
+	var paths []string
+	err := filepath.WalkDir("../../docs", func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && filepath.Ext(p) == ".md" {
+			paths = append(paths, p)
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return paths
+}
+
+// userDocs reads README.md and the docs with fenced code blocks and
 // inline code removed and each paragraph on one line, so a menu path
 // wrapped across lines reads whole. The generated function reference is
 // left out: it names no menus.
 func userDocs(t *testing.T) map[string]string {
 	t.Helper()
-	paths, err := filepath.Glob("../../docs/*.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	paths = append(paths, "../../README.md")
+	paths := append(docPages(t), "../../README.md")
 	out := map[string]string{}
 	for _, p := range paths {
 		if filepath.Base(p) == "functions.md" {
@@ -154,7 +167,7 @@ var (
 // command line (`:settings.vim`) or in scripts (run("format.bold")),
 // are registered.
 func TestDocsCommandIDs(t *testing.T) {
-	for _, p := range []string{"../../docs/keys.md", "../../docs/macros.md"} {
+	for _, p := range []string{"../../docs/reference/keys.md", "../../docs/reference/macro-api.md"} {
 		data, err := os.ReadFile(p)
 		if err != nil {
 			t.Fatal(err)
@@ -169,10 +182,10 @@ func TestDocsCommandIDs(t *testing.T) {
 	}
 }
 
-// TestKeysDocCoversKeymap checks docs/keys.md lists every key bound to a
+// TestKeysDocCoversKeymap checks docs/reference/keys.md lists every key bound to a
 // command, written as the menus and help show it.
 func TestKeysDocCoversKeymap(t *testing.T) {
-	data, err := os.ReadFile("../../docs/keys.md")
+	data, err := os.ReadFile("../../docs/reference/keys.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +197,7 @@ func TestKeysDocCoversKeymap(t *testing.T) {
 		label := keyLabel(k)
 		re := regexp.MustCompile(`(^|[\s,|(/])` + regexp.QuoteMeta(label) + `($|[\s,|)/.;:])`)
 		if !re.MatchString(doc) {
-			t.Errorf("docs/keys.md doesn't list %s (%s, %s)", label, id, commands[id].title)
+			t.Errorf("docs/reference/keys.md doesn't list %s (%s, %s)", label, id, commands[id].title)
 		}
 	}
 	var vimKeys []string
@@ -201,10 +214,10 @@ func TestKeysDocCoversKeymap(t *testing.T) {
 	for _, k := range vimKeys {
 		if strings.Contains(k, "+") || len(k) > 2 {
 			if !strings.Contains(doc, keyLabel(k)) && !strings.Contains(doc, theme.KeyLabel(k)) {
-				t.Errorf("docs/keys.md doesn't list the vim key %s", k)
+				t.Errorf("docs/reference/keys.md doesn't list the vim key %s", k)
 			}
 		} else if !strings.Contains(doc, "`"+k+"`") {
-			t.Errorf("docs/keys.md doesn't list the vim key `%s`", k)
+			t.Errorf("docs/reference/keys.md doesn't list the vim key `%s`", k)
 		}
 	}
 }

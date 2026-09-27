@@ -16,7 +16,7 @@ import (
 // record what you do (with absolute or relative references), save it
 // with a name and an optional Ctrl+Alt+Shift+digit shortcut, run it from
 // the menu, the palette or its shortcut, and manage saved macros. Macros
-// are Starlark scripts kept in the .012 file (see docs/macros.md);
+// are Starlark scripts kept in the .012 file (see docs/reference/macro-api.md);
 // recorded ones are scripts too, readable and editable. Recording is in
 // macrorec.go, running in macrorun.go, what scripts act on in
 // macrohost.go, and the manager in macromanage.go.

@@ -98,7 +98,7 @@ func DefaultFile() string {
 	var b strings.Builder
 	b.WriteString("# 012 configuration. Lines are key = value; # starts a comment.\n")
 	b.WriteString("# Flags and environment variables override this file.\n")
-	b.WriteString("# See `012 config` for the values in effect and docs/config.md for more.\n")
+	b.WriteString("# See `012 config` for the values in effect and docs/reference/config.md for more.\n")
 	for _, g := range Groups {
 		fmt.Fprintf(&b, "\n# ---- %s ----\n", g)
 		for _, o := range Options {

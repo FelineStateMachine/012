@@ -5,7 +5,7 @@
 // library and golang.org/x/sys: on macOS and Linux it runs the system's
 // own command line tools (security, secret-tool), handing them the
 // secret on stdin so it never appears in a process list; on Windows it
-// calls the Credential Manager API directly. See docs/architecture.md.
+// calls the Credential Manager API directly. See docs/contributing/architecture.md.
 package keyring
 
 import (

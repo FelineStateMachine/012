@@ -1,6 +1,6 @@
 // Command benchrec turns `go test -bench` output into run records, one
 // JSON line per benchmark, appended to a results file that DuckDB (and
-// ClickHouse) read; see scripts/stress and docs/observability.md. It also
+// ClickHouse) read; see scripts/stress and docs/contributing/observability.md. It also
 // prints a compact table of the run.
 //
 //	go test -bench . -benchmem ./... | go run ./internal/stress/benchrec -out runs.jsonl

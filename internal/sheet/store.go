@@ -11,7 +11,7 @@ import (
 // address. The rest of the engine reads and writes cells only through
 // these methods, never the map beneath, so the representation can change
 // (to column blocks of compact values, with formulas and formats in side
-// tables; see docs/limits.md) without touching it.
+// tables; see docs/contributing/limits.md) without touching it.
 //
 // Next to the map, two occupancy indexes (occupancy.go) record which
 // cells are stored and which have contents, so a range is read at the

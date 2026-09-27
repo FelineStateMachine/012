@@ -17,7 +17,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
-// runConfig is `012 config ...`: see docs/config.md.
+// runConfig is `012 config ...`: see docs/reference/config.md.
 func runConfig(args []string, e env) error {
 	cfg, err := loadConfig(e, nil)
 	if err != nil {

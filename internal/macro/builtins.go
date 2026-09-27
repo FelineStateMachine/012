@@ -13,7 +13,7 @@ import (
 )
 
 // The functions scripts call. Each checks its arguments, then makes one
-// call to the Host through Env.Do. docs/macros.md documents them; keep
+// call to the Host through Env.Do. docs/reference/macro-api.md documents them; keep
 // the two in step.
 
 type builtinFn func(args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)

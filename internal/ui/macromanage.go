@@ -200,7 +200,7 @@ func (m *Model) newMacro() tea.Cmd {
 }
 
 const newMacroTemplate = `# A macro written by hand. It runs from the top as one undo step;
-# docs/macros.md lists what it can call. For example:
+# docs/reference/macro-api.md lists what it can call. For example:
 #
 #   set("A1", "Total")
 #   set_formula("B1", "SUM(B2:B100)")

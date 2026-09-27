@@ -2,7 +2,7 @@
 // "key = value" lines in <user config dir>/012/config, with # comments and
 // config-file includes. One registry (Options) says what every option is
 // called, its type, default, environment variable, flag and meaning; the
-// parser, `012 config`, docs/config.md and the in-app Settings all come
+// parser, `012 config`, docs/reference/config.md and the in-app Settings all come
 // from it.
 //
 // Settings are process-wide. Settings that belong to a workbook (decimal
@@ -43,7 +43,7 @@ func (k Kind) String() string {
 type Option struct {
 	Name    string
 	Kind    Kind
-	Group   string   // heading in docs/config.md and `012 config`
+	Group   string   // heading in docs/reference/config.md and `012 config`
 	Default string   // as it would be written in the file
 	Values  []string // for Enum
 	Env     []string // environment variables that set it, first set wins
@@ -73,7 +73,7 @@ const (
 var Groups = []string{GroupAppearance, GroupData, GroupJEV, GroupTelemetry, GroupServe, GroupFiles}
 
 // Options is every setting. Add an option here and read it with
-// Config.String, Bool or List; parsing, `012 config`, docs/config.md
+// Config.String, Bool or List; parsing, `012 config`, docs/reference/config.md
 // (go test ./internal/config -update-docs) and Settings follow.
 var Options = []Option{
 	{Name: "theme", Group: GroupAppearance, Default: "terminal", Env: []string{"O12_THEME"}, Flag: "--theme", Live: true,
@@ -113,7 +113,7 @@ var Options = []Option{
 		Desc: "The JEV model to ask; the service's default when empty."},
 
 	{Name: "log-file", Kind: Path, Group: GroupTelemetry, Env: []string{"O12_LOG"}, Flag: "--log",
-		Desc: "Append telemetry events to this JSON log file. See docs/observability.md."},
+		Desc: "Append telemetry events to this JSON log file. See docs/contributing/observability.md."},
 	{Name: "log-level", Kind: Enum, Group: GroupTelemetry, Default: "info", Values: []string{"debug", "info", "warn", "error"},
 		Env:  []string{"O12_LOG_LEVEL"},
 		Desc: "The least severe telemetry event recorded; debug adds every frame and command."},
@@ -124,7 +124,7 @@ var Options = []Option{
 
 	{Name: "serve-listen", Kind: Address, Group: GroupServe, Default: "127.0.0.1:2312",
 		Desc: "The address 012 serve listens on. Anything but the loopback address lets other machines " +
-			"reach it (with an authorized key). See docs/ssh.md."},
+			"reach it (with an authorized key). See docs/terminal/ssh.md."},
 	{Name: "serve-authorized-keys", Kind: Path, Group: GroupServe, Default: "~/.ssh/authorized_keys",
 		Desc: "The public keys allowed to log in to 012 serve, in OpenSSH's authorized_keys format."},
 	{Name: "serve-host-key", Kind: Path, Group: GroupServe,
