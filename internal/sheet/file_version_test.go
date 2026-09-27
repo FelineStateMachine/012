@@ -27,6 +27,16 @@ func TestFileVersionFollowsFeatures(t *testing.T) {
 	if v := version(base()); v != `"version": 2,` {
 		t.Errorf("plain sheet: %s", v)
 	}
+	// Wrapping, borders, heights and merges are fields older builds
+	// ignore: no new version.
+	laidOut := base()
+	laidOut.SetStyle(NewRect(at("A1"), at("A1")), func(st *Style) { st.Wrap = WrapOn })
+	laidOut.SetBorders(NewRect(at("A1"), at("B2")), BorderAll, LineDouble)
+	laidOut.SetRowHeight(0, 0, 3)
+	laidOut.Merge(NewRect(at("B1"), at("C1")), MergeAll)
+	if v := version(laidOut); v != `"version": 2,` {
+		t.Errorf("laid out sheet: %s", v)
+	}
 	named := base()
 	if err := named.DefineName("Items", NewRect(at("A1"), at("A2"))); err != nil {
 		t.Fatal(err)

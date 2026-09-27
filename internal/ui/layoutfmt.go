@@ -144,10 +144,10 @@ func (m *Model) merge(k sheet.MergeKind) tea.Cmd {
 	if !loses {
 		return do(m)
 	}
-	m.openOverlay(&choiceBar{m: m, msg: "Merging keeps only the top-left value; " + lost.String() + " and others are cleared.", warn: true,
-		desc: "Undo brings the values back",
+	m.openOverlay(&choiceBar{m: m, msg: "Merging keeps only the top-left value.", warn: true,
+		desc: "Merging clears " + lost.String() + " and the other values; undo brings them back",
 		choices: []choice{
-			{key: "enter", label: "Merge anyway", run: do},
+			{key: "enter", label: "Merge", run: do},
 			{key: "esc", label: "Cancel", run: func(*Model) tea.Cmd { return nil }},
 		}})
 	return nil

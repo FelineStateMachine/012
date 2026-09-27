@@ -155,7 +155,8 @@ func TestMergeCells(t *testing.T) {
 	m.cur = addr("A1")
 	m.selectRect(rect("A1:C1"))
 	run(m, m.runCommand("format.merge_all"))
-	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(line(m, contextLine), "keeps only the top-left value") {
+	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(line(m, contextLine), "keeps only the top-left value") ||
+		!strings.Contains(line(m, m.height-1), "clears B1") {
 		t.Fatalf("no warning: %q", line(m, contextLine))
 	}
 	press(t, m, "<enter>")

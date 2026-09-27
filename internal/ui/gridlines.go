@@ -3,7 +3,6 @@ package ui
 import (
 	"strings"
 
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -77,7 +76,9 @@ func (m *Model) layoutLine(lc *lineCtx, lo, ncols, minCol, maxCol int) []rowtext
 			continue
 		}
 		row, k := m.mergeText(mg)
-		copy(spans[from-lo:], rowtext.Merged(m.sheet, mg, from, to, row == lc.row && k == lc.ln.K))
+		// While its value is being typed, the entry shows in its place.
+		typing := (m.mode == modeEnter || m.mode == modeEdit) && !m.away() && mg.From == m.cur
+		copy(spans[from-lo:], rowtext.Merged(m.sheet, mg, from, to, row == lc.row && k == lc.ln.K && !typing))
 	}
 	return spans
 }
@@ -148,17 +149,14 @@ func (m *Model) vEdge(a sheet.Addr) sheet.Line {
 }
 
 // leftEdge draws the line along the left of the cell at a over the
-// first column of its text, in the cell's colors when it has some.
-func (m *Model) leftEdge(lc *lineCtx, a sheet.Addr, text string, base lipgloss.Style, colored bool) string {
+// first column of its text, in the border's role even in a highlighted
+// cell, so the table's lines run on through the pointer and selection.
+func (m *Model) leftEdge(a sheet.Addr, text string) string {
 	e := m.vEdge(a)
 	if e == sheet.LineNone {
 		return text
 	}
-	style := m.th.CellBorder
-	if colored {
-		style = base
-	}
-	return style.Render(theme.Junction(e, e, sheet.LineNone, sheet.LineNone)) + ansi.Cut(text, 1, m.sheet.ColWidth(a.Col))
+	return m.th.CellBorder.Render(theme.Junction(e, e, sheet.LineNone, sheet.LineNone)) + ansi.Cut(text, 1, m.sheet.ColWidth(a.Col))
 }
 
 // ruleLine draws the border line above row: each column's top edge,
@@ -204,11 +202,14 @@ func (m *Model) ruleCols(b *strings.Builder, lc *lineCtx, above, first, ncols in
 			joint = " "
 		}
 		run := strings.Repeat(theme.Junction(sheet.LineNone, sheet.LineNone, h, h), w-1)
-		if !colored && joint == " " && h == sheet.LineNone {
+		switch {
+		case !colored && joint == " " && h == sheet.LineNone:
 			b.WriteString(strings.Repeat(" ", w))
-			continue
+		case joint == " ":
+			b.WriteString(style.Render(joint + run))
+		default: // the joint in the border's role, as leftEdge draws the lines through it
+			b.WriteString(m.th.CellBorder.Render(joint) + style.Render(run))
 		}
-		b.WriteString(style.Render(joint + run))
 	}
 }
 

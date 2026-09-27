@@ -160,6 +160,22 @@ func TestRowHeights(t *testing.T) {
 	if h, _ := s.RowHeight(9); h != MaxRowHeight {
 		t.Errorf("capped at %d", h)
 	}
+	// Whole columns set the rows up to the last holding a cell.
+	s.Set(at("B12"), "x")
+	s.SetRowHeight(0, MaxRows-1, 2)
+	if len(s.Heights()) != 12 {
+		t.Errorf("whole column heights %v", s.Heights())
+	}
+	s.Undo()
+	s.Undo()
+	if s.ColsWidth(0, 3) != 4*DefaultWidth {
+		t.Error("ColsWidth")
+	}
+	s.SetColWidth(2, 3)
+	if s.ColsWidth(0, 3) != 3*DefaultWidth+3 || s.ColsWidth(3, 9) != 7*DefaultWidth {
+		t.Error("ColsWidth with a width")
+	}
+	s.Undo()
 	got := roundTrip(t, s)
 	if !mapsEqual(got.Heights(), s.Heights()) {
 		t.Errorf("file heights %v, want %v", got.Heights(), s.Heights())

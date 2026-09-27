@@ -63,7 +63,7 @@ func (m *Model) screenCols() []int {
 func (m *Model) headerRow() string {
 	var b strings.Builder
 	b.WriteString(m.th.Header.Render(strings.Repeat(" ", m.hdrW())))
-	focus := m.active()
+	focus := m.sheet.Grow(sheet.Rect{From: m.active(), To: m.active()}) // a merged cell's columns
 	sel, selecting := m.highlight()
 	for _, c := range m.screenCols() {
 		if c == divider {
@@ -73,7 +73,7 @@ func (m *Model) headerRow() string {
 		w := m.sheet.ColWidth(c)
 		style, plain := m.th.Header, false
 		switch {
-		case c == focus.Col:
+		case c >= focus.From.Col && c <= focus.To.Col:
 			style = m.th.HeaderActive
 		case selecting && c >= sel.From.Col && c <= sel.To.Col:
 			style = m.th.HeaderSel
@@ -131,7 +131,7 @@ func (m *Model) rowLine(row int, ln rowtext.Line) string {
 	lc := m.lineContext(row, ln)
 	hdr := m.th.RowHeader
 	switch {
-	case row == lc.focus.Row:
+	case row == lc.focus.Row || len(lc.merges) > 0 && lc.merged(sheet.Addr{Col: lc.focus.Col, Row: row}, lc.focus):
 		hdr = m.th.HeaderActive
 	case lc.selecting && row >= lc.sel.From.Row && row <= lc.sel.To.Row:
 		hdr = m.th.HeaderSel
@@ -241,7 +241,7 @@ func (m *Model) cellMarks(lc *lineCtx, a sheet.Addr, text string, look sheet.Loo
 		text = m.dropdownMark(text, w, base, colored)
 	}
 	if lc.shaped {
-		text = m.leftEdge(lc, a, text, base, colored)
+		text = m.leftEdge(a, text)
 	}
 	return text
 }

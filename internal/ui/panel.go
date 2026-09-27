@@ -204,6 +204,10 @@ func (m *Model) contextLineText() string {
 	case m.mouse.drag == dragResize:
 		left = m.th.Key.Render("Column "+sheet.ColName(m.mouse.resizeCol)) + m.th.Muted.Render(" width ") +
 			strconv.Itoa(m.sheet.ColWidth(m.mouse.resizeCol)) + m.th.Muted.Render("   double-click the border to fit")
+	case m.mouse.drag == dragRowResize:
+		h := m.shape(m.mouse.resizeRow).Lines
+		left = m.th.Key.Render("Row "+strconv.Itoa(m.mouse.resizeRow+1)) + m.th.Muted.Render(" height ") +
+			strconv.Itoa(h) + m.th.Muted.Render(plural(h, " line", " lines")+"   double-click the corner to fit")
 	case m.mouse.drag == dragFill:
 		left = m.fillLine()
 	case m.entry.hint != "":
