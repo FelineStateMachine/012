@@ -528,7 +528,7 @@ h1{font-weight:600;margin:0 0 24px}
 section{margin:0 0 40px}
 h2{font:500 13px ui-monospace,monospace;color:#aaa;margin:0 0 8px}
 .term{display:inline-block;padding:14px 16px;border-radius:10px;box-shadow:0 8px 30px #0008}
-.screen{margin:0;font:13px/1.3 "JetBrains Mono","SF Mono",Menlo,monospace;color:var(--fg)}
+.screen{margin:0;font:13px/1.2 "JetBrains Mono","SF Mono",Menlo,monospace;color:var(--fg)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(820px,1fr));gap:8px 24px}
 .wide{grid-column:1/-1}
 `)
