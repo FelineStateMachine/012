@@ -1,7 +1,6 @@
 package sheet
 
 import (
-	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -85,8 +84,14 @@ func looksLikeRef(k string) bool {
 
 // Names returns the named ranges, sorted by name.
 func (s *Sheet) Names() []Name {
-	out := slices.Collect(maps.Values(s.names))
-	slices.SortFunc(out, func(a, b Name) int { return cmp.Compare(nameKey(a.Name), nameKey(b.Name)) })
+	// The keys are already upper case: sorting names by nameKey upper-cased
+	// both sides of every comparison, 20,000 allocations a frame for 1000
+	// names, since the formula bar looks for the selection's name.
+	keys := slices.Sorted(maps.Keys(s.names))
+	out := make([]Name, len(keys))
+	for i, k := range keys {
+		out[i] = s.names[k]
+	}
 	return out
 }
 
