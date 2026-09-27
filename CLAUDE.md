@@ -23,5 +23,5 @@ Noise that stays becomes invisible, and then real problems hide in it.
   reader would look in, link to it from elsewhere, and restructure when
   appending would make a wall of text. Shipped roadmap items move to its
   Shipped list as one line.
-- No scratch files, debug tests or temporary samples in commits.
+- No scratch files, debug tests, temporary samples or build outputs (`*.test`, binaries) in commits; `make lint` refuses compiled files and anything over 2 MB.
 - Visual changes are reviewed in the golden gallery (`make screens`).

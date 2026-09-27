@@ -28,6 +28,23 @@ for mod in . oracle e2e; do
 	fi
 done
 
+# Tracked files stay small and textual: no compiled binaries, nothing over
+# 2 MB (docs/media GIFs have their own 1 MB limit in doccheck).
+big=$(git ls-files | while IFS= read -r f; do
+	if [ -f "$f" ] && [ "$(wc -c <"$f")" -gt 2097152 ]; then echo "$f"; fi
+done)
+if [ -n "$big" ]; then
+	echo "tracked files over 2 MB:"
+	echo "$big"
+	fail=1
+fi
+bins=$(git ls-files | grep -E '\.(test|exe|o|a|so|dylib)$|^bin/' || true)
+if [ -n "$bins" ]; then
+	echo "compiled files tracked by git:"
+	echo "$bins"
+	fail=1
+fi
+
 dirs=$(find cmd internal demos e2e oracle -name '*.go' -exec dirname {} \; | sort -u)
 over=$(go run $GOCOGNIT -over $MAX_COGNIT $dirs || true)
 if [ -n "$over" ]; then
