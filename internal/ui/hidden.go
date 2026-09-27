@@ -14,7 +14,7 @@ import (
 
 func init() {
 	register(
-		&command{id: "sheet.hide", title: "Hide sheet", desc: "Take the sheet out of the tabs; formulas still read it, and View > Hidden sheets shows it again",
+		&command{id: "sheet.hide", title: "Hide sheet", desc: "Hide the sheet's tab; formulas still read it",
 			enabled: func(m *Model) bool { return len(m.book().Visible()) > 1 }, run: (*Model).hideSheet},
 		&command{id: "sheet.unhide", title: "Hidden sheets", desc: "List the hidden sheets and show one again",
 			enabled: func(m *Model) bool { return len(m.book().HiddenSheets()) > 0 }, run: func(m *Model) tea.Cmd {

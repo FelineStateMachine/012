@@ -98,3 +98,58 @@ func TestSheets(t *testing.T) {
 	s.waitForBar("A1", "Yearly total")
 	s.waitFor("24748.8")
 }
+
+// Hiding a sheet takes it out of the tabs and the file keeps it hidden;
+// View > Hidden sheets shows it again, and undo hides it once more.
+func TestHideSheets(t *testing.T) {
+	dir := t.TempDir()
+	s := start(t, dir, "book.012")
+	hideSummary(s)
+	if l := s.line(int(s.rows) - 1); !strings.HasPrefix(l, " Sheet1   +") {
+		t.Errorf("tabs %q", l)
+	}
+	s.keys("<ctrl+s>")
+	s.eventually("saved", func() bool {
+		data, err := os.ReadFile(filepath.Join(dir, "book.012"))
+		return err == nil && strings.Contains(string(data), "\"name\": \"Summary\",\n      \"hidden\": true,")
+	})
+	s.keys("<ctrl+q>")
+	s.waitExit()
+
+	s = start(t, dir, "book.012")
+	s.waitFor("Household budget 2026")
+	if l := s.line(int(s.rows) - 1); !strings.HasPrefix(l, " Sheet1   +") {
+		t.Errorf("tabs after opening %q", l)
+	}
+	s.keys("<alt+v>", "<down>", "<enter>")
+	s.waitFor("Hidden sheets")
+	s.keys("<enter>")
+	s.waitFor("Unhid Summary")
+	s.waitFor("25900.8") // its formulas kept reading Sheet1
+	if l := s.line(int(s.rows) - 1); !strings.HasPrefix(l, " Sheet1   Summary   +") {
+		t.Errorf("tabs after unhiding %q", l)
+	}
+	s.keys("<ctrl+z>")
+	s.waitFor("Undid: show sheet Summary")
+	s.waitForBar("A1", "Household budget 2026")
+}
+
+// Typing a sheet's name in a formula offers it; after it, arrows point
+// into that sheet.
+func TestSheetNameSuggestions(t *testing.T) {
+	s := start(t, "")
+	summary(s)
+	s.keys("<ctrl+pgup>", "<f5>", "D1", "<enter>")
+	s.waitForName("D1")
+	s.keys("=su")
+	s.waitFor("│ Summary!")
+	s.keys("<tab>")
+	s.waitFor("=Summary!")
+	s.keys("<down>", "<up>")
+	s.waitFor("POINT")
+	s.waitFor("=Summary!B1")
+	s.keys("<enter>")
+	s.keys("<up>")
+	s.waitForBar("D1", "=Summary!B1")
+	s.waitFor("25900.8")
+}

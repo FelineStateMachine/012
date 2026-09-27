@@ -40,9 +40,9 @@ func (m *Model) askImportPlace(name string) tea.Cmd {
 	}
 	k, _ := fileio.KindOf(name)
 	base := filepath.Base(name)
-	insert := "Insert new sheet"
+	insert, as := "Insert new sheet", " as a new sheet"
 	if k.HoldsSheets() {
-		insert = "Insert new sheets"
+		insert, as = "Insert new sheets", " as new sheets"
 	}
 	item := func(title, detail, desc string, run func(m *Model) tea.Cmd) pickItem {
 		return pickItem{title: title, name: len(title), detail: detail, desc: desc, pick: func(m *Model) tea.Cmd {
@@ -50,7 +50,7 @@ func (m *Model) askImportPlace(name string) tea.Cmd {
 			return run(m)
 		}}
 	}
-	items := []pickItem{item(insert, "after the others", "Add "+base+" as new sheets",
+	items := []pickItem{item(insert, "after the others", "Add "+base+as,
 		func(m *Model) tea.Cmd { return m.startImport(name, fileio.Options{}, placeNewSheets) })}
 	if !k.HoldsSheets() {
 		items = append(items, item("Replace current sheet", m.sheet.Name(), "Put "+base+" in place of "+m.sheet.Name()+", keeping its name",

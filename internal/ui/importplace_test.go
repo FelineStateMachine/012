@@ -39,7 +39,7 @@ func TestImportLocation(t *testing.T) {
 	if got != want {
 		t.Errorf("locations:\n%s\nwant\n%s", got, want)
 	}
-	if st := status(m); !strings.Contains(st, "Add sales.csv as new sheets") {
+	if st := status(m); !strings.Contains(st, "Add sales.csv as a new sheet") {
 		t.Errorf("status %q", st)
 	}
 	press(t, m, "<esc>")
