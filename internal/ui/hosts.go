@@ -34,6 +34,27 @@ var (
 func (m *Model) styles() *theme.Theme      { return &m.th }
 func (m *Model) size() (width, height int) { return m.width, m.height }
 func (m *Model) available(id string) bool  { return commands[id].available(m) }
+func (m *Model) sheetShown() *sheet.Sheet  { return m.sheet }
+
+// syncChanged makes the modified flag follow the undo history.
+func (m *Model) syncChanged() { m.changed = m.sheet.StateID() != m.saved }
+
+// pickValues opens a filter's values list titled title at screen column
+// x; apply gets the criteria chosen, and cancel runs after Esc.
+func (m *Model) pickValues(title string, x int, values []sheet.FilterValue, cond sheet.Condition, apply func(sheet.Criteria), cancel func()) {
+	fp := m.openValuesPicker(title, x, values, cond, func(_ *Model, cr sheet.Criteria) { apply(cr) })
+	fp.onCancel = func(*Model) { cancel() }
+}
+
+// pointRange asks for a range on the context line; done gets it, and
+// cancel runs after Esc.
+func (m *Model) pointRange(label string, done func(sheet.Rect), cancel func()) {
+	m.openRange(label, func(_ *Model, r sheet.Rect) tea.Cmd {
+		done(r)
+		return nil
+	})
+	m.prompt.onCancel = func(*Model) { cancel() }
+}
 
 // What every component with a text field needs.
 
@@ -47,7 +68,7 @@ func (h host) Close()                    { h.m.closeOverlay() }
 func (h host) RecordAnswer(answer string, cancelled bool) { h.m.recordAnswer(answer, cancelled) }
 
 // newPicker returns a picker of items over the model; the caller opens it.
-func newPicker(m *Model, title, placeholder string, maxW int, items []picker.Item) *picker.Picker {
+func (m *Model) newPicker(title, placeholder string, maxW int, items []picker.Item) *picker.Picker {
 	return picker.New(m.host(), title, placeholder, maxW, items)
 }
 

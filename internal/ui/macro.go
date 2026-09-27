@@ -51,7 +51,7 @@ func init() {
 			enabled: func(m *Model) bool { return idle(m) && len(m.book().Macros()) > 0 },
 			desc:    "Pick a saved macro and run it",
 			run: func(m *Model) tea.Cmd {
-				p := newPicker(m, "Run macro", "Type a macro's name", 60, macroRunItems(m))
+				p := m.newPicker("Run macro", "Type a macro's name", 60, macroRunItems(m))
 				m.openOverlay(p)
 				return nil
 			}},

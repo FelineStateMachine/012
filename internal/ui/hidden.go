@@ -61,7 +61,7 @@ func (m *Model) openHiddenPicker() {
 			},
 		})
 	}
-	p := newPicker(m, "Hidden sheets", "Type a sheet name", 60, items)
+	p := m.newPicker("Hidden sheets", "Type a sheet name", 60, items)
 	p.Action = "unhide"
 	p.Answers = true
 	m.openOverlay(p)

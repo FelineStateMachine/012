@@ -307,7 +307,7 @@ func (m *Model) openSheetPicker() {
 			},
 		})
 	}
-	p := newPicker(m, "Go to sheet", "Type a sheet name", 60, items)
+	p := m.newPicker("Go to sheet", "Type a sheet name", 60, items)
 	p.Action = "show"
 	p.Sel = sel
 	m.openOverlay(p)

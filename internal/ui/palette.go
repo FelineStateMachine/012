@@ -14,7 +14,7 @@ import (
 
 func init() {
 	register(&command{id: "palette", macro: macroNever, title: "Search the menus", desc: "Find and run any command by name", run: func(m *Model) tea.Cmd {
-		m.openOverlay(newPicker(m, "Search the menus", "Type a command, e.g. save or width", 76, paletteItems(m)))
+		m.openOverlay(m.newPicker("Search the menus", "Type a command, e.g. save or width", 76, paletteItems(m)))
 		return nil
 	}})
 	for _, k := range []string{"alt+/", "ctrl+k", "ctrl+shift+p"} {

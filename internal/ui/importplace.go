@@ -63,7 +63,7 @@ func (m *Model) askImportPlace(name string) tea.Cmd {
 	}
 	items = append(items, item("Replace spreadsheet", detail, "Open "+base+" instead, as File > Open does",
 		func(m *Model) tea.Cmd { return m.confirmImport(name, fileio.Options{}) }))
-	p := newPicker(m, "Import "+base, "Import location", 60, items)
+	p := m.newPicker("Import "+base, "Import location", 60, items)
 	p.Action = "import"
 	m.openOverlay(p)
 	return nil

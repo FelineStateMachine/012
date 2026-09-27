@@ -23,7 +23,7 @@ func init() {
 			return nil
 		}},
 		&command{id: "help.functions", macro: macroNever, title: "Function list", desc: "Search the functions formulas can use", run: func(m *Model) tea.Cmd {
-			p := newPicker(m, "Functions", "Type a function name, e.g. sum or if", 100, functionItems(m))
+			p := m.newPicker("Functions", "Type a function name, e.g. sum or if", 100, functionItems(m))
 			p.Action = "insert"
 			m.openOverlay(p)
 			return nil

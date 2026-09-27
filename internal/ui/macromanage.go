@@ -33,7 +33,7 @@ const writeMacroTitle = "+ Write a macro"
 
 // openMacros opens the manager with the macro named sel highlighted.
 func (m *Model) openMacros(sel string) {
-	p := newPicker(m, "Macros", "Type a macro's name", 72, macroManageItems(m))
+	p := m.newPicker("Macros", "Type a macro's name", 72, macroManageItems(m))
 	p.Action = "run"
 	for i, pm := range p.Shown() {
 		if strings.EqualFold(pm.Item.Title, sel) {

@@ -38,7 +38,7 @@ type namesPicker struct {
 
 // openNames opens the picker; sel is what "Add a range" names.
 func (m *Model) openNames(sel sheet.Rect) {
-	p := newPicker(m, "Named ranges", "Type a name", 60, namesItems(m, sel))
+	p := m.newPicker("Named ranges", "Type a name", 60, namesItems(m, sel))
 	p.Action = "go to"
 	m.clearSelection()
 	m.openOverlay(&namesPicker{m: m, Picker: p, sel: sel})

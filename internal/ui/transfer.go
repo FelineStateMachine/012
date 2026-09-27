@@ -136,7 +136,7 @@ func (m *Model) openImport() tea.Cmd {
 				return m.askImportPlace(name)
 			}})
 	}
-	p := newPicker(m, "Import", "Type to filter, or a path", 72, items)
+	p := m.newPicker("Import", "Type to filter, or a path", 72, items)
 	p.Action = "import"
 	p.Enter = func(query string) (tea.Cmd, bool) {
 		// A path, or a name that matched nothing: import it by name.
@@ -373,7 +373,7 @@ func (m *Model) openTablePicker(name string, tables []fileio.TableInfo, place im
 			m.prompt.indicator = "SQL"
 			return nil
 		}})
-	p := newPicker(m, "Import from "+filepath.Base(name), "Type to filter tables", 72, items)
+	p := m.newPicker("Import from "+filepath.Base(name), "Type to filter tables", 72, items)
 	p.Action = "import"
 	m.openOverlay(p)
 }

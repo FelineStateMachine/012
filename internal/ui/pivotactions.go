@@ -14,7 +14,7 @@ import (
 // What the pivot editor's keys do to the pivot, and how its fields read.
 
 // fieldName is the source field a field line is about.
-func (e *pivotEditor) fieldName(m *Model, p sheet.Pivot, it pivotItem) string {
+func (e *pivotEditor) fieldName(m pivotHost, p sheet.Pivot, it pivotItem) string {
 	return m.book().FieldName(p, fieldCol(p, it))
 }
 
@@ -40,10 +40,10 @@ func groups(p *sheet.Pivot, sect int) *[]sheet.PivotGroup {
 
 // fieldDetail is the right side of a field line: a group's order, a
 // value's summary as a chip to change, a filter's criteria.
-func (e *pivotEditor) fieldDetail(m *Model, p sheet.Pivot, it pivotItem, sel bool) string {
-	dim, chip := m.th.Muted, m.th.KeyChip
+func (e *pivotEditor) fieldDetail(m pivotHost, p sheet.Pivot, it pivotItem, sel bool) string {
+	dim, chip := m.styles().Muted, m.styles().KeyChip
 	if sel {
-		dim, chip = m.th.MenuSelected, m.th.MenuSelected
+		dim, chip = m.styles().MenuSelected, m.styles().MenuSelected
 	}
 	switch it.sect {
 	case sectValues:
@@ -61,7 +61,7 @@ func (e *pivotEditor) fieldDetail(m *Model, p sheet.Pivot, it pivotItem, sel boo
 }
 
 // orderText says how a group is ordered: A→Z, or by a value's total.
-func orderText(m *Model, p sheet.Pivot, g sheet.PivotGroup) string {
+func orderText(m pivotHost, p sheet.Pivot, g sheet.PivotGroup) string {
 	if i := g.SortBy - 1; i >= 0 && i < len(p.Values) {
 		arrow := "↑"
 		if g.Desc {
@@ -86,7 +86,7 @@ func criteriaText(cr sheet.Criteria) string {
 }
 
 // act does what Space does on a line.
-func (e *pivotEditor) act(m *Model, it pivotItem) tea.Cmd {
+func (e *pivotEditor) act(m pivotHost, it pivotItem) tea.Cmd {
 	switch {
 	case it.kind == itemSource:
 		e.editSource(m)
@@ -110,7 +110,7 @@ func (e *pivotEditor) act(m *Model, it pivotItem) tea.Cmd {
 
 // adjust steps a field's setting d places: a group's order (A→Z, Z→A,
 // then by each value, smallest and largest first), or a value's summary.
-func (e *pivotEditor) adjust(m *Model, it pivotItem, d int) {
+func (e *pivotEditor) adjust(m pivotHost, it pivotItem, d int) {
 	switch {
 	case it.kind == itemToggle:
 		e.act(m, it)
@@ -145,7 +145,7 @@ func boolInt(b bool) int {
 }
 
 // cycleShowAs steps a value through Sheets' "Show as" choices.
-func (e *pivotEditor) cycleShowAs(m *Model, it pivotItem) {
+func (e *pivotEditor) cycleShowAs(m pivotHost, it pivotItem) {
 	if it.kind != itemField || it.sect != sectValues {
 		return
 	}
@@ -158,7 +158,7 @@ func (e *pivotEditor) cycleShowAs(m *Model, it pivotItem) {
 }
 
 // remove takes a field out of its section.
-func (e *pivotEditor) remove(m *Model, it pivotItem) {
+func (e *pivotEditor) remove(m pivotHost, it pivotItem) {
 	if it.kind != itemField {
 		return
 	}
@@ -188,7 +188,7 @@ func (e *pivotEditor) remove(m *Model, it pivotItem) {
 
 // reorder moves a row or column field up or down within its section,
 // which nests the groups differently.
-func (e *pivotEditor) reorder(m *Model, it pivotItem, down bool) {
+func (e *pivotEditor) reorder(m pivotHost, it pivotItem, down bool) {
 	if it.kind != itemField || it.sect == sectFilters {
 		return
 	}
@@ -212,7 +212,7 @@ func (e *pivotEditor) reorder(m *Model, it pivotItem, down bool) {
 }
 
 // addField picks a field of the source to add to a section.
-func (e *pivotEditor) addField(m *Model, sect int) {
+func (e *pivotEditor) addField(m pivotHost, sect int) {
 	p := e.pivot(m)
 	used := map[int]bool{}
 	switch sect {
@@ -234,18 +234,18 @@ func (e *pivotEditor) addField(m *Model, sect int) {
 			Pick: func() tea.Cmd {
 				m.closeOverlay()
 				e.add(m, sect, col)
-				e.reopen(m)
+				e.reopen()
 				return nil
 			},
 		})
 	}
-	fp := newPicker(m, "Add to "+sectNames[sect], "Type a field name", 50, items)
+	fp := m.newPicker("Add to "+sectNames[sect], "Type a field name", 50, items)
 	fp.Action = "add"
 	m.openOverlay(&fieldPicker{m: m, Picker: fp, back: e})
 }
 
 // add puts the field in column col at the end of a section.
-func (e *pivotEditor) add(m *Model, sect, col int) {
+func (e *pivotEditor) add(m pivotHost, sect, col int) {
 	name := m.book().FieldName(e.pivot(m), col)
 	e.set(m, "add "+name+" to "+sectNames[sect], func(p *sheet.Pivot) {
 		switch sect {
@@ -263,7 +263,7 @@ func (e *pivotEditor) add(m *Model, sect, col int) {
 
 // fieldPicker is the picker of fields to add; Esc returns to the editor.
 type fieldPicker struct {
-	m *Model // the model it acts on
+	m pivotHost // the model, through what the editor needs of it
 	*picker.Picker
 	back *pivotEditor
 }
@@ -272,7 +272,7 @@ func (f *fieldPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 	m := f.m
 	if k.String() == "esc" {
 		m.closeOverlay()
-		f.back.reopen(m)
+		f.back.reopen()
 		return nil
 	}
 	return f.Picker.Key(k)
@@ -282,7 +282,7 @@ func (f *fieldPicker) Mouse(e overlay.MouseEvent) tea.Cmd {
 	m := f.m
 	if e.Box != picker.ID && e.Kind == overlay.MousePress {
 		m.closeOverlay()
-		f.back.reopen(m)
+		f.back.reopen()
 		return nil
 	}
 	return f.Picker.Mouse(e)
@@ -290,24 +290,23 @@ func (f *fieldPicker) Mouse(e overlay.MouseEvent) tea.Cmd {
 
 // editFilter opens the values list of filter i, in the manner of a
 // filter's column.
-func (e *pivotEditor) editFilter(m *Model, i int) {
+func (e *pivotEditor) editFilter(m pivotHost, i int) {
 	p := e.pivot(m)
 	f := p.Filters[i]
 	name := m.book().FieldName(p, f.Col)
 	x, _, _ := e.box(m)
-	fp := m.openValuesPicker("Filter "+name, x, m.book().PivotFilterValues(p, f.Col), f.Criteria.Cond,
-		func(m *Model, cr sheet.Criteria) {
+	m.pickValues("Filter "+name, x, m.book().PivotFilterValues(p, f.Col), f.Criteria.Cond,
+		func(cr sheet.Criteria) {
 			e.set(m, "filter "+name, func(p *sheet.Pivot) { p.Filters[i].Criteria = cr })
-			e.reopen(m)
-		})
-	fp.onCancel = e.reopen
+			e.reopen()
+		}, e.reopen)
 }
 
 // editSource points at the data on its sheet, starting from the current
 // range; fields outside the new range are dropped.
-func (e *pivotEditor) editSource(m *Model) {
+func (e *pivotEditor) editSource(m pivotHost) {
 	p := e.pivot(m)
-	src, home := m.book().Lookup(p.Source), m.sheet
+	src, home := m.book().Lookup(p.Source), m.sheetShown()
 	if src == nil || src == home {
 		e.msg = "The source sheet " + p.Source + " doesn't exist"
 		return
@@ -321,13 +320,13 @@ func (e *pivotEditor) editSource(m *Model) {
 	if !p.Lost {
 		m.selectRect(p.Range)
 	}
-	back := func(m *Model) {
+	back := func() {
 		m.clearSelection()
 		m.showSheet(home)
-		e.reopen(m)
+		e.reopen()
 	}
-	m.openRange("Pivot data:", func(m *Model, r sheet.Rect) tea.Cmd {
-		back(m)
+	m.pointRange("Pivot data:", func(r sheet.Rect) {
+		back()
 		e.set(m, "change the pivot's data to "+r.String(), func(p *sheet.Pivot) {
 			p.Source, p.Range, p.Lost = src.Name(), r, false
 			in := func(c int) bool { return c >= r.From.Col && c <= r.To.Col }
@@ -337,7 +336,5 @@ func (e *pivotEditor) editSource(m *Model) {
 			p.Values = slices.DeleteFunc(p.Values, func(v sheet.PivotValue) bool { return !in(v.Col) })
 			p.Filters = slices.DeleteFunc(p.Filters, func(f sheet.PivotFilter) bool { return !in(f.Col) })
 		})
-		return nil
-	})
-	m.prompt.onCancel = back
+	}, back)
 }

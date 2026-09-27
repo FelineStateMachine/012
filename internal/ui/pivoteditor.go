@@ -9,6 +9,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -22,11 +23,36 @@ import (
 // it. Enter keeps the changes; Esc undoes them, removing a pivot just
 // created.
 type pivotEditor struct {
-	m     *Model       // the model it acts on
+	m     pivotHost    // the model, through what the editor needs of it
 	start int          // the workbook's state before editing, to undo back to
 	back  *sheet.Sheet // for a new pivot, the sheet it summarizes, shown again on Esc
 	msg   string       // why the last change was refused, for the status line
 	overlay.List
+}
+
+// pivotHost is what the pivot editor acts on. The model implements it.
+// The editor stays in package ui: besides the pivot on the sheet shown,
+// it opens the model's pickers, filter values list and range prompt and
+// comes back from them, which takes more than a small interface.
+type pivotHost interface {
+	styles() *theme.Theme
+	size() (width, height int)
+	book() *sheet.Workbook
+	// sheetShown is the sheet the pivot is on while it's edited.
+	sheetShown() *sheet.Sheet
+	// syncChanged makes the modified flag follow the undo history.
+	syncChanged()
+	openOverlay(o overlay.Overlay)
+	closeOverlay()
+	afterSheetsChange(prefer *sheet.Sheet, index int)
+	showSheet(s *sheet.Sheet)
+	selectRect(r sheet.Rect)
+	clearSelection()
+	newPicker(title, placeholder string, maxW int, items []picker.Item) *picker.Picker
+	// pickValues opens a filter's values list at screen column x.
+	pickValues(title string, x int, values []sheet.FilterValue, cond sheet.Condition, apply func(sheet.Criteria), cancel func())
+	// pointRange asks for a range, pointed at or typed.
+	pointRange(label string, done func(sheet.Rect), cancel func())
 }
 
 // Sections of the editor, in order.
@@ -78,16 +104,16 @@ func (m *Model) openPivotEditor(start int, back *sheet.Sheet) {
 
 func (e *pivotEditor) Indicator() string { return "PIVOT" }
 
-func (e *pivotEditor) pivot(m *Model) sheet.Pivot {
-	p, _ := m.sheet.Pivot()
+func (e *pivotEditor) pivot(m pivotHost) sheet.Pivot {
+	p, _ := m.sheetShown().Pivot()
 	return p
 }
 
 // items lists the editor's lines for the pivot as it is now.
-func (e *pivotEditor) items(m *Model) []pivotItem {
+func (e *pivotEditor) items(m pivotHost) []pivotItem {
 	p := e.pivot(m)
 	items := []pivotItem{{kind: itemSource}}
-	if m.sheet.PivotError() != "" {
+	if m.sheetShown().PivotError() != "" {
 		items = append(items, pivotItem{kind: itemError})
 	}
 	items = append(items, pivotItem{kind: itemSep})
@@ -117,7 +143,7 @@ func (e *pivotEditor) step(items []pivotItem, d int) {
 }
 
 // current is the highlighted line, kept on a selectable one.
-func (e *pivotEditor) current(m *Model) pivotItem {
+func (e *pivotEditor) current(m pivotHost) pivotItem {
 	items := e.items(m)
 	e.Sel = clamp(e.Sel, 0, len(items)-1)
 	if !selectable(items[e.Sel]) {
@@ -127,7 +153,7 @@ func (e *pivotEditor) current(m *Model) pivotItem {
 }
 
 // selectItem highlights the line showing it, if any.
-func (e *pivotEditor) selectItem(m *Model, it pivotItem) {
+func (e *pivotEditor) selectItem(m pivotHost, it pivotItem) {
 	for i, x := range e.items(m) {
 		if x == it {
 			e.Sel = i
@@ -136,19 +162,19 @@ func (e *pivotEditor) selectItem(m *Model, it pivotItem) {
 }
 
 // set applies a change to the pivot as its own undo step.
-func (e *pivotEditor) set(m *Model, label string, fn func(p *sheet.Pivot)) {
+func (e *pivotEditor) set(m pivotHost, label string, fn func(p *sheet.Pivot)) {
 	p := e.pivot(m)
 	fn(&p)
 	e.msg = ""
-	if err := m.sheet.SetPivot(p, label); err != nil {
+	if err := m.sheetShown().SetPivot(p, label); err != nil {
 		e.msg = err.Error()
 	}
-	m.changed = m.sheet.StateID() != m.saved
+	m.syncChanged()
 }
 
 func (e *pivotEditor) Key(k tea.KeyPressMsg) tea.Cmd {
 	m := e.m
-	if _, ok := m.sheet.Pivot(); !ok {
+	if _, ok := m.sheetShown().Pivot(); !ok {
 		m.closeOverlay()
 		return nil
 	}
@@ -186,17 +212,17 @@ func (e *pivotEditor) Key(k tea.KeyPressMsg) tea.Cmd {
 
 // cancel undoes the editor's changes and closes it; a pivot just created
 // goes with its sheet.
-func (e *pivotEditor) cancel(m *Model) {
-	for m.sheet.StateID() != e.start && m.sheet.CanUndo() {
-		m.sheet.Undo()
+func (e *pivotEditor) cancel(m pivotHost) {
+	for m.sheetShown().StateID() != e.start && m.sheetShown().CanUndo() {
+		m.sheetShown().Undo()
 	}
 	m.closeOverlay()
 	m.afterSheetsChange(e.back, m.book().Active())
-	m.changed = m.sheet.StateID() != m.saved
+	m.syncChanged()
 }
 
 // reopen returns to the editor after a picker or prompt.
-func (e *pivotEditor) reopen(m *Model) { m.openOverlay(e) }
+func (e *pivotEditor) reopen() { e.m.openOverlay(e) }
 
 func (e *pivotEditor) Mouse(ev overlay.MouseEvent) tea.Cmd {
 	m := e.m
@@ -224,14 +250,16 @@ func (e *pivotEditor) Mouse(ev overlay.MouseEvent) tea.Cmd {
 }
 
 // rows is how many lines of the list show.
-func (e *pivotEditor) rows(m *Model, n int) int {
-	return max(min(n, m.height-1-gridTop-2), 1)
+func (e *pivotEditor) rows(m pivotHost, n int) int {
+	_, height := m.size()
+	return max(min(n, height-1-gridTop-2), 1)
 }
 
 // box places the editor at the right of the grid.
-func (e *pivotEditor) box(m *Model) (x, y, inner int) {
-	inner = min(44, m.width-2)
-	return max(m.width-inner-2, 0), gridTop, inner
+func (e *pivotEditor) box(m pivotHost) (x, y, inner int) {
+	width, _ := m.size()
+	inner = min(44, width-2)
+	return max(width-inner-2, 0), gridTop, inner
 }
 
 func (e *pivotEditor) Layout() []overlay.Box {
@@ -251,28 +279,28 @@ func (e *pivotEditor) Layout() []overlay.Box {
 		lines = append(lines, e.line(m, p, items[i], i == e.Sel, inner))
 	}
 	footer := ""
-	if out, ok := m.sheet.PivotRange(); ok && m.sheet.PivotError() == "" {
+	if out, ok := m.sheetShown().PivotRange(); ok && m.sheetShown().PivotError() == "" {
 		footer = "results " + out.String()
 	}
-	return []overlay.Box{{ID: pivotEditorID, X: x, Y: y, Lines: m.th.Frame(inner, "Pivot table", footer, lines)}}
+	return []overlay.Box{{ID: pivotEditorID, X: x, Y: y, Lines: m.styles().Frame(inner, "Pivot table", footer, lines)}}
 }
 
 // line draws one line of the editor, inner columns wide.
-func (e *pivotEditor) line(m *Model, p sheet.Pivot, it pivotItem, sel bool, inner int) string {
-	base, dim := m.th.MenuBar, m.th.Muted
+func (e *pivotEditor) line(m pivotHost, p sheet.Pivot, it pivotItem, sel bool, inner int) string {
+	base, dim := m.styles().MenuBar, m.styles().Muted
 	if sel {
-		base, dim = m.th.MenuSelected, m.th.MenuSelected
+		base, dim = m.styles().MenuSelected, m.styles().MenuSelected
 	}
 	var left, right string
 	switch it.kind {
 	case itemSep:
 		return theme.SepRow
 	case itemError:
-		return theme.Cells(m.th.Warning, " "+m.sheet.PivotError(), inner)
+		return theme.Cells(m.styles().Warning, " "+m.sheetShown().PivotError(), inner)
 	case itemSource:
 		left = base.Render(" Data  ") + e.sourceText(m, p, sel)
 	case itemSection:
-		title := m.th.Title
+		title := m.styles().Title
 		if sel {
 			title = base
 		}
@@ -307,29 +335,30 @@ func spreadIn(base lipgloss.Style, left, right string, w int) string {
 	return ansi.Truncate(left+base.Render(strings.Repeat(" ", gap))+right, w, "")
 }
 
-func (e *pivotEditor) sourceText(m *Model, p sheet.Pivot, sel bool) string {
+func (e *pivotEditor) sourceText(m pivotHost, p sheet.Pivot, sel bool) string {
 	text := sheet.QuoteSheet(p.Source) + "!" + p.Range.String()
 	if p.Lost {
 		text = sheet.QuoteSheet(p.Source) + "!#REF!"
 	}
 	if sel {
-		return m.th.MenuSelected.Render(text)
+		return m.styles().MenuSelected.Render(text)
 	}
-	return m.th.Key.Render(text)
+	return m.styles().Key.Render(text)
 }
 
 func (e *pivotEditor) Status() (string, string) {
 	m := e.m
 	it := e.current(m)
+	width, _ := m.size()
 	desc, pairs := e.help(m, it)
 	if e.msg != "" {
-		desc = m.th.Warning.Render(e.msg)
+		desc = m.styles().Warning.Render(e.msg)
 	}
 	pairs = append(pairs, "Enter", "done", "Esc", "cancel")
 	for {
-		keys := m.th.KeyHints(pairs...)
+		keys := m.styles().KeyHints(pairs...)
 		switch {
-		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
+		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= width:
 			return desc, keys
 		case desc != "":
 			desc = ""
@@ -346,7 +375,7 @@ func (e *pivotEditor) Status() (string, string) {
 }
 
 // help is what the highlighted line is and the keys that act on it.
-func (e *pivotEditor) help(m *Model, it pivotItem) (string, []string) {
+func (e *pivotEditor) help(m pivotHost, it pivotItem) (string, []string) {
 	p := e.pivot(m)
 	switch it.kind {
 	case itemSource:
