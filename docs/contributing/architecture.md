@@ -100,12 +100,16 @@ style.
   cost of what it holds; the stored index's blocks hold the cells
   themselves, a 16-byte slot each in row order (`slot.go`). A plain cell
   (a number, boolean or text as typed, with a format and style) lives in
-  its slot, with its text in a table of strings and its formatting in a
-  table of looks; formulas, notes, and what pivots and spills write are
-  whole `Cell`s in a side table, which recalculation updates in place.
-  `get` hands out a plain cell as a `Cell` made for the caller, a copy
-  whose changes reach nothing; `set` is the one way to change a cell. Formats of whole columns and rows, and of the
-  whole sheet, live on the lines (`lines.go`); a cell falls back on them.
+  its slot, with its text in a table of strings kept once each, its
+  formatting in a table of looks, and its input only when that isn't
+  the value's own text ("1.50" is kept as 1.5 printed with two
+  decimals). Formulas, notes, and what pivots and spills write are whole
+  `Cell`s in a side table, which recalculation updates in place. `get`
+  hands out a plain cell as a `Cell` made for the caller, a copy whose
+  changes reach nothing; `set` is the one way to change a cell. What
+  each costs is in [Bounds of support](limits.md#sheet-size). Formats of
+  whole columns and rows, and of the whole sheet, live on the lines
+  (`lines.go`); a cell falls back on them.
   Copy, paste and move carry the formatting cells show (`clipfmt.go`):
   whole lines as line formats, blocks as the cells' own. A line's format
   changing recalculates the formulas reading any cell of it, found through

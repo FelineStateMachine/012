@@ -29,5 +29,3 @@ colors that follow light and dark.
 | Curly, colored underlines | error cells | kitty, Ghostty, WezTerm, iTerm2, Alacritty |
 | Background color query and mode 2031 | light and dark themes, following system changes | most terminals; 2031 in Ghostty and kitty |
 | Synchronized output (2026) | flicker-free redraws | kitty, Ghostty, WezTerm, iTerm2, Alacritty |
-
-Everything degrades quietly where it isn't supported.

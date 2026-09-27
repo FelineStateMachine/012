@@ -47,8 +47,9 @@ while typing enters the same entry into every selected cell.
 
 ## Undo
 
-Ctrl+Z undoes and Ctrl+Y or Ctrl+Shift+Z redoes, 100 steps deep, across
-every sheet: undo shows the sheet a step changed. Every change is covered:
+Ctrl+Z undoes and Ctrl+Y or Ctrl+Shift+Z redoes, 100 steps deep (fewer
+when steps are very large, the oldest dropped first: see
+[Bounds of support](../contributing/limits.md#undo)), across every sheet: undo shows the sheet a step changed. Every change is covered:
 typing, clearing, paste, fill, sort, insert and delete, formats, widths,
 names, charts, freeze, filters, pivot tables, and adding, deleting,
 renaming, moving and duplicating sheets. A multi-cell change is one step,
