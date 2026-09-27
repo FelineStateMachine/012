@@ -72,7 +72,6 @@ func emptyBook() *Workbook {
 		nameUsers:  map[string]map[loc]struct{}{},
 		crossUsers: map[loc]struct{}{},
 		crossKeys:  map[string]int{},
-		remote:     Remote,
 	}
 }
 

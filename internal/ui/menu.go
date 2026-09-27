@@ -254,6 +254,9 @@ func (m *Model) fail(msg string) {
 // state and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
 	*m = Model{sheet: s, filename: filename, width: m.width, height: m.height, th: m.th, term: m.term, jev: m.jev, lastChart: -1}
+	if m.jev != nil {
+		s.Book().SetRemote(m.jev.cache)
+	}
 }
 
 func isDigits(s string) bool {

@@ -36,11 +36,6 @@ type RemoteSource interface {
 	Lookup(RemoteCall) (RemoteAnswer, bool)
 }
 
-// Remote is the source new workbooks start with.
-//
-// Deprecated: set each workbook's source with SetRemote.
-var Remote RemoteSource
-
 // SetRemote sets what answers the workbook's JEV functions: nil when no
 // API key is configured, and the functions then evaluate to ErrNoRemote.
 // It recomputes them, so a loaded file's questions are asked.

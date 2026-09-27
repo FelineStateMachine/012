@@ -253,8 +253,6 @@ func BenchmarkJEV(b *testing.B) {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			for b.Loop() {
 				cache := jev.NewCache()
-				prev := sheet.Remote
-				sheet.Remote = cache
 				s := sheet.New()
 				for i := range n {
 					s.Load(sheet.Addr{Row: i}, fmt.Sprintf("row %d", i), sheet.Format{}, sheet.Style{})
@@ -269,7 +267,6 @@ func BenchmarkJEV(b *testing.B) {
 					b.Fatalf("%d in flight, %d queued", in, q)
 				}
 				b.ReportMetric(float64(time.Since(start).Microseconds())/float64(n), "us/answer")
-				sheet.Remote = prev
 			}
 		})
 	}
