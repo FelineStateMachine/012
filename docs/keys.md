@@ -31,7 +31,7 @@ the app uses, so it never drifts from what the keys do.
 | Ctrl+Alt+= / Ctrl+Alt+- | Insert rows above / delete the selected rows (columns when whole columns are selected) |
 | Ctrl+Enter while typing | Enter the same entry in every selected cell |
 | F4 while typing a formula | Cycle the reference at the caret through A1, $A$1, A$1, $A1 |
-| Typing a function or range name | Suggestions drop down: Up/Down pick, Tab or Enter insert, Esc hides them; inside a function's parentheses the context line shows its arguments with the current one marked |
+| Typing a function, range or sheet name | Suggestions drop down: Up/Down pick, Tab or Enter insert (a sheet as `Summary!`, then arrows point into it), Esc hides them; inside a function's parentheses the context line shows its arguments with the current one marked |
 | Alt+, / Alt+. | Trace precedents / dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; press again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) |
 | Data > Named ranges | Name ranges for formulas (`=SUM(Sales)`): Enter goes to one, F2 renames or repoints it, Ctrl+D deletes it; Data > Define named range names the selection |
 | Ctrl+Shift+1 ... 6 | Number, time, date, currency, percent, scientific format |

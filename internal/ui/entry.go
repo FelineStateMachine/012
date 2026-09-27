@@ -72,7 +72,7 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 		m.toggleAbsolute()
 		return nil
 	}
-	if m.line.isFormula() && m.line.canPoint() && m.startPoint(key) {
+	if m.line.isFormula() && (m.pointAfterSheet(key) || m.line.canPoint() && m.startPoint(key)) {
 		return nil
 	}
 	if m.line.isFormula() && (key == "left" || key == "right") {
@@ -95,7 +95,7 @@ func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 	if m.entry.assist.key(m, key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
-	if m.line.isFormula() && m.line.canPoint() && strings.HasPrefix(key, "shift+") && m.startPoint(key) {
+	if m.line.isFormula() && strings.HasPrefix(key, "shift+") && (m.pointAfterSheet(key) || m.line.canPoint() && m.startPoint(key)) {
 		return nil
 	}
 	switch key {

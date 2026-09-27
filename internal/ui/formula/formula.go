@@ -115,8 +115,9 @@ func (s refScan) corners(pos int) ([][2]int, bool) {
 }
 
 // Caret describes the formula text before the caret: the word being
-// typed, if it may be a function or name, and the innermost function call
-// the caret is in.
+// typed, if it may be a function, name or sheet, and the innermost
+// function call the caret is in. A sheet name being typed in quotes is a
+// word starting with the quote, e.g. "'Q3 p".
 type Caret struct {
 	Word      string
 	WordStart int
@@ -132,7 +133,7 @@ func isWordRune(r rune) bool {
 // skipped, parentheses nest, and commas or semicolons at the innermost
 // level separate arguments.
 func ScanCaret(buf []rune, pos int) Caret {
-	s := caretScan{start: -1}
+	s := caretScan{start: -1, quote: -1}
 	for i := 1; i < pos; i++ { // buf[0] is "=", "+" or "-"
 		s.step(buf, i)
 	}
@@ -140,13 +141,16 @@ func ScanCaret(buf []rune, pos int) Caret {
 		return Caret{}
 	}
 	var c Caret
+	if s.quote >= 0 {
+		c.Word, c.WordStart = string(buf[s.quote:pos]), s.quote
+	}
 	for i := len(s.stack) - 1; i >= 0; i-- {
 		if s.stack[i].fn != "" {
 			c.Fn, c.Arg = s.stack[i].fn, s.stack[i].arg
 			break
 		}
 	}
-	if s.start >= 0 && (pos == len(buf) || !isWordRune(buf[pos])) {
+	if s.quote < 0 && s.start >= 0 && (pos == len(buf) || !isWordRune(buf[pos])) {
 		w := []rune(strings.TrimPrefix(string(buf[s.start:pos]), "@"))
 		if len(w) > 0 && (unicode.IsLetter(w[0]) || w[0] == '_') {
 			c.Word, c.WordStart = string(w), pos-len(w)
@@ -159,6 +163,7 @@ func ScanCaret(buf []rune, pos int) Caret {
 type caretScan struct {
 	stack []callFrame // the calls open at this point, innermost last
 	inStr bool
+	quote int    // start of a quoted sheet name being read, or -1
 	start int    // start of the word being read, or -1
 	prev  string // the word just before a space or "(" (SUM ( is allowed)
 }
@@ -176,6 +181,12 @@ func (s *caretScan) step(buf []rune, i int) {
 		s.inStr = r != '"'
 		return
 	}
+	if s.quote >= 0 {
+		if r == '\'' {
+			s.quote = -1
+		}
+		return
+	}
 	if isWordRune(r) {
 		if s.start < 0 {
 			s.start = i
@@ -190,6 +201,8 @@ func (s *caretScan) step(buf []rune, i int) {
 		return // keep prev for "SUM ("
 	case '"':
 		s.inStr = true
+	case '\'':
+		s.quote = i
 	case '(':
 		s.stack = append(s.stack, callFrame{fn: strings.ToUpper(strings.TrimPrefix(s.prev, "@"))})
 	case ')':
