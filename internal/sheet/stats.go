@@ -12,14 +12,12 @@ type Stats struct {
 	Count, Nums int
 }
 
-func (st *Stats) add(c *Cell) {
-	if c.Blank() {
-		return
-	}
+// add counts a cell with contents whose value is v.
+func (st *Stats) add(v Value) {
 	st.Count++
-	if c.Value.Kind == Number {
+	if v.Kind == Number {
 		st.Nums++
-		st.Sum += c.Value.Num
+		st.Sum += v.Num
 	}
 }
 
@@ -43,8 +41,10 @@ func (s *Sheet) RangeStats(r Rect) Stats {
 	var st Stats
 	area := (r.To.Col - r.From.Col + 1) * (r.To.Row - r.From.Row + 1)
 	if area <= statsDirect || s.cells.len() <= statsSparse {
-		for _, c := range s.cells.anyInRange(r) {
-			st.add(c)
+		for a := range s.cells.anyKeysIn(r) {
+			if s.cells.filledAt(a) {
+				st.add(s.cells.value(a))
+			}
 		}
 	} else {
 		st = s.cells.rangeStats(r)
@@ -135,9 +135,7 @@ func (st *cellStore) blockTotal(col, id int, b *rowBlock) wordStats {
 func (st *cellStore) scanWord(col, id int, b *rowBlock, w int, mask uint64, s *Stats) {
 	base := id<<blockShift + w<<6
 	for x := b.bits[w] & mask; x != 0; x &= x - 1 {
-		if c := st.m[Addr{Col: col, Row: base + bits.TrailingZeros64(x)}]; c != nil {
-			s.add(c)
-		}
+		s.add(st.value(Addr{Col: col, Row: base + bits.TrailingZeros64(x)}))
 	}
 }
 

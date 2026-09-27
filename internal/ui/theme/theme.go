@@ -131,6 +131,10 @@ type Theme struct {
 	Series     [chart.Colors]lipgloss.Style
 	SeriesBg   [chart.Colors]lipgloss.Style
 	SeriesANSI [chart.Colors]int
+
+	// levels are the contrast minimums the roles meet: WCAG AA, or AAA
+	// for a high-contrast scheme.
+	levels levels
 }
 
 // ImageID is the style of an image's Unicode placeholders: the
@@ -161,6 +165,39 @@ func (t *Theme) Text(base lipgloss.Style, st sheet.Style) lipgloss.Style {
 
 // New returns the terminal theme's dark or light variant.
 func New(dark bool) Theme {
+	t := roles(dark)
+	t.standouts()
+	return t
+}
+
+// standouts draws the roles that mark where the user is (the pointer,
+// the selection, their headers, search matches, traced cells and the
+// highlighted menu item) in reverse video: the colors swapped and SGR 7
+// on, so they look the same in color and still stand out on a terminal
+// without it. Call it last: the roles' colors read reversed afterwards.
+func (t *Theme) standouts() {
+	for _, s := range []*lipgloss.Style{&t.Pointer, &t.Selection, &t.HeaderActive, &t.HeaderSel,
+		&t.Found, &t.Traced, &t.MenuSelected, &t.MenuAccelSelected} {
+		fg, bg := s.GetForeground(), s.GetBackground()
+		*s = s.Foreground(bg).Background(fg).Reverse(true)
+	}
+}
+
+// Drawable returns s as it can be drawn: a standout role with an
+// underline or strikethrough layered on it is drawn in its own colors
+// without reverse video, because lipgloss draws the spaces of underlined
+// or struck-out text without it, which would show their colors swapped.
+// The underline or strikethrough is then that text's cue without color.
+func Drawable(s lipgloss.Style) lipgloss.Style {
+	if !s.GetReverse() || !s.GetUnderline() && !s.GetStrikethrough() {
+		return s
+	}
+	fg, bg := s.GetForeground(), s.GetBackground()
+	return s.Foreground(bg).Background(fg).Reverse(false)
+}
+
+// roles are the terminal theme's roles, before standouts.
+func roles(dark bool) Theme {
 	// Contrast was checked against the reference palettes in e2e: text on
 	// colored backgrounds stays at or above roughly 4.5:1.
 	headerBg, headerFg := lipgloss.BrightBlack, lipgloss.BrightWhite
@@ -205,7 +242,7 @@ func New(dark bool) Theme {
 		ErrorCell:    lipgloss.NewStyle().Foreground(lipgloss.Red),
 		ErrorMark:    lipgloss.NewStyle().UnderlineStyle(lipgloss.UnderlineCurly).UnderlineColor(lipgloss.Red),
 		Link:         lipgloss.NewStyle().Foreground(link).Underline(true),
-		Spilled:      lipgloss.NewStyle().Foreground(bar),
+		Spilled:      lipgloss.NewStyle().Foreground(bar).Italic(true),
 		Found:        lipgloss.NewStyle().Background(lipgloss.Yellow).Foreground(lipgloss.Black),
 		Traced:       lipgloss.NewStyle().Background(lipgloss.Green).Foreground(lipgloss.Black),
 		Argument:     lipgloss.NewStyle().Bold(true).Underline(true),
@@ -243,6 +280,7 @@ func New(dark bool) Theme {
 		Dropdown: lipgloss.NewStyle().Foreground(muted),
 		scales:   map[scaleKey]Shade{},
 		shades:   map[sheet.RuleStyle]Shade{},
+		levels:   aa,
 	}
 	ruleRoles(&t, dark)
 	for i, c := range series {

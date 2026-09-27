@@ -86,7 +86,8 @@ var Groups = []string{GroupAppearance, GroupData, GroupJEV, GroupTelemetry, Grou
 // (go test ./internal/config -update-docs) and Settings follow.
 var Options = []Option{
 	{Name: "theme", Group: GroupAppearance, Default: "terminal", Env: []string{"O12_THEME"}, Flag: "--theme", Live: true,
-		Desc: "Colors. `terminal` uses the terminal's own 16-color palette. Any other name is a " +
+		Desc: "Colors. `terminal` uses the terminal's own 16-color palette. `high-contrast` draws white on " +
+			"black or black on white by the terminal's background, with WCAG AAA contrast. Any other name is a " +
 			"terminal color scheme, built in (`012 config themes` lists them) or a file in the themes " +
 			"directory, drawn in its own colors with solid menu and status bars. " +
 			"`light:NAME,dark:NAME` picks one by the terminal's background and follows it when it changes.",
@@ -109,9 +110,10 @@ var Options = []Option{
 			"which sets a file's own. Files store the same thing in every locale. " +
 			"When unset, the POSIX locale (`LC_ALL`, `LC_NUMERIC`, then `LANG`, e.g. `de_DE.UTF-8`) picks it if it's one of these."},
 
-	{Name: "max-cells", Kind: Int, Group: GroupData, Default: "2000000", Env: []string{"O12_MAX_CELLS"}, Live: true,
-		Desc: "The most cells an import keeps, and a paste or fill writes at once. A sheet takes about " +
-			"300 bytes a cell, so the default of two million is about 600 MB. Imports keep whole rows " +
+	{Name: "max-cells", Kind: Int, Group: GroupData, Default: "10000000", Env: []string{"O12_MAX_CELLS"}, Live: true,
+		Desc: "The most cells an import keeps, and a paste or fill writes at once. Numbers and text " +
+			"take 20 to 60 bytes a cell and formulas about 750, so the default of ten million cells of " +
+			"data is 200 to 600 MB. Imports keep whole rows " +
 			"up to the budget and say how many they left out; larger pastes and fills are refused. " +
 			"The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is."},
 

@@ -73,7 +73,7 @@ start.
 | [`notifications`](#notifications) | `true` | `O12_NOTIFICATIONS` |
 | [`keymap`](#keymap) | `default` | `O12_KEYMAP` |
 | [`locale`](#locale) | `en-US` | `O12_LOCALE` |
-| [`max-cells`](#max-cells) | `2000000` | `O12_MAX_CELLS` |
+| [`max-cells`](#max-cells) | `10000000` | `O12_MAX_CELLS` |
 | [`jev-api-key-command`](#jev-api-key-command) |  |  |
 | [`jev-credential-store`](#jev-credential-store) | `true` | `O12_JEV_CREDENTIAL_STORE` |
 | [`jev-base-url`](#jev-base-url) |  | `TYPESAFE_BASE_URL` |
@@ -92,7 +92,7 @@ start.
 
 #### `theme`
 
-Colors. `terminal` uses the terminal's own 16-color palette. Any other name is a terminal color scheme, built in (`012 config themes` lists them) or a file in the themes directory, drawn in its own colors with solid menu and status bars. `light:NAME,dark:NAME` picks one by the terminal's background and follows it when it changes.
+Colors. `terminal` uses the terminal's own 16-color palette. `high-contrast` draws white on black or black on white by the terminal's background, with WCAG AAA contrast. Any other name is a terminal color scheme, built in (`012 config themes` lists them) or a file in the themes directory, drawn in its own colors with solid menu and status bars. `light:NAME,dark:NAME` picks one by the terminal's background and follows it when it changes.
 
 | | |
 |---|---|
@@ -151,12 +151,12 @@ How new sheets and files without a locale of their own are typed and shown: deci
 
 #### `max-cells`
 
-The most cells an import keeps, and a paste or fill writes at once. A sheet takes about 300 bytes a cell, so the default of two million is about 600 MB. Imports keep whole rows up to the budget and say how many they left out; larger pastes and fills are refused. The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is.
+The most cells an import keeps, and a paste or fill writes at once. Numbers and text take 20 to 60 bytes a cell and formulas about 750, so the default of ten million cells of data is 200 to 600 MB. Imports keep whole rows up to the budget and say how many they left out; larger pastes and fills are refused. The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is.
 
 | | |
 |---|---|
 | Type | number |
-| Default | `2000000` |
+| Default | `10000000` |
 | Environment | `O12_MAX_CELLS` |
 | Applies | File > Settings > Reload config |
 

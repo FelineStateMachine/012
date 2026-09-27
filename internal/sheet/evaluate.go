@@ -68,14 +68,17 @@ func (w *Workbook) evaluate() {
 }
 
 // compute returns the value of the cell at a, evaluating it first if it's
-// dirty. Every cell a formula reads comes through here, so it looks each
-// map up once: a SUM over 8192 cells makes 8192 calls.
+// dirty. Every cell a formula reads comes through here: a SUM over 8192
+// cells makes 8192 calls. A plain cell's value is its entry's, never
+// out of date, so it costs an index into the store; only rich cells
+// look up their recalculation state.
 func (e *evaluator) compute(s *Sheet, a Addr) Value {
 	w := e.w
-	c := s.cells.get(a)
+	c, v, _ := s.cells.peek(a)
+	if c == nil { // plain or blank
+		return v
+	}
 	switch st := s.calc[a]; {
-	case c == nil:
-		return Value{}
 	case st == visiting, st == deferred:
 		w.Circular = true
 		return ErrRef

@@ -99,6 +99,8 @@ func listThemes(c *config.Config, e env) {
 		switch {
 		case t.Name == theme.Terminal:
 			kind = "the terminal's own colors"
+		case t.Name == theme.HighContrast:
+			kind = "high contrast, dark or light by the terminal"
 		case t.User:
 			kind += ", " + config.ThemesDir()
 		}

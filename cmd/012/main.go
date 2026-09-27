@@ -53,12 +53,16 @@ func usage() error {
 	return errors.New("usage: 012 " + config.FlagUsage() + " [file]: a " + sheet.FileExt +
 		" sheet, or a .csv, .tsv, .xlsx, .sqlite, .parquet or .wk1 file to import\n" +
 		"       012 serve [flags] [dir]: serve sheets in dir over SSH (see docs/terminal/ssh.md)\n" +
-		"       012 config [path|edit|default|themes|set-key|delete-key]")
+		"       012 config [path|edit|default|themes|set-key|delete-key]\n" +
+		"       012 version")
 }
 
 func run(args []string, e env) error {
 	if len(args) > 0 && args[0] == "config" {
 		return runConfig(args[1:], e)
+	}
+	if len(args) > 0 && (args[0] == "version" || args[0] == "--version") {
+		return runVersion(e)
 	}
 	if len(args) > 0 && args[0] == "serve" {
 		// A file called serve opens as ./serve.

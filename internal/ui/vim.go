@@ -233,7 +233,7 @@ var vimMotions = map[string]motion{
 	"0": nav("home"), "^": nav("home"),
 	"$": func(m *Model, a *sheet.Addr, _ int, _ bool) {
 		last := sheet.Addr{Col: sheet.MaxCols - 1, Row: a.Row}
-		if m.sheet.Cell(last).Blank() {
+		if !m.sheet.Filled(last) {
 			last = m.sheet.Edge(last, -1, 0)
 		}
 		a.Col = last.Col

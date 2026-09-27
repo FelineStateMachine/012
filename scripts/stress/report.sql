@@ -26,7 +26,7 @@ SELECT
         (SELECT run_id FROM same WHERE benchmarks >= 0.9 * (SELECT benchmarks FROM latest) ORDER BY age DESC LIMIT 1)) AS baseline;
 
 CREATE OR REPLACE TEMP TABLE compared AS
-WITH l AS (SELECT r.* FROM results r, picked p WHERE r.run_id = p.latest)
+WITH l AS (SELECT r.* FROM bench r, picked p WHERE r.run_id = p.latest)
 SELECT l.pkg, l.name, kind, o.ns_op AS before_ns, l.ns_op AS after_ns,
        (l.ns_op - o.ns_op) / o.ns_op AS change,
        l.allocs_op - o.allocs_op AS allocs_change,
@@ -39,9 +39,9 @@ SELECT l.pkg, l.name, kind, o.ns_op AS before_ns, l.ns_op AS after_ns,
        END AS flag
 FROM l
 JOIN (
-    SELECT r.*, 'previous' AS kind FROM results r, picked p WHERE r.run_id = p.previous
+    SELECT r.*, 'previous' AS kind FROM bench r, picked p WHERE r.run_id = p.previous
     UNION ALL
-    SELECT r.*, 'baseline' AS kind FROM results r, picked p WHERE r.run_id = p.baseline AND p.baseline <> p.latest
+    SELECT r.*, 'baseline' AS kind FROM bench r, picked p WHERE r.run_id = p.baseline AND p.baseline <> p.latest
 ) o USING (pkg, name);
 
 .print
@@ -62,7 +62,7 @@ ORDER BY flag DESC, change DESC;
 .print # Headline benchmarks over the last 8 runs (time per op)
 CREATE OR REPLACE TEMP TABLE headline AS
 SELECT r.name, r.run_id, u.age, fmt_ns(r.ns_op) AS t
-FROM results r JOIN runs u USING (run_id)
+FROM bench r JOIN runs u USING (run_id)
 WHERE u.age <= 8 AND regexp_matches(r.name,
     '^(Edit/(chain|fanin|running|volatile)|RecalcAll/(dense|fanin)|Frame/(dense-8192x256|longtext-8192x500)/200x60|Keystroke/(arrow/dense-8192x256|extend-data/dense-8192x256)/80x24|Import/(owid|airport)|JEV/1000|Open/dense-8192x256|Save/dense-8192x256)');
 PIVOT headline ON age USING first(t) GROUP BY name ORDER BY name;

@@ -17,7 +17,7 @@ const MaxNote = 4096
 
 // Note returns the note on the cell at a, or "".
 func (s *Sheet) Note(a Addr) string {
-	if c := s.cells.get(a); c != nil {
+	if c := s.cells.richAt(a); c != nil { // plain cells have no note
 		return c.Note
 	}
 	return ""
@@ -91,8 +91,8 @@ func (s *Sheet) LoadNote(a Addr, text string) {
 // It walks the cells the sheet holds, not r's addresses.
 func (s *Sheet) NotesIn(r Rect) []Addr {
 	var out []Addr
-	for a := range s.cells.anyInRange(r) {
-		if s.cells.get(a).Note != "" {
+	for a := range s.cells.anyKeysIn(r) {
+		if s.Note(a) != "" {
 			out = append(out, a)
 		}
 	}

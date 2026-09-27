@@ -191,7 +191,7 @@ func (s *Sheet) clipToUsed(r Rect) Rect {
 // nothing more touches it. A blank cell with no filled neighbors is a
 // region of its own.
 func (s *Sheet) Region(a Addr) Rect {
-	filled := func(a Addr) bool { return a.Valid() && !s.cells.get(a).Blank() }
+	filled := func(a Addr) bool { return a.Valid() && s.cells.filledAt(a) }
 	seen := map[Addr]bool{}
 	var queue []Addr
 	visit := func(p Addr) {
@@ -253,8 +253,8 @@ func (s *Sheet) GuessChart(r Rect) Chart {
 			from++
 		}
 		texts, nums := 0, 0
-		for _, cell := range s.cells.inRange(Rect{From: Addr{Col: from, Row: r.From.Row}, To: Addr{Col: r.To.Col, Row: r.From.Row}}) {
-			switch cell.Value.Kind {
+		for _, v := range s.cells.valuesIn(Rect{From: Addr{Col: from, Row: r.From.Row}, To: Addr{Col: r.To.Col, Row: r.From.Row}}) {
+			switch v.Kind {
 			case Text:
 				texts++
 			case Number, Bool:

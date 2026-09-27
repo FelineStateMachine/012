@@ -12,15 +12,15 @@ const MaxUndoBytes = 256 << 20
 // undoBudget is MaxUndoBytes; tests lower it.
 var undoBudget int64 = MaxUndoBytes
 
-// Estimated heap held by the parts of a step. A before-image is a shallow
-// copy of a Cell (216 B) plus its map entry and boxed literal; a formula
-// also keeps its parsed tree and reference lists alive, which grow with
-// its text. The constants match the heap measured by the stress
+// Estimated heap held by the parts of a step. A before-image is a Cell
+// (216 B) plus its map entry, its input and boxed literal (a plain cell's
+// are made for it from the store, see store.go); a formula also keeps its
+// parsed tree and reference lists alive, which grow with its text. The constants match the heap measured by the stress
 // benchmarks (BenchmarkHistoryFull) within about 10%.
 const (
 	stepBytes      = 512 // the step and its empty maps
 	entryBytes     = 64  // a map entry: the key and a pointer
-	cellBytes      = 240 // a copied Cell and its boxed literal
+	cellBytes      = 256 // a Cell, its input's header and its boxed literal
 	formulaBytes   = 256 // a parsed formula's tree and references, plus perFormulaByte per byte of text
 	perFormulaByte = 16
 	chartBytes     = 128
@@ -73,7 +73,7 @@ func (w *Workbook) deletedSize(st *step) int64 {
 	var n int64
 	for _, s := range st.sheets.order {
 		if !slices.Contains(w.sheets, s) {
-			n += int64(s.Len()) * (entryBytes + cellBytes)
+			n += s.cells.size()
 		}
 	}
 	return n

@@ -154,28 +154,41 @@ func checkFrontMatter(docs map[string]*doc) []string {
 
 var goDocPath = regexp.MustCompile(`\bdocs/[a-z0-9_/-]+\.md\b`)
 
-// checkGoPaths reports doc paths named in Go code, in messages and
-// comments, that don't exist.
+// checkGoPaths reports doc paths named outside the docs, in Go code
+// (messages and comments), the Makefile, scripts and deploy configs,
+// that don't exist.
 func checkGoPaths() []string {
 	var out []string
-	for _, root := range []string{"cmd", "internal", "e2e", "oracle", "demos", "scripts"} {
+	for _, f := range []string{"Makefile", "CLAUDE.md"} {
+		out = append(out, missingDocPaths(f)...)
+	}
+	for _, root := range []string{"cmd", "internal", "e2e", "oracle", "demos", "scripts", "deploy"} {
 		filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() || filepath.Ext(p) != ".go" {
-				return nil
-			}
-			data, err := os.ReadFile(p)
-			if err != nil {
-				return nil
-			}
-			for i, l := range strings.Split(string(data), "\n") {
-				for _, m := range goDocPath.FindAllString(l, -1) {
-					if _, err := os.Stat(filepath.FromSlash(m)); err != nil {
-						out = append(out, fmt.Sprintf("%s:%d: %s: no such doc", p, i+1, m))
-					}
-				}
+			if err == nil && !d.IsDir() && pathBearing[filepath.Ext(p)] {
+				out = append(out, missingDocPaths(p)...)
 			}
 			return nil
 		})
+	}
+	return out
+}
+
+// pathBearing are the kinds of file outside docs/ that name doc pages.
+var pathBearing = map[string]bool{".go": true, ".sh": true, ".yml": true, ".yaml": true, ".tape": true, ".sql": true, ".json": true}
+
+// missingDocPaths reports the doc paths file p names that don't exist.
+func missingDocPaths(p string) []string {
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for i, l := range strings.Split(string(data), "\n") {
+		for _, m := range goDocPath.FindAllString(l, -1) {
+			if _, err := os.Stat(filepath.FromSlash(m)); err != nil {
+				out = append(out, fmt.Sprintf("%s:%d: %s: no such doc", p, i+1, m))
+			}
+		}
 	}
 	return out
 }

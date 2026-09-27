@@ -53,8 +53,8 @@ func Layout(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int) []Span {
 		l.x[c-l.first+1] = l.x[c-l.first] + s.ColWidth(c)
 	}
 	for c := l.first; c <= l.last; c++ {
-		if cell := l.content(c); cell != nil {
-			l.place(c, cell)
+		if v, ok := l.content(c); ok {
+			l.place(c, v)
 		}
 	}
 	keepGaps(l.out)
@@ -73,13 +73,17 @@ type rowLayout struct {
 	out         []Span
 }
 
-// content is the cell in column c of the row, or nil if it's blank.
-func (l *rowLayout) content(c int) *sheet.Cell {
-	if cell := l.s.Cell(sheet.Addr{Col: c, Row: l.row}); !cell.Blank() {
-		return cell
+// content is the value in column c of the row, and false if the cell is
+// blank.
+func (l *rowLayout) content(c int) (sheet.Value, bool) {
+	if a := (sheet.Addr{Col: c, Row: l.row}); l.s.Filled(a) {
+		return l.s.Value(a), true
 	}
-	return nil
+	return sheet.Value{}, false
 }
+
+// filled reports whether the cell in column c of the row has contents.
+func (l *rowLayout) filled(c int) bool { return l.s.Filled(sheet.Addr{Col: c, Row: l.row}) }
 
 // col returns where column c starts and ends, relative to column first.
 func (l *rowLayout) col(c int) (int, int) { return l.x[c-l.first], l.x[c-l.first+1] }
@@ -105,9 +109,9 @@ func (l *rowLayout) reach(minCol, maxCol int) (first, last int) {
 
 // place lays out the text of the cell in column c over the columns it
 // reaches.
-func (l *rowLayout) place(c int, cell *sheet.Cell) {
+func (l *rowLayout) place(c int, v sheet.Value) {
 	x0, x1 := l.col(c)
-	text, align, pad := l.display(c, cell, x1-x0)
+	text, align, pad := l.display(c, v, x1-x0)
 	tw := ansi.StringWidth(text)
 	start := x0 + pad
 	switch align {
@@ -118,7 +122,7 @@ func (l *rowLayout) place(c int, cell *sheet.Cell) {
 	case sheet.AlignCenter:
 		start = x0 + (x1-x0-tw)/2
 	}
-	from, to := l.room(c, cell, start, tw)
+	from, to := l.room(c, v, start, tw)
 	l.claimed = to
 	cut := textCutter{s: text}
 	style := l.s.CellStyle(sheet.Addr{Col: c, Row: l.row})
@@ -137,15 +141,15 @@ func (l *rowLayout) place(c int, cell *sheet.Cell) {
 
 // display formats the cell in column c for a column w wide, returning
 // the text, its alignment and the padding on its aligned side.
-func (l *rowLayout) display(c int, cell *sheet.Cell, w int) (string, sheet.Align, int) {
+func (l *rowLayout) display(c int, v sheet.Value, w int) (string, sheet.Align, int) {
 	f := l.s.DisplayFormat(sheet.Addr{Col: c, Row: l.row})
-	text, align := sheet.DisplayIn(cell.Value, f, w, l.loc)
+	text, align := sheet.DisplayIn(v, f, w, l.loc)
 	pad := 1
 	// A number one character too wide (12/31/2026 in a default column)
 	// may use the padding when nothing is to its right, rather than
 	// turning into #s.
-	if cell.Value.Kind == sheet.Number && strings.Trim(text, "#") == "" && l.content(c+1) == nil {
-		if wider, _ := sheet.DisplayIn(cell.Value, f, w+1, l.loc); strings.Trim(wider, "#") != "" {
+	if v.Kind == sheet.Number && strings.Trim(text, "#") == "" && !l.filled(c+1) {
+		if wider, _ := sheet.DisplayIn(v, f, w+1, l.loc); strings.Trim(wider, "#") != "" {
 			text, pad = wider, 0
 		}
 	}
@@ -158,16 +162,16 @@ func (l *rowLayout) display(c int, cell *sheet.Cell, w int) (string, sheet.Align
 // room returns where the text of the cell in column c, tw wide from
 // start, may go: its own column and, for text, the blank neighbors it
 // runs into, but not over text already placed to its left.
-func (l *rowLayout) room(c int, cell *sheet.Cell, start, tw int) (from, to int) {
+func (l *rowLayout) room(c int, v sheet.Value, start, tw int) (from, to int) {
 	x0, x1 := l.col(c)
 	from, to = max(x0, l.claimed), x1
-	if cell.Value.Kind != sheet.Text {
+	if v.Kind != sheet.Text {
 		return from, to
 	}
-	for k := c + 1; k <= l.last && start+tw > to && l.content(k) == nil; k++ {
+	for k := c + 1; k <= l.last && start+tw > to && !l.filled(k); k++ {
 		_, to = l.col(k)
 	}
-	for k := c - 1; k >= l.first && start < from && l.content(k) == nil; k-- {
+	for k := c - 1; k >= l.first && start < from && !l.filled(k); k-- {
 		kx0, _ := l.col(k)
 		if kx0 < l.claimed {
 			return l.claimed, to

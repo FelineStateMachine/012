@@ -104,7 +104,7 @@ func (c *looksCache) look(s *Sheet, a Addr) Look {
 		k := s.rules.validations[i].Kind
 		l.Checkbox, l.Dropdown = k == ValidCheckbox, k.Dropdown()
 		l.Checked = l.Checkbox && v.Kind == Bool && v.Num != 0
-		l.Invalid = !s.cells.get(a).Blank() && !c.check(s, i, a, v, s.DisplayFormat(a))
+		l.Invalid = s.cells.filledAt(a) && !c.check(s, i, a, v, s.DisplayFormat(a))
 	}
 	return l
 }
@@ -264,11 +264,11 @@ func (c *looksCache) scale(s *Sheet, i int) *scaleStats {
 	lo, hi, n := math.Inf(1), math.Inf(-1), 0
 	var vals []float64
 	for _, r := range f.Ranges {
-		for _, cell := range s.cells.inRange(r) {
-			if cell.Value.Kind != Number {
+		for _, v := range s.cells.valuesIn(r) {
+			if v.Kind != Number {
 				continue
 			}
-			v := cell.Value.Num
+			v := v.Num
 			lo, hi, n = min(lo, v), max(hi, v), n+1
 			if keep {
 				vals = append(vals, v)

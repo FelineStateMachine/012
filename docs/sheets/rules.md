@@ -53,6 +53,16 @@ results. They follow inserted and deleted rows and columns, and a rule
 whose cells are all deleted goes. Format > Clear conditional formats
 takes the selection out of every rule.
 
+Rules, conditional formats and validation alike, move with cut and
+paste on a sheet, as in Sheets: the cut cells take their rules to where
+they land, and the cells they land on lose theirs. A rule whose cells
+partly move keeps both parts; with a custom formula it becomes two
+rules, each with the formula written for its own first cell, so the
+cells that stayed read what they read and the moved ones read the cells
+beside their new places. Formulas in rules follow cells that
+move. Cut on one sheet and pasted on another, the cells leave their
+rules behind and meet the rules where they land.
+
 ## Data validation
 
 Data > Data validation opens the sheet's validation rules in the same
@@ -87,7 +97,14 @@ are always valid.
 
 Each cell has one rule: a rule added over cells that had another takes
 them from it. Validation checks what's typed, picked from a dropdown and
-entered by macros; pastes, fills and imports aren't refused, and what
+entered by macros. Pastes (Ctrl+V, paste values, text pasted from
+another program) and fills (Ctrl+D, Ctrl+R, Ctrl+Enter, the fill
+handle) are checked after they're written, as in Sheets: when a cell's
+rule rejects what landed there, the whole paste or fill is undone and
+ERROR mode says which cell and why ("Paste undone: Invalid entry in
+B2: ..."; Ctrl+Enter keeps the entry open instead); when only rules that
+warn fail, it stays, the cells are marked, and the context line says how
+many ("2 cells invalid, first B2: ..."). Imports aren't checked, and what
 they leave invalid is marked. Validation can't go on a pivot table's
 results, which take no entries. Data > Remove data validation takes the
 selection out of every rule.

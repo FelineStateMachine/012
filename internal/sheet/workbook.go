@@ -347,7 +347,7 @@ func (w *Workbook) attach(s *Sheet) {
 	}
 	s.live = true
 	w.byKey[formula.SheetKey(s.name)] = s
-	for a, c := range s.cells.all() {
+	for a, c := range s.cells.richCells() {
 		w.index(loc{s, a}, c)
 	}
 	w.structural = true
@@ -363,7 +363,7 @@ func (w *Workbook) detach(s *Sheet) {
 	if w.byKey[formula.SheetKey(s.name)] == s {
 		delete(w.byKey, formula.SheetKey(s.name))
 	}
-	for a, c := range s.cells.all() {
+	for a, c := range s.cells.richCells() {
 		w.unindex(loc{s, a}, c)
 	}
 	w.structural = true

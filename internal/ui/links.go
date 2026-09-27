@@ -43,7 +43,7 @@ func spanStyle(th *theme.Theme, base lipgloss.Style, sp rowtext.Span) lipgloss.S
 	case sp.Invalid:
 		s = s.Inherit(th.Invalid)
 	}
-	return s
+	return theme.Drawable(s)
 }
 
 // spillLine says where the active cell's value comes from when an array

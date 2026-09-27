@@ -118,13 +118,21 @@ modified.
 
 Code reads and writes cells through a narrow API (`cellStore` in
 `internal/sheet/store.go`: get, set, delete, count, iterate everything or
-a range, a column being a range), not the map underneath. That lets the
-store change shape (compact column blocks, side tables for formulas and
-formats; see [Bounds of support](limits.md)) without touching the rest of the
-engine. Beside the map, occupancy indexes (`occupancy.go`) say which rows
-of each column hold a cell, and which hold contents, so a range yields its
-cells in row order at the cost of what it holds, and the used range, data
-edges and the next filled cell are found without scanning.
+a range, a column being a range), never the representation underneath:
+column blocks of 16-byte slots holding plain cells' values, with text,
+formats and whole formula cells in side tables (see
+[Bounds of support](limits.md#sheet-size)). `get` returns a `*Cell`:
+a formula's own, which recalculation updates, or for a plain cell one
+made for the caller, which it may keep but whose changes reach nothing;
+every change goes through `set`. Making that `Cell` costs an allocation
+or three, so code that visits many cells asks for only what it needs:
+`value` and `peek` for values, `has` and `filledAt` for presence,
+`look` for formatting, `richAt` and `richCells` for formulas and notes,
+and the key iterators (`keys`, `keysIn`, `anyKeysIn`) for addresses. The
+stored occupancy index (`occupancy.go`) holds the blocks; a second says
+which rows hold contents, so a range yields its cells in row order at
+the cost of what it holds, and the used range, data edges and the next
+filled cell are found without scanning.
 
 ### 7. Read ranges as ranges
 

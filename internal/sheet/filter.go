@@ -294,11 +294,10 @@ func (s *Sheet) rowPasses(row int, tests []colTest) bool {
 // ShownText is the cell's value as its format displays it, with no width
 // limit: what filters and the values list compare.
 func (s *Sheet) ShownText(a Addr) string {
-	c := s.cells.get(a)
-	if c.Blank() {
+	if !s.cells.filledAt(a) {
 		return ""
 	}
-	return FormatText(c.Value, s.DisplayFormat(a))
+	return FormatText(s.cells.value(a), s.DisplayFormat(a))
 }
 
 // Matches reports whether a cell with value v, shown as shown, meets the

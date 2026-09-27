@@ -79,6 +79,11 @@ func (m *Model) paste(values bool) tea.Cmd {
 		m.fail(err.Error())
 		return nil
 	}
+	// Cells moved on their sheet take their rules along (sheet.Move);
+	// anything else meets the rules where it lands.
+	if (!c.cut || values || c.sheet != m.sheet) && !m.checkWritten(r, "Paste") {
+		return nil
+	}
 	m.selectRect(r)
 	switch {
 	case c.cut && !values:
@@ -174,6 +179,9 @@ func (m *Model) pasteText(content string) bool {
 		}
 		return nil
 	})
+	if !m.checkWritten(r, "Paste") {
+		return true
+	}
 	m.selectRect(r)
 	m.note = "Pasted " + countCells(r) + " at " + r.String()
 	return true
