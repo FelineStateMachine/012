@@ -2,7 +2,8 @@
 -- on the same CPU, regressions flagged, and trends of the headline
 -- benchmarks. Run by scripts/stress/report.sh after load.sql, with
 -- variables threshold (fraction, e.g. 0.10), min_delta_ns (smaller
--- changes are noise) and baseline (a run_id, or '' for the oldest run).
+-- changes are noise) and baseline (a run_id, or '' for the oldest run that
+-- covered most of the same benchmarks).
 
 .mode box
 .maxrows 400
@@ -20,7 +21,9 @@ same AS (SELECT r.* FROM runs r, latest l WHERE r.cpu = l.cpu AND r.goos = l.goo
 SELECT
     (SELECT run_id FROM latest) AS latest,
     (SELECT run_id FROM same WHERE age > 1 ORDER BY age LIMIT 1) AS previous,
-    coalesce(nullif(getvariable('baseline'), ''), (SELECT run_id FROM same ORDER BY age DESC LIMIT 1)) AS baseline;
+    -- By default the oldest run that covered most of what the latest did.
+    coalesce(nullif(getvariable('baseline'), ''),
+        (SELECT run_id FROM same WHERE benchmarks >= 0.9 * (SELECT benchmarks FROM latest) ORDER BY age DESC LIMIT 1)) AS baseline;
 
 CREATE OR REPLACE TEMP TABLE compared AS
 WITH l AS (SELECT r.* FROM results r, picked p WHERE r.run_id = p.latest)

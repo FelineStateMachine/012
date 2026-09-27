@@ -114,9 +114,13 @@ FROM read_json_auto('events.jsonl') WHERE msg = 'jev';
 `MB-file` or `us/answer`. `make stress-report` loads them with
 `scripts/stress/load.sql` and runs `scripts/stress/report.sql`: the
 latest run against the previous one on the same CPU and against a
-baseline (`BASELINE=run_id`, default the oldest), flagging changes past
-`THRESHOLD` (0.10) and `MIN_DELTA_NS` (2000), and the headline
-benchmarks over the last eight runs. `FAIL_ON_REGRESSION=1` makes it
+baseline (`BASELINE=run_id`, default the oldest run that covered most
+of the same benchmarks), flagging changes past `THRESHOLD` (0.10) and
+`MIN_DELTA_NS` (2000), and the headline benchmarks over the last eight
+runs. With the default 500 ms per benchmark, runs on a busy machine (say
+with the Docker stack ingesting) differ by 10 to 30% on benchmarks of a
+few tens of milliseconds; use `BENCHTIME=2s` on a quiet machine before
+trusting a single regression. `FAIL_ON_REGRESSION=1` makes it
 exit 1 on a regression, for CI. The same records load into ClickHouse
 (`stress.results`) with the same columns.
 
