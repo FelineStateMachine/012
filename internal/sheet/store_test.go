@@ -33,8 +33,8 @@ func TestCellStoreIndex(t *testing.T) {
 	for a := range st.all() {
 		st.delete(a)
 	}
-	if len(st.stored.cols) != 0 || len(st.stored.colIDs) != 0 || len(st.filled.cols) != 0 {
-		t.Errorf("empty store keeps %d columns", len(st.stored.cols))
+	if slices.ContainsFunc(st.stored.cols, func(c *colIndex) bool { return c != nil }) || len(st.stored.colIDs) != 0 || len(st.filled.colIDs) != 0 {
+		t.Errorf("empty store keeps %d columns", len(st.stored.colIDs))
 	}
 }
 

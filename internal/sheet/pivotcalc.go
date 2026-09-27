@@ -226,10 +226,15 @@ func (c *pivotCalc) gather() {
 	c.sortCols()
 }
 
-// rowBlank reports whether row is blank across r's columns.
+// rowBlank reports whether row is blank across r's columns, looking at
+// the columns that hold anything.
 func (s *Sheet) rowBlank(row int, r Rect) bool {
-	_, filled := s.cells.filled.bounds(Rect{From: Addr{Col: r.From.Col, Row: row}, To: Addr{Col: r.To.Col, Row: row}})
-	return !filled
+	for _, c := range s.cells.filled.colsIn(r.From.Col, r.To.Col) {
+		if s.cells.filled.has(Addr{Col: c, Row: row}) {
+			return false
+		}
+	}
+	return true
 }
 
 // pivotTests prepares a pivot's filters as a filter's column tests.

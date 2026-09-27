@@ -98,23 +98,19 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 		}
 	}
 	dst := s.sortedRows(r, rows, keys)
-	next := make(map[Addr]*Cell, len(old))
-	for a, c := range old {
-		to := Addr{Col: a.Col, Row: dst[a.Row]}
-		if to.Row != a.Row {
-			c = c.rewritten(formula.Shift(0, to.Row-a.Row))
-		}
-		next[to] = c
+	src := make(map[int]int, len(dst)) // where each row's new contents come from
+	for from, to := range dst {
+		src[to] = from
 	}
 	s.change("sort "+r.String(), r, func() {
 		for a := range old {
-			if next[a] == nil {
-				s.place(a, nil)
+			if from, ok := src[a.Row]; !ok || old[Addr{Col: a.Col, Row: from}] == nil {
+				s.place(a, nil) // nothing moves here
 			}
 		}
-		for a, c := range next {
-			if old[a] != c {
-				s.place(a, c)
+		for a, c := range old {
+			if to := dst[a.Row]; to != a.Row {
+				s.place(Addr{Col: a.Col, Row: to}, c.rewritten(formula.Shift(0, to-a.Row)))
 			}
 		}
 	})

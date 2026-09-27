@@ -9,9 +9,12 @@ import (
 // blockRows rows, so the cells of a range are found in row order at the
 // cost of what it holds, not its area: a whole column of a million rows
 // with ten cells is ten visits.
+//
+// Columns and their blocks are found by index in slices grown to the
+// last one used, so marking a cell costs no hashing.
 type occupancy struct {
-	cols   map[int]*colIndex
-	colIDs []int // the columns holding cells, ascending
+	cols   []*colIndex // by column; nil for none
+	colIDs []int       // the columns holding cells, ascending
 }
 
 // Rows of a column are indexed in blocks of blockRows, one bit each.
@@ -26,40 +29,55 @@ type rowBlock struct {
 	n    int
 }
 
-// colIndex is the occupancy of one column: its blocks by number, and the
-// numbers in order.
+// colIndex is the occupancy of one column: its blocks by number (nil
+// for none), and the numbers in order.
 type colIndex struct {
-	blocks map[int]*rowBlock
+	blocks []*rowBlock
 	ids    []int
 	n      int
 }
 
+// col is column c's index, or nil.
+func (o *occupancy) col(c int) *colIndex {
+	if c < 0 || c >= len(o.cols) {
+		return nil
+	}
+	return o.cols[c]
+}
+
+// block is block id of the column, or nil.
+func (ci *colIndex) block(id int) *rowBlock {
+	if ci == nil || id < 0 || id >= len(ci.blocks) {
+		return nil
+	}
+	return ci.blocks[id]
+}
+
 // has reports whether a holds a cell.
 func (o *occupancy) has(a Addr) bool {
-	ci := o.cols[a.Col]
-	if ci == nil {
-		return false
-	}
-	b := ci.blocks[a.Row>>blockShift]
+	b := o.col(a.Col).block(a.Row >> blockShift)
 	bit := a.Row & (blockRows - 1)
 	return b != nil && b.bits[bit>>6]&(1<<(bit&63)) != 0
 }
 
 // mark records a cell at a, which had none.
 func (o *occupancy) mark(a Addr) {
-	ci := o.cols[a.Col]
+	ci := o.col(a.Col)
 	if ci == nil {
-		ci = &colIndex{blocks: make(map[int]*rowBlock)}
-		if o.cols == nil {
-			o.cols = make(map[int]*colIndex)
+		ci = &colIndex{}
+		if a.Col >= len(o.cols) {
+			o.cols = slices.Grow(o.cols, a.Col+1-len(o.cols))[:a.Col+1]
 		}
 		o.cols[a.Col] = ci
 		o.colIDs = insertSorted(o.colIDs, a.Col)
 	}
 	id := a.Row >> blockShift
-	b := ci.blocks[id]
+	b := ci.block(id)
 	if b == nil {
 		b = &rowBlock{}
+		if id >= len(ci.blocks) {
+			ci.blocks = slices.Grow(ci.blocks, id+1-len(ci.blocks))[:id+1]
+		}
 		ci.blocks[id] = b
 		ci.ids = insertSorted(ci.ids, id)
 	}
@@ -79,11 +97,11 @@ func (o *occupancy) unmark(a Addr) {
 	b.n--
 	ci.n--
 	if b.n == 0 {
-		delete(ci.blocks, id)
+		ci.blocks[id] = nil
 		ci.ids = removeSorted(ci.ids, id)
 	}
 	if ci.n == 0 {
-		delete(o.cols, a.Col)
+		o.cols[a.Col] = nil
 		o.colIDs = removeSorted(o.colIDs, a.Col)
 	}
 }
@@ -113,7 +131,7 @@ func (o *occupancy) colsIn(c0, c1 int) []int {
 
 // colCells is the number of cells stored in column c.
 func (o *occupancy) colCells(c int) int {
-	if ci := o.cols[c]; ci != nil {
+	if ci := o.col(c); ci != nil {
 		return ci.n
 	}
 	return 0
@@ -156,7 +174,7 @@ func wordMask(w, lo, hi int) uint64 {
 // the end. It allocates nothing; the column's cells must not be added
 // or removed meanwhile.
 func (o *occupancy) colScan(c, r0, r1 int, fn func(row int) bool) bool {
-	ci := o.cols[c]
+	ci := o.col(c)
 	if ci == nil || r0 > r1 {
 		return true
 	}
@@ -182,7 +200,7 @@ func (o *occupancy) colScan(c, r0, r1 int, fn func(row int) bool) bool {
 // nextRow returns the first row of column c at or after row (dir 1), or
 // at or before it (dir -1), that holds a cell.
 func (o *occupancy) nextRow(c, row, dir int) (int, bool) {
-	ci := o.cols[c]
+	ci := o.col(c)
 	if ci == nil || row < 0 {
 		return 0, false
 	}

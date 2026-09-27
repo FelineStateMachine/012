@@ -139,6 +139,10 @@ func (m *Model) pasteText(content string) bool {
 		width = max(width, len(row))
 	}
 	r := sheet.Rect{From: m.cur, To: sheet.Addr{Col: m.cur.Col + width - 1, Row: m.cur.Row + len(rows) - 1}}
+	if width*len(rows) > sheet.MaxCells() {
+		m.fail(sheet.ErrFillTooBig.Error())
+		return true
+	}
 	if !r.To.Valid() {
 		m.fail(sheet.ErrPasteEdge.Error())
 		return true

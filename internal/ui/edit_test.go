@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 func init() {
@@ -169,6 +171,14 @@ func TestPasteTSVFromTerminal(t *testing.T) {
 	if m.sheet.Len() != 0 {
 		t.Errorf("paste should undo in one step, %d cells left", m.sheet.Len())
 	}
+	// A block of more than max-cells cells is refused.
+	sheet.SetMaxCells(5)
+	defer sheet.SetMaxCells(0)
+	send(m, tea.PasteMsg{Content: "Qty\tPrice\r\n2\t3\r\n\t=B2*C2\r\n"})
+	if m.sheet.Len() != 0 || m.mode != modeError || !strings.Contains(m.errMsg, "max-cells") {
+		t.Errorf("a paste past max-cells wrote %d cells, error %q", m.sheet.Len(), m.errMsg)
+	}
+	press(t, m, "<esc>")
 	// A single line still starts an entry.
 	send(m, tea.PasteMsg{Content: "hello\n"})
 	if m.mode != modeEnter || m.line.text() != "hello" {

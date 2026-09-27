@@ -309,10 +309,11 @@ func (s *Sheet) place(a Addr, c *Cell) {
 	if s.pivot.def != nil && (s.pivot.out.Contains(a) || s.pivot.err != "" && s.pivot.blocked.Contains(a)) {
 		s.pivot.stale = true
 	}
-	s.unlink(a)
 	if c == nil {
+		s.unlink(a)
 		return
 	}
+	s.unindex(a) // the old cell's edges; set replaces it in the store
 	s.cells.set(a, c)
 	for _, r := range c.refs {
 		if s.dependents[r] == nil {
@@ -352,9 +353,17 @@ func (s *Sheet) cellsIn(r Rect) []Addr {
 
 // unlink removes the cell at a and its dependency edges.
 func (s *Sheet) unlink(a Addr) {
+	if s.unindex(a) {
+		s.cells.delete(a)
+	}
+}
+
+// unindex removes the dependency edges of the cell at a, reporting
+// whether there is one.
+func (s *Sheet) unindex(a Addr) bool {
 	old := s.cells.get(a)
 	if old == nil {
-		return
+		return false
 	}
 	for _, r := range old.refs {
 		delete(s.dependents[r], a)
@@ -367,5 +376,5 @@ func (s *Sheet) unlink(a Addr) {
 	}
 	s.rangeUsers.remove(a, old.ranges)
 	delete(s.volatile, a)
-	s.cells.delete(a)
+	return true
 }

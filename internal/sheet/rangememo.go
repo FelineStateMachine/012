@@ -4,9 +4,9 @@ import "slices"
 
 // Running aggregates: within one recalculation, the SUM-like functions
 // (SUM, AVERAGE, COUNT, COUNTA, MIN, MAX, PRODUCT) share what they read
-// of a range. For each run of columns and first row, the aggregate is
-// kept as a checkpoint after every row with data, read forward only as
-// far as some formula has asked. A thousand SUM(A1:A8192) read column A
+// of a range. For each run of columns and first row read more than once,
+// the aggregate is kept as a checkpoint after every row with data, read
+// forward only as far as some formula has asked. A thousand SUM(A1:A8192) read column A
 // once; 8192 running totals SUM($A$1:An) extend the same run one row at
 // a time, so they cost O(n) reads instead of O(n^2). Each result is
 // accumulated in the same order as reading the range directly, so it is
@@ -55,8 +55,10 @@ func (rd *reader) rangeAgg(sheet string, r Rect) (agg, *Value, bool) {
 	key := aggKey{t, r.From.Col, r.To.Col, r.From.Row}
 	run := memo.m[key]
 	if run == nil {
-		run = &runAgg{next: r.From.Row}
-		memo.m[key] = run
+		// A range read once (a SUM of each named region) is read directly;
+		// only the second read of a run starts sharing it.
+		memo.m[key] = &runAgg{next: r.From.Row}
+		return agg{}, nil, false
 	}
 	if run.err == nil && r.To.Row >= run.next {
 		if run.busy {

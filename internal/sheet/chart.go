@@ -97,8 +97,12 @@ type ChartData struct {
 }
 
 // maxChartPoints caps the categories a chart reads, so a chart over whole
-// columns stays quick to draw.
-const maxChartPoints = 500
+// columns stays quick to draw, and maxChartSeries its series (the columns
+// 1-2-3's grid had), for one over whole rows.
+const (
+	maxChartPoints = 500
+	maxChartSeries = 256
+)
 
 // ChartData reads a chart's cells. Series names and labels are the cells'
 // text as displayed.
@@ -119,7 +123,7 @@ func (s *Sheet) ChartData(c Chart) ChartData {
 	if c.Labels && m > 1 {
 		col0 = 1
 	}
-	n = min(n, first+maxChartPoints)
+	n, m = min(n, first+maxChartPoints), min(m, col0+maxChartSeries)
 	var d ChartData
 	for i := first; i < n; i++ {
 		label := strconv.Itoa(i - first + 1)
@@ -231,11 +235,10 @@ func (s *Sheet) GuessChart(r Rect) Chart {
 	isText := func(a Addr) bool { return s.Value(a).Kind == Text }
 	if r.To.Col > r.From.Col {
 		labels := false
-		for row := r.From.Row + 1; row <= r.To.Row; row++ {
-			if isText(Addr{Col: r.From.Col, Row: row}) {
-				labels = true
-			}
-		}
+		s.cells.filled.colScan(r.From.Col, r.From.Row+1, r.To.Row, func(row int) bool {
+			labels = isText(Addr{Col: r.From.Col, Row: row})
+			return !labels
+		})
 		c.Labels = labels || r.From.Row == r.To.Row && isText(r.From)
 	}
 	if r.To.Row > r.From.Row {
@@ -244,8 +247,8 @@ func (s *Sheet) GuessChart(r Rect) Chart {
 			from++
 		}
 		texts, nums := 0, 0
-		for col := from; col <= r.To.Col; col++ {
-			switch s.Value(Addr{Col: col, Row: r.From.Row}).Kind {
+		for _, cell := range s.cells.inRange(Rect{From: Addr{Col: from, Row: r.From.Row}, To: Addr{Col: r.To.Col, Row: r.From.Row}}) {
+			switch cell.Value.Kind {
 			case Text:
 				texts++
 			case Number, Bool:

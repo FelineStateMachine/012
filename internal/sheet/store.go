@@ -87,7 +87,7 @@ func (st *cellStore) inRange(r Rect) iter.Seq2[Addr, *Cell] {
 		for _, id := range st.stored.blockIDs(cols, b0, b1) {
 			var in []colBlock
 			for _, c := range cols {
-				if b := st.stored.cols[c].blocks[id]; b != nil {
+				if b := st.stored.cols[c].block(id); b != nil {
 					in = append(in, colBlock{c, b})
 				}
 			}
