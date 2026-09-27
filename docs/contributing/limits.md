@@ -38,7 +38,7 @@ it lags, and past a second it stalls.
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
 | SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 8.7 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 120 fps pacing; per session, the terminal's cell buffers |
 | Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 0.8 to 2.5 ms | | Results past the grid (the pivot shows #REF!) | Grouping the source rows |
-| Arrays and spills | FILTER, SORT or UNIQUE over 8192 rows: about 0.1 ms each per edit; 1000 of them spilling 516 k cells, an edit recomputing 500: 52 ms | Full recalculation of those 1000: 217 ms | An array past `maxArray` values (2,097,152) stored: `#VALUE!`; a spill past the sheet's edge or `max-cells` cells: `#REF!` | Computing each array's values; writing only the spilled cells that changed |
+| Arrays and spills | FILTER, SORT or UNIQUE over 8192 rows: about 0.1 ms each per edit; 1000 of them spilling 516 k cells, an edit recomputing 500: 52 ms | Full recalculation of those 1000: 106 ms | An array past `maxArray` values (2,097,152) stored: `#VALUE!`; a spill past the sheet's edge or `max-cells` cells: `#REF!` | Computing each array's values; writing only the spilled cells that changed |
 
 ## Sheet size
 
@@ -71,9 +71,12 @@ B (the parsed tree and reference lists); imported CSV, SQLite and
 Parquet 21 to 63 B; text about 60 B plus its length, once per distinct string
 (a column of 90 texts repeated takes 27 B a cell). A plain cell (a
 number, boolean or text as typed, with a format and style) is a 16-byte
-slot in its column's block of 1024 rows; formulas, notes, and the
-results pivots and spills write are whole `Cell`s, about 300 B each with
-their entry and input (the `Cell` itself is 216 B). How the store lays
+slot in its column's block of 1024 rows, and so is a derived cell, what
+a pivot or a spill writes: a pivot's results take 20.6 B a cell and
+spilled numbers 20.5 B, plus the 32 B a value of the array the anchor
+keeps to compare with the next one (`BenchmarkMemoryDerived`). Formulas
+and notes are whole `Cell`s, about 300 B each with their entry and
+input (the `Cell` itself is 216 B). How the store lays
 them out is in [Architecture](architecture.md#the-engine). Reading a
 cell's value is an index into its column's block: 2.8 ns
 (`BenchmarkRead`), 8.6 ns a cell read by a SUM in a full recalculation.
@@ -319,7 +322,7 @@ entities, so entity bombs fail as unknown entities.
 Each step keeps the cells it changed as they were, in the form the
 sheet keeps them (`historyimage.go`): a plain cell as its 16-byte slot
 in columns of blocks, its text and formatting in the step's own tables,
-and a whole `Cell` only for a formula, a note or a derived cell. A step
+and a whole `Cell` only for a formula or a note. A step
 of one cell or a few keeps them in a list. Undoing costs about what the
 change cost, since it recalculates the same cells. Clearing 213 k cells
 and undoing it takes 86 ms; clearing all ten million cells of a full
@@ -498,10 +501,10 @@ FILTERs, 63 of whose arrays change:
 
 | Measure | Time | Allocated |
 |---|---|---|
-| Edit a number | 52 ms | 161 MB, 7.9 k allocations |
-| Undo and redo it | 103 ms | |
-| Full recalculation | 217 ms | |
-| Build (load and recalculate) | 298 ms | |
+| Edit a number | 52 ms | 161 MB, 7.8 k allocations |
+| Undo and redo it | 106 ms | |
+| Full recalculation | 106 ms | |
+| Build (load and recalculate) | 181 ms | |
 
 Most of an edit is the FILTERs' own work: comparing 8192 categories each
 (`B1:B8192="alpha"`, about 20 ns a value) and picking the rows that
@@ -535,10 +538,10 @@ Sizes and scheduling are in the [roadmap](../../ROADMAP.md#3-scale).
 `max-cells` stands at ten million, as Google Sheets' limit does; the
 sheet itself would hold several times that in a few GB, and opening,
 saving and undoing cost about what the cells do ([Sheet size](#sheet-size),
-[Undo](#undo)). What stands in the way is derived cells: what arrays
-and pivots write is kept as whole `Cell`s (516 k of them in the arrays
-stress shape), where their values and inferred formats would fit in
-slots.
+[Undo](#undo)). Derived cells cost what plain cells cost, a slot each
+([Sheet size](#sheet-size)); what stays large is a formula, about 750 B
+with its parsed tree and reference lists, and the array a spilling
+formula keeps, 32 B a value.
 
 ## Measuring
 

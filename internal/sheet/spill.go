@@ -176,8 +176,11 @@ func (s *Sheet) spillArea(a Addr, arr *functions.Array) (Rect, string) {
 		return area, "Array result was not expanded because it would overwrite merged cells in " + ms[0].String()
 	}
 	old := s.spills[a]
-	for at, c := range s.cells.anyInRange(area) {
-		if at == a || c.Blank() || c.spilled && old != nil && old.why == "" && old.area.Contains(at) {
+	for at := range s.cells.anyKeysIn(area) {
+		if at == a || !s.cells.filledAt(at) {
+			continue
+		}
+		if s.cells.derivedAt(at) == slotSpill && old != nil && old.why == "" && old.area.Contains(at) {
 			continue
 		}
 		return area, "Array result was not expanded because it would overwrite data in " + at.String()
@@ -188,20 +191,25 @@ func (s *Sheet) spillArea(a Addr, arr *functions.Array) (Rect, string) {
 // writeSpilled makes the cell at a show v as a spilled cell, keeping its
 // formatting and note, and reports whether it changed.
 func (s *Sheet) writeSpilled(a Addr, v Value, auto Format) bool {
-	old := s.cells.get(a)
+	was, l, kind := s.cells.derivedOf(a)
+	spilled := kind == slotSpill
 	if v.Kind == Empty {
-		if old == nil || !old.spilled {
+		if !spilled {
 			return false
 		}
-		s.setDerived(a, old.leftover())
+		s.setDerived(a, s.cells.get(a).leftover())
 		return true
 	}
-	if old != nil && old.spilled && old.Value == v && old.auto == auto {
+	if spilled && was == v && l.auto == auto {
 		return false // its input is its value's
 	}
-	c := &Cell{Input: derivedInput(v), Value: v, auto: auto, spilled: true}
-	if old != nil {
-		c.Format, c.Style, c.Note = old.Format, old.Style, old.Note
+	if s.cells.setSpilled(a, v, auto) { // formatting kept, no formula to unlink
+		s.version++
+		return true
+	}
+	c := &Cell{Input: derivedInput(v), Value: v, Format: l.f, Style: l.st, auto: auto, spilled: true}
+	if old := s.cells.richAt(a); old != nil {
+		c.Note = old.Note
 	}
 	s.setDerived(a, c)
 	return true
@@ -212,8 +220,8 @@ func (s *Sheet) writeSpilled(a Addr, v Value, auto Format) bool {
 func (s *Sheet) clearSpilled(area, keep Rect) []loc {
 	var changed []loc
 	var gone []Addr
-	for at, c := range s.cells.anyInRange(area) {
-		if c.spilled && !keep.Contains(at) {
+	for at := range s.cells.anyKeysIn(area) {
+		if s.cells.derivedAt(at) == slotSpill && !keep.Contains(at) {
 			gone = append(gone, at)
 		}
 	}

@@ -24,10 +24,7 @@ func (s *Sheet) DisplayFormat(a Addr) Format {
 			return f
 		}
 	}
-	if c := s.cells.richAt(a); c != nil { // only formulas infer formats
-		return c.auto
-	}
-	return Format{}
+	return s.cells.autoAt(a) // formulas and spilled cells infer formats
 }
 
 // SetFormat gives every cell in r the number format f, including blank

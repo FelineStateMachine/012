@@ -36,7 +36,6 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 
 | Item | Result | Size |
 |---|---|---|
-| Compact spilled and pivot cells: derived cells in the compact slot form instead of whole `Cell`s | Large spills and pivots cost what plain cells cost ([Bounds of support](docs/contributing/limits.md#what-would-raise-the-bounds)) | M |
 | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid | L |
 
 ### 4. Macros, keys and the terminal
@@ -79,6 +78,7 @@ by a gateway dialing the iroh ticket.
 - An Excel-sized grid with a `max-cells` budget; operations cost the data, not the grid: [Bounds of support](docs/contributing/limits.md#sheet-size)
 - Compact column storage and a ten-million-cell `max-cells` budget: [Bounds of support](docs/contributing/limits.md#sheet-size)
 - Undo steps in the compact form: clearing a full ten-million-cell sheet holds about what the sheet does, and a step past 1 GB asks first: [Bounds of support](docs/contributing/limits.md#undo)
+- Spilled cells and pivot results in the compact form, about 20 B each: [Bounds of support](docs/contributing/limits.md#sheet-size)
 
 **Finding and using features**
 

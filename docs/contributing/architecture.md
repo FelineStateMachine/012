@@ -118,7 +118,9 @@ style.
   its slot, with its text in a table of strings kept once each, its
   formatting in a table of looks, and its input only when that isn't
   the value's own text ("1.50" is kept as 1.5 printed with two
-  decimals). Formulas, notes, and what pivots and spills write are whole
+  decimals). What pivots and spills write is a slot too, marked as
+  derived, holding the value and, in its look, a spill's inferred
+  format; its entry is the value's text. Formulas and notes are whole
   `Cell`s in a side table, which recalculation updates in place. `get`
   hands out a plain cell as a `Cell` made for the caller, a copy whose
   changes reach nothing; `set` is the one way to change a cell. What
