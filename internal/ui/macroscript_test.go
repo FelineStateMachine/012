@@ -179,4 +179,3 @@ func TestEscStopsARun(t *testing.T) {
 		t.Errorf("run %v warn %q cells %d", m.macros.run, m.warn, m.sheet.Len())
 	}
 }
-
