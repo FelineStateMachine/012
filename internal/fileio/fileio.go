@@ -76,6 +76,9 @@ type Options struct {
 	// With neither, a database with one table imports it.
 	Table, Query string
 	Progress     *Progress
+	// MaxCells is the most cells to keep, whole rows at a time; 0 is the
+	// max-cells setting (sheet.MaxCells). WK1 files keep their own limits.
+	MaxCells int
 }
 
 // Result is an imported sheet and what the import had to leave out or

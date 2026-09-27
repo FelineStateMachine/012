@@ -18,6 +18,10 @@ type Snapshot struct {
 	Widths map[int]int // non-default column widths
 	Name   string      // what to call the data: a sheet or table name
 
+	// ColFormats and RowFormats are the formats of whole columns and
+	// rows, for formats that keep them (XLSX).
+	ColFormats, RowFormats map[int]LineFormat
+
 	// Sheets are every sheet of the workbook, in order, for formats that
 	// hold several (XLSX); the snapshot itself is one of them, the one
 	// shown. Nil exports just this snapshot. Names are the workbook's
@@ -42,12 +46,19 @@ func (c SnapCell) Text() string {
 }
 
 // Snap copies the cells of s in r. A zero r means the whole sheet, from
-// A1 to the last cell with contents.
+// A1 to the last cell with contents; any other r is trimmed to its last
+// row and column with contents, so exporting whole columns writes their
+// data rather than a million blank lines.
 func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 	if r == (sheet.Rect{}) {
 		r, _ = s.UsedRange()
+	} else if data, ok := s.FilledBounds(r); ok {
+		r.To = data.To
+	} else {
+		r.To = r.From
 	}
-	snap := &Snapshot{Range: r, Cells: map[sheet.Addr]SnapCell{}, Widths: s.Widths(), Name: name}
+	snap := &Snapshot{Range: r, Cells: map[sheet.Addr]SnapCell{}, Widths: s.Widths(), Name: name,
+		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true)}
 	for _, a := range s.Addrs() {
 		if !r.Contains(a) {
 			continue
@@ -57,8 +68,8 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 			Input:   c.Input,
 			Value:   c.Value,
 			Format:  s.DisplayFormat(a),
-			Own:     c.Format,
-			Style:   c.Style,
+			Own:     s.CellFormat(a),
+			Style:   s.CellStyle(a),
 			Formula: c.IsFormula(),
 		}
 	}

@@ -83,7 +83,7 @@ func BenchmarkImport(b *testing.B) {
 // BenchmarkExport writes a dense numeric sheet in each export format and
 // reports the file size.
 func BenchmarkExport(b *testing.B) {
-	for _, size := range []struct{ rows, cols int }{{sheet.MaxRows, 26}, {sheet.MaxRows, 256}} {
+	for _, size := range []struct{ rows, cols int }{{stress.Rows, 26}, {stress.Rows, 256}} {
 		s := stress.Dense(size.rows, size.cols)
 		snap := Snap(s, sheet.Rect{}, "data")
 		for _, k := range []Kind{CSV, TSV, XLSX, SQLite} {

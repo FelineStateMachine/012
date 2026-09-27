@@ -77,7 +77,7 @@ func TestSniff(t *testing.T) {
 
 func readText(t *testing.T, k Kind, text string) (*sheet.Sheet, []string) {
 	t.Helper()
-	s, _, notes, err := readDelimited(context.Background(), strings.NewReader(text), k, func(int) {})
+	s, _, notes, err := readDelimited(context.Background(), strings.NewReader(text), k, 0, func(int) {})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,20 +180,41 @@ func TestReadDelimited(t *testing.T) {
 	}
 }
 
+// Past the edges of the grid, and past the max-cells budget, imports
+// keep what fits (whole rows, for the budget) and say what they left out.
 func TestReadDelimitedTruncates(t *testing.T) {
 	var b strings.Builder
-	for range sheet.MaxRows + 5 {
-		b.WriteString("x," + strings.Repeat("y,", sheet.MaxCols+2) + "\n")
+	b.WriteString("x," + strings.Repeat("y,", sheet.MaxCols+2) + "\n")
+	for range sheet.MaxRows + 4 {
+		b.WriteString("x\n")
 	}
-	s, notes := readText(t, CSV, b.String())
-	if got := input(s, sheet.Addr{Col: sheet.MaxCols - 1, Row: sheet.MaxRows - 1}); got != "y" {
-		t.Errorf("last cell = %q", got)
+	s, _, notes, err := readDelimited(context.Background(), strings.NewReader(b.String()), CSV, sheet.MaxRows+sheet.MaxCols, func(int) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := input(s, sheet.Addr{Col: sheet.MaxCols - 1}) + input(s, sheet.Addr{Row: sheet.MaxRows - 1}); got != "yx" {
+		t.Errorf("last cells = %q", got)
 	}
 	joined := strings.Join(notes, "; ")
-	for _, want := range []string{"only the first 8,192 rows fit; 5 rows left out", "only columns A to IV fit; 3 columns left out"} {
+	for _, want := range []string{"only the first 1,048,576 rows fit; 5 rows left out", "only columns A to XFD fit; 3 columns left out"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("notes %q, want %q", joined, want)
 		}
+	}
+
+	b.Reset()
+	for range 100 {
+		b.WriteString(strings.Repeat("7,", 9) + "7\n")
+	}
+	s, _, notes, err = readDelimited(context.Background(), strings.NewReader(b.String()), CSV, 255, func(int) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := s.Len(); n != 250 || input(s, sheet.Addr{Col: 9, Row: 24}) != "7" {
+		t.Errorf("kept %d cells, want 25 whole rows", n)
+	}
+	if want := "only the first 25 rows fit in max-cells (255 cells); 75 rows left out"; strings.Join(notes, "; ") != want {
+		t.Errorf("notes %q, want %q", notes, want)
 	}
 }
 
@@ -259,6 +280,6 @@ func FuzzReadDelimited(f *testing.F) {
 		if tsv {
 			k = TSV
 		}
-		readDelimited(context.Background(), strings.NewReader(string(data)), k, func(int) {})
+		readDelimited(context.Background(), strings.NewReader(string(data)), k, 0, func(int) {})
 	})
 }

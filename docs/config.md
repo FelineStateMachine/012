@@ -106,6 +106,19 @@ Keys in the grid. `default` works like Google Sheets; `vim` adds hjkl, counts, o
 | Environment | `O12_KEYMAP` |
 | Applies | File > Settings > Reload config |
 
+### Data
+
+#### `max-cells`
+
+The most cells an import keeps, and a paste or fill writes at once. A sheet takes about 300 bytes a cell, so the default of two million is about 600 MB. Imports keep whole rows up to the budget and say how many they left out; larger pastes and fills are refused. The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is.
+
+| | |
+|---|---|
+| Type | number |
+| Default | `2000000` |
+| Environment | `O12_MAX_CELLS` |
+| Applies | File > Settings > Reload config |
+
 ### JEV functions
 
 #### `jev-api-key-command`

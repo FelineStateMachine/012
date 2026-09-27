@@ -121,7 +121,7 @@ func importSQLite(ctx context.Context, name string, opt Options) (*Result, error
 		return nil, sqliteErr(err)
 	}
 
-	b := newBuilder()
+	b := newBuilder(opt.MaxCells)
 	header := sheet.Style{Bold: true}
 	for c, name := range cols {
 		b.text(sheet.Addr{Col: c}, name, sheet.Format{}, header)
@@ -182,7 +182,7 @@ func readSQLiteRows(ctx context.Context, rows *sql.Rows, b *builder, ncols, tota
 			prog.setRows(row)
 			prog.setFrac(int64(row), int64(total))
 		}
-		if row >= sheet.MaxRows {
+		if row >= sheet.MaxRows || b.isFull() {
 			if total >= 0 {
 				row = max(row, total+1)
 				break

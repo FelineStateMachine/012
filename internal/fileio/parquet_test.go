@@ -68,13 +68,13 @@ func TestParquetImport(t *testing.T) {
 	}
 }
 
-// TestParquetPastLimit reads rows up to the sheet's last and counts the
+// TestParquetPastLimit reads rows up to the cell budget and counts the
 // rest from the file's metadata.
 func TestParquetPastLimit(t *testing.T) {
 	type num struct {
 		N int32 `parquet:"n"`
 	}
-	rows := make([]num, sheet.MaxRows+4)
+	rows := make([]num, 8196)
 	for i := range rows {
 		rows[i].N = int32(i + 1)
 	}
@@ -92,18 +92,18 @@ func TestParquetPastLimit(t *testing.T) {
 	}
 	f.Close()
 
-	res, err := Import(context.Background(), name, Options{})
+	res, err := Import(context.Background(), name, Options{MaxCells: 8192})
 	if err != nil {
 		t.Fatal(err)
 	}
-	last := sheet.Addr{Row: sheet.MaxRows - 1}
-	if g := shown(res.Sheet, last); g != "8191" {
+	last := sheet.Addr{Row: 8191}
+	if g := shown(res.Sheet, last); g != "8191" || res.Sheet.Len() != 8192 {
 		t.Errorf("last row shows %q, want 8191", g)
 	}
 	if res.Rows != len(rows)+1 {
 		t.Errorf("rows %d, want %d", res.Rows, len(rows)+1)
 	}
-	if len(res.Notes) != 1 || res.Notes[0] != "only the first 8,192 rows fit; 5 rows left out" {
+	if len(res.Notes) != 1 || res.Notes[0] != "only the first 8,192 rows fit in max-cells (8,192 cells); 5 rows left out" {
 		t.Errorf("notes %q", res.Notes)
 	}
 }

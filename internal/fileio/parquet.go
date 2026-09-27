@@ -42,13 +42,13 @@ func importParquet(ctx context.Context, name string, opt Options) (*Result, erro
 	if err != nil {
 		return nil, err
 	}
-	b := newBuilder()
+	b := newBuilder(opt.MaxCells)
 	r := &parquetReader{
 		b: b, cols: parquetHeader(b, pf.Schema()), prog: prog,
 		row: 1, total: pf.NumRows(), buf: make([]parquet.Row, 256),
 	}
 	for _, rg := range pf.RowGroups() {
-		if r.row >= sheet.MaxRows {
+		if r.row >= sheet.MaxRows || b.isFull() {
 			break
 		}
 		if err := r.group(ctx, rg); err != nil {
@@ -102,7 +102,7 @@ type parquetReader struct {
 func (r *parquetReader) group(ctx context.Context, rg parquet.RowGroup) error {
 	rows := rg.Rows()
 	defer rows.Close()
-	for r.row < sheet.MaxRows {
+	for r.row < sheet.MaxRows && !r.b.isFull() {
 		if err := ctx.Err(); err != nil {
 			return err
 		}

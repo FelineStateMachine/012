@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math"
 	"strconv"
 	"strings"
 
@@ -47,20 +46,22 @@ func importXLSX(ctx context.Context, name string, opt Options) (*Result, error) 
 		total += dims[i]
 	}
 
-	b := newBuilder()
+	b := newBuilder(opt.MaxCells)
 	book := b.s.Book()
 	styles := map[int]xlsxStyle{}
 	var notes []string
 	done := 0
 	for i, ws := range names {
+		next := b.s
 		if i == 0 {
 			err = book.RenameSheet(b.s, ws)
 		} else {
-			b.s, err = book.AddSheet(ws, i)
+			next, err = book.AddSheet(ws, i)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("sheet %s: %w", ws, err)
 		}
+		b.nextSheet(next)
 		rows, err := importXLSXSheet(ctx, x, b, ws, styles, func(row int) {
 			prog.setRows(done + row)
 			prog.setFrac(int64(done+row), int64(total))
@@ -101,6 +102,7 @@ func importXLSXSheet(ctx context.Context, x *excelize.File, b *builder, ws strin
 		if err != nil {
 			return 0, err
 		}
+		importXLSXRowStyle(x, b, rows, row, styles)
 		for col, raw := range cols {
 			a := sheet.Addr{Col: col, Row: row}
 			if !b.fits(a) {
@@ -113,14 +115,7 @@ func importXLSXSheet(ctx context.Context, x *excelize.File, b *builder, ws strin
 	if err := rows.Error(); err != nil {
 		return 0, err
 	}
-	for c := range sheet.MaxCols {
-		colName, _ := excelize.ColumnNumberToName(c + 1)
-		w, err := x.GetColWidth(ws, colName)
-		if err != nil || math.Abs(w-excelDefaultWidth) < 0.01 || math.Abs(w-9.140625) < 0.01 {
-			continue
-		}
-		b.s.SetColWidth(c, max(int(math.Round(w))+excelPadding, 1))
-	}
+	importXLSXColumns(x, b, ws, styles)
 	return row, nil
 }
 
@@ -311,6 +306,9 @@ func (w *xlsxWriter) sheet(ws string, snap *Snapshot) (int, error) {
 			return 0, err
 		}
 	}
+	if err := w.colStyles(sw, snap.ColFormats); err != nil {
+		return 0, err
+	}
 	r := snap.Range
 	line := make([]any, r.To.Col-r.From.Col+1)
 	for row := r.From.Row; row <= r.To.Row; row++ {
@@ -324,9 +322,16 @@ func (w *xlsxWriter) sheet(ws string, snap *Snapshot) (int, error) {
 			}
 		}
 		cell, _ := excelize.CoordinatesToCellName(r.From.Col+1, row+1)
-		if err := sw.SetRow(cell, line); err != nil {
+		opts, err := w.rowOpts(snap.RowFormats, row)
+		if err != nil {
 			return 0, err
 		}
+		if err := sw.SetRow(cell, line, opts...); err != nil {
+			return 0, err
+		}
+	}
+	if err := w.styledRowsAfter(sw, snap.RowFormats, r.To.Row); err != nil {
+		return 0, err
 	}
 	if err := sw.Flush(); err != nil {
 		return 0, err

@@ -65,11 +65,12 @@ const (
 	GroupJEV        = "JEV functions"
 	GroupTelemetry  = "Telemetry"
 	GroupServe      = "012 serve"
+	GroupData       = "Data"
 	GroupFiles      = "Config files"
 )
 
 // Groups is the order groups are listed in.
-var Groups = []string{GroupAppearance, GroupJEV, GroupTelemetry, GroupServe, GroupFiles}
+var Groups = []string{GroupAppearance, GroupData, GroupJEV, GroupTelemetry, GroupServe, GroupFiles}
 
 // Options is every setting. Add an option here and read it with
 // Config.String, Bool or List; parsing, `012 config`, docs/config.md
@@ -90,6 +91,12 @@ var Options = []Option{
 	{Name: "keymap", Kind: Enum, Group: GroupAppearance, Default: "default", Values: []string{"default", "vim"}, Env: []string{"O12_KEYMAP"}, Live: true,
 		Desc: "Keys in the grid. `default` works like Google Sheets; `vim` adds hjkl, counts, operators, " +
 			"visual selection and a : command line (File > Settings > Vim keys)."},
+
+	{Name: "max-cells", Kind: Int, Group: GroupData, Default: "2000000", Env: []string{"O12_MAX_CELLS"}, Live: true,
+		Desc: "The most cells an import keeps, and a paste or fill writes at once. A sheet takes about " +
+			"300 bytes a cell, so the default of two million is about 600 MB. Imports keep whole rows " +
+			"up to the budget and say how many they left out; larger pastes and fills are refused. " +
+			"The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is."},
 
 	{Name: "jev-api-key-command", Kind: Command, Group: GroupJEV,
 		Desc: "A command that prints the TypeSafe API key, used when TYPESAFE_API_KEY isn't set and the " +

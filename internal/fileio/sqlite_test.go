@@ -130,15 +130,15 @@ func TestSQLitePastLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, opt := range []Options{{Table: "nums"}, {Query: "SELECT n FROM nums"}} {
+	for _, opt := range []Options{{Table: "nums", MaxCells: 8192}, {Query: "SELECT n FROM nums", MaxCells: 8192}} {
 		res, err := Import(context.Background(), name, opt)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if g := shown(res.Sheet, sheet.Addr{Row: sheet.MaxRows - 1}); g != "8191" {
+		if g := shown(res.Sheet, sheet.Addr{Row: 8191}); g != "8191" {
 			t.Errorf("%+v: last row shows %q, want 8191", opt, g)
 		}
-		if res.Rows != 8196 || len(res.Notes) != 1 || res.Notes[0] != "only the first 8,192 rows fit; 4 rows left out" {
+		if res.Rows != 8196 || len(res.Notes) != 1 || res.Notes[0] != "only the first 8,192 rows fit in max-cells (8,192 cells); 4 rows left out" {
 			t.Errorf("%+v: rows %d, notes %q", opt, res.Rows, res.Notes)
 		}
 	}

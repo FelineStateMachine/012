@@ -138,11 +138,11 @@ func (c *countingReader) Read(p []byte) (int, error) {
 }
 
 func importCSV(ctx context.Context, name string, opt Options) (*Result, error) {
-	return importDelimited(ctx, name, CSV, opt.Progress)
+	return importDelimited(ctx, name, CSV, opt)
 }
 
 func importTSV(ctx context.Context, name string, opt Options) (*Result, error) {
-	return importDelimited(ctx, name, TSV, opt.Progress)
+	return importDelimited(ctx, name, TSV, opt)
 }
 
 func exportCSV(_ context.Context, name string, snap *Snapshot, _ ExportOptions) (*ExportResult, error) {
@@ -153,7 +153,8 @@ func exportTSV(_ context.Context, name string, snap *Snapshot, _ ExportOptions) 
 	return exportDelimited(name, TSV, snap)
 }
 
-func importDelimited(ctx context.Context, name string, k Kind, prog *Progress) (*Result, error) {
+func importDelimited(ctx context.Context, name string, k Kind, opt Options) (*Result, error) {
+	prog := opt.Progress
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
@@ -165,7 +166,7 @@ func importDelimited(ctx context.Context, name string, k Kind, prog *Progress) (
 		size = st.Size()
 	}
 	counter := &countingReader{r: f}
-	s, rows, notes, err := readDelimited(ctx, counter, k, func(rows int) {
+	s, rows, notes, err := readDelimited(ctx, counter, k, opt.MaxCells, func(rows int) {
 		prog.setRows(rows)
 		prog.setFrac(counter.n, size)
 	})
@@ -175,10 +176,10 @@ func importDelimited(ctx context.Context, name string, k Kind, prog *Progress) (
 	return &Result{Sheet: s, Rows: rows, Notes: notes}, nil
 }
 
-// readDelimited reads CSV or TSV text, sniffing the delimiter of CSV.
-// Each field is entered as if typed. progress is called every few
-// hundred rows.
-func readDelimited(ctx context.Context, in io.Reader, k Kind, progress func(rows int)) (*sheet.Sheet, int, []string, error) {
+// readDelimited reads CSV or TSV text, sniffing the delimiter of CSV,
+// keeping up to maxCells cells (see newBuilder). Each field is entered as
+// if typed. progress is called every few hundred rows.
+func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, progress func(rows int)) (*sheet.Sheet, int, []string, error) {
 	br := bufio.NewReaderSize(in, sniffSize)
 	text, enc, err := decode(br)
 	if err != nil {
@@ -196,7 +197,7 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, progress func(rows
 	cr.FieldsPerRecord = -1
 	cr.ReuseRecord = true
 
-	b := newBuilder()
+	b := newBuilder(maxCells)
 	row := 0
 	for ; ; row++ {
 		// Report before reading on: a pipe may keep the next read waiting.
