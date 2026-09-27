@@ -52,7 +52,7 @@ func (m *Model) View() tea.View {
 		// Terminals that support it (OSC 9;4) show activity in the tab.
 		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarIndeterminate, 0)
 	}
-	if bar := m.progressBar(); bar != nil {
+	if bar := m.xfer.progressBar(); bar != nil {
 		v.ProgressBar = bar
 	}
 	if m.changed {
@@ -143,7 +143,7 @@ func (m *Model) contextLineText() string {
 	var left, right string
 	switch {
 	case m.xfer.job != nil:
-		left = m.importLine()
+		left = m.xfer.line(&m.th)
 	case m.mouse.drag == dragResize:
 		left = m.th.Key.Render("Column "+sheet.ColName(m.mouse.resizeCol)) + m.th.Muted.Render(" width ") +
 			strconv.Itoa(m.sheet.ColWidth(m.mouse.resizeCol)) + m.th.Muted.Render("   double-click the border to fit")
@@ -233,7 +233,7 @@ func (m *Model) statusLayout() (string, []tabSpan) {
 		return m.th.Error.Render(m.errMsg) + m.th.Muted.Render("   press any key"), nil
 	}
 	if m.xfer.job != nil {
-		return m.importStatus(), nil
+		return m.spread(m.xfer.status(&m.th, m.width)), nil
 	}
 	if line, ok := m.floatingStatus(); ok {
 		return line, nil
