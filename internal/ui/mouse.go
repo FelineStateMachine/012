@@ -204,7 +204,7 @@ func (m *Model) readyPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 	shift := mouse.Mod.Contains(tea.ModShift)
 	switch h.kind {
 	case hitFormulaBar:
-		m.startEdit()
+		m.runCommand("edit")
 		m.line.setCaret(h.x)
 	case hitCorner:
 		m.cur = sheet.Addr{Col: m.left, Row: m.top}
@@ -225,7 +225,7 @@ func (m *Model) readyPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 			m.selecting, m.whole, m.ext = true, wholeNone, h.addr
 		case double && h.addr == m.cur:
 			m.clearSelection()
-			return m.startEdit()
+			return m.runCommand("edit")
 		default:
 			m.cur = h.addr
 			m.clearSelection()
