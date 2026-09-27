@@ -15,14 +15,14 @@
 # |--------------------------------|--------------------------------------------------|---------------------------------------------------|--------------------------|---------|------------------------------|
 # | owid-energy-data.csv           | wide CSV (130 cols) + rows past the 8192 limit   | github owid/energy-data @7e387a1                  | CC-BY-4.0                | 9229369 | 23377 x 130                  |
 # | airport-codes.csv              | very long CSV (10x row limit), accented Latin    | github datasets/airport-codes @08b5eef            | ODC-PDDL-1.0             | 8809882 | 86134 x 13                   |
-# | vix-daily.csv                  | numeric-heavy, just past row limit, CRLF         | github datasets/finance-vix @3dbea23              | ODC-PDDL-1.0             | 482200  | 9278 x 5                     |
+# | co2-ppm-daily.csv              | numeric CSV past the row limit, dates           | github datasets/co2-ppm-daily @ac476b2           | ODC-PDDL-1.0 (NOAA)      | 347788  | 18304 x 2                    |
 # | country-codes.csv              | Arabic/CJK/Cyrillic text, leading-zero codes     | github datasets/country-codes @6a595f1            | ODC-PDDL-1.0             | 134003  | 249 x 56                     |
-# | mayweather-mcgregor-tweets.csv | emoji, multi-line quoted cells, 18-digit ids     | github fivethirtyeight/data @4c1ff5e              | CC-BY-4.0                | 2386542 | 12118 x 7                    |
 # | FormulaEvalTestData_Copy.xlsx  | XLSX formulas (1189 on sheet 1) + number formats | github apache/poi @942d95d test-data/spreadsheet  | Apache-2.0               | 65011   | sheet 1 A2:AL1504 (788 rows) |
 # | Chinook_Sqlite.sqlite          | SQLite tables (PlaylistTrack past row limit)     | github lerocha/chinook-database release v1.4.5    | MIT                      | 1067008 | 11 tables, max 8715 x 2      |
-# | lineitem-top10000.gzip.parquet | Parquet, GZIP pages, typed cols, past row limit  | github duckdb/duckdb @cf0b14d data/parquet-testing| MIT                      | 292469  | 10000 x 16                   |
+# | alltypes_tiny_pages.parquet    | Parquet, every primitive type, tiny pages        | github apache/parquet-testing @56653c4            | Apache-2.0               | 454233  | 7300 x 13                    |
 #
-# Total: about 22 MB.
+# Total: about 20 MB. Every file is openly licensed (CC-BY-4.0, public domain
+# dedications, Apache-2.0 or MIT); see the license column of the manifest.
 #
 # Usage: scripts/stress-data.sh            (from anywhere)
 #        STRESS_DIR=/tmp/stress scripts/stress-data.sh
