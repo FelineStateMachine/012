@@ -26,6 +26,9 @@ the app uses, so it never drifts from what the keys do.
 | View > Freeze | Keep rows or columns on screen while the rest scrolls |
 | Data > Sort sheet, Sort range | Sort by the active column A to Z or Z to A, or pick columns and order on a bar (Left/Right column, Space order, Alt+A add, Alt+H header row) |
 | Alt+Down, click ▾ in a header | With a filter (Data > Create a filter): pick the column's values (Space checks, type to search) or a condition |
+| Alt+Down, click ▾ in a cell | Open the cell's dropdown (Data > Data validation, Insert > Dropdown): type to search, Enter picks; see [data.md](data.md#data-validation) |
+| Space, click a checkbox | Check or uncheck the selected checkboxes (Insert > Checkbox); elsewhere Space starts an entry |
+| Format > Conditional formatting, Data > Data validation | The sheet's rules in a panel: Up/Down pick, Enter adds or edits, Del removes, Shift+Up/Down reorders; in a rule, Left/Right change a choice, Space flips a check, Enter saves, Esc goes back; see [data.md](data.md#conditional-formatting) |
 | Data > Pivot table | Summarize the table on a new sheet; in the pivot editor Up/Down pick a line, Space adds a field (or opens a filter, flips a total, changes the data range), Left/Right change a field's order or summary, S its "show as", R or F2 renames a value, Shift+Up/Down move it, Del removes it, Enter keeps, Esc undoes. Data > Edit pivot table reopens it |
 | Alt+Shift+F | Frequency table of the active column on a new sheet (Data > Frequency table), as VisiData's Shift+F |
 | Ctrl+Alt+= / Ctrl+Alt+- | Insert rows above / delete the selected rows (columns when whole columns are selected) |
@@ -123,6 +126,8 @@ and click a column or row header (or the corner) to select whole columns,
 rows or everything. Double-click edits. Drag a column header's right edge
 to resize it; double-click the edge to fit the contents. Dragging past the
 edge of the grid scrolls. Right-click opens the cell, column or row menu.
+A click on a checkbox's box checks or unchecks it, and a click on a
+dropdown's ▾ opens its list.
 The mouse pointer changes shape over cells, resize handles and the formula
 bar in terminals that support it (OSC 22).
 

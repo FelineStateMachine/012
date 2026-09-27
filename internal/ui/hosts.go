@@ -9,6 +9,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"github.com/FelineStateMachine/012/internal/ui/rules"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/FelineStateMachine/012/internal/ui/themepicker"
 )
@@ -26,6 +27,7 @@ var (
 	_ cmdline.Host     = host{}
 	_ findbar.Host     = host{}
 	_ themepicker.Host = host{}
+	_ rules.Host       = host{}
 )
 
 // The in-package hosts the model implements itself.

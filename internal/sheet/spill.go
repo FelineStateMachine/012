@@ -288,6 +288,19 @@ func sameArray(x, y *functions.Array) bool {
 	return true
 }
 
+// recalcSwapped recalculates what an undo or redo changed, and the
+// anchors of the spills it touched (markDirty).
+func (w *Workbook) recalcSwapped(changed []loc) {
+	changed = append(changed, w.hist.dirty...)
+	w.hist.dirty = nil
+	if w.structural {
+		w.structural = false
+		w.recalcAll()
+		return
+	}
+	w.recalc(changed)
+}
+
 // markDirty has the step being made or undone recalculate the cell at
 // l, without recording it for undo.
 func (w *Workbook) markDirty(l loc) {

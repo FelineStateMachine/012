@@ -88,7 +88,8 @@ func colsRightTarget(m *Model) sheet.Rect {
 }
 
 // noCells is command.changes for commands that move cells without
-// changing any, such as inserting rows.
+// changing any, such as inserting rows, or that only put rules on them
+// (a checkbox, a dropdown).
 func noCells(*Model) (sheet.Rect, bool) { return sheet.Rect{}, false }
 
 // selectedRowsTarget and selectedColsTarget are the whole rows or

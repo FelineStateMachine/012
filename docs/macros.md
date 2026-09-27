@@ -38,7 +38,12 @@ What gets recorded:
   (`run("column.width", answer="15")`, `run("sheet.delete", answer="enter")`);
 - pasted text (`paste_text(...)`), the fill handle (`fill(...)`), column
   borders dragged or fitted (`set_width(...)`) and tabs dragged
-  (`move_sheet(...)`).
+  (`move_sheet(...)`);
+- rules added in the conditional formatting and data validation panels,
+  as the commands that add a rule from a line of the file
+  (`run("format.conditional_add", answer='{"ranges":"B2:B9",...}')`), and
+  items picked from a dropdown, as entries. Editing, removing or moving a
+  rule in the panel is noted as a comment, as the dialogs below are.
 
 What doesn't: dialogs such as sorting by several columns, the filter
 picker, find and replace, the chart editor, dragging a chart, and undo.
@@ -211,6 +216,7 @@ menus, help, undo or macros. The ids are those in the recorded scripts; a few:
 | `column.width` (answer: the width), `column.reset` | Column widths |
 | `data.sort_sheet_az`, `data.sort_range_az`, `data.sort_range_za`, `data.filter`, `data.filter_remove` | Sorting and filters |
 | `data.define_name` (answer: the name) | Name the selection |
+| `format.conditional_add`, `data.validation_add` (answer: the rule as a line of the file, see [files.md](files.md#conditional-formats-and-data-validation)), `insert.checkbox`, `format.conditional_clear`, `data.validation_clear`, `data.checkbox_toggle` | Conditional formats, data validation and checkboxes |
 | `sheet.new`, `sheet.duplicate`, `sheet.rename` (answer: the name), `sheet.delete` (answer: `"enter"` when it asks), `sheet.hide`, `sheet.unhide` (answer: the sheet's name) | Sheets |
 | `view.freeze_rows1`, `view.freeze_cols1`, `view.freeze_rows0`, ... | Frozen panes |
 

@@ -47,7 +47,19 @@ func uiShapes() []uiShape {
 			return s
 		}},
 		{"sparse-1M", func() *sheet.Sheet { return stress.Sparse(10000, 100, 1000) }},
+		{"scale-8192x26", scaled},
 	}
+}
+
+// scaled is dense-8192x26 under a 3-point color scale over all of it,
+// every visible cell a shade: what conditional formatting costs a frame.
+func scaled() *sheet.Sheet {
+	s := stress.Dense(stress.Rows, 26)
+	f, err := sheet.ParseCondFormat(`{"ranges":"A1:Z8192","scale":[{"type":"min","color":"red"},{"type":"percentile","value":"50","color":"yellow"},{"type":"max","color":"green"}]}`)
+	if err != nil || s.LoadCondFormats([]sheet.CondFormat{f}) > 0 {
+		panic(err)
+	}
+	return s
 }
 
 // fakeTerm stands in for Bubble Tea's renderer: a cell buffer the frame
@@ -178,6 +190,8 @@ func BenchmarkKeystroke(b *testing.B) {
 		{"type/fanin-1000", uiShape{"fanin", func() *sheet.Sheet { return stress.FanIn(stress.Rows, 1000) }},
 			nil, []string{"7", "enter", "up"}},
 		{"type/dense-8192x26", uiShapes()[1], nil, []string{"7", "enter", "up"}},
+		{"arrow/scale-8192x26", uiShapes()[7], nil, []string{"down", "up"}},
+		{"type/scale-8192x26", uiShapes()[7], nil, []string{"7", "enter", "up"}},
 		{"jump/sparse-1M", uiShapes()[6], nil, []string{"ctrl+down", "ctrl+down", "ctrl+up", "ctrl+up"}},
 		{"select-sheet/sparse-1M", uiShapes()[6], []string{"ctrl+a", "ctrl+a"}, nil},
 		{"extend-column/sparse-1M", uiShapes()[6], []string{"ctrl+space"}, []string{"shift+right", "shift+left"}},

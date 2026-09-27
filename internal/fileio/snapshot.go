@@ -41,6 +41,10 @@ type Snapshot struct {
 	// the formula's cell, for formats that keep formulas (XLSX).
 	Spills map[sheet.Addr]sheet.Rect
 
+	// CondFormats and Validations are the sheet's rules, for formats
+	// that keep them (XLSX).
+	CondFormats []sheet.CondFormat
+	Validations []sheet.Validation
 	// Notes are the cells' notes in the range, for formats that keep
 	// them (XLSX, as comments). A note may be on a cell with no contents.
 	Notes map[sheet.Addr]string
@@ -84,7 +88,8 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		r.To = r.From
 	}
 	snap := &Snapshot{Range: r, Cells: map[sheet.Addr]SnapCell{}, Widths: s.Widths(), Name: name,
-		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true), Filter: s.Filter()}
+		ColFormats: snapLines(s, false), RowFormats: snapLines(s, true), Filter: s.Filter(),
+		CondFormats: s.CondFormats(), Validations: s.Validations()}
 	snap.FrozenRows, snap.FrozenCols = s.Frozen()
 	for _, a := range s.NotesIn(notes) {
 		if snap.Notes == nil {

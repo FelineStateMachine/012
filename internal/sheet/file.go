@@ -67,6 +67,9 @@ type fileSheet struct {
 	Cells  map[string]json.RawMessage `json:"cells"`
 	Charts []fileChart                `json:"charts,omitempty"`
 	Pivot  *filePivot                 `json:"pivot,omitempty"` // version 5
+	// Rules need no version: see rulefile.go.
+	CondFormats []fileCondFormat `json:"conditionalFormats,omitempty"`
+	Validations []fileValidation `json:"validations,omitempty"`
 }
 
 // Write saves the workbook the sheet belongs to; see Workbook.Write.
@@ -220,7 +223,7 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 }
 
 // writeObjects writes the fields after the cells: the charts, one per
-// line, and the pivot table's definition.
+// line, the pivot table's definition, and the rules.
 func (s *Sheet) writeObjects(b *bytes.Buffer, indent string) error {
 	if len(s.charts) > 0 {
 		b.WriteString(",\n" + indent + `"charts": [`)
@@ -243,6 +246,7 @@ func (s *Sheet) writeObjects(b *bytes.Buffer, indent string) error {
 		}
 		fmt.Fprintf(b, ",\n%s\"pivot\": %s", indent, raw)
 	}
+	s.writeRules(b, indent)
 	return nil
 }
 
@@ -388,6 +392,9 @@ func (s *Sheet) read(f fileSheet, version int) error {
 			return err
 		}
 		s.pivot = pivotState{def: p, stale: true}
+	}
+	if err := s.readRules(f.CondFormats, f.Validations); err != nil {
+		return err
 	}
 	return s.readView(f.fileView)
 }

@@ -24,6 +24,7 @@ const (
 	formulaBytes   = 256 // a parsed formula's tree and references, plus perFormulaByte per byte of text
 	perFormulaByte = 16
 	chartBytes     = 128
+	ruleBytes      = 256 // a rule with its ranges and values
 )
 
 // keep records c as the before-image of the cell at l and counts it.
@@ -39,6 +40,9 @@ func (st *step) size() int64 {
 	n += int64(len(st.widths)+len(st.lines)+len(st.names)+len(st.views)) * entryBytes
 	for _, charts := range st.charts {
 		n += entryBytes + int64(len(charts))*chartBytes
+	}
+	for _, r := range st.rules {
+		n += entryBytes + int64(len(r.formats)+len(r.validations))*ruleBytes
 	}
 	if st.sheets != nil {
 		n += int64(len(st.sheets.order)) * 2 * entryBytes

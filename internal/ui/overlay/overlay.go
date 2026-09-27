@@ -58,6 +58,8 @@ type Overlay interface {
 // entry.
 type Text interface {
 	Overlay
+	// Cursor is where the caret is; a negative x hides it, while no
+	// field of the overlay is being typed in.
 	Cursor() (x, y int)
 	Changed() // the text changed
 }

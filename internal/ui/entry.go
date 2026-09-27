@@ -229,6 +229,10 @@ func (m *Model) resumeEntry(ref string) {
 // in EDIT mode with the caret at the problem and the reason on line 3.
 func (m *Model) commit() bool {
 	input := m.line.Text()
+	warn, ok := m.checkEntry(input) // data validation, rules.go
+	if !ok {
+		return false
+	}
 	if err := m.set(m.cur, input); err != nil {
 		m.entryError(err, input)
 		return false
@@ -236,6 +240,9 @@ func (m *Model) commit() bool {
 	m.cancelEntry()
 	m.clearSelection()
 	m.recordEntry(input, false)
+	if warn != "" {
+		m.warn = warn
+	}
 	return true
 }
 

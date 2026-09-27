@@ -23,7 +23,7 @@ func spending(s *session) {
 func insertChart(s *session) {
 	s.keys("<alt+i>")
 	s.waitFor("│ Chart")
-	s.keys("<up>", "<enter>")
+	s.keys("<up>", "<up>", "<up>", "<enter>") // past Dropdown and Checkbox, at the end
 	s.waitFor("Series in columns")
 }
 

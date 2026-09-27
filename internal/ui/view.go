@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"strconv"
 	"strings"
 
@@ -148,6 +149,11 @@ func (m *Model) gridRow(row int) string {
 func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr, sel sheet.Rect, selecting bool) string {
 	var b strings.Builder
 	spills := m.sheet.HasSpills()
+	rules := m.sheet.HasRules()
+	var rgb func(int) color.Color
+	if rules {
+		rgb = m.slotColor
+	}
 	for i, sp := range spans {
 		a := sheet.Addr{Col: first + i, Row: row}
 		base, colored := m.th.Cell, true
@@ -169,22 +175,38 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 		default:
 			colored = false
 		}
-		// The copy marker is layered on the cell's own colors.
-		if m.copied.marks(m.sheet, a) {
-			base, colored = base.Inherit(m.th.Copied), true
-		}
+		var look sheet.Look
+		var shade theme.Shade
+		shaded := false
 		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() {
 			sp = rowtext.Span{Text: m.inCellText(m.sheet.ColWidth(a.Col))}
 		} else {
 			m.decorate(&sp, row) // links and error marks, see links.go
+			if rules {
+				look, shade, shaded = m.ruleSpan(a, &sp, colored, rgb) // looks.go
+			}
 		}
-		text := renderSpan(&m.th, sp, base, colored)
-		if m.sheet.Note(a) != "" {
-			text = m.noteMark(text, a, base, colored)
+		if shaded {
+			base, colored = shade.Style, true
 		}
-		if m.showFillHandle(a) {
-			w := m.sheet.ColWidth(a.Col)
+		// The copy marker is layered on the cell's own colors.
+		if m.copied.marks(m.sheet, a) {
+			base, colored, shaded = base.Inherit(m.th.Copied), true, false
+		}
+		var text string
+		if shaded && plainSpan(sp) {
+			text = shade.Wrap(strings.Repeat(" ", sp.Lead) + sp.Text + strings.Repeat(" ", sp.Trail))
+		} else {
+			text = renderSpan(&m.th, sp, base, colored)
+		}
+		w := m.sheet.ColWidth(a.Col)
+		switch {
+		case m.showFillHandle(a):
 			text = ansi.Truncate(text, w-1, "") + base.Render("▟")
+		case m.sheet.Note(a) != "":
+			text = m.noteMark(text, a, base, colored)
+		case look.Dropdown:
+			text = m.dropdownMark(text, w, base, colored)
 		}
 		b.WriteString(text)
 	}
@@ -206,13 +228,19 @@ func (m *Model) dividerRow() string {
 	return m.th.FrozenLine.Render(ansi.Truncate(b.String(), m.width, ""))
 }
 
+// plainSpan reports whether a span's text has no style of its own: no
+// text style, link or mark.
+func plainSpan(sp rowtext.Span) bool {
+	st := sp.Style
+	st.Align = sheet.AlignAuto
+	return st.IsZero() && sp.Link == "" && !sp.Error && !sp.Invalid
+}
+
 // renderSpan draws a span on base, one of the cell roles. Plain cells
 // with no text style are written without escape codes.
 func renderSpan(th *theme.Theme, sp rowtext.Span, base lipgloss.Style, colored bool) string {
 	lead, trail := strings.Repeat(" ", sp.Lead), strings.Repeat(" ", sp.Trail)
-	st := sp.Style
-	st.Align = sheet.AlignAuto
-	plain := st.IsZero() && sp.Link == "" && !sp.Error
+	plain := plainSpan(sp)
 	switch {
 	case plain && !colored:
 		return lead + sp.Text + trail

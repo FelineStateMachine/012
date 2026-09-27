@@ -183,3 +183,24 @@ func TestSpillNotes(t *testing.T) {
 		t.Errorf("A2 after the spill went = %+v", c)
 	}
 }
+
+// Rules over a spill see its values: a conditional format colors spilled
+// cells and a validation rule marks spilled values it doesn't accept,
+// but neither stops the array from spilling, as rules only ever judge
+// what's typed.
+func TestSpillRules(t *testing.T) {
+	s := sheetOf(t, map[string]string{"A1": "=SEQUENCE(4)"})
+	if err := s.AddCondFormat(CondFormat{Ranges: []Rect{rect("A1:A9")}, Op: RuleGreater, Args: [2]string{"2"}, Style: RuleStyle{Bold: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddValidation(Validation{Ranges: []Rect{rect("A1:A9")}, Kind: ValidNumber, Op: RuleLessEq, Args: [2]string{"3"}, Reject: true}); err != nil {
+		t.Fatal(err)
+	}
+	wantShown(t, s, map[string]string{"A4": "4"})
+	if l := s.Look(at("A3")); !l.Styled || l.Invalid {
+		t.Errorf("A3's look = %+v, want styled and valid", l)
+	}
+	if l := s.Look(at("A4")); !l.Styled || !l.Invalid {
+		t.Errorf("A4's look = %+v, want styled and invalid", l)
+	}
+}

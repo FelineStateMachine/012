@@ -79,6 +79,11 @@ type Picker struct {
 	// changes the workbook: a recording keeps the title picked as the
 	// command's answer, and scripts answer it with a title.
 	Answers bool
+
+	// At, when set, is where the box's top-left corner goes, as a
+	// dropdown opens under its cell; the box stays on screen. Pickers
+	// open centered under the menu bar otherwise.
+	At *[2]int
 }
 
 // ID identifies the picker's box in mouse events.
@@ -309,6 +314,13 @@ func (p *Picker) box() (x, y, inner int) {
 	}
 	inner = min(1+tw+3+dw+3+kw+1, p.maxW, width-2)
 	inner = max(inner, min(40, width-2))
+	if p.At != nil {
+		_, height := p.h.Size()
+		h := max(min(len(p.Items), 12), 1) + 4 // its tallest, so it never moves
+		x := min(max(p.At[0], 0), max(width-inner-2, 0))
+		y := min(max(p.At[1], 0), max(height-1-h, 0))
+		return x, y, inner
+	}
 	return (width - inner - 2) / 2, overlay.MenuLine + 1, inner
 }
 

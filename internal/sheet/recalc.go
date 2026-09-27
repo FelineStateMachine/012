@@ -26,6 +26,7 @@ func (w *Workbook) RecalcAll() {
 // propagate: tracing dependents from each cell cost O(cells x range
 // users).
 func (w *Workbook) recalcAll() {
+	w.gen++
 	start := w.recalcStart()
 	n := 0
 	for _, s := range w.sheets {
@@ -57,6 +58,7 @@ func (w *Workbook) recalc(changed []loc) { w.recalcFrom(changed, true) }
 // transitively depends on them, and the volatile formulas with theirs
 // when volatiles is set.
 func (w *Workbook) recalcFrom(changed []loc, volatiles bool) {
+	w.gen++
 	start := w.recalcStart()
 	n := w.affected(changed, volatiles)
 	stale := w.stalePivots()

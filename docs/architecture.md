@@ -30,6 +30,7 @@ internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   cmdline        the : command line and its completions
   findbar        find and replace, a bar on the context line
   themepicker    File > Settings > Theme, previewing as it moves
+  rules          the conditional formatting and data validation panel
   tabstrip       the sheet tabs' layout and where each sheet was left
   transfer       imports running in the background and their progress
 e2e/             end-to-end tests through libghostty (separate module, cgo)
@@ -156,6 +157,18 @@ style.
   format) keeps only its formatting and note. A blocked anchor shows
   `#REF!` with the reason. `Set` refuses spilled cells; files keep only
   the anchor.
+- **Rules.** A sheet's conditional formats and data validation
+  (`rules.go`, `condfmt.go`, `validation.go`) are lists of rules on
+  ranges, replaced whole on every change so undo steps keep them as they
+  were; they follow inserted and deleted lines, and their formulas follow
+  renamed sheets, as formulas do. How they draw a cell (`Look`, in
+  `looks.go`) is worked out when the screen asks for it and kept until
+  the next recalculation, which counts itself in `Workbook.gen`: a color
+  scale reads its range's numbers once per recalculation, a custom
+  formula is evaluated for the cells drawn, with its relative references
+  moved as a copy's would be. `CheckEntry` tells the UI whether a cell
+  takes an entry, evaluating a formula in place without storing it. The
+  file keeps each rule as one line of JSON (`rulefile.go`).
 - **JEV.** The engine never touches the network. JEV functions describe a
   question and ask the `Book` for the answer, which the engine looks up
   in the workbook's `RemoteSource`, set with `SetRemote`; `internal/jev`
@@ -302,7 +315,7 @@ draw. The components:
 | edit line | `lineedit.Line` | the one-line editor shared by cell entries, prompts and search fields (package `lineedit`) |
 | cell entry | `entry`, `assist` | typing into a cell, pointing at references, other sheets while pointing, formula suggestions and signatures (`entry.go`, `assist.go`) |
 | prompt | `prompt` | a question on the context line, typed or pointed at (`prompt.go`) |
-| overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker, the sort and choice bars, the chart editor and selection, the pivot editor (`pivoteditor.go`, `pivotactions.go`), the shortcuts |
+| overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker, the sort and choice bars, the chart editor and selection, the pivot editor (`pivoteditor.go`, `pivotactions.go`), the rules panel (package `rules`, with `rules.go`), the shortcuts |
 | sheet tabs | `tabstrip.Strip` | where each sheet was left, the tab strip's scroll and layout (package `tabstrip`); what clicks on it do (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer.Transfer` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`) |
@@ -330,6 +343,7 @@ methods off `ui.Model`'s exported API:
 | `cmdline` | `cmdline.Host` | theme, size, the edit line, close, the commands to complete, run a line, fail (7) |
 | `themepicker` | `themepicker.Host` | a picker's host, and the current theme, the themes directory, preview, keep (9) |
 | `findbar` | `findbar.Host` | theme, size, the edit line, the workbook, the sheet and cell shown, show a cell, note, mark modified, leave keeping the search, pass a click to the grid (10) |
+| `rules` | `rules.Host` | theme, size, the edit line, close, the sheet and selection, save a conditional format or a validation rule (as the commands macros record), note a rule removed or moved, the terminal's palette colors (10) |
 | `tabstrip`, `transfer` | none | they're handed a view or messages and draw what they're given |
 
 Components that stay in package `ui` declare an unexported host the model
@@ -356,8 +370,8 @@ hints) are what every overlay is drawn with.
 
 **Packages.** `theme`, `rowtext`, `formula`, `overlay` and `lineedit`
 depend on nothing in `ui`, so they can be tested and measured alone. The
-components in `picker`, `cmdline`, `themepicker`, `findbar`, `tabstrip`
-and `transfer` build on them and reach the model only through their
+components in `picker`, `cmdline`, `themepicker`, `findbar`, `rules`,
+`tabstrip` and `transfer` build on them and reach the model only through their
 hosts, with unit tests of their own. A component moves out of package
 `ui` when its host stays small (about ten methods or fewer); one that
 needs more keeps a narrow interface inside `ui` instead, since moving it

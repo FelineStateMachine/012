@@ -55,8 +55,8 @@ type Reader struct {
 	evalState
 	// arena holds the arrays and LAMBDAs of the formulas being evaluated
 	// (array.go), emptied when the outermost is done; nest counts them.
-	arena []any
-	nest  int
+	arena   []any
+	nest    int
 	outer   []evalState // the states of the formulas nest counts, but the innermost
 	spilled *Array      // the array the last formula computed; see Spilled
 	// ranges are the ranges read whole as arrays since Forget, shared by

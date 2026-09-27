@@ -137,7 +137,10 @@ can't be typed into, cleared, pasted over or filled: the context line
 names the formula to edit instead. Selecting the formula with its spill
 and pressing Del clears it, formatting spilled cells keeps the
 formatting, and inserting or deleting rows and columns through a spill
-spills it again. Copying spilled cells pastes their values.
+spills it again. Copying spilled cells pastes their values. Conditional
+formats color spilled cells by their values, and data validation marks
+spilled values it doesn't accept, but never stops an array from
+spilling: rules judge what's typed, and a spilled value isn't.
 
 When a cell in the way of an array isn't empty, the formula shows
 `#REF!` and says why, as Sheets does: "Array result was not expanded

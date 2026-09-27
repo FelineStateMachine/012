@@ -79,7 +79,8 @@ func (bk *xlsxBook) importBook(ctx context.Context, opt Options) (*Result, error
 	b.s = active
 	prog.setRows(done)
 	s, notes := b.finish(notes)
-	return &Result{Sheet: s, Rows: done, Notes: append(notes, applyFilters(book, filters)...)}, nil
+	notes = append(notes, applyFilters(book, filters)...)
+	return &Result{Sheet: s, Rows: done, Notes: append(notes, bk.skips.notes()...)}, nil
 }
 
 // importSheet reads sheet i into b.s, with its frozen panes, reporting
@@ -118,6 +119,7 @@ func (bk *xlsxBook) importSheet(ctx context.Context, b *builder, i int, af **xls
 	if *af, err = r.readTail(); err != nil {
 		return 0, fmt.Errorf("sheet %s: %w", bk.sheets[i].name, err)
 	}
+	bk.loadRules(b.s, r)
 	if r.protected {
 		bk.protected = append(bk.protected, bk.sheets[i].name)
 	}

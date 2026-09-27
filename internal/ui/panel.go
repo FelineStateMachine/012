@@ -224,6 +224,9 @@ func (m *Model) contextLineText() string {
 			left = m.errorLine()
 		}
 		if left == "" {
+			left = m.validationLine() // looks.go
+		}
+		if left == "" {
 			left = m.noteLine()
 		}
 		if left == "" {
@@ -272,7 +275,7 @@ func (m *Model) spread(left, right string) string {
 func (m *Model) cursorPos() (x, y int, ok bool) {
 	if o, isText := m.overlay.(overlay.Text); isText {
 		x, y = o.Cursor()
-		return x, y, true
+		return x, y, x >= 0
 	}
 	switch {
 	case m.mode == modeEnter, m.mode == modeEdit:
