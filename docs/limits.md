@@ -89,7 +89,14 @@ terminal (`BenchmarkFrame`).
 | 20 charts (text) | 0.82 ms | 2.9 ms | 7.3 ms |
 
 About half of a frame at 400 x 120 is Bubble Tea's parse and diff of the
-view string. Key presses add little: an arrow key through to its frame
+view string.
+
+A chart drawn as text costs 4 to 50 us at 24 x 10 to 120 x 40 cells,
+whatever its data: only the categories that fit are drawn (a pie of 8192
+slices, 0.44 ms, is the worst). An image for kitty graphics is redrawn
+when its data, size or theme changes: 25 to 260 us at 24 x 10 cells and
+1 to 1.5 ms at 120 x 40, a pie 8.6 ms (`internal/chart`,
+`BenchmarkDraw`, `BenchmarkImage`). Key presses add little: an arrow key through to its frame
 is 0.21 ms at 80 x 24 and 1.06 ms at 200 x 60; Page Down 1.26 ms.
 
 With the whole of an 8192 x 256 sheet selected, the status line's Sum,
@@ -113,8 +120,12 @@ Real, openly licensed datasets fetched by `scripts/stress-data.sh`
 | Parquet alltypes_tiny_pages | 7300 x 13 | 40 ms | 2.4 M cells/s | 276 B |
 
 Past the limits, imports keep the first 8192 rows and 256 columns and
-say how much they left out; reading the rest of the file still costs
-(the airport codes file is read to its end).
+say how much they left out. Parquet files and SQLite tables stop reading
+at the last row and take the count of the rest from the file; CSV, TSV
+and SQLite queries are read to their end to count it, without keeping
+it (the airport codes file is read to its end). Every importer but XLSX
+streams, so memory follows the sheet, not the file; excelize holds an
+XLSX worksheet in memory while its rows are read.
 
 ## Undo
 
@@ -196,8 +207,9 @@ would take; without them a 10 M-cell sheet would need about 3 GB of
 heap, take 10 s to open and 140 ms per key to extend a selection over
 it.
 
-1. **Compact cell storage** (L, 2 to 3 weeks). Cells live in
-   `map[Addr]*Cell`, 300 B each: a 216 B struct carrying formula-only
+1. **Compact cell storage** (L, 2 to 3 weeks). Cells live in a
+   `map[Addr]*Cell` behind `cellStore` (`internal/sheet/store.go`), 300 B
+   each: a 216 B struct carrying formula-only
    fields (expression, reference lists, inferred format) on every cell,
    plus the map entry, the input string and a boxed literal. Storing
    columns in row blocks (say 1024 rows) of compact values, with
@@ -206,7 +218,8 @@ it.
    of the value, would bring numbers to about 20 to 40 B per cell and
    turn every cell read in recalc from two hash lookups (20 ns) into an
    index (2 to 3 ns). Cells are already per sheet in a workbook, so the
-   storage can change sheet by sheet.
+   storage can change sheet by sheet, and nothing outside `cellStore`
+   touches the map, so the change stays inside it.
 2. **Range dependency index and shared range results** (M, 1 week).
    Range users are now indexed by column; an interval index per column
    (or per row block) would make finding them independent of how many
@@ -214,12 +227,14 @@ it.
    recalc would make 1000 identical `SUM(A1:A8192)` cost one, and
    running totals could be computed from a prefix sum per column block:
    the fan-in and running-total rows of the table above would drop to
-   milliseconds.
+   milliseconds. Aggregates already read ranges through `lookup.cells`
+   (`internal/sheet/recalc.go`), where such results would be served.
 3. **Streaming, compact file format** (M, 1 week). The `.012` file is
    JSON decoded whole (1.3 GB allocated to open 47 MB). A streaming
    decoder over the same format would roughly halve open time and cut
    allocation tenfold; a columnar or gzip-compressed variant would cut
-   the size about fourfold.
+   the size about fourfold. The format is `internal/sheet/file.go`, apart
+   from the cell store.
 4. **Incremental selection statistics** (S, 2 days). Keep per-column
    sums and counts, updated in `place` and after recalc, and compute a
    selection's Sum and Count from column totals minus the rows outside
@@ -235,9 +250,10 @@ it.
 7. **Frame rate** (S, hours). Bubble Tea draws at most 60 frames a
    second; asking for 120 would halve the key-to-screen floor from about
    16 ms to 8 ms at the cost of more redraws.
-8. **Recursion limits** (S, hours). The parser and evaluator recurse
-   without a limit; a depth cap (Excel allows 64 nested functions) would
-   turn a pathological file into an error rather than a deep stack.
+8. **Recursion limits** (S, hours). The parser (`internal/formula`) and
+   the evaluator recurse without a limit; a depth cap (Excel allows 64
+   nested functions) would turn a pathological file into an error rather
+   than a deep stack.
 
 ## Measuring
 
@@ -250,8 +266,10 @@ make stress-e2e       # key press to screen through libghostty
 
 Benchmarks are built only with `-tags stress`, so `go test ./...` stays
 fast. They live in `internal/sheet/stress_test.go` (engine),
+`internal/sheet/hotpath_stress_test.go` (parsing and number formats),
 `internal/ui/stress_test.go` (View, frames, keystrokes, JEV, telemetry
-overhead), `internal/fileio/stress_test.go` (imports and exports) and
+overhead), `internal/fileio/stress_test.go` (imports and exports),
+`internal/chart/stress_test.go` (charts as text and images) and
 `e2e/stress_test.go`; the synthetic sheets are built by
 `internal/stress`. Results accumulate in `.deps/stress/results` and, with
 the observability stack up, in ClickHouse.
