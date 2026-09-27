@@ -83,9 +83,10 @@ circular reference.
 
 Like Sheets and Excel, 012 computes in binary floating point, so
 `=0.1+0.2=0.3` is FALSE and `=INT($4.35*100)` is 434. File > Settings >
-Decimal arithmetic (or search the palette for "decimal") switches the file,
-every sheet of it, to decimal math for money. The status line then says `decimal`, the menu shows a
-check mark, and the setting is saved with the file and can be undone.
+Decimal arithmetic (or search the palette for "decimal") switches the whole
+file, every sheet of it, to decimal math for money. The status line then says
+`decimal`, the menu shows a check mark, and the setting is saved with the
+file and can be undone.
 
 | Computed in decimal | Stays binary |
 |---|---|
