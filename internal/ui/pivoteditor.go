@@ -327,6 +327,10 @@ func (e *pivotEditor) status(m *Model) (string, string) {
 			return desc, keys
 		case desc != "":
 			desc = ""
+		case len(pairs) > 6:
+			// Drop the line's last key but one, keeping its first, the
+			// one that matters most, and Enter and Esc.
+			pairs = append(pairs[:len(pairs)-6], pairs[len(pairs)-4:]...)
 		case len(pairs) > 4:
 			pairs = pairs[2:]
 		default:

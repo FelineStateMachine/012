@@ -401,11 +401,18 @@ func (s *Sheet) setDerived(a Addr, c *Cell) {
 const maxPivotWidth = 30
 
 // fitPivot widens the result's columns to their widest text, never below
-// the default width.
+// the default width. Numbers in the General format count at most
+// maxGeneralFit characters: General shows fewer digits in a narrower
+// column, as an average's 15 digits needn't all show.
 func (s *Sheet) fitPivot(cells []pivotCell) {
+	const maxGeneralFit = 10
 	widest := map[int]int{}
 	for _, pc := range cells {
-		widest[pc.a.Col] = max(widest[pc.a.Col], len([]rune(s.ShownText(pc.a))))
+		n := len([]rune(s.ShownText(pc.a)))
+		if pc.v.Kind == Number && pc.f.IsZero() {
+			n = min(n, maxGeneralFit)
+		}
+		widest[pc.a.Col] = max(widest[pc.a.Col], n)
 	}
 	for col, w := range widest {
 		s.setWidth(col, clampInt(w+2, DefaultWidth, maxPivotWidth))

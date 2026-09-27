@@ -181,7 +181,7 @@ func TestPivotMenus(t *testing.T) {
 	m := wideModel()
 	press(t, m, "<alt+d>")
 	s := screen(m)
-	for _, want := range []string{"Pivot table", "Edit pivot table", "Column stats (frequency)"} {
+	for _, want := range []string{"Pivot table", "Edit pivot table", "Frequency table (column stats)"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("Data menu lacks %q:\n%s", want, s)
 		}

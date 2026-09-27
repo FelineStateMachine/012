@@ -80,6 +80,23 @@ func inventory(s *session) {
 	s.waitForName("A1")
 }
 
+// pivotEditor creates a pivot of the inventory in the editor: Category
+// in Rows, Reorder in Columns, the sum of Qty and the average Price,
+// leaving the average highlighted.
+func pivotEditor(s *session) {
+	inventory(s)
+	s.keys("<ctrl+k>", "pivot table", "<enter>")
+	s.waitFor("Data  Sheet1!A1:F41")
+	s.keys("<space>", "categ", "<enter>")
+	s.waitFor("   Category")
+	s.keys("<down>", "<space>", "reord", "<enter>")
+	s.waitFor("   Reorder")
+	s.keys("<down>", "<space>", "qty", "<enter>")
+	s.waitFor("‹ SUM ›")
+	s.keys("a", "price", "<enter>", "<left>", "<left>", "<left>")
+	s.waitFor("‹ AVERAGE ›")
+}
+
 // named is the budget with its expenses named and a formula using the
 // name, ending on the total.
 func named(s *session) {

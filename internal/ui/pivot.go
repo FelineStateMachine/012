@@ -15,7 +15,7 @@ import (
 // the fields), on a new sheet named Pivot Table 1, and opens the pivot
 // editor (pivoteditor.go) to pick rows, columns, values and filters. The
 // engine keeps the results live; editing them is refused with a note on
-// the context line, as Sheets refuses. Data > Column stats counts the
+// the context line, as Sheets refuses. Data > Frequency table counts the
 // values of the active column the same way, as VisiData's Shift+F: a
 // frequency table is a pivot like any other.
 
@@ -29,7 +29,7 @@ func init() {
 				m.openPivotEditor(m.sheet.StateID(), nil)
 				return nil
 			}},
-		&command{id: "data.frequency", title: "Column stats (frequency)", desc: "Count each value of the active column, most frequent first, on a new sheet",
+		&command{id: "data.frequency", title: "Frequency table (column stats)", desc: "Count each value of the active column, most frequent first, on a new sheet, as Sheets' Column stats do",
 			run: (*Model).frequency},
 	)
 	// VisiData's Shift+F; plain Shift+F types an F, as in Sheets.
