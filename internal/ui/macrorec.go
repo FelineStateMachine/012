@@ -53,8 +53,14 @@ type selState struct {
 	whole     wholeKind
 }
 
+// selState is the selection now; the far corner counts only while a
+// range is selected.
 func (g *grid) selState() selState {
-	return selState{g.sheet, g.cur, g.ext, g.selecting, g.whole}
+	ext := g.ext
+	if !g.selecting {
+		ext = g.cur
+	}
+	return selState{g.sheet, g.cur, ext, g.selecting, g.whole}
 }
 
 func (s selState) rect() sheet.Rect {

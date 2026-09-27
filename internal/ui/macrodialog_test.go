@@ -211,6 +211,27 @@ run("chart.edit", answer={"chart": 1, "at": "H2", "legend": "none"})`)
 	}
 }
 
+func TestRecordFindAndReplace(t *testing.T) {
+	m := salesModel()
+	got := recordDo(t, m, "Replace", func() {
+		press(t, m, "<ctrl+h>", "th", "<tab>", "TH", "<enter>")
+		press(t, m, "<alt+c>", "<ctrl+enter>", "<esc>")
+		press(t, m, "X", "<enter>")
+	})
+	want := `select("A2")
+run("edit.replace", answer={"find": "th", "replace": "TH", "cell": "A2"})
+run("edit.replace", answer={"find": "th", "replace": "TH", "matchCase": True})
+enter("X")
+select("A4")`
+	if got != want {
+		t.Fatalf("recorded:\n%s\nwant:\n%s", got, want)
+	}
+	if input(m, "A2") != "NorTH" || input(m, "A3") != "X" {
+		t.Fatalf("A2 %q A3 %q", input(m, "A2"), input(m, "A3"))
+	}
+	replays(t, m, "Replace", salesModel)
+}
+
 func TestRecordPivotEditor(t *testing.T) {
 	m := wideSales()
 	got := recordDo(t, m, "Pivot", func() {

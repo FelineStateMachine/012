@@ -23,6 +23,7 @@ type fakeHost struct {
 	cur     sheet.Addr
 	note    string
 	edited  bool
+	answers []string
 	left    int
 	pressed []int
 }
@@ -51,8 +52,13 @@ func (f *fakeHost) Trace() *telemetry.Trace           { return nil }
 func (f *fakeHost) At() (*sheet.Sheet, sheet.Addr)    { return f.s, f.cur }
 func (f *fakeHost) Show(s *sheet.Sheet, a sheet.Addr) { f.s, f.cur = s, a }
 func (f *fakeHost) Note(msg string)                   { f.note = msg }
-func (f *fakeHost) Edited()                           { f.edited = true }
-func (f *fakeHost) Leave()                            { f.left++ }
+func (f *fakeHost) Replace(do func() string) {
+	if a := do(); a != "" {
+		f.edited = true
+		f.answers = append(f.answers, a)
+	}
+}
+func (f *fakeHost) Leave() { f.left++ }
 
 func (f *fakeHost) Press(x, y int, _ tea.MouseButton) tea.Cmd {
 	f.pressed = []int{x, y}
@@ -143,6 +149,41 @@ func TestReplace(t *testing.T) {
 	b.Key(tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModCtrl})
 	if got := h.s.Cell(addr("A3")).Input; got != "total lease" || h.note != "Replaced 2 cells" {
 		t.Errorf("replace all: A3 %q, note %q", got, h.note)
+	}
+	// What a macro records of each.
+	want := `{"find":"rent","replace":"lease","cell":"A1"}` + "\n" + `{"find":"rent","replace":"lease"}`
+	if got := strings.Join(h.answers, "\n"); got != want {
+		t.Errorf("answers:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestAnswerReplaces(t *testing.T) {
+	h := newHost(t, "A1", "rent", "A2", "Rent", "B2", "rent")
+	b := open(h, true)
+	if err := b.Answer(`{"find":"rent","replace":"lease","matchCase":true,"cell":"B2"}`); err != nil {
+		t.Fatal(err)
+	}
+	if h.s.Cell(addr("B2")).Input != "lease" || h.s.Cell(addr("A1")).Input != "rent" {
+		t.Fatalf("one replacement: A1 %q B2 %q", h.s.Cell(addr("A1")).Input, h.s.Cell(addr("B2")).Input)
+	}
+	if err := b.Answer(`{"find":"rent","replace":"hire","within":"A1:A2"}`); err != nil {
+		t.Fatal(err)
+	}
+	if h.s.Cell(addr("A1")).Input != "hire" || h.s.Cell(addr("A2")).Input != "hire" {
+		t.Fatalf("within a range: A1 %q A2 %q", h.s.Cell(addr("A1")).Input, h.s.Cell(addr("A2")).Input)
+	}
+	if last := h.answers[len(h.answers)-1]; last != `{"find":"rent","replace":"hire","within":"A1:A2"}` {
+		t.Errorf("recorded %s", last)
+	}
+	for text, want := range map[string]string{
+		`{"replace":"x"}`:                          "nothing to find",
+		`{"find":"x","within":"here"}`:             `"within" is "here"`,
+		`{"find":"(","regex":true}`:                "Invalid regular expression",
+		`{"find":"zzz","replace":"y","cell":"A1"}`: `A1 doesn't match "zzz"`,
+	} {
+		if err := b.Answer(text); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("Answer(%s) = %v, want %q", text, err, want)
+		}
 	}
 }
 

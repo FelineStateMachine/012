@@ -145,8 +145,18 @@ func (h host) Book() *sheet.Workbook             { return h.m.book() }
 func (h host) Trace() *telemetry.Trace           { return h.m.spans }
 func (h host) At() (*sheet.Sheet, sheet.Addr)    { return h.m.sheet, h.m.cur }
 func (h host) Note(msg string)                   { h.m.note = msg }
-func (h host) Edited()                           { h.m.changed = true }
 func (h host) Show(s *sheet.Sheet, a sheet.Addr) { h.m.showSheet(s); h.m.cur = a }
+
+// Replace runs a replacement of the find bar, recorded as Find and
+// replace answered with what it did, after the selection it started
+// from.
+func (h host) Replace(do func() string) {
+	h.m.recordFlush()
+	if answer := do(); answer != "" {
+		h.m.changed = true
+		h.m.recordDialog("edit.replace", answer)
+	}
+}
 
 // Leave closes the find bar, keeping it for Ctrl+F and find next.
 func (h host) Leave() {

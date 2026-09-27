@@ -35,8 +35,11 @@ type Host interface {
 	Show(s *sheet.Sheet, a sheet.Addr)
 	// Note says how the last action went, on the context line.
 	Note(msg string)
-	// Edited marks the file modified.
-	Edited()
+	// Replace runs a replacement, do, which returns what it did as a
+	// macro answers Find and replace (see Answer), or "" when it changed
+	// nothing: the file is then modified, and a macro being recorded
+	// records it after the selection it started from.
+	Replace(do func() string)
 	// Leave closes the bar, keeping its search for Ctrl+F and find next.
 	Leave()
 	// Press handles a mouse press outside the bar, as on the grid.
@@ -343,26 +346,34 @@ func (f *Bar) replaceOne() {
 	if f.cur < 0 {
 		return
 	}
+	f.h.Replace(f.doReplaceOne)
+}
+
+func (f *Bar) doReplaceOne() string {
 	c := f.matches[f.cur]
 	a := c.At
 	changed, err := c.Sheet.Replace(a, f.fields[0], f.fields[1], f.options())
 	switch {
 	case err != nil:
 		f.h.Note("Can't replace in " + a.String() + ": " + err.Error())
-		return
+		return ""
 	case !changed:
 		f.h.Note("Formulas in " + a.String() + " change only when searching within formulas")
-	default:
-		f.h.Edited()
 	}
 	f.from = c
 	f.search()
 	if changed && f.cur >= 0 && f.matches[f.cur] == c {
 		f.step(1) // the cell still matches; move past it
 	}
+	if !changed {
+		return ""
+	}
+	return f.answer(a.String())
 }
 
-func (f *Bar) replaceAll() {
+func (f *Bar) replaceAll() { f.h.Replace(f.doReplaceAll) }
+
+func (f *Bar) doReplaceAll() string {
 	// Across sheets, still one undo step.
 	span := f.h.Trace().Start("replace")
 	n := 0
@@ -378,9 +389,6 @@ func (f *Bar) replaceAll() {
 		return nil
 	})
 	span.End(slog.Int("replaced", n))
-	if n > 0 {
-		f.h.Edited()
-	}
 	switch {
 	case err != nil:
 		f.h.Note("Replaced " + cellCount(n) + ", then stopped: " + err.Error())
@@ -390,6 +398,10 @@ func (f *Bar) replaceAll() {
 		f.h.Note("Replaced " + cellCount(n))
 	}
 	f.search()
+	if n == 0 {
+		return ""
+	}
+	return f.answer("")
 }
 
 // cellCount is n cells in words: "1 cell", "3 cells".
