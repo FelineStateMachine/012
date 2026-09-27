@@ -42,7 +42,7 @@ func importParquet(ctx context.Context, name string, opt Options) (*Result, erro
 	if err != nil {
 		return nil, err
 	}
-	b := newBuilder(opt.MaxCells)
+	b := newBuilder(ctx, opt.MaxCells)
 	r := &parquetReader{
 		b: b, cols: parquetHeader(b, pf.Schema()), prog: prog,
 		row: 1, total: pf.NumRows(), buf: make([]parquet.Row, 256),

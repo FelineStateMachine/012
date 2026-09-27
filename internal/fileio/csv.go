@@ -197,7 +197,7 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, prog
 	cr.FieldsPerRecord = -1
 	cr.ReuseRecord = true
 
-	b := newBuilder(maxCells)
+	b := newBuilder(ctx, maxCells)
 	row := 0
 	for ; ; row++ {
 		// Report before reading on: a pipe may keep the next read waiting.

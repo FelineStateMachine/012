@@ -90,7 +90,9 @@ func (m *Model) startMacro(mc sheet.Macro) tea.Cmd {
 	}
 	r := &macroRun{
 		name: mc.Name, calls: make(chan func()), ack: make(chan struct{}), done: make(chan macroDone, 1),
-		start: time.Now(), span: telemetry.Start("macro"),
+		// Under the command that started it, which ends first; its calls
+		// are served under it (see serveMacro).
+		start: time.Now(), span: m.spans.Parent().Start("macro"),
 	}
 	r.end = m.book().Begin(sheet.Change{Label: "run macro " + mc.Name, Focus: m.selection(), Sheet: m.sheet})
 	r.run = macro.New(mc.Name, mc.Source, macro.Env{
@@ -146,6 +148,7 @@ func (r *macroRun) wait() tea.Cmd {
 // long as the slice lasts.
 func (m *Model) serveMacro(msg macroCallMsg) tea.Cmd {
 	r := msg.r
+	defer m.spans.Leave(m.spans.Enter(r.span.Parent()))
 	deadline := time.Now().Add(sliceBudget)
 	m.serveCall(r, msg.call)
 	idle := time.NewTimer(idleWait)

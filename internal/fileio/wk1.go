@@ -82,7 +82,7 @@ type wk1Reader struct {
 // readWK1 reads a worksheet record by record. progress gets the number
 // of cells read so far.
 func readWK1(ctx context.Context, r io.Reader, progress func(cells int)) (*sheet.Sheet, []string, int, error) {
-	w := &wk1Reader{b: newBuilder(-1), version: wk1File} // the format's own 8192 x 256
+	w := &wk1Reader{b: newBuilder(ctx, -1), version: wk1File} // the format's own 8192 x 256
 	cells := 0
 	for i := 0; ; i++ {
 		op, data, err := w.next(r, i)

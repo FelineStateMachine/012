@@ -11,6 +11,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // File > Download: the workbook, or for formats with tables the selection,
@@ -161,8 +162,9 @@ func (m *Model) download(name, path string, k fileio.Kind, r sheet.Rect, table s
 	if k.HoldsSheets() && r == (sheet.Rect{}) {
 		snap = fileio.SnapBook(m.sheet) // every sheet, as Sheets' .xlsx download
 	}
+	ctx := telemetry.WithParent(context.Background(), m.spans.Parent())
 	return func() tea.Msg {
-		res, err := fileio.Export(context.Background(), path, k, snap, fileio.ExportOptions{Table: table})
+		res, err := fileio.Export(ctx, path, k, snap, fileio.ExportOptions{Table: table})
 		return exportedMsg{name: name, kind: k, res: res, err: err}
 	}
 }

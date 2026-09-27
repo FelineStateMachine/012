@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/cmdline"
 	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
@@ -114,6 +115,7 @@ func (h host) Preview(name string) {
 // The find bar.
 
 func (h host) Book() *sheet.Workbook             { return h.m.book() }
+func (h host) Trace() *telemetry.Trace           { return h.m.spans }
 func (h host) At() (*sheet.Sheet, sheet.Addr)    { return h.m.sheet, h.m.cur }
 func (h host) Note(msg string)                   { h.m.note = msg }
 func (h host) Edited()                           { h.m.changed = true }

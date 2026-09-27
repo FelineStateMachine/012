@@ -88,7 +88,7 @@ func (m *Model) openFile(text string) tea.Cmd {
 	if !ok {
 		return nil
 	}
-	return loadCmd(name, p)
+	return loadCmd(name, p, m.spans.Parent())
 }
 
 // reset starts over on s, as File > New and Open do. What belongs to the
@@ -96,7 +96,8 @@ func (m *Model) openFile(text string) tea.Cmd {
 // state, served directory and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
 	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}, prefs: m.prefs,
-		macros: macroState{machine: m.macros.machine, editor: m.macros.editor}}
+		macros: macroState{machine: m.macros.machine, editor: m.macros.editor}, spans: m.spans}
+	s.Book().SetTrace(m.spans)
 	if m.jev != nil {
 		s.Book().SetRemote(m.jev.cache)
 	}
@@ -159,14 +160,14 @@ func (m *Model) saveAs(name string, check bool) tea.Cmd {
 	if check && name == m.filename {
 		expect = &m.disk
 	}
-	return saveCmd(m.sheet, name, p, expect)
+	return saveCmd(m.sheet, name, p, expect, m.spans)
 }
 
 // saveCmd writes the worksheet to path atomically: to a temporary file
 // first, then renamed over the target. With expect set, it writes only
 // if the file on disk is still that version.
-func saveCmd(s *sheet.Sheet, name, path string, expect *stamp) tea.Cmd {
-	span := telemetry.Start("save")
+func saveCmd(s *sheet.Sheet, name, path string, expect *stamp, spans *telemetry.Trace) tea.Cmd {
+	span := spans.Start("save")
 	var buf strings.Builder
 	err := s.Write(&buf)
 	if telemetry.Enabled() {
@@ -211,7 +212,9 @@ func writeAtomic(path, data string) error {
 	return err
 }
 
-func loadCmd(name, path string) tea.Cmd {
+// loadCmd reads the file in the background, the span of it and its
+// recalculation under parent.
+func loadCmd(name, path string, parent telemetry.Parent) tea.Cmd {
 	return func() tea.Msg {
 		f, err := os.Open(path)
 		if err != nil {
@@ -222,8 +225,8 @@ func loadCmd(name, path string) tea.Cmd {
 		if fi, err := f.Stat(); err == nil {
 			st = stampOf(fi)
 		}
-		span := telemetry.Start("open")
-		s, err := sheet.Read(f)
+		span := parent.Start("open")
+		s, err := sheet.ReadTraced(f, telemetry.NewTrace(span.Parent()))
 		if err != nil {
 			span.Fail(err)
 		} else if telemetry.Enabled() {

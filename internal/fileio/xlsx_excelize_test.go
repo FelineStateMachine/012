@@ -42,7 +42,7 @@ func importXLSXExcelize(ctx context.Context, name string, opt Options) (*Result,
 		total += dims[i]
 	}
 
-	b := newBuilder(opt.MaxCells)
+	b := newBuilder(ctx, opt.MaxCells)
 	book := b.s.Book()
 	styles := map[int]xlsxStyle{}
 	var notes []string

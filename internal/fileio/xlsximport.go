@@ -43,7 +43,7 @@ func (bk *xlsxBook) importBook(ctx context.Context, opt Options) (*Result, error
 	for i := range bk.sheets {
 		total += bk.dimension(i)
 	}
-	b := newBuilder(opt.MaxCells)
+	b := newBuilder(ctx, opt.MaxCells)
 	book := b.s.Book()
 	done := 0
 	var err error

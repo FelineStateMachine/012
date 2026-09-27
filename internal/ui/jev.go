@@ -81,7 +81,8 @@ func plural(n int, one, many string) string {
 
 // send starts queued questions, keeping at most jevParallel in flight
 // so a filled-down column doesn't open hundreds of connections at once.
-func (j *jevRunner) send() tea.Cmd {
+// Their spans nest under parent.
+func (j *jevRunner) send(parent telemetry.Parent) tea.Cmd {
 	if j == nil {
 		return nil
 	}
@@ -95,7 +96,7 @@ func (j *jevRunner) send() tea.Cmd {
 		cmds[i] = func() tea.Msg {
 			ctx, cancel := context.WithTimeout(context.Background(), jevTimeout)
 			defer cancel()
-			span := telemetry.Start("jev", slog.String("kind", call.Kind), slog.Int("queued", queued))
+			span := parent.Start("jev", slog.String("kind", call.Kind), slog.Int("queued", queued))
 			answer := jev.Ask(ctx, client, call)
 			outcome := "ok"
 			if answer.Failed != "" {

@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/fileio"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -67,7 +68,7 @@ func TestStartReadsInTheBackground(t *testing.T) {
 		t.Fatal(err)
 	}
 	var x Transfer
-	cmd := x.Start("a.csv", path, fileio.Options{}, NewSheets)
+	cmd := x.Start("a.csv", path, fileio.Options{}, NewSheets, telemetry.Parent{})
 	var res ImportedMsg
 	for _, c := range cmd().(tea.BatchMsg) {
 		if msg, ok := c().(ImportedMsg); ok {

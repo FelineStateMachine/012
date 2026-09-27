@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
@@ -46,6 +47,7 @@ func (f *fakeHost) Theme() *theme.Theme               { return &f.th }
 func (f *fakeHost) Size() (width, height int)         { return 120, 24 }
 func (f *fakeHost) Line() *lineedit.Line              { return &f.line }
 func (f *fakeHost) Book() *sheet.Workbook             { return f.s.Book() }
+func (f *fakeHost) Trace() *telemetry.Trace           { return nil }
 func (f *fakeHost) At() (*sheet.Sheet, sheet.Addr)    { return f.s, f.cur }
 func (f *fakeHost) Show(s *sheet.Sheet, a sheet.Addr) { f.s, f.cur = s, a }
 func (f *fakeHost) Note(msg string)                   { f.note = msg }

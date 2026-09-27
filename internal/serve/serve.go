@@ -193,7 +193,10 @@ func (s *Server) session(sess ssh.Session) {
 		<-s.slots
 	}()
 
-	idle := s.run(sess, pty, winch)
+	// The session's span holds what its program does, in one trace.
+	span := telemetry.Start("serve.session", slog.String("term", pty.Term))
+	idle := s.run(sess, pty, winch, span.Parent())
+	span.End(slog.Bool("idle", idle))
 	d := time.Since(start)
 	s.event("ssh.session_end", append(who, slog.Duration("duration", d), slog.Bool("idle", idle))...)
 	if idle {
@@ -204,8 +207,9 @@ func (s *Server) session(sess ssh.Session) {
 
 // run runs the program until it quits, the client goes away or the
 // session goes idle, which it reports.
-func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window) (idle bool) {
+func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, parent telemetry.Parent) (idle bool) {
 	m := ui.New(sheet.New(), "")
+	m.TraceUnder(parent)
 	env := append(sess.Environ(), "TERM="+pty.Term)
 	m.Serve(s.root, env)
 	if s.jev != nil {

@@ -9,7 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -165,8 +164,9 @@ func (m *Model) runCommand(id string) tea.Cmd {
 		panic("unknown command " + id)
 	}
 	// Sort, filter, find, fill and the rest are all commands, so this
-	// one span times every one of them.
-	span := telemetry.Start("command", slog.String("id", id))
+	// one span times every one of them, and holds what they cause: the
+	// recalculation, a pivot refresh, a sort.
+	span := m.spans.Start("command", slog.String("id", id))
 	defer span.End()
 	if c.edits != nil && m.refusePivot(c.edits(m)) {
 		return nil

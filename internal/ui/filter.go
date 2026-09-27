@@ -10,7 +10,6 @@ import (
 	"github.com/sahilm/fuzzy"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -253,7 +252,7 @@ func (p *filterPicker) apply(m *Model) {
 
 // filterColumn sets the criteria of column col of the sheet's filter.
 func (m *Model) filterColumn(col int, cr sheet.Criteria) {
-	span := telemetry.Start("filter")
+	span := m.spans.Start("filter")
 	m.sheet.FilterColumn(col, cr)
 	span.End(slog.Int("hidden", m.sheet.HiddenRows()))
 	m.changed = true

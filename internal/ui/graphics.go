@@ -163,7 +163,7 @@ func (t *terminal) chartOptions() chart.Options {
 // drawn, asked for only on terminals that show images. Update calls it
 // after every message, so images follow edits, recalculation, resizing
 // and the theme.
-func (t *terminal) syncImages(s *sheet.Sheet, shown func() []sheet.Chart, th *theme.Theme) tea.Cmd {
+func (t *terminal) syncImages(s *sheet.Sheet, shown func() []sheet.Chart, th *theme.Theme, spans *telemetry.Trace) tea.Cmd {
 	if !t.images() {
 		return t.freeImages()
 	}
@@ -191,7 +191,7 @@ func (t *terminal) syncImages(s *sheet.Sheet, shown func() []sheet.Chart, th *th
 			// oldest, so a chart that grew would draw at its old size.
 			out.WriteString(chart.Delete(id, t.wrap))
 		}
-		span := telemetry.Start("chart.image", slog.String("type", c.Type.String()), slog.Int("w", w), slog.Int("h", h))
+		span := spans.Start("chart.image", slog.String("type", c.Type.String()), slog.Int("w", w), slog.Int("h", h))
 		g := chart.Draw(c.Type, d, w, h, o)
 		img := chart.Image(c.Type, d, w, h, o, pal)
 		if img == nil || g.Plot.Empty() {

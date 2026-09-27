@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // Pivot tables follow Sheets: Data > Pivot table summarizes the
@@ -128,7 +127,7 @@ func (m *Model) frequency() tea.Cmd {
 		m.note = "Move to a column of data first: a header and the values below it"
 		return nil
 	}
-	span := telemetry.Start("frequency", slog.Int("rows", r.To.Row-r.From.Row))
+	span := m.spans.Start("frequency", slog.Int("rows", r.To.Row-r.From.Row))
 	defer span.End()
 	p := sheet.FrequencyPivot(m.sheet, r, col)
 	field := m.book().FieldName(p, col)

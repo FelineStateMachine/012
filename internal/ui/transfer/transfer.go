@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/fileio"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -67,9 +68,9 @@ const tick = 100 * time.Millisecond
 func (x *Transfer) Busy() bool { return x.job != nil }
 
 // Start reads name, at path on disk, in the background, replacing any
-// import running.
-func (x *Transfer) Start(name, path string, opt fileio.Options, place Place) tea.Cmd {
-	ctx, cancel := context.WithCancel(context.Background())
+// import running. Its span nests under parent.
+func (x *Transfer) Start(name, path string, opt fileio.Options, place Place, parent telemetry.Parent) tea.Cmd {
+	ctx, cancel := context.WithCancel(telemetry.WithParent(context.Background(), parent))
 	prog := fileio.NewProgress()
 	id := x.Begin(name, prog, cancel, place)
 	opt.Progress = prog

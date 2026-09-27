@@ -168,7 +168,7 @@ func (m *Model) startImport(name string, opt fileio.Options, place transfer.Plac
 	if !ok {
 		return nil
 	}
-	return m.xfer.Start(name, path, opt, place)
+	return m.xfer.Start(name, path, opt, place, m.spans.Parent())
 }
 
 // importing handles input while an import runs: Esc cancels it, and

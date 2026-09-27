@@ -121,7 +121,7 @@ func importSQLite(ctx context.Context, name string, opt Options) (*Result, error
 		return nil, sqliteErr(err)
 	}
 
-	b := newBuilder(opt.MaxCells)
+	b := newBuilder(ctx, opt.MaxCells)
 	header := sheet.Style{Bold: true}
 	for c, name := range cols {
 		b.text(sheet.Addr{Col: c}, name, sheet.Format{}, header)

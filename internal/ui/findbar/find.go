@@ -27,6 +27,8 @@ type Host interface {
 	// Line is the shared edit line the focused field is typed in.
 	Line() *lineedit.Line
 	Book() *sheet.Workbook
+	// Trace is where searches are timed, nested in what is open.
+	Trace() *telemetry.Trace
 	// At is the sheet shown and its active cell.
 	At() (*sheet.Sheet, sheet.Addr)
 	// Show shows sheet s with a as the active cell.
@@ -205,7 +207,7 @@ func (f *Bar) sheets() []*sheet.Sheet {
 // while typing.
 func (f *Bar) search() {
 	f.err, f.matches, f.index, f.cur = "", nil, nil, -1
-	span := telemetry.Start("find")
+	span := f.h.Trace().Start("find")
 	sheets := f.sheets()
 	for _, s := range sheets {
 		found, err := s.Find(f.fields[0], f.options())
@@ -362,7 +364,7 @@ func (f *Bar) replaceOne() {
 
 func (f *Bar) replaceAll() {
 	// Across sheets, still one undo step.
-	span := telemetry.Start("replace")
+	span := f.h.Trace().Start("replace")
 	n := 0
 	s, _ := f.h.At()
 	err := f.h.Book().Batch(sheet.Change{Label: "replace all", Sheet: s}, func() error {

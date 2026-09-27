@@ -259,11 +259,17 @@ func telemetryFor(b *testing.B, on bool) func() error {
 	if err != nil {
 		b.Fatal(err)
 	}
-	sheet.OnRecalc = func(i sheet.RecalcInfo) {
-		telemetry.Event("recalc", i.Duration, slog.Int("evaluated", i.Evaluated), slog.Int("cells", i.Cells))
+	// As cmd/012 does: recalculations nest in the model's trace.
+	sheet.OnBegin = func(trace any, op string) {
+		t, _ := trace.(*telemetry.Trace)
+		t.Begin(op)
+	}
+	sheet.OnRecalc = func(trace any, i sheet.RecalcInfo) {
+		t, _ := trace.(*telemetry.Trace)
+		t.End(slog.Int("evaluated", i.Evaluated), slog.Int("cells", i.Cells))
 	}
 	return func() error {
-		sheet.OnRecalc = nil
+		sheet.OnBegin, sheet.OnRecalc = nil, nil
 		return stop()
 	}
 }
@@ -293,7 +299,7 @@ func BenchmarkJEV(b *testing.B) {
 				m.EnableJEV(stressJEV{}, cache)
 				m.jev.gather = 0 // answers already queued still gather; don't wait a frame
 				start := time.Now()
-				drain(m, m.jev.send())
+				drain(m, m.jev.send(m.spans.Parent()))
 				if in, q := cache.Busy(); in+q > 0 {
 					b.Fatalf("%d in flight, %d queued", in, q)
 				}

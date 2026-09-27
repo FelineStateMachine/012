@@ -1,12 +1,14 @@
 package fileio
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/telemetry"
 )
 
 // builder fills a new workbook for an importer, one sheet at a time (s
@@ -34,12 +36,15 @@ type builder struct {
 
 // newBuilder starts a workbook keeping at most maxCells cells; 0 means
 // the max-cells setting, and a negative number no budget (the format's
-// own limits apply).
-func newBuilder(maxCells int) *builder {
+// own limits apply). The workbook's recalculation nests in the span ctx
+// carries: the import's.
+func newBuilder(ctx context.Context, maxCells int) *builder {
 	if maxCells == 0 {
 		maxCells = sheet.MaxCells()
 	}
-	return &builder{s: sheet.New(), maxCells: maxCells}
+	s := sheet.New()
+	s.Book().SetTrace(telemetry.NewTrace(telemetry.ParentFrom(ctx)))
+	return &builder{s: s, maxCells: maxCells}
 }
 
 // fits reports whether a is inside the worksheet and the budget,

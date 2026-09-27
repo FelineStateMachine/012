@@ -108,25 +108,32 @@ type Model struct {
 	rec    *recorder  // a macro being recorded: macrorec.go
 	macros macroState // a macro running, and trust in the file's macros: macrorun.go
 
-	keyAt time.Time // when the key the next frame answers was pressed, for telemetry
+	keyAt time.Time        // when the key the next frame answers was pressed, for telemetry
+	spans *telemetry.Trace // the spans open, which what the model starts nests in: trace.go
 
 	th theme.Theme
 }
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	m := &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(os.Getenv), charts: chartState{last: -1}}
+	m := &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(os.Getenv), charts: chartState{last: -1},
+		spans: telemetry.NewTrace(telemetry.Parent{})}
+	s.Book().SetTrace(m.spans)
 	if filename != "" {
 		m.disk = diskStamp(filename)
 	}
 	return m
 }
 
+// TraceUnder nests every span the model starts under p for good: 012
+// serve's session span holds each session's commands.
+func (m *Model) TraceUnder(p telemetry.Parent) { m.spans.Enter(p) }
+
 // Init implements tea.Model. It asks the terminal for its background color
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
 	// jev.send starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(), m.startupCmd())
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd())
 }
 
 // Update implements tea.Model.
@@ -207,7 +214,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.clampView()
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
-	return m, tea.Batch(cmd, m.jev.send(), m.term.syncImages(m.sheet, m.displayCharts, &m.th))
+	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans))
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state

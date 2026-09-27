@@ -190,7 +190,7 @@ func TestChartImages(t *testing.T) {
 	// No kitty reply: text, and nothing sent.
 	m.runCommand("insert.chart")
 	press(t, m, "<enter>", "<esc>")
-	if cmd := m.term.syncImages(m.sheet, m.displayCharts, &m.th); cmd != nil {
+	if cmd := m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans); cmd != nil {
 		t.Error("images sent without kitty graphics")
 	}
 	// The terminal answers the query: images, and placeholders in the view.
@@ -213,7 +213,7 @@ func TestChartImages(t *testing.T) {
 	_, cmd = m.Update(nil)
 	raw = nil
 	m.term.sent[firstImageID] = "stale"
-	collect(m.term.syncImages(m.sheet, m.displayCharts, &m.th))
+	collect(m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans))
 	if len(raw) != 1 {
 		t.Errorf("changed chart not sent")
 	}
@@ -226,7 +226,7 @@ func TestChartImages(t *testing.T) {
 	// Deleting the chart frees its image.
 	raw = nil
 	m.sheet.DeleteChart(0)
-	collect(m.term.syncImages(m.sheet, m.displayCharts, &m.th))
+	collect(m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans))
 	if len(raw) != 1 || !strings.Contains(raw[0], "a=d,d=I,i=16") {
 		t.Errorf("image not freed: %q", raw)
 	}

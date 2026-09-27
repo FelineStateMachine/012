@@ -108,8 +108,9 @@ func Import(ctx context.Context, name string, opt Options) (*Result, error) {
 	if !ok {
 		return nil, ErrUnsupported
 	}
-	span := telemetry.Start("import", slog.String("format", k.String()))
-	r, err := importKind(ctx, name, k, opt)
+	span := telemetry.ParentFrom(ctx).Start("import", slog.String("format", k.String()))
+	// The builder's workbook recalculates under the span (see newBuilder).
+	r, err := importKind(telemetry.WithParent(ctx, span.Parent()), name, k, opt)
 	if err != nil {
 		span.Fail(err)
 		return nil, err
@@ -155,7 +156,7 @@ type ExportResult struct {
 
 // Export writes a snapshot of a sheet to name in format k.
 func Export(ctx context.Context, name string, k Kind, snap *Snapshot, opt ExportOptions) (*ExportResult, error) {
-	span := telemetry.Start("export", slog.String("format", k.String()), slog.Int("cells", len(snap.Cells)))
+	span := telemetry.ParentFrom(ctx).Start("export", slog.String("format", k.String()), slog.Int("cells", len(snap.Cells)))
 	res, err := exportKind(ctx, name, k, snap, opt)
 	if err != nil {
 		span.Fail(err)

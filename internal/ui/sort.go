@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
 )
 
@@ -66,7 +65,7 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 	if m.refusePivot(r) {
 		return nil
 	}
-	span := telemetry.Start("sort", slog.Int("rows", r.To.Row-r.From.Row+1), slog.Int("cols", r.To.Col-r.From.Col+1), slog.Int("keys", len(keys)))
+	span := m.spans.Start("sort", slog.Int("rows", r.To.Row-r.From.Row+1), slog.Int("cols", r.To.Col-r.From.Col+1), slog.Int("keys", len(keys)))
 	m.sheet.SortRange(r, keys)
 	span.End()
 	m.changed = true
