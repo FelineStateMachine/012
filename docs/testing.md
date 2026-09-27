@@ -28,6 +28,10 @@ cursor position, window title, hyperlinks, which screen is active after
 quitting. A fake TypeSafe server answers JEV questions, and the harness
 clears `TYPESAFE_API_KEY` so tests never reach the real service.
 
+`e2e/ssh_test.go` runs `012 serve` and reaches it with the system's
+`ssh` client inside the same libghostty terminal, so the server path
+is tested as a user sees it (skipped when `ssh` isn't installed).
+
 `make e2e` builds libghostty-vt from source with Zig into `.deps/` on first
 use. It is its own Go module so cgo never reaches the main binary.
 
