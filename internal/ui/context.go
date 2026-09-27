@@ -19,7 +19,9 @@ var (
 		{cmd: "insert.row_above", title: "Insert row above"}, {cmd: "insert.row_below", title: "Insert row below"},
 		{cmd: "insert.col_left", title: "Insert column left"}, {cmd: "insert.col_right", title: "Insert column right"}, sep,
 		{cmd: "delete.row", title: "Delete row"}, {cmd: "delete.col", title: "Delete column"}, sep,
-		{cmd: "clear"},
+		{cmd: "clear"}, sep,
+		{cmd: "note.edit", title: "Insert note"}, {cmd: "note.delete", title: "Delete notes"},
+		{cmd: "data.protect_range", title: "Protect range"},
 	})
 	columnMenu = concat(clipboardItems, []menuItem{sep,
 		{cmd: "insert.col_left", title: "Insert column left"}, {cmd: "insert.col_right", title: "Insert column right"}, sep,

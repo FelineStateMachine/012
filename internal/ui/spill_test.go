@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // An array formula spills: the spilled cells say where they come from,
@@ -62,5 +64,22 @@ func TestSpillBlockedInGrid(t *testing.T) {
 	press(t, m, "<down>", "<down>", "<delete>")
 	if shows(m, "A1") != "1" || shows(m, "A3") != "3" {
 		t.Errorf("after clearing A3: A1 %q A3 %q", shows(m, "A1"), shows(m, "A3"))
+	}
+}
+
+// A protected range over a spill doesn't make the spill ask: refusing to
+// edit a spilled cell comes first, and the formula's own cell asks as any
+// protected cell does.
+func TestSpillProtected(t *testing.T) {
+	m := newModel()
+	press(t, m, "=SEQUENCE(3)", "<enter>")
+	m.sheet.Protect(sheet.Protection{Range: sheet.Rect{From: addr("A1"), To: addr("A5")}})
+	press(t, m, "<down>", "<up>", "x") // into A2, a spilled cell
+	if m.mode != modeReady || !strings.Contains(line(m, contextLine), "A2 shows part of the array A1 spills") {
+		t.Errorf("typing into a protected spilled cell: mode %v, %q", m.mode, line(m, contextLine))
+	}
+	press(t, m, "<esc>", "<shift+f2>")
+	if !strings.Contains(line(m, contextLine), "A2 shows part of the array A1 spills") {
+		t.Errorf("a note on a spilled cell: %q", line(m, contextLine))
 	}
 }

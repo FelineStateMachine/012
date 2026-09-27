@@ -3,6 +3,8 @@ package ui
 import (
 	"log/slog"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/FelineStateMachine/012/internal/macro"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -74,6 +76,13 @@ func (m *Model) finishFill() {
 	m.mouse.drag = dragNone
 	src, dst := m.selection(), m.mouse.fillTo
 	if dst == src || m.refuseEdit(dst, false) {
+		return
+	}
+	if m.askProtected(dst, func(m *Model) tea.Cmd {
+		m.mouse.fillTo = dst
+		m.finishFill()
+		return nil
+	}) {
 		return
 	}
 	m.recordFlush()

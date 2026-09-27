@@ -25,6 +25,10 @@ import (
 // array needs aren't empty, the anchor shows #REF! and says which cell
 // is in the way; changing that cell has the anchor try again.
 
+// A spilled cell's note, like its formatting, belongs to the cell: one
+// that had a note before an array spilled into it keeps it, but SetNote
+// refuses spilled cells, as it refuses a pivot's results.
+
 // spill is what an anchor spills, or would.
 type spill struct {
 	area Rect   // the cells it covers, the anchor first; when blocked, those it needs
@@ -176,25 +180,24 @@ func (s *Sheet) spillArea(a Addr, arr *functions.Array) (Rect, string) {
 }
 
 // writeSpilled makes the cell at a show v as a spilled cell, keeping its
-// formatting, and reports whether it changed.
+// formatting and note, and reports whether it changed.
 func (s *Sheet) writeSpilled(a Addr, v Value, auto Format) bool {
 	old := s.cells.get(a)
-	var f Format
-	var st Style
-	if old != nil {
-		f, st = old.Format, old.Style
-	}
 	if v.Kind == Empty {
 		if old == nil || !old.spilled {
 			return false
 		}
-		s.setDerived(a, formattingOnly(f, st))
+		s.setDerived(a, old.leftover())
 		return true
 	}
 	if old != nil && old.spilled && old.Value == v && old.auto == auto {
 		return false // its input is its value's
 	}
-	s.setDerived(a, &Cell{Input: derivedInput(v), Value: v, Format: f, Style: st, auto: auto, spilled: true})
+	c := &Cell{Input: derivedInput(v), Value: v, auto: auto, spilled: true}
+	if old != nil {
+		c.Format, c.Style, c.Note = old.Format, old.Style, old.Note
+	}
+	s.setDerived(a, c)
 	return true
 }
 
@@ -209,8 +212,7 @@ func (s *Sheet) clearSpilled(area, keep Rect) []loc {
 		}
 	}
 	for _, at := range gone {
-		c := s.cells.get(at)
-		s.setDerived(at, formattingOnly(c.Format, c.Style))
+		s.setDerived(at, s.cells.get(at).leftover())
 		changed = append(changed, loc{s, at})
 	}
 	return changed
@@ -337,14 +339,14 @@ func intersectRect(a, b Rect) (Rect, bool) {
 }
 
 // saved is what the file keeps of the cell, or nil: a pivot's results
-// are computed, not saved, and a spilled cell keeps its formatting, not
-// the array's value.
+// are computed, not saved, and a spilled cell keeps its formatting and
+// note, not the array's value.
 func (c *Cell) saved() *Cell {
 	switch {
 	case c.derived:
 		return nil
 	case c.spilled:
-		return formattingOnly(c.Format, c.Style)
+		return c.leftover()
 	}
 	return c
 }

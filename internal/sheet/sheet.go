@@ -31,6 +31,11 @@ type Cell struct {
 	Format Format
 	Style  Style
 
+	// Note is the cell's note, as Sheets' Insert > Note: text shown when
+	// the cell is active or hovered. Like formatting, it survives clearing
+	// the contents, and it moves and copies with the cell.
+	Note string
+
 	auto     Format   // format inferred from a formula, shown when Format is Automatic
 	expr     Node     // nil for text
 	refs     []Addr   // single-cell references in expr to its own sheet
@@ -239,8 +244,9 @@ func (s *Sheet) Set(a Addr, input string) error {
 func (s *Sheet) put(a Addr, input string) error {
 	var f Format
 	var st Style
+	var note string
 	if old := s.cells.get(a); old != nil {
-		f, st = old.Format, old.Style
+		f, st, note = old.Format, old.Style, old.Note
 	}
 	if f.IsZero() && !st.own && s.inherited(a).Format.Kind == FmtText {
 		f = Format{Kind: FmtText} // typed into a plain text column: text
@@ -249,7 +255,7 @@ func (s *Sheet) put(a Addr, input string) error {
 	if err != nil {
 		return err
 	}
-	s.place(a, c)
+	s.place(a, c.withNote(note))
 	return nil
 }
 
@@ -293,6 +299,25 @@ func formattingOnly(f Format, st Style) *Cell {
 	return &Cell{Format: f, Style: st}
 }
 
+// leftover is what clearing c's contents leaves: its formatting and its
+// note, or nil when there are neither.
+func (c *Cell) leftover() *Cell {
+	return formattingOnly(c.Format, c.Style).withNote(c.Note)
+}
+
+// withNote returns c with note, making a blank cell to hold it if c is
+// nil. c must be a cell not yet placed.
+func (c *Cell) withNote(note string) *Cell {
+	if note == "" {
+		return c
+	}
+	if c == nil {
+		c = &Cell{}
+	}
+	c.Note = note
+	return c
+}
+
 // setExpr sets c's expression and the references indexed from it.
 func (c *Cell) setExpr(n Node) {
 	c.expr, c.refs, c.ranges, c.xrefs, c.names, c.volatile = n, nil, nil, nil, nil, false
@@ -322,8 +347,8 @@ func (c *Cell) setExpr(n Node) {
 // here, except a pivot table or a spill writing its results (setDerived).
 // Anything placed over those has the pivot or the spill's formula
 // recomputed, which reports it in the way. A spilled cell placed (by undo,
-// a move or a format) places only its formatting: its value is its
-// anchor's to write.
+// a move or a format) places only its formatting and note: its value is
+// its anchor's to write.
 func (s *Sheet) place(a Addr, c *Cell) {
 	s.version++
 	s.record(a)
@@ -331,7 +356,7 @@ func (s *Sheet) place(a Addr, c *Cell) {
 		s.pivot.stale = true
 	}
 	if c.Spilled() {
-		c = formattingOnly(c.Format, c.Style)
+		c = c.leftover()
 	}
 	s.spillTouched(a, c)
 	if c == nil {
@@ -356,12 +381,12 @@ func (s *Sheet) place(a Addr, c *Cell) {
 }
 
 // EraseRange clears the contents of every cell in r, keeping their
-// formatting as Sheets' Delete does.
+// formatting and notes as Sheets' Delete does.
 func (s *Sheet) EraseRange(r Rect) {
 	s.change("clear "+r.String(), r, func() {
 		for _, a := range s.cellsIn(r) {
 			if c := s.cells.get(a); !c.Blank() {
-				s.place(a, formattingOnly(c.Format, c.Style))
+				s.place(a, c.leftover())
 			}
 		}
 	})

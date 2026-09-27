@@ -12,7 +12,8 @@ import (
 // fields, their labels shown where they change, with a subtotal row after
 // each outer group and a Grand Total row when row totals are on. Columns
 // are the row labels, then each column group's values, then the Grand
-// Total column's.
+// Total column's, with a subtotal column after each outer column group
+// when column totals are on and there are several column fields.
 
 // pivotCell is one cell of a pivot's results.
 type pivotCell struct {
@@ -32,16 +33,13 @@ type pivotLayout struct {
 	over  bool        // something fell off the sheet
 }
 
-// blankLabel stands for a group of blank cells, as in Excel.
-const blankLabel = "(blank)"
-
 func (c *pivotCalc) layout() *pivotLayout {
 	l := &pivotLayout{c: c, lc: max(len(c.p.Rows), 1)}
 	if len(c.p.Values) > 0 {
 		if len(c.p.Columns) == 0 {
 			l.cols = []*colGroup{nil}
 		} else {
-			l.cols = slices.Clone(c.cols)
+			l.cols = c.columnOrder()
 			if c.p.ColumnTotals {
 				l.cols = append(l.cols, nil)
 			}
@@ -64,10 +62,10 @@ func (l *pivotLayout) text(col, row int, s string, bold bool) {
 	l.put(col, row, Value{Kind: Text, Str: s}, Format{}, bold)
 }
 
-// label shows a group's value in its own format, or (blank).
+// label shows a group's value in its own format; a group of blank cells
+// has a blank label, as in Sheets.
 func (l *pivotLayout) label(col, row int, v Value, f Format, bold bool) {
 	if v.Kind == Empty {
-		l.text(col, row, blankLabel, bold)
 		return
 	}
 	l.put(col, row, v, f, bold)
@@ -81,14 +79,7 @@ func (l *pivotLayout) header() {
 			l.text(l.lc-1, l.y, c.w.FieldName(*c.p, g.Col), true)
 			var prev *colGroup
 			for j, cg := range l.cols {
-				x := l.lc + j*nv
-				switch {
-				case cg == nil && k == 0:
-					l.text(x, l.y, "Grand Total", true)
-				case cg == nil:
-				case prev == nil || !sameLabels(prev.labels[:k+1], cg.labels[:k+1]):
-					l.label(x, l.y, cg.labels[k], cg.formats[k], true)
-				}
+				l.colHeader(l.lc+j*nv, k, prev, cg)
 				prev = cg
 			}
 			l.y++
@@ -103,6 +94,25 @@ func (l *pivotLayout) header() {
 		}
 	}
 	l.y++
+}
+
+// colHeader labels column group cg, after prev, in the header row of
+// column field k at column x: the field's value where it changes, a
+// subtotal's name in its outer field's row, Grand Total in the first.
+func (l *pivotLayout) colHeader(x, k int, prev, cg *colGroup) {
+	switch n := len(l.c.p.Columns); {
+	case cg == nil && k == 0:
+		l.text(x, l.y, "Grand Total", true)
+	case cg == nil:
+	case len(cg.labels) < n:
+		if k == len(cg.labels)-1 {
+			l.text(x, l.y, totalName(cg.labels[k], cg.formats[k]), true)
+		}
+	case prev == nil || len(prev.labels) <= k || !sameLabels(prev.labels[:k+1], cg.labels[:k+1]):
+		// The outer group's spelling, the first seen, as rows show.
+		og := l.c.outer(cg.labels[:k+1])
+		l.label(x, l.y, og.labels[k], og.formats[k], true)
+	}
 }
 
 func sameLabels(a, b []Value) bool {
@@ -141,11 +151,7 @@ func (l *pivotLayout) rows(n *pivotNode, depth int) {
 		}
 		l.rows(kid, depth+1)
 		if l.totals() {
-			name := blankLabel
-			if kid.label.Kind != Empty {
-				name = FormatText(kid.label, kid.format)
-			}
-			l.total(kid, name+" Total", depth)
+			l.total(kid, totalName(kid.label, kid.format), depth)
 		}
 	}
 }

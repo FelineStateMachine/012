@@ -54,6 +54,9 @@ func (m *Model) floating() []overlay.Box {
 	if b, ok := m.entry.assist.box(m); ok {
 		return []overlay.Box{b}
 	}
+	if b, ok := m.noteBox(); ok {
+		return []overlay.Box{b}
+	}
 	return nil
 }
 

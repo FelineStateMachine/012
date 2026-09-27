@@ -98,6 +98,10 @@ func writeExcelizeBook(t *testing.T, dir string) string {
 		x.SetSheetRow("Q2 plan", "A"+itoa(10+i), &[]any{fruit, i})
 	}
 	x.AutoFilter("Q2 plan", "A10:B15", []excelize.AutoFilterOptions{{Column: "A", Expression: "x == apple or x == Plum"}, {Column: "B", Expression: "x >= 2"}})
+	// Notes, one in rich-text runs, and a protected sheet.
+	x.AddComment("Q1", excelize.Comment{Cell: "B1", Author: "Ann", Text: "Checked\nwith the bank"})
+	x.AddComment("Q2 plan", excelize.Comment{Cell: "D9", Paragraph: []excelize.RichTextRun{{Text: "Due: ", Font: &excelize.Font{Bold: true}}, {Text: "Friday"}}})
+	x.ProtectSheet("Q2 plan", &excelize.SheetProtectionOptions{})
 	x.SetActiveSheet(1)
 	path := filepath.Join(dir, "excelize.xlsx")
 	if err := x.SaveAs(path); err != nil {
@@ -124,6 +128,8 @@ func writeExportedBook(t *testing.T, dir string) string {
 	s.CreateFilter(sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 9, Row: 60}))
 	s.FilterColumn(1, sheet.Criteria{Hidden: []string{"beta", "gamma"}})
 	s.FilterColumn(3, sheet.Criteria{Cond: sheet.Condition{Op: sheet.CondContains, Arg: "1"}})
+	s.SetNote(sheet.Addr{Col: 1, Row: 2}, "A note\non two lines & <markup>")
+	f.SetNote(sheet.Addr{Col: 5, Row: 50}, "On a blank cell")
 	path := filepath.Join(dir, "exported.xlsx")
 	if _, err := Export(context.Background(), path, XLSX, SnapBook(f), ExportOptions{}); err != nil {
 		t.Fatal(err)

@@ -156,3 +156,30 @@ func TestSpillCopiesValues(t *testing.T) {
 		t.Errorf("pasted spilled cell = %q, want its value", got)
 	}
 }
+
+// A note on a blank cell an array spills into stays with the cell, as its
+// formatting does, but spilled cells take no new notes.
+func TestSpillNotes(t *testing.T) {
+	s := sheetOf(t, map[string]string{"A1": "=SEQUENCE(1)"})
+	if err := s.SetNote(at("A2"), "check"); err != nil {
+		t.Fatal(err)
+	}
+	s.Set(at("A1"), "=SEQUENCE(3)")
+	if c := s.Cell(at("A2")); !c.Spilled() || c.Note != "check" || s.Value(at("A2")).String() != "2" {
+		t.Errorf("A2 under the spill = %+v", c)
+	}
+	if err := s.SetNote(at("A3"), "x"); err != ErrSpillEdit {
+		t.Errorf("note on a spilled cell: %v, want ErrSpillEdit", err)
+	}
+	var buf bytes.Buffer
+	if err := s.Book().Write(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `"A2": {"note":"check"}`) {
+		t.Errorf("the note wasn't saved on its own:\n%s", buf.String())
+	}
+	s.Set(at("A1"), "")
+	if c := s.Cell(at("A2")); c == nil || c.Spilled() || c.Note != "check" {
+		t.Errorf("A2 after the spill went = %+v", c)
+	}
+}

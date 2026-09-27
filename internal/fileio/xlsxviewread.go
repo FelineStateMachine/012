@@ -70,7 +70,13 @@ func (r *xlsxSheetReader) readTail() (*xlsxAutoFilter, error) {
 		if err != nil {
 			return nil, err
 		}
-		if se, ok := t.(xml.StartElement); ok && se.Name.Local == "autoFilter" && r.x.depth == 2 && af == nil {
+		se, ok := t.(xml.StartElement)
+		switch {
+		case !ok || r.x.depth != 2:
+		case se.Name.Local == "sheetProtection":
+			v, _ := attr(se, "sheet")
+			r.protected = v == "1" || v == "true"
+		case se.Name.Local == "autoFilter" && af == nil:
 			if af, err = r.readAutoFilter(se); err != nil {
 				return nil, err
 			}

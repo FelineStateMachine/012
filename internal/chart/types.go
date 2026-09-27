@@ -20,33 +20,61 @@ type plan interface {
 	image(cv *canvas)
 }
 
-// A layout lays out data as one type of chart.
-type layout func(d sheet.ChartData, w, h int, o Options) plan
+// A chartType lays out data as one type of chart. The legend of series
+// is Draw's: it gives the layout the room the legend leaves, and names
+// returns the series it lists, nil for a type that draws its own.
+type chartType struct {
+	layout func(d sheet.ChartData, w, h int, o Options) plan
+	names  func(d sheet.ChartData) []string
+}
 
 // types are the chart types, each a layout whose plan draws it as text
 // and as an image. The types themselves, their names and the order the
 // chart editor offers them, are in the sheet package, since charts are
 // saved with sheets; adding one is a constant there and a row here.
-var types = map[sheet.ChartType]layout{
-	sheet.ChartColumn: func(d sheet.ChartData, w, h int, _ Options) plan { return newColumnPlan(d, w, h, false) },
-	sheet.ChartBar:    func(d sheet.ChartData, w, h int, _ Options) plan { return newBarPlan(d, w, h) },
-	sheet.ChartLine:   func(d sheet.ChartData, w, h int, _ Options) plan { return newColumnPlan(d, w, h, true) },
-	sheet.ChartPie:    func(d sheet.ChartData, w, h int, o Options) plan { return newPiePlan(d, w, h, o) },
+var types = map[sheet.ChartType]chartType{
+	sheet.ChartColumn: {columnLayout(columnBars), allSeries},
+	sheet.ChartBar: {func(d sheet.ChartData, w, h int, o Options) plan {
+		return newBarPlan(d, w, h, o.Chart)
+	}, allSeries},
+	sheet.ChartLine: {columnLayout(columnLine), allSeries},
+	sheet.ChartPie: {func(d sheet.ChartData, w, h int, o Options) plan {
+		return newPiePlan(d, w, h, o)
+	}, nil},
+	sheet.ChartArea: {columnLayout(columnArea), allSeries},
+	sheet.ChartScatter: {func(d sheet.ChartData, w, h int, o Options) plan {
+		return newScatterPlan(d, w, h, o.Chart)
+	}, func(d sheet.ChartData) []string {
+		_, ys := scatterSeries(d)
+		return seriesNames(ys)
+	}},
 }
 
-// planFor lays out d as a chart of type t; an unknown type is drawn as
-// columns.
-func planFor(t sheet.ChartType, d sheet.ChartData, w, h int, o Options) plan {
-	lay, ok := types[t]
+func columnLayout(kind columnKind) func(d sheet.ChartData, w, h int, o Options) plan {
+	return func(d sheet.ChartData, w, h int, o Options) plan { return newColumnPlan(d, w, h, kind, o.Chart) }
+}
+
+func allSeries(d sheet.ChartData) []string { return seriesNames(d.Series) }
+
+// planFor lays out d as a chart of type t, with its legend; an unknown
+// type is drawn as columns.
+func planFor(t sheet.ChartType, d sheet.ChartData, w, h int, o Options) (plan, legendBox) {
+	ct, ok := types[t]
 	if !ok {
-		lay = types[sheet.ChartColumn]
+		ct = types[sheet.ChartColumn]
 	}
-	return lay(d, w, h, o)
+	lg := legendBox{pos: sheet.LegendNone}
+	if ct.names != nil {
+		lg, w, h = placeLegend(ct.names(d), o.Chart.Legend, w, h)
+	}
+	return ct.layout(d, w, h, o), lg
 }
 
-func (p *columnPlan) note() string              { return p.msg }
-func (p *columnPlan) plotArea() image.Rectangle { return p.plot }
-func (p *barPlan) note() string                 { return p.msg }
-func (p *barPlan) plotArea() image.Rectangle    { return p.plot }
-func (p *piePlan) note() string                 { return p.msg }
-func (p *piePlan) plotArea() image.Rectangle    { return p.disc }
+func (p *columnPlan) note() string               { return p.msg }
+func (p *columnPlan) plotArea() image.Rectangle  { return p.plot }
+func (p *barPlan) note() string                  { return p.msg }
+func (p *barPlan) plotArea() image.Rectangle     { return p.plot }
+func (p *piePlan) note() string                  { return p.msg }
+func (p *piePlan) plotArea() image.Rectangle     { return p.disc }
+func (p *scatterPlan) note() string              { return p.msg }
+func (p *scatterPlan) plotArea() image.Rectangle { return p.plot }

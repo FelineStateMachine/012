@@ -43,7 +43,7 @@ func TestRightClickCellMenu(t *testing.T) {
 	if m.selection().String() != "A1:B2" {
 		t.Errorf("right-click inside moved the selection to %s", m.selection())
 	}
-	if got := menuLabels(t, m); got != "Cut,Copy,Paste,Paste values only,-,Insert row above,Insert row below,Insert column left,Insert column right,-,Delete row,Delete column,-,Clear" {
+	if got := menuLabels(t, m); got != "Cut,Copy,Paste,Paste values only,-,Insert row above,Insert row below,Insert column left,Insert column right,-,Delete row,Delete column,-,Clear,-,Insert note,Delete notes,Protect range" {
 		t.Errorf("cell menu %s", got)
 	}
 	o := openMenu(t, m)

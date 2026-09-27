@@ -112,9 +112,11 @@ func namesOf(w *Workbook) string {
 // hidePlain hides s outside the history, as a loader would.
 func (w *Workbook) hidePlain(s *Sheet) { s.tabHidden = true }
 
-// Replacing a sheet keeps its charts: one that drew the whole table is
-// re-pointed to the new table when it has as many columns, and the rest
-// keep their ranges, whatever they now hold.
+// Replacing a sheet keeps the charts that fit the new data: one that
+// drew the whole table is re-pointed to the new table when it has as
+// many columns and removed when it hasn't; one of part of a table keeps
+// its range; one whose range is empty now is removed. Undo brings the
+// removed ones back.
 func TestReplaceSheetKeepsCharts(t *testing.T) {
 	w := bookOf(t, page{"Sales", map[string]string{
 		"A1": "Month", "B1": "Total", "A2": "Jan", "B2": "1", "A3": "Feb", "B3": "2",
@@ -124,6 +126,7 @@ func TestReplaceSheetKeepsCharts(t *testing.T) {
 	old.AddChart(Chart{Data: NewRect(at("A1"), at("B3")), Title: "Totals"})
 	old.AddChart(Chart{Data: NewRect(at("E1"), at("E2"))})
 	old.AddChart(Chart{Data: NewRect(at("H1"), at("H1"))})
+	old.AddChart(Chart{Data: NewRect(at("B2"), at("B3")), Title: "Part"})
 	w.ClearHistory()
 	src := bookOf(t, page{"sales", map[string]string{
 		"A1": "Month", "B1": "Total", "A2": "Jan", "B2": "4", "A3": "Feb", "B3": "5", "A4": "Mar", "B4": "6",
@@ -135,8 +138,9 @@ func TestReplaceSheetKeepsCharts(t *testing.T) {
 	}
 	want := []ChartFate{
 		{Name: "Totals", Was: NewRect(at("A1"), at("B3")), Now: NewRect(at("A1"), at("B4"))},
-		{Name: "Chart 2", Was: NewRect(at("E1"), at("E2")), Now: NewRect(at("E1"), at("E2"))}, // a column more: kept
-		{Name: "Chart 3", Was: NewRect(at("H1"), at("H1")), Now: NewRect(at("H1"), at("H1")), Empty: true},
+		{Name: "Chart 2", Was: NewRect(at("E1"), at("E2")), Now: NewRect(at("E1"), at("E2")), Removed: true}, // a column more
+		{Name: "Chart 3", Was: NewRect(at("H1"), at("H1")), Now: NewRect(at("H1"), at("H1")), Removed: true}, // empty
+		{Name: "Part", Was: NewRect(at("B2"), at("B3")), Now: NewRect(at("B2"), at("B3"))},
 	}
 	if len(fates) != len(want) {
 		t.Fatalf("fates %+v", fates)
@@ -147,11 +151,11 @@ func TestReplaceSheetKeepsCharts(t *testing.T) {
 		}
 	}
 	charts := w.Sheet(0).Charts()
-	if len(charts) != 3 || charts[0].Data != want[0].Now || charts[0].Title != "Totals" {
+	if len(charts) != 2 || charts[0].Data != want[0].Now || charts[0].Title != "Totals" || charts[1].Title != "Part" {
 		t.Errorf("charts on the new sheet: %+v", charts)
 	}
 	w.Undo()
-	if w.Sheet(0) != old || len(old.Charts()) != 3 || old.Charts()[0].Data != want[0].Was {
+	if w.Sheet(0) != old || len(old.Charts()) != 4 || old.Charts()[0].Data != want[0].Was {
 		t.Errorf("undo: charts %+v", old.Charts())
 	}
 }

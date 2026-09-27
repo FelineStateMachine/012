@@ -32,6 +32,7 @@ type prompt struct {
 	indicator string
 	fresh     bool // the default is still showing; typing replaces it
 	secret    bool // the answer is shown masked, e.g. an API key
+	breaks    bool // Shift+Enter and Alt+Enter type a line break, shown as noteBreak
 	typing    bool // range prompts: the user is typing instead of pointing
 	onText    func(m *Model, text string) tea.Cmd
 	onRange   func(m *Model, r sheet.Rect) tea.Cmd
@@ -76,6 +77,9 @@ func (p *prompt) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 		p.cancel(m)
 	case key == "enter":
 		return p.accept(m)
+	case p.breaks && (key == "shift+enter" || key == "alt+enter"):
+		p.fresh = false
+		m.line.Insert(noteBreak)
 	case m.pointing():
 		p.pointKey(m, k)
 	case p.kind == promptWidth && (key == "left" || key == "right"):
@@ -92,11 +96,13 @@ func (p *prompt) cancel(m *Model) {
 		m.point.anchored = false
 		return
 	}
+	m.quitAfterSave = false // cancelling Save as cancels Save and quit
+	// Closed first, so onCancel can return to what opened the prompt, as
+	// the chart editor does.
+	m.closePrompt()
 	if p.onCancel != nil {
 		p.onCancel(m)
 	}
-	m.quitAfterSave = false // cancelling Save as cancels Save and quit
-	m.closePrompt()
 	m.recordAnswer("", true)
 }
 
@@ -185,6 +191,8 @@ func (p *prompt) line(m *Model) (left, right string) {
 		return p.prefix() + m.line.Text(), m.th.KeyHints("Left/Right", "adjust", "Enter", "apply", "Esc", "cancel")
 	case p.secret:
 		return p.prefix() + mask(len(m.line.Buf)), m.th.KeyHints("Enter", "save", "Esc", "cancel")
+	case p.breaks:
+		return p.prefix() + m.line.Text(), m.th.KeyHints("Enter", "save", "Shift+Enter", "new line", "Esc", "cancel")
 	}
 	return p.prefix() + m.line.Text(), m.th.KeyHints("Enter", "apply", "Esc", "cancel")
 }

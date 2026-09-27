@@ -69,7 +69,7 @@ var menuBar = []menuDef{
 		{cmd: "insert.col_left", title: "Column left"}, {cmd: "insert.col_right", title: "Column right"}, sep,
 		{cmd: "insert.selection"}, sep,
 		{cmd: "sheet.new", title: "Sheet"}, sep,
-		{cmd: "insert.chart"},
+		{cmd: "note.edit"}, {cmd: "insert.chart"},
 	}},
 	{title: "Format", accel: 'o', items: []menuItem{
 		{title: "Number", items: []menuItem{
@@ -95,7 +95,7 @@ var menuBar = []menuDef{
 		}}, sep,
 		{cmd: "data.filter"}, {cmd: "data.filter_column"}, {cmd: "data.filter_remove"}, sep,
 		{cmd: "data.pivot"}, {cmd: "data.pivot_edit"}, {cmd: "data.frequency"}, sep,
-		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, sep,
+		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, {cmd: "data.protect"}, sep,
 		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,
 		{title: "Macros", items: macroItems}, sep,
 		{cmd: "jev.refresh"},

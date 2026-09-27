@@ -154,27 +154,16 @@ type pivotNode struct {
 	acc    map[int][]accum
 }
 
-// colGroup is one combination of column fields' values.
-type colGroup struct {
-	id      int
-	labels  []Value
-	formats []Format
-}
-
-// colNode finds column groups by each column field's value in turn.
-type colNode struct {
-	kids  map[groupKey]*colNode
-	group *colGroup
-}
-
 // pivotCalc is a pivot being computed.
 type pivotCalc struct {
 	w       *Workbook
 	p       *Pivot
 	src     *Sheet
 	root    *pivotNode
-	cols    []*colGroup // sorted once gathered
+	cols    []*colGroup // the column groups, sorted once gathered
 	colRoot colNode
+	nextCol int      // the next column group's id
+	colIDs  []int    // colGroupsOf's answer, reused
 	unique  []bool   // by value: whether to gather distinct values
 	formats []Format // by value: the format results show in
 	records int      // source rows summarized
@@ -215,12 +204,12 @@ func (c *pivotCalc) gather() {
 			continue
 		}
 		c.records++
-		col := c.colGroupOf(row)
+		ids := c.colGroupsOf(row)
 		n := c.root
-		c.add(n, col, row)
+		c.add(n, ids, row)
 		for _, g := range c.p.Rows {
 			n = n.child(c.src, Addr{Col: g.Col, Row: row})
-			c.add(n, col, row)
+			c.add(n, ids, row)
 		}
 	}
 	c.sortRows(c.root, 0)
@@ -273,58 +262,30 @@ func (n *pivotNode) child(src *Sheet, a Addr) *pivotNode {
 	return kid
 }
 
-// colGroupOf returns the id of row's column group, or -1 without column
-// fields.
-func (c *pivotCalc) colGroupOf(row int) int {
-	if len(c.p.Columns) == 0 || len(c.p.Values) == 0 {
-		return -1
-	}
-	n := &c.colRoot
-	for _, g := range c.p.Columns {
-		k := keyOf(c.src.Value(Addr{Col: g.Col, Row: row}), true)
-		kid := n.kids[k]
-		if kid == nil {
-			if n.kids == nil {
-				n.kids = map[groupKey]*colNode{}
-			}
-			kid = &colNode{}
-			n.kids[k] = kid
-		}
-		n = kid
-	}
-	if n.group == nil {
-		cg := &colGroup{id: len(c.cols)}
-		for _, g := range c.p.Columns {
-			a := Addr{Col: g.Col, Row: row}
-			cg.labels = append(cg.labels, c.src.Value(a))
-			cg.formats = append(cg.formats, c.src.DisplayFormat(a))
-		}
-		n.group = cg
-		c.cols = append(c.cols, cg)
-	}
-	return n.group.id
-}
-
-// add gathers row's values into n, for its column group and for all.
-func (c *pivotCalc) add(n *pivotNode, col, row int) {
+// add gathers row's values into n: for all column groups, and for each
+// of ids, the column groups the row counts in.
+func (c *pivotCalc) add(n *pivotNode, ids []int, row int) {
 	if len(c.p.Values) == 0 {
 		return
 	}
 	if n.acc == nil {
 		n.acc = map[int][]accum{}
 	}
-	for _, id := range [2]int{-1, col} {
-		accs := n.acc[id]
-		if accs == nil {
-			accs = make([]accum, len(c.p.Values))
-			n.acc[id] = accs
-		}
-		for i, v := range c.p.Values {
-			accs[i].add(c.src.Value(Addr{Col: v.Col, Row: row}), c.unique[i])
-		}
-		if col == -1 {
-			return
-		}
+	c.addTo(n, -1, row)
+	for _, id := range ids {
+		c.addTo(n, id, row)
+	}
+}
+
+// addTo gathers row's values into n's accumulators for column group id.
+func (c *pivotCalc) addTo(n *pivotNode, id, row int) {
+	accs := n.acc[id]
+	if accs == nil {
+		accs = make([]accum, len(c.p.Values))
+		n.acc[id] = accs
+	}
+	for i, v := range c.p.Values {
+		accs[i].add(c.src.Value(Addr{Col: v.Col, Row: row}), c.unique[i])
 	}
 }
 
@@ -354,23 +315,6 @@ func (c *pivotCalc) sortRows(n *pivotNode, depth int) {
 	for _, kid := range n.kids {
 		c.sortRows(kid, depth+1)
 	}
-}
-
-// sortCols orders the column groups by each column field in turn.
-func (c *pivotCalc) sortCols() {
-	slices.SortStableFunc(c.cols, func(a, b *colGroup) int {
-		for k, g := range c.p.Columns {
-			d := c.order(g, a.labels[k:k+1], b.labels[k:k+1], func(i int) (Value, Value) {
-				va, _ := c.result(c.root, a.id, i)
-				vb, _ := c.result(c.root, b.id, i)
-				return va, vb
-			})
-			if d != 0 {
-				return d
-			}
-		}
-		return 0
-	})
 }
 
 // order compares two groups by a field's order: by label, as Sheets sorts

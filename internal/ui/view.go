@@ -178,6 +178,9 @@ func (m *Model) cellsText(row, first int, spans []rowtext.Span, focus sheet.Addr
 			m.decorate(&sp, row) // links and error marks, see links.go
 		}
 		text := renderSpan(&m.th, sp, base, colored)
+		if m.sheet.Note(a) != "" {
+			text = m.noteMark(text, a, base, colored)
+		}
 		if m.showFillHandle(a) {
 			w := m.sheet.ColWidth(a.Col)
 			text = ansi.Truncate(text, w-1, "") + base.Render("▟")

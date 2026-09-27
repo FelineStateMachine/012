@@ -20,6 +20,8 @@ type xlsxBook struct {
 	sst      sharedStrings
 	styles   xlsxStyles
 	expanded int64 // bytes of shared formulas expanded, see formula
+	// protected names the sheets read so far that Excel protects.
+	protected []string
 }
 
 // xlsxSheetInfo is a sheet as the workbook lists it.

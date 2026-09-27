@@ -66,6 +66,9 @@ type Theme struct {
 	// FilterOn is the filter mark in the header of a column whose filter
 	// hides something (the mark itself also changes, from ▾ to ▼).
 	FilterOn lipgloss.Style
+	// NoteMark is the mark in the top-right corner of a cell with a note,
+	// like Sheets' small triangle.
+	NoteMark lipgloss.Style
 
 	// Chrome: the menu bar, dropdowns, the palette and dialogs.
 	MenuBar           lipgloss.Style // menu bar titles
@@ -146,7 +149,9 @@ func New(dark bool) Theme {
 	selFg, muted, match := lipgloss.Black, lipgloss.BrightBlack, lipgloss.Yellow
 	bar := lipgloss.Cyan
 	filterFg := lipgloss.Yellow
+	noteFg := lipgloss.Yellow
 	if !dark {
+		noteFg = lipgloss.Magenta
 		headerBg, headerFg = lipgloss.White, lipgloss.Black
 		selFg, muted, match = lipgloss.BrightWhite, lipgloss.Black, lipgloss.Blue
 		filterFg = lipgloss.Blue
@@ -195,6 +200,7 @@ func New(dark bool) Theme {
 		TabActive:  accent.Bold(true),
 		TabHover:   lipgloss.NewStyle().Foreground(bar).Bold(true).Underline(true),
 		FilterOn:   lipgloss.NewStyle().Background(headerBg).Foreground(filterFg).Bold(true),
+		NoteMark:   lipgloss.NewStyle().Foreground(noteFg),
 
 		MenuBar:           lipgloss.NewStyle(),
 		MenuAccel:         lipgloss.NewStyle().Underline(true),

@@ -26,34 +26,34 @@ func init() {
 		&command{id: "edit.fill_right", title: "Fill right", desc: "Copy the left column of the selection into the columns right of it", edits: (*Model).selection, run: func(m *Model) tea.Cmd {
 			return m.fill(m.sheet.FillRight)
 		}},
-		&command{id: "insert.row_above", title: "Insert rows above", desc: "Insert as many rows above the selection as it spans", edits: rowsTarget, keepsSpills: true, run: func(m *Model) tea.Cmd {
+		&command{id: "insert.row_above", title: "Insert rows above", desc: "Insert as many rows above the selection as it spans", edits: rowsTarget, changes: noCells, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			r := m.selection()
 			return m.structural(m.sheet.InsertRows(r.From.Row, r.To.Row-r.From.Row+1))
 		}},
-		&command{id: "insert.row_below", title: "Insert rows below", desc: "Insert as many rows below the selection as it spans", edits: rowsBelowTarget, keepsSpills: true, run: func(m *Model) tea.Cmd {
+		&command{id: "insert.row_below", title: "Insert rows below", desc: "Insert as many rows below the selection as it spans", edits: rowsBelowTarget, changes: noCells, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			r := m.selection()
 			if r.To.Row == sheet.MaxRows-1 {
 				return m.structural(sheet.ErrPushedOff)
 			}
 			return m.structural(m.sheet.InsertRows(r.To.Row+1, r.To.Row-r.From.Row+1))
 		}},
-		&command{id: "insert.col_left", title: "Insert columns left", desc: "Insert as many columns left of the selection as it spans", edits: colsTarget, keepsSpills: true, run: func(m *Model) tea.Cmd {
+		&command{id: "insert.col_left", title: "Insert columns left", desc: "Insert as many columns left of the selection as it spans", edits: colsTarget, changes: noCells, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			r := m.selection()
 			return m.structural(m.sheet.InsertCols(r.From.Col, r.To.Col-r.From.Col+1))
 		}},
-		&command{id: "insert.col_right", title: "Insert columns right", desc: "Insert as many columns right of the selection as it spans", edits: colsRightTarget, keepsSpills: true, run: func(m *Model) tea.Cmd {
+		&command{id: "insert.col_right", title: "Insert columns right", desc: "Insert as many columns right of the selection as it spans", edits: colsRightTarget, changes: noCells, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			r := m.selection()
 			if r.To.Col == sheet.MaxCols-1 {
 				return m.structural(sheet.ErrPushedOff)
 			}
 			return m.structural(m.sheet.InsertCols(r.To.Col+1, r.To.Col-r.From.Col+1))
 		}},
-		&command{id: "delete.row", title: "Delete rows", desc: "Delete the selected rows; references to them become #REF!", edits: rowsTarget, keepsSpills: true, run: func(m *Model) tea.Cmd {
+		&command{id: "delete.row", title: "Delete rows", desc: "Delete the selected rows; references to them become #REF!", edits: rowsTarget, changes: selectedRowsTarget, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			r := m.selection()
 			m.sheet.DeleteRows(r.From.Row, r.To.Row-r.From.Row+1)
 			return nil
 		}},
-		&command{id: "delete.col", title: "Delete columns", desc: "Delete the selected columns; references to them become #REF!", edits: colsTarget, keepsSpills: true, run: func(m *Model) tea.Cmd {
+		&command{id: "delete.col", title: "Delete columns", desc: "Delete the selected columns; references to them become #REF!", edits: colsTarget, changes: selectedColsTarget, keepsSpills: true, run: func(m *Model) tea.Cmd {
 			r := m.selection()
 			m.sheet.DeleteCols(r.From.Col, r.To.Col-r.From.Col+1)
 			return nil

@@ -1,0 +1,17 @@
+column 248x144 fe9d3f1b8e6fa386
+column-negative 272x160 61f43de6bd5344b6
+bar 240x144 c16c035b2efa6cb9
+line 248x144 07985b7158518703
+pie 192x192 115fb8665fa10c8e
+area 248x144 f1008eec737859ce
+area-stacked 248x144 5bd86ca592c2d09f
+column-stacked 272x144 b36dcf0bf7168426
+column-percent 264x144 339e292b4d2f72a1
+bar-stacked 256x144 09799885e24b8148
+bar-percent 240x144 c3fa2eff19992fa6
+scatter 256x144 e420894afe581b7d
+scatter-trend 256x144 84ade560f0905290
+no-gridlines 248x144 5c4aa23944a61505
+axis-min-max 248x144 c9ef52016bbccb97
+axis-log 256x160 42931f3bdb73561f
+legend-right 192x160 8cc9e1ee1766595a

@@ -160,13 +160,40 @@ func TestMoveCarriesFormats(t *testing.T) {
 		t.Errorf("Other!C1 shows %v %v; B1 %v", o.DisplayFormat(at("C1")).Kind, o.Value(at("C1")), s.DisplayFormat(at("B1")).Kind)
 	}
 
-	// A block keeps its formats; the source falls back on its lines.
+	// A block keeps its formats; the source is left plain, as Sheets
+	// clears cut cells, though its column stays currency.
 	o.Set(at("C2"), "7")
 	if _, err := o.MoveTo(s, Rect{From: at("C1"), To: at("C2")}, at("E4")); err != nil {
 		t.Fatal(err)
 	}
-	if s.DisplayFormat(at("E5")).Kind != FmtCurrency || o.DisplayFormat(at("C1")).Kind != FmtCurrency {
-		t.Errorf("E5 shows %v, Other!C1 %v", s.DisplayFormat(at("E5")).Kind, o.DisplayFormat(at("C1")).Kind)
+	if s.DisplayFormat(at("E5")).Kind != FmtCurrency || !o.DisplayFormat(at("C1")).IsZero() || o.DisplayFormat(at("C3")).Kind != FmtCurrency {
+		t.Errorf("E5 shows %v, Other!C1 %v, Other!C3 %v", s.DisplayFormat(at("E5")).Kind, o.DisplayFormat(at("C1")).Kind, o.DisplayFormat(at("C3")).Kind)
+	}
+}
+
+// Cutting a block on its sheet leaves the cells it left plain, over
+// formatted columns and rows, except where it lands; undo restores them.
+func TestMoveBlockLeavesSourcePlain(t *testing.T) {
+	s := New()
+	s.SetFormat(col(1), Preset(FmtCurrency))
+	s.SetStyle(rowRect(1, 1), bold) // row 2
+	s.Set(at("B1"), "5")
+	s.Set(at("B2"), "6")
+	s.Set(at("C3"), "7")
+	if _, err := s.Move(Rect{From: at("B1"), To: at("C3")}, at("C2")); err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range []string{"B1", "B2", "B3", "C1"} {
+		if !s.DisplayFormat(at(a)).IsZero() || s.CellStyle(at(a)).Bold {
+			t.Errorf("%s shows %v, bold %v, want plain", a, s.DisplayFormat(at(a)).Kind, s.CellStyle(at(a)).Bold)
+		}
+	}
+	if s.DisplayFormat(at("C2")).Kind != FmtCurrency || s.DisplayFormat(at("B4")).Kind != FmtCurrency || !s.CellStyle(at("A2")).Bold {
+		t.Errorf("C2 %v (moved from B1), B4 %v, A2 bold %v", s.DisplayFormat(at("C2")).Kind, s.DisplayFormat(at("B4")).Kind, s.CellStyle(at("A2")).Bold)
+	}
+	s.Undo()
+	if s.DisplayFormat(at("B3")).Kind != FmtCurrency || !s.CellStyle(at("B2")).Bold || s.cells.get(at("B3")) != nil {
+		t.Errorf("undo: B3 %v, B2 bold %v", s.DisplayFormat(at("B3")).Kind, s.CellStyle(at("B2")).Bold)
 	}
 }
 

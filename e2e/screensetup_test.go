@@ -124,6 +124,18 @@ func chartOfType(s *session, n int, title string) {
 	s.waitFor("READY")
 }
 
+// chartWith inserts a chart, presses keys in the editor and keeps it,
+// leaving the chart deselected.
+func chartWith(s *session, title string, keys ...string) {
+	spending(s)
+	insertChart(s)
+	s.keys(keys...)
+	s.keys("<enter>")
+	s.waitFor(title + " of A1:C5")
+	s.keys("<esc>")
+	s.waitFor("READY")
+}
+
 func openImportPicker(s *session) {
 	s.keys("<alt+f>", "<down>", "<down>", "<enter>")
 	s.waitFor("6 of 6")

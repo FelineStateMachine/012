@@ -299,6 +299,21 @@ func (s *Sheet) pasteCell(a Addr, c *Cell, dc, dr int, values bool) {
 	}
 }
 
+// fillCell pastes c at a, dc and dr away from where it was typed, as
+// Ctrl+Enter fills: each cell keeps its own note.
+func (s *Sheet) fillCell(a Addr, c *Cell, dc, dr int) {
+	if c == nil {
+		s.pasteCell(a, nil, dc, dr, false)
+		return
+	}
+	nc := c.rewritten(formula.Shift(dc, dr)).clone()
+	nc.Note = ""
+	if old := s.cells.get(a); old != nil {
+		nc.Note = old.Note
+	}
+	s.place(a, nc)
+}
+
 // valueInput is the entry that stores v as a constant. Text that would
 // read as a number, boolean or formula gets a leading ' to stay text.
 func valueInput(v Value) string {
@@ -375,7 +390,7 @@ func (s *Sheet) FillEntry(r Rect, origin Addr, input string) error {
 		for row := r.From.Row; row <= r.To.Row; row++ {
 			for col := r.From.Col; col <= r.To.Col; col++ {
 				if a := (Addr{Col: col, Row: row}); a != origin {
-					s.pasteCell(a, c, a.Col-origin.Col, a.Row-origin.Row, false)
+					s.fillCell(a, c, a.Col-origin.Col, a.Row-origin.Row)
 				}
 			}
 		}

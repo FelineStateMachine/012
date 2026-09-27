@@ -117,6 +117,23 @@ func (c *clipboard) clearMark() {
 	c.marked = false
 }
 
+// pasteTextRange is the block pasted text fills from a: as many rows and
+// columns as it has, or a alone for a single value.
+func pasteTextRange(a sheet.Addr, content string) sheet.Rect {
+	content = strings.TrimSuffix(strings.TrimSuffix(content, "\n"), "\r")
+	r := sheet.Rect{From: a, To: a}
+	if !strings.ContainsAny(content, "\t\n") {
+		return r
+	}
+	rows := parseTSV(content)
+	width := 0
+	for _, row := range rows {
+		width = max(width, len(row))
+	}
+	r.To = sheet.Addr{Col: min(a.Col+width-1, sheet.MaxCols-1), Row: min(a.Row+len(rows)-1, sheet.MaxRows-1)}
+	return r
+}
+
 // pasteText fills a block of cells from pasted text with tabs or line
 // breaks, such as cells copied from another spreadsheet, and reports
 // whether it did. Each value is entered as if typed.

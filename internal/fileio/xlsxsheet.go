@@ -56,6 +56,8 @@ type xlsxSheetReader struct {
 	paneRead               bool
 	frozenRows, frozenCols int
 
+	protected bool // the sheet has a <sheetProtection sheet="1">, read by readTail
+
 	inData bool // inside <sheetData>
 	row    xlsxRowData
 	shared map[int]sharedFormula

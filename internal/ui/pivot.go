@@ -87,6 +87,22 @@ func colsRightTarget(m *Model) sheet.Rect {
 	return r
 }
 
+// noCells is command.changes for commands that move cells without
+// changing any, such as inserting rows.
+func noCells(*Model) (sheet.Rect, bool) { return sheet.Rect{}, false }
+
+// selectedRowsTarget and selectedColsTarget are the whole rows or
+// columns of the selection, which deleting them changes.
+func selectedRowsTarget(m *Model) (sheet.Rect, bool) {
+	r := m.selection()
+	return sheet.Rect{From: sheet.Addr{Row: r.From.Row}, To: sheet.Addr{Col: sheet.MaxCols - 1, Row: r.To.Row}}, true
+}
+
+func selectedColsTarget(m *Model) (sheet.Rect, bool) {
+	r := m.selection()
+	return sheet.Rect{From: sheet.Addr{Col: r.From.Col}, To: sheet.Addr{Col: r.To.Col, Row: sheet.MaxRows - 1}}, true
+}
+
 // pasteTarget is where Ctrl+V writes: the selection, and at least the
 // clip's size from the active cell.
 func (m *Model) pasteTarget() sheet.Rect {
