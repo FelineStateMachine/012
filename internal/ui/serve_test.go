@@ -13,6 +13,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 	"github.com/FelineStateMachine/012/internal/ui/transfer"
 )
 
@@ -130,7 +131,7 @@ func TestSaveAsksWhenFileChanged(t *testing.T) {
 	os.Chtimes("book.012", later, later)
 
 	press(t, m, "<up>", "again", "<enter>", "<ctrl+s>")
-	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(line(m, contextLine), "book.012 changed on disk since it was opened") {
+	if _, ok := m.overlay.(*choicebar.Bar); !ok || !strings.Contains(line(m, contextLine), "book.012 changed on disk since it was opened") {
 		t.Fatalf("context line %q, overlay %T", line(m, contextLine), m.overlay)
 	}
 	press(t, m, "<esc>")

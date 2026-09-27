@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 )
 
 // rect parses a range for tests.
@@ -155,7 +156,7 @@ func TestMergeCells(t *testing.T) {
 	m.cur = addr("A1")
 	m.selectRect(rect("A1:C1"))
 	run(m, m.runCommand("format.merge_all"))
-	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(line(m, contextLine), "keeps only the top-left value") ||
+	if _, ok := m.overlay.(*choicebar.Bar); !ok || !strings.Contains(line(m, contextLine), "keeps only the top-left value") ||
 		!strings.Contains(line(m, m.height-1), "clears B1") {
 		t.Fatalf("no warning: %q", line(m, contextLine))
 	}

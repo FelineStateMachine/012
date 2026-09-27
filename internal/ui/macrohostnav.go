@@ -3,11 +3,11 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
@@ -320,17 +320,14 @@ func (h scriptHost) choose(c *command, answer *string) error {
 	if p, ok := m.overlay.(*picker.Picker); ok && p.Answers {
 		return h.pickAnswer(c, p, answer)
 	}
-	bar, ok := m.overlay.(*choiceBar)
+	bar, ok := m.overlay.(*choicebar.Bar)
 	if !ok {
 		m.closeOverlay()
 		return fmt.Errorf("%s opens a dialog; it can't run in a macro", c.title)
 	}
 	if answer != nil {
-		i := slices.IndexFunc(bar.choices, func(ch choice) bool {
-			return strings.EqualFold(ch.key, *answer) || strings.EqualFold(ch.label, *answer)
-		})
-		if i >= 0 {
-			m.macros.cmds = append(m.macros.cmds, bar.choose(m, bar.choices[i]))
+		if i := bar.Find(*answer); i >= 0 {
+			m.macros.cmds = append(m.macros.cmds, bar.Choose(i))
 			if m.mode == modeError {
 				return h.failure()
 			}
@@ -338,7 +335,7 @@ func (h scriptHost) choose(c *command, answer *string) error {
 		}
 	}
 	m.closeOverlay()
-	return fmt.Errorf("%s asks %q: give run(%q, answer=...) with one of its keys", c.title, bar.msg, c.id)
+	return fmt.Errorf("%s asks %q: give run(%q, answer=...) with one of its keys", c.title, bar.Msg, c.id)
 }
 
 // pickAnswer answers a picker that asks a command's question with the

@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
@@ -131,7 +132,7 @@ func (m *Model) recordingCommand(c *command) tea.Cmd {
 	r.depth++
 	cmd := c.run(m)
 	r.depth--
-	_, choosing := m.overlay.(*choiceBar)
+	_, choosing := m.overlay.(*choicebar.Bar)
 	if p, ok := m.overlay.(*picker.Picker); ok && p.Answers {
 		choosing = true
 	}

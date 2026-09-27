@@ -5,6 +5,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 	"github.com/FelineStateMachine/012/internal/ui/cmdline"
 	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
@@ -28,6 +29,7 @@ var (
 	_ findbar.Host     = host{}
 	_ themepicker.Host = host{}
 	_ rules.Host       = host{}
+	_ choicebar.Host   = host{}
 )
 
 // The in-package hosts the model implements itself.

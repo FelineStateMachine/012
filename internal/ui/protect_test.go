@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 )
 
 func TestProtectRangeWarns(t *testing.T) {
@@ -44,7 +45,7 @@ func TestProtectRangeWarns(t *testing.T) {
 	// Commands ask through what they edit; outside, nothing asks.
 	press(t, m, "<up>")
 	m.runCommand("clear")
-	if _, ok := m.overlay.(*choiceBar); !ok {
+	if _, ok := m.overlay.(*choicebar.Bar); !ok {
 		t.Fatal("clear didn't ask")
 	}
 	press(t, m, "<enter>")
@@ -64,7 +65,7 @@ func TestProtectRangeWarns(t *testing.T) {
 	// Pasted text into the range asks too.
 	press(t, m, "<left>", "<left>", "<down>")
 	send(m, tea.PasteMsg{Content: "1\t2"})
-	if _, ok := m.overlay.(*choiceBar); !ok {
+	if _, ok := m.overlay.(*choicebar.Bar); !ok {
 		t.Fatal("paste didn't ask")
 	}
 	press(t, m, "<enter>")
@@ -96,7 +97,7 @@ func TestProtectSheetAndPicker(t *testing.T) {
 	press(t, m, "<esc>")
 	// Anything on a protected sheet asks, inserting rows included.
 	m.runCommand("insert.row_above")
-	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(line(m, contextLine), "Sheet1 is protected.") {
+	if _, ok := m.overlay.(*choicebar.Bar); !ok || !strings.Contains(line(m, contextLine), "Sheet1 is protected.") {
 		t.Fatalf("insert didn't ask: %q", line(m, contextLine))
 	}
 	press(t, m, "<esc>")

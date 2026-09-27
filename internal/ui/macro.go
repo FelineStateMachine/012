@@ -130,8 +130,7 @@ func (m *Model) runMacro(mc sheet.Macro) tea.Cmd {
 	case m.macroTrusted():
 		return m.startMacro(mc)
 	}
-	m.openOverlay(&choiceBar{
-		m:    m,
+	m.ask(question{
 		msg:  "Trust this file's macros?",
 		desc: "They were made on another computer and can change the file. Trusting covers all of them from now on.",
 		warn: true,

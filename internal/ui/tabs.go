@@ -262,7 +262,7 @@ func (m *Model) confirmDeleteSheet() tea.Cmd {
 	if n == 0 {
 		what = "Delete " + s.Name() + " and its charts?"
 	}
-	m.openOverlay(&choiceBar{m: m, msg: what, warn: true, choices: []choice{
+	m.ask(question{msg: what, warn: true, choices: []choice{
 		{key: "enter", label: "Delete", run: del},
 		{key: "esc", label: "Cancel", run: func(*Model) tea.Cmd { return nil }},
 	}})

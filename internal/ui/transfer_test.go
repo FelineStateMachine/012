@@ -13,6 +13,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 	"github.com/FelineStateMachine/012/internal/ui/transfer"
 )
 
@@ -91,7 +92,7 @@ func TestImportAsksBeforeReplacingChanges(t *testing.T) {
 	press(t, m, "keep me", "<enter>")
 	m.runCommand("file.import")
 	press(t, m, "<enter>", "Replace spreadsheet", "<enter>")
-	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(line(m, contextLine), "Importing replaces this spreadsheet, which has unsaved changes.") {
+	if _, ok := m.overlay.(*choicebar.Bar); !ok || !strings.Contains(line(m, contextLine), "Importing replaces this spreadsheet, which has unsaved changes.") {
 		t.Fatalf("no warning: %q", line(m, contextLine))
 	}
 	press(t, m, "<esc>")

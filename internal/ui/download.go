@@ -143,8 +143,7 @@ func (m *Model) confirmReplace(msg string, do func(*Model) tea.Cmd, replaces boo
 	if !replaces {
 		return do(m)
 	}
-	m.openOverlay(&choiceBar{
-		m:    m,
+	m.ask(question{
 		msg:  msg,
 		warn: true,
 		choices: []choice{
@@ -184,6 +183,6 @@ func (m *Model) saveImported() tea.Cmd {
 		m.quitAfterSave = false
 		return nil
 	}})
-	m.openOverlay(&choiceBar{m: m, msg: filepath.Base(m.xfer.Source) + " was imported.", choices: choices})
+	m.ask(question{msg: filepath.Base(m.xfer.Source) + " was imported.", choices: choices})
 	return nil
 }

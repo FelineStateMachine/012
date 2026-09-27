@@ -29,8 +29,7 @@ func init() {
 			return nil
 		}},
 		&command{id: "help.about", macro: macroNever, title: "About 012", desc: "Show the version", run: func(m *Model) tea.Cmd {
-			m.openOverlay(&choiceBar{
-				m:   m,
+			m.ask(question{
 				msg: "012 " + version() + ": Lotus 1-2-3 looks, Google Sheets keys.",
 				choices: []choice{
 					{key: "esc", label: "Close", run: func(*Model) tea.Cmd { return nil }},
