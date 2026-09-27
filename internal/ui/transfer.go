@@ -63,31 +63,42 @@ const importTick = 100 * time.Millisecond
 
 func init() {
 	register(&command{id: "file.import", title: "Import",
-		desc: "Import a CSV, TSV, Excel, SQLite, Parquet or 1-2-3 file, replacing this sheet",
+		desc: "Import a " + importNouns() + " file, replacing this sheet",
 		run:  (*Model).openImport})
 	for _, k := range fileio.Kinds() {
 		if !k.CanExport() {
 			continue
 		}
 		register(&command{
-			id:    "file.download." + strings.ToLower(k.String()),
+			id:    downloadID(k),
 			title: "Download as " + k.String(),
-			desc:  downloadDesc(k),
+			desc:  k.About(),
 			run:   func(m *Model) tea.Cmd { return m.openDownload(k) },
 		})
 	}
 }
 
-func downloadDesc(k fileio.Kind) string {
-	switch k {
-	case fileio.CSV, fileio.TSV:
-		return "Save the values as shown, as " + strings.ToLower(k.Label()) + " (" + k.Ext() + ")"
-	case fileio.XLSX:
-		return "Save as an Excel workbook (.xlsx) with formulas, formats and widths"
-	case fileio.SQLite:
-		return "Save the sheet, or the selection, as a table in a SQLite database"
+// downloadID is the command downloading in format k.
+func downloadID(k fileio.Kind) string { return "file.download." + strings.ToLower(k.String()) }
+
+// downloadItems is the File > Download menu: every format 012 exports.
+func downloadItems() []menuItem {
+	var items []menuItem
+	for _, k := range fileio.Kinds() {
+		if k.CanExport() {
+			items = append(items, menuItem{cmd: downloadID(k), title: k.MenuTitle()})
+		}
 	}
-	return ""
+	return items
+}
+
+// importNouns lists the formats 012 imports: "CSV, TSV, ... or 1-2-3".
+func importNouns() string {
+	var nouns []string
+	for _, k := range fileio.Kinds() {
+		nouns = append(nouns, k.Noun())
+	}
+	return strings.Join(nouns[:len(nouns)-1], ", ") + " or " + nouns[len(nouns)-1]
 }
 
 // Import sets a file to import when the program starts, e.g. from
@@ -434,9 +445,9 @@ func (m *Model) openDownload(k fileio.Kind) tea.Cmd {
 	}
 	r := sheet.Rect{}
 	label := "Download as " + k.String() + ":"
-	if k == fileio.SQLite && m.hasRange() {
+	if k.HasTables() && m.hasRange() {
 		r = m.selection()
-		label = "Download " + r.String() + " as SQLite:"
+		label = "Download " + r.String() + " as " + k.String() + ":"
 	}
 	m.openText(label, m.displayBase()+k.Ext(), func(m *Model, text string) tea.Cmd {
 		if text == "" {
@@ -446,8 +457,8 @@ func (m *Model) openDownload(k fileio.Kind) tea.Cmd {
 		if filepath.Ext(name) == "" {
 			name += k.Ext()
 		}
-		if k == fileio.SQLite {
-			m.openTableName(name, r)
+		if k.HasTables() {
+			m.openTableName(name, k, r)
 			return nil
 		}
 		return m.confirmReplace(filepath.Base(name)+" exists.", func(m *Model) tea.Cmd {
@@ -462,8 +473,8 @@ func exists(name string) bool {
 	return err == nil
 }
 
-// openTableName asks for the table to write in a SQLite database.
-func (m *Model) openTableName(name string, r sheet.Rect) {
+// openTableName asks for the table to write in a database of kind k.
+func (m *Model) openTableName(name string, k fileio.Kind, r sheet.Rect) {
 	m.openText("Table in "+filepath.Base(name)+":", fileio.TableName(filepath.Base(m.displayBase())), func(m *Model, table string) tea.Cmd {
 		if table == "" {
 			return nil
@@ -480,7 +491,7 @@ func (m *Model) openTableName(name string, r sheet.Rect) {
 			}
 		}
 		return m.confirmReplace("Table "+table+" exists in "+filepath.Base(name)+".", func(m *Model) tea.Cmd {
-			return m.download(name, fileio.SQLite, r, table)
+			return m.download(name, k, r, table)
 		}, has)
 	})
 }
@@ -505,7 +516,7 @@ func (m *Model) confirmReplace(msg string, do func(*Model) tea.Cmd, replaces boo
 // download snapshots the sheet and writes it in the background.
 func (m *Model) download(name string, k fileio.Kind, r sheet.Rect, table string) tea.Cmd {
 	snap := fileio.Snap(m.sheet, r, filepath.Base(m.displayBase()))
-	if k == fileio.XLSX && r == (sheet.Rect{}) {
+	if k.HoldsSheets() && r == (sheet.Rect{}) {
 		snap = fileio.SnapBook(m.sheet) // every sheet, as Sheets' .xlsx download
 	}
 	return func() tea.Msg {
