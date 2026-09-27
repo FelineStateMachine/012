@@ -69,8 +69,7 @@ var menuBar = []menuDef{
 		{cmd: "insert.col_left", title: "Column left"}, {cmd: "insert.col_right", title: "Column right"}, sep,
 		{cmd: "insert.selection"}, sep,
 		{cmd: "sheet.new", title: "Sheet"}, sep,
-		{cmd: "insert.chart"}, sep,
-		{cmd: "note.edit"},
+		{cmd: "note.edit"}, {cmd: "insert.chart"},
 	}},
 	{title: "Format", accel: 'o', items: []menuItem{
 		{title: "Number", items: []menuItem{
