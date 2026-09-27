@@ -1,30 +1,83 @@
 # Files
 
-Spreadsheets save as `.012` files (JSON, one line per cell), with every
-sheet. Other formats come
-in through File > Import, File > Open or the command line, and go out
-through File > Download. Imports run in the background with a progress
-bar; Esc cancels. Saving an imported sheet asks whether to save it as a
-`.012` file or download it back in its format.
+Spreadsheets save as `.012` files: JSON with one line per cell, every
+sheet in one file. Other formats come in through File > Import, File >
+Open or the command line (`012 sales.xlsx`), and go out through File >
+Download.
+
+![File > Import listing the spreadsheets in a folder](media/import-picker.png)
+
+## Import and download
+
+Imports run in the background with a progress bar; Esc cancels. Saving
+an imported sheet asks whether to save it as a `.012` file or download
+it back in its format.
+
+| Format | Import | Download |
+|---|---|---|
+| CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, of the sheet shown, as Sheets' Download does; a selection of whole columns or rows downloads their data, not a million blank lines |
+| Excel `.xlsx` | Every sheet, with formulas, formats and most of what a sheet holds: see [Excel files](#excel-files) | The same |
+| SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet shown or the selection as a table, first row as column names; a table of that name is replaced |
+| Parquet | Every column, with dates and timestamps; lists joined with commas | |
+| Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
+
+Formats other than XLSX import as one sheet named after the file (or the
+SQLite table).
 
 File > Import asks where the data goes, as Sheets' Import location does
 (a new, empty spreadsheet is simply replaced):
 
 | Location | Does |
 |---|---|
-| Insert new sheet(s) | Adds the file's sheets after the sheet shown: every sheet of an `.xlsx`, named after the file for other formats. A name already taken gets a number (`Sales 2`) and the file's formulas follow it; named ranges come along unless their name is taken. One undo step, and the spreadsheet stays the file you're editing |
-| Replace current sheet | Puts the data in place of the sheet shown, keeping its name and position, so formulas and named ranges that read it read the new data. Its charts that fit the new data stay: a chart that drew a whole table is re-pointed to the table the file has at the same corner when it has as many columns (rows for a chart by row), so last month's chart draws this month's rows, and one of part of a table, or of whole columns or rows, keeps its range. A chart whose table now has other columns, or whose range is empty now, is removed. The context line lists the removed charts first, then which were re-pointed and which kept their range. One undo step, which brings the removed charts back. Not offered for `.xlsx`, which holds several sheets |
+| Insert new sheet(s) | Adds the file's sheets after the sheet shown. A name already taken gets a number (`Sales 2`) and the file's formulas follow it; named ranges come along unless their name is taken. One undo step, and the spreadsheet stays the file you're editing |
+| Replace current sheet | Puts the data in place of the sheet shown, keeping its name and position, so formulas and named ranges that read it read the new data. One undo step. Not offered for `.xlsx`, which holds several sheets |
 | Replace spreadsheet | Opens the file instead, as File > Open and the command line do, asking first when there are unsaved changes |
 
-| Format | Import | Download |
-|---|---|---|
-| CSV, TSV | Delimiter (`,` `;` tab `\|`), UTF-8 BOM, UTF-16 and Windows-1252 detected; entries become numbers, dates, currency and percentages as if typed; formulas stay text | Values as shown, as Sheets' Download does |
-| Excel `.xlsx` | Every sheet, opening on the one Excel showed: values, formulas (references between sheets too), workbook named ranges, number formats, bold, italic, underline, strikethrough, alignment, column widths, column and row styles, frozen panes, filters (see [Filters in XLSX](#filters-in-xlsx)), notes (Excel's notes, its legacy comments; threaded comments aren't read), shared formulas, dates in the 1904 system; sheets Excel hid stay hidden (unless it's the one Excel showed), conditional formatting and data validation (see [Rules in XLSX](#rules-in-xlsx)). Formulas 012 can't read (unknown functions) keep their values; Excel pivot tables come in as the values they showed. A sheet Excel protects comes in unprotected, with a note saying so, since Excel's protection locks cells where 012's only warns. Files past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) are refused with a message saying which | Every sheet, the same, with formulas in Excel's syntax and their results cached, column and row formats as column and row styles, frozen rows and columns as frozen panes, a filter as Excel's with the rows it hides hidden, and notes as Excel's notes (which Sheets reads as notes), and conditional formats and data validation as Excel's. Protected ranges aren't written. A sheet whose name Excel can't take as is (spaces at its ends, or the same as another's but for them and case) gets one it can (without the spaces, with a number when two would clash, e.g. `Plan (2)`), and the formulas and named ranges naming it name that. JEV functions and `#AND#` save as values, and so do formulas naming a sheet that doesn't exist (their `#REF!`; Excel would refuse the reference), and pivot tables: Excel gets the results, not a pivot. The download's result counts the formulas saved as values, with an example |
-| SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet shown or the selection as a table, first row as column names; a table of that name is replaced |
-| Parquet | Every column, with dates and timestamps; lists joined with commas | |
-| Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
+Replacing the current sheet keeps the charts that fit the new data. A
+chart that drew a whole table is re-pointed to the table the file has at
+the same corner when it has as many columns (rows for a chart by row),
+so last month's chart draws this month's rows; a chart of part of a
+table, or of whole columns or rows, keeps its range. A chart whose table
+now has other columns, or whose range is empty, is removed. The context
+line lists the removed charts first, then which were re-pointed and
+which kept their range, and undo brings the removed ones back.
 
-## Filters in XLSX
+**Size.** A sheet is 1,048,576 rows by 16,384 columns (A to XFD), as in
+Excel. Imports keep at most `max-cells` cells ([config.md](config.md#max-cells),
+two million by default, about 600 MB): whole rows, as many as fit, and
+the context line says how many rows were left out, e.g. `only the first
+166,666 rows fit in max-cells (2,000,000 cells); 12,000 rows left out`.
+Data past the grid's edges is left out the same way. WK1 files keep their
+own 8,192 by 256. See [limits.md](limits.md#imports) for speeds.
+
+## Excel files
+
+**Read:** every sheet, opening on the one Excel showed; values, formulas
+(references between sheets too, shared formulas), workbook named ranges,
+number formats, bold, italic, underline, strikethrough, alignment,
+column widths, column and row styles, frozen panes, [filters](#filters-in-excel),
+notes (Excel's notes, its legacy comments; threaded comments aren't
+read), [conditional formatting and data validation](#rules-in-excel),
+dates in the 1904 system, and hidden sheets (unless it's the one Excel
+showed).
+
+**Written:** the same, with formulas in Excel's syntax and their results
+cached, column and row formats as column and row styles, frozen rows and
+columns as frozen panes, a filter as Excel's with the rows it hides
+hidden, and notes as Excel's notes (which Sheets reads as notes).
+
+What changes on the way:
+
+| | |
+|---|---|
+| Formulas 012 can't read (unknown functions) | Keep their values |
+| Excel pivot tables | Come in as the values they showed; 012's go out as their results, not a pivot |
+| Excel's sheet protection | Comes in unprotected, with a note saying so: Excel's protection locks cells where 012's only warns. Protected ranges aren't written |
+| JEV functions, `#AND#`, formulas naming a sheet that doesn't exist | Go out as values (their `#REF!`, for a missing sheet: Excel would refuse the reference). The download's result counts the formulas saved as values, with an example |
+| A sheet name Excel can't take as is (spaces at its ends, or the same as another's but for them and case) | Written as one it can: without the spaces, with a number when two would clash (`Plan (2)`); formulas and named ranges naming it name that |
+| Files past the reader's limits (a zip bomb, 1 GB in one part, 2 GB in all, cells past XFD1048576) | Refused, with a message saying which |
+
+### Filters in Excel
 
 A sheet's filter goes out as Excel's AutoFilter over the same range, and
 an AutoFilter comes in as a filter:
@@ -48,13 +101,13 @@ grouped by year or month, and filtering by color or icon. The filter
 itself still comes in over its range. Filters of Excel tables (as
 opposed to the sheet's AutoFilter) aren't read.
 
-## Rules in XLSX
+### Rules in Excel
 
-Conditional formats ([data.md](data.md#conditional-formatting)) go out
-as Excel's conditional formatting and data validation as its data
-validation, and come back:
+[Conditional formats](data.md#conditional-formatting) go out as Excel's
+conditional formatting, and [data validation](data.md#data-validation)
+as its data validation, and both come back:
 
-| 012 | Excel |
+| Conditional format | Excel |
 |---|---|
 | Is empty, is not empty | `containsBlanks`, `notContainsBlanks` |
 | Text contains, does not contain, starts with, ends with | `containsText`, `notContainsText`, `beginsWith`, `endsWith` |
@@ -65,6 +118,9 @@ validation, and come back:
 | Custom formula is | `expression`, in Excel's syntax |
 | Color scale | `colorScale` with its points (`min`, `max`, `num`, `percent`, `percentile`) |
 | A rule's style | a differential style (dxf): bold, italic, underline, strikethrough, the text color and a solid fill |
+
+| Data validation | Excel |
+|---|---|
 | Dropdown, from a range | `list` of the items in quotes, or of the range (`Lists!$A$1:$A$20`) |
 | Checkbox | `list` of `TRUE,FALSE`, which comes back as a checkbox |
 | Number, date, text length | `decimal`, `date`, `textLength` with the operator; any date as a date greater than 0 |
@@ -89,10 +145,27 @@ formula with no Excel equivalent (`#AND#`) leaves its rule out, and so
 do list items with commas or quotes, or longer than Excel's 255
 characters.
 
-## The native format
+## Saving
+
+Saves are atomic: 012 writes a temporary file and renames it. Saving over
+the open file when something else wrote it since it was opened or last
+saved (another program, or another session of [012 serve](ssh.md)) asks
+first: Enter overwrites, S saves under another name, Esc cancels. Save
+as (and `:w name`, `:wq name` with vim keys) onto another file that
+exists asks the same way: Enter replaces it, Esc cancels, and cancelling
+`:wq`'s question cancels its quit too.
+
+Under `012 serve`, a session that idles out or is ended by the server
+stopping keeps its unsaved changes in `.012-recovery/` in the served
+directory, and the next session opening that file offers them back: see
+[ssh.md](ssh.md#unsaved-work).
+
+## The .012 format
 
 `.012` files are JSON with one line per cell, keyed by address, so diffs
-read naturally and files merge reasonably in version control:
+read naturally and files merge reasonably in version control. A cell
+without formatting is just what was typed; a formatted cell is a small
+object:
 
 ```json
 {
@@ -101,83 +174,65 @@ read naturally and files merge reasonably in version control:
   "cells": {
     "A1": "Rent",
     "B1": {"input":"1450","format":"currency","decimals":2},
+    "B2": {"input":"95","note":"Due on the 1st"},
     "B3": "=SUM(B1:B2)"
   }
 }
 ```
 
-A cell without formatting is just what was typed; a formatted cell is a
-small object. Version 3 adds named ranges, frozen panes and a filter, and is
-only written when a sheet uses one of them, so older builds of 012 can open
-everything else (version 4 adds several sheets and version 5 pivot tables,
-below). Charts are an optional `charts` field that older builds
-ignore; a chart's options are fields left out at their defaults, which
-builds without them draw with the defaults, while builds that chart but
-lack a chart's type (area, scatter) can't open the file. A cell's `note`
-(the cell is then an object, e.g. `{"input":"1450","note":"Due on the 1st"}`)
-and a sheet's `protected` list of protected ranges
-(`{"range":"B2:C9","description":"Totals"}`, or `{"sheet":true}`) are
-optional too and raise no version. Saves are atomic: 012 writes a temporary file and renames it. Saving over
-the open file when something else wrote it since it was opened or last
-saved (another program, or another session of [012 serve](ssh.md)) asks
-first: Enter overwrites, S saves under another name, Esc cancels. Save
-as (and `:w name`, `:wq name` with vim keys) onto another file that
-exists asks the same way: Enter replaces it, Esc cancels, and cancelling
-`:wq`'s question cancels its quit too.
+A formatted cell has its `input` and the formatting that isn't the
+default: `format` (as `number_format` in [macros](macros.md#cells) names
+it: `currency`, `percent`, `date`, ...), `decimals`, `pattern` for a
+custom format, `bold`, `italic`, `underline`, `strikethrough` and
+`align` (`left`, `center`, `right`).
 
-Under [012 serve](ssh.md), a session that idles out or is ended by the
-server stopping keeps its unsaved changes in `.012-recovery/` in the
-served directory, and the next session opening that file offers them
-back: see [ssh.md](ssh.md#unsaved-work).
+### Versions
 
-Macros are an optional `macros` list, one macro per line with its
-Starlark script as a string, and `macroOrigin`, the computer they were
-made or trusted on; neither raises the version, and older builds ignore
-them. Opening a file never runs its macros. See [macros.md](macros.md#in-the-file).
+012 writes the lowest version that holds the workbook, so older builds
+open what they can, and refuses a version newer than it knows rather
+than lose sheets or pivots. Version 1 files (cells as plain strings)
+still load.
 
-Other formats import as one sheet named after the file (or the SQLite
-table); CSV and TSV downloads write the sheet shown, as Sheets' do, and
-a selection of whole columns or rows downloads their data, not a million
-blank lines.
+| Version | Written when | Adds |
+|---|---|---|
+| 2 | One sheet, using none of the below | `cells`, `widths` |
+| 3 | A sheet has named ranges, frozen panes or a filter | `names` (each name's range, `#REF!` once its cells were deleted), `freeze` (`rows`, `cols`), `filter` (its `range`, and `columns` by letter, each with `hidden` values or a `condition` and its `value`) |
+| 4 | Several sheets, or a formula naming a sheet | `sheets`, a list; see [Several sheets](#several-sheets) |
+| 5 | A pivot table | a sheet's `pivot`; see [Pivot tables](#pivot-tables) |
 
-## Size
+### Fields that need no version
 
-A sheet is 1,048,576 rows by 16,384 columns (A to XFD), as in Excel.
-Imports keep at most `max-cells` cells ([config.md](config.md), two
-million by default, about 600 MB): whole rows, as many as fit, and the
-context line says how many rows were left out, e.g. `only the first
-166,666 rows fit in max-cells (2,000,000 cells); 12,000 rows left out`.
-Data past the grid's edges is left out the same way. WK1 files keep their
-own 8,192 by 256. Pastes and fills that would write more than `max-cells`
-cells at once are refused. See [limits.md](limits.md).
+Builds that don't know these fields ignore them (and drop them if they
+save), so they raise no version:
 
-## Column and row formats
+| Field | On | Holds |
+|---|---|---|
+| `note` | a cell | Its [note](data.md#notes) |
+| `own` | a cell | `true` when its formatting is its own, not its column's or row's (Automatic in a currency column) |
+| `lines` | a sheet | [Column and row formats](#column-and-row-formats) |
+| `name`, `hidden` | a sheet | Its name when renamed; `true` when hidden (a file whose sheets are all hidden opens with the first one shown) |
+| `charts` | a sheet | One chart per line: `type` (`column`, `bar`, `line`, `pie`, `area`, `scatter`), `data`, `at`, `width`, `height`, `byRow`, `header`, `labels`, `title`, and options left out at their defaults: `stack` (`stacked`, `percent`), `trend`, `min`, `max`, `log`, `gridlines` (only when off), `legend` (`right`, `none`). A build that charts but lacks a chart's type refuses the file |
+| `protected` | a sheet | [Protected ranges](data.md#protected-sheets-and-ranges): `{"range":"B2:C9","description":"Totals"}`, or `{"sheet":true}` |
+| `conditionalFormats`, `validations` | a sheet | [Rules](#conditional-formats-and-data-validation), one per line |
+| `arithmetic` | the workbook | `decimal` for [decimal arithmetic](formulas.md#decimal-arithmetic) |
+| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on: see [macros.md](macros.md#in-the-file). Opening a file never runs them |
 
-Formatting whole columns or rows (select them with Ctrl+Space or
-Shift+Space, or click their headers) keeps the format on the column or
-row, as Sheets does, rather than on each of their million cells: every
-cell of it shows the format unless it has its own, and a cell typed into
-later takes it. A cell's format comes from the cell, else its row, else
-its column, else the whole sheet's (Ctrl+A twice, then a format); the
-number format and the text style fall back separately. The file keeps
-them in a `lines` field after the widths, runs of lines with the same
-formatting together, and older builds ignore it:
+### Column and row formats
+
+[Formats of whole columns and rows](data.md#rows-and-columns) are kept
+in a `lines` field after the widths, runs of lines with the same
+formatting together; `A:XFD` is the whole sheet's format:
 
 ```json
   "lines": {"A:XFD": {"italic":true}, "B:D": {"format":"currency","decimals":2}, "1:1": {"bold":true}},
 ```
 
-`A:XFD` is the whole sheet's format. A cell whose formatting its lines
-can't express (Automatic in a currency column) has `"own": true`.
+### Several sheets
 
-## Several sheets
-
-A file of one sheet, whose formulas name no sheet, keeps the single-sheet
-layout above, so older builds of 012 open it; a renamed sheet adds a `name`
-field they ignore. Anything else is version 4: the sheets are a list, each
-with its name and the fields a version 3 file has at the top, and named
-ranges say their sheet. The workbook's settings (named ranges, decimal
-arithmetic, the sheet shown when saved) stay at the top:
+In version 4 the sheets are a list, each with its name and the fields a
+version 3 file has at the top, and named ranges say their sheet. The
+workbook's settings (named ranges, decimal arithmetic, the sheet shown
+when saved as `active`) stay at the top:
 
 ```json
 {
@@ -194,6 +249,7 @@ arithmetic, the sheet shown when saved) stay at the top:
     },
     {
       "name": "Q3 plan",
+      "hidden": true,
       "cells": {
         "A1": "=Budget!B1*3"
       }
@@ -202,22 +258,12 @@ arithmetic, the sheet shown when saved) stay at the top:
 }
 ```
 
-Older builds refuse version 4 files rather than lose sheets.
+### Pivot tables
 
-A hidden sheet (Hide sheet on its tab) has `"hidden": true` after its
-name. It needs no version bump: builds without hidden sheets ignore the
-field and show the sheet. A file whose sheets are all hidden opens with
-the first one shown. XLSX downloads write hidden sheets hidden, and
-sheets hidden in Excel import hidden.
-
-## Pivot tables
-
-A workbook with a pivot table is version 5: version 4 with a `pivot`
-field, on one line after the cells of the pivot's sheet, holding its
-definition. The results are never saved; they are computed again when
-the file opens, so the file stays small and can't disagree with its
-data. Builds that know only version 4 refuse the file rather than show an
-empty sheet; a workbook without pivots is still written as version 4.
+A pivot's sheet has a `pivot` field, on one line after its cells,
+holding the definition. The results are never saved; they are computed
+again when the file opens, so the file stays small and can't disagree
+with its data.
 
 ```json
 {
@@ -240,11 +286,10 @@ empty sheet; a workbook without pivots is still written as version 4.
   `condition` with its `value`.
 - `rowTotals` and `columnTotals` are the grand total row and column.
 
-## Conditional formats and data validation
+### Conditional formats and data validation
 
-A sheet's rules are two optional fields after its cells and charts, one
-rule per line; they need no version, and older builds ignore them
-(losing the rules, as they lose charts):
+A sheet's rules are two lists after its cells and charts, one rule per
+line:
 
 ```json
   "conditionalFormats": [
