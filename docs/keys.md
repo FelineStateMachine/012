@@ -83,7 +83,7 @@ are taken.
 | `o` `O` | Insert a row below or above and start typing in it |
 | `x` | Clear the cell (with a count, that many to the right) |
 | `dd` `yy` | Cut or copy the row (with a count, that many rows); `p` pastes them back |
-| `p` `P` | Paste rows cut or copied with `dd` or `yy` as new rows below or above; other copied cells paste at the active cell |
+| `p` `P` | Paste rows cut or copied with `dd` or `yy` as new rows below or above, with their row formats; other copied cells paste at the active cell |
 | `u`, Ctrl+R | Undo, redo |
 | `v` `V` | Select cells or whole rows (VISUAL); motions stretch the selection |
 | `/`, `n` `N` | Find (Enter stays on the match), next and previous match |

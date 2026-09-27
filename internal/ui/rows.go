@@ -37,14 +37,11 @@ func init() {
 	)
 }
 
-// selectedRows is the rows of the selection across the columns in use.
+// selectedRows is the rows of the selection, whole, so a copy takes their
+// row formats along as a whole-row copy does.
 func (m *Model) selectedRows() sheet.Rect {
 	r := m.selection()
-	last := 0
-	if used, ok := m.sheet.UsedRange(); ok {
-		last = used.To.Col
-	}
-	return sheet.Rect{From: sheet.Addr{Row: r.From.Row}, To: sheet.Addr{Col: last, Row: r.To.Row}}
+	return sheet.Rect{From: sheet.Addr{Row: r.From.Row}, To: sheet.Addr{Col: sheet.MaxCols - 1, Row: r.To.Row}}
 }
 
 // copyRows puts rows r on the clipboard, marked as whole rows so pasting

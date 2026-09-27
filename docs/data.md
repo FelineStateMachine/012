@@ -24,7 +24,10 @@ Shift+Space) copied and pasted at the top of a column, or the start of a
 row, take their column or row formats along, so a pasted column is
 currency all the way down, not only where it had data; cut and pasted,
 they move them, leaving the source columns plain. Pasted anywhere else,
-they paste as a block of the cells that hold something. Formulas reading
+they paste as a block of the cells that hold something. A block cut and
+pasted leaves the cells it came from plain, as Sheets does, even where
+a formatted column or row crosses them. Vim's `yy` and `dd` copy whole
+rows, so `p` and `P` bring their row formats along. Formulas reading
 a column whose format changes, blank cells included, show the new format
 at once (`=B5*2` shows currency when column B becomes currency). Copies also go to the
 system clipboard as tab-separated text (OSC 52, so it works over SSH), and
