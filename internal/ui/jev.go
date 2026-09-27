@@ -16,7 +16,8 @@ import (
 
 // JEV functions are answered in the background: the engine queues
 // questions in the cache, Update sends them as commands (a few at a time),
-// and each answer triggers a recalculation of the JEV cells.
+// and answers are stored as they arrive and, a frame later, the cells
+// that asked them are recalculated together.
 
 const (
 	jevParallel = 8
@@ -26,6 +27,11 @@ const (
 type jevRunner struct {
 	client jev.Client
 	cache  *jev.Cache
+
+	// answered are the questions answered since the last recalculation,
+	// which runs gather after the first of them: at most one per frame.
+	answered []sheet.RemoteCall
+	gather   time.Duration
 }
 
 type jevAnswerMsg struct {
@@ -33,10 +39,13 @@ type jevAnswerMsg struct {
 	answer sheet.RemoteAnswer
 }
 
+// jevRecalcMsg recalculates the cells whose questions were answered.
+type jevRecalcMsg struct{}
+
 // EnableJEV turns on JEV functions: the cache answers them, for this
 // workbook and those opened later, and the client asks what it lacks.
 func (m *Model) EnableJEV(client jev.Client, cache *jev.Cache) {
-	m.jev = &jevRunner{client: client, cache: cache}
+	m.jev = &jevRunner{client: client, cache: cache, gather: FrameInterval}
 	m.sheet.Book().SetRemote(cache)
 }
 
@@ -99,16 +108,37 @@ func (j *jevRunner) send() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// answerJEV stores an answer and recalculates the JEV cells, telling
-// the user when the last question is answered.
+// answerJEV stores an answer. The first answer since the last
+// recalculation schedules the next one, a frame later, so answers that
+// arrive together recalculate once.
 func (m *Model) answerJEV(msg jevAnswerMsg) tea.Cmd {
-	if m.jev == nil {
+	j := m.jev
+	if j == nil {
 		return nil
 	}
-	busy := m.jev.busy() != ""
-	m.jev.cache.Store(msg.call, msg.answer)
-	m.sheet.RecalcVolatile()
-	if busy && m.jev.busy() == "" {
+	j.cache.Store(msg.call, msg.answer)
+	j.answered = append(j.answered, msg.call)
+	if len(j.answered) > 1 {
+		return nil // already scheduled
+	}
+	if j.gather <= 0 {
+		return func() tea.Msg { return jevRecalcMsg{} }
+	}
+	return tea.Tick(j.gather, func(time.Time) tea.Msg { return jevRecalcMsg{} })
+}
+
+// recalcAnswered recalculates the cells waiting for the answers stored
+// since the last time, telling the user when the last question is
+// answered.
+func (m *Model) recalcAnswered() tea.Cmd {
+	j := m.jev
+	if j == nil || len(j.answered) == 0 {
+		return nil
+	}
+	calls := j.answered
+	j.answered = nil
+	m.sheet.Book().RecalcAnswered(calls)
+	if j.busy() == "" {
 		return m.term.notify("JEV finished answering in " + m.displayName())
 	}
 	return nil

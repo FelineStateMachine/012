@@ -123,8 +123,11 @@ move without touching callers:
   aggregates read ranges.
 - **Files.** A streaming or columnar `.012` format replaces `file.go`'s
   whole-document JSON; the format is already separate from the store.
-- **Depth limits.** A cap on nesting goes in `internal/formula`'s parser,
-  so a pathological formula fails to parse before anything evaluates it.
+- **Depth limits.** `internal/formula`'s parser caps nesting at
+  `formula.MaxDepth` (1024 levels), so a pathological formula fails to
+  parse before anything evaluates it; evaluation puts off cells past
+  65,536 levels of a chain rather than recursing further
+  (`evaluate.go`).
 - **Functions.** The function library (values, evaluation, `FuncDef` and
   the `functions_*.go` tables, about a third of `sheet`) is the next
   boundary: it needs cells only through `lookup`. It stays in `sheet`

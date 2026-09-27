@@ -48,6 +48,16 @@ const (
 // doubleClick is the longest gap between two clicks that edits a cell.
 const doubleClick = 400 * time.Millisecond
 
+const (
+	// FrameRate is how many frames a second Bubble Tea may draw, its
+	// maximum (tea.WithFPS). A key's answer waits for the next frame, so
+	// this halves the wait at the default 60. The renderer writes a frame
+	// only when the view changed, so an idle screen costs no more.
+	FrameRate = 120
+	// FrameInterval is the time between frames.
+	FrameInterval = time.Second / FrameRate
+)
+
 // Model is the root of the UI, the tea.Model Bubble Tea runs. It holds
 // the file, the mode and the grid, owns a component for everything that
 // takes input or draws a part of the screen, routes each message to the
@@ -168,6 +178,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case jevAnswerMsg:
 		cmd = m.answerJEV(msg)
+	case jevRecalcMsg:
+		cmd = m.recalcAnswered()
 	case importedMsg, importTickMsg, exportedMsg:
 		cmd = m.handleTransfer(msg)
 	case macroCallMsg:

@@ -214,7 +214,7 @@ func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window) (id
 		m.EnableJEV(s.jev, jev.NewCache())
 	}
 	in := newActivity(sess)
-	p := tea.NewProgram(m, append(bm.MakeOptions(sess), tea.WithInput(in))...)
+	p := tea.NewProgram(m, append(bm.MakeOptions(sess), tea.WithInput(in), tea.WithFPS(ui.FrameRate))...)
 
 	// The connection's context ends when the client goes away; cancel
 	// stops the goroutines below when the program quits first.

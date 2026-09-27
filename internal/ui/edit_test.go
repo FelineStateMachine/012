@@ -13,6 +13,19 @@ func init() {
 	named["end"] = tea.Key{Code: tea.KeyEnd}
 }
 
+// A formula nested past the parser's cap stays in EDIT, saying why on
+// the context line.
+func TestTooDeepFormulaExplained(t *testing.T) {
+	m := newModel()
+	press(t, m, "="+strings.Repeat("(", 1100)+"1"+strings.Repeat(")", 1100), "<enter>")
+	if m.mode != modeEdit || m.sheet.Cell(addr("A1")) != nil {
+		t.Fatalf("mode %v, A1 %+v", m.mode, m.sheet.Cell(addr("A1")))
+	}
+	if got := line(m, contextLine); !strings.Contains(got, "Formula is nested too deeply (more than 1024 levels)") {
+		t.Errorf("context line %q", got)
+	}
+}
+
 func TestUndoRedoKeys(t *testing.T) {
 	t.Chdir(t.TempDir())
 	m := newModel()

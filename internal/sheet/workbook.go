@@ -39,10 +39,18 @@ type Workbook struct {
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
 
-	remote  RemoteSource // answers JEV functions, see remote.go
-	hist    history      // undo and redo, see history.go
-	active  int          // the sheet last shown, saved in the file
-	decimal bool         // decimal arithmetic, see decimal.go
+	remote RemoteSource // answers JEV functions, see remote.go
+	// waiting are the formulas that were shown Loading… by question key,
+	// so an answer recalculates only them; evaluating is the formula
+	// being evaluated, which a question is asked for (see remote.go).
+	waiting    map[string]map[loc]struct{}
+	evaluating loc
+	// depth counts the cells and operators being evaluated, nested; see
+	// evaluate.go.
+	depth   int
+	hist    history // undo and redo, see history.go
+	active  int     // the sheet last shown, saved in the file
+	decimal bool    // decimal arithmetic, see decimal.go
 
 	macros      []Macro // see macros.go
 	macroOrigin string

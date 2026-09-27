@@ -6,11 +6,11 @@ import "github.com/FelineStateMachine/012/internal/formula"
 // talks to the network: it describes each question as a RemoteCall and
 // asks the workbook's RemoteSource for the answer. Until the answer arrives the cell shows
 // Loading…, and the source queues the call; when answers arrive the UI
-// calls RecalcVolatile, and the functions, being volatile, look again.
+// calls RecalcAnswered, which recomputes the formulas waiting for them.
+// The functions are volatile, so any other change looks again too.
 
 // RemoteCall is one question for the model, built from a function's
-// arguments. It is comparable through its JSON form, which callers use as
-// a cache key.
+// arguments. It isn't comparable: Key identifies it by its content.
 type RemoteCall struct {
 	Kind         string `json:"kind"` // "noul", "choice" or "score"
 	State        any    `json:"state"`
@@ -92,4 +92,40 @@ func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
 	}
 	walk(s.bound(c))
 	return calls
+}
+
+// wait notes that the formula being evaluated is waiting for the answer
+// to c.
+func (w *Workbook) wait(c RemoteCall) {
+	if w.evaluating.s == nil {
+		return
+	}
+	k := c.Key()
+	if w.waiting == nil {
+		w.waiting = map[string]map[loc]struct{}{}
+	}
+	if w.waiting[k] == nil {
+		w.waiting[k] = map[loc]struct{}{}
+	}
+	w.waiting[k][w.evaluating] = struct{}{}
+}
+
+// RecalcAnswered recomputes the formulas that were waiting for the
+// answers to calls, and what depends on them, on every sheet: with
+// thousands of JEV cells, an answer costs the cells that asked it, not
+// all of them. It doesn't touch the undo history.
+func (w *Workbook) RecalcAnswered(calls []RemoteCall) {
+	var changed []loc
+	for _, c := range calls {
+		k := c.Key()
+		for l := range w.waiting[k] {
+			if l.s.live && l.s.cells.get(l.a) != nil {
+				changed = append(changed, l)
+			}
+		}
+		delete(w.waiting, k)
+	}
+	if len(changed) > 0 {
+		w.recalcFrom(changed, false)
+	}
 }

@@ -1,10 +1,6 @@
 package sheet
 
-import (
-	"strings"
-
-	"github.com/FelineStateMachine/012/internal/formula"
-)
+import "github.com/FelineStateMachine/012/internal/formula"
 
 // Recalculation: a change marks the changed cells and everything that
 // transitively reads them dirty, on any sheet, then evaluates the dirty
@@ -46,13 +42,19 @@ const (
 	dirty = iota + 1
 	visiting
 	done
+	deferred // put off: evaluation went too deep, see evaluate.go
 )
 
 // recalc recomputes the changed cells, volatile formulas, and everything
 // that transitively depends on them, on any sheet.
-func (w *Workbook) recalc(changed []loc) {
+func (w *Workbook) recalc(changed []loc) { w.recalcFrom(changed, true) }
+
+// recalcFrom recomputes the changed cells and everything that
+// transitively depends on them, and the volatile formulas with theirs
+// when volatiles is set.
+func (w *Workbook) recalcFrom(changed []loc, volatiles bool) {
 	start := recalcStart()
-	n := w.affected(changed)
+	n := w.affected(changed, volatiles)
 	stale := w.stalePivots()
 	w.evaluate()
 	w.observe(false, start, n)
@@ -60,13 +62,16 @@ func (w *Workbook) recalc(changed []loc) {
 }
 
 // affected marks dirty, in each sheet's calc, the changed cells, volatile
-// formulas, and every formula that transitively reads them, on any sheet,
-// and returns how many it marked.
-func (w *Workbook) affected(changed []loc) int {
+// formulas if volatiles is set, and every formula that transitively reads
+// them, on any sheet, and returns how many it marked.
+func (w *Workbook) affected(changed []loc, volatiles bool) int {
 	m := marking{w: w, queue: append([]loc(nil), changed...), named: w.namedInUse(), byName: map[*Sheet]bool{}}
 	for _, s := range w.sheets {
 		s.calc = make(map[Addr]int)
 		m.byName[s] = w.crossKeys[formula.SheetKey(s.name)] > 0
+		if !volatiles {
+			continue
+		}
 		for a := range s.volatile {
 			m.queue = append(m.queue, loc{s, a})
 		}
@@ -158,66 +163,6 @@ func (c *Cell) rangeHas(a Addr) bool {
 		}
 	}
 	return false
-}
-
-// evaluate computes the cells marked dirty in each sheet's calc. Cells
-// are evaluated lazily in dependency order: reading a dirty cell
-// evaluates it first. A cell that is reached again while it is still
-// being evaluated is part of a cycle and becomes ERR. The state lives on
-// the sheets, keyed by address as on one sheet, and each sheet's lookup
-// is made once, so evaluating a formula allocates nothing for sheets.
-func (w *Workbook) evaluate() {
-	w.Circular = false
-	var compute func(s *Sheet, a Addr) Value
-	compute = func(s *Sheet, a Addr) Value {
-		// Every cell a formula reads comes through here, so it looks
-		// each map up once: a SUM over 8192 cells makes 8192 calls.
-		c := s.cells.get(a)
-		switch st := s.calc[a]; {
-		case c == nil:
-			return Value{}
-		case st == visiting:
-			w.Circular = true
-			return ErrRef
-		case st != dirty:
-			return c.Value
-		case c.derived: // a pivot's result, set when the pivot was computed
-			s.calc[a] = done
-			return c.Value
-		}
-		s.calc[a] = visiting
-		c.auto = Format{}
-		switch {
-		case c.Input == "":
-			c.Value = Value{}
-		case c.expr == nil && c.Format.Kind == FmtText:
-			c.Value = Value{Kind: Text, Str: c.Input}
-		case c.expr == nil:
-			c.Value = Value{Kind: Text, Str: strings.TrimPrefix(c.Input, "'")}
-		default:
-			expr := s.bound(c)
-			c.Value = eval(w.arith(expr), s.calcGet)
-			if _, lit := expr.(formula.Num); !lit {
-				c.auto = inferFormat(expr, s.calcFmt)
-			}
-		}
-		s.calc[a] = done
-		return c.Value
-	}
-	for _, s := range w.sheets {
-		s.version++
-		s.hidden.valid = false // values may have changed what the filter hides
-		s.calcGet = w.lookupOn(s, compute)
-		s.calcFmt = w.formatFrom(s)
-	}
-	for _, s := range w.sheets {
-		for a := range s.calc {
-			compute(s, a)
-		}
-	}
-	for _, s := range w.sheets {
-		s.calc, s.calcGet, s.calcFmt = nil, nil, nil
-	}
 }
 
 // crossReads reports whether the formula at u reads the cell l through a
