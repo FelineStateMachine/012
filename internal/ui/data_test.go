@@ -37,7 +37,7 @@ func TestFillHandleDrag(t *testing.T) {
 			y := gridTop + len(tt.cells) - 1
 			// Hovering the corner cell shows the handle.
 			send(m, tea.MouseMotionMsg{X: cellX(0), Y: y})
-			if !strings.Contains(line(m, y), "▗") {
+			if !strings.Contains(line(m, y), "▟") {
 				t.Fatalf("no handle: %q", line(m, y))
 			}
 			if h := m.hitTest(handleX(0), y); h.kind != hitFillHandle {

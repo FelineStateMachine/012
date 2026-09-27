@@ -50,9 +50,9 @@ func TestFrozenPanesStayWhileScrolling(t *testing.T) {
 	if m.top != 28 {
 		t.Errorf("top %d, want 28 (13 scrolling rows ending at 41)", m.top)
 	}
-	// Moving up into the frozen row doesn't scroll.
+	// Moving up into the frozen row scrolls back to the top, as in Sheets.
 	press(t, m, "<ctrl+up>")
-	if m.cur != addr("B1") || m.top != 28 {
+	if m.cur != addr("B1") || m.top != 1 {
 		t.Errorf("ctrl+up: cur %v top %d", m.cur, m.top)
 	}
 	press(t, m, "<down>")

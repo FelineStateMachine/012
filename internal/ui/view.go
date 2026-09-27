@@ -174,7 +174,7 @@ func (m *Model) cellsText(row, first int, spans []span, focus sheet.Addr, sel sh
 		text := m.renderSpan(sp, base, colored)
 		if m.showFillHandle(a) {
 			w := m.sheet.ColWidth(a.Col)
-			text = ansi.Truncate(text, w-1, "") + base.Bold(true).Render("▗")
+			text = ansi.Truncate(text, w-1, "") + base.Render("▟")
 		}
 		b.WriteString(text)
 	}

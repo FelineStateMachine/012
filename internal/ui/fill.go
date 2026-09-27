@@ -5,7 +5,7 @@ import (
 )
 
 // The fill handle, as in Sheets: the bottom-right corner of the selection
-// shows a small handle (▗) when the mouse is over that cell. Dragging it
+// shows a small handle (▟) when the mouse is over that cell. Dragging it
 // down, up, right or left fills the cells it passes over, continuing a
 // series (1, 2, 3; Jan, Feb; Item 1, Item 2) or copying. While dragging,
 // the range that will be filled is highlighted and the context line says

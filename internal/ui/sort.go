@@ -303,7 +303,7 @@ func (b *sortBar) mouse(m *Model, e mouseEvent) tea.Cmd {
 // status shows the keys, the most useful ones first on narrow screens.
 func (b *sortBar) status(m *Model) (string, string) {
 	pairs := []string{"Left/Right", "column", "Space", "order", "Enter", "sort", "Esc", "cancel"}
-	desc := "Alt+A add a column  Alt+H header row  Tab next"
+	desc := "Alt+A add  Alt+H header  Tab next"
 	for {
 		keys := m.keyHints(pairs...)
 		switch {

@@ -308,6 +308,16 @@ func (m *Model) navigate(key string, a *sheet.Addr) bool {
 	}
 	*a = clampAddr(*a)
 	a.Row = m.visibleRow(a.Row)
+	// Moving into the frozen panes by keyboard scrolls the rest back to
+	// the start, as in Sheets (Ctrl+Home shows A1 with row 2 under it).
+	if fr, fc := m.frozen(); a.Row < fr || a.Col < fc {
+		if a.Row < fr {
+			m.top = 0
+		}
+		if a.Col < fc {
+			m.left = 0
+		}
+	}
 	m.clampView()
 	return true
 }
