@@ -3,11 +3,12 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"slices"
+	"log/slog"
 	"strconv"
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
@@ -288,11 +289,30 @@ func (h scriptHost) Run(id string, answer *string) error {
 		return fmt.Errorf("no command %q; the palette (Ctrl+K) lists them, and docs/reference/macro-api.md how to find ids", id)
 	case c.macro == macroNever:
 		return fmt.Errorf("%s (%s) can't run in a macro", c.title, id)
+	case c.answer != nil && answer != nil:
+		return h.answered(c, *answer)
 	case !c.available(m):
 		return fmt.Errorf("%s can't run now", c.title)
 	}
 	m.macros.cmds = append(m.macros.cmds, m.runCommand(id))
 	return h.answer(c, answer)
+}
+
+// answered runs a command that opens a dialog with the dialog's
+// choices, as a recording writes them.
+func (h scriptHost) answered(c *command, text string) error {
+	m := h.m
+	span := m.spans.Start("command", slog.String("id", c.id)) // as runCommand times commands
+	cmd, err := c.answer(m, text)
+	span.End()
+	m.macros.cmds = append(m.macros.cmds, cmd)
+	if err != nil {
+		if m.overlay != nil {
+			m.closeOverlay()
+		}
+		return fmt.Errorf("%s: %w", c.title, err)
+	}
+	return h.answer(c, nil)
 }
 
 // answer answers the question a command left open, or backs out of it
@@ -332,17 +352,18 @@ func (h scriptHost) choose(c *command, answer *string) error {
 	if p, ok := m.overlay.(*picker.Picker); ok && p.Answers {
 		return h.pickAnswer(c, p, answer)
 	}
-	bar, ok := m.overlay.(*choiceBar)
-	if !ok {
+	bar, ok := m.overlay.(*choicebar.Bar)
+	switch {
+	case !ok && c.answer != nil:
+		m.closeOverlay()
+		return fmt.Errorf("%s opens a dialog: give run(%q, answer={...}) with its choices, as a recording writes them", c.title, c.id)
+	case !ok:
 		m.closeOverlay()
 		return fmt.Errorf("%s opens a dialog; it can't run in a macro", c.title)
 	}
 	if answer != nil {
-		i := slices.IndexFunc(bar.choices, func(ch choice) bool {
-			return strings.EqualFold(ch.key, *answer) || strings.EqualFold(ch.label, *answer)
-		})
-		if i >= 0 {
-			m.macros.cmds = append(m.macros.cmds, bar.choose(m, bar.choices[i]))
+		if i := bar.Find(*answer); i >= 0 {
+			m.macros.cmds = append(m.macros.cmds, bar.Choose(i))
 			if m.mode == modeError {
 				return h.failure()
 			}
@@ -350,7 +371,7 @@ func (h scriptHost) choose(c *command, answer *string) error {
 		}
 	}
 	m.closeOverlay()
-	return fmt.Errorf("%s asks %q: give run(%q, answer=...) with one of its keys", c.title, bar.msg, c.id)
+	return fmt.Errorf("%s asks %q: give run(%q, answer=...) with one of its keys", c.title, bar.Msg, c.id)
 }
 
 // pickAnswer answers a picker that asks a command's question with the

@@ -31,12 +31,14 @@ const newChartW, newChartH = 48, 16
 
 func init() {
 	register(
-		&command{id: "insert.chart", title: "Chart", desc: "Chart the selected data, or the table around the active cell", run: (*Model).insertChart},
+		&command{id: "insert.chart", title: "Chart", desc: "Chart the selected data, or the table around the active cell", run: (*Model).insertChart,
+			answer: (*Model).answerInsertChart},
 		&command{id: "chart.edit", title: "Edit chart", desc: "Change a chart's type, data and labels",
 			enabled: hasCharts, run: func(m *Model) tea.Cmd {
 				m.openChartEditor(m.targetChart(), false, m.sheet.StateID())
 				return nil
-			}},
+			},
+			answer: (*Model).answerEditChart},
 		&command{id: "chart.delete", title: "Delete chart", desc: "Remove a chart from the sheet",
 			enabled: hasCharts, run: func(m *Model) tea.Cmd {
 				m.deleteChart(m.targetChart())
@@ -333,23 +335,44 @@ func (m *Model) chartClick(mouse tea.Mouse) (tea.Cmd, bool) {
 	if i < 0 {
 		return nil, false
 	}
-	m.selectChart(i)
-	s := m.overlay.(*chartSel)
+	s := m.selectChart(i)
 	if mouse.Button == tea.MouseRight {
-		m.showContextMenu(chartMenu, mouse.X, mouse.Y+1)
+		m.showChartMenu(mouse.X, mouse.Y+1)
 		return nil, true
 	}
-	s.press(m, mouse.X, mouse.Y)
+	s.press(mouse.X, mouse.Y)
 	return nil, true
 }
 
 var chartMenu = []menuItem{{cmd: "chart.edit"}, {cmd: "chart.delete"}}
 
 // selectChart selects chart i.
-func (m *Model) selectChart(i int) {
+func (m *Model) selectChart(i int) *chartSel {
 	m.clearSelection()
 	m.charts.last = i
-	m.openOverlay(&chartSel{m: m, i: i})
+	s := &chartSel{m: m, i: i}
+	m.openOverlay(s)
+	return s
+}
+
+func (m *Model) forgetChart()           { m.charts.last = -1 }
+func (m *Model) showChartMenu(x, y int) { m.showContextMenu(chartMenu, x, y) }
+func (m *Model) say(msg string)         { m.note = msg }
+func (m *Model) passKey(k tea.KeyPressMsg) tea.Cmd {
+	return m.handleKey(k)
+}
+
+// passMouse hands a press or the wheel to the grid, as if no chart were
+// selected.
+func (m *Model) passMouse(e overlay.MouseEvent) tea.Cmd {
+	mouse := tea.Mouse{X: e.X, Y: e.Y, Button: e.Button}
+	switch e.Kind {
+	case overlay.MousePress:
+		return m.handlePress(mouse)
+	case overlay.MouseWheel:
+		m.handleWheel(mouse)
+	}
+	return nil
 }
 
 // setShape sets the terminal's pointer shape, if it changed.

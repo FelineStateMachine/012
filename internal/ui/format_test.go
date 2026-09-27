@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
 )
 
 // cells returns the text of the first n columns of grid row r (1-based),
@@ -227,7 +228,7 @@ func TestFormatHelpListsShortcuts(t *testing.T) {
 	m.Update(teaSize(120, 60))
 	press(t, m, "<f1>")
 	// Check every row of the shortcuts overlay, not just the visible ones.
-	rows, _ := m.overlay.(*shortcuts).lines(m)
+	rows, _ := m.overlay.(*shortcuts.View).Lines()
 	s := ansi.Strip(strings.Join(rows, "\n"))
 	for _, want := range []string{"Ctrl+Shift+4", "Ctrl+B", "Alt+Shift+5", "Ctrl+\\"} {
 		if !strings.Contains(s, want) {

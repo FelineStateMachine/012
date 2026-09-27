@@ -101,8 +101,8 @@ func (m *Model) askProtected(r sheet.Rect, retry func(*Model) tea.Cmd) bool {
 	if p.Desc != "" {
 		desc = p.Desc + ": shouldn't be changed by accident"
 	}
-	m.openOverlay(&choiceBar{
-		m: m, msg: msg, warn: true, desc: desc,
+	m.ask(question{
+		msg: msg, warn: true, desc: desc,
 		choices: []choice{
 			{key: "enter", label: "Edit anyway", run: func(m *Model) tea.Cmd {
 				m.protectOK = true

@@ -16,13 +16,14 @@ import (
 
 // fakeHost is a sheet and an edit line, recording what the panel asks.
 type fakeHost struct {
-	th     theme.Theme
-	line   lineedit.Line
-	s      *sheet.Sheet
-	sel    sheet.Rect
-	closed bool
-	edits  int
-	saves  []string
+	th       theme.Theme
+	line     lineedit.Line
+	s        *sheet.Sheet
+	sel      sheet.Rect
+	closed   bool
+	edits    int
+	reworked []string
+	saves    []string
 }
 
 func newHost() *fakeHost {
@@ -33,13 +34,16 @@ func newHost() *fakeHost {
 	return &fakeHost{th: theme.New(true), s: s, sel: sheet.Rect{To: sheet.Addr{Row: 2}}}
 }
 
-func (h *fakeHost) Theme() *theme.Theme    { return &h.th }
-func (h *fakeHost) Size() (int, int)       { return 100, 30 }
-func (h *fakeHost) Line() *lineedit.Line   { return &h.line }
-func (h *fakeHost) Close()                 { h.closed = true }
-func (h *fakeHost) Sheet() *sheet.Sheet    { return h.s }
-func (h *fakeHost) Selection() sheet.Rect  { return h.sel }
-func (h *fakeHost) Reworked()              { h.edits++ }
+func (h *fakeHost) Theme() *theme.Theme   { return &h.th }
+func (h *fakeHost) Size() (int, int)      { return 100, 30 }
+func (h *fakeHost) Line() *lineedit.Line  { return &h.line }
+func (h *fakeHost) Close()                { h.closed = true }
+func (h *fakeHost) Sheet() *sheet.Sheet   { return h.s }
+func (h *fakeHost) Selection() sheet.Rect { return h.sel }
+func (h *fakeHost) Reworked(id, answer string) {
+	h.edits++
+	h.reworked = append(h.reworked, id+" "+answer)
+}
 func (h *fakeHost) Slot(i int) color.Color { return color.Gray{Y: uint8(i * 16)} }
 func (h *fakeHost) SaveFormat(i int, f sheet.CondFormat) error {
 	h.saves = append(h.saves, f.JSON())
@@ -183,6 +187,10 @@ func TestRemoveAndReorder(t *testing.T) {
 	press(e, "<delete>")
 	if fs := h.s.CondFormats(); len(fs) != 1 || fs[0].Args[0] != "2" || e.list.Sel != 1 {
 		t.Errorf("remove: %+v sel %d", fs, e.list.Sel)
+	}
+	want := `format.conditional_move {"rule":1,"to":2}` + "\n" + "format.conditional_remove 2"
+	if got := strings.Join(h.reworked, "\n"); got != want {
+		t.Errorf("as a macro records them:\n%s\nwant:\n%s", got, want)
 	}
 }
 

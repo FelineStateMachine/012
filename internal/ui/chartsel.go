@@ -13,7 +13,7 @@ import (
 // shows it across the grid (keyboard.go); the mouse drags it or its
 // corner. Other keys deselect it and act as usual.
 type chartSel struct {
-	m       *Model // the model it acts on
+	m       chartHost // the model, through what a selected chart needs of it
 	i       int
 	drag    int // chartDragNone, chartDragMove or chartDragResize
 	grabX   int // where the chart was grabbed, relative to its corner
@@ -28,17 +28,25 @@ func (s *chartSel) Layout() []overlay.Box {
 	return nil // drawn with the other charts, see chartBoxes
 }
 
-func (s *chartSel) chart(m *Model) (sheet.Chart, bool) {
-	charts := m.sheet.Charts()
+func (s *chartSel) chart() (sheet.Chart, bool) {
+	charts := s.m.sheetShown().Charts()
 	if s.i < 0 || s.i >= len(charts) {
 		return sheet.Chart{}, false
 	}
 	return charts[s.i], true
 }
 
+// shown is the chart as drawn: where it's being dragged, if it is.
+func (s *chartSel) shown() (sheet.Chart, bool) {
+	if s.preview != nil {
+		return *s.preview, true
+	}
+	return s.chart()
+}
+
 func (s *chartSel) Key(k tea.KeyPressMsg) tea.Cmd {
 	m := s.m
-	c, ok := s.chart(m)
+	c, ok := s.chart()
 	if !ok {
 		m.closeOverlay()
 		return nil
@@ -56,7 +64,7 @@ func (s *chartSel) Key(k tea.KeyPressMsg) tea.Cmd {
 	case "delete", "backspace":
 		return m.runCommand("chart.delete")
 	case "tab":
-		m.selectChart((s.i + 1) % len(m.sheet.Charts()))
+		m.selectChart((s.i + 1) % len(m.sheetShown().Charts()))
 		return nil
 	case "up":
 		moved.At.Row--
@@ -76,25 +84,35 @@ func (s *chartSel) Key(k tea.KeyPressMsg) tea.Cmd {
 		moved.W += 2
 	default:
 		m.closeOverlay()
-		return m.handleKey(k)
+		return m.passKey(k)
 	}
 	label := "move chart"
 	if moved.W != c.W || moved.H != c.H {
 		label = "resize chart"
 	}
-	m.sheet.SetChart(s.i, moved, label)
-	m.changed = true
+	s.place(c, moved, label)
 	m.showChart(s.i)
 	return nil
 }
 
+// place puts the chart at to, from where it was, as one undo step, and
+// records it.
+func (s *chartSel) place(from, to sheet.Chart, label string) {
+	sh := s.m.sheetShown()
+	sh.SetChart(s.i, to, label)
+	s.m.syncChanged()
+	if now, ok := s.chart(); ok {
+		s.m.recordChart("chart.edit", s.i, from, now, true)
+	}
+}
+
 // press starts a drag at x, y: the corner resizes, anywhere else moves.
-func (s *chartSel) press(m *Model, x, y int) {
-	c, ok := s.chart(m)
+func (s *chartSel) press(x, y int) {
+	c, ok := s.chart()
 	if !ok {
 		return
 	}
-	cx, cy := m.chartScreen(c)
+	cx, cy := s.m.chartScreen(c)
 	s.grabX, s.grabY = x-cx, y-cy
 	s.drag = chartDragMove
 	if x >= cx+c.W-2 && y == cy+c.H-1 {
@@ -104,49 +122,49 @@ func (s *chartSel) press(m *Model, x, y int) {
 }
 
 func (s *chartSel) Mouse(e overlay.MouseEvent) tea.Cmd {
-	m := s.m
 	if e.Kind != overlay.MouseMotion {
 		s.unzoom()
 	}
 	switch e.Kind {
 	case overlay.MousePress:
-		return s.pressAt(m, e)
+		return s.pressAt(e)
 	case overlay.MouseMotion:
-		return s.motion(m, e)
+		return s.motion(e)
 	case overlay.MouseRelease:
-		s.release(m)
+		s.release()
 	case overlay.MouseWheel:
-		m.handleWheel(tea.Mouse{X: e.X, Y: e.Y, Button: e.Button})
+		return s.m.passMouse(e)
 	}
 	return nil
 }
 
 // pressAt selects the chart pressed and starts dragging it, or opens its
 // menu; pressing off the charts deselects and acts as usual.
-func (s *chartSel) pressAt(m *Model, e overlay.MouseEvent) tea.Cmd {
+func (s *chartSel) pressAt(e overlay.MouseEvent) tea.Cmd {
+	m := s.m
 	i := m.chartAt(e.X, e.Y)
 	switch {
 	case i < 0:
 		m.closeOverlay()
-		return m.handlePress(tea.Mouse{X: e.X, Y: e.Y, Button: e.Button})
+		return m.passMouse(e)
 	case e.Button == tea.MouseRight:
 		m.selectChart(i)
-		m.showContextMenu(chartMenu, e.X, e.Y+1)
+		m.showChartMenu(e.X, e.Y+1)
 	case e.Button == tea.MouseLeft:
 		if i != s.i {
-			m.selectChart(i)
-			s = m.overlay.(*chartSel)
+			s = m.selectChart(i)
 		}
-		s.press(m, e.X, e.Y)
+		s.press(e.X, e.Y)
 	}
 	return nil
 }
 
 // motion moves or resizes the chart being dragged, or else sets the
 // pointer shape for what's under the mouse.
-func (s *chartSel) motion(m *Model, e overlay.MouseEvent) tea.Cmd {
+func (s *chartSel) motion(e overlay.MouseEvent) tea.Cmd {
+	m := s.m
 	if s.drag == chartDragNone || s.preview == nil {
-		return m.setShape(s.hoverShape(m, e.X, e.Y))
+		return m.setShape(s.hoverShape(e.X, e.Y))
 	}
 	p := *s.preview
 	if s.drag == chartDragResize {
@@ -162,13 +180,13 @@ func (s *chartSel) motion(m *Model, e overlay.MouseEvent) tea.Cmd {
 
 // hoverShape is the pointer shape at x, y: a move cursor over charts,
 // and a resize one over the selected chart's corner.
-func (s *chartSel) hoverShape(m *Model, x, y int) string {
-	i := m.chartAt(x, y)
+func (s *chartSel) hoverShape(x, y int) string {
+	i := s.m.chartAt(x, y)
 	if i < 0 {
 		return "default"
 	}
-	if c := m.displayCharts()[i]; i == s.i {
-		cx, cy := m.chartScreen(c)
+	if c, ok := s.shown(); ok && i == s.i {
+		cx, cy := s.m.chartScreen(c)
 		if x >= cx+c.W-2 && y == cy+c.H-1 {
 			return "nwse-resize"
 		}
@@ -177,17 +195,14 @@ func (s *chartSel) hoverShape(m *Model, x, y int) string {
 }
 
 // release drops the chart being dragged where it is, as one undo step.
-func (s *chartSel) release(m *Model) {
-	if s.preview != nil && s.drag != chartDragNone {
+func (s *chartSel) release() {
+	c, ok := s.chart()
+	if ok && s.preview != nil && s.drag != chartDragNone && *s.preview != c {
 		label := "move chart"
 		if s.drag == chartDragResize {
 			label = "resize chart"
 		}
-		before := m.sheet.StateID()
-		m.sheet.SetChart(s.i, *s.preview, label)
-		if m.sheet.StateID() != before {
-			m.changed = true
-		}
+		s.place(c, *s.preview, label)
 	}
 	s.drag, s.preview = chartDragNone, nil
 }
@@ -213,20 +228,21 @@ func (g *grid) chartCellAt(x, y int) sheet.Addr {
 }
 
 func (s *chartSel) Status() (string, string) {
-	m := s.m
-	c, ok := s.chart(m)
+	th := s.m.styles()
+	width, _ := s.m.size()
+	c, ok := s.chart()
 	if !ok {
 		return "", ""
 	}
-	desc := m.th.Muted.Render("Chart of " + c.Data.String())
+	desc := th.Muted.Render("Chart of " + c.Data.String())
 	if s.zoom {
-		return desc, m.th.KeyHints("Space", "let go to go back")
+		return desc, th.KeyHints("Space", "let go to go back")
 	}
 	pairs := []string{"Enter", "edit", "Del", "delete", "Arrows", "move", "Shift+arrows", "resize", "Esc", "done"}
 	for {
-		keys := m.th.KeyHints(pairs...)
+		keys := th.KeyHints(pairs...)
 		switch {
-		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
+		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= width:
 			return desc, keys
 		case desc != "":
 			desc = ""
@@ -240,17 +256,17 @@ func (s *chartSel) Status() (string, string) {
 
 // ContextLine says what's selected and how to change it.
 func (s *chartSel) ContextLine() (string, string) {
-	m := s.m
-	c, ok := s.chart(m)
+	th := s.m.styles()
+	c, ok := s.chart()
 	if !ok {
 		return "", ""
 	}
 	how := "   drag to move, drag the corner to resize"
-	if m.session.releases { // Space held enlarges the chart: keyboard.go
+	if s.m.holdsKeys() { // Space held enlarges the chart: keyboard.go
 		how += ", hold Space to zoom"
 	}
-	return m.th.Key.Render(c.Type.Title()+" chart") + m.th.Muted.Render(" of ") + c.Data.String() +
-		m.th.Muted.Render(how), ""
+	return th.Key.Render(c.Type.Title()+" chart") + th.Muted.Render(" of ") + c.Data.String() +
+		th.Muted.Render(how), ""
 }
 
 const (

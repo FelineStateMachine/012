@@ -50,6 +50,12 @@ type command struct {
 	// macroUse.
 	macro macroUse
 
+	// answer, when set, runs the command with the answer to the dialog
+	// it opens, as a script's run(id, answer=...) does: the dialog's
+	// choices as a macro records them, a JSON object, made as if picked
+	// and applied. It checks what it needs itself, in place of enabled.
+	answer func(m *Model, text string) (tea.Cmd, error)
+
 	// typed, when set, lets a key bound to the command type itself
 	// where the command isn't available, as Space checks a checkbox and
 	// starts an entry anywhere else.

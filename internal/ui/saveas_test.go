@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/confine"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 )
 
 // Save as onto another file that exists asks first: Enter replaces it,
@@ -21,7 +22,7 @@ func TestSaveAsAsksBeforeReplacing(t *testing.T) {
 
 	run(m, m.openSave())
 	press(t, m, "other", "<enter>")
-	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(line(m, contextLine), "other.012 exists.") ||
+	if _, ok := m.overlay.(*choicebar.Bar); !ok || !strings.Contains(line(m, contextLine), "other.012 exists.") ||
 		!strings.Contains(line(m, contextLine), "Replace") {
 		t.Fatalf("no question: overlay %T, %q", m.overlay, line(m, contextLine))
 	}

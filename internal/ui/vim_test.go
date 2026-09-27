@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
 )
 
 // vimModel is a model with vim keys on and a small table: A1:C6 filled
@@ -310,7 +312,7 @@ func TestVimCommandLine(t *testing.T) {
 		t.Errorf(":edit.undo: C3 %q", input(m, "C3"))
 	}
 	press(t, m, ":keyboard sh", "<enter>")
-	if _, ok := m.overlay.(*shortcuts); !ok {
+	if _, ok := m.overlay.(*shortcuts.View); !ok {
 		t.Errorf(":keyboard sh opened %T", m.overlay)
 	}
 	press(t, m, "<esc>", ":nonsense", "<enter>")

@@ -19,7 +19,6 @@ Sizes: S (a day or two), M (about a week), L (weeks).
 | Item | Why | Size |
 |---|---|---|
 | Conditional formatting and validation, what's left: data bars and icon sets, "top 10", "duplicate values", date periods (this week, last month), rules moving with cells cut to another sheet, a dropdown's chip look, and custom checkbox values | Excel's other rule types come in as notes | M |
-| Remaining overlays get narrow hosts: filter picker, sort and choice bars, chart editor, shortcuts, named ranges, cell entry and prompts | Components testable without the model ([Architecture](docs/contributing/architecture.md#the-ui)) | M |
 
 ### 2. Spreadsheet features Sheets users reach for
 
@@ -36,12 +35,6 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 | Item | Result | Size |
 |---|---|---|
 | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid | L |
-
-### 4. Macros, keys and the terminal
-
-| Item | Size |
-|---|---|
-| Record dialog choices (sort bar, filter picker, find and replace, chart editor) and chart drags; let scripts run commands that open dialogs, with answers | M |
 
 ## Later: sharing a live sheet (shelved)
 
@@ -93,6 +86,7 @@ by a gateway dialing the iroh ticket.
 - Protected sheets and ranges that warn on edit: [Notes and protection](docs/sheets/notes-protection.md#protected-sheets-and-ranges)
 - Charts (column, bar, line, area, pie, scatter; stacking, trend lines, axis and legend options), as images or text: [Charts](docs/sheets/charts.md)
 - Macros, recorded or written in Starlark: [Macros](docs/sheets/macros.md)
+- Macros record the choices made in dialogs and chart drags, and scripts answer dialogs: [Macro scripting API](docs/reference/macro-api.md#dialogs)
 - JEV functions, with the API key in the OS keychain: [JEV functions](docs/formulas/jev.md)
 
 **The terminal**
@@ -115,3 +109,4 @@ by a gateway dialing the iroh ticket.
 - A release checklist (XLSX output opened in Excel, LibreOffice and Google Sheets) and `make dist`, release archives cross-compiled locally with SHA256SUMS: [Releasing](docs/contributing/releasing.md)
 - `make stress-report` flags regressions against the last release's run, allowing for noise: [Observability](docs/contributing/observability.md#regressions-against-the-last-release)
 - Grafana: recent traces and a trace view of the nested spans: [Observability](docs/contributing/observability.md#the-stack)
+- Every overlay, prompts and formula suggestions behind narrow hosts, most in packages of their own with fake-host tests: [Architecture](docs/contributing/architecture.md#the-ui)

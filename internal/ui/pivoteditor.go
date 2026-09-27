@@ -23,10 +23,11 @@ import (
 // it. Enter keeps the changes; Esc undoes them, removing a pivot just
 // created.
 type pivotEditor struct {
-	m     pivotHost    // the model, through what the editor needs of it
-	start int          // the workbook's state before editing, to undo back to
-	back  *sheet.Sheet // for a new pivot, the sheet it summarizes, shown again on Esc
-	msg   string       // why the last change was refused, for the status line
+	m      pivotHost    // the model, through what the editor needs of it
+	start  int          // the workbook's state before editing, to undo back to
+	back   *sheet.Sheet // for a new pivot, the sheet it summarizes, shown again on Esc
+	before string       // the pivot when the editor opened, as a macro answers it
+	msg    string       // why the last change was refused, for the status line
 	overlay.List
 }
 
@@ -55,6 +56,9 @@ type pivotHost interface {
 	pointRange(label string, done func(sheet.Rect), cancel func())
 	// askText asks for text, such as a value's name.
 	askText(label, initial string, done func(string), cancel func())
+	// recordDialog records the pivot made, as the command id answered
+	// with its definition.
+	recordDialog(id, answer string)
 }
 
 // Sections of the editor, in order.
@@ -97,11 +101,13 @@ const pivotEditorID = "pivot"
 
 // openPivotEditor edits the shown sheet's pivot. start is the state Esc
 // returns to; back, for a pivot just created, the sheet to show then.
-func (m *Model) openPivotEditor(start int, back *sheet.Sheet) {
+func (m *Model) openPivotEditor(start int, back *sheet.Sheet) *pivotEditor {
 	e := &pivotEditor{m: m, start: start, back: back}
+	e.before = e.pivot(m).JSON()
 	e.Sel = 2 // the Rows section
 	m.clearSelection()
 	m.openOverlay(e)
+	return e
 }
 
 func (e *pivotEditor) Indicator() string { return "PIVOT" }
@@ -183,7 +189,7 @@ func (e *pivotEditor) Key(k tea.KeyPressMsg) tea.Cmd {
 	it := e.current(m)
 	switch key := k.String(); key {
 	case "enter":
-		m.closeOverlay()
+		e.keep(m)
 	case "esc":
 		e.cancel(m)
 	case "up", "ctrl+p", "shift+tab":
@@ -225,6 +231,32 @@ func (e *pivotEditor) cancel(m pivotHost) {
 	m.syncChanged()
 }
 
+// keep closes the editor keeping the changes, and records the pivot
+// made: a new one as Data > Pivot table, a changed one as Edit pivot
+// table, answered with its definition.
+func (e *pivotEditor) keep(m pivotHost) {
+	m.closeOverlay()
+	id, now := "data.pivot_edit", e.pivot(m).JSON()
+	if e.back != nil {
+		id = "data.pivot"
+	} else if now == e.before {
+		return
+	}
+	m.recordDialog(id, now)
+}
+
+// answer makes the pivot a macro's answer defines, as a line of the file
+// writes it, and closes the editor.
+func (e *pivotEditor) answer(m pivotHost, text string) error {
+	p, err := sheet.ParsePivot(text)
+	if err == nil {
+		err = m.sheetShown().SetPivot(p, "")
+	}
+	m.syncChanged()
+	m.closeOverlay()
+	return err
+}
+
 // reopen returns to the editor after a picker or prompt.
 func (e *pivotEditor) reopen() { e.m.openOverlay(e) }
 
@@ -232,7 +264,7 @@ func (e *pivotEditor) Mouse(ev overlay.MouseEvent) tea.Cmd {
 	m := e.m
 	if ev.Box != pivotEditorID {
 		if ev.Kind == overlay.MousePress {
-			m.closeOverlay() // a click elsewhere keeps the changes
+			e.keep(m) // a click elsewhere keeps the changes
 		}
 		return nil
 	}

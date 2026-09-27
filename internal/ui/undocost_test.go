@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 )
 
 // A change whose undo step would pass the ceiling asks first: Esc backs
@@ -17,7 +18,7 @@ func TestUndoCostAsks(t *testing.T) {
 	press(t, m, "<up>", "<shift+up>", "<shift+up>", "<shift+up>", "<shift+up>", "<shift+up>", "<shift+up>")
 	m.runCommand("clear")
 	l := line(m, contextLine)
-	if _, ok := m.overlay.(*choiceBar); !ok || !strings.Contains(l, "This can't be undone: it would take 0 MB of undo history.") {
+	if _, ok := m.overlay.(*choicebar.Bar); !ok || !strings.Contains(l, "This can't be undone: it would take 0 MB of undo history.") {
 		t.Fatalf("clear didn't ask: %q", l)
 	}
 	press(t, m, "<esc>")

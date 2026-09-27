@@ -55,8 +55,8 @@ func (m *Model) keyReleased(k tea.KeyReleaseMsg) tea.Cmd {
 // holdKey starts holding Space on a selected chart, on a terminal that
 // reports releases, and reports whether it took k. Repeats while it's
 // held do nothing; any other key lets go first.
-func (s *chartSel) holdKey(m *Model, c sheet.Chart, k tea.KeyPressMsg) bool {
-	if k.String() != "space" || !m.session.releases {
+func (s *chartSel) holdKey(m chartHost, c sheet.Chart, k tea.KeyPressMsg) bool {
+	if k.String() != "space" || !m.holdsKeys() {
 		s.unzoom()
 		return false
 	}
@@ -80,6 +80,10 @@ func (s *chartSel) unzoom() {
 		s.preview, s.zoom = nil, false
 	}
 }
+
+// holdsKeys reports whether the terminal reports keys let go, so a key
+// can be held.
+func (m *Model) holdsKeys() bool { return m.session.releases }
 
 // zoomed is chart c spread over the scrolling part of the grid.
 func (m *Model) zoomed(c sheet.Chart) sheet.Chart {

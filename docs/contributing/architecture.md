@@ -37,6 +37,11 @@ internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   findbar        find and replace, a bar on the context line
   themepicker    File > Settings > Theme, previewing as it moves
   rules          the conditional formatting and data validation panel
+  sortbar        the sort bar: the columns and order to sort a range by
+  filterpick     a filter column's values and condition
+  choicebar      small questions on the context line answered with a key
+  shortcuts      the keyboard shortcuts view
+  suggest        formula suggestions and function signatures while typing
   tabstrip       the sheet tabs' layout and where each sheet was left
   transfer       imports running in the background and their progress
 e2e/             end-to-end tests through libghostty (separate module, cgo)
@@ -364,9 +369,9 @@ draw. The components:
 |---|---|---|
 | grid (embedded) | `grid` | the sheet shown, active cell, scroll, window size, selection; mapping rows and columns to the screen (rows as bands of lines, `bands.go`), frozen panes, moving and selecting (`grid.go`, `panes.go`, `selection.go`) |
 | edit line | `lineedit.Line` | the one-line editor shared by cell entries, prompts and search fields (package `lineedit`) |
-| cell entry | `entry`, `assist` | typing into a cell, pointing at references, other sheets while pointing, formula suggestions and signatures (`entry.go`, `assist.go`) |
+| cell entry | `entry`, `suggest.List` | typing into a cell, pointing at references, other sheets while pointing (`entry.go`, `assistsheets.go`); formula suggestions and signatures (package `suggest`, with `assist.go`) |
 | prompt | `prompt` | a question on the context line, typed or pointed at (`prompt.go`) |
-| overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker, the sort and choice bars, the chart editor and selection, the pivot editor (`pivoteditor.go`, `pivotactions.go`), the rules panel (package `rules`, with `rules.go`), the shortcuts |
+| overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker (package `filterpick`, with `filter.go`), the sort bar (package `sortbar`, with `sort.go`), choice bars (package `choicebar`, with `dialog.go`), the chart editor and selection (`charteditor.go`, `chartsel.go`), the pivot editor (`pivoteditor.go`, `pivotactions.go`), the rules panel (package `rules`, with `rules.go`), the shortcuts (package `shortcuts`, with `help.go`) |
 | sheet tabs | `tabstrip.Strip` | where each sheet was left, the tab strip's scroll and layout (package `tabstrip`); what clicks on it do (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer.Transfer` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`) |
@@ -391,23 +396,37 @@ methods off `ui.Model`'s exported API:
 | Package | Host | Methods |
 |---|---|---|
 | `picker` | `picker.Host` | theme, size, the edit line, close, record the answer to a command's question (5) |
+| `choicebar` | `choicebar.Host` | theme, close, record the key chosen (3); the choices are closures over the model |
+| `shortcuts` | `shortcuts.Host` | theme, size, close, the rows, built from the key bindings and the registry (4) |
+| `sortbar` | `sortbar.Host` | theme, size, the sheet, close, sort (recorded as the bar's command) (5) |
+| `filterpick` | `filterpick.Host` | theme, size, the edit line, close, the locale (5); what applying and cancelling do are callbacks, as the sheet's filter and a pivot's differ |
 | `cmdline` | `cmdline.Host` | theme, size, the edit line, close, the commands to complete, run a line, fail, the session's history (8) |
+| `suggest` | `suggest.Host` | theme, size, the edit line, whether an entry is being typed, the entry's sheet, the formula as parsed, where the formula bar's text starts (7) |
 | `themepicker` | `themepicker.Host` | a picker's host, and the current theme, the themes directory, preview, keep, whether keys can be held (10) |
-| `findbar` | `findbar.Host` | theme, size, the edit line, the workbook, the sheet and cell shown, show a cell, note, mark modified, leave keeping the search, pass a click to the grid (10) |
-| `rules` | `rules.Host` | theme, size, the edit line, close, the sheet and selection, save a conditional format or a validation rule (as the commands macros record), note a rule removed or moved, the terminal's palette colors (10) |
+| `rules` | `rules.Host` | theme, size, the edit line, close, the sheet and selection, save a conditional format or a validation rule, follow a rule removed or moved (each recorded as the commands that do it), the terminal's palette colors (10) |
+| `findbar` | `findbar.Host` | theme, size, the edit line, the workbook, the trace, the sheet and cell shown, show a cell, note, run a replacement (recorded as Find and replace), leave keeping the search, pass a click to the grid (11) |
 | `tabstrip`, `transfer` | none | they're handed a view or messages and draw what they're given |
 
 Components that stay in package `ui` declare an unexported host the model
-implements itself: `menuHost` for menus (9 methods; their items are the
-command registry and the menu bar's definitions), `macrosHost` for the
-macro manager (9; it's a few keys over a picker, and what they do is the
-macro machinery), and `pivotHost` for the pivot editor and its field
-picker (14; it opens the model's pickers, filter values and range prompt
-and comes back from them). The rest (the filter picker, the sort and
-choice bars, the chart editor and selection, the shortcuts, the named
-ranges picker) still keep the model itself. Commands still run in one
-place: a host's way to run one (`runFromOverlay`, `cmdline.Host.Run`)
-goes through `runCommand`, so macros record them and pivots guard them.
+implements itself:
+
+| Host | For | Methods | Why it stays |
+|---|---|---|---|
+| `namesHost` | the named ranges picker | 6 | a few keys over a picker; what they do is the model's name prompts and selection, which open the picker again |
+| `promptHost` | prompts | 8 | a prompt is one of the model's modes, not an overlay: ranges are pointed at with the grid's movement and drawn by the grid |
+| `menuHost` | menus | 9 | their items are the command registry and the menu bar's definitions |
+| `macrosHost` | the macro manager | 9 | a few keys over a picker; what they do is the macro machinery |
+| `pivotHost` | the pivot editor and its field picker | 16 | it opens the model's pickers, filter values and range prompt and comes back from them |
+| `chartHost` | the chart editor and a selected chart | 25 | besides the charts, the grid's geometry, the pointer shape, the chart menu, holding Space to zoom, and prompts, and passing keys and clicks on to the grid |
+
+The cell entry has no host: typing into a cell is the model's ENTER,
+EDIT and POINT modes, whose state is the model's edit line, active cell
+and pointer, and committing goes through validation, the undo step and
+the recorder, so an interface for it would be the model's own methods
+over again. Its suggestions, which only read the entry, are package
+`suggest`. Commands still run in one place: a host's way to run one
+(`runFromOverlay`, `cmdline.Host.Run`, `chartHost.runCommand`) goes
+through `runCommand`, so macros record them and pivots guard them.
 
 **Drawing.** `View` (`panel.go`) stacks the control panel, the header,
 the grid rows and the status line, then composites the floating layers
@@ -428,8 +447,9 @@ hints) are what every overlay is drawn with.
 **Packages.** `theme`, `rowtext`, `formula`, `overlay` and `lineedit`
 depend on nothing in `ui`, so they can be tested and measured alone. The
 components in `picker`, `cmdline`, `themepicker`, `findbar`, `rules`,
-`tabstrip` and `transfer` build on them and reach the model only through their
-hosts, with unit tests of their own. A component moves out of package
+`sortbar`, `filterpick`, `choicebar`, `shortcuts`, `suggest`, `tabstrip`
+and `transfer` build on them and reach the model only through their
+hosts, with unit tests of their own against fake hosts. A component moves out of package
 `ui` when its host stays small (about ten methods or fewer); one that
 needs more keeps a narrow interface inside `ui` instead, since moving it
 would mean exporting half of the model. New leaf packages are split off
@@ -490,7 +510,13 @@ session dropped) stops after waiting 30 s for a call to be taken. The whole run 
 
 Recording (`macrorec.go`) listens where actions happen: `runCommand` for
 commands (with the answer to a prompt or choice bar), the entry commit,
-pastes, the fill handle, column borders and tab drags. The selection is
+pastes, the fill handle, column borders and tab drags. A dialog records
+itself when it acts (`recordDialog`), as its command answered with the
+choices made, a JSON object the recording writes as a dict; the command's
+`answer` hook makes the same choices and applies them when a script runs
+it with that answer. Charts moved or resized record as Edit chart with
+the fields changed (`chartmacro.go`), and the rules panel as the commands
+that change rules from a line of the file (`rulemacro.go`). The selection is
 recorded lazily, as absolute `select()` or relative `move()`/`extend()`,
 just before something acts on it. Files record the computer their macros
 were made or trusted on (an id from `cmd/012`); a macro from elsewhere

@@ -237,8 +237,7 @@ func (m *Model) offerRecovery(name string) {
 	if name != "" {
 		what = filepath.Base(name)
 	}
-	m.openOverlay(&choiceBar{
-		m:    m,
+	m.ask(question{
 		msg:  "Unsaved changes to " + what + " were kept.",
 		warn: true,
 		desc: "Kept " + f.when.Format("Jan 2 15:04") + ", when a session ended unsaved. Later asks again next time",

@@ -16,6 +16,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/suggest"
 	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -252,11 +253,11 @@ func (m *Model) contextLineText() string {
 	case m.mode == modePoint:
 		prefix := []rune(m.entry.prefix)
 		var ok bool
-		if left, right, ok = signatureLine(&m.th, m.width, m.storedFormula(prefix), len(prefix), m.locale().ArgSep(), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
+		if left, right, ok = suggest.SignatureLine(&m.th, m.width, m.storedFormula(prefix), len(prefix), m.locale().ArgSep(), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
 			left = m.th.KeyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
 		}
 	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.IsFormula() && m.inFunction():
-		left, right, _ = signatureLine(&m.th, m.width, m.storedFormula(m.line.Buf), m.line.Pos, m.locale().ArgSep(), m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
+		left, right, _ = suggest.SignatureLine(&m.th, m.width, m.storedFormula(m.line.Buf), m.line.Pos, m.locale().ArgSep(), m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
 	case m.mode == modeEnter && m.line.IsFormula():
 		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
 	case m.mode == modeEnter:
@@ -320,7 +321,7 @@ func (m *Model) statusLayout() (string, []tabstrip.Span) {
 // floatingStatus is what the highlighted item of the open overlay or the
 // formula suggestions does, and the keys that apply.
 func (m *Model) floatingStatus() (string, bool) {
-	desc, keys, floating := m.entry.assist.status(m)
+	desc, keys, floating := m.entry.assist.Status(m.host())
 	if m.overlay != nil {
 		desc, keys = m.overlay.Status()
 		floating = true

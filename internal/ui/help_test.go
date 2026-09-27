@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -31,7 +32,7 @@ func TestShortcutsListEveryBoundCommand(t *testing.T) {
 func TestShortcutsOverlay(t *testing.T) {
 	m := newModel()
 	press(t, m, "<f1>")
-	s, ok := m.overlay.(*shortcuts)
+	s, ok := m.overlay.(*shortcuts.View)
 	if !ok || !strings.HasSuffix(line(m, menuLine), "HELP") {
 		t.Fatalf("F1 opened %T", m.overlay)
 	}
@@ -46,25 +47,25 @@ func TestShortcutsOverlay(t *testing.T) {
 		t.Errorf("no scroll position in footer:\n%s", scr)
 	}
 	press(t, m, "<down>", "<down>")
-	if s.top != 2 {
-		t.Errorf("down scrolled to %d", s.top)
+	if s.Top() != 2 {
+		t.Errorf("down scrolled to %d", s.Top())
 	}
 	send(m, tea.MouseWheelMsg{X: 40, Y: 10, Button: tea.MouseWheelUp})
-	if m.View(); s.top != 0 {
-		t.Errorf("wheel up scrolled to %d", s.top)
+	if m.View(); s.Top() != 0 {
+		t.Errorf("wheel up scrolled to %d", s.Top())
 	}
 	press(t, m, "<end>")
-	bottom := s.top
+	bottom := s.Top()
 	press(t, m, "<down>")
-	if bottom == 0 || s.top != bottom {
-		t.Errorf("End scrolled to %d, then Down to %d", bottom, s.top)
+	if bottom == 0 || s.Top() != bottom {
+		t.Errorf("End scrolled to %d, then Down to %d", bottom, s.Top())
 	}
 	press(t, m, "<esc>")
 	if m.overlay != nil || m.mode != modeReady {
 		t.Error("Esc did not close the shortcuts")
 	}
 	press(t, m, "<ctrl+/>")
-	if _, ok := m.overlay.(*shortcuts); !ok {
+	if _, ok := m.overlay.(*shortcuts.View); !ok {
 		t.Error("Ctrl+/ did not open the shortcuts")
 	}
 	leftClick(m, 0, m.height-1)
@@ -77,7 +78,7 @@ func TestShortcutsTwoColumnsWhenWide(t *testing.T) {
 	m := newModel()
 	m.Update(tea.WindowSizeMsg{Width: 200, Height: 50})
 	press(t, m, "<f1>")
-	lines, w := m.overlay.(*shortcuts).lines(m)
+	lines, w := m.overlay.(*shortcuts.View).Lines()
 	if w < 100 || len(lines) > len(helpRows(false)) {
 		t.Errorf("width %d, %d lines for %d rows", w, len(lines), len(helpRows(false)))
 	}

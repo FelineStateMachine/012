@@ -10,6 +10,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"github.com/FelineStateMachine/012/internal/ui/sortbar"
 )
 
 // What the pivot editor's keys do to the pivot, and how its fields read.
@@ -70,7 +71,7 @@ func orderText(m pivotHost, p sheet.Pivot, g sheet.PivotGroup) string {
 		}
 		return m.book().ValueTitle(p, p.Values[i]) + " " + arrow
 	}
-	return orderName(g.Desc)
+	return sortbar.OrderName(g.Desc)
 }
 
 // criteriaText sums up a filter: the values it hides, or its condition.

@@ -226,6 +226,7 @@ func (m *Model) readyPress(h hit, mouse tea.Mouse, double bool) tea.Cmd {
 	case hitFillHandle:
 		m.startFill()
 	case hitFilterButton:
+		m.recordFlush() // opened without a command, which records the selection
 		m.openFilterPicker(h.addr.Col)
 	case hitCheckbox, hitDropdown:
 		m.cur = h.addr

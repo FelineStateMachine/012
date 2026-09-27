@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/filterpick"
 )
 
 // salesTable types a table of sales and leaves A1 active.
@@ -155,7 +156,7 @@ func TestPivotFilterAndSource(t *testing.T) {
 	press(t, m, "<down>", "<down>", "<space>", "units", "<enter>")
 	// Filters: add Region, then uncheck West in its values.
 	press(t, m, "<down>", "<space>", "reg", "<enter>", "<space>")
-	if _, ok := m.overlay.(*filterPicker); !ok || !strings.Contains(screen(m), "Filter Region") {
+	if _, ok := m.overlay.(*filterpick.Picker); !ok || !strings.Contains(screen(m), "Filter Region") {
 		t.Fatalf("no values picker:\n%s", screen(m))
 	}
 	press(t, m, "<down>", "<down>", "<space>", "<enter>")

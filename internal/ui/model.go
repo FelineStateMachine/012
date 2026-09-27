@@ -40,12 +40,12 @@ func (m mode) String() string {
 // Layout: three control panel lines (menu bar, formula bar, context
 // line), the column header, the grid, and a status line.
 const (
-	menuLine    = 0 // menu bar on the left, mode indicator on the right
-	formulaLine = 1 // name box, then the cell's contents or the entry
-	contextLine = 2 // prompts, key hints and formula errors
+	menuLine    = overlay.MenuLine    // menu bar on the left, mode indicator on the right
+	formulaLine = 1                   // name box, then the cell's contents or the entry
+	contextLine = overlay.ContextLine // prompts, key hints and formula errors
 	panelLines  = 3
 	headerLine  = panelLines
-	gridTop     = panelLines + 1
+	gridTop     = overlay.GridTop
 	minRowHdrW  = 6  // the row numbers up to 9999; see grid.hdrW
 	nameBoxW    = 11 // fits most ranges, e.g. "AA100:AB200", without jumping
 )

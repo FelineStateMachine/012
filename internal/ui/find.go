@@ -21,6 +21,11 @@ func init() {
 		&command{id: "edit.replace", macro: macroView, title: "Find and replace", desc: "Find text and replace it", run: func(m *Model) tea.Cmd {
 			m.openFind(true)
 			return nil
+		}, answer: func(m *Model, text string) (tea.Cmd, error) {
+			m.openFind(true)
+			err := m.overlay.(*findbar.Bar).Answer(text)
+			m.host().Leave()
+			return nil, err
 		}},
 	)
 	register(

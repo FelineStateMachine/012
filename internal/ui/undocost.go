@@ -30,8 +30,8 @@ func (m *Model) askUndoCost(r sheet.Rect, retry func(*Model) tea.Cmd) bool {
 		return false
 	}
 	protectOK := m.protectOK // agreed to before this asked
-	m.openOverlay(&choiceBar{
-		m: m, msg: "This can't be undone: it would take " + byteSize(cost) + " of undo history.", warn: true,
+	m.ask(question{
+		msg: "This can't be undone: it would take " + byteSize(cost) + " of undo history.", warn: true,
 		desc: "Going on runs it without undo and forgets the changes before it",
 		choices: []choice{
 			{key: "enter", label: "Go on without undo", run: func(m *Model) tea.Cmd {

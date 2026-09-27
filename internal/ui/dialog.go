@@ -1,21 +1,15 @@
 package ui
 
 import (
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 )
 
-// choiceBar is a small question asked on the context line and answered
-// with a key, the way terminal programs confirm things, e.g.
+// question is a choice bar (package choicebar) as the model asks it:
+// a small question on the context line answered with a key, e.g.
 // "You have unsaved changes.  Enter Save and quit  D Discard  Esc Cancel".
-// It takes the keyboard like an overlay but draws no box.
-type choiceBar struct {
-	m       *Model // the model it acts on
+type question struct {
 	msg     string
 	warn    bool   // the message is a warning, e.g. about losing work
 	desc    string // more on the status line, when the question needs it
@@ -28,70 +22,13 @@ type choice struct {
 	run   func(m *Model) tea.Cmd
 }
 
-func (c *choiceBar) Indicator() string        { return "MENU" }
-func (c *choiceBar) Layout() []overlay.Box    { return nil }
-func (c *choiceBar) Status() (string, string) { return c.desc, "" }
-
-func (c *choiceBar) Key(k tea.KeyPressMsg) tea.Cmd {
-	m := c.m
-	key := strings.ToLower(k.String())
-	for _, ch := range c.choices {
-		if key == ch.key {
-			return c.choose(m, ch)
-		}
+// ask opens a choice bar with q's question.
+func (m *Model) ask(q question) {
+	chs := make([]choicebar.Choice, len(q.choices))
+	for i, ch := range q.choices {
+		chs[i] = choicebar.Choice{Key: ch.key, Label: ch.label, Run: func() tea.Cmd { return ch.run(m) }}
 	}
-	return nil
-}
-
-func (c *choiceBar) choose(m *Model, ch choice) tea.Cmd {
-	m.closeOverlay()
-	cmd := ch.run(m)
-	m.recordAnswer(ch.key, ch.key == "esc")
-	return cmd
-}
-
-// Mouse runs a choice when its key chip or label is clicked. A click
-// anywhere else cancels, like Esc.
-func (c *choiceBar) Mouse(e overlay.MouseEvent) tea.Cmd {
-	m := c.m
-	if e.Kind != overlay.MousePress {
-		return nil
-	}
-	if e.Y == contextLine {
-		x := ansi.StringWidth(c.prefix(m))
-		for _, ch := range c.choices {
-			w := ansi.StringWidth(c.item(m, ch))
-			if e.X >= x && e.X < x+w {
-				return c.choose(m, ch)
-			}
-			x += w + len(choiceGap)
-		}
-	}
-	m.closeOverlay()
-	return nil
-}
-
-const choiceGap = "   "
-
-func (c *choiceBar) prefix(m *Model) string {
-	if c.warn {
-		return m.th.Warning.Render(c.msg) + choiceGap
-	}
-	return c.msg + choiceGap
-}
-
-func (c *choiceBar) item(m *Model, ch choice) string {
-	return m.th.Chip(theme.KeyLabel(ch.key)) + " " + ch.label
-}
-
-// ContextLine renders the bar for the context line.
-func (c *choiceBar) ContextLine() (string, string) {
-	m := c.m
-	items := make([]string, len(c.choices))
-	for i, ch := range c.choices {
-		items[i] = c.item(m, ch)
-	}
-	return c.prefix(m) + strings.Join(items, choiceGap), ""
+	m.openOverlay(choicebar.New(m.host(), q.msg, q.warn, q.desc, chs))
 }
 
 // quit exits, asking first when there are unsaved changes. Enter saves
@@ -100,8 +37,7 @@ func (m *Model) quit() tea.Cmd {
 	if !m.changed {
 		return m.exit()
 	}
-	m.openOverlay(&choiceBar{
-		m:    m,
+	m.ask(question{
 		msg:  "You have unsaved changes.",
 		warn: true,
 		choices: []choice{

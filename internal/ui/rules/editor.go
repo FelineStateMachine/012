@@ -35,8 +35,9 @@ type Host interface {
 	SaveFormat(i int, f sheet.CondFormat) error
 	SaveValidation(i int, v sheet.Validation) error
 	// Reworked follows a rule removed or moved: the file is modified,
-	// and a macro being recorded notes what it can't replay.
-	Reworked()
+	// and a macro being recorded records the command id that does the
+	// same, answered with answer.
+	Reworked(id, answer string)
 	// Slot is the terminal's color for an ANSI slot, for color scales.
 	Slot(i int) color.Color
 }
@@ -56,6 +57,9 @@ type kind interface {
 	// says how rules combine, for the status line.
 	ordered() bool
 	listHint() string
+	// command is the id of the command that does action ("remove",
+	// "move") to a rule, as a macro records it.
+	command(action string) string
 }
 
 // form is a rule being added or edited.
@@ -156,9 +160,9 @@ func (e *Editor) Key(k tea.KeyPressMsg) tea.Cmd {
 	case "a", "+":
 		e.openForm(-1)
 	case "delete", "backspace", "x", "-":
-		if e.list.Sel > 0 {
-			e.k.remove(e.h.Sheet(), e.list.Sel-1)
-			e.h.Reworked()
+		if i := e.list.Sel - 1; i >= 0 {
+			e.k.remove(e.h.Sheet(), i)
+			e.h.Reworked(e.k.command("remove"), strconv.Itoa(i+1))
 			e.list.Sel = min(e.list.Sel, e.k.count(e.h.Sheet()))
 		}
 	case "shift+up", "shift+down":
@@ -179,7 +183,7 @@ func (e *Editor) reorder(down bool) {
 	}
 	if e.k.move(e.h.Sheet(), i, to) {
 		e.list.Sel = to + 1
-		e.h.Reworked()
+		e.h.Reworked(e.k.command("move"), `{"rule":`+strconv.Itoa(i+1)+`,"to":`+strconv.Itoa(to+1)+`}`)
 	}
 }
 

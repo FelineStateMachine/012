@@ -3,13 +3,19 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 	"github.com/FelineStateMachine/012/internal/ui/cmdline"
+	"github.com/FelineStateMachine/012/internal/ui/filterpick"
 	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/FelineStateMachine/012/internal/ui/rules"
+	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
+	"github.com/FelineStateMachine/012/internal/ui/sortbar"
+	"github.com/FelineStateMachine/012/internal/ui/suggest"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/FelineStateMachine/012/internal/ui/themepicker"
 )
@@ -28,6 +34,11 @@ var (
 	_ findbar.Host     = host{}
 	_ themepicker.Host = host{}
 	_ rules.Host       = host{}
+	_ choicebar.Host   = host{}
+	_ sortbar.Host     = host{}
+	_ filterpick.Host  = host{}
+	_ shortcuts.Host   = host{}
+	_ suggest.Host     = host{}
 )
 
 // The in-package hosts the model implements itself.
@@ -35,6 +46,9 @@ var (
 	_ menuHost   = (*Model)(nil)
 	_ pivotHost  = (*Model)(nil)
 	_ macrosHost = (*Model)(nil)
+	_ namesHost  = (*Model)(nil)
+	_ promptHost = (*Model)(nil)
+	_ chartHost  = (*Model)(nil)
 )
 
 // Components that stay in package ui are handed interfaces of their own
@@ -53,8 +67,8 @@ func (m *Model) syncChanged() { m.changed = m.sheet.StateID() != m.saved }
 // pickValues opens a filter's values list titled title at screen column
 // x; apply gets the criteria chosen, and cancel runs after Esc.
 func (m *Model) pickValues(title string, x int, values []sheet.FilterValue, cond sheet.Condition, apply func(sheet.Criteria), cancel func()) {
-	fp := m.openValuesPicker(title, x, values, cond, func(_ *Model, cr sheet.Criteria) { apply(cr) })
-	fp.onCancel = func(*Model) { cancel() }
+	fp := m.openValuesPicker(title, x, values, cond, apply)
+	fp.OnCancel = cancel
 }
 
 // pointRange asks for a range on the context line; done gets it, and
@@ -64,7 +78,7 @@ func (m *Model) pointRange(label string, done func(sheet.Rect), cancel func()) {
 		done(r)
 		return nil
 	})
-	m.prompt.onCancel = func(*Model) { cancel() }
+	m.prompt.onCancel = cancel
 }
 
 // askText asks for text on the context line, starting from initial; done
@@ -74,7 +88,7 @@ func (m *Model) askText(label, initial string, done func(string), cancel func())
 		done(text)
 		return nil
 	})
-	m.prompt.onCancel = func(*Model) { cancel() }
+	m.prompt.onCancel = cancel
 }
 
 // What every component with a text field needs.
@@ -83,6 +97,7 @@ func (h host) Theme() *theme.Theme       { return &h.m.th }
 func (h host) Size() (width, height int) { return h.m.width, h.m.height }
 func (h host) Line() *lineedit.Line      { return &h.m.line }
 func (h host) Close()                    { h.m.closeOverlay() }
+func (h host) Locale() *locale.Locale    { return h.m.locale() }
 
 // The picker.
 
@@ -132,8 +147,18 @@ func (h host) Book() *sheet.Workbook             { return h.m.book() }
 func (h host) Trace() *telemetry.Trace           { return h.m.spans }
 func (h host) At() (*sheet.Sheet, sheet.Addr)    { return h.m.sheet, h.m.cur }
 func (h host) Note(msg string)                   { h.m.note = msg }
-func (h host) Edited()                           { h.m.changed = true }
 func (h host) Show(s *sheet.Sheet, a sheet.Addr) { h.m.showSheet(s); h.m.cur = a }
+
+// Replace runs a replacement of the find bar, recorded as Find and
+// replace answered with what it did, after the selection it started
+// from.
+func (h host) Replace(do func() string) {
+	h.m.recordFlush()
+	if answer := do(); answer != "" {
+		h.m.changed = true
+		h.m.recordDialog("edit.replace", answer)
+	}
+}
 
 // Leave closes the find bar, keeping it for Ctrl+F and find next.
 func (h host) Leave() {

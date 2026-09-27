@@ -48,6 +48,30 @@ func TestMacroDocFunctions(t *testing.T) {
 	}
 }
 
+// TestMacroDocDialogs checks the doc gives the answer of every command
+// that takes a dialog's choices, and runs its example of them.
+func TestMacroDocDialogs(t *testing.T) {
+	doc := readMacroDoc(t)
+	start := strings.Index(doc, "## Dialogs")
+	if start < 0 {
+		t.Fatal("no Dialogs section")
+	}
+	section := doc[start:]
+	section = section[:strings.Index(section, "\n## ")]
+	for id, c := range commands {
+		if c.answer != nil && !strings.Contains(section, "| `"+id+"`") && !strings.Contains(section, ", `"+id+"`") {
+			t.Errorf("docs/reference/macro-api.md doesn't give the answer of %s", id)
+		}
+	}
+	from := strings.Index(section, "```python\n") + len("```python\n")
+	src := section[from : from+strings.Index(section[from:], "```")]
+	m := wideSales()
+	script(t, m, "run(\"data.filter\")\nrun(\"insert.chart\", answer={})\n"+src)
+	if m.note != "Ran S" {
+		t.Fatalf("the example: %q", m.warn)
+	}
+}
+
 // TestMacroDocExample runs the example script from the doc.
 func TestMacroDocExample(t *testing.T) {
 	doc := readMacroDoc(t)

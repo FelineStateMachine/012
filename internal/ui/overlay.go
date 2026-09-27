@@ -51,7 +51,7 @@ func (m *Model) floating() []overlay.Box {
 	if m.overlay != nil {
 		return m.overlay.Layout()
 	}
-	if b, ok := m.entry.assist.box(m); ok {
+	if b, ok := m.entry.assist.Box(m.host()); ok {
 		return []overlay.Box{b}
 	}
 	if b, ok := m.noteBox(); ok {
@@ -80,7 +80,7 @@ func (m *Model) shellMouse(msg tea.MouseMsg) (tea.Cmd, bool) {
 	if m.overlay != nil {
 		return m.overlayMouse(msg), true
 	}
-	if m.entry.assist.mouse(m, msg) {
+	if m.entry.assist.Mouse(m.host(), msg) {
 		return nil, true
 	}
 	click, ok := msg.(tea.MouseClickMsg)

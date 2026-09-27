@@ -57,13 +57,15 @@ of the model (reading the sheet or the selection, running a command,
 opening or closing an overlay, a note, the theme), which the model
 implements, so it can be tested against a fake. When the host stays
 small, about ten methods or fewer, the component lives in a package of
-its own under `internal/ui` (`picker`, `cmdline`, `findbar`,
-`themepicker`), declares `Host`, and the model implements it through the
-`host` adapter in `hosts.go`; parts that need no host at all take plain
-values (`tabstrip`, `transfer`). A component that needs more keeps an
-unexported host inside package `ui` (`menuHost`, `pivotHost`,
-`macrosHost`) rather than exporting half of `Model`. Either way, running a
-command goes through `runCommand` (pattern 3).
+its own under `internal/ui` (`picker`, `cmdline`, `findbar`, `sortbar`,
+`filterpick`, `suggest`), declares `Host`, and the model implements it
+through the `host` adapter in `hosts.go`; parts that need no host at all
+take plain values (`tabstrip`, `transfer`). A component that needs more,
+or that acts through the model's own machinery, keeps an unexported host
+inside package `ui` (`menuHost`, `pivotHost`, `chartHost`, `promptHost`)
+rather than exporting half of `Model`; the table in
+[Architecture](architecture.md#the-ui) says which and why. Either way,
+running a command goes through `runCommand` (pattern 3).
 
 ### 3. Actions go through commands
 
@@ -82,10 +84,14 @@ column borders and dragged tabs, each recorded where it happens with
 `Model.record`, and the selection, recorded as a state (where it is just
 before something acts on it) rather than as the keys or clicks that moved
 it. So movement keys, typing and mouse selection needn't become commands
-to be recorded, and a replay doesn't depend on the window's size. A new
-action that changes the workbook outside a command records itself the same
-way; anything unrecorded that changes the workbook while recording becomes
-a comment in the script, so a gap shows.
+to be recorded, and a replay doesn't depend on the window's size. A
+dialog opened by a command records what was chosen in it once it acts,
+as that command answered with the choices (`recordDialog`), and gives the
+command an `answer` hook that makes the same choices, so scripts can run
+it; its package writes and reads the answer. A new action that changes
+the workbook outside a command records itself the same way; anything
+unrecorded that changes the workbook while recording becomes a comment in
+the script, so a gap shows.
 
 ### 4. Side effects stay at the edges
 
@@ -216,15 +222,12 @@ a golden screen reviewed in the gallery for anything visible (see
 
 Where the code doesn't follow the patterns yet:
 
-- Some overlays still keep the whole `*Model` as their host rather than a
-  narrower interface: the filter picker, the sort and choice bars, the
-  chart editor and selection, the shortcuts and the named ranges picker
-  (pattern 2). The cell entry, its suggestions and prompts are handed the
-  model too.
+- The cell entry (typing into a cell, pointing at references) is the
+  model's own modes rather than a component with a host (pattern 2); see
+  [Architecture](architecture.md#the-ui) for why.
 - Movement keys, typing, F4 in formulas, Alt+letter menus and direct mouse
   manipulation act without a registered command (pattern 3). The macro
   recorder covers what matters for replay without them (entries, the
-  selection, pastes, the fill handle, column borders, dragged tabs), but
-  dragging and resizing charts and the choices made in dialogs (the sort
-  bar, the filter picker, find and replace, the chart editor) aren't
-  recorded: a recording notes them as comments.
+  selection, pastes, the fill handle, column borders, dragged tabs and
+  charts, the choices made in dialogs), but changes made in the named
+  ranges picker aren't recorded: a recording notes them as comments.

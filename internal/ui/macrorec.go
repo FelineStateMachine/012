@@ -8,6 +8,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/choicebar"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
 
@@ -20,6 +21,10 @@ import (
 //     them, with the answer to the question they ask (a width, a name, a
 //     confirmation) once it's given;
 //   - entries, when they're stored (enter), and pastes of text;
+//   - dialogs (the sort bar, the filter picker, find and replace, the
+//     chart and pivot editors, the rules panel) once they've acted, as
+//     the command that opens them answered with the choices made
+//     (recordDialog), and charts moved or resized;
 //   - the fill handle, column borders dragged or fitted, and tabs dragged;
 //   - the selection, not the keys or clicks that made it: just before
 //     something is recorded, the selection it acts on is, as select() with
@@ -29,10 +34,9 @@ import (
 //
 // With relative references, Ctrl+arrows, Home, Ctrl+Home and Ctrl+End are
 // recorded as jump(), since where they land depends on the data. Anything
-// else that changes the workbook (a dialog such as sorting by several
-// columns, the filter picker, dragging a chart, undo) becomes a comment
-// saying it wasn't recorded, so the script never silently differs from
-// what was done.
+// else that changes the workbook (undo, the named ranges picker) becomes
+// a comment saying it wasn't recorded, so the script never silently
+// differs from what was done.
 
 // recorder is a recording in progress.
 type recorder struct {
@@ -52,8 +56,14 @@ type selState struct {
 	whole     wholeKind
 }
 
+// selState is the selection now; the far corner counts only while a
+// range is selected.
 func (g *grid) selState() selState {
-	return selState{g.sheet, g.cur, g.ext, g.selecting, g.whole}
+	ext := g.ext
+	if !g.selecting {
+		ext = g.cur
+	}
+	return selState{g.sheet, g.cur, ext, g.selecting, g.whole}
 }
 
 func (s selState) rect() sheet.Rect {
@@ -131,7 +141,7 @@ func (m *Model) recordingCommand(c *command) tea.Cmd {
 	r.depth++
 	cmd := c.run(m)
 	r.depth--
-	_, choosing := m.overlay.(*choiceBar)
+	_, choosing := m.overlay.(*choicebar.Bar)
 	if p, ok := m.overlay.(*picker.Picker); ok && p.Answers {
 		choosing = true
 	}
@@ -139,7 +149,7 @@ func (m *Model) recordingCommand(c *command) tea.Cmd {
 	case m.mode == modePrompt || choosing:
 		r.pending = c.id // recorded once answered
 	case m.overlay != nil:
-		// A dialog or Picker: what it does isn't recorded (see observe).
+		// A dialog records what it does when it's done (recordDialog).
 	case m.mode != modeError:
 		r.add(m, macro.Call("run", c.id))
 	}
@@ -158,6 +168,19 @@ func (m *Model) recordAnswer(answer string, cancelled bool) {
 	if !cancelled && m.mode != modeError {
 		r.add(m, macro.Call("run", id).With("answer", answer))
 	}
+}
+
+// recordDialog records what a dialog did once it has, as its command
+// answered with the dialog's choices (see command.answer), which a
+// replay makes again. The selection it acted on was recorded when its
+// command ran, or by recordFlush when something else opened it: what the
+// command did to the selection since (showing a new sheet) is its own.
+func (m *Model) recordDialog(id, answer string) {
+	r := m.rec
+	if r == nil || r.depth > 0 || m.mode == modeError {
+		return
+	}
+	r.add(m, macro.Call("run", id).With("answer", macro.JSON(answer)))
 }
 
 // recordEntry records an entry stored in the active cell, or in every

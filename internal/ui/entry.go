@@ -9,6 +9,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/suggest"
 )
 
 // Entry follows Google Sheets: typing replaces the cell (ENTER), Enter or
@@ -30,7 +31,7 @@ type entry struct {
 	// tabs.go.
 	home *sheet.Sheet
 
-	assist assist // function and name suggestions: assist.go
+	assist suggest.List // function and name suggestions: package suggest
 
 	// tabStart remembers where a run of Tab-committed entries began, so
 	// Enter returns to that column on the next row, as in Sheets.
@@ -51,7 +52,7 @@ func (m *Model) startEntry(md mode, text string) {
 	m.mode = md
 	m.entry.home = nil
 	m.line.Clear()
-	m.entry.hint, m.entry.assist = "", assist{}
+	m.entry.hint, m.entry.assist = "", suggest.List{}
 	m.line.Insert(text)
 }
 
@@ -68,7 +69,7 @@ func (m *Model) startEdit() tea.Cmd {
 // in a formula where a reference may follow the caret: then they point.
 func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
-	if m.entry.assist.key(m, key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
+	if m.entry.assist.Key(m.host(), key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
 	if key == "f2" {
@@ -99,7 +100,7 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 // editKey handles EDIT mode, where left and right move the caret.
 func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 	key := k.String()
-	if m.entry.assist.key(m, key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
+	if m.entry.assist.Key(m.host(), key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
 	if m.line.IsFormula() && strings.HasPrefix(key, "shift+") && (m.pointAfterSheet(key) || m.canPoint() && m.startPoint(key)) {
@@ -213,7 +214,7 @@ func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 	if text := typed(k); text != "" {
 		m.resumeEntry(m.pointRef())
 		m.line.Insert(text)
-		m.entry.assist = assist{active: true}
+		m.entry.assist = suggest.List{Active: true}
 	}
 	return nil
 }
@@ -260,7 +261,7 @@ func (m *Model) cancelEntry() {
 	m.returnHome()
 	m.mode = modeReady
 	m.line.Clear()
-	m.entry.hint, m.entry.assist = "", assist{}
+	m.entry.hint, m.entry.assist = "", suggest.List{}
 }
 
 func (m *Model) handlePaste(content string) {

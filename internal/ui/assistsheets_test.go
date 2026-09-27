@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/FelineStateMachine/012/internal/ui/suggest"
 )
 
 // sheetsModel has Sheet1 (shown), Summary with 7 in B3, and Q3 plan with
@@ -19,10 +21,10 @@ func sheetsModel(t *testing.T) *Model {
 	return m
 }
 
-func names(list []suggestion) []string {
+func names(list []suggest.Suggestion) []string {
 	var out []string
 	for _, s := range list {
-		out = append(out, s.name)
+		out = append(out, s.Name)
 	}
 	return out
 }
@@ -30,7 +32,7 @@ func names(list []suggestion) []string {
 func TestAutocompleteSheets(t *testing.T) {
 	m := sheetsModel(t)
 	press(t, m, "=su")
-	list, _ := m.entry.assist.shown(m)
+	list, _ := m.entry.assist.Shown(m.host())
 	got := names(list)
 	if len(got) < 2 || got[0] != "Summary!" || !strings.HasPrefix(got[1], "SU") {
 		t.Fatalf("suggestions %v", got)
@@ -55,8 +57,8 @@ func TestAutocompleteSheets(t *testing.T) {
 	// inside quotes.
 	for _, typed := range []string{"=q3", "='q3 p", "='pl"} {
 		press(t, m, "<esc>", "<esc>", typed)
-		list, start := m.entry.assist.shown(m)
-		if len(list) == 0 || list[0].name != "'Q3 plan'!" || start != 1 {
+		list, start := m.entry.assist.Shown(m.host())
+		if len(list) == 0 || list[0].Name != "'Q3 plan'!" || start != 1 {
 			t.Errorf("%s: %v from %d", typed, names(list), start)
 		}
 	}
@@ -81,7 +83,7 @@ func TestAutocompleteSheets(t *testing.T) {
 func TestAutocompleteSheetsEdges(t *testing.T) {
 	m := sheetsModel(t)
 	press(t, m, "=she")
-	if list, _ := m.entry.assist.shown(m); len(list) > 0 && list[0].name == "Sheet1!" {
+	if list, _ := m.entry.assist.Shown(m.host()); len(list) > 0 && list[0].Name == "Sheet1!" {
 		t.Errorf("the formula's own sheet offered: %v", names(list))
 	}
 	press(t, m, "et1!", "<right>")
@@ -92,7 +94,7 @@ func TestAutocompleteSheetsEdges(t *testing.T) {
 
 	m.book().HideSheet(m.book().Lookup("Summary"))
 	press(t, m, "=summ")
-	if list, _ := m.entry.assist.shown(m); len(list) > 0 && list[0].name == "Summary!" {
+	if list, _ := m.entry.assist.Shown(m.host()); len(list) > 0 && list[0].Name == "Summary!" {
 		t.Errorf("hidden sheet offered: %v", names(list))
 	}
 	press(t, m, "<esc>")
@@ -100,7 +102,7 @@ func TestAutocompleteSheetsEdges(t *testing.T) {
 	// Accepting inside an existing reference replaces the name only.
 	m.line.Set("='Q3 p'!A1")
 	m.line.Pos = len("='Q3 p")
-	m.entry.assist.active = true
+	m.entry.assist.Active = true
 	m.mode = modeEnter
 	press(t, m, "<tab>")
 	if m.line.Text() != "='Q3 plan'!A1" || m.line.Pos != len("='Q3 plan'!") {

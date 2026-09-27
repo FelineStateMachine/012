@@ -7,6 +7,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // Named ranges, as Sheets' Data > Named ranges: a picker lists them with
@@ -28,9 +29,30 @@ func init() {
 	)
 }
 
+// namesHost is what the named ranges picker acts on. The model
+// implements it. The picker stays in package ui: it is a few keys over a
+// picker, and what they do (naming, renaming and pointing at a range on
+// the context line, going to one) are the model's prompts and
+// selection, which open the picker again.
+type namesHost interface {
+	styles() *theme.Theme
+	sheetShown() *sheet.Sheet
+	closeOverlay()
+	// namesItems are the picker's rows: "Add a range" for sel, then the
+	// named ranges.
+	namesItems(sel sheet.Rect) []picker.Item
+	// editName asks for a new name and range for n, then opens the
+	// picker again with sel.
+	editName(n sheet.Name, sel sheet.Rect)
+	// nameChanged follows a named range changed from the picker: the
+	// file is modified, and a macro being recorded notes what it can't
+	// replay.
+	nameChanged()
+}
+
 // namesPicker is the picker of named ranges with its extra keys.
 type namesPicker struct {
-	m *Model // the model it acts on
+	m namesHost // the model, through what the picker needs of it
 	*picker.Picker
 	sel sheet.Rect // the selection when the picker opened, for "Add a range"
 	msg string     // feedback on the last action, e.g. a deletion
@@ -38,14 +60,19 @@ type namesPicker struct {
 
 // openNames opens the picker; sel is what "Add a range" names.
 func (m *Model) openNames(sel sheet.Rect) {
-	p := m.newPicker("Named ranges", "Type a name", 60, namesItems(m, sel))
+	p := m.newPicker("Named ranges", "Type a name", 60, m.namesItems(sel))
 	p.Action = "go to"
 	m.clearSelection()
 	m.openOverlay(&namesPicker{m: m, Picker: p, sel: sel})
 }
 
+func (m *Model) nameChanged() {
+	m.syncChanged()
+	m.noteUnrecorded()
+}
+
 // namesItems lists "Add a range" and then every named range.
-func namesItems(m *Model, sel sheet.Rect) []picker.Item {
+func (m *Model) namesItems(sel sheet.Rect) []picker.Item {
 	add := "+ Add a range"
 	items := []picker.Item{{
 		Title: add, Name: len(add), Detail: sel.String(), Desc: "Name " + sel.String() + ", to use the name in formulas",
@@ -84,11 +111,11 @@ func namesItems(m *Model, sel sheet.Rect) []picker.Item {
 }
 
 // current is the named range highlighted in the picker, if any.
-func (p *namesPicker) current(m *Model) (sheet.Name, bool) {
+func (p *namesPicker) current(m namesHost) (sheet.Name, bool) {
 	if p.Picker.Sel >= len(p.Shown()) {
 		return sheet.Name{}, false
 	}
-	return m.sheet.LookupName(p.Shown()[p.Picker.Sel].Item.Title)
+	return m.sheetShown().LookupName(p.Shown()[p.Picker.Sel].Item.Title)
 }
 
 func (p *namesPicker) Key(k tea.KeyPressMsg) tea.Cmd {
@@ -103,10 +130,10 @@ func (p *namesPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case "ctrl+d":
 		if n, ok := p.current(m); ok {
-			m.sheet.DeleteName(n.Name)
-			m.changed = true
+			m.sheetShown().DeleteName(n.Name)
+			m.nameChanged()
 			p.msg = "Deleted " + n.Name + "; Ctrl+Z brings it back"
-			p.Items = namesItems(m, p.sel)
+			p.Items = m.namesItems(p.sel)
 			sel := p.Picker.Sel
 			p.Changed()
 			p.Picker.Sel = max(min(sel, len(p.Shown())-1), 0)
@@ -118,9 +145,9 @@ func (p *namesPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 
 func (p *namesPicker) Status() (string, string) {
 	m := p.m
-	keys := m.th.KeyHints("Enter", "go to", "F2", "edit", "Ctrl+D", "delete", "Esc", "close")
+	keys := m.styles().KeyHints("Enter", "go to", "F2", "edit", "Ctrl+D", "delete", "Esc", "close")
 	if _, ok := p.current(m); !ok {
-		keys = m.th.KeyHints("Enter", "add", "Esc", "close")
+		keys = m.styles().KeyHints("Enter", "add", "Esc", "close")
 	}
 	if p.msg != "" {
 		return p.msg, keys
@@ -139,6 +166,7 @@ func (m *Model) defineName(r sheet.Rect, back bool) {
 		}
 		m.changed = true
 		if back {
+			m.noteUnrecorded() // named from the picker, not as the command
 			m.openNames(r)
 			return nil
 		}
@@ -169,7 +197,7 @@ func (m *Model) editName(n sheet.Name, sel sheet.Rect) {
 				m.fail(err.Error())
 				return nil
 			}
-			m.changed = true
+			m.nameChanged()
 			m.openNames(sel)
 			return nil
 		})

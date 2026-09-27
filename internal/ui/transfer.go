@@ -149,8 +149,7 @@ func (m *Model) confirmImport(name string, opt fileio.Options) tea.Cmd {
 	if !m.changed {
 		return m.startImport(name, opt, transfer.Book)
 	}
-	m.openOverlay(&choiceBar{
-		m:    m,
+	m.ask(question{
 		msg:  "Importing replaces this spreadsheet, which has unsaved changes.",
 		warn: true,
 		choices: []choice{

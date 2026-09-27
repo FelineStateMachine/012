@@ -5,10 +5,9 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/sortbar"
 )
 
 // Sorting follows Sheets' Data menu: sort the sheet or a range by the
@@ -32,7 +31,8 @@ func init() {
 			run: func(m *Model) tea.Cmd {
 				m.openSortBar()
 				return nil
-			}},
+			},
+			answer: func(m *Model, text string) (tea.Cmd, error) { return m.openSortBar().Answer(text) }},
 	)
 }
 
@@ -79,17 +79,10 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 	m.changed = true
 	var by []string
 	for _, k := range keys {
-		by = append(by, sheet.ColName(k.Col)+" "+orderName(k.Desc))
+		by = append(by, sheet.ColName(k.Col)+" "+sortbar.OrderName(k.Desc))
 	}
 	m.note = "Sorted " + r.String() + " by " + strings.Join(by, ", then ")
 	return nil
-}
-
-func orderName(desc bool) string {
-	if desc {
-		return "Z→A"
-	}
-	return "A→Z"
 }
 
 // headerRows is how many rows at the top of r are headers that sorting
@@ -133,35 +126,19 @@ func (g *grid) looksLikeHeader(r sheet.Rect) bool {
 	return text && numbers
 }
 
-// sortBar picks the columns and order to sort a range by.
-type sortBar struct {
-	m       *Model     // the model it acts on
-	rng     sheet.Rect // the whole range, header rows included
-	headers int        // header rows at the top of rng; 0 when switched off
-	guess   int        // header rows to use when switched on
-	keys    []sheet.SortKey
-	cur     int // the key being changed
-}
-
-func (m *Model) openSortBar() {
+// openSortBar opens the sort bar over the selection, or the data around
+// the active cell.
+func (m *Model) openSortBar() *sortbar.Bar {
 	r := m.dataRange()
-	b := &sortBar{m: m, rng: r, headers: m.headerRows(r, m.hasRange())}
-	b.guess = max(b.headers, 1)
-	b.keys = []sheet.SortKey{{Col: clamp(m.cur.Col, r.From.Col, r.To.Col)}}
+	b := sortbar.New(m.host(), r, m.headerRows(r, m.hasRange()), m.cur.Col)
 	m.openOverlay(b)
-}
-
-// data is the range the sort moves: rng without its headers.
-func (b *sortBar) data() sheet.Rect {
-	r := b.rng
-	r.From.Row = min(r.From.Row+b.headers, r.To.Row)
-	return r
+	return b
 }
 
 // barRange is the range highlighted while a data bar is open.
 func (m *Model) barRange() (sheet.Rect, bool) {
-	if b, ok := m.overlay.(*sortBar); ok {
-		return b.data(), true
+	if b, ok := m.overlay.(*sortbar.Bar); ok {
+		return b.Data(), true
 	}
 	return sheet.Rect{}, false
 }
@@ -169,171 +146,16 @@ func (m *Model) barRange() (sheet.Rect, bool) {
 // barActive is the cell drawn as active while a data bar is open: the top
 // of the focused sort column, so its header lights up.
 func (m *Model) barActive() (sheet.Addr, bool) {
-	if b, ok := m.overlay.(*sortBar); ok {
-		return sheet.Addr{Col: b.keys[b.cur].Col, Row: b.data().From.Row}, true
+	if b, ok := m.overlay.(*sortbar.Bar); ok {
+		return b.Active(), true
 	}
 	return sheet.Addr{}, false
 }
 
-func (b *sortBar) Indicator() string     { return "SORT" }
-func (b *sortBar) Layout() []overlay.Box { return nil }
-
-// setCol points the focused key at column c, if it's in the range.
-func (b *sortBar) setCol(c int) {
-	if c >= b.rng.From.Col && c <= b.rng.To.Col {
-		b.keys[b.cur].Col = c
-	}
-}
-
-// add adds a sort column after the focused one: the next column not yet
-// sorted by.
-func (b *sortBar) add() {
-	used := map[int]bool{}
-	for _, k := range b.keys {
-		used[k.Col] = true
-	}
-	for c := b.rng.From.Col; c <= b.rng.To.Col; c++ {
-		if !used[c] {
-			b.keys = append(b.keys[:b.cur+1], append([]sheet.SortKey{{Col: c}}, b.keys[b.cur+1:]...)...)
-			b.cur++
-			return
-		}
-	}
-}
-
-func (b *sortBar) Key(k tea.KeyPressMsg) tea.Cmd {
-	m := b.m
-	key := k.String()
-	switch key {
-	case "esc":
-		m.closeOverlay()
-	case "enter":
-		keys, r := b.keys, b.data()
-		m.closeOverlay()
-		return m.sort(r, keys)
-	case "left":
-		b.setCol(b.keys[b.cur].Col - 1)
-	case "right":
-		b.setCol(b.keys[b.cur].Col + 1)
-	case "up", "down", "space":
-		b.keys[b.cur].Desc = !b.keys[b.cur].Desc
-	case "tab":
-		b.cur = (b.cur + 1) % len(b.keys)
-	case "shift+tab":
-		b.cur = (b.cur + len(b.keys) - 1) % len(b.keys)
-	case "alt+a":
-		b.add()
-	case "alt+h":
-		if b.headers > 0 {
-			b.headers = 0
-		} else {
-			b.headers = min(b.guess, b.rng.To.Row-b.rng.From.Row)
-		}
-	case "backspace", "delete":
-		if len(b.keys) > 1 {
-			b.keys = append(b.keys[:b.cur], b.keys[b.cur+1:]...)
-			b.cur = min(b.cur, len(b.keys)-1)
-		}
-	default:
-		// Typing a column's letter sorts by it.
-		if t := typed(k); len(t) == 1 {
-			if c, ok := sheet.ParseCol(t); ok {
-				b.setCol(c)
-			}
-		}
-	}
-	return nil
-}
-
-// sortPart is a piece of the bar: plain text, a sort key's chip, or the
-// header row toggle.
-type sortPart struct {
-	text   string
-	key    int // index of the sort key, -1 for others
-	toggle bool
-}
-
-func (b *sortBar) parts(m *Model) []sortPart {
-	parts := []sortPart{{text: m.th.Key.Render("Sort "+b.data().String()) + m.th.Muted.Render(" by "), key: -1}}
-	for i, k := range b.keys {
-		if i > 0 {
-			parts = append(parts, sortPart{text: m.th.Muted.Render(" then "), key: -1})
-		}
-		label := sheet.ColName(k.Col)
-		if b.headers > 0 {
-			if h := m.sheet.ShownText(sheet.Addr{Col: k.Col, Row: b.rng.From.Row + b.headers - 1}); h != "" {
-				label += " " + ansi.Truncate(h, 16, "…")
-			}
-		}
-		style := m.th.KeyChip
-		if i == b.cur {
-			style = m.th.MenuSelected
-		}
-		parts = append(parts, sortPart{text: style.Render(" " + label + "  " + orderName(k.Desc) + " "), key: i})
-	}
-	style := m.th.Muted
-	if b.headers > 0 {
-		style = m.th.MenuSelected
-	}
-	parts = append(parts, sortPart{text: "   ", key: -1}, sortPart{text: style.Render(" Header row "), key: -1, toggle: true})
-	return parts
-}
-
-// ContextLine renders the bar for the context line.
-func (b *sortBar) ContextLine() (string, string) {
-	var s strings.Builder
-	for _, p := range b.parts(b.m) {
-		s.WriteString(p.text)
-	}
-	return s.String(), ""
-}
-
-// Mouse focuses a key's chip (a second click flips its order) or flips
-// the header row toggle; a click anywhere else cancels.
-func (b *sortBar) Mouse(e overlay.MouseEvent) tea.Cmd {
-	m := b.m
-	if e.Kind != overlay.MousePress {
-		return nil
-	}
-	if e.Y != contextLine {
-		m.closeOverlay()
-		return nil
-	}
-	x := 0
-	for _, p := range b.parts(m) {
-		w := ansi.StringWidth(p.text)
-		if e.X >= x && e.X < x+w {
-			switch {
-			case p.toggle:
-				return b.Key(overlay.KeyFor("alt+h"))
-			case p.key == b.cur:
-				b.keys[b.cur].Desc = !b.keys[b.cur].Desc
-			case p.key >= 0:
-				b.cur = p.key
-			}
-			return nil
-		}
-		x += w
-	}
-	return nil
-}
-
-// Status shows the keys, the most useful ones first on narrow screens.
-func (b *sortBar) Status() (string, string) {
-	m := b.m
-	pairs := []string{"Left/Right", "column", "Space", "order", "Enter", "sort", "Esc", "cancel"}
-	desc := "Alt+A add  Alt+H header  Tab next"
-	for {
-		keys := m.th.KeyHints(pairs...)
-		switch {
-		case ansi.StringWidth(desc)+3+ansi.StringWidth(keys) <= m.width:
-			return m.th.Muted.Render(desc), keys
-		case desc != "":
-			desc = ""
-		case len(pairs) > 4:
-			pairs = pairs[2:]
-		default:
-			return "", keys
-		}
-	}
+// Sort sorts from the sort bar, which a macro records as the bar's
+// command answered with its choices.
+func (h host) Sort(data sheet.Rect, keys []sheet.SortKey, answer string) tea.Cmd {
+	cmd := h.m.sort(data, keys)
+	h.m.recordDialog("data.sort_range", answer)
+	return cmd
 }
