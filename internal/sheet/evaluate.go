@@ -117,7 +117,7 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 	expr := s.bound(c)
 	outer := w.evaluating
 	w.evaluating = loc{s, a}
-	c.Value = functions.Eval(w.arith(expr), s.calcGet.lib)
+	c.Value = functions.EvalAt(w.arith(expr), s.calcGet.lib, a)
 	w.evaluating = outer
 	c.auto = functions.InferFormat(expr, s.calcFmt)
 	w.depth--

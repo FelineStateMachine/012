@@ -51,6 +51,9 @@ type Reader struct {
 	dense bool // read every address of a range; see NewReader
 	bufs  []*scanBuf
 	level int // how many of bufs are in use by range reads in progress
+
+	here   Addr // the cell whose formula is being evaluated; see EvalAt
+	arrays int  // how many arguments taking ranges enclose the operator being evaluated; see evalArray
 }
 
 // lookup is the parameter every evaluator takes.

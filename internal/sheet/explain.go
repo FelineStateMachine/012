@@ -51,7 +51,7 @@ func (s *Sheet) explain(a Addr, path []loc) string {
 		return "Circular reference: " + strings.Join(append(names, here.label(home)), " → ")
 	}
 	path = append(path, here)
-	n, from := s.errorOrigin(c.expr, v)
+	n, from := s.errorOrigin(c.expr, a, v)
 	if from != nil {
 		why := from.s.explain(from.a, path)
 		name := from.label(home)
@@ -74,14 +74,15 @@ func (s *Sheet) explain(a Addr, path []loc) string {
 
 // errorOrigin finds the innermost part of n that produces the error want
 // itself rather than passing it on. When the error comes from a
-// referenced cell, it returns that cell.
-func (s *Sheet) errorOrigin(n Node, want Value) (Node, *loc) {
-	return errorSearch{s: s, want: want, get: s.wb.values(s)}.find(n)
+// referenced cell, it returns that cell. The formula is the one at here.
+func (s *Sheet) errorOrigin(n Node, here Addr, want Value) (Node, *loc) {
+	return errorSearch{s: s, here: here, want: want, get: s.wb.values(s)}.find(n)
 }
 
 // errorSearch follows an error through a formula on s to where it starts.
 type errorSearch struct {
 	s    *Sheet
+	here Addr // the formula's cell, for ranges read as one of their cells
 	want Value
 	get  *reader
 }
@@ -104,8 +105,8 @@ func (e errorSearch) find(n Node) (Node, *loc) {
 			return n, e.at(n.Sheet, n.Addr)
 		}
 	case formula.Range:
-		if n.Rect.From == n.Rect.To && e.same(e.get.Cell(n.Sheet, n.Rect.From)) {
-			return n, e.at(n.Sheet, n.Rect.From)
+		if a, ok := functions.Intersect(n.Rect, e.here); ok && e.same(e.get.Cell(n.Sheet, a)) {
+			return n, e.at(n.Sheet, a)
 		}
 	case formula.Unary:
 		return e.operand(n, n.X)
@@ -121,7 +122,7 @@ func (e errorSearch) find(n Node) (Node, *loc) {
 // at n when none has.
 func (e errorSearch) operand(n Node, operands ...Node) (Node, *loc) {
 	for _, x := range operands {
-		if e.same(functions.Eval(x, e.get.lib)) {
+		if e.same(functions.EvalAt(x, e.get.lib, e.here)) {
 			return e.find(x)
 		}
 	}
@@ -141,7 +142,7 @@ func (e errorSearch) inCall(n formula.Call) (Node, *loc) {
 			}
 			continue
 		}
-		if e.same(functions.Eval(arg, e.get.lib)) {
+		if e.same(functions.EvalAt(arg, e.get.lib, e.here)) {
 			return e.find(arg)
 		}
 	}

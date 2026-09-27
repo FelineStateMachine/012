@@ -212,7 +212,7 @@ func eachOf(arg Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
 		})
 		return e
 	}
-	return fn(eval(arg, get), true)
+	return fn(evalArray(arg, get), true)
 }
 
 // Add counts v into the aggregate, with SUM's rules: blanks are skipped,

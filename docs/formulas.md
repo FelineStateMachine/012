@@ -69,6 +69,29 @@ caret on the problem and says what's wrong on the context line, e.g.
 tighter than `^` as in Sheets and Excel, so `=-2^2` is 4. 1-2-3's `#AND#`,
 `#OR#` and `#NOT#` still work; `AND()`, `OR()` and `NOT()` are the Sheets way.
 
+## A range where one value is wanted
+
+A range used where a formula wants one value (with an operator, as an
+argument that takes a number or text, or as a cell's whole result) reads
+as one of its cells, as in Sheets and Excel (implicit intersection):
+
+- a single column gives the cell in the formula's own row, so with the
+  named range Rent = B2:B4, `=Rent*2` in F4 is B4*2 and `=B:B+1` in G5 is
+  B5+1;
+- a single row gives the cell in the formula's own column: `=B6:D6` in C8
+  is C6;
+- a single cell is itself;
+- anything else is `#VALUE!`: a formula outside the range's rows (or
+  columns), and a range of several rows and columns.
+
+Ranges on other sheets work the same, by the formula's row or column:
+`='Q3 plan'!C2:C9` in A3 reads `'Q3 plan'!C3`. Functions that take ranges
+(`SUM`, `COUNTIF`, `MATCH`, `VLOOKUP`, `SUMPRODUCT` and the like) still
+read the whole range. Inside their range arguments an expression over
+ranges, such as `SUM(B2:B4*2)` or `SUMPRODUCT(A1:A3*B1:B3)`, is `#VALUE!`:
+Sheets computes those as arrays, which 012 doesn't yet, so it doesn't give
+a single cell's answer instead.
+
 ## Values and errors
 
 Text in arithmetic is `#VALUE!` unless it reads as a number (`="3"*2` is 6);

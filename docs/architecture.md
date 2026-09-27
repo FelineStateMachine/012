@@ -172,7 +172,10 @@ the engine implements once per sheet (`reader` in `recalc.go`):
 Sheets are named as references write them, so resolving names, missing
 sheets (`#REF!`), cycles and the depth limit stay the engine's. The
 engine finds functions through the table (`LookupFunc`, which the parser
-uses) and evaluates with `functions.Eval`.
+uses) and evaluates a cell's formula with `functions.EvalAt`, giving the
+cell's address, so a range used where one value is wanted reads the cell
+in the formula's row or column (implicit intersection; the `Reader`
+keeps the address, and the one before it while formulas nest).
 
 The boundary costs no allocation on the hot paths, which an interface
 usually would: a callback passed through an interface escapes to the
