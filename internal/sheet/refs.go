@@ -26,3 +26,21 @@ func (c *Cell) rewritten(rw formula.Rewriter) *Cell {
 	}
 	return c.withFormula(n)
 }
+
+// ShiftEntry returns an entry as if it were typed in one cell and copied
+// dc columns and dr rows away: a formula's relative references move and
+// $absolute ones stay, as in a paste. Other entries come back unchanged.
+// A macro recorded with relative references replays formulas this way.
+func ShiftEntry(input string, dc, dr int) (string, error) {
+	if dc == 0 && dr == 0 || !IsFormulaEntry(input) {
+		return input, nil
+	}
+	n, err := Parse(input)
+	if err != nil {
+		return "", err
+	}
+	if moved, changed := formula.Rewrite(n, formula.Shift(dc, dr)); changed {
+		return formula.Text(moved), nil
+	}
+	return input, nil
+}

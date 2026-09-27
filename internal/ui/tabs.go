@@ -29,11 +29,11 @@ func init() {
 			m.note = "Added " + s.Name()
 			return nil
 		}},
-		&command{id: "sheet.next", title: "Next sheet", desc: "Show the sheet to the right", enabled: func(m *Model) bool { return m.sheetAt(1) != nil },
+		&command{id: "sheet.next", macro: macroView, title: "Next sheet", desc: "Show the sheet to the right", enabled: func(m *Model) bool { return m.sheetAt(1) != nil },
 			run: func(m *Model) tea.Cmd { return m.stepSheet(1) }},
-		&command{id: "sheet.prev", title: "Previous sheet", desc: "Show the sheet to the left", enabled: func(m *Model) bool { return m.sheetAt(-1) != nil },
+		&command{id: "sheet.prev", macro: macroView, title: "Previous sheet", desc: "Show the sheet to the left", enabled: func(m *Model) bool { return m.sheetAt(-1) != nil },
 			run: func(m *Model) tea.Cmd { return m.stepSheet(-1) }},
-		&command{id: "sheet.goto", title: "Go to sheet", desc: "Pick a sheet by name", run: func(m *Model) tea.Cmd {
+		&command{id: "sheet.goto", macro: macroView, title: "Go to sheet", desc: "Pick a sheet by name", run: func(m *Model) tea.Cmd {
 			m.openSheetPicker()
 			return nil
 		}},

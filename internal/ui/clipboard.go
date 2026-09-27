@@ -222,6 +222,8 @@ func parseTSV(s string) [][]string {
 // action, or what to do with a copied range.
 func (m *Model) readyLine() string {
 	switch {
+	case m.warn != "":
+		return m.th.Warning.Render(m.warn)
 	case m.note != "":
 		return m.note
 	case m.copied.marked && m.copied.cut:

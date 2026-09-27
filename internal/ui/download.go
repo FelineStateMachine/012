@@ -27,6 +27,7 @@ func init() {
 			title: "Download as " + k.String(),
 			desc:  k.About(),
 			run:   func(m *Model) tea.Cmd { return m.openDownload(k) },
+			macro: macroNever,
 		})
 	}
 }

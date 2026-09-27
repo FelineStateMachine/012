@@ -41,7 +41,9 @@ func (c *choiceBar) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 
 func (c *choiceBar) choose(m *Model, ch choice) tea.Cmd {
 	m.closeOverlay()
-	return ch.run(m)
+	cmd := ch.run(m)
+	m.recordAnswer(ch.key, ch.key == "esc")
+	return cmd
 }
 
 // mouse runs a choice when its key chip or label is clicked. A click

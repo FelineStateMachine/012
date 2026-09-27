@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -74,7 +75,18 @@ func (m *Model) autofit(c int) {
 	for _, k := range cols {
 		// One column of padding each side, and never narrower than the
 		// header letters.
-		m.sheet.SetColWidth(k, clamp(widest[k]+2, len(sheet.ColName(k))+2, 240))
+		w := clamp(widest[k]+2, len(sheet.ColName(k))+2, 240)
+		m.sheet.SetColWidth(k, w)
+		m.record(widthAction(k, k, w))
 	}
 	m.changed = true
+}
+
+// widthAction records setting columns from..to to width w.
+func widthAction(from, to, w int) macro.Action {
+	cols := sheet.ColName(from)
+	if to != from {
+		cols += ":" + sheet.ColName(to)
+	}
+	return macro.Call("set_width", cols, w)
 }

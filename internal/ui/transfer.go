@@ -55,7 +55,7 @@ type importTickMsg struct{ id int }
 const importTick = 100 * time.Millisecond
 
 func init() {
-	register(&command{id: "file.import", title: "Import",
+	register(&command{id: "file.import", macro: macroNever, title: "Import",
 		desc: "Import a " + importNouns() + " file, replacing this sheet",
 		run:  (*Model).openImport})
 }

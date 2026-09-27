@@ -21,6 +21,7 @@ import (
 // lose contrast.
 type Theme struct {
 	Indicator    lipgloss.Style // mode indicator, top right
+	Recording    lipgloss.Style // the REC chip beside the mode indicator while a macro is recorded
 	Header       lipgloss.Style // column letters, row numbers and the name box
 	HeaderActive lipgloss.Style // header of the focused row and column
 	HeaderSel    lipgloss.Style // headers of selected rows and columns
@@ -142,6 +143,7 @@ func New(dark bool) Theme {
 	accent := lipgloss.NewStyle().Background(lipgloss.Cyan).Foreground(lipgloss.Black)
 	t := Theme{
 		Indicator:    accent.Bold(true),
+		Recording:    lipgloss.NewStyle().Background(lipgloss.Red).Foreground(lipgloss.BrightWhite).Bold(true),
 		Header:       lipgloss.NewStyle().Background(headerBg).Foreground(headerFg),
 		HeaderActive: accent.Bold(true),
 		HeaderSel:    lipgloss.NewStyle().Background(lipgloss.Blue).Foreground(selFg),

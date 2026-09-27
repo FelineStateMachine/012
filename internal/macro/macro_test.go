@@ -40,12 +40,14 @@ func (f *fakeHost) NumberFormat(string) (string, int, error)    { return "curren
 func (f *fakeHost) SetNumberFormat(ref, kind string, d int, p string) error {
 	return f.log("format %s %s %d %q", ref, kind, d, p)
 }
-func (f *fakeHost) Selection() (string, string)          { return "B2:C3", "B2" }
-func (f *fakeHost) Select(ref, active string) error      { return f.log("select %s %q", ref, active) }
-func (f *fakeHost) Move(c, r int) error                  { return f.log("move %d %d", c, r) }
-func (f *fakeHost) Extend(c, r int, whole string) error  { return f.log("extend %d %d %q", c, r, whole) }
-func (f *fakeHost) Jump(to string, ext bool) error       { return f.log("jump %s %v", to, ext) }
-func (f *fakeHost) Enter(text string, fill bool) error   { return f.log("enter %q %v", text, fill) }
+func (f *fakeHost) Selection() (string, string)         { return "B2:C3", "B2" }
+func (f *fakeHost) Select(ref, active string) error     { return f.log("select %s %q", ref, active) }
+func (f *fakeHost) Move(c, r int) error                 { return f.log("move %d %d", c, r) }
+func (f *fakeHost) Extend(c, r int, whole string) error { return f.log("extend %d %d %q", c, r, whole) }
+func (f *fakeHost) Jump(to string, ext bool) error      { return f.log("jump %s %v", to, ext) }
+func (f *fakeHost) Enter(text string, fill bool, origin string) error {
+	return f.log("enter %q %v %q", text, fill, origin)
+}
 func (f *fakeHost) PasteText(text string) error          { return f.log("paste %q", text) }
 func (f *fakeHost) Sheets() []string                     { return []string{"Sheet1", "Two"} }
 func (f *fakeHost) ActiveSheet() string                  { return "Sheet1" }
@@ -73,6 +75,7 @@ func TestSourceRunsAsRecorded(t *testing.T) {
 		Call("extend", 2, 0).With("whole", "columns"),
 		Call("jump", "down").With("extend", true),
 		Call("enter", "total").With("fill", true),
+		Call("enter", "=A1").With("origin", "B2"),
 		Call("paste_text", "a\tb\n\"c\""),
 		Note("not recorded: sort A1:C9"),
 		Call("run", "column.width").With("answer", "12"),
@@ -91,8 +94,8 @@ func TestSourceRunsAsRecorded(t *testing.T) {
 		t.Fatalf("%v\n%s", err, src)
 	}
 	want := []string{
-		`select B2 ""`, `enter "=SUM(A1:A3)" false`, "move 0 1", `extend 2 0 "columns"`, "jump down true",
-		`enter "total" true`, `paste "a\tb\n\"c\""`, `run column.width "12"`, "run format.bold",
+		`select B2 ""`, `enter "=SUM(A1:A3)" false ""`, "move 0 1", `extend 2 0 "columns"`, "jump down true",
+		`enter "total" true ""`, `enter "=A1" false "B2"`, `paste "a\tb\n\"c\""`, `run column.width "12"`, "run format.bold",
 		"activate Q3 plan", "width B:C 14", `fill "" 3 0`, "move sheet 2",
 	}
 	if strings.Join(f.calls, "\n") != strings.Join(want, "\n") {

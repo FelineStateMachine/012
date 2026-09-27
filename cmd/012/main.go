@@ -79,6 +79,7 @@ func run(args []string) error {
 		}
 	}
 	m := ui.New(s, name)
+	m.SetMachine(machineID())
 	if importName != "" {
 		m.Import(importName)
 	}

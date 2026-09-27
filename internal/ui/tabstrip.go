@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -232,6 +233,7 @@ func (m *Model) dropTab() {
 		to := m.mouse.hover.addr.Col
 		m.book().MoveSheet(m.sheet, to)
 		m.note = "Moved " + m.sheet.Name() + " to position " + strconv.Itoa(to+1)
+		m.record(macro.Call("move_sheet", to+1))
 	}
 }
 

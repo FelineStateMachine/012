@@ -29,7 +29,29 @@ type command struct {
 	// checked, when set, makes the command a setting: menus show a ✓
 	// while it is on.
 	checked func(m *Model) bool
+
+	// macro says how recording and scripts treat the command; see
+	// macroUse.
+	macro macroUse
 }
+
+// macroUse is how macros treat a command.
+type macroUse int
+
+const (
+	// macroRecord commands change the workbook: a recording calls them
+	// by id, run("format.bold"), and scripts may run them. The default.
+	macroRecord macroUse = iota
+	// macroView commands change only what's shown or selected, or open
+	// something to look through: a recording keeps the selection they
+	// leave, not the command, so replaying doesn't depend on the screen.
+	// Scripts may run them.
+	macroView
+	// macroNever commands are about the session (files, menus, help,
+	// undo, macros themselves): never recorded, and scripts can't run
+	// them.
+	macroNever
+)
 
 // available reports whether the command can run in m's current state.
 func (c *command) available(m *Model) bool {
@@ -118,13 +140,16 @@ func (m *Model) runCommand(id string) tea.Cmd {
 	// one span times every one of them.
 	span := telemetry.Start("command", slog.String("id", id))
 	defer span.End()
+	if m.rec != nil {
+		return m.recordingCommand(c) // macrorec.go
+	}
 	return c.run(m)
 }
 
 func init() {
 	register(
-		&command{id: "edit", title: "Edit cell", desc: "Edit the active cell's contents", run: (*Model).startEdit},
-		&command{id: "goto", title: "Go to", desc: "Move to a cell address", run: func(m *Model) tea.Cmd {
+		&command{id: "edit", macro: macroView, title: "Edit cell", desc: "Edit the active cell's contents", run: (*Model).startEdit},
+		&command{id: "goto", macro: macroView, title: "Go to", desc: "Move to a cell address", run: func(m *Model) tea.Cmd {
 			m.openGoto()
 			return nil
 		}},
@@ -133,14 +158,14 @@ func init() {
 			m.changed = true
 			return nil
 		}},
-		&command{id: "select.none", title: "Deselect", desc: "Collapse the selection and clear the copy marker", run: func(m *Model) tea.Cmd {
+		&command{id: "select.none", macro: macroView, title: "Deselect", desc: "Collapse the selection and clear the copy marker", run: func(m *Model) tea.Cmd {
 			m.clearSelection()
 			m.copied.clearMark()
 			return nil
 		}},
-		&command{id: "select.all", title: "Select all", desc: "Select the data, then the whole sheet", run: (*Model).selectAll},
-		&command{id: "select.columns", title: "Select columns", desc: "Select the whole columns of the selection", run: (*Model).selectColumns},
-		&command{id: "select.rows", title: "Select rows", desc: "Select the whole rows of the selection", run: (*Model).selectRows},
+		&command{id: "select.all", macro: macroView, title: "Select all", desc: "Select the data, then the whole sheet", run: (*Model).selectAll},
+		&command{id: "select.columns", macro: macroView, title: "Select columns", desc: "Select the whole columns of the selection", run: (*Model).selectColumns},
+		&command{id: "select.rows", macro: macroView, title: "Select rows", desc: "Select the whole rows of the selection", run: (*Model).selectRows},
 		&command{id: "column.width", title: "Column width", desc: "Set the width of the selected columns", run: (*Model).openWidth},
 		&command{id: "column.reset", title: "Reset column width", desc: "Return the selected columns to the default width", run: func(m *Model) tea.Cmd {
 			r := m.selection()
@@ -150,13 +175,13 @@ func init() {
 			m.changed = true
 			return nil
 		}},
-		&command{id: "file.new", title: "New", desc: "Start a new, empty sheet", run: func(m *Model) tea.Cmd {
+		&command{id: "file.new", macro: macroNever, title: "New", desc: "Start a new, empty sheet", run: func(m *Model) tea.Cmd {
 			m.reset(sheet.New(), "")
 			return nil
 		}},
-		&command{id: "file.save", title: "Save", desc: "Save the sheet", run: (*Model).save},
-		&command{id: "file.saveas", title: "Save as", desc: "Save the sheet under a new name", run: (*Model).openSave},
-		&command{id: "file.open", title: "Open", desc: "Open a sheet, replacing this one", run: (*Model).openRetrieve},
-		&command{id: "quit", title: "Quit", desc: "Close 012", run: (*Model).quit},
+		&command{id: "file.save", macro: macroNever, title: "Save", desc: "Save the sheet", run: (*Model).save},
+		&command{id: "file.saveas", macro: macroNever, title: "Save as", desc: "Save the sheet under a new name", run: (*Model).openSave},
+		&command{id: "file.open", macro: macroNever, title: "Open", desc: "Open a sheet, replacing this one", run: (*Model).openRetrieve},
+		&command{id: "quit", macro: macroNever, title: "Quit", desc: "Close 012", run: (*Model).quit},
 	)
 }

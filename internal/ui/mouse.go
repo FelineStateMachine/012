@@ -333,6 +333,8 @@ func (m *Model) handleRelease() tea.Cmd {
 		m.finishFill()
 	case dragTab:
 		m.dropTab()
+	case dragResize:
+		m.record(widthAction(m.mouse.resizeCol, m.mouse.resizeCol, m.sheet.ColWidth(m.mouse.resizeCol)))
 	}
 	m.mouse.drag, m.mouse.autoscrolling = dragNone, false
 	if m.selecting && m.whole == wholeNone && m.ext == m.cur {

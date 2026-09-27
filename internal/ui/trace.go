@@ -29,11 +29,11 @@ type trace struct {
 
 func init() {
 	register(
-		&command{id: "data.precedents", title: "Trace precedents", desc: "Highlight the cells the formula reads; press again to jump through them", run: func(m *Model) tea.Cmd {
+		&command{id: "data.precedents", macro: macroView, title: "Trace precedents", desc: "Highlight the cells the formula reads; press again to jump through them", run: func(m *Model) tea.Cmd {
 			m.stepTrace(false)
 			return nil
 		}},
-		&command{id: "data.dependents", title: "Trace dependents", desc: "Highlight the formulas that read the cell; press again to jump through them", run: func(m *Model) tea.Cmd {
+		&command{id: "data.dependents", macro: macroView, title: "Trace dependents", desc: "Highlight the formulas that read the cell; press again to jump through them", run: func(m *Model) tea.Cmd {
 			m.stepTrace(true)
 			return nil
 		}},

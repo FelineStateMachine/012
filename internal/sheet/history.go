@@ -359,6 +359,15 @@ func (w *Workbook) Undo() (Change, bool) { return w.swap(&w.hist.undo, &w.hist.r
 // Redo reapplies the last undone step and describes it.
 func (w *Workbook) Redo() (Change, bool) { return w.swap(&w.hist.redo, &w.hist.undo) }
 
+// UndoLabel describes the step Undo would revert, e.g. "clear B3:B5",
+// or "" when there is none.
+func (w *Workbook) UndoLabel() string {
+	if top := w.hist.top(); top != nil {
+		return top.label
+	}
+	return ""
+}
+
 // CanUndo and CanRedo report whether there is a step to undo or redo.
 func (w *Workbook) CanUndo() bool { return len(w.hist.undo) > 0 }
 func (w *Workbook) CanRedo() bool { return len(w.hist.redo) > 0 }

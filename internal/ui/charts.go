@@ -41,7 +41,7 @@ func init() {
 				m.deleteChart(m.targetChart())
 				return nil
 			}},
-		&command{id: "chart.select", title: "Select chart", desc: "Select the next chart, to move, resize or delete it with the keyboard",
+		&command{id: "chart.select", macro: macroView, title: "Select chart", desc: "Select the next chart, to move, resize or delete it with the keyboard",
 			enabled: hasCharts, run: func(m *Model) tea.Cmd {
 				i := 0
 				if s, ok := m.overlay.(*chartSel); ok {

@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -224,6 +225,7 @@ func (m *Model) commit() bool {
 	}
 	m.cancelEntry()
 	m.clearSelection()
+	m.recordEntry(input, false)
 	return true
 }
 
@@ -247,7 +249,9 @@ func (m *Model) cancelEntry() {
 func (m *Model) handlePaste(content string) {
 	switch m.mode {
 	case modeReady:
+		m.recordFlush()
 		if m.pasteText(content) {
+			m.record(macro.Call("paste_text", content))
 			return
 		}
 		if content = strings.TrimSpace(content); content != "" {

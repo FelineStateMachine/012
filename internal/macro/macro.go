@@ -60,8 +60,10 @@ type Host interface {
 	// JumpTargets), extending the selection when extend is set.
 	Jump(to string, extend bool) error
 	// Enter stores text in the active cell as if typed and accepted, or
-	// in every selected cell, references adjusted, when fill is set.
-	Enter(text string, fill bool) error
+	// in every selected cell, references adjusted, when fill is set. With
+	// an origin, a formula is taken as typed there and moved to the
+	// active cell, relative references following, as in a copy.
+	Enter(text string, fill bool, origin string) error
 	// PasteText pastes tab-separated text at the active cell, as pasting
 	// from another program does.
 	PasteText(text string) error

@@ -276,14 +276,15 @@ func (r *Run) jump(args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value
 func (r *Run) enter(args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 	var v starlark.Value
 	var fill bool
-	if err := unpack("enter", args, kwargs, "text", &v, "fill?", &fill); err != nil {
+	var origin string
+	if err := unpack("enter", args, kwargs, "text", &v, "fill?", &fill, "origin?", &origin); err != nil {
 		return nil, err
 	}
 	text, err := input("enter", v)
 	if err != nil {
 		return nil, err
 	}
-	return starlark.None, r.host(func(h Host) error { return h.Enter(text, fill) })
+	return starlark.None, r.host(func(h Host) error { return h.Enter(text, fill, origin) })
 }
 
 func (r *Run) pasteText(args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
