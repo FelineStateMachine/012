@@ -319,6 +319,7 @@ func (m *Model) handleSaved(msg savedMsg) tea.Cmd {
 	}
 	m.filename, m.disk = msg.name, msg.stamp
 	m.changed = false
+	m.savedRecovered()
 	if quit {
 		return m.exit()
 	}
@@ -332,6 +333,7 @@ func (m *Model) handleLoaded(msg loadedMsg) {
 	}
 	m.reset(msg.sheet, msg.name)
 	m.disk = msg.stamp
+	m.offerRecovery(msg.name)
 }
 
 // save writes to the current file, asking for a name the first time.

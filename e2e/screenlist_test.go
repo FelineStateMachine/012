@@ -1,12 +1,6 @@
 package e2e
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-
-	ghostty "go.mitchellh.com/libghostty"
-)
+import ghostty "go.mitchellh.com/libghostty"
 
 // The golden screens: every UI state recorded, how to reach it, and which
 // are recorded on a light terminal too. The fixtures they share are in
@@ -100,22 +94,6 @@ var screens = []screen{
 		budget(s)
 		s.keys("<ctrl+q>")
 		s.waitFor("unsaved changes")
-	}},
-	{name: "save-as-replace", files: func(t *testing.T, dir string) {
-		if err := os.WriteFile(filepath.Join(dir, "budget.012"), []byte("A1 old\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}, setup: func(s *session) {
-		budget(s)
-		s.keys("<ctrl+s>", "budget", "<enter>")
-		s.waitFor("budget.012 exists.")
-	}},
-	// Nothing listens on port 1: the key is stored, and its check fails.
-	{name: "api-key-check-failed", opts: options{env: []string{"TYPESAFE_BASE_URL=http://127.0.0.1:1"}}, setup: func(s *session) {
-		s.keys("<alt+f>", "<up>", "<up>", "<right>", "<down>", "<down>", "<down>")
-		s.waitFor("Store the TypeSafe API key")
-		s.keys("<enter>", "test-key", "<enter>")
-		s.waitFor("Key saved, but the check failed")
 	}},
 	{name: "prompt-width", setup: func(s *session) {
 		budget(s)

@@ -108,3 +108,24 @@ func TestServeOverSSH(t *testing.T) {
 	s.keys("<ctrl+q>")
 	s.waitExit()
 }
+
+// ssh -t host book.012 opens the file from the served directory; a name
+// outside it is refused before 012 starts.
+func TestServeOpensFileFromCommandLine(t *testing.T) {
+	top := t.TempDir()
+	served := filepath.Join(top, "served")
+	os.Mkdir(served, 0o755)
+	book := `{"version": 2, "cells": {"A1": "opened over ssh"}}`
+	if err := os.WriteFile(filepath.Join(served, "book.012"), []byte(book), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sshPath, args := serveSSH(t, top, served)
+
+	s := startWith(t, options{dir: top, program: sshPath}, append(args, "book.012")...)
+	s.waitForLine(gridRow1, "    1  opened over ssh")
+	s.keys("<ctrl+q>")
+	s.waitExit()
+
+	s = startWith(t, options{dir: top, program: sshPath, startsOn: "outside the served directory"}, append(args, "../id_ed25519")...)
+	s.waitExit()
+}

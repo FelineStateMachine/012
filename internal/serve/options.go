@@ -4,7 +4,8 @@
 // It is built for one person reaching their own files from elsewhere,
 // not for sharing: public-key auth against an authorized_keys file only,
 // on the loopback address unless told otherwise, with no port
-// forwarding, no commands and no subsystems. See docs/ssh.md.
+// forwarding, no subsystems, and no commands: an exec request is only
+// ever a file name to open. See docs/ssh.md.
 package serve
 
 import (

@@ -397,8 +397,11 @@ and a pie image supersamples only pixels on a slice edge or the rim.
 ## Serving over SSH
 
 `internal/serve` wraps `charm.land/ssh` (wish's server) with only a
-session channel, public-key auth against authorized_keys and a shell
-request allowed. Each session builds a `ui.Model` of its own and runs it
+session channel, public-key auth against authorized_keys, and a shell
+request or, with a PTY, a one-word exec request allowed. The exec
+request is never run: its word is a file name, resolved through the
+served directory's `confine.Root` before the session starts and handed
+to `Model.OpenOnStart`. Each session builds a `ui.Model` of its own and runs it
 in its own `tea.Program` over the session (wish's emulated PTY), with
 the client's environment and window size; `Model.Serve` gives it the
 client's environment for terminal detection and a `confine.Root` for
@@ -407,6 +410,15 @@ share nothing but read-only tables (the command and function
 registries), the process-wide telemetry and, with JEV on, the HTTP
 client; each gets its own `jev.Cache`, whose queue belongs to that
 session's program. See [ssh.md](ssh.md).
+
+**Unsaved work.** `Server.Shutdown` closes a channel every session
+watches; a session quitting on it, or on its idle timeout, asks its
+model `Unsaved` and `Recover`, which writes the workbook to
+`.012-recovery/` (0700, files 0600, three kept per name) and returns
+the name to tell the client. The directory is hidden, so `confine`
+refuses it to names typed in a session; only `ui/recovery.go` reads and
+writes it, and a model opening a file (or starting on a new sheet)
+offers the newest recovery file kept for that name.
 
 **File names.** The UI keeps names as typed and turns them into paths
 only to read or write, through the model's `confine.Root`: the zero

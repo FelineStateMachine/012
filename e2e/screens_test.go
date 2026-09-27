@@ -20,6 +20,10 @@ type screen struct {
 	name  string
 	opts  options
 	files func(t *testing.T, dir string) // fills the working directory first
+	// ssh, when set, records the screen through 012 serve and a real
+	// ssh client, with these words on the ssh command line; files fills
+	// the served directory then.
+	ssh   []string
 	setup func(s *session)
 }
 
@@ -30,16 +34,7 @@ func TestScreens(t *testing.T) {
 	}
 	for _, sc := range screens {
 		t.Run(sc.name, func(t *testing.T) {
-			opts := sc.opts
-			if opts.jev {
-				srv, _ := fakeTypeSafe(t)
-				opts.env = []string{"TYPESAFE_API_KEY=test-key", "TYPESAFE_BASE_URL=" + srv.URL}
-			}
-			if sc.files != nil {
-				opts.dir = t.TempDir()
-				sc.files(t, opts.dir)
-			}
-			s := startWith(t, opts)
+			s := startScreen(t, sc)
 			sc.setup(s)
 			got := s.stableHTML()
 			path := filepath.Join(dir, sc.name+".html")
@@ -65,6 +60,31 @@ func TestScreens(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+// startScreen starts the session sc is recorded in: with a fake JEV
+// service, a directory of files, or through 012 serve and ssh, as sc
+// asks.
+func startScreen(t *testing.T, sc screen) *session {
+	opts := sc.opts
+	if opts.jev {
+		srv, _ := fakeTypeSafe(t)
+		opts.env = []string{"TYPESAFE_API_KEY=test-key", "TYPESAFE_BASE_URL=" + srv.URL}
+	}
+	if sc.files != nil {
+		opts.dir = t.TempDir()
+		sc.files(t, opts.dir)
+	}
+	var args []string
+	if sc.ssh != nil {
+		top, served := t.TempDir(), opts.dir
+		if served == "" {
+			served = t.TempDir()
+		}
+		opts.program, args = serveSSH(t, top, served)
+		opts.dir, args = top, append(args, sc.ssh...)
+	}
+	return startWith(t, opts, args...)
 }
 
 // stableHTML waits until two captures in a row match, so a snapshot never
