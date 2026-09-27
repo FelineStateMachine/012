@@ -9,8 +9,11 @@ import (
 	"bytes"
 	"fmt"
 	"runtime"
+	"runtime/metrics"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/stress"
@@ -80,6 +83,26 @@ func BenchmarkBigUndo(b *testing.B) {
 		s.EraseRange(all)
 		s.Undo()
 	}
+}
+
+// BenchmarkClearMax clears all of a full max-cells sheet of numbers (1M
+// x 10) as one step and undoes it, then reports the heap such a step
+// holds (what forgetting it frees) and the budget's estimate of it.
+func BenchmarkClearMax(b *testing.B) {
+	s := stress.Dense(stress.MaxRows, stress.MaxCols)
+	all := sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: stress.MaxCols - 1, Row: stress.MaxRows - 1})
+	s.ClearHistory()
+	for b.Loop() {
+		s.EraseRange(all)
+		s.Undo()
+		s.ClearHistory()
+	}
+	s.EraseRange(all)
+	est := s.Book().HistoryBytes()
+	held := heap()
+	s.ClearHistory()
+	b.ReportMetric(float64(held-heap())/(1<<20), "MB-held")
+	b.ReportMetric(float64(est)/(1<<20), "MB-estimate")
 }
 
 // BenchmarkHistoryFull makes MaxUndo whole-column edits, the most the
@@ -200,24 +223,29 @@ func BenchmarkFillSeries(b *testing.B) {
 	}
 }
 
-// BenchmarkSave writes the native .012 file and reports its size.
+// BenchmarkSave writes the native .012 file and reports its size and
+// the most heap in use while writing it, above what the sheet holds.
 func BenchmarkSave(b *testing.B) {
 	for _, sh := range saveShapes() {
 		b.Run(sh.name, func(b *testing.B) {
 			s := sh.build()
-			var buf bytes.Buffer
-			for b.Loop() {
-				buf.Reset()
-				if err := s.Write(&buf); err != nil {
-					b.Fatal(err)
+			var out counter
+			peak := peakHeap(func() {
+				for b.Loop() {
+					out = 0
+					if err := s.Write(&out); err != nil {
+						b.Fatal(err)
+					}
 				}
-			}
-			b.ReportMetric(float64(buf.Len())/(1<<20), "MB-file")
+			})
+			b.ReportMetric(float64(out)/(1<<20), "MB-file")
+			b.ReportMetric(float64(peak)/(1<<20), "MB-peak")
 		})
 	}
 }
 
-// BenchmarkOpen reads the native .012 file back.
+// BenchmarkOpen reads the native .012 file back, and reports the most
+// heap in use while reading it, the sheet read included.
 func BenchmarkOpen(b *testing.B) {
 	for _, sh := range saveShapes() {
 		b.Run(sh.name, func(b *testing.B) {
@@ -225,13 +253,53 @@ func BenchmarkOpen(b *testing.B) {
 			if err := sh.build().Write(&buf); err != nil {
 				b.Fatal(err)
 			}
-			for b.Loop() {
-				if _, err := sheet.Read(bytes.NewReader(buf.Bytes())); err != nil {
-					b.Fatal(err)
+			peak := peakHeap(func() {
+				for b.Loop() {
+					if _, err := sheet.Read(bytes.NewReader(buf.Bytes())); err != nil {
+						b.Fatal(err)
+					}
 				}
-			}
+			})
+			b.ReportMetric(float64(peak)/(1<<20), "MB-peak")
 		})
 	}
+}
+
+// counter is a writer that keeps only the count of bytes written.
+type counter int64
+
+func (c *counter) Write(p []byte) (int, error) {
+	*c += counter(len(p))
+	return len(p), nil
+}
+
+// peakHeap runs fn and returns the most heap in use meanwhile above what
+// was live before, sampled every millisecond.
+func peakHeap(fn func()) uint64 {
+	base := heap()
+	sample := []metrics.Sample{{Name: "/memory/classes/heap/objects:bytes"}}
+	var peak atomic.Uint64
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		t := time.NewTicker(time.Millisecond)
+		defer t.Stop()
+		for {
+			metrics.Read(sample)
+			if v := sample[0].Value.Uint64(); v > peak.Load() {
+				peak.Store(v)
+			}
+			select {
+			case <-done:
+				return
+			case <-t.C:
+			}
+		}
+	})
+	fn()
+	close(done)
+	wg.Wait()
+	return peak.Load() - min(base, peak.Load())
 }
 
 type namedBuild struct {
