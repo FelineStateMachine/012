@@ -85,8 +85,8 @@ func TestCopyPaste(t *testing.T) {
 	if got := clipboardText(t, m, "edit.copy"); got != "1\t2" {
 		t.Errorf("system clipboard %q", got)
 	}
-	if l := line(m, 2); !m.copyMarked(addr("B1")) || !strings.HasPrefix(l, "Copied A1:B1") || !strings.Contains(l, "Ctrl+V") {
-		t.Fatalf("marker %v, line %q", m.copyMarked(addr("B1")), line(m, 2))
+	if l := line(m, 2); !m.copied.marks(m.sheet, addr("B1")) || !strings.HasPrefix(l, "Copied A1:B1") || !strings.Contains(l, "Ctrl+V") {
+		t.Fatalf("marker %v, line %q", m.copied.marks(m.sheet, addr("B1")), line(m, 2))
 	}
 	press(t, m, "<down>", "<ctrl+v>")
 	if input(m, "B2") != "=A2*2" || m.sheet.Value(addr("B2")).Num != 2 || m.selection().String() != "A2:B2" {

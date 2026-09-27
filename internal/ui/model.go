@@ -189,7 +189,7 @@ func (m *Model) endUpdate(state int) {
 		// An edit, a sort or a filter may hide the active cell's row.
 		m.cur.Row = m.visibleRow(m.cur.Row)
 		if !m.copied.keep {
-			m.clearCopyMark()
+			m.copied.clearMark()
 		}
 	}
 	m.copied.keep = false

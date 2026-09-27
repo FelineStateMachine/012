@@ -152,7 +152,7 @@ func (m *Model) contextLineText() string {
 	case m.entry.hint != "":
 		left = m.th.Warning.Render(m.entry.hint)
 	case m.mode == modeReady && m.trace != nil:
-		left, right = m.traceLine()
+		left, right = m.trace.line(&m.th, m.width, m.sheet)
 	case m.mode == modeReady:
 		if left = m.readyLine(); left == "" {
 			left = m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur))

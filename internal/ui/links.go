@@ -4,6 +4,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
 // Cells whose text is a URL, and HYPERLINK formulas, are drawn as OSC 8
@@ -13,31 +14,31 @@ import (
 
 // decorate marks a span's text as a link or an error, from the cell the
 // text belongs to.
-func (m *Model) decorate(sp *span, row int) {
+func (g *grid) decorate(sp *span, row int) {
 	if sp.text == "" {
 		return
 	}
 	a := sheet.Addr{Col: sp.owner, Row: row}
-	switch v := m.sheet.Value(a); {
+	switch v := g.sheet.Value(a); {
 	case v.Kind == sheet.Error && !sheet.IsPending(v):
 		sp.error = true
 	case v.Kind == sheet.Text:
-		sp.link = m.sheet.Link(a)
+		sp.link = g.sheet.Link(a)
 	}
 }
 
-// textStyle is the style of a span's text on base: the cell's text style,
+// spanStyle is the style of a span's text on base: the cell's text style,
 // then the link or error mark. On a colored role (the pointer, the
 // selection) a link keeps the role's colors and adds its underline.
-func (m *Model) textStyle(base lipgloss.Style, sp span) lipgloss.Style {
+func spanStyle(th *theme.Theme, base lipgloss.Style, sp span) lipgloss.Style {
 	st := sp.style
 	st.Align = sheet.AlignAuto
-	s := m.th.Text(base, st)
+	s := th.Text(base, st)
 	switch {
 	case sp.link != "":
-		s = s.Inherit(m.th.Link).Hyperlink(sp.link)
+		s = s.Inherit(th.Link).Hyperlink(sp.link)
 	case sp.error:
-		s = s.Inherit(m.th.ErrorMark)
+		s = s.Inherit(th.ErrorMark)
 	}
 	return s
 }

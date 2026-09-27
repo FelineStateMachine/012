@@ -156,7 +156,7 @@ func (m *Model) cellsText(row, first int, spans []span, focus sheet.Addr, sel sh
 			base = m.th.Selection
 		case m.found(a):
 			base = m.th.Found
-		case m.traced(a):
+		case m.trace.covers(m.sheet, a):
 			base = m.th.Traced
 		case sheet.IsPending(m.sheet.Value(a)):
 			base = m.th.Muted
@@ -166,7 +166,7 @@ func (m *Model) cellsText(row, first int, spans []span, focus sheet.Addr, sel sh
 			colored = false
 		}
 		// The copy marker is layered on the cell's own colors.
-		if m.copyMarked(a) {
+		if m.copied.marks(m.sheet, a) {
 			base, colored = base.Inherit(m.th.Copied), true
 		}
 		if a == m.cur && (m.mode == modeEnter || m.mode == modeEdit) && !m.away() {
@@ -174,7 +174,7 @@ func (m *Model) cellsText(row, first int, spans []span, focus sheet.Addr, sel sh
 		} else {
 			m.decorate(&sp, row) // links and error marks, see links.go
 		}
-		text := m.renderSpan(sp, base, colored)
+		text := renderSpan(&m.th, sp, base, colored)
 		if m.showFillHandle(a) {
 			w := m.sheet.ColWidth(a.Col)
 			text = ansi.Truncate(text, w-1, "") + base.Render("▟")
@@ -201,7 +201,7 @@ func (m *Model) dividerRow() string {
 
 // renderSpan draws a span on base, one of the cell roles. Plain cells
 // with no text style are written without escape codes.
-func (m *Model) renderSpan(sp span, base lipgloss.Style, colored bool) string {
+func renderSpan(th *theme.Theme, sp span, base lipgloss.Style, colored bool) string {
 	lead, trail := strings.Repeat(" ", sp.lead), strings.Repeat(" ", sp.trail)
 	st := sp.style
 	st.Align = sheet.AlignAuto
@@ -212,9 +212,9 @@ func (m *Model) renderSpan(sp span, base lipgloss.Style, colored bool) string {
 	case plain:
 		return base.Render(lead + sp.text + trail)
 	case !colored:
-		return lead + m.textStyle(base, sp).Render(sp.text) + trail
+		return lead + spanStyle(th, base, sp).Render(sp.text) + trail
 	}
-	return base.Render(lead) + m.textStyle(base, sp).Render(sp.text) + base.Render(trail)
+	return base.Render(lead) + spanStyle(th, base, sp).Render(sp.text) + base.Render(trail)
 }
 
 // inCellText shows the entry being typed inside the cell, keeping the end
