@@ -5,11 +5,11 @@ import (
 	"strings"
 )
 
-// Worksheet bounds, matching Lotus 1-2-3 Release 2 (A..IV, 1..8192). A
-// reference past them isn't a reference: IW1 reads as a name.
+// Worksheet bounds, matching Excel (A..XFD, 1..1048576). A reference
+// past them isn't a reference: XFE1 reads as a name.
 const (
-	MaxCols = 256
-	MaxRows = 8192
+	MaxCols = 16384
+	MaxRows = 1048576
 )
 
 // Addr identifies a cell by zero-based column and row.
@@ -27,17 +27,24 @@ func (a Addr) Valid() bool {
 	return a.Col >= 0 && a.Col < MaxCols && a.Row >= 0 && a.Row < MaxRows
 }
 
-// ColName converts a zero-based column index to letters: 0 -> A, 26 -> AA.
+// ColName converts a zero-based column index to letters: 0 -> A, 26 -> AA,
+// 702 -> AAA.
 func ColName(c int) string {
 	if c < 26 {
 		return string(rune('A' + c))
 	}
-	return string(rune('A'+c/26-1)) + string(rune('A'+c%26))
+	var b [8]byte
+	i := len(b)
+	for c++; c > 0; c = (c - 1) / 26 {
+		i--
+		b[i] = byte('A' + (c-1)%26)
+	}
+	return string(b[i:])
 }
 
 // ParseCol converts column letters (case-insensitive) to a zero-based index.
 func ParseCol(s string) (int, bool) {
-	if len(s) == 0 || len(s) > 2 {
+	if len(s) == 0 || len(s) > 3 {
 		return 0, false
 	}
 	c := 0
@@ -126,15 +133,26 @@ func (r Rect) Contains(a Addr) bool {
 		a.Row >= r.From.Row && a.Row <= r.To.Row
 }
 
-// String returns the range as A1:B3, or A1 for a single cell.
+// AllRows reports whether r spans every row: whole columns, A:A.
+func (r Rect) AllRows() bool { return r.From.Row == 0 && r.To.Row == MaxRows-1 }
+
+// AllCols reports whether r spans every column: whole rows, 1:1.
+func (r Rect) AllCols() bool { return r.From.Col == 0 && r.To.Col == MaxCols-1 }
+
+// String returns the range as A1:B3, A1 for a single cell, or A:C and
+// 2:5 for whole columns and rows.
 func (r Rect) String() string {
-	if r.From == r.To {
+	switch {
+	case r.From == r.To:
 		return r.From.String()
+	case r.AllRows(), r.AllCols():
+		return RangeString(r, [2]Abs{})
 	}
 	return r.From.String() + ":" + r.To.String()
 }
 
-// ParseRange parses "A1", "A1:B3" or 1-2-3 style "A1..B3".
+// ParseRange parses "A1", "A1:B3", 1-2-3 style "A1..B3", or whole
+// columns "A:C" and rows "2:5".
 func ParseRange(s string) (Rect, bool) {
 	s = strings.TrimSpace(s)
 	sep := strings.Index(s, "..")
@@ -146,9 +164,80 @@ func ParseRange(s string) (Rect, bool) {
 		a, ok := ParseAddr(s)
 		return Rect{From: a, To: a}, ok
 	}
+	if r, _, ok := ParseLines(s[:sep], s[sep+width:]); ok {
+		return r, true
+	}
 	a, ok1 := ParseAddr(s[:sep])
 	b, ok2 := ParseAddr(s[sep+width:])
 	return NewRect(a, b), ok1 && ok2
+}
+
+// ParseLines parses the ends of whole columns ("A", "$C") or whole rows
+// ("2", "$5") as the range they span, with their absolute markers.
+func ParseLines(from, to string) (Rect, [2]Abs, bool) {
+	c0, abs0, ok0 := parseLine(from, false)
+	c1, abs1, ok1 := parseLine(to, false)
+	if ok0 && ok1 {
+		r := NewRect(Addr{Col: c0}, Addr{Col: c1, Row: MaxRows - 1})
+		return r, orderAbs(c0 > c1, abs0, abs1), true
+	}
+	r0, abs0, ok0 := parseLine(from, true)
+	r1, abs1, ok1 := parseLine(to, true)
+	if ok0 && ok1 {
+		r := NewRect(Addr{Row: r0}, Addr{Col: MaxCols - 1, Row: r1})
+		return r, orderAbs(r0 > r1, abs0, abs1), true
+	}
+	return Rect{}, [2]Abs{}, false
+}
+
+func orderAbs(swap bool, a, b Abs) [2]Abs {
+	if swap {
+		return [2]Abs{b, a}
+	}
+	return [2]Abs{a, b}
+}
+
+// parseLine parses a column's letters or a row's number, with an
+// optional $.
+func parseLine(s string, row bool) (int, Abs, bool) {
+	rest, abs := strings.CutPrefix(s, "$")
+	if !row {
+		c, ok := ParseCol(rest)
+		if abs {
+			return c, AbsCol, ok
+		}
+		return c, 0, ok
+	}
+	if rest == "" || strings.ContainsFunc(rest, func(r rune) bool { return r < '0' || r > '9' }) {
+		return 0, 0, false
+	}
+	n, err := strconv.Atoi(rest)
+	if err != nil || n < 1 || n > MaxRows {
+		return 0, 0, false
+	}
+	if abs {
+		return n - 1, AbsRow, true
+	}
+	return n - 1, 0, true
+}
+
+// RangeString writes a range as written in a formula, with its absolute
+// markers: A1:B3, $A$1:B3, or whole columns (A:C) and rows (2:5).
+func RangeString(r Rect, abs [2]Abs) string {
+	switch {
+	case r.AllRows():
+		return lineString(ColName(r.From.Col), abs[0]&AbsCol) + ":" + lineString(ColName(r.To.Col), abs[1]&AbsCol)
+	case r.AllCols():
+		return lineString(strconv.Itoa(r.From.Row+1), abs[0]&AbsRow) + ":" + lineString(strconv.Itoa(r.To.Row+1), abs[1]&AbsRow)
+	}
+	return RefString(r.From, abs[0]) + ":" + RefString(r.To, abs[1])
+}
+
+func lineString(s string, abs Abs) string {
+	if abs != 0 {
+		return "$" + s
+	}
+	return s
 }
 
 // LooksLikeRef reports whether an upper-case name reads as a cell in A1 or

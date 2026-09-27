@@ -207,6 +207,11 @@ func ParseAlign(s string) (Align, bool) {
 type Style struct {
 	Bold, Italic, Underline, Strikethrough bool
 	Align                                  Align
+
+	// own marks a cell's format and style as wholly its own, not falling
+	// back on its row's or column's even where they are Automatic or
+	// plain; see lines.go.
+	own bool
 }
 
 // IsZero reports whether s is the default style.

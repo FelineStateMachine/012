@@ -59,8 +59,9 @@ type fileFormat struct {
 
 // fileSheet is one sheet of a file.
 type fileSheet struct {
-	Name   string         `json:"name,omitempty"`
-	Widths map[string]int `json:"widths,omitempty"`
+	Name   string                     `json:"name,omitempty"`
+	Widths map[string]int             `json:"widths,omitempty"`
+	Lines  map[string]json.RawMessage `json:"lines,omitempty"` // column and row formats, see linefile.go
 	fileView
 	Cells  map[string]json.RawMessage `json:"cells"`
 	Charts []fileChart                `json:"charts,omitempty"`
@@ -119,6 +120,7 @@ type fileCell struct {
 	Underline     bool   `json:"underline,omitempty"`
 	Strikethrough bool   `json:"strikethrough,omitempty"`
 	Align         string `json:"align,omitempty"`
+	Own           bool   `json:"own,omitempty"` // not taking its column's or row's formatting
 }
 
 func encodeCell(c *Cell) (json.RawMessage, error) {
@@ -133,6 +135,7 @@ func encodeCell(c *Cell) (json.RawMessage, error) {
 		Underline:     c.Style.Underline,
 		Strikethrough: c.Style.Strikethrough,
 		Align:         c.Style.Align.String(),
+		Own:           c.Style.own,
 	}
 	if !c.Format.IsZero() {
 		fc.Format = c.Format.Kind.String()
@@ -168,7 +171,7 @@ func decodeCell(raw json.RawMessage) (string, Format, Style, error) {
 	if !ok {
 		return "", Format{}, Style{}, fmt.Errorf("unknown alignment %q", fc.Align)
 	}
-	st := Style{Bold: fc.Bold, Italic: fc.Italic, Underline: fc.Underline, Strikethrough: fc.Strikethrough, Align: al}
+	st := Style{Bold: fc.Bold, Italic: fc.Italic, Underline: fc.Underline, Strikethrough: fc.Strikethrough, Align: al, own: fc.Own}
 	return fc.Input, f, st, nil
 }
 
@@ -284,6 +287,9 @@ func (s *Sheet) writeBody(b *bytes.Buffer, indent, names string) error {
 			fmt.Fprintf(b, "%q: %d", ColName(c), s.widths[c])
 		}
 		b.WriteString("},\n")
+	}
+	if err := s.writeLines(b, indent); err != nil {
+		return err
 	}
 	if names != "" {
 		b.WriteString(indent + names + ",\n")
@@ -440,6 +446,9 @@ func (s *Sheet) read(f fileSheet, version int) error {
 			return fmt.Errorf("invalid column %q", name)
 		}
 		s.setWidth(c, width)
+	}
+	if err := s.readLines(f.Lines); err != nil {
+		return err
 	}
 	for name, raw := range f.Cells {
 		a, ok := ParseAddr(name)

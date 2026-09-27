@@ -57,6 +57,7 @@ type Sheet struct {
 
 	cells  cellStore // see store.go
 	widths map[int]int
+	lines  lineFormats // column and row formats, see lines.go
 
 	// dependents maps a cell to the formula cells that reference it
 	// directly. Range references are kept on the formula cell itself and
@@ -222,6 +223,9 @@ func (s *Sheet) put(a Addr, input string) error {
 	var st Style
 	if old := s.cells.get(a); old != nil {
 		f, st = old.Format, old.Style
+	}
+	if f.IsZero() && !st.own && s.inherited(a).Format.Kind == FmtText {
+		f = Format{Kind: FmtText} // typed into a plain text column: text
 	}
 	c, err := newCell(input, f, st, true)
 	if err != nil {

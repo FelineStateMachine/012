@@ -11,24 +11,33 @@ import "github.com/FelineStateMachine/012/internal/formula"
 const materializeLimit = 1 << 16
 
 // DisplayFormat returns the format the cell at a is shown with: its own,
-// or for Automatic, the one inferred from its formula (=DATE() shows a
-// date, =SUM(B2:B4) of currency shows currency).
+// its row's or column's, or for Automatic, the one inferred from its
+// formula (=DATE() shows a date, =SUM(B2:B4) of currency shows
+// currency).
 func (s *Sheet) DisplayFormat(a Addr) Format {
 	c := s.cells.get(a)
 	switch {
-	case c == nil:
-		return Format{}
-	case c.Format.IsZero():
-		return c.auto
+	case c != nil && !c.Format.IsZero():
+		return c.Format
+	case s.lines.cols == nil && s.lines.rows == nil:
+	case c != nil && c.Style.own:
+	default:
+		if f := s.inherited(a).Format; !f.IsZero() {
+			return f
+		}
 	}
-	return c.Format
+	if c == nil {
+		return Format{}
+	}
+	return c.auto
 }
 
 // SetFormat gives every cell in r the number format f, including blank
-// cells, which keep it for when something is typed.
+// cells, which keep it for when something is typed. Whole columns and
+// rows keep it as their line's format rather than on each cell.
 func (s *Sheet) SetFormat(r Rect, f Format) {
 	s.change("format "+r.String()+" as "+f.Kind.label(), r, func() {
-		s.eachCell(r, !f.IsZero(), func(_ Addr, c *Cell) { c.Format = f })
+		s.eachFormat(r, !f.IsZero(), func(_ Addr, l *lineFmt) { l.Format = f })
 	})
 }
 
@@ -37,7 +46,7 @@ func (s *Sheet) SetFormat(r Rect, f Format) {
 // label ("bold B2:B5") wrap it in Batch.
 func (s *Sheet) SetStyle(r Rect, fn func(*Style)) {
 	s.change("style "+r.String(), r, func() {
-		s.eachCell(r, true, func(_ Addr, c *Cell) { fn(&c.Style) })
+		s.eachFormat(r, true, func(_ Addr, l *lineFmt) { fn(&l.Style) })
 	})
 }
 
@@ -45,7 +54,7 @@ func (s *Sheet) SetStyle(r Rect, fn func(*Style)) {
 // Sheets' Format > Clear formatting.
 func (s *Sheet) ClearFormatting(r Rect) {
 	s.change("clear formatting "+r.String(), r, func() {
-		s.eachCell(r, false, func(_ Addr, c *Cell) { c.Format, c.Style = Format{}, Style{} })
+		s.eachFormat(r, false, func(_ Addr, l *lineFmt) { *l = lineFmt{} })
 	})
 }
 
@@ -57,20 +66,28 @@ func (s *Sheet) AdjustDecimals(r Rect, delta int) {
 		label = "fewer decimals in "
 	}
 	s.change(label+r.String(), r, func() {
-		s.eachCell(r, false, func(a Addr, c *Cell) {
-			if !c.Blank() {
-				c.Format = s.DisplayFormat(a).WithDecimals(delta, c.Value.Num)
+		s.eachCell(r, false, func(a Addr, l *lineFmt) {
+			if c := s.cells.get(a); !c.Blank() {
+				l.Format = s.DisplayFormat(a).WithDecimals(delta, c.Value.Num)
 			}
 		})
 	})
 }
 
-// eachCell applies fn to a copy of each cell in r and places the copy,
-// so the change can be undone. With create, blank cells get a cell to
-// hold the formatting (up to materializeLimit cells); cells left with
-// neither contents nor formatting are removed. Cells that fn leaves
-// unchanged are not touched.
-func (s *Sheet) eachCell(r Rect, create bool, fn func(Addr, *Cell)) {
+// eachFormat applies fn to the formatting of r: to its lines' formats
+// when r is whole columns or rows, and to each of its cells otherwise.
+func (s *Sheet) eachFormat(r Rect, create bool, fn func(Addr, *lineFmt)) {
+	if !s.formatLines(r, func(l *lineFmt) { fn(Addr{}, l) }) {
+		s.eachCell(r, create, fn)
+	}
+}
+
+// eachCell applies fn to what each cell in r shows and has the cell
+// show the result, placing a copy so the change can be undone. With
+// create, blank cells get a cell to hold the formatting (up to
+// materializeLimit cells); cells left with neither contents nor
+// formatting are removed. Cells that fn leaves unchanged are not touched.
+func (s *Sheet) eachCell(r Rect, create bool, fn func(Addr, *lineFmt)) {
 	area := (r.To.Col - r.From.Col + 1) * (r.To.Row - r.From.Row + 1)
 	var addrs []Addr
 	if create && area <= materializeLimit {
@@ -83,20 +100,9 @@ func (s *Sheet) eachCell(r Rect, create bool, fn func(Addr, *Cell)) {
 		addrs = s.cellsIn(r)
 	}
 	for _, a := range addrs {
-		old := s.cells.get(a)
-		c := old.clone()
-		if c == nil {
-			c = &Cell{}
-		}
-		fn(a, c)
-		switch {
-		case c.Blank() && c.Format.IsZero() && c.Style.IsZero():
-			if old != nil {
-				s.place(a, nil)
-			}
-		case old == nil || c.Format != old.Format || c.Style != old.Style:
-			s.place(a, c)
-		}
+		want := s.effective(a)
+		fn(a, &want)
+		s.placeFormat(a, want)
 	}
 }
 

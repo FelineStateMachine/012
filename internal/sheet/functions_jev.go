@@ -72,28 +72,41 @@ func remoteEval(build func([]Node, lookup) (RemoteCall, error), result func(Remo
 	}
 }
 
+// jevWhole is the largest range a JEV function's value sees whole.
+const jevWhole = 4096
+
 // inputError carries a spreadsheet error found in a JEV function's inputs.
 type inputError struct{ v Value }
 
 func (e inputError) Error() string { return e.v.Str }
 
 // jevState turns the value argument into what the model sees: text,
-// numbers and booleans as themselves, a range as rows of them.
+// numbers and booleans as themselves, a range as rows of them. A range
+// of more than jevWhole cells leaves off the blank rows and columns past
+// its data, so a whole column is its data.
 func jevState(n Node, get lookup) (any, error) {
 	if rn, ok := n.(formula.Range); ok {
-		var rows [][]any
-		for r := rn.Rect.From.Row; r <= rn.Rect.To.Row; r++ {
+		m := rectMatrix(rn.Sheet, rn.Rect, get)
+		if m.blank.Kind == Error {
+			return nil, inputError{m.blank}
+		}
+		rows, cols := m.rows, m.cols
+		if m.size() > jevWhole {
+			rows, cols = min(max(m.dataRows, 1), m.rows), min(max(m.dataCols, 1), m.cols)
+		}
+		var out [][]any
+		for r := range rows {
 			var row []any
-			for c := rn.Rect.From.Col; c <= rn.Rect.To.Col; c++ {
-				v := get.cell(rn.Sheet, Addr{Col: c, Row: r})
+			for c := range cols {
+				v := m.cell(r, c)
 				if v.Kind == Error {
 					return nil, inputError{v}
 				}
 				row = append(row, plain(v))
 			}
-			rows = append(rows, row)
+			out = append(out, row)
 		}
-		return rows, nil
+		return out, nil
 	}
 	v := eval(n, get)
 	if v.Kind == Error {
@@ -139,16 +152,19 @@ func jevQuestion(n Node, get lookup) (string, error) {
 func jevList(n Node, get lookup) ([]string, error) {
 	var out []string
 	if rn, ok := n.(formula.Range); ok {
-		for r := rn.Rect.From.Row; r <= rn.Rect.To.Row; r++ {
-			for c := rn.Rect.From.Col; c <= rn.Rect.To.Col; c++ {
-				v := get.cell(rn.Sheet, Addr{Col: c, Row: r})
-				if v.Kind == Error {
-					return nil, inputError{v}
-				}
-				if s := strings.TrimSpace(text(v)); s != "" {
-					out = append(out, s)
-				}
+		var err error
+		get.cells(rn.Sheet, rn.Rect, func(_ Addr, v Value) bool {
+			if v.Kind == Error {
+				err = inputError{v}
+				return false
 			}
+			if s := strings.TrimSpace(text(v)); s != "" {
+				out = append(out, s)
+			}
+			return true
+		})
+		if err != nil {
+			return nil, err
 		}
 		return out, nil
 	}

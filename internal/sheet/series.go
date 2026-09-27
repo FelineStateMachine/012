@@ -23,23 +23,20 @@ import (
 // is continued on its own. It returns the range filled, as one undo step.
 func (s *Sheet) FillSeries(src, dst Rect) (Rect, error) {
 	w, h := dst.To.Col-dst.From.Col+1, dst.To.Row-dst.From.Row+1
-	if w*h > maxFill {
+	if w*h > MaxCells() {
 		return Rect{}, ErrFillTooBig
 	}
 	vertical := dst.From.Col == src.From.Col && dst.To.Col == src.To.Col
 	if !vertical && (dst.From.Row != src.From.Row || dst.To.Row != src.To.Row) || dst == src {
 		return src, nil
 	}
-	var lanes [][2][]Addr // per lane: the source cells in fill order, then the targets
+	var lanes []fillLane
 	lane := func(from, step Addr, n int, to Addr, m int) {
-		var seq, targets []Addr
+		var seq []Addr
 		for i := range n {
 			seq = append(seq, Addr{Col: from.Col + step.Col*i, Row: from.Row + step.Row*i})
 		}
-		for i := range m {
-			targets = append(targets, Addr{Col: to.Col + step.Col*i, Row: to.Row + step.Row*i})
-		}
-		lanes = append(lanes, [2][]Addr{seq, targets})
+		lanes = append(lanes, fillLane{seq, to, step, m})
 	}
 	n := src.To.Row - src.From.Row + 1
 	if !vertical {
@@ -65,20 +62,40 @@ func (s *Sheet) FillSeries(src, dst Rect) (Rect, error) {
 	}
 	s.change("fill "+dst.String(), dst, func() {
 		for _, l := range lanes {
-			s.fillLane(l[0], l[1])
+			s.fill(l)
 		}
 	})
 	return dst, nil
 }
 
-// fillLane continues the cells at seq into targets.
-func (s *Sheet) fillLane(seq, targets []Addr) {
+// fillLane is one column (or row) of a fill: the source cells in fill
+// order, and n targets from to on by step.
+type fillLane struct {
+	seq      []Addr
+	to, step Addr
+	n        int
+}
+
+// fill continues the cells of a lane into its targets. A lane of blank
+// cells only clears what its targets hold.
+func (s *Sheet) fill(l fillLane) {
+	seq := l.seq
 	cells := make([]*Cell, len(seq))
+	blank := true
 	for i, a := range seq {
 		cells[i] = s.cells.get(a)
+		blank = blank && cells[i] == nil
+	}
+	if blank {
+		last := Addr{Col: l.to.Col + l.step.Col*(l.n-1), Row: l.to.Row + l.step.Row*(l.n-1)}
+		for _, a := range s.cellsIn(NewRect(l.to, last)) {
+			s.place(a, nil)
+		}
+		return
 	}
 	next := detectSeries(cells)
-	for i, to := range targets {
+	for i := range l.n {
+		to := Addr{Col: l.to.Col + l.step.Col*i, Row: l.to.Row + l.step.Row*i}
 		k := i % len(seq)
 		c := cells[k]
 		switch {

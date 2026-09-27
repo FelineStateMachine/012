@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/FelineStateMachine/012/internal/formula"
 )
@@ -12,12 +13,31 @@ import (
 var (
 	ErrPushedOff  = errors.New("There's data at the edge of the sheet that would be pushed off")
 	ErrPasteEdge  = errors.New("The paste doesn't fit: it would go past the edge of the sheet")
-	ErrFillTooBig = errors.New("The selection is too large to fill")
+	ErrFillTooBig = errors.New("That would write more cells than max-cells allows (see File > Settings)")
 )
 
-// maxFill caps how many cells a paste or fill writes at once, so an
-// accidental whole-sheet selection can't stall the program.
-const maxFill = 1 << 20
+// DefaultMaxCells is the max-cells setting's default: about 600 MB of
+// cells at 300 bytes each.
+const DefaultMaxCells = 2_000_000
+
+// maxCells caps how many cells a paste or fill writes at once, and how
+// many an import keeps, so an accidental whole-sheet selection or a huge
+// file can't stall the program or exhaust memory. It is the max-cells
+// setting of the config file, process-wide like the rest of it.
+var maxCells atomic.Int64
+
+func init() { maxCells.Store(DefaultMaxCells) }
+
+// SetMaxCells sets the cell budget; n < 1 restores the default.
+func SetMaxCells(n int) {
+	if n < 1 {
+		n = DefaultMaxCells
+	}
+	maxCells.Store(int64(n))
+}
+
+// MaxCells returns the cell budget.
+func MaxCells() int { return int(maxCells.Load()) }
 
 // remap moves every stored cell with cell (dropping those it rejects) and
 // rewrites every reference to this sheet's cells, here and on other
@@ -123,6 +143,7 @@ func (s *Sheet) restructure(rows bool, sp formula.Span) {
 		if !rows {
 			s.shiftWidths(sp)
 		}
+		s.shiftLines(rows, sp)
 		s.shiftView(rows, sp)
 		s.shiftPivots(rows, sp)
 	})
@@ -169,9 +190,15 @@ func (c *Clip) Size() (cols, rows int) {
 }
 
 // Text returns the clip's values as displayed in General format, row by
-// row, for the system clipboard.
+// row, for the system clipboard. Blank rows and columns past the last
+// value are left off, so copying whole columns gives their data.
 func (c *Clip) Text() [][]string {
-	cols, rows := c.Size()
+	cols, rows := 0, 0
+	for off, cell := range c.cells {
+		if !cell.Blank() {
+			cols, rows = max(cols, off.Col+1), max(rows, off.Row+1)
+		}
+	}
 	out := make([][]string, rows)
 	for r := range out {
 		out[r] = make([]string, cols)
@@ -199,20 +226,33 @@ func (s *Sheet) Paste(c *Clip, dst Rect, values bool) (Rect, error) {
 	if !dst.To.Valid() {
 		return Rect{}, ErrPasteEdge
 	}
-	if w*h > maxFill {
+	tilesAcross, tilesDown := w/cols, h/rows
+	if len(c.cells)*tilesAcross*tilesDown > MaxCells() {
 		return Rect{}, ErrFillTooBig
 	}
 	label := "paste into " + dst.String()
 	if values {
 		label = "paste values into " + dst.String()
 	}
+	// Blank parts of the clip clear what they land on, and each of its
+	// cells is placed in every tile: the cost is the cells written and
+	// cleared, not dst's area.
+	offset := func(a Addr) Addr {
+		return Addr{Col: (a.Col - dst.From.Col) % cols, Row: (a.Row - dst.From.Row) % rows}
+	}
 	s.change(label, dst, func() {
-		for r := range h {
-			for col := range w {
-				off := Addr{Col: col % cols, Row: r % rows}
-				to := Addr{Col: dst.From.Col + col, Row: dst.From.Row + r}
-				from := Addr{Col: c.Src.From.Col + off.Col, Row: c.Src.From.Row + off.Row}
-				s.pasteCell(to, c.cells[off], to.Col-from.Col, to.Row-from.Row, values)
+		for _, a := range s.cellsIn(dst) {
+			if c.cells[offset(a)] == nil {
+				s.place(a, nil)
+			}
+		}
+		for off, cell := range c.cells {
+			from := Addr{Col: c.Src.From.Col + off.Col, Row: c.Src.From.Row + off.Row}
+			for tr := range tilesDown {
+				for tc := range tilesAcross {
+					to := Addr{Col: dst.From.Col + tc*cols + off.Col, Row: dst.From.Row + tr*rows + off.Row}
+					s.pasteCell(to, cell, to.Col-from.Col, to.Row-from.Row, values)
+				}
 			}
 		}
 	})
@@ -294,7 +334,7 @@ func (s *Sheet) FillRight(r Rect) (Rect, error) {
 // origin and copied to each cell, adjusting references (Ctrl+Enter).
 func (s *Sheet) FillEntry(r Rect, origin Addr, input string) error {
 	w, h := r.To.Col-r.From.Col+1, r.To.Row-r.From.Row+1
-	if w*h > maxFill {
+	if w*h > MaxCells() {
 		return ErrFillTooBig
 	}
 	if _, _, err := classify(input); err != nil {

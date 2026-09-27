@@ -83,17 +83,17 @@ func TestInsertDeleteColsShiftWidths(t *testing.T) {
 }
 
 func TestInsertRefusesToPushDataOff(t *testing.T) {
-	s := sheetOf(t, map[string]string{"A8192": "last"})
+	s := sheetOf(t, map[string]string{"A1048576": "last"})
 	if err := s.InsertRows(0, 1); err != ErrPushedOff {
 		t.Errorf("err = %v", err)
 	}
-	if err := s.InsertRows(8191, 1); err != ErrPushedOff {
+	if err := s.InsertRows(1048575, 1); err != ErrPushedOff {
 		t.Errorf("err = %v", err)
 	}
-	if err := s.InsertRows(8192-3, 1); err != ErrPushedOff {
+	if err := s.InsertRows(1048576-3, 1); err != ErrPushedOff {
 		t.Errorf("err = %v", err)
 	}
-	s = sheetOf(t, map[string]string{"A8190": "x", "B1": "=A8192"})
+	s = sheetOf(t, map[string]string{"A1048574": "x", "B1": "=A1048576"})
 	if err := s.InsertRows(0, 1); err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestPasteBlanksAndEdge(t *testing.T) {
 	if got := inputs(s); got["C1"] != "1" || got["D1"] != "" {
 		t.Errorf("blank source cells should clear the destination: %v", got)
 	}
-	if _, err := s.Paste(s.Copy(NewRect(at("A1"), at("B1"))), NewRect(at("IV1"), at("IV1")), false); err != ErrPasteEdge {
+	if _, err := s.Paste(s.Copy(NewRect(at("A1"), at("B1"))), NewRect(at("XFD1"), at("XFD1")), false); err != ErrPasteEdge {
 		t.Errorf("err = %v", err)
 	}
 }

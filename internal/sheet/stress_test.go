@@ -73,8 +73,8 @@ func BenchmarkUndo(b *testing.B) {
 // BenchmarkBigUndo clears a dense 8192x26 block and undoes it: the
 // largest single step a user makes by hand.
 func BenchmarkBigUndo(b *testing.B) {
-	s := stress.Dense(sheet.MaxRows, 26)
-	all := sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 25, Row: sheet.MaxRows - 1})
+	s := stress.Dense(stress.Rows, 26)
+	all := sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 25, Row: stress.Rows - 1})
 	for b.Loop() {
 		s.EraseRange(all)
 		s.Undo()
@@ -85,10 +85,10 @@ func BenchmarkBigUndo(b *testing.B) {
 // history keeps, and reports the heap they hold.
 func BenchmarkHistoryFull(b *testing.B) {
 	for b.Loop() {
-		s := stress.Dense(sheet.MaxRows, 4)
+		s := stress.Dense(stress.Rows, 4)
 		before := heap()
 		for i := range sheet.MaxUndo {
-			col := sheet.NewRect(sheet.Addr{Col: i % 4}, sheet.Addr{Col: i % 4, Row: sheet.MaxRows - 1})
+			col := sheet.NewRect(sheet.Addr{Col: i % 4}, sheet.Addr{Col: i % 4, Row: stress.Rows - 1})
 			if err := s.FillEntry(col, col.From, fmt.Sprint(i)); err != nil {
 				b.Fatal(err)
 			}
@@ -103,9 +103,9 @@ func BenchmarkHistoryFull(b *testing.B) {
 // 8192x26 block, more than the history's byte budget holds, and reports
 // the heap the history keeps.
 func BenchmarkHistoryWide(b *testing.B) {
-	all := sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 25, Row: sheet.MaxRows - 1})
+	all := sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 25, Row: stress.Rows - 1})
 	for b.Loop() {
-		s := stress.Dense(sheet.MaxRows, 26)
+		s := stress.Dense(stress.Rows, 26)
 		before := heap()
 		for i := range 12 {
 			if err := s.FillEntry(all, all.From, fmt.Sprint(i)); err != nil {
@@ -135,8 +135,8 @@ func BenchmarkNested(b *testing.B) {
 }
 
 func BenchmarkSort(b *testing.B) {
-	s := stress.Table(sheet.MaxRows-1, 8)
-	r := sheet.NewRect(sheet.Addr{Row: 1}, sheet.Addr{Col: 7, Row: sheet.MaxRows - 1})
+	s := stress.Table(stress.Rows-1, 8)
+	r := sheet.NewRect(sheet.Addr{Row: 1}, sheet.Addr{Col: 7, Row: stress.Rows - 1})
 	desc := false
 	for b.Loop() {
 		s.SortRange(r, []sheet.SortKey{{Col: 2, Desc: desc}})
@@ -145,8 +145,8 @@ func BenchmarkSort(b *testing.B) {
 }
 
 func BenchmarkFilter(b *testing.B) {
-	s := stress.Table(sheet.MaxRows-1, 8)
-	s.CreateFilter(sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 7, Row: sheet.MaxRows - 1}))
+	s := stress.Table(stress.Rows-1, 8)
+	s.CreateFilter(sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 7, Row: stress.Rows - 1}))
 	b.Run("apply", func(b *testing.B) {
 		arg := [2]string{"5000", "2500"}
 		i := 0
@@ -164,7 +164,7 @@ func BenchmarkFilter(b *testing.B) {
 }
 
 func BenchmarkFind(b *testing.B) {
-	s := stress.Dense(sheet.MaxRows, 26)
+	s := stress.Dense(stress.Rows, 26)
 	b.Run("find", func(b *testing.B) {
 		for b.Loop() {
 			if _, err := s.Find("99.5", sheet.FindOptions{}); err != nil {
@@ -189,7 +189,7 @@ func BenchmarkFillSeries(b *testing.B) {
 	s.Set(sheet.Addr{}, "1")
 	s.Set(sheet.Addr{Row: 1}, "2")
 	src := sheet.NewRect(sheet.Addr{}, sheet.Addr{Row: 1})
-	dst := sheet.NewRect(sheet.Addr{}, sheet.Addr{Row: sheet.MaxRows - 1})
+	dst := sheet.NewRect(sheet.Addr{}, sheet.Addr{Row: stress.Rows - 1})
 	for b.Loop() {
 		if _, err := s.FillSeries(src, dst); err != nil {
 			b.Fatal(err)
@@ -238,18 +238,18 @@ type namedBuild struct {
 
 func saveShapes() []namedBuild {
 	return []namedBuild{
-		{"dense-8192x26", func() *sheet.Sheet { return stress.Dense(sheet.MaxRows, 26) }},
-		{"dense-8192x256", func() *sheet.Sheet { return stress.Dense(sheet.MaxRows, sheet.MaxCols) }},
-		{"chain-8192", func() *sheet.Sheet { return stress.Chain(sheet.MaxRows) }},
+		{"dense-8192x26", func() *sheet.Sheet { return stress.Dense(stress.Rows, 26) }},
+		{"dense-8192x256", func() *sheet.Sheet { return stress.Dense(stress.Rows, stress.Cols) }},
+		{"chain-8192", func() *sheet.Sheet { return stress.Chain(stress.Rows) }},
 	}
 }
 
 // BenchmarkMemory reports the live heap per non-blank cell after a load.
 func BenchmarkMemory(b *testing.B) {
 	for _, sh := range []namedBuild{
-		{"numbers", func() *sheet.Sheet { return stress.Dense(sheet.MaxRows, 64) }},
-		{"formulas", func() *sheet.Sheet { return stress.Chain(sheet.MaxRows) }},
-		{"text-200", func() *sheet.Sheet { return stress.LongText(sheet.MaxRows, 200) }},
+		{"numbers", func() *sheet.Sheet { return stress.Dense(stress.Rows, 64) }},
+		{"formulas", func() *sheet.Sheet { return stress.Chain(stress.Rows) }},
+		{"text-200", func() *sheet.Sheet { return stress.LongText(stress.Rows, 200) }},
 	} {
 		b.Run(sh.name, func(b *testing.B) {
 			for b.Loop() {

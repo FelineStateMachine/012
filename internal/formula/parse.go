@@ -102,6 +102,9 @@ func (p *parser) prefix() (Node, error) {
 	t := p.next()
 	switch t.kind {
 	case tokNum:
+		if r, ok := p.lines(t, ""); ok {
+			return r, nil
+		}
 		v, err := strconv.ParseFloat(t.text, 64)
 		if err != nil {
 			return nil, &ParseError{t.pos, "Invalid number " + t.text}
@@ -113,6 +116,9 @@ func (p *parser) prefix() (Node, error) {
 		return p.ident(t, "")
 	case tokSheet:
 		ref := p.next()
+		if r, ok := p.lines(ref, t.text); ok {
+			return r, nil
+		}
 		if ref.kind != tokIdent {
 			return nil, &ParseError{ref.pos, "Expected a cell after " + QuoteSheet(t.text) + "!"}
 		}
@@ -160,6 +166,9 @@ func (p *parser) prefixOp(t token) (Node, error) {
 // ident parses a reference, a range, a boolean or a name. sheet is the
 // sheet the reference was qualified with, if any.
 func (p *parser) ident(t token, sheet string) (Node, error) {
+	if r, ok := p.lines(t, sheet); ok {
+		return r, nil
+	}
 	a, abs, isRef := ParseRef(t.text)
 	if !isRef {
 		if sheet != "" {
@@ -193,6 +202,28 @@ func (p *parser) ident(t token, sheet string) (Node, error) {
 	r := NewRange(a, b, abs, bAbs)
 	r.Sheet = sheet
 	return r, nil
+}
+
+// lines parses whole columns (A:C, $A:$A) or rows (2:5), starting at t,
+// if that's what comes.
+func (p *parser) lines(t token, sheet string) (Range, bool) {
+	if !p.isOp(":") || t.kind != tokIdent && t.kind != tokNum {
+		return Range{}, false
+	}
+	end := p.toks[p.pos+1]
+	if end.kind == tokSheet && SheetKey(end.text) == SheetKey(sheet) && p.pos+2 < len(p.toks) {
+		end = p.toks[p.pos+2]
+	}
+	if end.kind != tokIdent && end.kind != tokNum {
+		return Range{}, false
+	}
+	r, abs, ok := ParseLines(t.text, end.text)
+	if !ok {
+		return Range{}, false
+	}
+	for p.next() != end {
+	}
+	return Range{r, abs, sheet}, true
 }
 
 // NewRange builds a normalized range from two corners as written. Each

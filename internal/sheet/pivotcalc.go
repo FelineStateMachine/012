@@ -198,10 +198,8 @@ func (c *pivotCalc) valueFormat(v PivotValue) Format {
 	if !summaries[v.Summarize].keepsFormat {
 		return Format{}
 	}
-	for row := c.p.Range.From.Row + 1; row <= c.p.Range.To.Row; row++ {
-		if a := (Addr{Col: v.Col, Row: row}); !c.src.cells.get(a).Blank() {
-			return c.src.DisplayFormat(a)
-		}
+	if row, ok := c.src.cells.filled.nextRow(v.Col, c.p.Range.From.Row+1, 1); ok && row <= c.p.Range.To.Row {
+		return c.src.DisplayFormat(Addr{Col: v.Col, Row: row})
 	}
 	return Format{}
 }
@@ -211,7 +209,7 @@ func (c *pivotCalc) valueFormat(v PivotValue) Format {
 func (c *pivotCalc) gather() {
 	tests := pivotTests(c.p.Filters)
 	r := c.p.Range
-	for row := r.From.Row + 1; row <= r.To.Row; row++ {
+	for row := r.From.Row + 1; row <= c.src.filterData(r).To.Row; row++ {
 		if c.src.rowBlank(row, r) || !c.src.rowPasses(row, tests) {
 			continue
 		}
@@ -230,12 +228,8 @@ func (c *pivotCalc) gather() {
 
 // rowBlank reports whether row is blank across r's columns.
 func (s *Sheet) rowBlank(row int, r Rect) bool {
-	for col := r.From.Col; col <= r.To.Col; col++ {
-		if !s.cells.get(Addr{Col: col, Row: row}).Blank() {
-			return false
-		}
-	}
-	return true
+	_, filled := s.cells.filled.bounds(Rect{From: Addr{Col: r.From.Col, Row: row}, To: Addr{Col: r.To.Col, Row: row}})
+	return !filled
 }
 
 // pivotTests prepares a pivot's filters as a filter's column tests.

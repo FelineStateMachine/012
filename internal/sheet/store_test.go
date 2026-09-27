@@ -20,7 +20,11 @@ func TestCellStoreIndex(t *testing.T) {
 		if rng.IntN(3) == 0 {
 			st.delete(a)
 		} else {
-			st.set(a, &Cell{Input: "x"})
+			input := "x"
+			if rng.IntN(4) == 0 {
+				input = "" // formatting only
+			}
+			st.set(a, &Cell{Input: input})
 		}
 		if i%100 == 0 {
 			checkStore(t, &st, rng)
@@ -29,8 +33,8 @@ func TestCellStoreIndex(t *testing.T) {
 	for a := range st.all() {
 		st.delete(a)
 	}
-	if len(st.cols) != 0 || len(st.colIDs) != 0 {
-		t.Errorf("empty store keeps %d columns", len(st.cols))
+	if len(st.stored.cols) != 0 || len(st.stored.colIDs) != 0 || len(st.filled.cols) != 0 {
+		t.Errorf("empty store keeps %d columns", len(st.stored.cols))
 	}
 }
 
@@ -65,10 +69,22 @@ func checkStore(t *testing.T, st *cellStore, rng *rand.Rand) {
 			!slices.ContainsFunc(want, func(a Addr) bool { return a.Col == b.To.Col })) {
 			t.Fatalf("bounds(%v) = %v isn't tight", r, b)
 		}
+		var filled []Addr
+		for a, c := range st.all() {
+			if r.Contains(a) && !c.Blank() {
+				filled = append(filled, a)
+			}
+			if st.filled.has(a) == c.Blank() {
+				t.Fatalf("filled index says %v for %v", st.filled.has(a), a)
+			}
+		}
+		if fb, ok := st.filled.bounds(r); ok != (len(filled) > 0) || ok && !slices.ContainsFunc(filled, func(a Addr) bool { return a.Row == fb.To.Row }) {
+			t.Fatalf("filled bounds(%v) = %v %v", r, fb, ok)
+		}
 		c, row := rng.IntN(40), rng.IntN(MaxRows)
-		next, ok := st.nextRow(c, row, 1)
+		next, ok := st.stored.nextRow(c, row, 1)
 		want1, ok1 := MaxRows, false
-		prev, okp := st.nextRow(c, row, -1)
+		prev, okp := st.stored.nextRow(c, row, -1)
 		want2, ok2 := -1, false
 		for a := range st.all() {
 			if a.Col == c && a.Row >= row && a.Row < want1 {

@@ -44,8 +44,8 @@ func BenchmarkPivot(b *testing.B) {
 	}
 	for _, sh := range shapes {
 		b.Run(sh.name, func(b *testing.B) {
-			src := stress.Table(sheet.MaxRows-1, 8)
-			r := sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 7, Row: sheet.MaxRows - 1})
+			src := stress.Table(stress.Rows-1, 8)
+			r := sheet.NewRect(sheet.Addr{}, sheet.Addr{Col: 7, Row: stress.Rows - 1})
 			pv, err := src.Book().CreatePivot(src, r, "", sh.make(src, r))
 			if err != nil {
 				b.Fatal(err)

@@ -12,13 +12,13 @@ func TestEdge(t *testing.T) {
 		dc, dr int
 		want   string
 	}{
-		{"A1", 0, 1, "A3"},    // inside a block: to its end
-		{"A3", 0, 1, "A6"},    // end of a block: to the next block
-		{"A4", 0, 1, "A6"},    // from a blank: to the next filled cell
-		{"A7", 0, 1, "A8192"}, // nothing ahead: sheet edge
+		{"A1", 0, 1, "A3"},       // inside a block: to its end
+		{"A3", 0, 1, "A6"},       // end of a block: to the next block
+		{"A4", 0, 1, "A6"},       // from a blank: to the next filled cell
+		{"A7", 0, 1, "A1048576"}, // nothing ahead: sheet edge
 		{"A6", 0, -1, "A3"},
 		{"A1", 0, -1, "A1"}, // already at the edge
-		{"A1", 1, 0, "IV1"},
+		{"A1", 1, 0, "XFD1"},
 		{"C1", -1, 0, "A1"},
 	}
 	for _, tt := range tests {

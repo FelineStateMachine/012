@@ -41,11 +41,14 @@ func TestAddr(t *testing.T) {
 		{"z10", Addr{25, 9}, true},
 		{"AA1", Addr{26, 0}, true},
 		{"IV8192", Addr{255, 8191}, true},
+		{"ZZ1", Addr{701, 0}, true},
+		{"AAA1", Addr{702, 0}, true},
+		{"XFD1048576", Addr{16383, 1048575}, true},
 		{"$B$2", Addr{1, 1}, true},
-		{"IW1", Addr{}, false},
+		{"XFE1", Addr{}, false},
 		{"A0", Addr{}, false},
-		{"A8193", Addr{}, false},
-		{"ABC1", Addr{}, false},
+		{"A1048577", Addr{}, false},
+		{"ABCD1", Addr{}, false},
 		{"A+1", Addr{}, false},
 		{"1A", Addr{}, false},
 	}
@@ -67,6 +70,16 @@ func TestParseRange(t *testing.T) {
 		r, ok := ParseRange(in)
 		if !ok || r.String() != "A1:B3" {
 			t.Errorf("ParseRange(%q) = %v, %v", in, r, ok)
+		}
+	}
+	for in, want := range map[string]string{"B:A": "A:B", "$3:2": "2:3", "XFD:XFD": "XFD:XFD", "A1:A1048576": "A:A"} {
+		if r, ok := ParseRange(in); !ok || r.String() != want {
+			t.Errorf("ParseRange(%q) = %v, %v; want %s", in, r, ok, want)
+		}
+	}
+	for _, in := range []string{"A:1", "0:1", "1:1048577", "XFE:XFE", "A:"} {
+		if r, ok := ParseRange(in); ok {
+			t.Errorf("ParseRange(%q) = %v, want no range", in, r)
 		}
 	}
 }
@@ -119,6 +132,13 @@ func TestPrintFormula(t *testing.T) {
 		{"=IF(A1>=2,TRUE,profit)", "=IF(A1>=2,TRUE,profit)"},
 		{"=SUM(#REF!)", "=SUM(#REF!)"},
 		{"+A1", "=+A1"},
+		{"=SUM(a:c)", "=SUM(A:C)"},
+		{"=SUM($C:a)", "=SUM(A:$C)"},
+		{"=SUM(A1:A1048576)", "=SUM(A:A)"},
+		{"=SUM(2:5)+SUM($3:$3)", "=SUM(2:5)+SUM($3:$3)"},
+		{"=SUM(Data!B:B)+SUM('Q 1'!1:2)", "=SUM(Data!B:B)+SUM('Q 1'!1:2)"},
+		{"=SUM(Data!XFD:Data!XFD)", "=SUM(Data!XFD:XFD)"},
+		{"=ZZZ1+AAA1:XFD9", "=ZZZ1+AAA1:XFD9"},
 	}
 	for _, tt := range tests {
 		n, err := Parse(tt.in, testFuncs)
@@ -146,7 +166,12 @@ func TestShiftRefs(t *testing.T) {
 		{"=A2", 0, -2, "=#REF!"},
 		{"=SUM(A1:B2)+1", -1, 0, "=SUM(#REF!)+1"},
 		{"=$A2", -1, 0, "=$A2"},
-		{"=IV1", 1, 0, "=#REF!"},
+		{"=XFD1", 1, 0, "=#REF!"},
+		{"=SUM(A:A)", 2, 7, "=SUM(C:C)"},
+		{"=SUM($A:B)", 1, 7, "=SUM($A:C)"},
+		{"=SUM(3:4)", 5, 2, "=SUM(5:6)"},
+		{"=A1048576", 0, 1, "=#REF!"},
+		{"=ZZ1", 1, 0, "=AAA1"},
 		// A mixed range can flip when one corner is anchored.
 		{"=SUM($C1:D1)", -2, 0, "=SUM(B1:$C1)"},
 	}

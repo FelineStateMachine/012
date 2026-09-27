@@ -171,10 +171,14 @@ func (s *Sheet) setFilter(label string, f *Filter) {
 }
 
 // hiddenCache remembers which rows the filter hides until values or the
-// filter change, so navigation and drawing stay cheap.
+// filter change, so navigation and drawing stay cheap. The rows of the
+// filter's range past its last filled row are all blank, so they are
+// hidden or shown together: a filter on whole columns tests the rows
+// with data and one blank row, not a million.
 type hiddenCache struct {
 	valid bool
 	rows  map[int]struct{}
+	tail  Rect // the blank rows at the end of the range, when hidden (From.Row > To.Row otherwise)
 }
 
 // RowHidden reports whether the filter hides row r.
@@ -183,6 +187,9 @@ func (s *Sheet) RowHidden(r int) bool {
 		return false
 	}
 	s.updateHidden()
+	if r >= s.hidden.tail.From.Row && r <= s.hidden.tail.To.Row {
+		return true
+	}
 	_, hid := s.hidden.rows[r]
 	return hid
 }
@@ -193,23 +200,56 @@ func (s *Sheet) HiddenRows() int {
 		return 0
 	}
 	s.updateHidden()
-	return len(s.hidden.rows)
+	return len(s.hidden.rows) + max(s.hidden.tail.To.Row-s.hidden.tail.From.Row+1, 0)
+}
+
+// NextShownRow returns the first row from r+d on (d is 1 or -1) that the
+// filter doesn't hide, jumping over the hidden blank rows at the end of
+// its range at once, and false past the edge of the sheet.
+func (s *Sheet) NextShownRow(r, d int) (int, bool) {
+	for r += d; r >= 0 && r < MaxRows; r += d {
+		if !s.RowHidden(r) {
+			return r, true
+		}
+		if t := s.hidden.tail; r >= t.From.Row && r <= t.To.Row {
+			r = t.To.Row
+			if d < 0 {
+				r = t.From.Row
+			}
+		}
+	}
+	return r, false
+}
+
+// filterData is the part of the filter's range that may hold data: its
+// rows through the last filled one.
+func (s *Sheet) filterData(r Rect) Rect {
+	b, ok := s.cells.filled.bounds(r)
+	r.To.Row = r.From.Row
+	if ok {
+		r.To.Row = b.To.Row
+	}
+	return r
 }
 
 func (s *Sheet) updateHidden() {
 	if s.hidden.valid {
 		return
 	}
-	s.hidden = hiddenCache{valid: true, rows: map[int]struct{}{}}
+	s.hidden = hiddenCache{valid: true, rows: map[int]struct{}{}, tail: Rect{From: Addr{Row: 1}}}
 	f := s.view.filter
 	if f == nil || len(f.Cols) == 0 {
 		return
 	}
 	tests := s.criteriaTests(f, -1)
-	for row := f.Range.From.Row + 1; row <= f.Range.To.Row; row++ {
+	data := s.filterData(f.Range)
+	for row := f.Range.From.Row + 1; row <= data.To.Row; row++ {
 		if !s.rowPasses(row, tests) {
 			s.hidden.rows[row] = struct{}{}
 		}
+	}
+	if blank := data.To.Row + 1; blank <= f.Range.To.Row && !s.rowPasses(blank, tests) {
+		s.hidden.tail = Rect{From: Addr{Row: blank}, To: Addr{Row: f.Range.To.Row}}
 	}
 }
 
@@ -347,7 +387,8 @@ func (s *Sheet) valuesList(r Rect, col int, tests []colTest, hide []string, skip
 	}
 	counts := map[string]int{}
 	values := map[string]Value{}
-	for row := r.From.Row + 1; row <= r.To.Row; row++ {
+	data := s.filterData(r)
+	for row := r.From.Row + 1; row <= data.To.Row; row++ {
 		if !s.rowPasses(row, tests) || skipBlank && s.rowBlank(row, r) {
 			continue
 		}
@@ -357,6 +398,11 @@ func (s *Sheet) valuesList(r Rect, col int, tests []colTest, hide []string, skip
 			values[t] = s.Value(a)
 		}
 		counts[t]++
+	}
+	// The rows past the data are blank: they count as one value.
+	if blank := data.To.Row + 1; blank <= r.To.Row && !skipBlank && s.rowPasses(blank, tests) {
+		counts[""] += r.To.Row - blank + 1
+		values[""] = Value{}
 	}
 	// Unchecked values stay listed even when no row has them any more, so
 	// they can be checked again.

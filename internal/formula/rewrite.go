@@ -99,8 +99,16 @@ func Shift(dc, dr int) Rewriter {
 			return Ref{a, n.Abs, n.Sheet}
 		},
 		Range: func(n Range) Node {
-			from, ok1 := move(n.Rect.From, n.Abs[0])
-			to, ok2 := move(n.Rect.To, n.Abs[1])
+			// Whole columns and rows stay whole, as A:A does in Sheets.
+			a0, a1 := n.Abs[0], n.Abs[1]
+			if n.Rect.AllRows() {
+				a0, a1 = a0|AbsRow, a1|AbsRow
+			}
+			if n.Rect.AllCols() {
+				a0, a1 = a0|AbsCol, a1|AbsCol
+			}
+			from, ok1 := move(n.Rect.From, a0)
+			to, ok2 := move(n.Rect.To, a1)
 			if !ok1 || !ok2 {
 				return RefErr{}
 			}
@@ -161,6 +169,9 @@ func (sp Span) Point(v int) (int, bool) {
 // the range grows it, deleting part of it shrinks it, and deleting all of
 // it leaves #REF!.
 func (sp Span) Interval(lo, hi int) (int, int, bool) {
+	if lo == 0 && hi == sp.Size-1 {
+		return lo, hi, true // whole columns or rows stay whole
+	}
 	if sp.N > 0 {
 		lo, okLo := sp.Point(lo)
 		if !okLo {

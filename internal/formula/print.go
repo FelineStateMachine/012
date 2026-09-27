@@ -58,7 +58,7 @@ func printNode(b *strings.Builder, n Node) {
 		b.WriteString(RefString(n.Addr, n.Abs))
 	case Range:
 		writeSheet(b, n.Sheet)
-		b.WriteString(RefString(n.Rect.From, n.Abs[0]) + ":" + RefString(n.Rect.To, n.Abs[1]))
+		b.WriteString(RangeString(n.Rect, n.Abs))
 	case RefErr:
 		b.WriteString(refErrorText)
 	case Name:

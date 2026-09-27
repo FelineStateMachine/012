@@ -353,7 +353,7 @@ func (w *Workbook) ValueTitle(p Pivot, v PivotValue) string {
 // Sheets: SUM when the column holds a number, COUNTA otherwise.
 func (w *Workbook) DefaultSummarize(p Pivot, col int) Summarize {
 	if src := w.Lookup(p.Source); src != nil {
-		for row := p.Range.From.Row + 1; row <= p.Range.To.Row; row++ {
+		for row := p.Range.From.Row + 1; row <= src.filterData(p.Range).To.Row; row++ {
 			if src.Value(Addr{Col: col, Row: row}).Kind == Number {
 				return SumBy
 			}

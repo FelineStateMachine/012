@@ -133,7 +133,7 @@ func TestFormatsPersistOnBlankCells(t *testing.T) {
 	if _, ok := s.UsedRange(); ok {
 		t.Error("UsedRange counts formatted blanks")
 	}
-	if got := s.Edge(at("B1"), 0, 1); got != at("B8192") {
+	if got := s.Edge(at("B1"), 0, 1); got != at("B1048576") {
 		t.Errorf("Edge over formatted blanks = %v", got)
 	}
 

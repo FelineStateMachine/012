@@ -22,3 +22,7 @@ func (s *Sheet) Load(a Addr, input string, f Format, st Style) error {
 	s.place(a, c)
 	return nil
 }
+
+// Unload removes a cell a loader stored, as an importer does with a row
+// that doesn't fit whole.
+func (s *Sheet) Unload(a Addr) { s.place(a, nil) }

@@ -36,12 +36,13 @@ type step struct {
 	// cellBytes is the estimated heap held by cells, kept as they are
 	// recorded so sizing a step doesn't walk them again.
 	cellBytes int64
-	label     string           // what the step did, e.g. "clear B3:B5"
-	sheet     *Sheet           // the sheet the UI shows when the step is undone or redone
-	focus     Rect             // what the UI selects there
-	cells     map[loc]*Cell    // before the step; nil for blank
-	widths    map[colKey]int   // before the step; 0 for the default width
-	names     map[string]*Name // before the step, by key; nil for undefined
+	label     string              // what the step did, e.g. "clear B3:B5"
+	sheet     *Sheet              // the sheet the UI shows when the step is undone or redone
+	focus     Rect                // what the UI selects there
+	cells     map[loc]*Cell       // before the step; nil for blank
+	widths    map[colKey]int      // before the step; 0 for the default width
+	lines     map[lineKey]lineFmt // column and row formats before the step
+	names     map[string]*Name    // before the step, by key; nil for undefined
 	views     map[*Sheet]*viewState
 	// charts holds each touched sheet's charts before the step.
 	charts map[*Sheet][]Chart
@@ -62,7 +63,7 @@ type colKey struct {
 }
 
 func newStep(label string, s *Sheet, focus Rect) *step {
-	return &step{label: label, sheet: s, focus: focus, cells: map[loc]*Cell{}, widths: map[colKey]int{},
+	return &step{label: label, sheet: s, focus: focus, cells: map[loc]*Cell{}, widths: map[colKey]int{}, lines: map[lineKey]lineFmt{},
 		names: map[string]*Name{}, views: map[*Sheet]*viewState{}, charts: map[*Sheet][]Chart{}, pivots: map[*Sheet]*Pivot{}}
 }
 
@@ -72,7 +73,7 @@ func (st *step) empty() bool {
 
 // widthOnly reports whether the step changed nothing but column widths.
 func (st *step) widthOnly() bool {
-	return len(st.cells) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && st.sheets == nil && st.decimal == nil &&
+	return len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && st.sheets == nil && st.decimal == nil &&
 		st.macros == nil
 }
 
@@ -243,6 +244,11 @@ func (w *Workbook) dropUnchanged(st *step) {
 			delete(st.widths, k)
 		}
 	}
+	for k, l := range st.lines {
+		if k.s.line(k.row, k.n) == l {
+			delete(st.lines, k)
+		}
+	}
 	for l, c := range st.cells {
 		if c == nil && l.s.cells.get(l.a) == nil {
 			delete(st.cells, l)
@@ -403,6 +409,11 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		inv.widths[k] = k.s.widths[k.col]
 		k.s.setWidth(k.col, width)
 	}
+	for k, l := range st.lines {
+		inv.lines[k] = k.s.line(k.row, k.n)
+		k.s.setLine(k.row, k.n, l)
+		changed = append(changed, k.s.lineCells(k.row, k.n)...)
+	}
 	for k, n := range st.names {
 		inv.names[k] = w.namePtr(k)
 		changed = append(changed, w.putName(k, n)...)
@@ -442,7 +453,7 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		w.pushUndo(inv)
 	}
 	h.mergeWidths = false
-	macrosOnly := st.macros != nil && len(st.cells) == 0 && len(st.names) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && st.sheets == nil
+	macrosOnly := st.macros != nil && len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && st.sheets == nil
 	return Change{Label: st.label, Focus: st.focus, Sheet: st.sheet, Tabs: st.sheets != nil, Macros: macrosOnly}, true
 }
 
