@@ -73,7 +73,7 @@ internal/value  --->  internal/numfmt  <------+
   and custom formats), Sheets' General form, rounding on 15 significant
   digits, and the calendar of serial day numbers.
 
-`sheet` re-exports what its callers used before (`sheet.Addr`,
+`sheet` re-exports the types and helpers its callers need (`sheet.Addr`,
 `sheet.Rect`, `sheet.Parse`, `sheet.Value`, `sheet.Format`,
 `sheet.ParseValue`, `sheet.FuncDef`, `sheet.Funcs`, the remote types,
 `sheet.FormatPattern`, the sheet-name helpers) as aliases and thin
@@ -197,9 +197,9 @@ keeps the address, and the one before it while formulas nest).
 
 The boundary costs no allocation on the hot paths, which an interface
 usually would: a callback passed through an interface escapes to the
-heap, so a `Book` that took one (as the engine's own range read did)
-would allocate for every range a formula reads. Every `Book` method takes
-and returns plain values instead:
+heap, so a `Book` that took one would allocate for every range a
+formula reads. Every `Book` method takes and returns plain values
+instead:
 
 - SUM-like functions hand the engine their aggregate (`Agg`, a value) and
   it adds a range's cells as it reads them (`Fold`), or answers from the
