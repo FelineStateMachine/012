@@ -14,7 +14,7 @@ import (
 // record turns telemetry on into a buffer for the test.
 func record(t testing.TB, level slog.Level) *bytes.Buffer {
 	var buf bytes.Buffer
-	start(&buf, Config{Level: level})
+	start(&buf, nil, Config{Level: level})
 	t.Cleanup(func() { Close() })
 	return &buf
 }
@@ -122,6 +122,20 @@ func TestPercentile(t *testing.T) {
 	}
 }
 
+// Call sites must not allocate while telemetry is off, OTLP compiled in
+// or not.
+func TestOffAllocatesNothing(t *testing.T) {
+	n := testing.AllocsPerRun(100, func() {
+		s := Start("recalc", slog.Int("n", 1))
+		s.End(slog.Int("cells", 2))
+		Event("recalc", time.Millisecond, slog.Int("cells", 2))
+		Frame(time.Millisecond, 0)
+	})
+	if n != 0 {
+		t.Errorf("%v allocations per call while off", n)
+	}
+}
+
 // The cost at a call site while telemetry is off: what every keystroke
 // pays for having it compiled in.
 func BenchmarkSpanOff(b *testing.B) {
@@ -139,7 +153,7 @@ func BenchmarkFrameOff(b *testing.B) {
 
 // The cost while on, writing JSON (to io.Discard).
 func BenchmarkSpanOn(b *testing.B) {
-	start(io.Discard, Config{})
+	start(io.Discard, nil, Config{})
 	defer Close()
 	for b.Loop() {
 		s := Start("recalc", slog.Int("n", 1))
@@ -148,7 +162,7 @@ func BenchmarkSpanOn(b *testing.B) {
 }
 
 func BenchmarkFrameOn(b *testing.B) {
-	start(io.Discard, Config{})
+	start(io.Discard, nil, Config{})
 	defer Close()
 	for b.Loop() {
 		Frame(time.Millisecond, 0)

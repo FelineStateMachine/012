@@ -53,13 +53,14 @@ func Frame(render, key time.Duration) {
 	due := now.Sub(f.since) >= window
 	var rs, ks []time.Duration
 	var gauges map[string]int64
+	since := f.since
 	if due {
 		rs, ks, gauges = slices.Clone(f.render), slices.Clone(f.keys), maps.Clone(f.gauges)
 		f.since, f.render, f.keys = now, f.render[:0], f.keys[:0]
 	}
 	f.mu.Unlock()
 	if due {
-		summarize(rs, ks, gauges)
+		summarize(since, now, rs, ks, gauges)
 	}
 	Debug("frame", render, slog.Float64("key_ms", ms(key)))
 }
@@ -75,22 +76,36 @@ func Set(name string, v int64) {
 	frames.mu.Unlock()
 }
 
-func summarize(render, keys []time.Duration, gauges map[string]int64) {
+// summarize logs the frames drawn from since to now, and hands them to
+// OTLP as metrics when it is on.
+func summarize(since, now time.Time, render, keys []time.Duration, gauges map[string]int64) {
+	r, k, heap := statsOf(render), statsOf(keys), heapBytes()
 	attrs := []slog.Attr{
-		slog.Int("frames", len(render)),
-		slog.Float64("render_p50_ms", ms(percentile(render, 50))),
-		slog.Float64("render_p95_ms", ms(percentile(render, 95))),
-		slog.Float64("render_max_ms", ms(percentile(render, 100))),
-		slog.Int("keys", len(keys)),
-		slog.Float64("key_p50_ms", ms(percentile(keys, 50))),
-		slog.Float64("key_p95_ms", ms(percentile(keys, 95))),
-		slog.Float64("key_max_ms", ms(percentile(keys, 100))),
-		slog.Int64("heap_bytes", heapBytes()),
+		slog.Int("frames", r.count),
+		slog.Float64("render_p50_ms", r.p50),
+		slog.Float64("render_p95_ms", r.p95),
+		slog.Float64("render_max_ms", r.pmax),
+		slog.Int("keys", k.count),
+		slog.Float64("key_p50_ms", k.p50),
+		slog.Float64("key_p95_ms", k.p95),
+		slog.Float64("key_max_ms", k.pmax),
+		slog.Int64("heap_bytes", heap),
 	}
 	for _, k := range slices.Sorted(maps.Keys(gauges)) {
 		attrs = append(attrs, slog.Int64(k, gauges[k]))
 	}
-	log(slog.LevelInfo, "frames", window, attrs)
+	emit(slog.LevelInfo, "frames", window, attrs, false)
+	if _, e := current(); e != nil && e.urls.metrics != "" {
+		e.window(frameWindow{start: since, end: now, render: r, key: k, heap: heap, gauges: gauges})
+	}
+}
+
+func statsOf(ds []time.Duration) stats {
+	s := stats{count: len(ds), p50: ms(percentile(ds, 50)), p95: ms(percentile(ds, 95)), pmax: ms(percentile(ds, 100))}
+	for _, d := range ds {
+		s.sum += ms(d)
+	}
+	return s
 }
 
 // percentile is the p-th percentile of ds (nearest rank), 0 when empty.
