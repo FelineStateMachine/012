@@ -32,6 +32,7 @@ type xlsxWriter struct {
 	missingSheet string            // the sheet missing's example names
 	known        map[string]bool   // keys of the sheets written
 	renamed      map[string]string // the names of sheets written under another, by key
+	dynamic      bool              // a dynamic array formula was written: see xlsxarray.go
 }
 
 // valueCount counts formulas written as values, keeping the first one's
@@ -107,7 +108,7 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 // or naming a sheet that isn't written, is written as its value alone,
 // and counted.
 func (w *xlsxWriter) cell(b []byte, ws string, a sheet.Addr, c SnapCell) []byte {
-	fx := w.formula(ws, a, c)
+	fx, arrays := w.formula(ws, a, c)
 	b = append(b, `<c r="`...)
 	b = append(b, excelColName(a.Col+1)...)
 	b = strconv.AppendInt(b, int64(a.Row+1), 10)
@@ -125,11 +126,22 @@ func (w *xlsxWriter) cell(b []byte, ws string, a sheet.Addr, c SnapCell) []byte 
 		b = append(b, typ...)
 		b = append(b, '"')
 	}
+	if fx != "" && arrays {
+		b = append(b, ` cm="1"`...)
+		w.dynamic = true
+	}
 	if fx == "" && v == "" {
 		return append(b, "/>"...)
 	}
 	b = append(b, '>')
-	if fx != "" {
+	switch {
+	case fx != "" && arrays:
+		b = append(b, `<f t="array" ref="`...)
+		b = append(b, arrayRef(a, c.Spill)...)
+		b = append(b, `">`...)
+		b = appendEscaped(b, fx, false)
+		b = append(b, "</f>"...)
+	case fx != "":
 		b = append(b, "<f>"...)
 		b = appendEscaped(b, fx, false)
 		b = append(b, "</f>"...)
@@ -148,23 +160,24 @@ func (w *xlsxWriter) cell(b []byte, ws string, a sheet.Addr, c SnapCell) []byte 
 }
 
 // formula is c's formula in Excel's syntax, or "" when it has none or
-// is written as its value, which it counts.
-func (w *xlsxWriter) formula(ws string, a sheet.Addr, c SnapCell) string {
+// is written as its value, which it counts, and whether it is a dynamic
+// array formula: one that spills or calls array functions.
+func (w *xlsxWriter) formula(ws string, a sheet.Addr, c SnapCell) (string, bool) {
 	if !c.Formula {
-		return ""
+		return "", false
 	}
 	if name, ok := w.unknownSheet(c); ok {
 		if w.missing.n == 0 {
 			w.missingSheet = name
 		}
 		w.missing.add(w.multi, ws, a)
-		return ""
+		return "", false
 	}
-	fx, ok := toExcelFormula(c.Input, w.renamed)
+	fx, arrays, ok := excelFormula(c.Input, w.renamed)
 	if !ok {
 		w.values.add(w.multi, ws, a)
 	}
-	return fx
+	return fx, arrays || c.Spill != (sheet.Rect{})
 }
 
 // cellValue is a cell's value as Excel stores it: the type attribute,

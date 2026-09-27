@@ -71,7 +71,12 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 		if err := writePart(zw, "xl/styles.xml", w.styles.xml()); err != nil {
 			return err
 		}
-		if err := writePackage(zw, names, hidden, active, w.definedNames(snap.Names), filterRanges(sheets, names)); err != nil {
+		if w.dynamic {
+			if err := writePart(zw, "xl/metadata.xml", metadataXML); err != nil {
+				return err
+			}
+		}
+		if err := writePackage(zw, names, hidden, active, w.definedNames(snap.Names), filterRanges(sheets, names), w.dynamic); err != nil {
 			return err
 		}
 		return zw.Close()
@@ -140,8 +145,9 @@ func filterRanges(sheets []*Snapshot, names []string) []string {
 // writePackage writes the parts around the worksheets and styles: the
 // workbook with its sheets, active tab, names (with each filter's range,
 // filters[i] for sheet i) and calculation settings, the relationships
-// and the content types.
-func writePackage(zw *zip.Writer, names []string, hidden []bool, active int, defined [][2]string, filters []string) error {
+// and the content types, with the cell metadata part when there are
+// dynamic array formulas (metadata).
+func writePackage(zw *zip.Writer, names []string, hidden []bool, active int, defined [][2]string, filters []string, metadata bool) error {
 	var types, rels, book strings.Builder
 	types.WriteString(xmlHead + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
 		`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
@@ -161,7 +167,12 @@ func writePackage(zw *zip.Writer, names []string, hidden []bool, active int, def
 		}
 		fmt.Fprintf(&book, `<sheet name="%s" sheetId="%s"%s r:id="rId%s"/>`, escapeXML(ws, true), n, state, n)
 	}
-	fmt.Fprintf(&rels, `<Relationship Id="rId%d" Type="%s/styles" Target="styles.xml"/></Relationships>`, len(names)+1, officeRel)
+	fmt.Fprintf(&rels, `<Relationship Id="rId%d" Type="%s/styles" Target="styles.xml"/>`, len(names)+1, officeRel)
+	if metadata {
+		types.WriteString(`<Override PartName="/xl/metadata.xml" ContentType="` + mlType + `sheetMetadata+xml"/>`)
+		fmt.Fprintf(&rels, `<Relationship Id="rId%d" Type="%s/sheetMetadata" Target="metadata.xml"/>`, len(names)+2, officeRel)
+	}
+	rels.WriteString(`</Relationships>`)
 	types.WriteString(`</Types>`)
 	book.WriteString(`</sheets>`)
 	var dn strings.Builder

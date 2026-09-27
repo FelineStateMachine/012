@@ -11,13 +11,14 @@ type Rewriter struct {
 	Ref   func(Ref) Node
 	Range func(Range) Node
 	Name  func(Name) Node
+	Local func(Local) Node
 }
 
 // Rewrite returns n with its references mapped, and whether anything
 // changed. Unchanged subtrees are shared.
 func Rewrite(n Node, rw Rewriter) (Node, bool) {
 	switch n := n.(type) {
-	case Ref, Range, Name:
+	case Ref, Range, Name, Local:
 		out := rw.leaf(n)
 		return out, out != n
 	case Unary:
@@ -60,7 +61,7 @@ func Rewrite(n Node, rw Rewriter) (Node, bool) {
 	return n, false
 }
 
-// leaf maps a reference, range or name.
+// leaf maps a reference, range, name or bound name.
 func (rw Rewriter) leaf(n Node) Node {
 	switch n := n.(type) {
 	case Ref:
@@ -74,6 +75,10 @@ func (rw Rewriter) leaf(n Node) Node {
 	case Name:
 		if rw.Name != nil {
 			return rw.Name(n)
+		}
+	case Local:
+		if rw.Local != nil {
+			return rw.Local(n)
 		}
 	}
 	return n

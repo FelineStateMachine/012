@@ -184,18 +184,20 @@ func (b *builder) boolean(a sheet.Addr, v bool, st sheet.Style) {
 
 // formula stores a formula in 012's syntax (with the leading =), or,
 // when it doesn't parse, the value it had in the file, stored by keep.
-func (b *builder) formula(a sheet.Addr, text string, f sheet.Format, st sheet.Style, keep func()) {
+// It reports whether the formula was stored.
+func (b *builder) formula(a sheet.Addr, text string, f sheet.Format, st sheet.Style, keep func()) bool {
 	if !b.fits(a) {
-		return
+		return false
 	}
 	if _, err := sheet.Parse(text); err == nil && b.take(a) {
 		if b.s.Load(a, text, f, st) == nil {
-			return
+			return true
 		}
 		b.cells--
 		b.rowCells = b.rowCells[:len(b.rowCells)-1]
 	}
 	b.kept(a, text, keep)
+	return false
 }
 
 // kept stores a formula's value with keep, counting it for the notes.

@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -59,6 +60,37 @@ type xlsxSheetReader struct {
 	row    xlsxRowData
 	shared map[int]sharedFormula
 	buf    []byte
+	// arrays are the cells array formulas read so far spill into, below
+	// or right of them, whose values the formulas compute again.
+	arrays []sheet.Rect
+}
+
+// arrayFormula notes the cells the array formula f at a spills into.
+func (r *xlsxSheetReader) arrayFormula(a sheet.Addr, f cellFormula) {
+	if f.typ != "array" {
+		return
+	}
+	from, to, ok := strings.Cut(strings.ReplaceAll(f.ref, "$", ""), ":")
+	if !ok {
+		return
+	}
+	c0, r0, ok0 := parseCellRef(from)
+	c1, r1, ok1 := parseCellRef(to)
+	if ok0 && ok1 && c0 == a.Col+1 && r0 == a.Row+1 && c1 >= c0 && r1 >= r0 {
+		r.arrays = append(r.arrays, sheet.Rect{From: a, To: sheet.Addr{Col: c1 - 1, Row: r1 - 1}})
+	}
+}
+
+// spilled reports whether the cell at a is one an array formula read
+// before spills into, forgetting the formulas whose cells are all past.
+func (r *xlsxSheetReader) spilled(a sheet.Addr) bool {
+	r.arrays = slices.DeleteFunc(r.arrays, func(x sheet.Rect) bool { return x.To.Row < a.Row })
+	for _, x := range r.arrays {
+		if x.Contains(a) {
+			return true
+		}
+	}
+	return false
 }
 
 // xlsxRowData is the row just read.

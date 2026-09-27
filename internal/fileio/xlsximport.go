@@ -161,19 +161,11 @@ func (bk *xlsxBook) importRow(b *builder, r *xlsxSheetReader) error {
 			j++
 		}
 		var c *xlsxCell
-		id := 0
 		if j < len(cells) && cells[j].col == col {
 			c = &cells[j]
-			id = c.style
 		}
-		if id == 0 {
-			id = row.style
-		}
-		if id == 0 {
-			id = r.colStyle(col)
-		}
-		st := bk.styles.style(id)
-		if c == nil || !c.kept() {
+		st := bk.styles.style(r.cellStyle(c, col))
+		if c == nil || !c.kept() || !c.hasF && r.spilled(a) {
 			b.put(a, "", st.format, st.style)
 			continue
 		}
@@ -181,21 +173,37 @@ func (bk *xlsxBook) importRow(b *builder, r *xlsxSheetReader) error {
 		if err != nil {
 			return err
 		}
-		bk.importCell(b, a, c, f, st)
+		if bk.importCell(b, a, c, f, st) {
+			r.arrayFormula(a, c.f)
+		}
 	}
 	return nil
 }
 
-func (bk *xlsxBook) importCell(b *builder, a sheet.Addr, c *xlsxCell, formula string, st xlsxStyle) {
+// importCell stores a cell, reporting whether it stored a formula.
+// cellStyle is the cell format of the cell c (nil when it isn't written)
+// in column col of the current row: its own, else the row's, else the
+// column's.
+func (r *xlsxSheetReader) cellStyle(c *xlsxCell, col int) int {
+	if c != nil && c.style != 0 {
+		return c.style
+	}
+	if r.row.style != 0 {
+		return r.row.style
+	}
+	return r.colStyle(col)
+}
+
+func (bk *xlsxBook) importCell(b *builder, a sheet.Addr, c *xlsxCell, formula string, st xlsxStyle) bool {
 	if formula != "" {
-		b.formula(a, fromExcelFormula(formula), st.format, st.style, func() { bk.keep(b, a, c, st) })
-		return
+		return b.formula(a, fromExcelFormula(formula), st.format, st.style, func() { bk.keep(b, a, c, st) })
 	}
 	if c.value == "" {
 		b.put(a, "", st.format, st.style)
-		return
+		return false
 	}
 	bk.keep(b, a, c, st)
+	return false
 }
 
 // keep stores a cell's value: its type says whether it is a boolean or

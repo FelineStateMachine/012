@@ -10,19 +10,51 @@ import (
 // #AND#). Excel files store formulas without the leading =, and prefix
 // functions newer than Excel 2007 with _xlfn.
 
-// xlfn lists 012's functions that Excel stores with the _xlfn. prefix.
-var xlfn = map[string]bool{
-	"CONCAT": true, "DAYS": true, "IFNA": true, "IFS": true, "SWITCH": true,
-	"TEXTJOIN": true, "XLOOKUP": true, "XOR": true,
+// xlfn gives the prefix Excel stores 012's functions newer than Excel
+// 2007 with.
+var xlfn = map[string]string{
+	"CONCAT": "_xlfn.", "DAYS": "_xlfn.", "IFNA": "_xlfn.", "IFS": "_xlfn.", "SWITCH": "_xlfn.",
+	"TEXTJOIN": "_xlfn.", "XLOOKUP": "_xlfn.", "XOR": "_xlfn.",
+	"FILTER": "_xlfn._xlws.", "SORT": "_xlfn._xlws.", "UNIQUE": "_xlfn.", "SEQUENCE": "_xlfn.",
+	"CHOOSECOLS": "_xlfn.", "CHOOSEROWS": "_xlfn.", "LET": "_xlfn.", "LAMBDA": "_xlfn.",
+	"MAP": "_xlfn.", "REDUCE": "_xlfn.", "SCAN": "_xlfn.", "BYROW": "_xlfn.", "BYCOL": "_xlfn.",
+	"MAKEARRAY": "_xlfn.", "REGEXREPLACE": "_xlfn.",
+}
+
+// sheetsOnly lists 012's functions, from Sheets, that Excel has nothing
+// the same as: formulas calling them are saved as values. (Excel's
+// REGEXEXTRACT returns the whole match where Sheets' returns the capture
+// group, and ARRAYFORMULA is dropped around a whole formula instead; see
+// xlsxarray.go.)
+var sheetsOnly = map[string]bool{
+	"SORTN": true, "FLATTEN": true, "SPLIT": true, "REGEXMATCH": true, "REGEXEXTRACT": true, "ARRAYFORMULA": true,
 }
 
 // toExcelFormula translates a formula entry to Excel's syntax, or
-// reports false when Excel has no equivalent (JEV functions, 1-2-3's
-// #AND# operators), in which case the value is exported instead.
+// reports false when Excel has no equivalent (JEV functions, functions
+// only Sheets has, 1-2-3's #AND# operators), in which case the value is
+// exported instead.
 //
 // renamed maps the key (formula.SheetKey) of each sheet written under
 // another name to that name: references to it are rewritten to name it.
 func toExcelFormula(input string, renamed map[string]string) (string, bool) {
+	fx, _, ok := excelFormula(input, renamed)
+	return fx, ok
+}
+
+// excelFormula is toExcelFormula, and whether the formula computes an
+// array, for Excel to hold as a dynamic array formula (xlsxarray.go).
+func excelFormula(input string, renamed map[string]string) (string, bool, bool) {
+	input, arrays, ok := excelArrays(input)
+	if !ok {
+		return "", false, false
+	}
+	fx, ok := excelTokens(input, renamed)
+	return fx, arrays, ok
+}
+
+// excelTokens translates a formula's text to Excel's token by token.
+func excelTokens(input string, renamed map[string]string) (string, bool) {
 	src := strings.TrimPrefix(input, "=")
 	var b strings.Builder
 	for i := 0; i < len(src); {
@@ -105,13 +137,15 @@ func excelName(b *strings.Builder, src string, i int, renamed map[string]string)
 	}
 	call := k < len(src) && src[k] == '('
 	if call || at {
+		if prefixFold(name, "_xlpm.") > 0 {
+			b.WriteString(name) // a LAMBDA called by the name LET gave it
+			return j, true
+		}
 		name = strings.ToUpper(name)
-		if strings.HasPrefix(name, "JEV.") {
+		if strings.HasPrefix(name, "JEV.") || sheetsOnly[name] {
 			return 0, false
 		}
-		if xlfn[name] {
-			name = "_xlfn." + name
-		}
+		name = xlfn[name] + name
 		if at && !call {
 			name += "()" // @PI
 		}
@@ -159,6 +193,10 @@ func fromExcelFormula(f string) string {
 				continue
 			}
 			if p := prefixFold(rest, "_xlws."); p > 0 {
+				i += p - 1
+				continue
+			}
+			if p := prefixFold(rest, "_xlpm."); p > 0 {
 				i += p - 1
 				continue
 			}
