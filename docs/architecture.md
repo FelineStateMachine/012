@@ -23,7 +23,7 @@ internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   rowtext        laying out a row of cell text across the columns on screen
   formula        reading the formula being typed (F4, the word and call at the caret)
 e2e/             end-to-end tests through libghostty (separate module, cgo)
-oracle/          differential tests against excelize (separate module)
+oracle/          differential tests against excelize's calculation (separate module)
 ```
 
 ## The engine
@@ -205,12 +205,19 @@ falls back to a formula's cached value when it can't be translated, and
 counts what didn't fit. They stream: CSV and TSV are read record by
 record, Parquet a batch of rows at a time, SQLite a row at a time, and
 Parquet files and SQLite tables stop at the sheet's last row, taking the
-number of rows left out from the file. XLSX goes through excelize, which
-holds the worksheet in memory while its rows are read, so it is the one
-format read twice; its files are small next to the others' and it's
-bounded by the sheet's size. Exporters write a `Snapshot` taken on the UI
-goroutine, in the background, through one atomic write-then-rename; CSV
-and TSV are written a row at a time. One package suits formats that share
+number of rows left out from the file. XLSX is read by 012's own
+SpreadsheetML reader on `archive/zip` and `encoding/xml`: the workbook,
+shared strings (kept end to end in one buffer) and styles first, then
+each worksheet a token at a time, a row at a time, expanding shared
+formulas only for the cells kept. The file is untrusted, so the reader
+caps what it can be made to do (`xlsxLimits`: uncompressed bytes per
+part and in all, compression ratio, zip entries, XML nesting and token
+size, shared strings, styles, sheets, and the text shared formulas
+expand to) and refuses unsafe part names and references past Excel's
+edges; `FuzzReadXLSX` and `FuzzReadXLSXParts` fuzz it. XLSX is written
+with the same packages, a worksheet part streamed per sheet. Exporters
+write a `Snapshot` taken on the UI goroutine, in the background, through
+one atomic write-then-rename; CSV and TSV are written a row at a time. One package suits formats that share
 this much (the builder, number formats, serial dates and Excel formula
 translation); a format that grew its own dependencies would move to a
 subpackage behind the same table row.
