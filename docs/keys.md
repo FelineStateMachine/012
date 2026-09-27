@@ -39,7 +39,10 @@ Inside the grid, 012 works like Google Sheets.
 | Ctrl+Shift+L / E / R | Align left, center, right |
 | Ctrl+\ | Clear formatting |
 | Ctrl+S, Ctrl+O, Ctrl+Q | Save, open (imports other formats), quit |
-| Ctrl+G or F5 | Go to a cell, a range or a named range |
+| Ctrl+G or F5 | Go to a cell, a range or a named range, on any sheet (`Sheet2!B3`) |
+| Ctrl+PgDn / Ctrl+PgUp, Alt+Right / Alt+Left | Next / previous sheet; while typing a formula, point into it to insert `Sheet2!A1` |
+| Shift+F11 | New sheet (also Insert > Sheet) |
+| Alt+Shift+K | Go to a sheet by name |
 | Alt+F, Alt+E, Alt+V, Alt+I, Alt+O, Alt+H, F10, click a title | Open a menu (arrows move, Enter runs, Esc closes) |
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
 | Right-click, Shift+F10 | Cell, column or row menu |
@@ -58,6 +61,13 @@ edge of the grid scrolls. Right-click opens the cell, column or row menu.
 The mouse pointer changes shape over cells, resize handles and the formula
 bar in terminals that support it (OSC 22).
 
+The sheet tabs at the left of the status line take the mouse too: click a
+tab to show its sheet, double-click to rename it, right-click for its menu
+(rename, duplicate, delete, move left or right), drag it onto another tab to
+move it there, and click `+` to add a sheet. When the tabs don't all fit,
+`‹` and `›` step through them. While typing a formula, clicking a tab points
+into that sheet, as in Sheets.
+
 In Ghostty and xterm, Shift+click normally starts the terminal's own text
 selection; 012 asks the terminal to pass it through (XTSHIFTESCAPE) and
 restores that on exit.
@@ -68,5 +78,6 @@ The top three lines are the **menu bar** with the mode indicator on the
 right, the **formula bar** (name box, then the cell's contents or the entry
 being typed) and the **context line**, which holds prompts, key hints,
 formula errors and explanations. The bottom line is the **status line**:
+the sheet tabs (as tmux lists its windows, the sheet shown highlighted),
 the file name, whether it's modified, and Sum, Avg and Count for a
 selection.

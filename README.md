@@ -35,6 +35,9 @@ searches every command.
   delete rows and columns.
 - **Formats and styles.** Currency, percent, dates and times detected as you
   type; number formats, bold, italic, underline, strikethrough, alignment.
+- **Several sheets.** Sheet tabs on the status line, references between
+  sheets (`=Sheet2!A1`) that follow renames, pointing into another sheet
+  while typing a formula, and Sheets' keys for moving between them.
 - **Data tools.** Freeze rows and columns, multi-column sort, filters with
   value pickers and conditions, find and replace with regular expressions,
   tracing precedents and dependents.

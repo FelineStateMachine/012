@@ -29,7 +29,16 @@ caret on the problem and says what's wrong on the context line, e.g.
 - Named ranges: `=SUM(Sales)`. Define them from Data > Named ranges or Data >
   Define named range. Names are case-insensitive, follow the selection when
   rows move, and renaming one rewrites the formulas that use it.
-- The worksheet is 256 columns (A to IV) by 8,192 rows, 1-2-3's size; see
+- Other sheets: `=Sheet2!A1`, `=SUM('Q3 plan'!B2:B9)`; names with spaces or
+  punctuation, or that look like a cell, go in single quotes. While typing a
+  formula, Ctrl+PgDn or clicking a tab points into another sheet and inserts
+  the reference. Renaming a sheet rewrites the formulas that use it;
+  deleting one leaves them as written, showing `#REF!` ("Unresolved sheet
+  name") until a sheet of that name exists again, as in Sheets. Inserting
+  and deleting rows moves references into that sheet from every sheet, and
+  leaves references to other sheets alone. Named ranges belong to the whole
+  file and may point into any sheet.
+- Each sheet is 256 columns (A to IV) by 8,192 rows, 1-2-3's size; see
   [limits.md](limits.md) for what that means in practice.
 
 ## Building formulas
@@ -74,8 +83,8 @@ circular reference.
 
 Like Sheets and Excel, 012 computes in binary floating point, so
 `=0.1+0.2=0.3` is FALSE and `=INT($4.35*100)` is 434. File > Settings >
-Decimal arithmetic (or search the palette for "decimal") switches the file to
-decimal math for money. The status line then says `decimal`, the menu shows a
+Decimal arithmetic (or search the palette for "decimal") switches the file,
+every sheet of it, to decimal math for money. The status line then says `decimal`, the menu shows a
 check mark, and the setting is saved with the file and can be undone.
 
 | Computed in decimal | Stays binary |

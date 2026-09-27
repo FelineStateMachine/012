@@ -142,6 +142,38 @@ in flight, so 4000 questions at 300 ms each take 2.5 minutes, of which
 5 s is recalculation spread over that time. Each answer blocks the UI
 for its recalculation (1.3 ms at 4000 cells).
 
+## Several sheets
+
+A workbook recalculates all its sheets together. Formulas that name a
+sheet (`Data!A1`) are indexed by the sheet names they use: a changed cell
+on a sheet some formula names scans those cross-sheet formulas, as range
+users were scanned before they were indexed by column, so a change there
+costs O(changed cells x cross-sheet formulas); cells on sheets no formula
+names skip the scan. Each sheet's lookup, which resolves sheet names, is
+made once per recalculation, and the recalculation state stays on each
+sheet keyed by address, so a single-sheet workbook computes as before.
+
+| Benchmark (`internal/sheet`, `go test -bench SheetEdit`) | Edit |
+|---|---|
+| 5000 formulas on one sheet reading `A(n)` and `SUM(A1:A10)` | 2.7 ms |
+| The same 5000 formulas reading `Data!A(n)` and `SUM(Data!A1:A10)` | 3.5 ms |
+
+The stress shapes before and after workbooks (5 runs each, same machine;
+differences under about 5% are noise):
+
+| Benchmark | Before | After |
+|---|---|---|
+| RecalcAll dense 8192 x 26 | 36.1 ms | 36.7 ms |
+| RecalcAll fan-in / running | 170 / 706 ms | 177 / 742 ms |
+| Edit chain / fan-in / running | 1.64 / 168 / 694 ms | 1.92 / 173 / 726 ms |
+| Undo chain | 3.4 ms | 4.0 ms |
+| BigUndo | 140 ms, 431 k allocs | 158 ms, 856 k allocs |
+| Open 8192 x 26 / 8192 x 256 | 120 ms / 1.85 s | 120 ms / 1.91 s |
+
+Cell reads now go through one more function call to resolve the sheet,
+which is most of the 3 to 5% on read-heavy shapes; undo steps key their
+before-images by sheet and address, which is BigUndo's extra allocation.
+
 ## Hotspots found and fixed
 
 Each with its benchmark before and after, in the commit that fixed it.
@@ -173,8 +205,8 @@ it.
    the input string kept only when it differs from the canonical text
    of the value, would bring numbers to about 20 to 40 B per cell and
    turn every cell read in recalc from two hash lookups (20 ns) into an
-   index (2 to 3 ns). This is also the change the multi-sheet refactor
-   touches, so it is best planned with it.
+   index (2 to 3 ns). Cells are already per sheet in a workbook, so the
+   storage can change sheet by sheet.
 2. **Range dependency index and shared range results** (M, 1 week).
    Range users are now indexed by column; an interval index per column
    (or per row block) would make finding them independent of how many

@@ -16,24 +16,32 @@ oracle/          differential tests against excelize (separate module)
 
 ## The engine
 
-`internal/sheet` knows nothing about terminals. Cells live in a sparse map
-from address to cell; each cell keeps what was typed, its parsed expression,
+`internal/sheet` knows nothing about terminals. A `Workbook` holds ordered
+`Sheet`s, the named ranges, the undo history, the arithmetic setting and
+recalculation, as a Sheets spreadsheet does. Each sheet keeps its cells in
+a sparse map from address to cell, with its column widths, frozen panes,
+filter and charts; each cell keeps what was typed, its parsed expression,
 its computed value, and its format and style.
 
 - **Parsing.** A hand-written Pratt parser turns formulas into an AST,
   keeping absolute markers so references can be rewritten when cells move.
   A printer turns ASTs back into text in Sheets' spelling.
-- **Recalculation.** Formulas record the cells and ranges they read.
-  Changing a cell marks it and everything that transitively depends on it,
-  then evaluates the marked cells lazily in dependency order; a cell reached
-  again while it is being evaluated is part of a cycle. Volatile functions
-  (TODAY, RAND, the JEV functions) are recomputed on every recalculation.
+- **Recalculation.** Formulas record the cells and ranges they read on
+  their own sheet; references that name a sheet (`Sheet2!A1`) are kept by
+  name and resolved when evaluated, so renaming rewrites them and a deleted
+  sheet's references wait, as `#REF!`, for a sheet of that name. Changing a
+  cell marks it and everything that transitively depends on it, on any
+  sheet, then evaluates the marked cells lazily in dependency order; a cell
+  reached again while it is being evaluated is part of a cycle. Volatile
+  functions (TODAY, RAND, the JEV functions) are recomputed on every
+  recalculation.
 - **Functions.** One table (`FuncDef`) holds every function's name,
   signature, description and arity; it drives parsing, evaluation,
   autocomplete, in-app help and [functions.md](functions.md).
 - **Undo.** Every mutation goes through a small set of paths that snapshot
-  the cells, widths, names, charts and view state they change, so a step can
-  be reversed exactly; multi-cell operations are one step.
+  the cells, widths, names, charts, view state and sheet list they change,
+  on any sheet, so a step can be reversed exactly; multi-cell operations
+  are one step. A deleted sheet keeps its cells, so undo brings it back.
 - **JEV.** The engine never touches the network. JEV functions describe a
   question and look up the answer in a pluggable source; `internal/jev`
   answers from a cache and queues new questions, and the UI sends them as
