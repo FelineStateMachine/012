@@ -67,9 +67,34 @@ func (m *Model) openSave() tea.Cmd {
 	return nil
 }
 
-// saveAsFile saves the sheet under a name typed for Save as or :w.
+// saveAsFile saves the sheet under a name typed for Save as or :w,
+// asking first when that's another file that exists.
 func (m *Model) saveAsFile(text string) tea.Cmd {
-	return m.saveAs(withExt(text), true)
+	name := withExt(text)
+	p, ok := m.path("save", name)
+	if !ok {
+		m.quitAfterSave = false
+		return nil
+	}
+	return m.confirmReplace(filepath.Base(name)+" exists.", func(m *Model) tea.Cmd {
+		return m.saveAs(name, true)
+	}, !m.isOpenFile(p) && exists(p))
+}
+
+// isOpenFile reports whether path on disk is the open file's, however
+// its name was typed. The open file has its own check, for changes
+// since it was opened (saveAs).
+func (m *Model) isOpenFile(path string) bool {
+	if m.filename == "" {
+		return false
+	}
+	open, err := m.root.Resolve(m.filename)
+	if err != nil {
+		return false
+	}
+	a, err1 := filepath.Abs(open)
+	b, err2 := filepath.Abs(path)
+	return err1 == nil && err2 == nil && a == b
 }
 
 func (m *Model) openRetrieve() tea.Cmd {

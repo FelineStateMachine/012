@@ -149,7 +149,10 @@ func (m *Model) confirmReplace(msg string, do func(*Model) tea.Cmd, replaces boo
 		warn: true,
 		choices: []choice{
 			{key: "enter", label: "Replace", run: do},
-			{key: "esc", label: "Cancel", run: func(*Model) tea.Cmd { return nil }},
+			{key: "esc", label: "Cancel", run: func(m *Model) tea.Cmd {
+				m.quitAfterSave = false // cancelling :wq's save cancels its quit
+				return nil
+			}},
 		},
 	})
 	return nil
