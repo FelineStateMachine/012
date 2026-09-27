@@ -89,7 +89,7 @@ func TestChartEditorPrompts(t *testing.T) {
 	if m.mode != modePrompt {
 		t.Fatalf("title prompt not open, mode %v", m.mode)
 	}
-	m.line.buf, m.line.pos = []rune("Spend"), 5
+	m.line.Buf, m.line.Pos = []rune("Spend"), 5
 	press(t, m, "<enter>")
 	if c := m.sheet.Charts()[0]; c.Title != "Spend" || m.indicator() != "CHART" {
 		t.Errorf("title %q, indicator %q", c.Title, m.indicator())

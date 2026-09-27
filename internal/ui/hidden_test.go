@@ -13,7 +13,7 @@ func hiddenBook(t *testing.T) *Model {
 	press(t, m, "=", "D", "a", "t", "a", "!", "A", "1", "*", "2", "<enter>")
 	press(t, m, "<shift+f11>")
 	run(m, m.runCommand("sheet.rename"))
-	m.line.set("Data")
+	m.line.Set("Data")
 	press(t, m, "<enter>", "2", "1", "<enter>", "<shift+f11>", "<ctrl+pgup>")
 	if sheetNames(m) != "Sheet1,Data,Sheet3" || m.sheet.Name() != "Data" {
 		t.Fatalf("sheets %s, on %s", sheetNames(m), m.sheet.Name())
@@ -59,7 +59,7 @@ func TestHideSheetCommand(t *testing.T) {
 
 	// Going to a cell on a hidden sheet says it's hidden.
 	run(m, m.runCommand("goto"))
-	m.line.set("Data!A1")
+	m.line.Set("Data!A1")
 	press(t, m, "<enter>")
 	if m.sheet.Name() != "Sheet1" || m.mode != modeError || m.errMsg != "Data is hidden; View > Hidden sheets shows it again" {
 		t.Errorf("goto: on %s, %q", m.sheet.Name(), m.errMsg)
@@ -114,9 +114,9 @@ func TestRecordHideAndUnhide(t *testing.T) {
 	run(m, m.runCommand("sheet.unhide"))
 	press(t, m, "<enter>")
 	run(m, m.runCommand("macro.stop"))
-	m.line.set("Toggle")
+	m.line.Set("Toggle")
 	press(t, m, "<enter>")
-	m.line.set("")
+	m.line.Set("")
 	press(t, m, "<enter>")
 	mc, ok := m.book().Macro("Toggle")
 	if !ok {

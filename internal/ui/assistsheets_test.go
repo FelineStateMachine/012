@@ -42,8 +42,8 @@ func TestAutocompleteSheets(t *testing.T) {
 		t.Errorf("status %q", st)
 	}
 	press(t, m, "<tab>")
-	if m.line.text() != "=Summary!" || m.mode != modeEnter {
-		t.Fatalf("accepted: %q, mode %v", m.line.text(), m.mode)
+	if m.line.Text() != "=Summary!" || m.mode != modeEnter {
+		t.Fatalf("accepted: %q, mode %v", m.line.Text(), m.mode)
 	}
 	// Typing the address works as ever.
 	press(t, m, "B3*2", "<enter>")
@@ -61,8 +61,8 @@ func TestAutocompleteSheets(t *testing.T) {
 		}
 	}
 	press(t, m, "<tab>")
-	if m.line.text() != "='Q3 plan'!" {
-		t.Fatalf("quoted: %q", m.line.text())
+	if m.line.Text() != "='Q3 plan'!" {
+		t.Fatalf("quoted: %q", m.line.Text())
 	}
 	// An arrow then points into the sheet, as clicking its tab would.
 	press(t, m, "<down>")
@@ -98,12 +98,12 @@ func TestAutocompleteSheetsEdges(t *testing.T) {
 	press(t, m, "<esc>")
 
 	// Accepting inside an existing reference replaces the name only.
-	m.line.set("='Q3 p'!A1")
-	m.line.pos = len("='Q3 p")
+	m.line.Set("='Q3 p'!A1")
+	m.line.Pos = len("='Q3 p")
 	m.entry.assist.active = true
 	m.mode = modeEnter
 	press(t, m, "<tab>")
-	if m.line.text() != "='Q3 plan'!A1" || m.line.pos != len("='Q3 plan'!") {
-		t.Errorf("replaced: %q at %d", m.line.text(), m.line.pos)
+	if m.line.Text() != "='Q3 plan'!A1" || m.line.Pos != len("='Q3 plan'!") {
+		t.Errorf("replaced: %q at %d", m.line.Text(), m.line.Pos)
 	}
 }

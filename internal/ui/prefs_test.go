@@ -176,7 +176,7 @@ func TestAPIKeyPrompt(t *testing.T) {
 	if m.jev == nil || !strings.Contains(line(m, contextLine), "API key saved in the test store") {
 		t.Errorf("JEV not on: %q", line(m, contextLine))
 	}
-	if strings.Contains(screen(m), key) || m.line.text() != "" {
+	if strings.Contains(screen(m), key) || m.line.Text() != "" {
 		t.Error("the key is still around")
 	}
 

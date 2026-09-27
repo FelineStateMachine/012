@@ -145,7 +145,7 @@ func (m *Model) openValuesPicker(title string, x int, values []sheet.FilterValue
 	}
 	p.fields[1] = p.cond.Arg
 	m.openOverlay(p)
-	m.line.clear()
+	m.line.Clear()
 	p.search()
 	return p
 }
@@ -162,14 +162,14 @@ func (p *filterPicker) Indicator() string { return "FILTER" }
 
 // focus moves editing to field i, keeping the other field's text.
 func (p *filterPicker) focus(m *Model, i int) {
-	p.fields[p.field] = m.line.text()
+	p.fields[p.field] = m.line.Text()
 	p.field = i
-	m.line.set(p.fields[i])
+	m.line.Set(p.fields[i])
 }
 
 func (p *filterPicker) Changed() {
 	m := p.m
-	p.fields[p.field] = m.line.text()
+	p.fields[p.field] = m.line.Text()
 	if p.field == 0 {
 		p.search()
 	}
@@ -234,7 +234,7 @@ func (p *filterPicker) cycle(d int) {
 
 // apply sets the column's criteria and closes the picker.
 func (p *filterPicker) apply(m *Model) {
-	p.fields[p.field] = m.line.text()
+	p.fields[p.field] = m.line.Text()
 	var cr sheet.Criteria
 	for _, v := range p.values {
 		if !p.checked[v.Text] {
@@ -298,9 +298,9 @@ func (p *filterPicker) Key(k tea.KeyPressMsg) tea.Cmd {
 	case p.field == 0 && key == "space":
 		p.toggle(p.Sel)
 	default:
-		before := m.line.text()
-		m.line.key(k)
-		if m.line.text() != before {
+		before := m.line.Text()
+		m.line.Key(k)
+		if m.line.Text() != before {
 			p.Changed()
 		}
 	}
@@ -388,7 +388,7 @@ func (p *filterPicker) box(m *Model) (x, y, inner int) {
 func (p *filterPicker) Cursor() (int, int) {
 	m := p.m
 	x, y, _ := p.box(m)
-	caret := ansi.StringWidth(m.line.head())
+	caret := ansi.StringWidth(m.line.Head())
 	if p.field == 1 {
 		return x + 1 + len(" If ") + ansi.StringWidth(p.condChip()) + 2 + caret, y + 1
 	}
@@ -414,7 +414,7 @@ func (p *filterPicker) Layout() []overlay.Box {
 	if p.cond.Op.TakesArg() {
 		arg := p.fields[1]
 		if p.field == 1 {
-			arg = m.line.text()
+			arg = m.line.Text()
 		}
 		if arg == "" && p.field != 1 {
 			arg = m.th.Muted.Render("value")
@@ -423,7 +423,7 @@ func (p *filterPicker) Layout() []overlay.Box {
 	}
 	search := p.fields[0]
 	if p.field == 0 {
-		search = m.line.text()
+		search = m.line.Text()
 	}
 	input := m.th.Title.Render(searchPrompt) + search
 	if search == "" {

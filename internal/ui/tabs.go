@@ -167,14 +167,14 @@ func (m *Model) pointInto(s *sheet.Sheet) {
 		return
 	}
 	if m.mode != modePoint {
-		if !m.line.isFormula() || !m.line.canPoint() {
+		if !m.line.IsFormula() || !m.line.CanPoint() {
 			if m.commit() {
 				m.showSheet(s)
 			}
 			return
 		}
-		m.entry.prefix = m.line.head()
-		m.entry.suffix = m.line.tail()
+		m.entry.prefix = m.line.Head()
+		m.entry.suffix = m.line.Tail()
 		m.mode = modePoint
 	}
 	if m.entry.home == nil {

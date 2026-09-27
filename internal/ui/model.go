@@ -12,6 +12,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
+	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -84,7 +85,7 @@ type Model struct {
 
 	// Components. Each owns its state and the handling of the input it
 	// takes; Model routes messages to them and composes what they draw.
-	line    lineEdit        // the edit line of entries, prompts and search fields: line.go
+	line    lineedit.Line   // the edit line of entries, prompts and search fields: line.go
 	entry   entry           // typing into a cell: entry.go
 	point   pointer         // the cell or range pointed at in POINT mode and range prompts
 	prompt  *prompt         // a question on the context line: prompt.go
@@ -335,12 +336,7 @@ func (m *Model) focus() *sheet.Addr {
 }
 
 // typed returns the printable text of a key press, if any.
-func typed(k tea.KeyPressMsg) string {
-	if k.Mod.Contains(tea.ModCtrl) || k.Mod.Contains(tea.ModAlt) {
-		return ""
-	}
-	return k.Text
-}
+func typed(k tea.KeyPressMsg) string { return lineedit.Typed(k) }
 
 func clamp(v, lo, hi int) int {
 	return max(lo, min(v, hi))

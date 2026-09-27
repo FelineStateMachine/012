@@ -70,8 +70,8 @@ func TestFindAsYouType(t *testing.T) {
 	}
 	// Ctrl+F again reopens the last search.
 	press(t, m, "<ctrl+f>")
-	if f := findBarOf(t, m); m.line.text() != "ren" || len(f.matches) != 3 {
-		t.Errorf("reopened with %q", m.line.text())
+	if f := findBarOf(t, m); m.line.Text() != "ren" || len(f.matches) != 3 {
+		t.Errorf("reopened with %q", m.line.Text())
 	}
 }
 

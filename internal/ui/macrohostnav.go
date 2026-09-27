@@ -270,8 +270,8 @@ func (h scriptHost) answer(c *command, answer *string) error {
 		return h.failure()
 	case m.mode == modePrompt && answer != nil:
 		p := m.prompt
-		m.line.clear()
-		m.line.insert(*answer)
+		m.line.Clear()
+		m.line.Insert(*answer)
 		p.fresh, p.typing = false, p.kind == promptRange
 		m.macros.cmds = append(m.macros.cmds, p.accept(m))
 	case m.mode == modePrompt:

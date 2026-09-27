@@ -54,14 +54,14 @@ func TestClickFormulaBarEdits(t *testing.T) {
 	press(t, m, "=1+2", "<enter>", "<up>")
 	line0, x0 := formulaBarAt()
 	click(m, x0+2, line0, 0)
-	if m.mode != modeEdit || m.line.pos != 2 {
-		t.Fatalf("mode %v caret %d", m.mode, m.line.pos)
+	if m.mode != modeEdit || m.line.Pos != 2 {
+		t.Fatalf("mode %v caret %d", m.mode, m.line.Pos)
 	}
 	// Clicking in the edit line moves the caret.
 	line1, x1 := editLineAt()
 	click(m, x1+4, line1, 0)
-	if m.line.pos != 4 {
-		t.Errorf("caret %d", m.line.pos)
+	if m.line.Pos != 4 {
+		t.Errorf("caret %d", m.line.Pos)
 	}
 }
 

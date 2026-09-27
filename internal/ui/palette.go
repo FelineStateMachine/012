@@ -123,7 +123,7 @@ const (
 
 func newPicker(m *Model, title, placeholder string, maxW int, items []pickItem) *picker {
 	p := &picker{m: m, title: title, placeholder: placeholder, maxW: maxW, items: items}
-	m.line.clear()
+	m.line.Clear()
 	p.Changed()
 	return p
 }
@@ -136,7 +136,7 @@ func (p *picker) Changed() {
 	m := p.m
 	p.Sel, p.Top = 0, 0
 	p.shown = p.shown[:0]
-	q := strings.TrimSpace(m.line.text())
+	q := strings.TrimSpace(m.line.Text())
 	if q == "" {
 		for i := range p.items {
 			p.shown = append(p.shown, pickMatch{item: &p.items[i]})
@@ -228,9 +228,9 @@ func (p *picker) Key(k tea.KeyPressMsg) tea.Cmd {
 	case "esc":
 		p.close(m)
 	default:
-		before := m.line.text()
-		m.line.key(k)
-		if m.line.text() != before {
+		before := m.line.Text()
+		m.line.Key(k)
+		if m.line.Text() != before {
 			p.Changed()
 		}
 	}
@@ -239,7 +239,7 @@ func (p *picker) Key(k tea.KeyPressMsg) tea.Cmd {
 
 func (p *picker) pick(m *Model) tea.Cmd {
 	if p.enter != nil {
-		if cmd, ok := p.enter(m, strings.TrimSpace(m.line.text())); ok {
+		if cmd, ok := p.enter(m, strings.TrimSpace(m.line.Text())); ok {
 			return cmd
 		}
 	}
@@ -337,7 +337,7 @@ func (p *picker) box(m *Model) (x, y, inner int) {
 func (p *picker) Cursor() (int, int) {
 	m := p.m
 	x, y, _ := p.box(m)
-	return x + 1 + ansi.StringWidth(searchPrompt) + ansi.StringWidth(m.line.head()), y + 1
+	return x + 1 + ansi.StringWidth(searchPrompt) + ansi.StringWidth(m.line.Head()), y + 1
 }
 
 func (p *picker) Layout() []overlay.Box {
@@ -347,8 +347,8 @@ func (p *picker) Layout() []overlay.Box {
 	if len(p.shown) > 0 {
 		p.Show(rows)
 	}
-	input := m.th.Title.Render(searchPrompt) + m.line.text()
-	if len(m.line.buf) == 0 {
+	input := m.th.Title.Render(searchPrompt) + m.line.Text()
+	if len(m.line.Buf) == 0 {
 		input += m.th.Muted.Render(p.placeholder)
 	}
 	lines := []string{theme.Cells(m.th.MenuBar, input, inner), theme.SepRow}

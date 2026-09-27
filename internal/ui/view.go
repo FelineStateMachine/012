@@ -221,7 +221,7 @@ func renderSpan(th *theme.Theme, sp rowtext.Span, base lipgloss.Style, colored b
 // inCellText shows the entry being typed inside the cell, keeping the end
 // of long entries visible, as Sheets does.
 func (m *Model) inCellText(w int) string {
-	text := " " + m.line.text()
+	text := " " + m.line.Text()
 	if over := ansi.StringWidth(text) - w; over > 0 {
 		text = ansi.TruncateLeft(text, over+1, "…")
 	}

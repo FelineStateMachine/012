@@ -17,7 +17,7 @@ func (m *Model) openOverlay(o overlay.Overlay) {
 // closeOverlay closes the open overlay and returns to READY.
 func (m *Model) closeOverlay() {
 	m.overlay = nil
-	m.line.clear()
+	m.line.Clear()
 	if m.mode == modeMenu {
 		m.mode = modeReady
 	}

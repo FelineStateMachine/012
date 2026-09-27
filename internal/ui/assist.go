@@ -10,6 +10,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/formula"
+	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -84,10 +85,10 @@ func suggestions(sh *sheet.Sheet, word string) []suggestion {
 // EDIT, in plain text, after the caret moved, or when the word already
 // names a range exactly and nothing else matches.
 func (a *assist) shown(m *Model) ([]suggestion, int) {
-	if (m.mode != modeEnter && m.mode != modeEdit) || !m.line.isFormula() || !a.active || m.overlay != nil {
+	if (m.mode != modeEnter && m.mode != modeEdit) || !m.line.IsFormula() || !a.active || m.overlay != nil {
 		return nil, 0
 	}
-	c := formula.ScanCaret(m.line.buf, m.line.pos)
+	c := formula.ScanCaret(m.line.Buf, m.line.Pos)
 	if c.Word == "" {
 		return nil, 0
 	}
@@ -102,9 +103,9 @@ func (a *assist) shown(m *Model) ([]suggestion, int) {
 // typeKey applies a line-editing key to the entry. Typing or deleting
 // shows suggestions; moving the caret hides them, as in Sheets.
 func (m *Model) typeKey(k tea.KeyPressMsg) {
-	before := m.line.text()
-	m.line.key(k)
-	m.entry.assist = assist{active: m.line.text() != before}
+	before := m.line.Text()
+	m.line.Key(k)
+	m.entry.assist = assist{active: m.line.Text() != before}
 }
 
 // key handles the keys the suggestion list takes while it shows.
@@ -132,7 +133,7 @@ func (a *assist) key(m *Model, key string) bool {
 // a function unless one is already there.
 func (a *assist) accept(m *Model, s suggestion, start int) {
 	text := []rune(s.name)
-	rest := m.line.buf[m.line.pos:]
+	rest := m.line.Buf[m.line.Pos:]
 	if s.fn && (len(rest) == 0 || rest[0] != '(') {
 		text = append(text, '(')
 	}
@@ -143,8 +144,8 @@ func (a *assist) accept(m *Model, s suggestion, start int) {
 	if s.fn && len(rest) > 0 && rest[0] == '(' {
 		pos++ // into the existing parentheses
 	}
-	m.line.buf = slices.Concat(m.line.buf[:start], text, rest)
-	m.line.pos = pos
+	m.line.Buf = slices.Concat(m.line.Buf[:start], text, rest)
+	m.line.Pos = pos
 	a.active = false
 }
 
@@ -186,7 +187,7 @@ func (a *assist) box(m *Model) (overlay.Box, bool) {
 		footer = strconv.Itoa(a.sel+1) + " of " + strconv.Itoa(len(list))
 	}
 	// The box's text starts one column in, under the word's first letter.
-	x := formulaBarTextX() + ansi.StringWidth(string(m.line.buf[:start])) - 2
+	x := formulaBarTextX() + ansi.StringWidth(string(m.line.Buf[:start])) - 2
 	x = clamp(x, 0, max(m.width-inner-2, 0))
 	return overlay.Box{ID: assistID, X: x, Y: contextLine + 1, Lines: m.th.Frame(inner, "", footer, lines)}, true
 }
@@ -236,8 +237,8 @@ func (a *assist) status(m *Model) (desc, keys string, ok bool) {
 
 // inFunction reports whether the caret is inside a known function's
 // parentheses.
-func (l *lineEdit) inFunction() bool {
-	_, ok := sheet.LookupFunc(formula.ScanCaret(l.buf, l.pos).Fn)
+func inFunction(l *lineedit.Line) bool {
+	_, ok := sheet.LookupFunc(formula.ScanCaret(l.Buf, l.Pos).Fn)
 	return ok
 }
 

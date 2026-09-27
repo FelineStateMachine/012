@@ -128,7 +128,7 @@ func (m *Model) openFind(replace bool) {
 		m.clearSelection()
 		m.openOverlay(f)
 		// Load the kept query so focus doesn't overwrite it.
-		m.line.buf = []rune(f.fields[f.field])
+		m.line.Buf = []rune(f.fields[f.field])
 	}
 	f.replace = f.replace || replace
 	if replace && f.fields[0] != "" {
@@ -145,15 +145,15 @@ func (f *findBar) Layout() []overlay.Box { return nil }
 
 // focus moves editing to field i, keeping the other field's text.
 func (f *findBar) focus(m *Model, i int) {
-	f.fields[f.field] = m.line.text()
+	f.fields[f.field] = m.line.Text()
 	f.field = i
-	m.line.set(f.fields[i])
+	m.line.Set(f.fields[i])
 }
 
 // Changed re-runs the search as the query is typed.
 func (f *findBar) Changed() {
 	m := f.m
-	f.fields[f.field] = m.line.text()
+	f.fields[f.field] = m.line.Text()
 	if f.field == 0 {
 		f.search(m)
 	}
@@ -303,9 +303,9 @@ func (f *findBar) Key(k tea.KeyPressMsg) tea.Cmd {
 			f.search(m)
 		}
 	default:
-		before := m.line.text()
-		m.line.key(k)
-		if m.line.text() != before {
+		before := m.line.Text()
+		m.line.Key(k)
+		if m.line.Text() != before {
 			f.Changed()
 		}
 	}

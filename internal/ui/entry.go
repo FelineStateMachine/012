@@ -44,16 +44,16 @@ func (m *Model) startEntry(md mode, text string) {
 	}
 	m.mode = md
 	m.entry.home = nil
-	m.line.clear()
+	m.line.Clear()
 	m.entry.hint, m.entry.assist = "", assist{}
-	m.line.insert(text)
+	m.line.Insert(text)
 }
 
 // startEdit edits the active cell's contents with the caret at the end.
 func (m *Model) startEdit() tea.Cmd {
 	m.startEntry(modeEdit, "")
 	if c := m.sheet.Cell(m.cur); c != nil && m.mode == modeEdit {
-		m.line.set(c.Input)
+		m.line.Set(c.Input)
 	}
 	return nil
 }
@@ -73,10 +73,10 @@ func (m *Model) enterKey(k tea.KeyPressMsg) tea.Cmd {
 		m.toggleAbsolute()
 		return nil
 	}
-	if m.line.isFormula() && (m.pointAfterSheet(key) || m.line.canPoint() && m.startPoint(key)) {
+	if m.line.IsFormula() && (m.pointAfterSheet(key) || m.line.CanPoint() && m.startPoint(key)) {
 		return nil
 	}
-	if m.line.isFormula() && (key == "left" || key == "right") {
+	if m.line.IsFormula() && (key == "left" || key == "right") {
 		m.typeKey(k) // move the caret within a formula
 		return nil
 	}
@@ -96,7 +96,7 @@ func (m *Model) editKey(k tea.KeyPressMsg) tea.Cmd {
 	if m.entry.assist.key(m, key) || m.commitKey(key) || m.cancelKey(key) || m.sheetKey(key) {
 		return nil
 	}
-	if m.line.isFormula() && strings.HasPrefix(key, "shift+") && (m.pointAfterSheet(key) || m.line.canPoint() && m.startPoint(key)) {
+	if m.line.IsFormula() && strings.HasPrefix(key, "shift+") && (m.pointAfterSheet(key) || m.line.CanPoint() && m.startPoint(key)) {
 		return nil
 	}
 	switch key {
@@ -171,8 +171,8 @@ func (m *Model) startPoint(key string) bool {
 	} else {
 		return false
 	}
-	m.entry.prefix = m.line.head()
-	m.entry.suffix = m.line.tail()
+	m.entry.prefix = m.line.Head()
+	m.entry.suffix = m.line.Tail()
 	m.mode = modePoint
 	m.navigate(key, &m.point.at)
 	return true
@@ -206,7 +206,7 @@ func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 	}
 	if text := typed(k); text != "" {
 		m.resumeEntry(m.pointRef())
-		m.line.insert(text)
+		m.line.Insert(text)
 		m.entry.assist = assist{active: true}
 	}
 	return nil
@@ -215,14 +215,14 @@ func (m *Model) pointKey(k tea.KeyPressMsg) tea.Cmd {
 // resumeEntry leaves POINT mode, inserting ref at the caret.
 func (m *Model) resumeEntry(ref string) {
 	m.mode = modeEnter
-	m.line.buf = []rune(m.entry.prefix + ref + m.entry.suffix)
-	m.line.pos = utf8.RuneCountInString(m.entry.prefix + ref)
+	m.line.Buf = []rune(m.entry.prefix + ref + m.entry.suffix)
+	m.line.Pos = utf8.RuneCountInString(m.entry.prefix + ref)
 }
 
 // commit stores the edit line in the active cell. An invalid formula stays
 // in EDIT mode with the caret at the problem and the reason on line 3.
 func (m *Model) commit() bool {
-	input := m.line.text()
+	input := m.line.Text()
 	if err := m.set(m.cur, input); err != nil {
 		m.entryError(err, input)
 		return false
@@ -246,7 +246,7 @@ func (m *Model) set(a sheet.Addr, input string) error {
 func (m *Model) cancelEntry() {
 	m.returnHome()
 	m.mode = modeReady
-	m.line.clear()
+	m.line.Clear()
 	m.entry.hint, m.entry.assist = "", assist{}
 }
 
@@ -262,14 +262,14 @@ func (m *Model) handlePaste(content string) {
 			m.startEntry(modeEnter, content)
 		}
 	case modeEnter, modeEdit:
-		m.line.insert(content)
+		m.line.Insert(content)
 	case modePrompt:
 		if m.prompt.kind != promptRange {
 			m.prompt.paste(m, content)
 		}
 	case modeMenu:
 		if o, ok := m.overlay.(overlay.Text); ok {
-			m.line.insert(content)
+			m.line.Insert(content)
 			o.Changed()
 		}
 	}

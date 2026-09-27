@@ -292,12 +292,12 @@ func TestVimCommandLine(t *testing.T) {
 		t.Errorf("status: %q", line(m, m.height-1))
 	}
 	press(t, m, "<tab>")
-	if m.line.text() != "edit.fill_down" {
-		t.Errorf("Tab: %q", m.line.text())
+	if m.line.Text() != "edit.fill_down" {
+		t.Errorf("Tab: %q", m.line.Text())
 	}
 	press(t, m, "<tab>")
-	if m.line.text() != "edit.fill_right" {
-		t.Errorf("Tab Tab: %q", m.line.text())
+	if m.line.Text() != "edit.fill_right" {
+		t.Errorf("Tab Tab: %q", m.line.Text())
 	}
 	press(t, m, "<esc>")
 	// A title runs its command; so does the first completion of a prefix.

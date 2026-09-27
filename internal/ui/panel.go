@@ -180,7 +180,7 @@ func (m *Model) formulaBar() string {
 	box := m.th.Header.Render(theme.PadRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
 	switch m.mode {
 	case modeEnter, modeEdit:
-		return box + m.line.text()
+		return box + m.line.Text()
 	case modePoint:
 		return box + m.entry.prefix + m.th.Selection.Render(m.pointRef()) + m.entry.suffix
 	}
@@ -232,9 +232,9 @@ func (m *Model) contextLineText() string {
 		if left, right, ok = signatureLine(&m.th, m.width, prefix, len(prefix), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
 			left = m.th.KeyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
 		}
-	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.isFormula() && m.line.inFunction():
-		left, right, _ = signatureLine(&m.th, m.width, m.line.buf, m.line.pos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
-	case m.mode == modeEnter && m.line.isFormula():
+	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.IsFormula() && inFunction(&m.line):
+		left, right, _ = signatureLine(&m.th, m.width, m.line.Buf, m.line.Pos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
+	case m.mode == modeEnter && m.line.IsFormula():
 		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "pick cells after an operator", "Esc", "cancel")
 	case m.mode == modeEnter:
 		left = m.th.KeyHints("Enter", "accept", "Tab", "accept and go right", "Arrows", "accept and move", "Esc", "cancel")
@@ -264,7 +264,7 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 	}
 	switch {
 	case m.mode == modeEnter, m.mode == modeEdit:
-		return formulaBarTextX() + ansi.StringWidth(m.line.head()), formulaLine, true
+		return formulaBarTextX() + ansi.StringWidth(m.line.Head()), formulaLine, true
 	case m.mode == modePrompt && !m.pointing():
 		return ansi.StringWidth(m.prompt.prefix() + m.prompt.head(m)), contextLine, true
 	}

@@ -55,7 +55,7 @@ func init() {
 		desc: "Type a command: a cell to go to (B12), w, q, wq, e file, or any command by name",
 		run: func(m *Model) tea.Cmd {
 			c := &cmdLine{m: m}
-			m.line.clear()
+			m.line.Clear()
 			m.openOverlay(c)
 			c.Changed()
 			return nil
@@ -71,7 +71,7 @@ func (c *cmdLine) Changed() {
 	m := c.m
 	c.Sel, c.Top, c.tabbed = 0, 0, false
 	c.shown = c.shown[:0]
-	q := strings.ToLower(strings.TrimPrefix(strings.TrimLeft(m.line.text(), " "), ":"))
+	q := strings.ToLower(strings.TrimPrefix(strings.TrimLeft(m.line.Text(), " "), ":"))
 	if word, _, arg := strings.Cut(q, " "); arg && isFileWord(word) {
 		return
 	}
@@ -117,7 +117,7 @@ func commandIDs() []string {
 func (c *cmdLine) Key(k tea.KeyPressMsg) tea.Cmd {
 	m := c.m
 	switch key := k.String(); {
-	case key == "esc", key == "backspace" && len(m.line.buf) == 0:
+	case key == "esc", key == "backspace" && len(m.line.Buf) == 0:
 		m.closeOverlay()
 	case key == "enter":
 		return c.run(m)
@@ -130,9 +130,9 @@ func (c *cmdLine) Key(k tea.KeyPressMsg) tea.Cmd {
 	case key == "down", key == "ctrl+n":
 		c.Move(1, len(c.shown))
 	default:
-		before := m.line.text()
-		m.line.key(k)
-		if m.line.text() != before {
+		before := m.line.Text()
+		m.line.Key(k)
+		if m.line.Text() != before {
 			c.Changed()
 		}
 	}
@@ -148,7 +148,7 @@ func (c *cmdLine) complete(m *Model, d int) {
 	if c.tabbed {
 		c.Move(d, len(c.shown))
 	}
-	m.line.set(c.shown[c.Sel].word)
+	m.line.Set(c.shown[c.Sel].word)
 	c.tabbed = true
 }
 
@@ -156,7 +156,7 @@ func (c *cmdLine) complete(m *Model, d int) {
 // cell or range runs the highlighted completion, so ":fill d" Enter
 // fills down.
 func (c *cmdLine) run(m *Model) tea.Cmd {
-	text := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(m.line.text()), ":"))
+	text := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(m.line.Text()), ":"))
 	fallback := ""
 	if c.Sel < len(c.shown) {
 		fallback = c.shown[c.Sel].word
@@ -270,12 +270,12 @@ func (m *Model) editFile(name string, force bool) tea.Cmd {
 
 func (c *cmdLine) ContextLine() (string, string) {
 	m := c.m
-	return m.th.Title.Render(":") + m.line.text(), ""
+	return m.th.Title.Render(":") + m.line.Text(), ""
 }
 
 func (c *cmdLine) Cursor() (int, int) {
 	m := c.m
-	return 1 + ansi.StringWidth(m.line.head()), contextLine
+	return 1 + ansi.StringWidth(m.line.Head()), contextLine
 }
 
 func (c *cmdLine) Status() (string, string) {
@@ -363,7 +363,7 @@ func (c *cmdLine) Mouse(e overlay.MouseEvent) tea.Cmd {
 	case e.Kind == overlay.MouseMotion:
 		c.Sel = i
 	case e.Kind == overlay.MousePress && e.Button == tea.MouseLeft:
-		m.line.set(c.shown[i].word)
+		m.line.Set(c.shown[i].word)
 		c.Sel = i
 		return c.run(m)
 	}

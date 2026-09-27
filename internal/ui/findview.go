@@ -57,7 +57,7 @@ func (f *findBar) parts(m *Model) []findPart {
 // fieldText is a field's text: the live edit buffer when focused.
 func (f *findBar) fieldText(m *Model, i int) string {
 	if f.field == i {
-		return m.line.text()
+		return m.line.Text()
 	}
 	return f.fields[i]
 }
@@ -118,7 +118,7 @@ func (f *findBar) Cursor() (x, y int) {
 	parts, xs := f.spans(m)
 	for i, p := range parts {
 		if p.field == f.field {
-			return xs[i] + ansi.StringWidth(p.text) - ansi.StringWidth(m.line.tail()), contextLine
+			return xs[i] + ansi.StringWidth(p.text) - ansi.StringWidth(m.line.Tail()), contextLine
 		}
 	}
 	return 0, contextLine
