@@ -7,7 +7,8 @@ import (
 
 // A range where one value is wanted reads as the cell in the formula's
 // row (a column) or column (a row), as in Sheets and Excel; functions
-// that take ranges still read all of them.
+// that take ranges still read all of them, and a range that is a cell's
+// whole formula spills, as in Sheets.
 func TestImplicitIntersection(t *testing.T) {
 	for _, decimal := range []bool{false, true} {
 		s := sheetOf(t, map[string]string{
@@ -15,7 +16,7 @@ func TestImplicitIntersection(t *testing.T) {
 			"B2": "1400", "B3": "1450", "B4": "1500",
 			"B6": "10", "C6": "20", "D6": "30",
 			"F2": "=B2:B4*2", "F3": "=Rent*2", "F4": "=Rent*2", "F5": "=Rent*2",
-			"G3": "=B2:B4", "G4": "=ABS(-Rent)", "G5": "=B:B+1",
+			"G3": "=+B2:B4", "G4": "=ABS(-Rent)", "G5": "=B:B+1",
 			"H3": "=SUM(Rent)", "H4": "=SUMPRODUCT(Rent)", "H2": "=MATCH(1450,Rent,0)",
 			"H5": "=SUM(Rent*2)", "H6": "=SUMPRODUCT(Rent*2)",
 			"C7": "=B6:D6+1", "E7": "=B6:D6", "A8": "=B2:C4",
@@ -30,7 +31,7 @@ func TestImplicitIntersection(t *testing.T) {
 			"G3": "1450", "G4": "1500", "G5": "1",
 			"H3": "4350", "H4": "4350", "H2": "2",
 			"H5": "8700", "H6": "8700", // array arguments: computed over the whole range
-			"C7": "21", "E7": "#VALUE!", "A8": "#VALUE!",
+			"C7": "21", "E7": "10", "G7": "30", "A8": "1400", "A10": "1500", // E7 and A8 spill
 			"J3": "1450", "K3": "1450!", "L3": "2",
 		} {
 			if got := s.Value(at(a)).String(); got != want {
@@ -62,13 +63,13 @@ func TestImplicitIntersectionOtherSheet(t *testing.T) {
 	}
 	for a, in := range map[string]string{
 		"A3": "='Q3 plan'!C2:C4*10", "A4": "=Plan+1", "A5": "=Plan",
-		"C1": "='Q3 plan'!B9:D9", "E1": "='Q3 plan'!B9:D9",
+		"C1": "=+'Q3 plan'!B9:D9", "E1": "=+'Q3 plan'!B9:D9",
 	} {
 		if err := s.Set(at(a), in); err != nil {
 			t.Fatal(err)
 		}
 	}
-	for a, want := range map[string]string{"A3": "60", "A4": "8", "A5": "#VALUE!", "C1": "2", "E1": "#VALUE!"} {
+	for a, want := range map[string]string{"A3": "60", "A4": "8", "A5": "5", "A7": "7", "C1": "2", "E1": "#VALUE!"} { // A5 spills
 		if got := s.Value(at(a)).String(); got != want {
 			t.Errorf("%s = %s, want %s", a, got, want)
 		}

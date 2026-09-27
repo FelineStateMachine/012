@@ -15,7 +15,9 @@ import (
 // other numbers. excelize reads the first cell of any range instead, so
 // it agrees only where that is the intersection, or where a function
 // takes the range; the other cases are skipped against excelize and give
-// what Excel and Sheets do (excel), which 012 is checked against.
+// what Excel and Sheets do (excel), which 012 is checked against. A
+// range that is a cell's whole formula spills in Sheets and Excel 365,
+// so a unary + makes it one value where the intersection is tested.
 var intersections = []struct{ cell, formula, excel string }{
 	// The intersection is the first cell, or a function takes the range.
 	{"F2", "=B2:B4+1", ""}, {"F2", "=Rent*2", ""}, {"B8", "=B6:D6*3", ""},
@@ -24,9 +26,9 @@ var intersections = []struct{ cell, formula, excel string }{
 
 	// excelize reads the first cell where Excel and Sheets intersect.
 	{"F3", "=Rent*2", "2900"}, {"F4", "=Rent*2", "3000"}, {"F5", "=Rent*2", "#VALUE!"},
-	{"G3", "=B2:B4", "1450"}, {"G4", "=ABS(-Rent)", "1500"}, {"G3", `=Rent&"x"`, "1450x"},
-	{"C8", "=B6:D6*3", "60"}, {"E8", "=B6:D6*3", "#VALUE!"}, {"A9", "=B2:C4", "#VALUE!"},
-	{"F3", "=Other!B2:B4*10", "20"}, {"C1", "=Other!B9:D9", "5"}, {"F1", "=Other!B2:B4", "#VALUE!"},
+	{"G3", "=+B2:B4", "1450"}, {"G4", "=ABS(-Rent)", "1500"}, {"G3", `=Rent&"x"`, "1450x"},
+	{"C8", "=B6:D6*3", "60"}, {"E8", "=B6:D6*3", "#VALUE!"}, {"A9", "=+B2:C4", "#VALUE!"},
+	{"F3", "=Other!B2:B4*10", "20"}, {"C1", "=+Other!B9:D9", "5"}, {"F1", "=+Other!B2:B4", "#VALUE!"},
 }
 
 func TestImplicitIntersection(t *testing.T) {

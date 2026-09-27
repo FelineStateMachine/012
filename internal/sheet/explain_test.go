@@ -55,7 +55,7 @@ func TestExplainError(t *testing.T) {
 		"B6": `=VLOOKUP(99, A1:A2, 1, FALSE)`,
 		"B7": "=SQRT(-1)",
 		"B8": "=C8", "C8": "=B8",
-		"B9":  "=A1:A2",
+		"B9":  "=-A1:A2",
 		"B10": "=IFERROR(B1, 0)",
 		"B11": "=AVERAGE(A3)",
 		"B12": "5",

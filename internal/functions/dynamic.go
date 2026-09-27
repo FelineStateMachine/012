@@ -11,10 +11,14 @@ import (
 // and SORT of A:A work on its rows holding data, the blank rows past
 // them being one fill (Array.Fill).
 
+// arrayFormula is ARRAYFORMULA, which a range that is a cell's whole
+// formula is read through.
+var arrayFormula = &FuncDef{Name: "ARRAYFORMULA", Args: "array_formula", Desc: "Compute a formula over arrays: ranges read whole, and functions of one value applied to each entry", Min: 1, Max: 1,
+	eval: func(args []Node, get lookup) Value { return evalArr(args[0], get) }, arrays: takesArrays, format: inherit}
+
 func init() {
 	define(
-		&FuncDef{Name: "ARRAYFORMULA", Args: "array_formula", Desc: "Compute a formula over arrays: ranges read whole, and functions of one value applied to each entry", Min: 1, Max: 1,
-			eval: func(args []Node, get lookup) Value { return evalArr(args[0], get) }, arrays: takesArrays, format: inherit},
+		arrayFormula,
 		&FuncDef{Name: "FILTER", Args: "range, condition1, [condition2, ...]", Desc: "The rows (or columns) of a range where every condition is true", Min: 2, Max: -1,
 			eval: filter, arrays: takesArrays, format: inheritFrom(0)},
 		&FuncDef{Name: "SORT", Args: "range, [sort_column], [is_ascending], [sort_column2, is_ascending2, ...]", Desc: "The rows of a range sorted by columns", Min: 1, Max: -1,

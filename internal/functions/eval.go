@@ -25,8 +25,12 @@ func EvalAt(n Node, get *Reader, at Addr) Value {
 
 // EvalCell computes the formula in the cell at, as EvalAt, and the array
 // it computes when that is several values: the cell shows the first, and
-// the engine spills the array from it. A 1x1 array is one value.
+// the engine spills the array from it. A 1x1 array is one value. A range
+// that is the whole formula is an array, as Sheets spills =B2:B9.
 func EvalCell(n Node, get *Reader, at Addr) (Value, *Array) {
+	if r, ok := n.(formula.Range); ok {
+		n = formula.Call{Fn: arrayFormula, Args: []Node{r}}
+	}
 	return evalTop(n, get, at, true)
 }
 
