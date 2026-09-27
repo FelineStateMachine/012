@@ -65,7 +65,7 @@ func (s *Sheet) Find(query string, o FindOptions) ([]Addr, error) {
 		if o.Within != nil && !o.Within.Contains(a) {
 			continue
 		}
-		if f.re.MatchString(f.text(s.cells[a])) {
+		if f.re.MatchString(f.text(s.cells.get(a))) {
 			out = append(out, a)
 		}
 	}
@@ -85,7 +85,7 @@ func (s *Sheet) Replace(a Addr, query, repl string, o FindOptions) (bool, error)
 }
 
 func (s *Sheet) replace(a Addr, f *finder, repl string) (bool, error) {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	if c == nil || (c.IsFormula() && !f.o.InFormulas) {
 		return false, nil
 	}

@@ -22,7 +22,7 @@ func sheetOf(t *testing.T, cells map[string]string) *Sheet {
 // inputs returns every cell's input by address.
 func inputs(s *Sheet) map[string]string {
 	out := map[string]string{}
-	for a, c := range s.cells {
+	for a, c := range s.cells.all() {
 		out[a.String()] = c.Input
 	}
 	return out

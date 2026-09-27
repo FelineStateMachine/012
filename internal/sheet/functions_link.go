@@ -1,6 +1,10 @@
 package sheet
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
+)
 
 func init() {
 	define(&FuncDef{Name: "HYPERLINK", Args: "url, [link_label]", Desc: "A link that opens url, shown as its label", Min: 1, Max: 2,
@@ -26,12 +30,12 @@ func init() {
 // (http, https or mailto), or the target of a HYPERLINK formula. It is
 // empty for other cells.
 func (s *Sheet) Link(a Addr) string {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	if c == nil || c.Value.Kind != Text {
 		return ""
 	}
-	if call, ok := c.expr.(callNode); ok && call.fn.Name == "HYPERLINK" && c.IsFormula() {
-		v := eval(call.args[0], s.wb.values(s))
+	if call, ok := c.expr.(formula.Call); ok && funcOf(call).Name == "HYPERLINK" && c.IsFormula() {
+		v := eval(call.Args[0], s.wb.values(s))
 		if v.Kind == Error {
 			return ""
 		}

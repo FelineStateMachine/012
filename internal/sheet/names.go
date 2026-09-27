@@ -6,6 +6,8 @@ import (
 	"maps"
 	"slices"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // Named ranges, as in Sheets' Data > Named ranges: a name such as Sales
@@ -66,30 +68,10 @@ func ValidName(name string) error {
 	switch k := nameKey(name); {
 	case k == "TRUE" || k == "FALSE":
 		return errors.New("TRUE and FALSE can't be names")
-	case looksLikeRef(k):
+	case formula.LooksLikeRef(k):
 		return errors.New("A name can't look like a cell reference, e.g. A1 or R1C1")
 	}
 	return nil
-}
-
-// looksLikeRef reports whether an upper-case name reads as a cell in A1 or
-// R1C1 style, even beyond this sheet's edges, so names stay unambiguous in
-// other spreadsheets too.
-func looksLikeRef(k string) bool {
-	letters := strings.TrimLeft(k, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	if letters != k && letters != "" && strings.Trim(letters, "0123456789") == "" {
-		return true
-	}
-	rest, ok := strings.CutPrefix(k, "R")
-	if !ok {
-		rest, ok = k, strings.HasPrefix(k, "C")
-	}
-	if !ok {
-		return false
-	}
-	rest = strings.TrimLeft(rest, "0123456789")
-	rest, _ = strings.CutPrefix(rest, "C")
-	return strings.Trim(rest, "0123456789") == ""
 }
 
 // Names returns the named ranges, sorted by name.
@@ -178,14 +160,14 @@ func (s *Sheet) EditName(old, name string, r Rect) error {
 // renameInFormulas rewrites the formulas that use the name with key from
 // to spell it to instead.
 func (w *Workbook) renameInFormulas(from, to string) {
-	rw := refRewrite{name: func(n nameNode) Node {
-		if nameKey(n.name) == from {
-			return nameNode{to}
+	rw := formula.Rewriter{Name: func(n formula.Name) Node {
+		if nameKey(n.Name) == from {
+			return formula.Name{Name: to}
 		}
 		return n
 	}}
 	for _, l := range slices.Collect(maps.Keys(w.nameUsers[from])) {
-		l.s.place(l.a, l.s.cells[l.a].rewritten(rw))
+		l.s.place(l.a, l.s.cells.get(l.a).rewritten(rw))
 	}
 }
 
@@ -242,23 +224,23 @@ func (s *Sheet) bound(c *Cell) Node {
 	if len(c.names) == 0 {
 		return c.expr
 	}
-	const fixed = absCol | absRow
-	n, _ := rewrite(c.expr, refRewrite{name: func(nn nameNode) Node {
-		nm, ok := s.wb.names[nameKey(nn.name)]
+	const fixed = formula.AbsCol | formula.AbsRow
+	n, _ := formula.Rewrite(c.expr, formula.Rewriter{Name: func(nn formula.Name) Node {
+		nm, ok := s.wb.names[nameKey(nn.Name)]
 		switch {
 		case !ok:
 			return nn
 		case nm.Gone():
-			return refErrNode{}
+			return formula.RefErr{}
 		}
 		sheet := ""
 		if nm.Sheet != s {
 			sheet = nm.Sheet.name
 		}
 		if nm.Range.From == nm.Range.To {
-			return refNode{nm.Range.From, fixed, sheet}
+			return formula.Ref{Addr: nm.Range.From, Abs: fixed, Sheet: sheet}
 		}
-		return rangeNode{nm.Range, [2]absFlags{fixed, fixed}, sheet}
+		return formula.Range{Rect: nm.Range, Abs: [2]formula.Abs{fixed, fixed}, Sheet: sheet}
 	}})
 	return n
 }

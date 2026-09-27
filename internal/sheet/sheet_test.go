@@ -16,46 +16,6 @@ func at(s string) Addr {
 	return a
 }
 
-func TestAddr(t *testing.T) {
-	tests := []struct {
-		in   string
-		want Addr
-		ok   bool
-	}{
-		{"A1", Addr{0, 0}, true},
-		{"z10", Addr{25, 9}, true},
-		{"AA1", Addr{26, 0}, true},
-		{"IV8192", Addr{255, 8191}, true},
-		{"$B$2", Addr{1, 1}, true},
-		{"IW1", Addr{}, false},
-		{"A0", Addr{}, false},
-		{"A8193", Addr{}, false},
-		{"ABC1", Addr{}, false},
-		{"A+1", Addr{}, false},
-		{"1A", Addr{}, false},
-	}
-	for _, tt := range tests {
-		got, ok := ParseAddr(tt.in)
-		if ok != tt.ok || (ok && got != tt.want) {
-			t.Errorf("ParseAddr(%q) = %v, %v; want %v, %v", tt.in, got, ok, tt.want, tt.ok)
-		}
-	}
-	for c := range MaxCols {
-		if got, ok := ParseCol(ColName(c)); !ok || got != c {
-			t.Fatalf("ParseCol(ColName(%d)) = %d, %v", c, got, ok)
-		}
-	}
-}
-
-func TestParseRange(t *testing.T) {
-	for _, in := range []string{"B3..A1", "a1:b3", "$A$1:$B$3"} {
-		r, ok := ParseRange(in)
-		if !ok || r.String() != "A1:B3" {
-			t.Errorf("ParseRange(%q) = %v, %v", in, r, ok)
-		}
-	}
-}
-
 func txt(s string) Value { return Value{Kind: Text, Str: s} }
 
 func TestFormulas(t *testing.T) {

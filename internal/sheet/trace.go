@@ -3,6 +3,8 @@ package sheet
 import (
 	"cmp"
 	"slices"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // Tracing, as Excel's Trace Precedents and Trace Dependents: which cells
@@ -21,7 +23,7 @@ type Target struct {
 // repeats dropped. References to sheets that don't exist are left out. It
 // is empty for anything but a formula.
 func (s *Sheet) Precedents(a Addr) []Target {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	if c == nil || !c.IsFormula() {
 		return nil
 	}
@@ -32,7 +34,7 @@ func (s *Sheet) Precedents(a Addr) []Target {
 			out = append(out, t)
 		}
 	}
-	walkRefs(s.bound(c), func(sheet string, a Addr) { add(sheet, Rect{a, a}) }, add)
+	formula.WalkRefs(s.bound(c), func(sheet string, a Addr) { add(sheet, Rect{From: a, To: a}) }, add)
 	return out
 }
 
@@ -46,7 +48,7 @@ func (s *Sheet) Dependents(a Addr) []Target {
 		seen[loc{s, d}] = true
 	}
 	for u := range s.rangeUsers.candidates(a.Col) {
-		for _, r := range s.cells[u].ranges {
+		for _, r := range s.cells.get(u).ranges {
 			if r.Contains(a) {
 				seen[loc{s, u}] = true
 			}
@@ -66,7 +68,7 @@ func (s *Sheet) Dependents(a Addr) []Target {
 	}
 	out := make([]Target, 0, len(seen))
 	for l := range seen {
-		out = append(out, Target{l.s, Rect{l.a, l.a}})
+		out = append(out, Target{l.s, Rect{From: l.a, To: l.a}})
 	}
 	rank := func(t *Sheet) int {
 		if t == s {

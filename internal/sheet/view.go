@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // View state that belongs to the worksheet rather than to a cell: frozen
@@ -80,14 +82,14 @@ func (v viewState) equal(w viewState) bool {
 // deleted rows or columns: inserting inside the frozen area freezes the
 // new lines too, and the filter's range grows, shrinks or moves like a
 // range reference (and goes away when all of it is deleted).
-func (s *Sheet) shiftView(rows bool, sp span) {
+func (s *Sheet) shiftView(rows bool, sp formula.Span) {
 	v := s.view
 	frozen := &v.frozenCols
 	if rows {
 		frozen = &v.frozenRows
 	}
 	if *frozen > 0 {
-		if lo, hi, ok := sp.interval(0, *frozen-1); ok && lo == 0 {
+		if lo, hi, ok := sp.Interval(0, *frozen-1); ok && lo == 0 {
 			*frozen = hi + 1
 		} else if !ok {
 			*frozen = 0
@@ -95,13 +97,13 @@ func (s *Sheet) shiftView(rows bool, sp span) {
 		*frozen = min(*frozen, MaxFrozen)
 	}
 	if f := v.filter; f != nil {
-		_, rng := axisRewrite(rows, sp)
+		_, rng := formula.AxisMaps(rows, sp)
 		if r, ok := rng(f.Range); ok {
 			nf := &Filter{Range: r, Cols: map[int]Criteria{}}
 			for c, cr := range f.Cols {
 				if !rows {
 					var keep bool
-					if c, keep = sp.point(c); !keep || c < r.From.Col || c > r.To.Col {
+					if c, keep = sp.Point(c); !keep || c < r.From.Col || c > r.To.Col {
 						continue
 					}
 				}

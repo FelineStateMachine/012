@@ -1,11 +1,12 @@
-package sheet
+package formula
 
 import (
 	"strconv"
 	"strings"
 )
 
-// Worksheet bounds, matching Lotus 1-2-3 Release 2 (A..IV, 1..8192).
+// Worksheet bounds, matching Lotus 1-2-3 Release 2 (A..IV, 1..8192). A
+// reference past them isn't a reference: IW1 reads as a name.
 const (
 	MaxCols = 256
 	MaxRows = 8192
@@ -53,24 +54,24 @@ func ParseCol(s string) (int, bool) {
 // ParseAddr parses an A1-style reference. Absolute markers ($A$1) are
 // accepted and ignored.
 func ParseAddr(s string) (Addr, bool) {
-	a, _, ok := parseRef(s)
+	a, _, ok := ParseRef(s)
 	return a, ok
 }
 
-// absFlags records which parts of a reference are absolute ($A$1). Copying
-// a formula shifts only the relative parts.
-type absFlags uint8
+// Abs records which parts of a reference are absolute ($A$1). Copying a
+// formula shifts only the relative parts.
+type Abs uint8
 
 const (
-	absCol absFlags = 1 << iota
-	absRow
+	AbsCol Abs = 1 << iota
+	AbsRow
 )
 
-// parseRef parses a reference written as A1, $A1, A$1 or $A$1.
-func parseRef(s string) (Addr, absFlags, bool) {
-	var abs absFlags
+// ParseRef parses a reference written as A1, $A1, A$1 or $A$1.
+func ParseRef(s string) (Addr, Abs, bool) {
+	var abs Abs
 	if rest, ok := strings.CutPrefix(s, "$"); ok {
-		s, abs = rest, absCol
+		s, abs = rest, AbsCol
 	}
 	i := 0
 	for i < len(s) && isLetter(s[i]) {
@@ -82,7 +83,7 @@ func parseRef(s string) (Addr, absFlags, bool) {
 	}
 	digits := s[i:]
 	if rest, ok := strings.CutPrefix(digits, "$"); ok {
-		digits, abs = rest, abs|absRow
+		digits, abs = rest, abs|AbsRow
 	}
 	if digits == "" || strings.ContainsFunc(digits, func(r rune) bool { return r < '0' || r > '9' }) {
 		return Addr{}, 0, false
@@ -92,14 +93,14 @@ func parseRef(s string) (Addr, absFlags, bool) {
 	return a, abs, err == nil && a.Valid()
 }
 
-// refString writes a with its absolute markers, e.g. $A1.
-func refString(a Addr, abs absFlags) string {
+// RefString writes a with its absolute markers, e.g. $A1.
+func RefString(a Addr, abs Abs) string {
 	var b strings.Builder
-	if abs&absCol != 0 {
+	if abs&AbsCol != 0 {
 		b.WriteByte('$')
 	}
 	b.WriteString(ColName(a.Col))
-	if abs&absRow != 0 {
+	if abs&AbsRow != 0 {
 		b.WriteByte('$')
 	}
 	b.WriteString(strconv.Itoa(a.Row + 1))
@@ -148,6 +149,26 @@ func ParseRange(s string) (Rect, bool) {
 	a, ok1 := ParseAddr(s[:sep])
 	b, ok2 := ParseAddr(s[sep+width:])
 	return NewRect(a, b), ok1 && ok2
+}
+
+// LooksLikeRef reports whether an upper-case name reads as a cell in A1 or
+// R1C1 style, even beyond this sheet's edges, so names stay unambiguous in
+// other spreadsheets too.
+func LooksLikeRef(k string) bool {
+	letters := strings.TrimLeft(k, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	if letters != k && letters != "" && strings.Trim(letters, "0123456789") == "" {
+		return true
+	}
+	rest, ok := strings.CutPrefix(k, "R")
+	if !ok {
+		rest, ok = k, strings.HasPrefix(k, "C")
+	}
+	if !ok {
+		return false
+	}
+	rest = strings.TrimLeft(rest, "0123456789")
+	rest, _ = strings.CutPrefix(rest, "C")
+	return strings.Trim(rest, "0123456789") == ""
 }
 
 func isLetter(c byte) bool {

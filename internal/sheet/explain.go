@@ -3,6 +3,8 @@ package sheet
 import (
 	"slices"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // ExplainError says why the cell at a shows an error, for the context
@@ -19,7 +21,7 @@ func (l loc) label(from *Sheet) string {
 	if l.s == from {
 		return l.a.String()
 	}
-	return quoteSheet(l.s.name) + "!" + l.a.String()
+	return formula.QuoteSheet(l.s.name) + "!" + l.a.String()
 }
 
 // maxExplainExpr caps how much of a formula an explanation quotes.
@@ -27,7 +29,7 @@ const maxExplainExpr = 40
 
 func (s *Sheet) explain(a Addr, path []loc) string {
 	here := loc{s, a}
-	c := s.cells[a]
+	c := s.cells.get(a)
 	v := s.Value(a)
 	if c == nil || v.Kind != Error || !c.IsFormula() {
 		return ""
@@ -57,11 +59,11 @@ func (s *Sheet) explain(a Addr, path []loc) string {
 		}
 		return "From " + name + ": " + strings.ToLower(why[:1]) + why[1:]
 	}
-	if r, ok := n.(refNode); ok && s.wb.resolve(s, r.sheet) == nil {
-		return "Unresolved sheet name " + quoteSheet(r.sheet)
+	if r, ok := n.(formula.Ref); ok && s.wb.resolve(s, r.Sheet) == nil {
+		return "Unresolved sheet name " + formula.QuoteSheet(r.Sheet)
 	}
-	if r, ok := n.(rangeNode); ok && s.wb.resolve(s, r.sheet) == nil {
-		return "Unresolved sheet name " + quoteSheet(r.sheet)
+	if r, ok := n.(formula.Range); ok && s.wb.resolve(s, r.Sheet) == nil {
+		return "Unresolved sheet name " + formula.QuoteSheet(r.Sheet)
 	}
 	return describeError(v, n)
 }
@@ -70,58 +72,93 @@ func (s *Sheet) explain(a Addr, path []loc) string {
 // itself rather than passing it on. When the error comes from a
 // referenced cell, it returns that cell.
 func (s *Sheet) errorOrigin(n Node, want Value) (Node, *loc) {
-	same := func(v Value) bool { return v.Kind == Error && v.Str == want.Str }
-	get := s.wb.values(s)
-	at := func(sheet string, a Addr) *loc {
-		if t := s.wb.resolve(s, sheet); t != nil {
-			return &loc{t, a}
-		}
-		return nil // an unresolved sheet name is the error itself
+	return errorSearch{s: s, want: want, get: s.wb.values(s)}.find(n)
+}
+
+// errorSearch follows an error through a formula on s to where it starts.
+type errorSearch struct {
+	s    *Sheet
+	want Value
+	get  lookup
+}
+
+func (e errorSearch) same(v Value) bool { return v.Kind == Error && v.Str == e.want.Str }
+
+// at is the cell a reference points at, or nil when its sheet name is
+// unresolved: then the reference is the error itself.
+func (e errorSearch) at(sheet string, a Addr) *loc {
+	if t := e.s.wb.resolve(e.s, sheet); t != nil {
+		return &loc{t, a}
 	}
+	return nil
+}
+
+func (e errorSearch) find(n Node) (Node, *loc) {
 	switch n := n.(type) {
-	case refNode:
-		if same(get(n.sheet, n.a)) {
-			return n, at(n.sheet, n.a)
+	case formula.Ref:
+		if e.same(e.get.cell(n.Sheet, n.Addr)) {
+			return n, e.at(n.Sheet, n.Addr)
 		}
-	case rangeNode:
-		if n.r.From == n.r.To && same(get(n.sheet, n.r.From)) {
-			return n, at(n.sheet, n.r.From)
+	case formula.Range:
+		if n.Rect.From == n.Rect.To && e.same(e.get.cell(n.Sheet, n.Rect.From)) {
+			return n, e.at(n.Sheet, n.Rect.From)
 		}
-	case unaryNode:
-		if same(eval(n.x, get)) {
-			return s.errorOrigin(n.x, want)
-		}
-	case binaryNode:
-		for _, x := range []Node{n.l, n.r} {
-			if same(eval(x, get)) {
-				return s.errorOrigin(x, want)
-			}
-		}
-	case callNode:
-		if n.fn.remote != nil {
-			return n, nil // JEV explains its own answers
-		}
-		for _, arg := range n.args {
-			if r, ok := arg.(rangeNode); ok && r.r.From != r.r.To {
-				t := s.wb.resolve(s, r.sheet)
-				if t == nil {
-					return arg, nil
-				}
-				cells := t.cellsIn(r.r)
-				sortAddrs(cells)
-				for _, a := range cells {
-					if same(t.Value(a)) {
-						return arg, &loc{t, a}
-					}
-				}
-				continue
-			}
-			if same(eval(arg, get)) {
-				return s.errorOrigin(arg, want)
-			}
+	case formula.Unary:
+		return e.operand(n, n.X)
+	case formula.Binary:
+		return e.operand(n, n.L, n.R)
+	case formula.Call:
+		return e.inCall(n)
+	}
+	return n, nil
+}
+
+// operand follows the first of n's operands that has the error, or stops
+// at n when none has.
+func (e errorSearch) operand(n Node, operands ...Node) (Node, *loc) {
+	for _, x := range operands {
+		if e.same(eval(x, e.get)) {
+			return e.find(x)
 		}
 	}
 	return n, nil
+}
+
+// inCall follows the first argument of a call that has the error: for a
+// range, its first cell with it.
+func (e errorSearch) inCall(n formula.Call) (Node, *loc) {
+	if funcOf(n).remote != nil {
+		return n, nil // JEV explains its own answers
+	}
+	for _, arg := range n.Args {
+		if r, ok := arg.(formula.Range); ok && r.Rect.From != r.Rect.To {
+			if l, found := e.inRange(r); found {
+				return arg, l
+			}
+			continue
+		}
+		if e.same(eval(arg, e.get)) {
+			return e.find(arg)
+		}
+	}
+	return n, nil
+}
+
+// inRange finds the first cell of r, row by row, with the error. An
+// unresolved sheet name is found, as the error itself, with no cell.
+func (e errorSearch) inRange(r formula.Range) (*loc, bool) {
+	t := e.s.wb.resolve(e.s, r.Sheet)
+	if t == nil {
+		return nil, true
+	}
+	cells := t.cellsIn(r.Rect)
+	sortAddrs(cells)
+	for _, a := range cells {
+		if e.same(t.Value(a)) {
+			return &loc{t, a}, true
+		}
+	}
+	return nil, false
 }
 
 // lookupFuncs report #N/A when they find no match.
@@ -129,9 +166,7 @@ var lookupFuncs = []string{"VLOOKUP", "HLOOKUP", "XLOOKUP", "LOOKUP", "MATCH", "
 
 // describeError explains an error code produced by n.
 func describeError(v Value, n Node) string {
-	var b strings.Builder
-	printNode(&b, n)
-	expr := b.String()
+	expr := formula.Expr(n)
 	if r := []rune(expr); len(r) > maxExplainExpr {
 		expr = string(r[:maxExplainExpr-1]) + "…"
 	}
@@ -139,24 +174,24 @@ func describeError(v Value, n Node) string {
 	case ErrDiv0.Str:
 		return "Division by zero in " + expr
 	case ErrValue.Str:
-		if _, ok := n.(rangeNode); ok {
+		if _, ok := n.(formula.Range); ok {
 			return "A range where one value is expected: " + expr
 		}
 		return "Wrong type of value in " + expr
 	case ErrName.Str:
-		if nm, ok := n.(nameNode); ok {
-			return "Unknown name " + nm.name
+		if nm, ok := n.(formula.Name); ok {
+			return "Unknown name " + nm.Name
 		}
 		return "Unknown name in " + expr
 	case ErrNA.Str:
-		if call, ok := n.(callNode); ok && slices.Contains(lookupFuncs, call.fn.Name) {
+		if call, ok := n.(formula.Call); ok && slices.Contains(lookupFuncs, funcOf(call).Name) {
 			return "No match found by " + expr
 		}
 		return "Value not available in " + expr
 	case ErrNum.Str:
 		return "Number out of range in " + expr
 	case ErrRef.Str:
-		if _, ok := n.(refErrNode); ok {
+		if _, ok := n.(formula.RefErr); ok {
 			return "Reference to deleted cells"
 		}
 		return "Invalid reference in " + expr

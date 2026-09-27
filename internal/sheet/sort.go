@@ -3,6 +3,8 @@ package sheet
 import (
 	"slices"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
 )
 
 // SortKey is one column to sort by.
@@ -48,6 +50,28 @@ func sortCompare(a, b Value) int {
 	return 0
 }
 
+// compareRows orders rows i and j by keys, first key first. Blanks go
+// last in either direction.
+func (s *Sheet) compareRows(keys []SortKey, i, j int) int {
+	for _, k := range keys {
+		a, b := s.Value(Addr{Col: k.Col, Row: i}), s.Value(Addr{Col: k.Col, Row: j})
+		if (a.Kind == Empty) != (b.Kind == Empty) {
+			if a.Kind == Empty {
+				return 1
+			}
+			return -1
+		}
+		d := sortCompare(a, b)
+		if k.Desc {
+			d = -d
+		}
+		if d != 0 {
+			return d
+		}
+	}
+	return 0
+}
+
 // SortRange sorts the rows of r by keys, first key first, as Sheets' Data
 // > Sort range does (r excludes any header row). The sort is stable, so
 // rows that tie keep their order. Only the cells inside r move. Formulas
@@ -65,28 +89,10 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 	for i := range order {
 		order[i] = r.From.Row + i
 	}
-	slices.SortStableFunc(order, func(i, j int) int {
-		for _, k := range keys {
-			a, b := s.Value(Addr{Col: k.Col, Row: i}), s.Value(Addr{Col: k.Col, Row: j})
-			if (a.Kind == Empty) != (b.Kind == Empty) { // blanks last either way
-				if a.Kind == Empty {
-					return 1
-				}
-				return -1
-			}
-			d := sortCompare(a, b)
-			if k.Desc {
-				d = -d
-			}
-			if d != 0 {
-				return d
-			}
-		}
-		return 0
-	})
+	slices.SortStableFunc(order, func(i, j int) int { return s.compareRows(keys, i, j) })
 	old := map[Addr]*Cell{}
 	for _, a := range s.cellsIn(r) {
-		old[a] = s.cells[a]
+		old[a] = s.cells.get(a)
 	}
 	s.change("sort "+r.String(), r, func() {
 		for k, src := range order {
@@ -98,8 +104,8 @@ func (s *Sheet) SortRange(r Rect, keys []SortKey) {
 				to := Addr{Col: col, Row: dst}
 				switch c := old[Addr{Col: col, Row: src}]; {
 				case c != nil:
-					s.place(to, c.rewritten(shiftRefs(0, dst-src)))
-				case s.cells[to] != nil:
+					s.place(to, c.rewritten(formula.Shift(0, dst-src)))
+				case s.cells.get(to) != nil:
 					s.place(to, nil)
 				}
 			}

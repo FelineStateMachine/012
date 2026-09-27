@@ -34,8 +34,9 @@ func run(args []string) error {
 	}
 	defer stopTelemetry()
 	// JEV functions run when an API key is set, in the environment or a
-	// .env file next to the sheet or in the current directory. The cache
-	// goes in before loading so the file's JEV cells queue their questions.
+	// .env file next to the sheet or in the current directory. EnableJEV
+	// gives the workbook the cache, which has its JEV cells queue their
+	// questions.
 	var jevClient jev.Client
 	var jevCache *jev.Cache
 	dirs := []string{"."}
@@ -48,7 +49,6 @@ func run(args []string) error {
 			return fmt.Errorf("JEV: %w", err)
 		}
 		jevClient, jevCache = c, jev.NewCache()
-		sheet.Remote = jevCache
 	}
 
 	s, name := sheet.New(), ""

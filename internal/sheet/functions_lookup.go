@@ -11,83 +11,91 @@ func init() {
 		&FuncDef{Name: "HLOOKUP", Args: "search_key, range, index, [is_sorted]", Desc: "Find a key in the first row and return a value from its column", Min: 3, Max: 4,
 			eval: func(args []Node, get lookup) Value { return tableLookup(args, get, false) }},
 		&FuncDef{Name: "MATCH", Args: "search_key, range, [search_type]", Desc: "Position of a key in a row or column", Min: 2, Max: 3,
-			eval: func(args []Node, get lookup) Value {
-				key := eval(args[0], get)
-				if key.Kind == Error {
-					return key
-				}
-				m := matrixArg(args[1], get)
-				kind, err := intArg(args, 2, 1, get)
-				switch {
-				case err != nil:
-					return *err
-				case !m.vector():
-					return ErrNA
-				}
-				var i int
-				switch {
-				case kind == 0:
-					i = findExact(key, m.size(), m.at, true)
-				case kind > 0:
-					i = findSorted(key, m.size(), m.at, 1)
-				default:
-					i = findSorted(key, m.size(), m.at, -1)
-				}
-				if i < 0 {
-					return ErrNA
-				}
-				return num(float64(i + 1))
-			}},
+			eval: match},
 		&FuncDef{Name: "INDEX", Args: "reference, [row], [column]", Desc: "The value at a row and column of a range", Min: 1, Max: 3,
-			eval: func(args []Node, get lookup) Value {
-				m := matrixArg(args[0], get)
-				row, err := intArg(args, 1, 0, get)
-				if err != nil {
-					return *err
-				}
-				col, err := intArg(args, 2, 0, get)
-				if err != nil {
-					return *err
-				}
-				// In a single row, a lone index counts along the row.
-				if m.rows == 1 && len(args) == 2 {
-					row, col = 1, row
-				}
-				if row < 0 || col < 0 {
-					return ErrValue
-				}
-				if row == 0 && m.rows == 1 {
-					row = 1
-				}
-				if col == 0 && m.cols == 1 {
-					col = 1
-				}
-				switch {
-				case row == 0 || col == 0:
-					return ErrValue // a whole row or column: an array we can't show
-				case row > m.rows || col > m.cols:
-					return ErrRef
-				}
-				return m.cell(row-1, col-1)
-			}, format: inheritFrom(0)},
+			eval: index, format: inheritFrom(0)},
 		&FuncDef{Name: "XLOOKUP", Args: "search_key, lookup_range, result_range, [missing_value], [match_mode], [search_mode]", Desc: "Find a key and return the matching entry of another range", Min: 3, Max: 6,
 			eval: xlookup, format: inheritFrom(2)},
 		&FuncDef{Name: "CHOOSE", Args: "index, choice1, [choice2, ...]", Desc: "The choice at a position", Min: 2, Max: -1,
-			eval: func(args []Node, get lookup) Value {
-				i, err := intArg(args, 0, 0, get)
-				if err != nil {
-					return *err
-				}
-				if i < 1 || i >= len(args) {
-					return ErrValue
-				}
-				return eval(args[i], get)
-			}},
+			eval: choose},
 		&FuncDef{Name: "ROWS", Args: "range", Desc: "Number of rows in a range", Min: 1, Max: 1,
 			eval: func(args []Node, get lookup) Value { return num(float64(matrixArg(args[0], get).rows)) }},
 		&FuncDef{Name: "COLUMNS", Args: "range", Desc: "Number of columns in a range", Min: 1, Max: 1,
 			eval: func(args []Node, get lookup) Value { return num(float64(matrixArg(args[0], get).cols)) }},
 	)
+}
+
+// Evaluators for the table above, in its order.
+
+func match(args []Node, get lookup) Value {
+	key := eval(args[0], get)
+	if key.Kind == Error {
+		return key
+	}
+	m := matrixArg(args[1], get)
+	kind, err := intArg(args, 2, 1, get)
+	switch {
+	case err != nil:
+		return *err
+	case !m.vector():
+		return ErrNA
+	}
+	var i int
+	switch {
+	case kind == 0:
+		i = findExact(key, m.size(), m.at, true)
+	case kind > 0:
+		i = findSorted(key, m.size(), m.at, 1)
+	default:
+		i = findSorted(key, m.size(), m.at, -1)
+	}
+	if i < 0 {
+		return ErrNA
+	}
+	return num(float64(i + 1))
+}
+
+func index(args []Node, get lookup) Value {
+	m := matrixArg(args[0], get)
+	row, err := intArg(args, 1, 0, get)
+	if err != nil {
+		return *err
+	}
+	col, err := intArg(args, 2, 0, get)
+	if err != nil {
+		return *err
+	}
+	// In a single row, a lone index counts along the row.
+	if m.rows == 1 && len(args) == 2 {
+		row, col = 1, row
+	}
+	if row < 0 || col < 0 {
+		return ErrValue
+	}
+	if row == 0 && m.rows == 1 {
+		row = 1
+	}
+	if col == 0 && m.cols == 1 {
+		col = 1
+	}
+	switch {
+	case row == 0 || col == 0:
+		return ErrValue // a whole row or column: an array we can't show
+	case row > m.rows || col > m.cols:
+		return ErrRef
+	}
+	return m.cell(row-1, col-1)
+}
+
+func choose(args []Node, get lookup) Value {
+	i, err := intArg(args, 0, 0, get)
+	if err != nil {
+		return *err
+	}
+	if i < 1 || i >= len(args) {
+		return ErrValue
+	}
+	return eval(args[i], get)
 }
 
 // tableLookup is VLOOKUP (vertical) and HLOOKUP: search the first column

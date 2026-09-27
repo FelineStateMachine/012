@@ -3,6 +3,9 @@ package sheet
 import (
 	"math"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
 // Kind is the type of a computed cell value.
@@ -27,7 +30,7 @@ type Value struct {
 func (v Value) String() string {
 	switch v.Kind {
 	case Number:
-		return numString(v.Num)
+		return numfmt.General(v.Num)
 	case Bool:
 		if v.Num != 0 {
 			return "TRUE"
@@ -85,87 +88,101 @@ func toNum(v Value) (float64, *Value) {
 	return 0, errOf(v)
 }
 
-// lookup resolves the current value of a referenced cell: on the
-// formula's own sheet when sheet is "", otherwise on the sheet with that
-// name.
-type lookup func(sheet string, a Addr) Value
+// lookup is how a formula reads other cells (see reader): one at a time,
+// or a whole range at once, so reading a range needn't cost a lookup per
+// cell and can later be served from column blocks or cached aggregates.
+// It is a concrete type rather than an interface so the callbacks given
+// to cells stay on the stack.
+type lookup = *reader
 
 func eval(n Node, get lookup) Value {
 	switch n := n.(type) {
-	case numLit:
-		return num(n.v)
-	case strLit:
-		return Value{Kind: Text, Str: n.v}
-	case boolLit:
-		return boolean(n.v)
-	case refNode:
-		return get(n.sheet, n.a)
-	case nameNode:
+	case formula.Num:
+		return num(n.V)
+	case formula.Str:
+		return Value{Kind: Text, Str: n.V}
+	case formula.Bool:
+		return boolean(n.V)
+	case formula.Ref:
+		return get.cell(n.Sheet, n.Addr)
+	case formula.Name:
 		return ErrName
-	case refErrNode:
+	case formula.RefErr:
 		return ErrRef
-	case emptyArg:
+	case formula.Empty:
 		return Value{}
-	case rangeNode:
+	case formula.Range:
 		// A range outside a function: Sheets uses the top-left cell here
 		// for single-cell ranges and #VALUE! otherwise.
-		if n.r.From == n.r.To {
-			return get(n.sheet, n.r.From)
+		if n.Rect.From == n.Rect.To {
+			return get.cell(n.Sheet, n.Rect.From)
 		}
 		return ErrValue
-	case unaryNode:
-		x := eval(n.x, get)
-		if x.Kind == Error {
-			return x
-		}
-		switch n.op {
-		case "-":
-			f, err := toNum(x)
-			if err != nil {
-				return *err
-			}
-			return num(-f)
-		case "#NOT#":
-			f, err := toNum(x)
-			if err != nil {
-				return *err
-			}
-			return boolean(f == 0)
-		case "%":
-			f, err := toNum(x)
-			if err != nil {
-				return *err
-			}
-			if n.dec {
-				if v, ok := decArith("/", f, 100); ok {
-					return v
-				}
-			}
-			return num(f / 100)
-		}
-		return x // unary + is identity
-	case binaryNode:
-		return evalBinary(n, get)
-	case callNode:
-		return n.fn.call(n.args, get)
+	case formula.Unary:
+		return evalUnary(n, get, false)
+	case decUnary:
+		return evalUnary(formula.Unary(n), get, true)
+	case formula.Binary:
+		return evalBinary(n, get, false)
+	case decBinary:
+		return evalBinary(formula.Binary(n), get, true)
+	case formula.Call:
+		return funcOf(n).call(n.Args, get)
 	}
 	return ErrValue
 }
 
-func evalBinary(n binaryNode, get lookup) Value {
-	l, r := eval(n.l, get), eval(n.r, get)
+// evalUnary computes a prefix operator or the postfix %; with dec, % is
+// decimal (decimal.go).
+func evalUnary(n formula.Unary, get lookup, dec bool) Value {
+	x := eval(n.X, get)
+	if x.Kind == Error {
+		return x
+	}
+	switch n.Op {
+	case "-":
+		f, err := toNum(x)
+		if err != nil {
+			return *err
+		}
+		return num(-f)
+	case "#NOT#":
+		f, err := toNum(x)
+		if err != nil {
+			return *err
+		}
+		return boolean(f == 0)
+	case "%":
+		f, err := toNum(x)
+		if err != nil {
+			return *err
+		}
+		if dec {
+			if v, ok := decArith("/", f, 100); ok {
+				return v
+			}
+		}
+		return num(f / 100)
+	}
+	return x // unary + is identity
+}
+
+// evalBinary computes a binary operator; with dec, arithmetic is decimal
+// (decimal.go).
+func evalBinary(n formula.Binary, get lookup, dec bool) Value {
+	l, r := eval(n.L, get), eval(n.R, get)
 	if l.Kind == Error {
 		return l
 	}
 	if r.Kind == Error {
 		return r
 	}
-	switch n.op {
+	switch n.Op {
 	case "&":
 		return Value{Kind: Text, Str: text(l) + text(r)}
 	case "=", "<>", "<", ">", "<=", ">=":
 		c := compare(l, r)
-		switch n.op {
+		switch n.Op {
 		case "=":
 			return boolean(c == 0)
 		case "<>":
@@ -187,12 +204,12 @@ func evalBinary(n binaryNode, get lookup) Value {
 	if err != nil {
 		return *err
 	}
-	if n.dec {
-		if v, ok := decArith(n.op, a, b); ok {
+	if dec {
+		if v, ok := decArith(n.Op, a, b); ok {
 			return v
 		}
 	}
-	switch n.op {
+	switch n.Op {
 	case "+":
 		return num(a + b)
 	case "-":

@@ -1,8 +1,10 @@
 package sheet
 
+import "github.com/FelineStateMachine/012/internal/formula"
+
 // Some functions (JEV.*) are answered by a hosted model. The engine never
 // talks to the network: it describes each question as a RemoteCall and
-// asks Remote for the answer. Until the answer arrives the cell shows
+// asks the workbook's RemoteSource for the answer. Until the answer arrives the cell shows
 // Loading…, and the source queues the call; when answers arrive the UI
 // calls RecalcVolatile, and the functions, being volatile, look again.
 
@@ -34,9 +36,16 @@ type RemoteSource interface {
 	Lookup(RemoteCall) (RemoteAnswer, bool)
 }
 
-// Remote answers JEV functions. It is nil when no API key is configured,
-// and the functions then evaluate to ErrNoRemote.
-var Remote RemoteSource
+// SetRemote sets what answers the workbook's JEV functions: nil when no
+// API key is configured, and the functions then evaluate to ErrNoRemote.
+// It recomputes them, so a loaded file's questions are asked.
+func (w *Workbook) SetRemote(r RemoteSource) {
+	w.remote = r
+	w.recalc(nil)
+}
+
+// SetRemote on a sheet is its workbook's.
+func (s *Sheet) SetRemote(r RemoteSource) { s.wb.SetRemote(r) }
 
 var (
 	// Pending is shown while an answer is on its way.
@@ -56,7 +65,7 @@ func (s *Sheet) RecalcVolatile() { s.wb.recalc(nil) }
 // RemoteCalls returns the questions the formula at a asks, with their
 // current inputs, so the UI can show details or re-ask them.
 func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	if c == nil || c.expr == nil {
 		return nil
 	}
@@ -65,18 +74,18 @@ func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
 	var walk func(Node)
 	walk = func(n Node) {
 		switch n := n.(type) {
-		case unaryNode:
-			walk(n.x)
-		case binaryNode:
-			walk(n.l)
-			walk(n.r)
-		case callNode:
-			if n.fn.remote != nil {
-				if call, err := n.fn.remote(n.args, get); err == nil {
+		case formula.Unary:
+			walk(n.X)
+		case formula.Binary:
+			walk(n.L)
+			walk(n.R)
+		case formula.Call:
+			if funcOf(n).remote != nil {
+				if call, err := funcOf(n).remote(n.Args, get); err == nil {
 					calls = append(calls, call)
 				}
 			}
-			for _, arg := range n.args {
+			for _, arg := range n.Args {
 				walk(arg)
 			}
 		}

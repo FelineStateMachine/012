@@ -42,9 +42,10 @@ to add a command log for macros and replay later.
 ### 4. Side effects stay at the edges
 
 `internal/sheet` does no I/O, network or terminal work. Anything outside the
-process is a small interface the engine asks (`RemoteSource`) and the UI
-fulfils asynchronously with `tea.Cmd`, answering from a cache. Tests
-substitute fakes (`jev.Client`, the fake TypeSafe server, `demos/fakejev`).
+process is a small interface the engine asks (`RemoteSource`, set per
+workbook with `SetRemote`) and the UI fulfils asynchronously with
+`tea.Cmd`, answering from a cache. Tests substitute fakes (`jev.Client`,
+the fake TypeSafe server, `demos/fakejev`).
 New remote function families (other models, web lookups, databases) plug in
 the same way.
 
@@ -61,17 +62,19 @@ around it.
 
 ### 6. Storage behind a small API
 
-Code reads and writes cells through a narrow API (get, set, iterate a
-range, iterate a column), not the map underneath. That lets the store change
-shape (compact column blocks, side tables for formulas and formats; see
-[limits.md](limits.md)) without touching the rest of the engine.
+Code reads and writes cells through a narrow API (`cellStore` in
+`internal/sheet/store.go`: get, set, delete, count, iterate everything or
+a range, a column being a range), not the map underneath. That lets the
+store change shape (compact column blocks, side tables for formulas and
+formats; see [limits.md](limits.md)) without touching the rest of the
+engine.
 
 ### 7. Read ranges as ranges
 
-Formulas read single cells through `lookup` and ranges through range
-iteration, so aggregates (`SUM(A:A)`, running totals) can be served from
-column blocks, prefix sums or cached aggregates instead of one lookup per
-cell.
+Formulas read single cells through `lookup.cell` and ranges through
+`lookup.cells`, so aggregates (`SUM(A:A)`, running totals) can be served
+from column blocks, prefix sums or cached aggregates instead of one lookup
+per cell.
 
 ### 8. Work proportional to what changed or what's visible
 
@@ -111,10 +114,6 @@ a golden screen reviewed in the gallery for anything visible (see
 
 Where the code doesn't follow the patterns yet:
 
-- `sheet.Remote` is a package global; it belongs to the workbook (pattern 4).
-- Cells are a bare `map[Addr]*Cell` used directly across the engine
-  (pattern 6).
-- Aggregates read ranges cell by cell through `lookup` (pattern 7).
 - Undo history is capped by step count, not bytes (pattern 8).
 - Components in `internal/ui` are handed the whole `*Model` rather than a
   narrower interface, so they stay in package `ui` (pattern 2).

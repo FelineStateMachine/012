@@ -3,6 +3,8 @@ package sheet
 import (
 	"strconv"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
 // FormatKind is a number format from Sheets' Format > Number menu.
@@ -150,7 +152,7 @@ func (f Format) WithDecimals(delta int, v float64) Format {
 			f.Pattern += "." + strings.Repeat("0", d)
 		}
 	case f.Kind == FmtCustom:
-		f.Pattern = adjustPatternDecimals(f.Pattern, delta)
+		f.Pattern = numfmt.AdjustDecimals(f.Pattern, delta)
 	}
 	return f
 }
@@ -163,60 +165,6 @@ func visibleDecimals(v float64) int {
 		return 0
 	}
 	return min(len(frac), 10)
-}
-
-// adjustPatternDecimals adds or removes a 0 after the decimal point of
-// every section of a number pattern.
-func adjustPatternDecimals(pat string, delta int) string {
-	secs := splitSections(pat)
-	for i, sec := range secs {
-		if isDatePattern(lexPattern(sec)) {
-			return pat
-		}
-		secs[i] = adjustSection(sec, delta)
-	}
-	return strings.Join(secs, ";")
-}
-
-func adjustSection(sec string, delta int) string {
-	// Find the last digit placeholder outside quotes; decimals follow a '.'.
-	last, dot := -1, -1
-	inQuote := false
-	for i := 0; i < len(sec); i++ {
-		switch c := sec[i]; {
-		case c == '"':
-			inQuote = !inQuote
-		case inQuote:
-		case c == '\\' || c == '_' || c == '*':
-			i++
-		case c == '.' && dot < 0:
-			dot = i
-		case c == '0' || c == '#' || c == '?':
-			last = i
-		case c == 'E' || c == 'e':
-			if last >= 0 {
-				// Stop at an exponent: its digits aren't decimals.
-				i = len(sec)
-			}
-		}
-	}
-	if last < 0 {
-		return sec
-	}
-	switch {
-	case delta > 0 && dot < 0:
-		return sec[:last+1] + "." + strings.Repeat("0", delta) + sec[last+1:]
-	case delta > 0:
-		return sec[:last+1] + strings.Repeat("0", delta) + sec[last+1:]
-	case dot < 0 || last < dot:
-		return sec
-	}
-	decimals := last - dot
-	remove := min(-delta, decimals)
-	if remove == decimals { // drop the point too
-		return sec[:dot] + sec[last+1:]
-	}
-	return sec[:last+1-remove] + sec[last+1:]
 }
 
 func clampInt(v, lo, hi int) int { return max(lo, min(v, hi)) }

@@ -36,9 +36,6 @@ func jevModel(t *testing.T) (*Model, *fakeJEV) {
 	t.Helper()
 	fake := &fakeJEV{noul: 0.9}
 	cache := jev.NewCache()
-	prev := sheet.Remote
-	sheet.Remote = cache
-	t.Cleanup(func() { sheet.Remote = prev })
 	m := tallModel()
 	m.EnableJEV(fake, cache)
 	return m, fake
@@ -99,9 +96,6 @@ func TestJEVPendingAndBusy(t *testing.T) {
 }
 
 func TestJEVWithoutKeyExplains(t *testing.T) {
-	prev := sheet.Remote
-	sheet.Remote = nil
-	t.Cleanup(func() { sheet.Remote = prev })
 	m := tallModel()
 	press(t, m, `=JEV.TEST("x", "Q")`, "<enter>", "<up>")
 	if !strings.Contains(line(m, contextLine), "TYPESAFE_API_KEY") {

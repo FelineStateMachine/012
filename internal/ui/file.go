@@ -44,6 +44,9 @@ func (m *Model) openRetrieve() tea.Cmd {
 // state and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
 	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, charts: chartState{last: -1}}
+	if m.jev != nil {
+		s.Book().SetRemote(m.jev.cache)
+	}
 }
 
 func withExt(name string) string {

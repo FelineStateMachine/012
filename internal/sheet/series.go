@@ -5,6 +5,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
 // Fill series: dragging the fill handle in Sheets continues what the
@@ -72,7 +75,7 @@ func (s *Sheet) FillSeries(src, dst Rect) (Rect, error) {
 func (s *Sheet) fillLane(seq, targets []Addr) {
 	cells := make([]*Cell, len(seq))
 	for i, a := range seq {
-		cells[i] = s.cells[a]
+		cells[i] = s.cells.get(a)
 	}
 	next := detectSeries(cells)
 	for i, to := range targets {
@@ -88,7 +91,7 @@ func (s *Sheet) fillLane(seq, targets []Addr) {
 			fallthrough
 		case c != nil:
 			s.pasteCell(to, c, to.Col-seq[k].Col, to.Row-seq[k].Row, false)
-		case s.cells[to] != nil:
+		case s.cells.get(to) != nil:
 			s.place(to, nil)
 		}
 	}
@@ -118,7 +121,7 @@ func detectSeries(cells []*Cell) func(i int) string {
 func numberSeries(cells []*Cell) func(int) string {
 	vals := make([]float64, len(cells))
 	for i, c := range cells {
-		if _, ok := c.expr.(numLit); !ok || c.Value.Kind != Number {
+		if _, ok := c.expr.(formula.Num); !ok || c.Value.Kind != Number {
 			return nil
 		}
 		vals[i] = c.Value.Num
@@ -135,15 +138,11 @@ func numberSeries(cells []*Cell) func(int) string {
 	}
 	if date {
 		if step, ok := monthStep(vals); ok {
-			y, m, d := civil(int64(vals[0]))
+			y, m, d := numfmt.Civil(int64(vals[0]))
 			return func(i int) string {
-				mm := m + step*i
-				y2, m2 := y+floorDivInt(mm-1, 12), (mm-1)%12+1
-				if m2 <= 0 {
-					m2 += 12
-				}
-				day := min(d, daysIn(y2, m2))
-				return input(i, dateSerial(y2, m2, day)+vals[0]-math.Floor(vals[0]))
+				y2, m2 := numfmt.AddMonths(y, m, step*i)
+				day := min(d, numfmt.DaysIn(y2, m2))
+				return input(i, numfmt.DateSerial(y2, m2, day)+vals[0]-math.Floor(vals[0]))
 			}
 		}
 	}
@@ -167,7 +166,7 @@ func numberSeries(cells []*Cell) func(int) string {
 // months, and the spacing.
 func monthStep(vals []float64) (int, bool) {
 	months := func(v float64) (int, int) {
-		y, m, d := civil(int64(math.Floor(v)))
+		y, m, d := numfmt.Civil(int64(math.Floor(v)))
 		return y*12 + m - 1, d
 	}
 	m0, d0 := months(vals[0])
@@ -206,7 +205,7 @@ type nameList struct {
 	short int // letters in the short form
 }
 
-var nameLists = []nameList{{monthNames[:], 3}, {dayNames[:], 3}}
+var nameLists = []nameList{{numfmt.MonthNames[:], 3}, {numfmt.DayNames[:], 3}}
 
 // nameAt finds a month or day name: which list, the index, whether it is
 // long, and whether it could be either (May).

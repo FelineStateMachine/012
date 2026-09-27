@@ -3,6 +3,9 @@ package sheet
 import (
 	"math"
 	"slices"
+
+	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
 // FuncDef describes a spreadsheet function. The table drives parsing
@@ -98,7 +101,7 @@ func init() {
 		&FuncDef{Name: "INT", Args: "value", Desc: "Round down to the nearest integer", Min: 1, Max: 1, eval: math1(math.Floor), format: inherit},
 		&FuncDef{Name: "SQRT", Args: "value", Desc: "Square root", Min: 1, Max: 1, eval: math1(math.Sqrt)},
 		&FuncDef{Name: "ROUND", Args: "value, [places]", Desc: "Round to a number of decimal places, halves away from zero", Min: 1, Max: 2,
-			eval: rounder(roundHalfUp), format: inheritFrom(0)},
+			eval: rounder(numfmt.HalfUp), format: inheritFrom(0)},
 		&FuncDef{Name: "MOD", Args: "dividend, divisor", Desc: "Remainder, with the sign of the divisor", Min: 2, Max: 2,
 			eval: numeric(func(x []float64) Value {
 				if x[1] == 0 {
@@ -162,22 +165,23 @@ type agg struct {
 // #VALUE!.
 func each(args []Node, get lookup, fn func(v Value, direct bool) *Value) *Value {
 	for _, arg := range args {
-		if ref, ok := arg.(refNode); ok {
-			if e := fn(get(ref.sheet, ref.a), false); e != nil {
+		if ref, ok := arg.(formula.Ref); ok {
+			if e := fn(get.cell(ref.Sheet, ref.Addr), false); e != nil {
 				return e
 			}
 			continue
 		}
-		if _, ok := arg.(emptyArg); ok {
+		if _, ok := arg.(formula.Empty); ok {
 			continue
 		}
-		if rn, ok := arg.(rangeNode); ok {
-			for r := rn.r.From.Row; r <= rn.r.To.Row; r++ {
-				for c := rn.r.From.Col; c <= rn.r.To.Col; c++ {
-					if e := fn(get(rn.sheet, Addr{Col: c, Row: r}), false); e != nil {
-						return e
-					}
-				}
+		if rn, ok := arg.(formula.Range); ok {
+			var e *Value
+			get.cells(rn.Sheet, rn.Rect, func(v Value) bool {
+				e = fn(v, false)
+				return e == nil
+			})
+			if e != nil {
+				return e
 			}
 			continue
 		}
@@ -281,7 +285,7 @@ func constant(v Value) func([]Node, lookup) Value {
 
 // rounder builds ROUND, ROUNDUP, ROUNDDOWN and TRUNC: round on the 15 digits a
 // spreadsheet shows, so ROUNDUP(2.3, 1) stays 2.3.
-func rounder(mode roundMode) func([]Node, lookup) Value {
+func rounder(mode numfmt.Rounding) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
 		x, err := numArg(args[0], get)
 		if err != nil {
@@ -291,6 +295,6 @@ func rounder(mode roundMode) func([]Node, lookup) Value {
 		if err != nil {
 			return *err
 		}
-		return num(roundTo(x, clampInt(places, -308, 308), mode))
+		return num(numfmt.Round(x, clampInt(places, -308, 308), mode))
 	}
 }

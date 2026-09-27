@@ -133,8 +133,7 @@ func TestAsk(t *testing.T) {
 // the SDK's, which match the service.
 func TestLimitsMatchSDK(t *testing.T) {
 	s := sheet.New()
-	sheet.Remote = NewCache()
-	defer func() { sheet.Remote = nil }()
+	s.SetRemote(NewCache())
 	labels := func(n int) string {
 		out := make([]string, n)
 		for i := range out {

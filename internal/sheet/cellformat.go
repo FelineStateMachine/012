@@ -1,5 +1,7 @@
 package sheet
 
+import "github.com/FelineStateMachine/012/internal/formula"
+
 // Formatting changes go through these methods rather than by editing
 // cells directly, so history (undo) can hook a single place.
 
@@ -12,7 +14,7 @@ const materializeLimit = 1 << 16
 // or for Automatic, the one inferred from its formula (=DATE() shows a
 // date, =SUM(B2:B4) of currency shows currency).
 func (s *Sheet) DisplayFormat(a Addr) Format {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	switch {
 	case c == nil:
 		return Format{}
@@ -81,7 +83,7 @@ func (s *Sheet) eachCell(r Rect, create bool, fn func(Addr, *Cell)) {
 		addrs = s.cellsIn(r)
 	}
 	for _, a := range addrs {
-		old := s.cells[a]
+		old := s.cells.get(a)
 		c := old.clone()
 		if c == nil {
 			c = &Cell{}
@@ -102,15 +104,15 @@ func (s *Sheet) eachCell(r Rect, create bool, fn func(Addr, *Cell)) {
 // without its inputs changing (TODAY, NOW, RAND).
 func isVolatile(n Node) bool {
 	switch n := n.(type) {
-	case unaryNode:
-		return isVolatile(n.x)
-	case binaryNode:
-		return isVolatile(n.l) || isVolatile(n.r)
-	case callNode:
-		if n.fn.Volatile {
+	case formula.Unary:
+		return isVolatile(n.X)
+	case formula.Binary:
+		return isVolatile(n.L) || isVolatile(n.R)
+	case formula.Call:
+		if funcOf(n).Volatile {
 			return true
 		}
-		for _, a := range n.args {
+		for _, a := range n.Args {
 			if isVolatile(a) {
 				return true
 			}
@@ -125,19 +127,19 @@ func isVolatile(n Node) bool {
 // currency and a date plus days shows a date.
 func inferFormat(n Node, at func(string, Addr) Format) Format {
 	switch n := n.(type) {
-	case refNode:
-		return at(n.sheet, n.a)
-	case rangeNode:
-		return at(n.sheet, n.r.From)
-	case unaryNode:
-		if n.op == "-" || n.op == "+" {
-			return inferFormat(n.x, at)
+	case formula.Ref:
+		return at(n.Sheet, n.Addr)
+	case formula.Range:
+		return at(n.Sheet, n.Rect.From)
+	case formula.Unary:
+		if n.Op == "-" || n.Op == "+" {
+			return inferFormat(n.X, at)
 		}
-	case binaryNode:
-		l, r := inferFormat(n.l, at), inferFormat(n.r, at)
-		switch n.op {
+	case formula.Binary:
+		l, r := inferFormat(n.L, at), inferFormat(n.R, at)
+		switch n.Op {
 		case "+", "-":
-			if n.op == "-" && l.Kind.isTime() && r.Kind.isTime() {
+			if n.Op == "-" && l.Kind.isTime() && r.Kind.isTime() {
 				return Format{} // days between two dates
 			}
 			return firstFormat(l, r)
@@ -147,9 +149,9 @@ func inferFormat(n Node, at func(string, Addr) Format) Format {
 			}
 			return firstFormat(l, r)
 		}
-	case callNode:
-		if n.fn.format != nil {
-			return n.fn.format(n.args, func(n Node) Format { return inferFormat(n, at) })
+	case formula.Call:
+		if funcOf(n).format != nil {
+			return funcOf(n).format(n.Args, func(n Node) Format { return inferFormat(n, at) })
 		}
 	}
 	return Format{}

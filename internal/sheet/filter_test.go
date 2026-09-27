@@ -59,7 +59,7 @@ func TestFilterConditions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := fruit(t)
-			s.CreateFilter(Rect{at("A1"), at("B6")})
+			s.CreateFilter(Rect{From: at("A1"), To: at("B6")})
 			s.FilterColumn(tt.col, tt.cr)
 			if got := shownRows(s); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("shown rows %v, want %v", got, tt.want)
@@ -74,7 +74,7 @@ func TestFilterConditions(t *testing.T) {
 
 func TestFilterFollowsValuesAndUndo(t *testing.T) {
 	s := fruit(t)
-	s.CreateFilter(Rect{at("A1"), at("B6")})
+	s.CreateFilter(Rect{From: at("A1"), To: at("B6")})
 	s.FilterColumn(1, Criteria{Cond: Condition{CondGreater, "5"}})
 	if !s.RowHidden(2) || s.HiddenRows() != 3 {
 		t.Fatalf("row 3 shown, %d hidden", s.HiddenRows())
@@ -109,7 +109,7 @@ func TestFilterFollowsValuesAndUndo(t *testing.T) {
 
 func TestFilterValues(t *testing.T) {
 	s := fruit(t)
-	s.CreateFilter(Rect{at("A1"), at("B6")})
+	s.CreateFilter(Rect{From: at("A1"), To: at("B6")})
 	s.FilterColumn(1, Criteria{Hidden: []string{"3", "gone"}})
 	want := []FilterValue{{"3", 2, false}, {"10", 1, true}, {"$25", 1, true}, {"gone", 0, false}, {"", 1, true}}
 	if got := s.FilterValues(1); !reflect.DeepEqual(got, want) {
@@ -125,7 +125,7 @@ func TestFilterValues(t *testing.T) {
 
 func TestFilterFollowsInsertAndDelete(t *testing.T) {
 	s := fruit(t)
-	s.CreateFilter(Rect{at("A1"), at("B6")})
+	s.CreateFilter(Rect{From: at("A1"), To: at("B6")})
 	s.FilterColumn(1, Criteria{Hidden: []string{"3"}})
 	s.InsertRows(2, 2) // inside the range: it grows
 	if f := s.Filter(); f.Range.String() != "A1:B8" {
@@ -148,7 +148,7 @@ func TestFilterFollowsInsertAndDelete(t *testing.T) {
 
 func TestEdgeSkipsHiddenRows(t *testing.T) {
 	s := fruit(t)
-	s.CreateFilter(Rect{at("A1"), at("B6")})
+	s.CreateFilter(Rect{From: at("A1"), To: at("B6")})
 	s.FilterColumn(1, Criteria{Cond: Condition{CondEqual, "3"}}) // rows 1, 3 and 6 show
 	tests := []struct {
 		from string
@@ -200,7 +200,7 @@ func TestFreeze(t *testing.T) {
 func TestViewFileRoundTrip(t *testing.T) {
 	s := fruit(t)
 	s.SetFrozen(1, 2)
-	s.CreateFilter(Rect{at("A1"), at("B6")})
+	s.CreateFilter(Rect{From: at("A1"), To: at("B6")})
 	s.FilterColumn(1, Criteria{Hidden: []string{"3", ""}, Cond: Condition{CondLess, "$20"}})
 	var buf bytes.Buffer
 	if err := s.Write(&buf); err != nil {

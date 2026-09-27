@@ -49,7 +49,7 @@ func TestSortRange(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := sheetOf(t, data)
-			s.SortRange(Rect{at("A2"), at("B6")}, tt.keys)
+			s.SortRange(Rect{From: at("A2"), To: at("B6")}, tt.keys)
 			if got := column(s, "A", 2, 6); !reflect.DeepEqual(got, tt.a) {
 				t.Errorf("A = %q, want %q", got, tt.a)
 			}
@@ -78,7 +78,7 @@ func TestSortMovesFormulasWithTheirRows(t *testing.T) {
 		"A3": "2", "B3": "=A3*2", "C3": "=$A$1",
 		"E1": "=A1", // outside the sort: left pointing at A1
 	})
-	s.SortRange(Rect{at("A1"), at("C3")}, []SortKey{{Col: 0}})
+	s.SortRange(Rect{From: at("A1"), To: at("C3")}, []SortKey{{Col: 0}})
 	want := map[string]string{"A1": "1", "B1": "=A1*2", "B2": "=A2*2", "B3": "=A3*2", "C1": "=$A$1", "E1": "=A1"}
 	for a, in := range want {
 		if got := s.Cell(at(a)).Input; got != in {
@@ -96,7 +96,7 @@ func TestSortMovesFormulasWithTheirRows(t *testing.T) {
 func TestSortClampsToData(t *testing.T) {
 	s := sheetOf(t, map[string]string{"A1": "b", "A2": "a"})
 	// A whole-column selection sorts only as far as the data goes.
-	s.SortRange(Rect{at("A1"), Addr{Col: 0, Row: MaxRows - 1}}, []SortKey{{Col: 0}})
+	s.SortRange(Rect{From: at("A1"), To: Addr{Col: 0, Row: MaxRows - 1}}, []SortKey{{Col: 0}})
 	if got := column(s, "A", 1, 3); !reflect.DeepEqual(got, []string{"a", "b", ""}) {
 		t.Errorf("A = %q", got)
 	}

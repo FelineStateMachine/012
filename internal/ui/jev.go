@@ -33,10 +33,11 @@ type jevAnswerMsg struct {
 	answer sheet.RemoteAnswer
 }
 
-// EnableJEV turns on JEV functions. The cache must already be installed
-// as sheet.Remote so loading a file queues its questions.
+// EnableJEV turns on JEV functions: the cache answers them, for this
+// workbook and those opened later, and the client asks what it lacks.
 func (m *Model) EnableJEV(client jev.Client, cache *jev.Cache) {
 	m.jev = &jevRunner{client: client, cache: cache}
+	m.sheet.Book().SetRemote(cache)
 }
 
 func init() {

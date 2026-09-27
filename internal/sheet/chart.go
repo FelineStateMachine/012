@@ -13,7 +13,9 @@ import (
 // follow inserted and deleted rows and columns, and every change to them
 // is an undo step.
 
-// ChartType is how a chart draws its series.
+// ChartType is how a chart draws its series. Adding one takes a constant
+// here and its name in chartTypeNames; the chart editor, the file format
+// and ChartTypes follow from the table, and internal/chart draws it.
 type ChartType int
 
 const (
@@ -23,10 +25,18 @@ const (
 	ChartPie                     // the first series as slices of a whole
 )
 
-// ChartTypes lists the types in the order the chart editor offers them.
-var ChartTypes = []ChartType{ChartColumn, ChartBar, ChartLine, ChartPie}
+// chartTypeNames names every type, as files store it, in the order the
+// chart editor offers them.
+var chartTypeNames = [...]string{ChartColumn: "column", ChartBar: "bar", ChartLine: "line", ChartPie: "pie"}
 
-var chartTypeNames = [...]string{"column", "bar", "line", "pie"}
+// ChartTypes lists the types in the order the chart editor offers them.
+var ChartTypes = func() []ChartType {
+	out := make([]ChartType, len(chartTypeNames))
+	for i := range out {
+		out[i] = ChartType(i)
+	}
+	return out
+}()
 
 func (t ChartType) String() string {
 	if t < 0 || int(t) >= len(chartTypeNames) {
@@ -158,7 +168,7 @@ func (s *Sheet) displayText(a Addr) string {
 func (s *Sheet) clipToUsed(r Rect) Rect {
 	used, ok := s.UsedRange()
 	if !ok {
-		return Rect{r.From, r.From}
+		return Rect{From: r.From, To: r.From}
 	}
 	r.To.Col = max(min(r.To.Col, used.To.Col), r.From.Col)
 	r.To.Row = max(min(r.To.Row, used.To.Row), r.From.Row)
@@ -171,7 +181,7 @@ func (s *Sheet) clipToUsed(r Rect) Rect {
 // nothing more touches it. A blank cell with no filled neighbors is a
 // region of its own.
 func (s *Sheet) Region(a Addr) Rect {
-	filled := func(a Addr) bool { return a.Valid() && !s.cells[a].Blank() }
+	filled := func(a Addr) bool { return a.Valid() && !s.cells.get(a).Blank() }
 	seen := map[Addr]bool{}
 	var queue []Addr
 	visit := func(p Addr) {
@@ -189,14 +199,14 @@ func (s *Sheet) Region(a Addr) Rect {
 	}
 	around(a)
 	if len(queue) == 0 {
-		return Rect{a, a}
+		return Rect{From: a, To: a}
 	}
-	r := Rect{queue[0], queue[0]}
+	r := Rect{From: queue[0], To: queue[0]}
 	for len(queue) > 0 {
 		for len(queue) > 0 {
 			p := queue[0]
 			queue = queue[1:]
-			r = union(r, Rect{p, p})
+			r = union(r, Rect{From: p, To: p})
 			around(p)
 		}
 		// Cells touching the bounding box join too.

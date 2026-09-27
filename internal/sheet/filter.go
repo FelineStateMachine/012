@@ -254,7 +254,7 @@ func (s *Sheet) rowPasses(row int, tests []colTest) bool {
 // ShownText is the cell's value as its format displays it, with no width
 // limit: what filters and the values list compare.
 func (s *Sheet) ShownText(a Addr) string {
-	c := s.cells[a]
+	c := s.cells.get(a)
 	if c.Blank() {
 		return ""
 	}

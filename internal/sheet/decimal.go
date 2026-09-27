@@ -3,6 +3,8 @@ package sheet
 import (
 	"sync"
 
+	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/numfmt"
 	"github.com/cockroachdb/apd/v3"
 )
 
@@ -83,11 +85,11 @@ func decArith(op string, a, b float64) (Value, bool) {
 
 // decRounding maps ROUND's modes to apd's: half away from zero, away
 // from zero, toward zero.
-var decRounding = [...]apd.Rounder{roundHalfUp: apd.RoundHalfUp, roundUp: apd.RoundUp, roundDown: apd.RoundDown}
+var decRounding = [...]apd.Rounder{numfmt.HalfUp: apd.RoundHalfUp, numfmt.Up: apd.RoundUp, numfmt.Down: apd.RoundDown}
 
 // decRound rounds x to places decimal places (negative places round to
 // tens, hundreds...) in decimal.
-func decRound(x float64, places int, mode roundMode) (Value, bool) {
+func decRound(x float64, places int, mode numfmt.Rounding) (Value, bool) {
 	var d, z apd.Decimal
 	if _, err := d.SetFloat64(x); err != nil {
 		return Value{}, false
@@ -158,13 +160,13 @@ var decEvals = map[string]func(args []Node, get lookup) (Value, bool){
 		}
 		return fromDec(&q)
 	},
-	"ROUND":     decRounder(roundHalfUp),
-	"ROUNDUP":   decRounder(roundUp),
-	"ROUNDDOWN": decRounder(roundDown),
-	"TRUNC":     decRounder(roundDown),
+	"ROUND":     decRounder(numfmt.HalfUp),
+	"ROUNDUP":   decRounder(numfmt.Up),
+	"ROUNDDOWN": decRounder(numfmt.Down),
+	"TRUNC":     decRounder(numfmt.Down),
 }
 
-func decRounder(mode roundMode) func([]Node, lookup) (Value, bool) {
+func decRounder(mode numfmt.Rounding) func([]Node, lookup) (Value, bool) {
 	return func(args []Node, get lookup) (Value, bool) {
 		x, err := numArg(args[0], get)
 		if err != nil {
@@ -198,24 +200,31 @@ var decFuncs = sync.OnceValue(func() map[string]*FuncDef {
 	return out
 })
 
+// Operators computed in decimal are marked by these types, which eval
+// knows; parsed formulas never contain them.
+type (
+	decUnary  formula.Unary
+	decBinary formula.Binary
+)
+
 // decimalize returns a copy of n that evaluates in decimal: operators are
 // marked, and functions with a decimal twin call it.
 func decimalize(n Node) Node {
 	switch n := n.(type) {
-	case unaryNode:
-		n.x, n.dec = decimalize(n.x), true
-		return n
-	case binaryNode:
-		n.l, n.r, n.dec = decimalize(n.l), decimalize(n.r), true
-		return n
-	case callNode:
-		args := make([]Node, len(n.args))
-		for i, a := range n.args {
+	case formula.Unary:
+		n.X = decimalize(n.X)
+		return decUnary(n)
+	case formula.Binary:
+		n.L, n.R = decimalize(n.L), decimalize(n.R)
+		return decBinary(n)
+	case formula.Call:
+		args := make([]Node, len(n.Args))
+		for i, a := range n.Args {
 			args[i] = decimalize(a)
 		}
-		n.args = args
-		if twin, ok := decFuncs()[n.fn.Name]; ok {
-			n.fn = twin
+		n.Args = args
+		if twin, ok := decFuncs()[funcOf(n).Name]; ok {
+			n.Fn = twin
 		}
 		return n
 	}
