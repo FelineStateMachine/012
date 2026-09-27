@@ -172,7 +172,7 @@ func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
 	}
 	for i, sp := range spans {
 		a := sheet.Addr{Col: first + i, Row: row}
-		base, colored := m.cellRole(lc, a, sp, spills)
+		base, colored := m.cellRole(lc, a, &sp, spills)
 		var look sheet.Look
 		var shade theme.Shade
 		shaded := false
@@ -188,57 +188,60 @@ func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
 			}
 		}
 		if shaded {
-			base, colored = shade.Style, true
+			base, colored = &shade.Style, true
 		}
 		// The copy marker is layered on the cell's own colors.
 		if lc.bottom() && m.copied.marks(m.sheet, a) {
-			base, colored, shaded = base.Inherit(m.th.Copied), true, false
+			marked := base.Inherit(m.th.Copied)
+			base, colored, shaded = &marked, true, false
 		}
 		var text string
 		if shaded && plainSpan(sp) {
 			text = shade.Wrap(strings.Repeat(" ", sp.Lead) + sp.Text + strings.Repeat(" ", sp.Trail))
 		} else {
-			text = renderSpan(&m.th, sp, base, colored)
+			text = renderSpan(&m.th, sp, *base, colored)
 		}
-		b.WriteString(m.cellMarks(lc, a, text, look, base, colored))
+		b.WriteString(m.cellMarks(lc, a, text, &look, base, colored))
 	}
 	return b.String()
 }
 
 // cellRole is the role a cell is drawn in: the pointer, the selection,
 // a search match, a trace, an error or a spill, or the plain cell role
-// (colored false).
-func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp rowtext.Span, spills bool) (lipgloss.Style, bool) {
+// (colored false). Roles are large, so it points at the theme's.
+func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp *rowtext.Span, spills bool) (*lipgloss.Style, bool) {
 	switch {
-	case a == lc.focus || lc.merged(a, lc.focus):
-		return m.th.Pointer, true
+	case a == lc.focus || lc.merges != nil && lc.merged(a, lc.focus):
+		return &m.th.Pointer, true
 	case lc.selecting && lc.sel.Contains(a):
-		return m.th.Selection, true
+		return &m.th.Selection, true
 	case m.found(a):
-		return m.th.Found, true
+		return &m.th.Found, true
 	case m.trace.covers(m.sheet, a):
-		return m.th.Traced, true
-	case sheet.IsPending(m.sheet.Value(a)):
-		return m.th.Muted, true
-	case m.sheet.Value(a).Kind == sheet.Error:
-		return m.th.ErrorCell, true
-	case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: lc.row}).Spilled():
-		return m.th.Spilled, true
+		return &m.th.Traced, true
 	}
-	return m.th.Cell, false
+	switch v := m.sheet.Value(a); {
+	case sheet.IsPending(v):
+		return &m.th.Muted, true
+	case v.Kind == sheet.Error:
+		return &m.th.ErrorCell, true
+	case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: lc.row}).Spilled():
+		return &m.th.Spilled, true
+	}
+	return &m.th.Cell, false
 }
 
 // cellMarks draws a cell's marks over its text: the fill handle, a
 // note's corner or a dropdown's ▾, and the border along its left.
-func (m *Model) cellMarks(lc *lineCtx, a sheet.Addr, text string, look sheet.Look, base lipgloss.Style, colored bool) string {
+func (m *Model) cellMarks(lc *lineCtx, a sheet.Addr, text string, look *sheet.Look, base *lipgloss.Style, colored bool) string {
 	w := m.sheet.ColWidth(a.Col)
 	switch {
 	case lc.bottom() && m.showFillHandle(a):
 		text = ansi.Truncate(text, w-1, "") + base.Render("▟")
 	case lc.ln.K == 0 && m.sheet.Note(a) != "":
-		text = m.noteMark(text, a, base, colored)
+		text = m.noteMark(text, a, *base, colored)
 	case lc.bottom() && look.Dropdown:
-		text = m.dropdownMark(text, w, base, colored)
+		text = m.dropdownMark(text, w, *base, colored)
 	}
 	if lc.shaped {
 		text = m.leftEdge(a, text)
