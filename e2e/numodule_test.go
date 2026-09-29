@@ -53,6 +53,21 @@ func TestSheetSendsSelection(t *testing.T) {
 	}
 }
 
+// sheet --send sheet gives back all of ls's table on Ctrl+Q, whatever
+// is selected.
+func TestSheetSendSheet(t *testing.T) {
+	s := startSheet(t, "b.txt", "cd (mktemp -d); 'x' | save a.txt; 'yyy' | save b.txt; "+
+		"let t = ls | sheet --send sheet; print ($t | columns | to nuon); "+
+		"print (($t | select name type size) == (ls | select name type size)); print ($t | length)")
+	s.keys("<shift+down>")
+	s.waitFor("Ctrl+Q  send the sheet as NUON")
+	s.keys("<ctrl+q>")
+	out, code := s.finish()
+	if want := "[name, type, size, modified]\ntrue\n2\n"; code != 0 || out != want {
+		t.Errorf("exit %d, stdout %q, want %q", code, out, want)
+	}
+}
+
 // Quitting without sending raises sheet's error, with 012's reason.
 func TestSheetNotSent(t *testing.T) {
 	s := startSheet(t, "5.0 MB", "try { "+sizesNu+" | sheet } catch {|e| print $'caught: ($e.msg)' }")

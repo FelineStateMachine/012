@@ -32,11 +32,11 @@ func (m *Model) ask(q question) {
 }
 
 // quit exits, asking first when there are unsaved changes. Enter saves
-// and quits, so the quick path never loses work. In a pipeline it asks
-// what to send instead (askSend).
+// and quits, so the quick path never loses work. In a pipeline it sends
+// a table instead, or asks which (quitPiped).
 func (m *Model) quit() tea.Cmd {
 	if m.pipe.on {
-		return m.askSend()
+		return m.quitPiped()
 	}
 	if !m.changed {
 		return m.exit()

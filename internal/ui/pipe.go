@@ -16,8 +16,9 @@ import (
 // table to standard output when it quits: the selection or the sheet,
 // as the user chooses, in the input's format unless another was asked
 // for. The screen is the terminal's own (cmd/012 opens it), so nothing
-// else reaches standard output. Quitting asks what to send, and
-// quitting without sending lets the pipeline know by the exit status.
+// else reaches standard output. Quitting asks what to send, or sends
+// what --send chose without asking, and quitting without sending lets
+// the pipeline know by the exit status.
 
 // StdinName is what a table read from standard input is called: its
 // sheet's name.
@@ -27,8 +28,9 @@ const StdinName = "stdin"
 type pipeState struct {
 	in io.Reader // standard input, read as the program starts; nil once read
 
-	on bool        // --pipe: quitting writes a table to standard output
-	to fileio.Kind // the format asked for (--to), or 0 for the input's
+	on   bool        // --pipe: quitting writes a table to standard output
+	to   fileio.Kind // the format asked for (--to), or 0 for the input's
+	send Send        // what quitting sends (--send)
 
 	// Set by a quit that sends: what to write, and in which format.
 	sent *fileio.Snapshot
@@ -42,6 +44,18 @@ func (m *Model) ReadStdin(r io.Reader) { m.pipe.in = r }
 // SetPipe makes quitting send a table to standard output, in format to
 // (a text format; 0 for the input's, or NUON when the input isn't text).
 func (m *Model) SetPipe(to fileio.Kind) { m.pipe.on, m.pipe.to = true, to }
+
+// Send is what quitting sends in a pipeline (012 --pipe --send).
+type Send int
+
+const (
+	SendAsk       Send = iota // ask: the selection, the sheet, or nothing
+	SendSelection             // the selection, or the sheet when only one cell is selected
+	SendSheet                 // the sheet, whatever is selected
+)
+
+// SetSend makes quitting in a pipeline send s rather than ask.
+func (m *Model) SetSend(s Send) { m.pipe.send = s }
 
 // Piped is what quitting sent: the table and its format, or false when
 // the user quit without sending.
@@ -61,6 +75,10 @@ func init() {
 			enabled: func(m *Model) bool { return m.pipe.on },
 			hidden:  func(m *Model) bool { return !m.pipe.on },
 			run:     func(m *Model) tea.Cmd { return m.send(sheet.Rect{}) }},
+		&command{id: "pipe.quit_unsent", macro: macroNever, title: "Quit without sending",
+			desc:   "Quit, writing nothing to standard output: the pipeline sees exit status 1",
+			hidden: func(m *Model) bool { return !m.pipe.on },
+			run:    (*Model).exit},
 	)
 }
 
@@ -98,16 +116,34 @@ func (m *Model) pipeKind() fileio.Kind {
 	return fileio.NUON
 }
 
+// sendRange is what quitting would send: the selection, when a range
+// is selected and --send doesn't ask for the sheet, or else the sheet
+// (the zero Rect).
+func (m *Model) sendRange() sheet.Rect {
+	if m.pipe.send != SendSheet && m.hasRange() {
+		return m.selection()
+	}
+	return sheet.Rect{}
+}
+
 // sendWhat names what quitting would send: "B2:D9" or "the sheet".
 func (m *Model) sendWhat() string {
-	if m.hasRange() {
-		return m.selection().String()
+	if r := m.sendRange(); r != (sheet.Rect{}) {
+		return r.String()
 	}
 	return "the sheet"
 }
 
-// askSend is Quit in a pipeline: send the selection, if there is one,
-// or the sheet, or quit without sending.
+// quitPiped is Quit in a pipeline: send what --send chose, or ask.
+func (m *Model) quitPiped() tea.Cmd {
+	if m.pipe.send == SendAsk {
+		return m.askSend()
+	}
+	return m.send(m.sendRange())
+}
+
+// askSend asks what to send: the selection, if there is one, or the
+// sheet, or nothing.
 func (m *Model) askSend() tea.Cmd {
 	var choices []choice
 	if m.hasRange() {
