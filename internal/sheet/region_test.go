@@ -49,6 +49,72 @@ func TestSentOutputFollowsRuns(t *testing.T) {
 	}
 }
 
+// Undoing a deleted column puts back the cells a region moved over and
+// was sent again at, rather than keep the region's values there.
+func TestUndoPutsBackCellsARegionMovedOver(t *testing.T) {
+	s := New()
+	w := s.Book()
+	s.Set(at("D19"), "=SEQUENCE(2)")
+	sent(t, s, "r1", "E19")
+	op := LiveOp{Region: "r1", Reset: true, Header: liveRow("n"), Rows: []LiveRow{liveRow("3")}}
+	apply(t, s, op)
+	s.DeleteCols(1, 1)
+	apply(t, s, op) // sent again where it moved, as the UI does
+	wantShown(t, s, map[string]string{"C19": "1", "D19": "n"})
+	w.Undo()
+	apply(t, s, op)
+	wantShown(t, s, map[string]string{"D19": "1", "D20": "2", "E19": "n", "E20": "3"})
+}
+
+// A formula naming a region whose table is blocked reads #REF!, even
+// when the table it showed was only its header, where the region's
+// first cell stays.
+func TestFormulaNamingABlockedRegion(t *testing.T) {
+	s := New()
+	s.Set(at("D1"), "=SUM(nu.r1)")
+	s.Set(at("F12"), "5")
+	sent(t, s, "r1", "E12")
+	apply(t, s, LiveOp{Region: "r1", Reset: true, Header: liveRow("n")})
+	wantShown(t, s, map[string]string{"D1": "0"})
+	apply(t, s, LiveOp{Region: "r1", Reset: true, Header: liveRow("n", "m"), Rows: []LiveRow{liveRow("1", "2")}})
+	wantShown(t, s, map[string]string{"E12": "#REF!", "D1": "#REF!"})
+}
+
+// Undoing a move puts back the cell a region's table grew over once the
+// cell left, and the region, sent again, is blocked by it as before.
+func TestUndoPutsBackCellsARegionGrewOver(t *testing.T) {
+	s := New()
+	w := s.Book()
+	s.Set(at("F14"), "=1+1")
+	sent(t, s, "r1", "E13")
+	op := LiveOp{Region: "r1", Reset: true, Header: liveRow("n", "m"), Rows: []LiveRow{liveRow("1", "2")}}
+	apply(t, s, op)
+	wantShown(t, s, map[string]string{"E13": "#REF!", "F14": "2"})
+	if _, err := s.Move(rect("F14"), at("A1")); err != nil {
+		t.Fatal(err)
+	}
+	apply(t, s, op)
+	wantShown(t, s, map[string]string{"E13": "n", "F14": "2", "A1": "2"})
+	w.Undo()
+	apply(t, s, op)
+	wantShown(t, s, map[string]string{"E13": "#REF!", "F14": "2", "A1": ""})
+	if s.Cell(at("F14")).Input != "=1+1" {
+		t.Errorf("F14 = %q", s.Cell(at("F14")).Input)
+	}
+}
+
+// A region whose column is deleted is gone, and formulas naming it say
+// so, as after reopening.
+func TestFormulaNamingARegionDeleted(t *testing.T) {
+	s := New()
+	s.Set(at("D1"), "=SUM(nu.r1)")
+	sent(t, s, "r1", "H3")
+	apply(t, s, LiveOp{Region: "r1", Reset: true, Header: liveRow("n"), Rows: []LiveRow{liveRow("56")}})
+	wantShown(t, s, map[string]string{"D1": "56"})
+	s.DeleteCols(7, 2)
+	wantShown(t, s, map[string]string{"D1": "#NAME?"})
+}
+
 func TestSentOutputNames(t *testing.T) {
 	s := New()
 	w := s.Book()

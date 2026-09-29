@@ -44,7 +44,9 @@ file's rows, typed as an import types them. The region is the file's:
 - it grows to the right and down as the file does. Where it would write
   over a cell holding something, its rows aren't shown, and its first
   cell (`#REF!`) and the context line say which cell is in the way;
-  clearing that cell reads the file again;
+  clearing that cell reads the file again. An [array](../formulas/arrays.md)'s
+  cells, blank ones too, are in its way, and an array that needs its
+  cells takes them, whichever came first, as when the file opens;
 - inserting or deleting rows or columns before it moves it, and it reads
   the file again there; deleting its first cell's row or column unlinks
   it.

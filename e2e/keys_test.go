@@ -124,7 +124,7 @@ var namedKeys = map[string]ghostty.Key{
 	"up": ghostty.KeyArrowUp, "down": ghostty.KeyArrowDown,
 	"left": ghostty.KeyArrowLeft, "right": ghostty.KeyArrowRight,
 	"pgup": ghostty.KeyPageUp, "pgdown": ghostty.KeyPageDown,
-	"f1": ghostty.KeyF1, "f2": ghostty.KeyF2, "f5": ghostty.KeyF5, "f9": ghostty.KeyF9, "f10": ghostty.KeyF10, "f11": ghostty.KeyF11,
+	"f1": ghostty.KeyF1, "f2": ghostty.KeyF2, "f5": ghostty.KeyF5, "f9": ghostty.KeyF9, "f10": ghostty.KeyF10, "f11": ghostty.KeyF11, "f12": ghostty.KeyF12,
 	"space": ghostty.KeySpace,
 }
 

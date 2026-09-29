@@ -15,6 +15,12 @@ func (w *Workbook) restore(st *step) (inv *step, changed []loc) {
 		inv.sheets = w.sheetList()
 		w.setSheets(st.sheets)
 	}
+	for s, r := range st.regions {
+		changed = append(changed, s.emptyMoved(r)...)
+	}
+	for s, img := range st.cells {
+		changed = append(changed, s.emptyUnder(img)...)
+	}
 	for s, img := range st.cells {
 		img.each(func(a Addr, c *Cell) {
 			inv.keep(s, a)

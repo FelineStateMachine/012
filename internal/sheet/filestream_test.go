@@ -82,15 +82,15 @@ func placeWhole(s *Sheet, cells map[string]json.RawMessage, version int) (ambigu
 		}
 		ambiguous = ambiguous || seen[a]
 		seen[a] = true
-		input, fm, st, note, err := decodeNoted(raw)
+		e, err := decodeNoted(raw)
 		if err != nil {
 			return false, err
 		}
-		c, err := newCell(input, fm, st, version < 2)
+		c, err := e.cell(version < 2)
 		if err != nil {
 			return false, err
 		}
-		if c = c.withNote(CleanNote(note)); c != nil {
+		if c != nil {
 			s.place(a, c)
 		}
 	}

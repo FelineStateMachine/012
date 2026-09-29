@@ -47,6 +47,11 @@ type Cell struct {
 	volatile bool // expr calls TODAY, NOW, RAND...
 	derived  bool // a pivot table's result, owned by the engine: see pivot.go
 	spilled  bool // part of an array a formula spills, owned by it: see spill.go
+	// typedText marks text typed into a Plain text cell that would read
+	// as a number or formula, or not at all, typed into a cell of another
+	// format: it stays text when the cell's format changes, as in Sheets,
+	// until it's typed again.
+	typedText bool
 }
 
 // Spilled reports whether the cell shows part of an array another
@@ -275,6 +280,13 @@ func (s *Sheet) put(a Addr, input string) error {
 // is text. Control characters are dropped so a worksheet file can't
 // smuggle escape sequences to the terminal.
 func newCell(input string, f Format, st Style, implied bool) (*Cell, error) {
+	return readEntry(input, f, st, implied, f.Kind == FmtText)
+}
+
+// readEntry is newCell reading the entry as text when asText, and as
+// typed into a cell of another format than Plain text otherwise, as a
+// file says to of an entry typed before its cell's format changed.
+func readEntry(input string, f Format, st Style, implied, asText bool) (*Cell, error) {
 	input = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
 			return -1
@@ -285,19 +297,26 @@ func newCell(input string, f Format, st Style, implied bool) (*Cell, error) {
 		return formattingOnly(f, st), nil
 	}
 	var n Node
-	if f.Kind != FmtText {
+	if !asText {
 		var fi Format
 		var err error
 		if n, fi, err = classify(input); err != nil {
 			return nil, err
 		}
-		if implied && !fi.IsZero() {
+		if implied && !fi.IsZero() && f.Kind != FmtText {
 			f = fi
 		}
 	}
-	c := &Cell{Input: input, Format: f, Style: st}
+	c := &Cell{Input: input, Format: f, Style: st, typedText: asText && readsOtherwise(input)}
 	c.setExpr(n)
 	return c, nil
+}
+
+// readsOtherwise reports whether an entry typed as text reads as
+// something else, or not at all, typed into a cell of another format.
+func readsOtherwise(input string) bool {
+	n, _, err := classify(input)
+	return n != nil || err != nil
 }
 
 // formattingOnly is a blank cell holding formatting, or nil when there is

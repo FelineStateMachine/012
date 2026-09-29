@@ -61,7 +61,12 @@ When a cell in the way of an array isn't empty, the formula shows
 `#REF!` and says why, as Sheets does: "Array result was not expanded
 because it would overwrite data in C3". Clearing that cell lets the
 array spill. The same goes for an array that would pass the sheet's
-edge, or write more cells than `max-cells` allows.
+edge, or write more cells than `max-cells` allows. When two arrays need
+the same cells, blank ones of theirs included, the one whose formula
+comes first, row by row, spills and the other shows `#REF!`, whichever
+was typed first, so a sheet looks the same when opened again. An array that would
+spill into cells its formula reads, `=SORT(B8:D9)` in A9, is a circular
+dependency and shows `#REF!` too.
 
 ## Names in a formula: LET and LAMBDA
 

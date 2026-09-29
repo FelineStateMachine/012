@@ -1,0 +1,56 @@
+{
+  "goos": "darwin",
+  "goarch": "arm64",
+  "cases": {
+    "edit/chain-8192": {
+      "ns": 2078146,
+      "ratio": 3.462,
+      "allocs": 8313
+    },
+    "edit/criteria-10xSUMIF8192": {
+      "ns": 4529240,
+      "ratio": 7.243,
+      "allocs": 376
+    },
+    "edit/fanin-1000xSUM8192": {
+      "ns": 509885,
+      "ratio": 0.872,
+      "allocs": 1099
+    },
+    "edit/lookup-100xVLOOKUP8192": {
+      "ns": 2861823,
+      "ratio": 4.177,
+      "allocs": 907
+    },
+    "frame/charts-8": {
+      "ns": 1859188,
+      "ratio": 3.108,
+      "allocs": 7295
+    },
+    "frame/dense-8192x26": {
+      "ns": 821740,
+      "ratio": 1.254,
+      "allocs": 4867
+    },
+    "frame/laidout-8192x26": {
+      "ns": 1233156,
+      "ratio": 2.045,
+      "allocs": 5223
+    },
+    "frame/scale-8192x26": {
+      "ns": 1215229,
+      "ratio": 2.076,
+      "allocs": 10142
+    },
+    "recalc/arrays-50xFILTER8192": {
+      "ns": 7554927,
+      "ratio": 12.613,
+      "allocs": 3305
+    },
+    "recalc/running-8192": {
+      "ns": 1884083,
+      "ratio": 3.023,
+      "allocs": 8270
+    }
+  }
+}

@@ -267,3 +267,38 @@ func (s *Sheet) putRegionsBack(st regionState) {
 	}
 	s.regions, s.regionsStale = st, true
 }
+
+// emptyUnder empties the regions holding cells that undo puts contents
+// back in (what a region's table grew over once they left), so the
+// contents come back and the region, sent again, finds them in its way,
+// as before they left.
+func (s *Sheet) emptyUnder(img *image) []loc {
+	if len(s.regions.list) == 0 {
+		return nil
+	}
+	var changed []loc
+	img.each(func(a Addr, c *Cell) {
+		if c == nil || c.Blank() || c.Spilled() {
+			return
+		}
+		if _, me, ok := s.ownerOf(a); ok {
+			changed = append(changed, s.emptyRegion(me)...)
+		}
+	})
+	return changed
+}
+
+// emptyMoved empties the regions that putting st back moves or takes
+// away, outside the undo history, as moving them does, before undo puts
+// cells back: a cell a region holds keeps its value when placed, so
+// what undo brings back where a region moved to would be lost.
+func (s *Sheet) emptyMoved(st regionState) []loc {
+	var changed []loc
+	for _, r := range s.regions.list {
+		i := slices.IndexFunc(st.list, func(x Region) bool { return nameKey(x.Name) == nameKey(r.Name) })
+		if me := s.regionMeta[nameKey(r.Name)]; me != nil && (i < 0 || st.list[i] != r) {
+			changed = append(changed, s.emptyRegion(me)...)
+		}
+	}
+	return changed
+}

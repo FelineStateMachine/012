@@ -49,21 +49,23 @@ func (s *Server) fileArg(sess ssh.Session) (string, error) {
 
 // ending is how a session ended, and where its unsaved work was kept.
 type ending struct {
-	idle, stopped bool   // it idled out; the server stopped
-	kept          string // the recovery file, relative to the served directory
-	keptFor       string // the file name it was kept for, "" for a book never saved
-	err           error  // keeping it failed
+	idle, stopped bool      // it idled out; the server stopped
+	crash         *ui.Crash // it stopped on an internal error
+	kept          string    // the recovery file, relative to the served directory
+	keptFor       string    // the file name it was kept for, "" for a book never saved
+	err           error     // keeping it failed
 }
 
-// keep writes m's unsaved work to a recovery file when the session ended
-// by idling out or by the server stopping; when the user quits, the app
-// has already asked about unsaved changes.
-func (e *ending) keep(m *ui.Model) {
-	if !e.idle && !e.stopped || !m.Unsaved() {
+// keep writes the unsaved work of the program g ran to a recovery file
+// when the session ended by idling out, by the server stopping or on an
+// internal error; when the user quits, the app has already asked about
+// unsaved changes.
+func (e *ending) keep(g *ui.Guarded) {
+	if !e.idle && !e.stopped && e.crash == nil {
 		return
 	}
-	e.keptFor = m.Filename()
-	e.kept, e.err = m.Recover(time.Now())
+	e.keptFor = g.Model().Filename()
+	e.kept, e.err = g.Keep(time.Now())
 }
 
 // tell says on the client's terminal why the session ended and where its
@@ -74,6 +76,8 @@ func (e ending) tell(w io.Writer, idle time.Duration, root confine.Root) {
 		fmt.Fprint(w, "012: the server is stopping\r\n")
 	case e.idle:
 		fmt.Fprintf(w, "012: closed after %v without input\r\n", idle)
+	case e.crash != nil:
+		fmt.Fprint(w, "012: stopped on an internal error; the server's log has a report\r\n")
 	}
 	switch {
 	case e.err != nil:

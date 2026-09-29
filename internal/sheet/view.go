@@ -107,23 +107,25 @@ func (s *Sheet) shiftView(rows bool, sp formula.Span) {
 		}
 		*frozen = min(*frozen, MaxFrozen)
 	}
-	v.filter = shiftFilter(v.filter, rows, sp)
+	if v.filter != nil {
+		v.filter = shiftFilter(v.filter, rows, sp)
+	}
 	if !v.equal(s.view) {
 		s.recordView()
+		merged := !slices.Equal(v.merges, s.view.merges)
 		if w := s.wb; w.hist.open != nil {
 			w.hist.dirty = append(w.hist.dirty, w.tableUsers(s.view.tables, v.tables)...)
 		}
 		s.view = v
+		if merged { // a merge gone may free an array to spill
+			s.respill(Rect{To: Addr{Col: MaxCols - 1, Row: MaxRows - 1}})
+		}
 	}
 }
 
-// shiftFilter is f once rows or columns are inserted or deleted: its
-// range moved like a range reference, with its columns' criteria, or nil
-// when all of it is deleted.
+// shiftFilter is f with rows or columns inserted or deleted, nil once
+// its range is all deleted.
 func shiftFilter(f *Filter, rows bool, sp formula.Span) *Filter {
-	if f == nil {
-		return nil
-	}
 	_, rng := formula.AxisMaps(rows, sp)
 	r, ok := rng(f.Range)
 	if !ok {

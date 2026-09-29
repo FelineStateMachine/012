@@ -21,7 +21,8 @@ flowchart TD
   small -->|no| stress[make stress, make stress-report]
   small -->|yes| xlsx
   stress -->|the run recorded on the commit| xlsx[XLSX opened in Excel, LibreOffice, Sheets]
-  xlsx --> tag[git tag -a, git push]
+  xlsx --> fixtures[this release's file fixtures committed]
+  fixtures --> tag[git tag -a, git push]
   tag -->|the module proxy| install[go install ...@v1.2.3]
   tag --> dist[make dist]
   dist --> archives[dist/: archives, SHA256SUMS]
@@ -42,7 +43,9 @@ flowchart TD
    Excel, LibreOffice Calc and Google Sheets: it opens without a repair
    prompt, and values, formulas and formats read as they did in 012. The
    automated checks read XLSX with excelize and 012's own reader only.
-4. **Tag** with the release notes as the message, what changed since the
+4. **File fixtures**: the workbooks this release saves, committed (see
+   [File fixtures](#file-fixtures)).
+5. **Tag** with the release notes as the message, what changed since the
    previous tag for a user, with the install line last:
 
    ```sh
@@ -52,7 +55,36 @@ flowchart TD
 
    The Go module proxy picks the tag up, so `go install
    github.com/FelineStateMachine/012/cmd/012@v1.2.3` works from then on.
-5. **Binaries**: `make dist VERSION=v1.2.3` on the tagged commit.
+6. **Binaries**: `make dist VERSION=v1.2.3` on the tagged commit.
+
+## File fixtures
+
+`internal/sheet/testdata/fixtures` holds workbooks as each release saved
+them, a folder per release (`v0.2.0/`), and
+`TestFixturesOpenAndSaveUnchanged` opens every one and saves it again,
+failing unless the bytes come back the same. A later build that can't
+open a release's file, or saves it differently, fails `make check`
+([The .012 format](../files/format.md#versions) says what that
+promises).
+
+The workbooks a release saves are the ones in `fixtures/new`, written by
+hand to use everything the format stores: formats, entries that read
+against their format, column and row formats, widths, heights, merges,
+borders, freeze, filters, names, notes, protection, rules and
+validation, charts, pivot tables, a notebook tab's cells and outputs,
+outputs sent to a sheet, linked files, macros, the locale and decimal
+arithmetic. A release that adds to the format adds what it adds there.
+Then, on the commit to be tagged:
+
+```sh
+go test ./internal/sheet -run TestFixtures -fixtures v1.2.3
+```
+
+saves them with that build into `fixtures/v1.2.3`, to commit with the
+release. The test refuses a folder that exists. A released folder is
+never edited or replaced: when a later build saves one differently, the
+build is what changes. The folder of a release not yet tagged may be
+deleted and saved again.
 
 ## make dist
 

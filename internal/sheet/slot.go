@@ -150,7 +150,7 @@ var noLook look
 // strings it uses to the table.
 func (st *cellStore) plainSlot(c *Cell) (slot, bool) {
 	switch {
-	case c.Note != "":
+	case c.Note != "" || c.typedText:
 		return slot{}, false
 	case c.derived || c.spilled:
 		return st.derivedSlot(c)
