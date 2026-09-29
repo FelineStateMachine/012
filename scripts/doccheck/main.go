@@ -9,7 +9,9 @@
 //   - every docs/...md path Go code names exists;
 //   - every file in docs/media is shown by some doc, comes from a VHS tape
 //     in demos/ (its Output or a Screenshot), and no GIF is over maxGIF;
-//   - every tape in demos/ records something a doc shows.
+//   - every tape in demos/ records something a doc shows;
+//   - every docs page the site has published is still a page, or has a
+//     redirect from its address in website/redirects.json (redirects.go).
 //
 // What the docs say about the program (keys, menus, commands, options) is
 // checked by tests next to the code they name: internal/ui's docs_test.go
@@ -44,6 +46,7 @@ func main() {
 	problems = append(problems, checkTree(docs)...)
 	problems = append(problems, checkGoPaths()...)
 	problems = append(problems, checkMedia(docs)...)
+	problems = append(problems, checkRedirects(docs)...)
 	for _, p := range problems {
 		fmt.Println(p)
 	}

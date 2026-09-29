@@ -136,8 +136,10 @@ and a line in the folder's README. `make site` builds them into the
 history (see [CLAUDE.md](../../CLAUDE.md)), and `scripts/doccheck`, which
 checks the tree above, that relative links and anchors resolve, that
 every `docs/...md` path Go code names exists, that every file in
-`docs/media` is shown by a doc and made by a tape, and that every tape
-records something a doc shows. Unit tests check what the docs say about
+`docs/media` is shown by a doc and made by a tape, that every tape
+records something a doc shows, and that a page the site has published
+isn't gone without a redirect ([The docs site](site.md#old-addresses-keep-working)).
+Unit tests check what the docs say about
 the code: menu paths lead to menu items, command ids and keys exist and
 every bound key is in [Keys and mouse](../reference/keys.md)
 (`internal/ui/docs_test.go`), settings and variables are options
