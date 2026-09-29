@@ -9,7 +9,13 @@ import (
 // fileCell is a cell with formatting or a note as the file writes it; a
 // cell with neither is just its input (see fileFormat).
 type fileCell struct {
-	Input         string `json:"input,omitempty"`
+	Input string `json:"input,omitempty"`
+	// Text says how the input reads when that isn't what the format
+	// says: true for text typed into a Plain text cell whose format
+	// changed since, false for a number or formula typed before the cell
+	// was formatted as Plain text. It needs no version bump: earlier
+	// builds read the input as the format says.
+	Text          *bool  `json:"text,omitempty"`
 	Format        string `json:"format,omitempty"`
 	Decimals      *int   `json:"decimals,omitempty"`
 	Pattern       string `json:"pattern,omitempty"`
@@ -32,11 +38,13 @@ type fileCell struct {
 }
 
 func encodeCell(c *Cell) (json.RawMessage, error) {
-	if c.Format.IsZero() && c.Style.IsZero() && c.Note == "" {
+	text := c.readsAgainstFormat()
+	if c.Format.IsZero() && c.Style.IsZero() && c.Note == "" && text == nil {
 		return json.Marshal(c.Input)
 	}
 	fc := fileCell{
 		Input:         c.Input,
+		Text:          text,
 		Pattern:       c.Format.Pattern,
 		Bold:          c.Style.Bold,
 		Italic:        c.Style.Italic,
@@ -59,25 +67,57 @@ func encodeCell(c *Cell) (json.RawMessage, error) {
 	return json.Marshal(fc)
 }
 
+// readsAgainstFormat is the file's text field for c: whether its entry
+// is text, when its format says otherwise (see fileCell), else nil.
+func (c *Cell) readsAgainstFormat() *bool {
+	text := c.Format.Kind == FmtText
+	switch {
+	case text && c.expr != nil, !text && c.typedText:
+		v := c.typedText
+		return &v
+	}
+	return nil
+}
+
 // decodeCell reads a cell's entry and formatting, as line formats are
 // stored too.
 func decodeCell(raw json.RawMessage) (string, Format, Style, error) {
-	input, f, st, _, err := decodeNoted(raw)
-	return input, f, st, err
+	e, err := decodeNoted(raw)
+	return e.input, e.f, e.st, err
 }
 
-// decodeNoted is decodeCell with the cell's note.
-func decodeNoted(raw json.RawMessage) (string, Format, Style, string, error) {
+// fileEntry is a cell as the file has it.
+type fileEntry struct {
+	input string
+	f     Format
+	st    Style
+	note  string
+	text  *bool // see fileCell.Text
+}
+
+// cell builds the cell, as newCell does, reading its entry as text or
+// not as the file says.
+func (e fileEntry) cell(implied bool) (*Cell, error) {
+	asText := e.f.Kind == FmtText
+	if e.text != nil {
+		asText = *e.text
+	}
+	c, err := readEntry(e.input, e.f, e.st, implied, asText)
+	return c.withNote(CleanNote(e.note)), err
+}
+
+// decodeNoted is decodeCell with the cell's note and how it reads.
+func decodeNoted(raw json.RawMessage) (fileEntry, error) {
 	var input string
 	if err := json.Unmarshal(raw, &input); err == nil {
-		return input, Format{}, Style{}, "", nil
+		return fileEntry{input: input}, nil
 	}
 	var fc fileCell
 	if err := json.Unmarshal(raw, &fc); err != nil {
-		return "", Format{}, Style{}, "", err
+		return fileEntry{}, err
 	}
 	input, f, st, err := decodeFormatted(fc)
-	return input, f, st, fc.Note, err
+	return fileEntry{input, f, st, fc.Note, fc.Text}, err
 }
 
 // decodeFormatted reads the entry and formatting of a cell written as an

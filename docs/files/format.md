@@ -101,6 +101,7 @@ save), so they raise no version:
 |---|---|---|
 | `note` | a cell | Its [note](../sheets/notes-protection.md#notes) |
 | `own` | a cell | `true` when its formatting is its own, not its column's or row's (Automatic in a currency column) |
+| `text` | a cell | How its `input` reads when its `format` would say otherwise: `true` for text typed into a Plain text cell whose format changed since (`{"input":"007","text":true}`), `false` for a number or formula typed before the cell was formatted as Plain text; either stays as typed, as in Sheets. Older builds read the input as the format says |
 | `wrap`, `borders` | a cell or a line | How its text [wraps](../sheets/formatting.md#wrapping) and its [borders](../sheets/formatting.md#borders); older builds show the text overflowing, without lines |
 | `valign`, and colors in `borders` | a cell or a line | Where its text sits in a [tall row](../sheets/formatting.md#vertical-alignment), and its borders' colors; older builds show the text at the bottom and the lines in the text's ink |
 | `lines` | a sheet | [Column and row formats](#column-and-row-formats) |

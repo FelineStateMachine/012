@@ -330,9 +330,7 @@ func (s *Sheet) readCell(sc *scanner, a Addr, implied bool) error {
 	if err != nil {
 		return err
 	}
-	var input, note string
-	var fm Format
-	var st Style
+	var e fileEntry
 	if c == '"' {
 		body, plain, err := sc.text()
 		if err != nil {
@@ -341,7 +339,7 @@ func (s *Sheet) readCell(sc *scanner, a Addr, implied bool) error {
 		if plain && s.loadNum(a, body, Format{}, Style{}) {
 			return nil
 		}
-		if input, err = unquote(body, plain); err != nil {
+		if e.input, err = unquote(body, plain); err != nil {
 			return err
 		}
 	} else {
@@ -349,19 +347,19 @@ func (s *Sheet) readCell(sc *scanner, a Addr, implied bool) error {
 		if err != nil {
 			return err
 		}
-		if input, fm, st, note, err = decodeNoted(raw); err != nil {
+		if e, err = decodeNoted(raw); err != nil {
 			return err
 		}
-		if note == "" && s.loadNum(a, []byte(input), fm, st) {
+		if e.note == "" && e.text == nil && s.loadNum(a, []byte(e.input), e.f, e.st) {
 			return nil
 		}
 	}
-	cell, err := newCell(input, fm, st, implied)
+	cell, err := e.cell(implied)
 	if err != nil {
 		return err
 	}
 	// An empty entry leaves no cell, even where the key came before.
-	if cell = cell.withNote(CleanNote(note)); cell != nil || s.cells.has(a) {
+	if cell != nil || s.cells.has(a) {
 		s.place(a, cell)
 	}
 	return nil
