@@ -22,7 +22,7 @@ mouse and the vim keymap added.
 | PgUp, PgDn | A screen up, down |
 | Alt+PgUp, Alt+PgDn | A screen left, right |
 | Home, Ctrl+Home, Ctrl+End | Column A, cell A1, the last used cell |
-| Ctrl+G, F5 | Go to a cell, a range or a named range, on any sheet (`Sheet2!B3`) |
+| Ctrl+G, F5 | Go to a cell, a range, a named range or a region's table (`nu.r1`), on any sheet (`Sheet2!B3`) |
 
 ## Entering data
 
