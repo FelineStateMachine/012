@@ -333,6 +333,14 @@ func TestMonochromeFoundTraced(t *testing.T) {
 	if c := cellAt(m, addr("A2")); !every(c, false, isReverse) {
 		t.Errorf("a traced cell isn't reversed: %+v", c)
 	}
+	// Tracing on: precedents reversed, dependents reversed and bold.
+	press(t, m, "<esc>", "<alt+;>")
+	if c := cellAt(m, addr("A2")); !every(c, false, isReverse) || every(c, true, func(c monoCell) bool { return c.bold }) {
+		t.Errorf("a precedent isn't reversed alone: %+v", c)
+	}
+	if c := cellAt(m, addr("C1")); !every(c, false, func(c monoCell) bool { return c.reverse && c.bold }) {
+		t.Errorf("a dependent isn't reversed and bold: %+v", c)
+	}
 	m = newModel()
 	m.sheet.Set(addr("B2"), "Rent")
 	press(t, m, "<ctrl+f>", "Rent")

@@ -26,7 +26,7 @@ func TestStandouts(t *testing.T) {
 	if d.GetReverse() || d.GetForeground() != lipgloss.Black || d.GetBackground() != lipgloss.Cyan {
 		t.Errorf("underlined: reverse %v fg %v bg %v", d.GetReverse(), d.GetForeground(), d.GetBackground())
 	}
-	for _, s := range []lipgloss.Style{th.Selection, th.HeaderSel, th.HeaderActive, th.Found, th.Traced, th.MenuSelected} {
+	for _, s := range []lipgloss.Style{th.Selection, th.HeaderSel, th.HeaderActive, th.Found, th.Precedent, th.Dependent, th.MenuSelected} {
 		if !s.GetReverse() {
 			t.Errorf("%v isn't reversed", s)
 		}

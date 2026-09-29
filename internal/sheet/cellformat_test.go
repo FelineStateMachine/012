@@ -62,3 +62,30 @@ func TestBatchJoinsFormattingSteps(t *testing.T) {
 		t.Errorf("C1 format %+v", f)
 	}
 }
+
+// An entry reads as it was typed until it's typed again: a number or
+// formula formatted as Plain text afterwards keeps computing, and text
+// typed into a Plain text cell stays text in another format or none,
+// in the file too, and a formula that doesn't parse stays text without
+// making the file unreadable.
+func TestPlainTextFormatKeepsEntries(t *testing.T) {
+	s := New()
+	s.Set(at("A1"), "=1+1")
+	s.Set(at("A2"), "5")
+	s.SetFormat(rect("A1:A2"), Format{Kind: FmtText})
+	s.SetFormat(rect("B1:B3"), Format{Kind: FmtText})
+	s.Set(at("B1"), "=1+1")
+	s.Set(at("B2"), "5")
+	s.Set(at("B3"), "=SUM(")
+	s.SetFormat(rect("B1:B1"), Format{Kind: FmtNumber, Decimals: 1})
+	s.ClearFormatting(rect("B2:B3"))
+	want := map[string]Value{"A1": num(2), "A2": num(5),
+		"B1": {Kind: Text, Str: "=1+1"}, "B2": {Kind: Text, Str: "5"}, "B3": {Kind: Text, Str: "=SUM("}}
+	for name, sh := range map[string]*Sheet{"edited": s, "reopened": roundTrip(t, s)} {
+		for a, v := range want {
+			if got := sh.Value(at(a)); got != v {
+				t.Errorf("%s: %s = %+v, want %+v", name, a, got, v)
+			}
+		}
+	}
+}

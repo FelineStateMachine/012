@@ -1,8 +1,8 @@
 package sheet
 
 import (
-	"cmp"
 	"slices"
+	"strings"
 
 	"github.com/FelineStateMachine/012/internal/formula"
 )
@@ -10,7 +10,10 @@ import (
 // Tracing, as Excel's Trace Precedents and Trace Dependents: which cells
 // a formula reads, and which formulas read a cell, on any sheet. Only
 // direct links are followed; tracing again from a found cell goes a level
-// further.
+// further. The dependency indexes recalculation keeps answer both ways,
+// so tracing costs what it finds, not the sheet: a cell's precedents are
+// its formula's references, and its dependents come from the indexes by
+// cell, by range and by name (tracedeps.go).
 
 // Target is a traced cell or range and the sheet it is on.
 type Target struct {
@@ -18,61 +21,134 @@ type Target struct {
 	Range Rect
 }
 
+// LinkKind is how a traced cell is linked to the one traced.
+type LinkKind uint8
+
+const (
+	// LinkRef is a reference or range the formula writes out, or a
+	// formula reading the cell through one.
+	LinkRef LinkKind = iota
+	// LinkName is a named range the formula uses: Link.Name is its name.
+	LinkName
+	// LinkRegion is a region's table the formula names, nu.sales:
+	// Link.Name is how the formula names it.
+	LinkRegion
+	// LinkSpill is the array formula whose values the cell shows, among
+	// precedents, or the cells a formula spills into, among dependents.
+	LinkSpill
+	// LinkFile is the linked file a region's cells come from: Link.Name
+	// is its path, and Target the region's cells.
+	LinkFile
+	// LinkOutput is the notebook cell whose output a region shows:
+	// Link.Name is the cell's name, Target.Sheet the notebook tab and
+	// Target.Range.From.Row the cell's index there.
+	LinkOutput
+)
+
+// Link is a precedent or dependent: where it is, and how it's linked.
+type Link struct {
+	Target
+	Kind LinkKind
+	Name string // see LinkKind
+}
+
+// OnGrid reports whether the link is cells of a sheet's grid rather than
+// a notebook cell.
+func (l Link) OnGrid() bool { return !l.Sheet.IsNotebook() }
+
 // Precedents returns the cells and ranges the formula at a reads, in the
-// order the formula mentions them, with named ranges resolved and
-// repeats dropped. References to sheets that don't exist are left out. It
-// is empty for anything but a formula.
-func (s *Sheet) Precedents(a Addr) []Target {
-	c := s.cells.get(a)
-	if c == nil || !c.IsFormula() {
-		return nil
-	}
+// order the formula mentions them; see PrecedentLinks.
+func (s *Sheet) Precedents(a Addr) []Target { return targetsOf(s.PrecedentLinks(a)) }
+
+// Dependents returns the formula cells that read a directly; see
+// DependentLinks.
+func (s *Sheet) Dependents(a Addr) []Target {
+	links, _ := s.DependentLinks(a, 0)
+	return targetsOf(links)
+}
+
+func targetsOf(links []Link) []Target {
 	var out []Target
-	add := func(sheet string, r Rect) {
-		t := Target{s.wb.resolve(s, sheet), r}
-		if t.Sheet != nil && !slices.Contains(out, t) {
-			out = append(out, t)
+	for _, l := range links {
+		if l.OnGrid() {
+			out = append(out, l.Target)
 		}
 	}
-	formula.WalkRefs(s.bound(c), func(sheet string, a Addr) { add(sheet, Rect{From: a, To: a}) }, add)
 	return out
 }
 
-// Dependents returns the formula cells that read a directly, through a
-// reference, a range or a named range: those on this sheet first in
-// row-major order, then those on other sheets in tab order.
-func (s *Sheet) Dependents(a Addr) []Target {
-	w := s.wb
-	seen := map[loc]bool{}
-	for d := range s.dependents[a] {
-		seen[loc{s, d}] = true
+// PrecedentLinks returns what the cell at a comes from. For a formula,
+// the cells and ranges it reads in the order it mentions them, named
+// ranges and regions as their cells, with repeats dropped and references
+// to sheets that don't exist left out. For a cell an array spilled into,
+// the formula that spilled it; for a region's cell, the linked file or
+// notebook cell the region shows.
+func (s *Sheet) PrecedentLinks(a Addr) []Link {
+	var out []Link
+	add := func(l Link) {
+		if l.Sheet != nil && !slices.ContainsFunc(out, func(o Link) bool { return o.Target == l.Target && o.Kind == l.Kind }) {
+			out = append(out, l)
+		}
 	}
-	s.rangeUsers.readers(a, func(u Addr) { seen[loc{s, u}] = true })
-	for k, users := range w.nameUsers {
-		if n, ok := w.names[k]; ok && !n.Lost && n.Sheet == s && n.Range.Contains(a) {
-			for u := range users {
-				seen[u] = true
+	if c, _, _ := s.cells.peek(a); c != nil && c.IsFormula() {
+		s.walkPrecedents(c.expr, add)
+	}
+	if anchor, ok := s.SpillAnchor(a); ok {
+		add(Link{Target: Target{s, Rect{From: anchor, To: anchor}}, Kind: LinkSpill})
+	}
+	if r, ok := s.RegionAt(a); ok {
+		add(s.regionSource(r))
+	}
+	return out
+}
+
+// walkPrecedents calls add with each reference, range and name in n, in
+// the order they're written.
+func (s *Sheet) walkPrecedents(n Node, add func(Link)) {
+	w := s.wb
+	switch n := n.(type) {
+	case formula.Ref:
+		add(Link{Target: Target{w.resolve(s, n.Sheet), Rect{From: n.Addr, To: n.Addr}}})
+	case formula.Range:
+		add(Link{Target: Target{w.resolve(s, n.Sheet), n.Rect}})
+	case formula.Name:
+		if nm, ok := w.names[nameKey(n.Name)]; ok {
+			if !nm.Gone() {
+				add(Link{Target: Target{nm.Sheet, nm.Range}, Kind: LinkName, Name: nm.Name})
+			}
+			return
+		}
+		if t, r, ok := w.regionName(nameKey(n.Name)); ok && r != (Rect{}) {
+			add(Link{Target: Target{t, r}, Kind: LinkRegion, Name: s.regionSpelling(n.Name)})
+		}
+	default:
+		formula.EachChild(n, func(k Node) { s.walkPrecedents(k, add) })
+	}
+}
+
+// regionSpelling is how formulas name the region a name like NU.SALES
+// finds: nu. and the region's own name.
+func (s *Sheet) regionSpelling(name string) string {
+	if _, r, ok := s.wb.Region(name[len(regionPrefix):]); ok {
+		return r.FormulaName()
+	}
+	return strings.ToLower(name)
+}
+
+// regionSource is where a region's cells come from: its linked file, or
+// the notebook cell whose output it shows (on the notebook's tab, when
+// there is one; otherwise the region itself).
+func (s *Sheet) regionSource(r Region) Link {
+	area := Target{s, s.covered(r)}
+	if r.Linked() {
+		return Link{Target: area, Kind: LinkFile, Name: r.File.Path}
+	}
+	for _, nb := range s.wb.sheets {
+		for i, c := range nb.regions.cells {
+			if strings.EqualFold(c.Name(), r.Name) {
+				return Link{Target: Target{nb, Rect{From: Addr{Row: i}, To: Addr{Row: i}}}, Kind: LinkOutput, Name: c.Name()}
 			}
 		}
 	}
-	for u := range w.crossUsers {
-		if w.crossReads(u, loc{s, a}) {
-			seen[u] = true
-		}
-	}
-	out := make([]Target, 0, len(seen))
-	for l := range seen {
-		out = append(out, Target{l.s, Rect{From: l.a, To: l.a}})
-	}
-	rank := func(t *Sheet) int {
-		if t == s {
-			return -1
-		}
-		return w.Index(t)
-	}
-	slices.SortFunc(out, func(x, y Target) int {
-		return cmp.Or(cmp.Compare(rank(x.Sheet), rank(y.Sheet)),
-			cmp.Compare(x.Range.From.Row, y.Range.From.Row), cmp.Compare(x.Range.From.Col, y.Range.From.Col))
-	})
-	return out
+	return Link{Target: area, Kind: LinkOutput, Name: r.Name}
 }

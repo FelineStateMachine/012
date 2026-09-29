@@ -278,7 +278,13 @@ func (m *Model) readyContext() (left, right string) {
 	case m.trace != nil:
 		return m.trace.line(&m.th, m.width, m.sheet)
 	}
-	for _, f := range []func() string{m.readyLine, func() string { return m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur)) },
+	if left = m.readyLine(); left != "" {
+		return left, ""
+	}
+	if m.tview != nil {
+		return m.traceLine()
+	}
+	for _, f := range []func() string{func() string { return m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur)) },
 		m.errorLine, m.validationLine, m.noteLine, m.spillLine, m.regionLine, m.recordingLine} {
 		if left = f(); left != "" {
 			return left, ""

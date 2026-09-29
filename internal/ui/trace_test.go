@@ -19,7 +19,7 @@ func TestTracePrecedents(t *testing.T) {
 	m := traceModel(t)
 	m.cur = addr("B1")
 	press(t, m, "<alt+,>")
-	if m.cur != addr("A1") || !m.trace.covers(m.sheet, addr("A3")) || m.trace.covers(m.sheet, addr("B1")) {
+	if m.cur != addr("A1") || !(m.trace.role(&m.th, m.sheet, addr("A3")) != nil) || (m.trace.role(&m.th, m.sheet, addr("B1")) != nil) {
 		t.Fatalf("cur %v", m.cur)
 	}
 	if l := line(m, contextLine); !strings.HasPrefix(l, "2 precedents of B1: A1, A2:A3") || !strings.Contains(l, "Alt+,  next") {
@@ -44,7 +44,7 @@ func TestTraceDependents(t *testing.T) {
 	m := traceModel(t)
 	m.cur = addr("B1")
 	press(t, m, "<alt+.>")
-	if m.cur != addr("C1") || !m.trace.covers(m.sheet, addr("C2")) {
+	if m.cur != addr("C1") || !(m.trace.role(&m.th, m.sheet, addr("C2")) != nil) {
 		t.Fatalf("cur %v", m.cur)
 	}
 	// Any other key ends the trace and does its own thing.

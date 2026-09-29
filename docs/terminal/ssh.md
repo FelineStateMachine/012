@@ -165,8 +165,9 @@ the cell being written; without it, 012's own highlighting answers.
 ## Unsaved work
 
 A session that ends without the user quitting, because it was idle for
-`--idle-timeout` or because the server is stopping (Ctrl+C, SIGTERM),
-keeps its unsaved changes: the whole workbook is written to
+`--idle-timeout`, because the server is stopping (Ctrl+C, SIGTERM), or
+because 012 [stopped on an internal error](../files/saving.md#if-012-crashes)
+(whose report goes to the server's log), keeps its unsaved changes: the whole workbook is written to
 `.012-recovery/<name>-<time>.012` in the served directory, and the
 client's terminal is told where before the connection closes:
 

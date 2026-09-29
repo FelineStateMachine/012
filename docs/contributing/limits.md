@@ -29,6 +29,7 @@ it lags, and past a second it stalls.
 | Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1.3 to 1.9 ms); 1000 SUMs over a full column: 0.53 ms; 8192 running totals: 2.7 ms | 60 criteria functions (SUMIF, COUNTIFS, AVERAGEIF) over whole columns of 8192 rows: 29 ms an edit | | About 3 ns per cell read: an index into the column's block |
 | Full recalc | Any sheet: numbers and text hold their values and cost nothing; 1000 full-column SUMs 0.5 ms; 8192 running totals 1.8 ms | 60 whole-column criteria functions over 8192 rows: 44 ms | | Same as above |
 | Rendering | Any sheet at up to 200 x 60: 1.3 ms a frame; 400 x 120: 4.2 ms; a color scale on every cell shown adds 0.4 ms at 200 x 60, borders on every cell and wrapped text 0.4 ms | 20 charts at 400 x 120: 6 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
+| Tracing (`BenchmarkTrace`) | An arrow key through to its frame at 200 x 60 with tracing on, on a million cells: a chain of a million formulas 0.66 ms (0.64 off), a million numbers 0.82 ms (0.82 off), a cell read by a million formulas 1.6 ms (0.85 off); off, it costs nothing | | A cell's dependents listed past a thousand: the list says there are more | Finding a cell's links (dependents capped at a thousand), and asking each formula on screen whether it reads the cell |
 | Selection statistics | Any selection: extending one over all 2.1 M cells of 8192 x 256 costs 0.3 ms a key | | | Per column with data, 1024 or 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
 | Imports | CSV, SQLite, Parquet: 2 to 4 M cells/s (a million cells in 0.25 to 0.4 s); XLSX numbers or text: 0.8 to 1.4 M cells/s | XLSX with formulas: 0.4 to 0.6 M cells/s | Data past `max-cells` or the grid (dropped, with a note); XLSX files past the reader's limits (refused) | Building cells one at a time; XML decoding; XLSX formula translation |
 | Undo | One step of any size: undo costs what the edit cost; clearing all ten million cells of a full sheet holds 193 MB | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 15 MB | A step past 1 GB (millions of formulas or long distinct texts at once): asks, and runs without undo if told to | Before-images in the store's form: a slot (20 B) per plain cell, a whole `Cell` per formula |
@@ -624,3 +625,48 @@ overhead), `internal/fileio/stress_test.go` (imports and exports),
 `internal/stress`, up to `dense-1Mx10`, ten million numbers, the
 default `max-cells`. Results accumulate in `.deps/stress/results` and, with
 the observability stack up, in ClickHouse.
+
+### The speed gate
+
+`make speed`, part of `make check`, catches a clear slowdown before a
+push rather than at the next stress run. `TestSpeed`
+(`internal/ui/speed_test.go`) builds mid-sized sheets with
+`internal/stress` and draws frames through the stress benchmarks' fake
+terminal, so it measures what `BenchmarkKeystroke` and `BenchmarkEdit`
+do, on fewer cases and briefly: an arrow key through to its frame at
+200 x 60 (dense, laid out, color scale and chart sheets of 8192 rows),
+single edits (fan-in, a chain, criteria functions, lookups) and full
+recalculations (running totals, arrays). It takes about two seconds.
+
+Each case is held to `internal/ui/testdata/speed.json` two ways:
+
+- **Allocations** an operation, counted with `testing.AllocsPerRun`,
+  so the same code gives the same count on any machine and under any
+  load. A case fails past 1.25 times its baseline plus 16.
+- **Time** relative to a calibration workload (formatting numbers,
+  string map lookups, sorting) timed beside it in the same process,
+  the fastest of seven timings of each, so a slower or busier machine
+  slows both. A case fails past twice its baseline's ratio. Ratios
+  still differ between CPUs, so they are compared only on the
+  baseline's OS and architecture (the file records them); elsewhere
+  only allocations are.
+
+A case over its margin is measured once more before it fails. Runs on
+one machine vary by up to about a third, under load from other tests
+too, well inside the margin; the margins are for regressions of a
+multiple, and finer ones are what `make stress-report` is for.
+
+The gate runs alone (`go test ./...` skips `TestSpeed` without
+`-speed`), and while it times it holds `/tmp/012-bench.lock`, the lock
+other timed runs on the machine take: with flock(2) when the path is a
+file (`flock /tmp/012-bench.lock make stress` where the `flock` command
+exists), and otherwise as a directory it makes and removes, which needs
+no `flock` command. It waits up to ten minutes for a directory someone
+else holds.
+
+When it fails, run `make speed` again on a quiet machine, then look at
+the case with the stress benchmarks (`BENCH='Keystroke|Edit' make
+stress`). A slowdown that is intended, or a new case, is taken into the
+baseline with `make speed-update`, which measures every case and
+rewrites `speed.json` for the machine it runs on; commit it with the
+change that explains it.

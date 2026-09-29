@@ -54,7 +54,7 @@ func TestNamedRangesPicker(t *testing.T) {
 	m.sheet.DefineName("Costs", rectOf("C2:C9"))
 	m.sheet.DefineName("Rate", rectOf("E1"))
 	press(t, m, "<alt+d>")
-	if !strings.Contains(screen(m), "Named ranges") || !strings.Contains(screen(m), "Trace precedents") {
+	if !strings.Contains(screen(m), "Named ranges") || !strings.Contains(screen(m), "Formula tracing") {
 		t.Fatalf("Data menu:\n%s", screen(m))
 	}
 	press(t, m, "<esc>")

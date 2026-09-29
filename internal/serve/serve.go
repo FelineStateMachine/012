@@ -310,7 +310,8 @@ func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, nam
 		m.EnableJEV(s.jev, jev.NewCache())
 	}
 	in := newActivity(sess)
-	p := tea.NewProgram(m, append(bm.MakeOptions(sess), tea.WithInput(in), tea.WithFPS(ui.FrameRate))...)
+	g := ui.Guard(m)
+	p := tea.NewProgram(g, append(bm.MakeOptions(sess), tea.WithInput(in), tea.WithFPS(ui.FrameRate))...)
 
 	// The connection's context ends when the client goes away; cancel
 	// stops the goroutines below when the program quits first.
@@ -333,12 +334,17 @@ func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, nam
 			}
 		}()
 	}
-	if _, err := p.Run(); err != nil && !errors.Is(err, tea.ErrProgramKilled) {
+	_, err := p.Run()
+	if err != nil && !errors.Is(err, tea.ErrProgramKilled) {
 		s.log.Error("session", "error", err.Error())
 	}
 	p.Kill()
-	end := ending{idle: idled.Load(), stopped: s.stopping()}
-	end.keep(m)
+	end := ending{idle: idled.Load(), stopped: s.stopping(), crash: g.Finish(err)}
+	if c := end.crash; c != nil {
+		// The report is the server's log: the operator's to read.
+		s.log.Error("session panic", "where", c.Where, "panic", fmt.Sprint(c.Value), "stack", string(c.Stack))
+	}
+	end.keep(g)
 	return end
 }
 

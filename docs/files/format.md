@@ -6,7 +6,9 @@ sidebar_position: 4
 # The .012 format
 
 `.012` files are JSON with one line per cell, keyed by address, so diffs
-read naturally and files merge reasonably in version control. A cell
+read naturally and files merge reasonably in version control. This page
+is the format at version 5, the newest; [Versions](#versions) says what
+each version adds and what 012 promises about old files. A cell
 without formatting is just what was typed; a formatted cell is a small
 object:
 
@@ -48,6 +50,13 @@ spacing, and the case of field names don't matter. A cell given twice
 takes its last entry, though an invalid earlier one is refused; the
 `version` or the `sheets` list given twice around cells is refused.
 
+012 writes one form of each workbook: the fields in the order this page
+shows them, cells by row and then column, widths and heights by
+position, column and row formats with the whole sheet's first, then
+columns', then rows', names by name, and charts, rules, regions and
+macros in the order they were made. Saving a file 012 wrote, without
+changing it, gives back the same bytes.
+
 012 reads and writes the file as a stream, each cell straight into or
 out of its sheet, so opening a file takes about the memory of the
 workbook however large the file; what that costs, and why there is no
@@ -68,6 +77,21 @@ still load.
 | 4 | Several sheets, or a formula naming a sheet | `sheets`, a list; see [Several sheets](#several-sheets) |
 | 5 | A pivot table | a sheet's `pivot`; see [Pivot tables](#pivot-tables) |
 
+What stays the same from release to release:
+
+- Every file a release saved opens in every later build, and saving it
+  unchanged gives back its bytes. Each release keeps workbooks it saved
+  as fixtures (`internal/sheet/testdata/fixtures/<release>`), which every
+  build's tests open and save again
+  ([Releasing](../contributing/releasing.md#file-fixtures)).
+- Fields are only added, never renamed or given another meaning; the
+  version rises only for a field older builds can't do without, and the
+  rest are listed under [Fields that need no version](#fields-that-need-no-version).
+- An older build ignores a field it doesn't know, but refuses a value it
+  doesn't know in a field it does (a chart type, a rule's condition such
+  as a date period), rather than open the file with the rule or chart
+  quietly changed.
+
 ## Fields that need no version
 
 Builds that don't know these fields ignore them (and drop them if they
@@ -77,6 +101,7 @@ save), so they raise no version:
 |---|---|---|
 | `note` | a cell | Its [note](../sheets/notes-protection.md#notes) |
 | `own` | a cell | `true` when its formatting is its own, not its column's or row's (Automatic in a currency column) |
+| `text` | a cell | How its `input` reads when its `format` would say otherwise: `true` for text typed into a Plain text cell whose format changed since (`{"input":"007","text":true}`), `false` for a number or formula typed before the cell was formatted as Plain text; either stays as typed, as in Sheets. Older builds read the input as the format says |
 | `wrap`, `borders` | a cell or a line | How its text [wraps](../sheets/formatting.md#wrapping) and its [borders](../sheets/formatting.md#borders); older builds show the text overflowing, without lines |
 | `valign`, and colors in `borders` | a cell or a line | Where its text sits in a [tall row](../sheets/formatting.md#vertical-alignment), and its borders' colors; older builds show the text at the bottom and the lines in the text's ink |
 | `lines` | a sheet | [Column and row formats](#column-and-row-formats) |

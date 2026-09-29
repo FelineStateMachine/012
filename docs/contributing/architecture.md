@@ -43,6 +43,7 @@ internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   cmdline        the : command line and its completions
   nbview         a notebook tab as Jupyter's: its toolbar, cells, outputs, command and edit modes, mouse, the code editor and its language providers
   findbar        find and replace, a bar on the context line
+  evalview       Data > Evaluate formula: a formula stepped through part by part
   themepicker    File > Settings > Theme, previewing as it moves
   rules          the conditional formatting and data validation panel
   sortbar        the sort bar: the columns and order to sort a range by
@@ -399,8 +400,12 @@ recalculations, so the buffers are made once. See
 What stays in the engine is what needs cells or the workbook: the
 running aggregates' storage and extension (`rangememo.go`), the links a
 HYPERLINK cell opens (`link.go`), the questions a cell's JEV formulas ask
-(`RemoteCalls`), explaining errors (`explain.go`) and the decimal
-setting (`SetDecimal`, which marks formulas with `functions.Decimalize`).
+(`RemoteCalls`), explaining errors (`explain.go`), tracing precedents
+and dependents through the dependency indexes (`trace.go`,
+`tracedeps.go`), stepping through a formula (`steps.go`, where the
+function library records each part's value where it stands,
+`functions.EvalParts`) and the decimal setting (`SetDecimal`, which
+marks formulas with `functions.Decimalize`).
 
 ### Where the engine can grow
 
@@ -476,14 +481,14 @@ draw. The components:
 | edit line | `lineedit.Line` | the one-line editor shared by cell entries, prompts and search fields (package `lineedit`) |
 | cell entry | `entry`, `suggest.List` | typing into a cell, pointing at references, other sheets while pointing (`entry.go`, `assistsheets.go`); formula suggestions and signatures (package `suggest`, with `assist.go`) |
 | prompt | `prompt` | a question on the context line, typed or pointed at (`prompt.go`) |
-| overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker (package `filterpick`, with `filter.go`), the sort bar (package `sortbar`, with `sort.go`), choice bars (package `choicebar`, with `dialog.go`), the chart editor and selection (`charteditor.go`, `chartsel.go`), the pivot editor (`pivoteditor.go`, `pivotactions.go`), the rules panel (package `rules`, with `rules.go`), the shortcuts (package `shortcuts`, with `help.go`) |
+| overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker (package `filterpick`, with `filter.go`), the sort bar (package `sortbar`, with `sort.go`), choice bars (package `choicebar`, with `dialog.go`), the chart editor and selection (`charteditor.go`, `chartsel.go`), the pivot editor (`pivoteditor.go`, `pivotactions.go`), the rules panel (package `rules`, with `rules.go`), the shortcuts (package `shortcuts`, with `help.go`), Evaluate formula (package `evalview`, with `evaluate.go`) |
 | sheet tabs | `tabstrip.Strip` | where each sheet was left, the tab strip's scroll and layout (package `tabstrip`); what clicks on it do (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer.Transfer`, `pipeState` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`); standard input read as a sheet, and what a pipeline gets on quitting (`pipe.go`) |
 | linked files | `followState` | a source (`live.Source`) for each linked region, polled one poll at a time on a command every `live.Interval` and reconciled with the workbook after every update, so undo, opening a file and unlinking need nothing of their own; trust in files outside a workbook's folder (`follow.go`); Data > Linked file and Import's Follow the file (`linked.go`) |
 | notebooks | `nbview.View`, `nbState` | a view of each notebook tab, its selection, mode, scroll and editor (package `nbview`); the tab on the screen (`nbscreen.go`); the notebook's commands and keys (`notebook.go`); cells running one at a time in the background, their queue, stale outputs, trust (`nbrun.go`); what a run reads (`nbjob.go`); outputs sent to sheets (`nbsend.go`) |
 | macros | `recorder`, `macroState` | a recording in progress (`macrorec.go`); a macro running, trust in the file's macros (`macrorun.go`); what scripts act on (`macrohost.go`, `macrohostnav.go`); Data > Macros and the manager (`macro.go`, `macromanage.go`) |
-| others | `clipboard`, `trace`, `chartState`, `jevRunner`, `terminal`, `session` | what Ctrl+V pastes, a trace being shown, chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it, what outlasts the file open (the `:` history, whether keys can be held: `keyboard.go`) |
+| others | `clipboard`, `trace`, `traceView`, `chartState`, `jevRunner`, `terminal`, `session` | what Ctrl+V pastes, a trace being stepped through and tracing that stays on (`traceview.go`), chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it, what outlasts the file open (the `:` history, whether keys can be held: `keyboard.go`) |
 
 Overlays implement `overlay.Overlay` (package `overlay`): an indicator for
 the mode, `Key` and `Mouse` handlers, a `Layout` of boxes to draw, and
@@ -505,6 +510,7 @@ methods off `ui.Model`'s exported API:
 | `picker` | `picker.Host` | theme, size, the edit line, close, record the answer to a command's question (5) |
 | `choicebar` | `choicebar.Host` | theme, close, record the key chosen (3); the choices are closures over the model |
 | `shortcuts` | `shortcuts.Host` | theme, size, close, the rows, built from the key bindings and the registry (4) |
+| `evalview` | `evalview.Host` | theme, size, close, the locale (4); the formula's steps are the engine's `sheet.Steps` |
 | `sortbar` | `sortbar.Host` | theme, size, the sheet, close, sort (recorded as the bar's command) (5) |
 | `filterpick` | `filterpick.Host` | theme, size, the edit line, close, the locale (5); what applying and cancelling do are callbacks, as the sheet's filter and a pivot's differ |
 | `cmdline` | `cmdline.Host` | theme, size, the edit line, close, the commands to complete, run a line, fail, the session's history (8) |
@@ -555,7 +561,7 @@ hints) are what every overlay is drawn with.
 **Packages.** `theme`, `rowtext`, `formula`, `overlay` and `lineedit`
 depend on nothing in `ui`, so they can be tested and measured alone. The
 components in `picker`, `cmdline`, `nbview`, `themepicker`, `findbar`, `rules`,
-`sortbar`, `filterpick`, `choicebar`, `shortcuts`, `suggest`, `tabstrip`
+`sortbar`, `filterpick`, `choicebar`, `shortcuts`, `evalview`, `suggest`, `tabstrip`
 and `transfer` build on them and reach the model only through their
 hosts, with unit tests of their own against fake hosts. A component moves out of package
 `ui` when its host stays small (about ten methods or fewer); one that

@@ -47,7 +47,7 @@ text. Errors use Sheets' codes:
 | `#DIV/0!` | division by zero |
 | `#VALUE!` | the wrong kind of value, e.g. text in arithmetic |
 | `#NAME?` | an unknown name |
-| `#REF!` | a reference to deleted cells, or a circular reference |
+| `#REF!` | a reference to deleted cells, or a circular reference: every cell of the cycle, even one whose formula catches errors (`IFERROR`) or skips them (`COUNTIF`), as in Sheets |
 | `#N/A` | not available, e.g. a lookup found nothing |
 | `#NUM!` | a number out of range, e.g. `SQRT(-1)` |
 
@@ -72,7 +72,8 @@ numbers as numbers.
 | Page | For |
 |---|---|
 | [References](references.md) | Cells, ranges, names, other sheets, and a range where one value is wanted |
-| [Building formulas](building.md) | Pointing, suggestions, argument hints, tracing |
+| [Building formulas](building.md) | Pointing, suggestions, argument hints |
+| [Tracing formulas](tracing.md) | Precedents and dependents in the grid, and a formula evaluated step by step |
 | [Arrays and spills](arrays.md) | FILTER, SORT, UNIQUE, SEQUENCE, ARRAYFORMULA, LET and LAMBDA |
 | [Decimal arithmetic](decimal.md) | Exact decimal math for money |
 | [JEV functions](jev.md) | Asking a hosted model from formulas |
