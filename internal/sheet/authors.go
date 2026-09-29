@@ -76,6 +76,21 @@ func (w *Workbook) OpsSince(seq uint64) ([]Op, uint64) {
 	return slices.Clone(h.log[i:]), h.seq
 }
 
+// Checkpoint marks where the history stands, for UndoTo.
+func (w *Workbook) Checkpoint() int { return int(w.hist.seq) }
+
+// UndoTo undoes the current author's steps made after checkpoint c, as
+// cancelling a dialog does, whatever others changed meanwhile; it stops
+// at a step it can't undo.
+func (w *Workbook) UndoTo(c int) {
+	h := &w.hist
+	for i := h.mine(w.author); i >= 0 && h.undo[i].seq > uint64(c); i = h.mine(w.author) {
+		if _, ok := w.Undo(); !ok {
+			return
+		}
+	}
+}
+
 // LastOp is the latest operation's sequence number, 0 before any.
 func (w *Workbook) LastOp() uint64 { return w.hist.seq }
 

@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/config"
 	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/room"
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -54,6 +55,7 @@ func (r *servedRooms) open(user, name string) *seshion {
 	s.send(tea.WindowSizeMsg{Width: 80, Height: 20})
 	r.all = append(r.all, s)
 	r.sync()
+	s.sh.turn(func() { s.m.nb.still = true }) // entering the room made its notebook state anew
 	return s
 }
 
@@ -251,5 +253,55 @@ func TestSharedOneWriter(t *testing.T) {
 	ann.press("<down>", "no", "<enter>")
 	if ann.m.sheet.Filled(addr("A2")) {
 		t.Error("ann typed after handing over")
+	}
+}
+
+// shell lets s's notebook cells run, with a fake nu answering from out.
+func (s *seshion) shell(out map[string]string) *fakeNu {
+	path := filepath.Join(s.t.TempDir(), "config")
+	os.WriteFile(path, []byte("serve-shell = true\nshell = on\n"), 0o600)
+	load := func() *config.Config { return config.Load(path, func(string) string { return "" }, nil) }
+	nu := &fakeNu{out: out}
+	s.sh.turn(func() {
+		s.m.Configure(Settings{Config: load(), Reload: load})
+		s.m.SetShellRunner(nu)
+	})
+	return nu
+}
+
+// A shared notebook's runs are the room's: whoever runs a cell, the
+// one keeping the room finishes it, everyone sees its output and count,
+// and they go on once the one who started them leaves.
+func TestSharedNotebookRuns(t *testing.T) {
+	r := newRooms(t, room.Edit)
+	ann := r.open("ann", "@nb")
+	bob := r.open("bob", "@nb")
+	out := map[string]string{"ls": lsOut}
+	ann.shell(out)
+	bob.shell(out)
+	ann.run(ann.m.runCommand("nb.open"))
+	r.sync()
+	ann.press("<esc>", "b", "<enter>")
+	ann.send(pasteMsg("files = ls"))
+	ann.press("<esc>", "<ctrl+enter>")
+	r.sync()
+	bob.run(bob.m.runCommand("nb.open"))
+	if !strings.Contains(bob.screen(), "a.txt") || !strings.Contains(bob.screen(), "Out[1]:") {
+		t.Fatalf("bob's notebook:\n%s", bob.screen())
+	}
+	bob.press("<down>", "<ctrl+enter>")
+	r.sync()
+	if !strings.Contains(ann.screen(), "Out[2]:") || !strings.Contains(bob.screen(), "Out[2]:") {
+		t.Errorf("bob's run, finished by ann who keeps the room:\n%s", ann.screen())
+	}
+	if ann.m.LeaveRoom() {
+		t.Fatal("ann was the last")
+	}
+	r.all = r.all[1:]
+	r.sync()
+	bob.press("<ctrl+enter>")
+	r.sync()
+	if !strings.Contains(bob.screen(), "Out[3]:") {
+		t.Errorf("bob, keeping the room now, didn't finish his run:\n%s", bob.screen())
 	}
 }

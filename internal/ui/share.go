@@ -53,6 +53,9 @@ type joinReq struct {
 	key, name string
 	book      *sheet.Workbook
 	stamp     stamp
+	// restored is the recovery file book was read from: the room opens
+	// again on it, as unsaved changes.
+	restored string
 }
 
 // roomMsg tells the model its room changed.
@@ -127,17 +130,34 @@ func (m *Model) enterRoom(seat *room.Seat, created bool, req *joinReq) tea.Cmd {
 	m.reset(s, req.name)
 	m.share.seat, m.share.seen = seat, seat.Last()
 	m.nb.runs = seat.Value("nb", func() any { return &nbRuns{} }).(*nbRuns)
-	if created {
+	switch {
+	case created && req.restored != "":
+		m.disk, m.saved, m.changed, m.recovered = req.stamp, -1, true, req.restored
+		v := m.savedState()
+		v.State = -1
+		seat.SetSaved(v)
+		m.note = "Restored the kept changes; save to keep them"
+	case created:
 		m.disk = req.stamp
 		seat.SetSaved(m.savedState())
 		m.offerRecovery(req.name)
-	} else {
+	default:
 		m.syncSaved()
 	}
 	if peers := seat.Peers(); len(peers) > 0 {
 		m.note = "Sharing " + m.displayName() + " with " + peerNames(peers)
 	}
 	return tea.Batch(m.syncFollowers(), m.notebookSync())
+}
+
+// restoreShared opens the room again on kept changes, when nobody else
+// is in it: others are working on the workbook as it is.
+func (m *Model) restoreShared(seat *room.Seat, msg restoredMsg) {
+	if peers := seat.Peers(); len(peers) > 0 {
+		m.warn = peerNames(peers) + " have " + m.displayName() + " open: restore the kept changes once you're the only one here"
+		return
+	}
+	m.share.want = &joinReq{key: seat.Key(), name: msg.name, book: msg.sheet.Book(), stamp: m.disk, restored: msg.file}
 }
 
 // savedState is the room's file as this model last saved or opened it.

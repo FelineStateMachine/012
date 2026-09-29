@@ -229,7 +229,7 @@ func (m *Model) answerEditChart(text string) (tea.Cmd, error) {
 	if i < 0 {
 		return nil, fmt.Errorf("there's no chart on %s", m.sheet.Name())
 	}
-	return nil, m.openChartEditor(i, false, m.sheet.StateID()).answer(fields)
+	return nil, m.openChartEditor(i, false, m.book().Checkpoint()).answer(fields)
 }
 
 // answer makes the chart the answer's fields say and closes the editor.

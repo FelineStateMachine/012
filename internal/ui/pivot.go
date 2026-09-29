@@ -35,14 +35,14 @@ func init() {
 		&command{id: "data.pivot_edit", title: "Edit pivot table", desc: "Change the pivot table's rows, columns, values and filters",
 			enabled: func(m *Model) bool { _, ok := m.sheet.Pivot(); return ok },
 			run: func(m *Model) tea.Cmd {
-				m.openPivotEditor(m.sheet.StateID(), nil)
+				m.openPivotEditor(m.book().Checkpoint(), nil)
 				return nil
 			},
 			answer: func(m *Model, text string) (tea.Cmd, error) {
 				if _, ok := m.sheet.Pivot(); !ok {
 					return nil, errors.New(m.sheet.Name() + " has no pivot table")
 				}
-				return nil, m.openPivotEditor(m.sheet.StateID(), nil).answer(m, text)
+				return nil, m.openPivotEditor(m.book().Checkpoint(), nil).answer(m, text)
 			}},
 		&command{id: "data.frequency", title: "Frequency table (column stats)", desc: "Count each value of the active column, most frequent first, on a new sheet, as Sheets' Column stats do",
 			run: (*Model).frequency},
@@ -167,7 +167,7 @@ func (m *Model) createPivot() tea.Cmd {
 		m.note = "Select the data to summarize first: a row of headers and the rows below it"
 		return nil
 	}
-	src, start := m.sheet, m.sheet.StateID()
+	src, start := m.sheet, m.book().Checkpoint()
 	s, err := m.book().CreatePivot(src, r, "", sheet.NewPivot(src, r))
 	if err != nil {
 		m.fail(err.Error())

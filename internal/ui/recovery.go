@@ -340,6 +340,10 @@ func (m *Model) restored(msg restoredMsg) {
 		m.fail("Couldn't restore the kept changes: " + msg.err.Error())
 		return
 	}
+	if seat := m.share.seat; seat != nil {
+		m.restoreShared(seat, msg)
+		return
+	}
 	disk := m.disk
 	m.reset(msg.sheet, msg.name)
 	m.disk, m.saved, m.changed = disk, -1, true
