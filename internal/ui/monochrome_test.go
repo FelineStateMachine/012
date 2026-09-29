@@ -238,6 +238,28 @@ func TestMonochromeNotebook(t *testing.T) {
 	}
 }
 
+// A table's header row reads without color: bold and underlined, and
+// the context line names the table on its cells. Its bands are
+// decoration, with no state to read.
+func TestMonochromeTable(t *testing.T) {
+	m := newModel()
+	m.sheet.Set(addr("B1"), "Item")
+	m.sheet.Set(addr("B2"), "Rent")
+	if err := m.sheet.CreateTable("Costs", rectOf("B1:B3")); err != nil {
+		t.Fatal(err)
+	}
+	if c := cellAt(m, addr("B1")); !every(c, true, func(c monoCell) bool { return c.bold && c.underline == "1" }) {
+		t.Errorf("a table's header: %+v", c)
+	}
+	if c := cellAt(m, addr("B2")); !every(c, true, plain) {
+		t.Errorf("a table's first row: %+v", c)
+	}
+	m.cur = addr("B2")
+	if l := cellText(monoLine(m, contextLine)); !strings.Contains(l, "Table Costs, column Item") {
+		t.Errorf("the table isn't named: %q", l)
+	}
+}
+
 func TestMonochromeError(t *testing.T) {
 	m := newModel()
 	m.sheet.Set(addr("B1"), "=1/0")

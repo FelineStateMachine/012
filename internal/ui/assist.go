@@ -26,6 +26,13 @@ func (m *Model) inFunction() bool {
 	return ok
 }
 
+// inTable reports whether the caret is inside a structured reference's
+// brackets, Sales[Am.
+func (m *Model) inTable() bool {
+	_, ok := suggest.InTable(m.storedFormula(m.line.Buf), m.line.Pos)
+	return ok
+}
+
 // The suggestions' host.
 
 // Typing reports whether an entry is being typed in the cell (ENTER or

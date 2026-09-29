@@ -1,6 +1,7 @@
 package sheet
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/formula"
@@ -271,4 +272,65 @@ func (w *Workbook) rewriteUsers(k string, rw formula.Rewriter) {
 			u.s.place(u.a, out)
 		}
 	}
+}
+
+// TableInfo is a table as formulas find it: a table's, or a region's.
+type TableInfo struct {
+	Name  string
+	Sheet *Sheet
+	// Range is its cells, header row included, when Shown.
+	Range Rect
+	shown bool
+	Cols  []string
+	// Region is set on a region's table, which its source names and
+	// shapes: the commands that change tables leave it alone.
+	Region bool
+}
+
+// Shown reports whether the table has cells: a region's may have none
+// yet.
+func (t TableInfo) Shown() bool { return t.shown }
+
+// TableInfos returns every table formulas can read, sheet by sheet:
+// each sheet's tables in the order they were made, then its regions'.
+func (w *Workbook) TableInfos() []TableInfo {
+	var out []TableInfo
+	for _, s := range w.sheets {
+		for _, t := range s.view.tables {
+			out = append(out, TableInfo{Name: t.Name, Sheet: s, Range: t.Range, shown: true, Cols: slices.Clone(t.Cols)})
+		}
+		for _, r := range s.regions.list {
+			v, _ := w.findTable(nameKey(r.Name))
+			out = append(out, TableInfo{Name: r.Name, Sheet: s, Range: v.r, shown: v.ok, Cols: v.cols, Region: true})
+		}
+	}
+	return out
+}
+
+// LookupTable finds a table formulas can read by name, ignoring case.
+func (w *Workbook) LookupTable(name string) (TableInfo, bool) {
+	k := nameKey(name)
+	for _, t := range w.TableInfos() {
+		if nameKey(t.Name) == k {
+			return t, true
+		}
+	}
+	return TableInfo{}, false
+}
+
+// TableLook says how the cell at a draws as part of a table: in the
+// header row's style, or on a band (every other data row), when its
+// table has them.
+func (s *Sheet) TableLook(a Addr) (header, band bool) {
+	for i := range s.view.tables {
+		t := &s.view.tables[i]
+		if !t.Range.Contains(a) {
+			continue
+		}
+		if a.Row == t.Range.From.Row {
+			return t.Header, false
+		}
+		return false, t.Banded && (a.Row-t.Range.From.Row)%2 == 0
+	}
+	return false, false
 }

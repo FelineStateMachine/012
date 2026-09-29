@@ -254,6 +254,8 @@ func (m *Model) contextLineText() string {
 		if left, right, ok = suggest.SignatureLine(&m.th, m.width, m.storedFormula(prefix), len(prefix), m.locale().ArgSep(), m.th.KeyHints("Shift+arrows", "range", "Esc", "back")); !ok {
 			left = m.th.KeyHints("Arrows", "pick a cell", "Shift+arrows", "pick a range", "Enter", "accept", "Esc", "back")
 		}
+	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.IsFormula() && m.inTable():
+		left, right, _ = suggest.TableLine(&m.th, m.width, m.entrySheet(), m.storedFormula(m.line.Buf), m.line.Pos, m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
 	case (m.mode == modeEnter || m.mode == modeEdit) && m.line.IsFormula() && m.inFunction():
 		left, right, _ = suggest.SignatureLine(&m.th, m.width, m.storedFormula(m.line.Buf), m.line.Pos, m.locale().ArgSep(), m.th.KeyHints("Enter", "accept", "Esc", "cancel"))
 	case m.mode == modeEnter && m.line.IsFormula():
@@ -276,7 +278,7 @@ func (m *Model) readyContext() (left, right string) {
 		return m.trace.line(&m.th, m.width, m.sheet)
 	}
 	for _, f := range []func() string{m.readyLine, func() string { return m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur)) },
-		m.errorLine, m.validationLine, m.noteLine, m.spillLine, m.regionLine, m.recordingLine} {
+		m.errorLine, m.validationLine, m.noteLine, m.spillLine, m.regionLine, m.tableLine, m.recordingLine} {
 		if left = f(); left != "" {
 			return left, ""
 		}

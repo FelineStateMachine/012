@@ -66,6 +66,12 @@ type Theme struct {
 	// FilterOn is the filter mark in the header of a column whose filter
 	// hides something (the mark itself also changes, from ▾ to ▼).
 	FilterOn lipgloss.Style
+	// TableHeader is a table's header row when the table styles it,
+	// bold and underlined so it reads without color. TableBand is every
+	// other data row of a banded table: a band of the background moved
+	// toward the text, with the text on it readable.
+	TableHeader lipgloss.Style
+	TableBand   lipgloss.Style
 	// NoteMark is the mark in the top-right corner of a cell with a note,
 	// like Sheets' small triangle.
 	NoteMark lipgloss.Style
@@ -229,7 +235,10 @@ func roles(dark bool) Theme {
 	filterFg := lipgloss.Yellow
 	noteFg := lipgloss.Yellow
 	borderFg := lipgloss.White
+	// Bands are the header's gray, lightest on a light terminal.
+	bandBg, bandFg := lipgloss.BrightBlack, lipgloss.BrightWhite
 	if !dark {
+		bandBg, bandFg = lipgloss.White, lipgloss.Black
 		borderFg = lipgloss.Black
 		noteFg = lipgloss.Magenta
 		headerBg, headerFg = lipgloss.White, lipgloss.Black
@@ -275,13 +284,15 @@ func roles(dark bool) Theme {
 		ProgressTodo: lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
 		Copied: lipgloss.NewStyle().Foreground(lipgloss.Magenta).
 			UnderlineStyle(lipgloss.UnderlineDashed).UnderlineSpaces(true),
-		FrozenLine: lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
-		Tab:        lipgloss.NewStyle(),
-		TabActive:  accent.Bold(true),
-		TabHover:   lipgloss.NewStyle().Foreground(bar).Bold(true).Underline(true),
-		FilterOn:   lipgloss.NewStyle().Background(headerBg).Foreground(filterFg).Bold(true),
-		NoteMark:   lipgloss.NewStyle().Foreground(noteFg),
-		CellBorder: lipgloss.NewStyle().Foreground(borderFg),
+		FrozenLine:  lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
+		Tab:         lipgloss.NewStyle(),
+		TabActive:   accent.Bold(true),
+		TabHover:    lipgloss.NewStyle().Foreground(bar).Bold(true).Underline(true),
+		FilterOn:    lipgloss.NewStyle().Background(headerBg).Foreground(filterFg).Bold(true),
+		NoteMark:    lipgloss.NewStyle().Foreground(noteFg),
+		TableHeader: lipgloss.NewStyle().Foreground(bar).Bold(true).Underline(true),
+		TableBand:   lipgloss.NewStyle().Background(bandBg).Foreground(bandFg),
+		CellBorder:  lipgloss.NewStyle().Foreground(borderFg),
 
 		MenuBar:           lipgloss.NewStyle(),
 		MenuAccel:         lipgloss.NewStyle().Underline(true),

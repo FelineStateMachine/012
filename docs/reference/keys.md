@@ -96,6 +96,7 @@ The rest of the formats are in the Format menu.
 | Space | Check or uncheck the selected checkboxes (Insert > Checkbox); elsewhere Space starts an entry | [Conditional formatting and data validation](../sheets/rules.md#data-validation) |
 | Alt+, Alt+. | Trace precedents, dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) | [Building formulas](../formulas/building.md) |
 | Alt+Shift+F | Frequency table of the active column on a new sheet, as VisiData's Shift+F | [Pivot tables](../sheets/pivots.md#frequency-tables) |
+| Ctrl+Alt+T | Make the selection, or the data around the active cell, a table whose first row names its columns (Format > Convert to table) | [Tables](../sheets/tables.md) |
 | Shift+F2 | Add or edit the active cell's note; Alt+Enter or Shift+Enter starts a new line | [Notes and protection](../sheets/notes-protection.md#notes) |
 
 Tools with no key of their own have their keys on screen while they're
@@ -107,7 +108,9 @@ open, and in their docs: sorting by several columns
 ([Charts](../sheets/charts.md)) and linked files (Data > Linked file, where
 Enter keeps every row and L the last ones:
 [Following files](../files/following.md)). In Data > Named ranges, Enter goes to a
-range, F2 renames or repoints it and Ctrl+D deletes it.
+range, F2 renames or repoints it and Ctrl+D deletes it; in Data > Table >
+Tables, Enter goes to a table, F2 renames it and Ctrl+D removes it,
+keeping its cells.
 
 ## Files, menus and help
 

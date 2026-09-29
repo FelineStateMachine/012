@@ -197,5 +197,5 @@ func (m *Model) regionLine() string {
 			from = s.Name()
 		}
 	}
-	return m.th.Muted.Render("Output of " + r.Name + " from " + from + ", nu." + r.Name + " in formulas")
+	return m.th.Muted.Render("Output of " + r.Name + " from " + from + ", " + r.Name + "[column] in formulas")
 }

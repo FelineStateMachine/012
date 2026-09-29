@@ -66,11 +66,12 @@ type Suggestion struct {
 	Detail string // the signature, the range a name stands for, or a sheet's cells
 	Desc   string
 	Fn     bool // a function: accepting it adds "("
+	Column bool // a table's column or item: accepting it adds "]"
 }
 
-// For lists the functions, named ranges and sheets for word, typed on
-// sh: those starting with it first (names, then sheets, then
-// functions), then, from two letters on, those containing it, such as
+// For lists the functions, named ranges, tables and sheets for word,
+// typed on sh: those starting with it first (names, then tables, then
+// sheets, then functions), then, from two letters on, those containing it, such as
 // COUNTIFS for "ifs". A word that is already a cell reference only gets
 // those that start with it, and a word in quotes ('Q3) only sheets.
 func For(sh *sheet.Sheet, word string) []Suggestion {
@@ -89,6 +90,9 @@ func For(sh *sheet.Sheet, word string) []Suggestion {
 	}
 	for _, n := range sh.Names() {
 		add(Suggestion{Name: n.Name, Detail: n.Ref(), Desc: "Named range " + n.Name + ": " + n.Ref()}, strings.ToUpper(n.Name))
+	}
+	for _, t := range sh.Book().TableInfos() {
+		add(tableSuggestion(sh, t), strings.ToUpper(t.Name))
 	}
 	for _, s := range otherSheets(sh) {
 		add(sheetSuggestion(s), strings.ToUpper(s.Name()))
@@ -112,10 +116,18 @@ func (l *List) Shown(h Host) ([]Suggestion, int) {
 		return nil, 0
 	}
 	c := formula.ScanCaret(h.Stored(line.Buf), line.Pos)
-	if c.Word == "" {
+	var list []Suggestion
+	switch {
+	case c.Table != "":
+		if word, at := strings.CutPrefix(c.Word, "@"); at {
+			c.Word, c.WordStart = word, c.WordStart+1
+		}
+		list = columnSuggestions(h.EntrySheet(), c.Table, c.Word)
+	case c.Word == "":
 		return nil, 0
+	default:
+		list = For(h.EntrySheet(), c.Word)
 	}
-	list := For(h.EntrySheet(), c.Word)
 	if len(list) == 0 || len(list) == 1 && !list[0].Fn && strings.EqualFold(list[0].Name, c.Word) {
 		return nil, 0
 	}
@@ -153,6 +165,9 @@ func (l *List) accept(h Host, s Suggestion, start int) {
 	rest := line.Buf[line.Pos:]
 	if s.Fn && (len(rest) == 0 || rest[0] != '(') {
 		text = append(text, '(')
+	}
+	if s.Column && (len(rest) == 0 || rest[0] != ']') {
+		text = append(text, ']')
 	}
 	if strings.HasSuffix(s.Name, "!") {
 		rest = trimSheetEnd(rest) // the rest of a sheet name typed before
