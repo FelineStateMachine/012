@@ -45,7 +45,7 @@ rest: building from a clone, importing files, `012 serve` and settings.
 - **A stage in a pipeline**: `ls | to nuon | ^012 --pipe | from nuon`
   edits a table on the terminal and sends it on with its types
   ([pipelines](docs/nushell/pipelines.md)).
-- **Nushell notebooks**: `012 nu` (or `!` in any workbook) runs nushell
+- **Nushell notebooks**: `012 nu` (or Data > Shell in any workbook) runs nushell
   pipelines whose tables become live, named regions of the sheet;
   `$r1` reads one in the next command, and refreshing it runs what reads
   it ([notebooks](docs/nushell/notebooks.md)).

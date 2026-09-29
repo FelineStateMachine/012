@@ -10,7 +10,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/nuprompt"
 )
 
-// Notebooks: ! (or Data > Shell, or 012 nu) opens a nushell prompt on
+// Notebooks: Data > Shell (or ! on a notebook sheet, or 012 nu) opens a nushell prompt on
 // the formula bar. Each line run becomes a region of the notebook sheet
 // (the one shown, or the first, or a new Shell 1): a live table named
 // r1, r2 and so on, or name = pipeline to name it, which later commands
@@ -52,7 +52,15 @@ func init() {
 			enabled: func(m *Model) bool { return m.shell.running != nil },
 			run:     func(m *Model) tea.Cmd { m.stopShell(); return nil }},
 	)
-	keymap["!"] = "nu.prompt"
+	// ! opens the prompt only on a notebook sheet; elsewhere it types
+	// itself, so an entry can start with "!" as in Sheets.
+	register(&command{id: "nu.prompt_key", macro: macroNever, title: "Shell (notebook sheet)",
+		desc:    "Run a nushell pipeline; its table becomes a live region of this notebook sheet",
+		typed:   true,
+		enabled: func(m *Model) bool { return m.sheet.Notebook() },
+		hidden:  func(*Model) bool { return true },
+		run:     func(m *Model) tea.Cmd { return m.openShell("") }})
+	keymap["!"] = "nu.prompt_key"
 	keymap["f9"] = "nu.run_all"
 }
 

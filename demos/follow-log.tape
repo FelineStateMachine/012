@@ -1,6 +1,7 @@
 # Following a log: a JSON lines log grows while 012 follows it in a
 # linked region (Data > Linked file > Link a table, here from the
-# palette). A shell region reads it as $app and keeps the errors;
+# palette). The shell prompt (Data > Shell, from the palette too) makes
+# a region that reads it as $app and keeps the errors;
 # refreshing it later reads the rows the log has now. The log is
 # data/requests.jsonl written a line at a time. Needs nu on the PATH.
 Output out/follow-log.gif
@@ -25,7 +26,10 @@ Sleep 1s
 Enter
 Sleep 3.5s
 Screenshot out/stills/follow-log-linked.png
-Type "!"
+Ctrl+K
+Type@100ms "shell"
+Sleep 600ms
+Enter
 Sleep 600ms
 Type "errors = $app | where status >= 500 | select time path status ms"
 Sleep 500ms

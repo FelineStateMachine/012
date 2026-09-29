@@ -44,14 +44,17 @@ func TestNotebookWithNu(t *testing.T) {
 	s.waitFor("5.0 MB")
 }
 
-// ! in an ordinary workbook makes a Shell 1 sheet, and $in is the
-// selection.
+// Data > Shell in an ordinary workbook makes a Shell 1 sheet, and $in is
+// the selection. (! types itself there; it opens the prompt only on a
+// notebook sheet.)
 func TestShellFromWorkbook(t *testing.T) {
 	needNu(t)
 	s := start(t, "")
 	s.keys("n", "<enter>", "3", "<enter>", "4", "<enter>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>", "<shift+down>")
 	s.waitFor(" A1:A4 ")
-	s.keys("!", "$in | math sum", "<enter>")
+	s.keys("<ctrl+k>", "Shell")
+	s.waitFor("Run a nushell pipeline")
+	s.keys("<enter>", "$in | math sum", "<enter>")
 	s.waitFor("r1: 1 row")
 	s.waitFor("Shell 1")
 	s.waitFor("       7")

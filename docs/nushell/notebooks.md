@@ -23,9 +23,10 @@ $sales | where Units > 250 | sort-by Units --reverse
 012 nu work.012     # open one, or make it
 ```
 
-In any workbook, `!` (or **Data > Shell**, or the palette) opens the
-same prompt, writing into the workbook's notebook sheet, or a new one
-named Shell 1 at the first command. Commands run `nu` as a separate
+In any workbook, **Data > Shell** (or the palette, or `!` on a notebook
+sheet) opens the same prompt, writing into the workbook's notebook
+sheet, or a new one named Shell 1 at the first command. On other sheets
+`!` starts an entry, as typing does. Commands run `nu` as a separate
 process, so [nushell](https://www.nushell.sh/book/installation.html)
 must be installed; without it, the prompt says so and the rest of 012
 works as before.
