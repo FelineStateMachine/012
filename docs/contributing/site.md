@@ -26,13 +26,18 @@ site`); the site sits at the root of its host.
 ## Where it lives
 
 The site is published at [f58b.n.zip](https://f58b.n.zip/), a public,
-permanent address on the owner's nzip server. To publish a new build to
-the same address:
+permanent address on the owner's nzip server, which also serves the
+install scripts and the latest release's archives. To publish a new
+build to the same address:
 
 ```sh
-SITE_URL=https://f58b.n.zip make site
+SITE_URL=https://f58b.n.zip make site-release
 nzip site push website/build public:012
 ```
+
+`make site-release` is `make site` with the release added
+([Publishing](releasing.md#publishing)); a push of a plain `make site`
+build would take the install script and the archives off the site.
 
 The target keeps its policies (public, no expiry) between pushes.
 

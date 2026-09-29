@@ -5,12 +5,37 @@ sidebar_position: 2
 
 # Install and run
 
+012 is one binary. On macOS or Linux, the install script puts the latest
+release in `~/.local/bin`:
+
+```sh
+curl -fsSL https://f58b.n.zip/install.sh | sh
+```
+
+It picks the archive for your OS and architecture, checks it against the
+release's `SHA256SUMS` and says where it put `012`. `PREFIX=/opt/012`
+installs into `/opt/012/bin` instead, and `sh -s -- --system` into
+`/usr/local/bin`, running `sudo` (and printing the command first) only
+when that directory isn't writable; `sh -s -- --version v0.3.0` picks a
+release. On Windows, in PowerShell:
+
+```powershell
+irm https://f58b.n.zip/install.ps1 | iex
+```
+
+which installs `012.exe` into `%LOCALAPPDATA%\Programs\012\bin` and adds
+that folder to your PATH, without administrator rights. The archives and
+`SHA256SUMS` are also at
+[f58b.n.zip/releases/latest/](https://f58b.n.zip/releases/latest/) to
+download by hand.
+
+With Go 1.27 or later, build it from source instead:
+
 ```sh
 go install github.com/FelineStateMachine/012/cmd/012@latest
 ```
 
-012 needs Go 1.27 to build and is one pure-Go binary. From a clone,
-`make build` puts it in `bin/012`.
+From a clone, `make build` puts it in `bin/012`.
 
 ```sh
 012                  # a new sheet
