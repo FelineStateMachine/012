@@ -39,6 +39,17 @@ type Workbook struct {
 
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
+	// cycles keeps the buffers finding cycles takes (cyclefind.go).
+	cycles *cycleGraph
+	// spillCycles counts, while arrays settle, the times each was found
+	// blocked by a cycle (spillblock.go).
+	spillCycles map[loc]int
+	// spillRechecked is set once an array still blocked by a cycle has
+	// had every array checked again in the recalculation.
+	spillRechecked bool
+	// circArrays counts the arrays blocked by a cycle (spillblock.go),
+	// so arrays that stop spilling look for them only when there are.
+	circArrays int
 
 	remote RemoteSource // answers JEV functions, see remote.go
 	trace  any          // the owner's telemetry trace, see observe.go

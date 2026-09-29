@@ -22,7 +22,13 @@ const maxJEVRounds = 16
 // workbook's formulas ask, a few questions at a time, until none is
 // waiting, each within timeout. It returns how many were asked.
 func AnswerJEV(ctx context.Context, w *sheet.Workbook, client jev.Client, timeout time.Duration) int {
-	cache := jev.NewCache()
+	return AnswerJEVFrom(ctx, w, client, jev.NewCache(), timeout)
+}
+
+// AnswerJEVFrom is AnswerJEV with the answers kept in cache, which a
+// caller opening the workbook again and again (012 mcp) keeps, so each
+// question is asked once.
+func AnswerJEVFrom(ctx context.Context, w *sheet.Workbook, client jev.Client, cache *jev.Cache, timeout time.Duration) int {
 	w.SetRemote(cache)
 	asked := 0
 	for range maxJEVRounds {

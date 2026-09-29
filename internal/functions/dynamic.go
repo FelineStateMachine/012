@@ -296,7 +296,10 @@ func sequence(args []Node, get lookup) Value {
 	if err != nil {
 		return *err
 	}
-	if rows < 1 || cols < 1 || tooBig(rows, cols) {
+	switch {
+	case rows < 1 || cols < 1:
+		return value.ErrNum // as Sheets; Excel says #CALC!
+	case tooBig(rows, cols):
 		return value.ErrValue
 	}
 	out := NewArray(rows, cols)

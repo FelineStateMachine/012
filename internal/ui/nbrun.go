@@ -66,6 +66,10 @@ type nbState struct {
 	// streamTick is set while streaming cells' heads are ticking:
 	// nbstream.go.
 	streamTick bool
+	// out is the outputs' grids (nbgrid.go), and frame counts the frames
+	// drawn, which the grids clear what they keep for a frame by.
+	out   outGrids
+	frame int
 }
 
 // nbRuns are the cells running, waiting and streaming. In a room of

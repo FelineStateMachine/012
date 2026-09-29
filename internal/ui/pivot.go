@@ -60,6 +60,10 @@ func (m *Model) refuseEdit(r sheet.Rect, keepsSpills bool) bool {
 	if !m.mayEdit() {
 		return true
 	}
+	if m.out != nil {
+		m.note = "An output can't be changed: G sends it to a sheet, where its copy can"
+		return true
+	}
 	if m.sheet.InPivot(r) {
 		m.note = sheet.ErrPivotEdit.Error()
 		return true

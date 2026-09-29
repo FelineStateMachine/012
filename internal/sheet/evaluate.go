@@ -51,8 +51,8 @@ type evaluator struct {
 // the sheets, keyed by address as on one sheet, and each sheet's lookup
 // is made once, so evaluating a formula allocates nothing for sheets.
 func (w *Workbook) evaluate() {
-	w.Circular = false
-	e := &evaluator{w: w}
+	e := &evaluator{w: w, cycle: w.findCycles()}
+	w.Circular = e.cycle != nil
 	// Running aggregates shared by the recalculation (rangememo.go). A
 	// cell put off abandons an extension part way: its checkpoints stop
 	// at the last row it finished, and the next read goes on from there.

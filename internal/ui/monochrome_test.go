@@ -208,10 +208,11 @@ func cellsOf(l []monoCell, text string) []monoCell {
 
 // A notebook's states read without color: the active cell marked by ▌
 // at its left, the other cells selected with it by ▎, the cell being
-// edited in a heavy box, the mode in words, an output table's header
-// bold and underlined, a stale output and a failure in words.
+// edited in a heavy box, the mode in words, an output's grid entered by
+// its bar, OUTPUT and its pointer, a stale output and a failure in words.
 func TestMonochromeNotebook(t *testing.T) {
 	m, nu := notebookModel(t, map[string]string{"ls": lsOut, "$files | first": "{name: a.txt}"})
+	m.height = 30
 	write(t, m, "files = ls")
 	write(t, m, "$files | first")
 	write(t, m, "nope")
@@ -225,12 +226,14 @@ func TestMonochromeNotebook(t *testing.T) {
 	if bar("[1]:") != "▎" || bar("[2]:") != "▎" || bar("[3]:") != "▌" {
 		t.Errorf("the cells selected: %q %q %q", bar("[1]:"), bar("[2]:"), bar("[3]:"))
 	}
-	press(t, m, "<home>")
-	hdr := findLine(t, m, "name")
-	if c := cellsOf(hdr, "name"); !every(c, true, func(c monoCell) bool { return c.bold && c.underline == "1" }) {
-		t.Errorf("an output's header: %+v", c)
+	press(t, m, "<home>", "<down>", "<enter>")
+	if c := cellsOf(findLine(t, m, "a.txt"), "a.txt"); !every(c, true, isReverse) {
+		t.Errorf("the active cell of an output's grid: %+v", c)
 	}
-	press(t, m, "<end>")
+	if !strings.Contains(cellText(monoLine(m, menuLine)), " OUTPUT ") || bar("1  a.txt") != "▌" {
+		t.Error("working in an output isn't in words")
+	}
+	press(t, m, "<esc>", "<end>")
 	if !strings.Contains(cellText(findLine(t, m, "× Command")), "× Command `nope` not found") {
 		t.Error("the failure isn't in words")
 	}

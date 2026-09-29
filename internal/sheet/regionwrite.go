@@ -21,12 +21,19 @@ func (s *Sheet) meta(k string) *regionMeta {
 	return me
 }
 
-// regionTouched notes that the cell at a is being placed: a region
-// blocked by it tries again, its source sending its rows again.
-func (s *Sheet) regionTouched(a Addr) {
+// regionTouched notes that c is being placed at a: a region blocked by
+// it tries again, and one whose table it lands in (a blank cell of it,
+// pasted over) finds it in its way, its source sending its rows again
+// either way.
+func (s *Sheet) regionTouched(a Addr, c *Cell) {
 	for _, r := range s.regions.list {
-		if me := s.regionMeta[nameKey(r.Name)]; me != nil && me.why != "" && me.need.Contains(a) {
+		me := s.regionMeta[nameKey(r.Name)]
+		switch {
+		case me == nil:
+		case me.why != "" && me.need.Contains(a):
 			me.stale = true
+		case me.why == "" && me.has && me.written.Contains(a) && !c.Blank():
+			me.stale, me.placed = true, true
 		}
 	}
 }
@@ -70,6 +77,7 @@ func (s *Sheet) writeRegions() []loc {
 		if s.regionIndex(k) < 0 {
 			changed = append(changed, s.clearOwned(me, noRect)...)
 			delete(s.regionMeta, k)
+			s.wakeAllRegions()
 			for u := range s.wb.nameUsers[nameKey(regionPrefix+k)] {
 				changed = append(changed, u) // the name reads nothing now
 			}
@@ -78,16 +86,20 @@ func (s *Sheet) writeRegions() []loc {
 	for _, r := range s.regions.list {
 		if me := s.meta(nameKey(r.Name)); me.reread {
 			me.reread = false
-			changed = append(changed, s.emptyRegion(me)...)
+			changed = append(changed, s.emptyRegion(r, me)...)
 		}
 	}
 	return changed
 }
 
-// emptyRegion clears a region's cells, outside the undo history, to be
-// fed again whole, which it is marked stale for.
-func (s *Sheet) emptyRegion(me *regionMeta) []loc {
+// emptyRegion clears the region r's cells, outside the undo history,
+// to be fed again whole, which it is marked stale for. The formulas
+// naming it read #REF! until then, so they're among the cells returned.
+func (s *Sheet) emptyRegion(r Region, me *regionMeta) []loc {
 	changed := s.clearOwned(me, noRect)
+	if me.has {
+		changed = s.regionReaders(r, changed)
+	}
 	me.has, me.rows, me.cols, me.why = false, 0, 0, ""
 	me.data, me.stale = 0, true
 	return changed
@@ -104,16 +116,22 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 	cols, nrows := tableSize(me, header, rows, reset)
 	was, had, shape := me.written, me.has, [2]int{me.rows, me.cols}
 	need := s.tableArea(r, cols, nrows)
-	me.why = ""
+	changed := s.makeRoomAt(r)
+	whole := me.why != "" || me.placed // it may not hold every cell it wrote
+	me.why, me.placed = "", false
 	switch {
 	case need.To.Row >= MaxRows || need.To.Col >= MaxCols:
 		me.why = "can't show: it would go past the edge of the sheet"
 	default:
-		if at, ok := s.inTheWay(need, me); ok {
+		at, blocked, later := s.inTheWay(r, need, me, whole)
+		if blocked {
 			me.why = "can't show: it would overwrite data in " + at.String()
+			break
+		}
+		for _, q := range later {
+			changed = append(changed, s.giveWay(q, need)...)
 		}
 	}
-	var changed []loc
 	if me.why != "" {
 		me.need, me.rows, me.cols = need, 0, 0
 		need, header, rows, cols, nrows = Rect{From: r.At, To: r.At}, nil, nil, 0, 0
@@ -143,10 +161,16 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 		s.freedFor(c.a)
 	}
 	if !had || was != me.written || shape != [2]int{me.rows, me.cols} { // moved, or its table changed shape
-		for _, k := range []string{nameKey(r.FormulaName()), nameKey(r.Name)} {
-			for u := range s.wb.nameUsers[k] {
-				changed = append(changed, u)
-			}
+		changed = s.regionReaders(r, changed)
+	}
+	return changed
+}
+
+// regionReaders adds the formulas naming the region r to changed.
+func (s *Sheet) regionReaders(r Region, changed []loc) []loc {
+	for _, k := range []string{nameKey(r.FormulaName()), nameKey(r.Name)} {
+		for u := range s.wb.nameUsers[k] {
+			changed = append(changed, u)
 		}
 	}
 	return changed
@@ -205,30 +229,6 @@ func (s *Sheet) writeRegionCell(a Addr, c LiveCell, me *regionMeta, changed []lo
 	return changed
 }
 
-// inTheWay returns a cell of need holding something the region with
-// meta me didn't write. Only what the region didn't hold is looked at:
-// nothing else can be placed in a region's cells.
-func (s *Sheet) inTheWay(need Rect, me *regionMeta) (Addr, bool) {
-	// An array's cells are in the way even where it spilled blanks, as
-	// another array's are (spill.go).
-	for a, sp := range s.spills {
-		if x, ok := intersectRect(sp.area, need); ok && sp.why == "" {
-			if x.From != a {
-				return x.From, true
-			}
-			return a, true
-		}
-	}
-	for _, part := range fresh(need, me) {
-		for a := range s.cells.anyKeysIn(part) {
-			if s.cells.filledAt(a) && !s.regionOwns(a, me) {
-				return a, true
-			}
-		}
-	}
-	return Addr{}, false
-}
-
 // regionCell reports whether a region holds the cell at a.
 func (s *Sheet) regionCell(a Addr) bool {
 	if len(s.regions.list) == 0 {
@@ -274,7 +274,7 @@ func (s *Sheet) regionsGiveWay(area Rect) []loc {
 	var changed []loc
 	for _, r := range s.regions.list {
 		if me := s.regionMeta[nameKey(r.Name)]; me != nil && me.has && overlaps(me.written, area) {
-			changed = append(changed, s.emptyRegion(me)...)
+			changed = append(changed, s.emptyRegion(r, me)...)
 		}
 	}
 	return changed
@@ -309,5 +309,6 @@ func (s *Sheet) clearOwned(me *regionMeta, keep Rect) []loc {
 		s.setDerived(a, s.cells.get(a).leftover())
 		changed[i] = loc{s, a}
 	}
+	s.wakeRegions(me, gone)
 	return changed
 }

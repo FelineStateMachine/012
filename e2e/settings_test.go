@@ -3,14 +3,14 @@ package e2e
 import "testing"
 
 // money types a few amounts where binary floating point is off by a
-// hair: whole cents of $4.35 come to 434, $0.10 plus $0.20 isn't 0.3,
+// hair: whole cents of $4.35 come to 434, $0.10 plus $0.20 less 0.3 isn't 0,
 // and the difference shows in General format.
 func money(s *session) {
 	s.keys("Coffee", "<tab>", "$4.35", "<enter>")
 	s.keys("Tip", "<tab>", "$0.10", "<enter>")
 	s.keys("Fee", "<tab>", "$0.20", "<enter>")
 	s.keys("Cents", "<tab>", "=INT(B1*100)", "<enter>")
-	s.keys("Is 0.30?", "<tab>", "=B2+B3=0.3", "<enter>")
+	s.keys("Is 0.30?", "<tab>", "=B2+B3-0.3=0", "<enter>")
 	s.keys("Residue", "<tab>", "=0.1+0.2-0.3", "<enter>")
 	s.waitForBar("A7", "")
 }

@@ -300,8 +300,7 @@ func (r *randBook) editSheets(e *edits) string {
 		return fmt.Sprintf("rename %s (%v)", s.name, err)
 	}
 	rg := e.rect()
-	r.wb.DeleteName("Total")
-	err := r.wb.DefineName("Total", s, rg)
+	err := r.wb.EditName("Total", "Total", s, rg)
 	return fmt.Sprintf("Total = %s!%s (%v)", s.name, rg, err)
 }
 

@@ -53,8 +53,8 @@ func (v *View) bar(i int, kind rowKind) string {
 	}
 	th := v.h.Theme()
 	style := th.CellBar
-	if v.edit.on {
-		style = th.CellBarEdit
+	if v.edit.on || i == v.sel && v.onOut && v.shown(v.h.Cells()[i]).entered() {
+		style = th.CellBarEdit // a grid entered takes keys as a cell edited does
 	}
 	if i != v.sel {
 		return style.Render("▎")

@@ -44,22 +44,8 @@ func TestRandomEdits(t *testing.T) {
 		for i := range data {
 			data[i] = byte(rng.Uint32())
 		}
-		t.Run(fmt.Sprint(seed), func(t *testing.T) {
-			if why, known := randKnown[seed]; known && *randSteps == 40 {
-				t.Skip(why)
-			}
-			checkRandomEdits(t, data, *randSteps)
-		})
+		t.Run(fmt.Sprint(seed), func(t *testing.T) { checkRandomEdits(t, data, *randSteps) })
 	}
-}
-
-// randKnown are the seeds, of the default 40 edits, whose failures are
-// known and on the roadmap, with why. Dynamic cycle detection finds a
-// cycle only when evaluation walks it: a range read that stops at an
-// error, or an IF branch not taken, hides one that reopening, computing
-// in another order, finds.
-var randKnown = map[int]string{
-	124: "a cycle hidden behind a range read that stops at an error (roadmap: cycles found from the formulas as written)",
 }
 
 // FuzzRandomEdits reads the edits from the fuzzer's bytes: go test
@@ -132,7 +118,7 @@ func randomEdits(data []byte, steps int) (string, []string) {
 			break
 		}
 		log = append(log, r.edit(e))
-		r.feedStale()
+		feedStale(r.wb, r.feeds)
 	}
 	end, endVals := r.save(), bookValues(r.wb)
 	if d := r.reopenDiff(end, endVals); d != "" {
@@ -144,6 +130,7 @@ func randomEdits(data []byte, steps int) (string, []string) {
 		undone++
 	}
 	feedAll(r.wb, startFeeds)
+	feedStale(r.wb, startFeeds)
 	if got := r.save(); !bytes.Equal(got, start) {
 		return fmt.Sprintf("undoing %d steps saves differently:\n%s", undone, lineDiff(string(start), string(got))), log
 	}
@@ -154,6 +141,7 @@ func randomEdits(data []byte, steps int) (string, []string) {
 		r.wb.Redo()
 	}
 	feedAll(r.wb, r.feeds)
+	feedStale(r.wb, r.feeds)
 	if got := r.save(); !bytes.Equal(got, end) {
 		return "redoing saves differently:\n" + lineDiff(string(end), string(got)), log
 	}
@@ -161,7 +149,7 @@ func randomEdits(data []byte, steps int) (string, []string) {
 		return "redoing: " + d, log
 	}
 	r.wb.RecalcAll()
-	r.feedStale()
+	feedStale(r.wb, r.feeds)
 	if d := diffValues(endVals, bookValues(r.wb)); d != "" {
 		return "recalculating everything: " + d, log
 	}
@@ -194,6 +182,7 @@ func newRandBook(e *edits) *randBook {
 	wb.DefineName("Total", s, NewRect(Addr{}, Addr{Col: 1, Row: 9}))
 	nb.SetNotebookCells("add cells", []notebook.Cell{{Kind: notebook.Note, Source: "# Files"}, {Source: "r1 = ls"}})
 	r.addOutput(s2, "r1", e)
+	feedStale(wb, r.feeds)
 	wb.ClearHistory()
 	return r
 }
@@ -232,11 +221,19 @@ func (r *randBook) feed(name string, e *edits) {
 }
 
 // feedStale sends the regions to be sent again (moved, put back by
-// undo) their source's rows, as the UI does after every change.
-func (r *randBook) feedStale() {
-	for _, name := range r.wb.StaleOutputs() {
-		if op, ok := r.feeds[name]; ok {
-			sendRows(r.wb, op)
+// undo, no longer blocked) their source's rows, as the UI does after
+// every change, until none is: a region sent may free cells another
+// was blocked by, or take cells another gives way with.
+func feedStale(wb *Workbook, feeds map[string]LiveOp) {
+	for range 8 {
+		stale := wb.StaleOutputs()
+		if len(stale) == 0 {
+			return
+		}
+		for _, name := range stale {
+			if op, ok := feeds[name]; ok {
+				sendRows(wb, op)
+			}
 		}
 	}
 }
@@ -250,8 +247,9 @@ func feedAll(wb *Workbook, feeds map[string]LiveOp) {
 
 // sendRows sends a region its rows. A table widens its columns to its
 // text the first time it shows, outside the undo history as its rows
-// are, so undoing the region leaves them wide; the edits change widths
-// themselves instead.
+// are, so undoing the region leaves them wide, as intended
+// (docs/files/following.md); the edits change widths themselves
+// instead.
 func sendRows(wb *Workbook, op LiveOp) {
 	if s, r, ok := wb.Region(op.Region); ok {
 		s.meta(nameKey(r.Name)).fitted = true
@@ -282,6 +280,7 @@ func (r *randBook) reopenDiff(file []byte, vals map[string]cellValue) string {
 		return "saves differently:\n" + lineDiff(string(file), string(again))
 	}
 	feedAll(wb, r.feeds)
+	feedStale(wb, r.feeds)
 	return diffValues(vals, bookValues(wb))
 }
 

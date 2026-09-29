@@ -65,10 +65,14 @@ func registerOutputCommands(onCode func(*Model) bool) {
 			run: func(m *Model) tea.Cmd { m.nbView().ToggleWhole(); return nil }},
 		&command{id: "nb.clear_output", macro: macroNever, title: "Clear output", desc: "Clear the selected cells' outputs",
 			enabled: onCode, run: func(m *Model) tea.Cmd { m.clearCellOutputs(); return nil }},
-		&command{id: "nb.open_output", macro: macroNever, title: "Open output", desc: "Show the selected cell's output full-screen, to sort and filter it",
+		&command{id: "nb.open_output", macro: macroNever, title: "Open output", desc: "Show the selected cell's output full-screen, a table as a grid to sort, filter and copy from",
 			enabled: onCode, run: func(m *Model) tea.Cmd {
-				if !m.nbView().OpenFull() {
+				v := m.nbView()
+				switch {
+				case !v.OpenFull():
 					m.note = "The cell has no output to open"
+				case v.Full().Grid() != nil:
+					m.enterGrid(v.Full().Grid().(*outGrid))
 				}
 				return nil
 			}},

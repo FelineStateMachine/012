@@ -230,6 +230,10 @@ func (p *scatterPlan) image(cv *canvas) {
 
 // disc fills a circle of radius r centered at cx, cy, antialiased.
 func (cv *canvas) disc(cx, cy, r float64, c color.RGBA) {
+	if cv.vec != nil {
+		cv.vec.disc(cx, cy, r, c)
+		return
+	}
 	for y := int(math.Floor(cy - r - 1)); y <= int(math.Ceil(cy+r+1)); y++ {
 		for x := int(math.Floor(cx - r - 1)); x <= int(math.Ceil(cx+r+1)); x++ {
 			d := math.Hypot(float64(x)+0.5-cx, float64(y)+0.5-cy)

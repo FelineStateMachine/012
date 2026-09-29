@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/numfmt"
 )
 
 // Binding powers, lowest to highest, following Sheets' precedence.
@@ -133,7 +135,7 @@ func (p *parser) prefix() (Node, error) {
 		if r, ok := p.lines(t, ""); ok {
 			return r, nil
 		}
-		v, err := strconv.ParseFloat(t.text, 64)
+		v, err := strconv.ParseFloat(numfmt.Entered(t.text), 64)
 		if err != nil {
 			return nil, &ParseError{Pos: t.pos, Msg: "Invalid number " + t.text}
 		}

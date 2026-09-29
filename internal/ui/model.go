@@ -135,6 +135,9 @@ type Model struct {
 	macros macroState  // a macro running, and trust in the file's macros: macrorun.go
 	follow followState // the linked regions followed, and trust in them: follow.go
 	nb     nbState     // notebooks' views and the cells running: notebook.go, nbrun.go
+	// out is the output whose grid this model is, nil for the
+	// program's own model: nbgrid.go.
+	out *outGrid
 
 	keyAt time.Time        // when the key the next frame answers was pressed, for telemetry
 	spans *telemetry.Trace // the spans open, which what the model starts nests in: trace.go
@@ -367,6 +370,9 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 // notebookReadyKey is a key on a notebook tab: the notebook's, or else
 // the UI's (menus, other sheets, Save), which never types into a cell.
 func (m *Model) notebookReadyKey(k tea.KeyPressMsg) tea.Cmd {
+	if g := m.gridIn(); g != nil {
+		return m.gridKey(g, k) // an output's grid entered: nbgridin.go
+	}
 	if cmd, ok := m.notebookKey(k); ok {
 		return cmd
 	}

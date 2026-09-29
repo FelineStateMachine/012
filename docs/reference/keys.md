@@ -147,7 +147,7 @@ on a sheet, `!` starts an entry as any character does.
 | Up, Down, `j`, `k`, Home, End, PgUp, PgDn | Move between cells and their outputs; on an output, Up and Down scroll its window first |
 | Shift+Up, Shift+Down, `K`, `J` | Select the cells passed over too, to run, delete, copy or move together |
 | Alt+Up, Alt+Down, Ctrl+Shift+Up, Ctrl+Shift+Down | Move the selected cells up or down |
-| Enter | Edit the cell; on an output, open it full-screen |
+| Enter | Edit the cell; on a table or record output, work in its grid; on another output, open it full-screen |
 | Shift+Enter, Ctrl+Enter, `r`, Alt+Enter | Run the cells and select the next; run them in place (`r` too); run them and add a cell under them |
 | F9 | Run every cell |
 | `a`, `b`, `!` | Add a code cell above, below; add one below and edit it |
@@ -168,11 +168,19 @@ on a sheet, `!` starts an entry as any character does.
 | Up, Down, Home, End, Ctrl+A, Ctrl+E | Move by the lines on screen; the start, the end of the line |
 | Word keys | As [anywhere text is edited](#entering-data); Ctrl+U deletes to the start of the line, not the cell |
 
-| Key | On an output full-screen |
+| Key | In a table's or record's output ([its grid](../nushell/notebooks.md#outputs-as-grids)) |
 |---|---|
-| Arrows, `h`, `j`, `k`, `l`, PgUp, PgDn, `g`, `G` | Move |
-| `s`, `S` | Sort by the pointer's column, A to Z or Z to A; again for the output's order |
-| `/` | Keep the rows holding what's typed; Esc clears it |
+| Arrows, Shift+arrows, Ctrl+arrows, PgUp, PgDn, Ctrl+A | Move and select, as [on a sheet](#selecting); the status line shows Sum, Avg and Count |
+| Ctrl+C | Copy the selection, to paste on a sheet or elsewhere |
+| Ctrl+F | Find in the output |
+| Alt+Down | With a filter on (Data > Create a filter), the column's filter |
+| Ctrl+Z, Ctrl+Y | Undo, redo a sort, a filter or a column's width |
+| Enter | Show the grid full-screen |
+| Esc | Deselect; then back from full-screen, then back to the notebook |
+
+| Key | On any other output full-screen |
+|---|---|
+| Up, Down, `j`, `k`, PgUp, PgDn, `g`, `G` | Move |
 | Esc, `q` | Back to the notebook |
 
 ## Keys the terminal has to tell apart
@@ -324,7 +332,8 @@ On a notebook's tab, as in JupyterLab:
 | Click a cell; Shift+click | Select it; select the cells between too |
 | Click in a code cell's box; double-click a note | Edit it, the caret where you clicked |
 | Click `▶` (`■` while it runs) | Run the cell (stop it) |
-| Click an output; double-click it | Select it; open it full-screen |
+| Click an output; double-click it | Select it (in a table's or record's grid, the cell clicked, to work in it); open it full-screen |
+| Drag in an output's grid; drag its column header's right edge | Select cells; resize the column |
 | Click left of an output | Hide it, or show it again |
 | Wheel over an output's window | Scroll the output, then the notebook |
 | Click a toolbar button | Run, stop, restart, run all, add, cut, copy, paste, or pick the cell's kind |

@@ -1,6 +1,6 @@
 # A notebook recipe: nushell cleans a CSV's money text into numbers, a
-# second cell totals it by region, and its output, sent to a sheet (G),
-# feeds a chart of the totals. Cells run with Esc then r, as the
+# second cell totals it by region, and Insert > Chart on its output's
+# grid sends the output to a sheet and charts the totals there. Cells run with Esc then r, as the
 # terminal (ttyd) sends Shift+Enter as Enter. Needs nu on the PATH.
 Output out/nu-recipe.gif
 Source lib/setup.tape
@@ -24,13 +24,7 @@ Escape
 Type "r"
 Sleep 2s
 Screenshot out/stills/nu-recipe-cells.png
-Type "G"
-Sleep 800ms
-Enter
-Sleep 1s
-Ctrl+K
-Type@100ms "next sheet"
-Sleep 500ms
+Down
 Enter
 Sleep 800ms
 Ctrl+K

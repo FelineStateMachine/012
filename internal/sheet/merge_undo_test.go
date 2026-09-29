@@ -52,3 +52,20 @@ func TestDeletedMergeFreesArray(t *testing.T) {
 		t.Errorf("B18 once the merge went = %v", v)
 	}
 }
+
+// Unmerging frees the arrays blocked by the merges it takes away, where
+// they reach past the range unmerged.
+func TestUnmergeFreesArrayPastTheRange(t *testing.T) {
+	s := New()
+	s.Merge(NewRect(at("H11"), at("H13")), MergeVertically)
+	s.Set(at("H11"), "=SEQUENCE(2)")
+	if v := s.Value(at("H11")); v != ErrRef {
+		t.Fatalf("H11 over a merge = %v", v)
+	}
+	if n := s.Unmerge(NewRect(at("G13"), at("H15"))); n != 1 {
+		t.Fatalf("unmerged %d", n)
+	}
+	if v := s.Value(at("H12")); v != num(2) {
+		t.Errorf("H12 once the merge went = %v", v)
+	}
+}

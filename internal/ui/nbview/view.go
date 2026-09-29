@@ -35,6 +35,10 @@ type Host interface {
 	Run(command string) tea.Cmd
 	// Edit keeps a cell's new source, as one undo step.
 	Edit(id int, source string)
+	// Grid draws cell id's output, a table or record, as the UI's
+	// grid: data is the grid's table as NUON (a record's fields as
+	// rows), of rows rows.
+	Grid(id int, data []byte, rows int) Grid
 }
 
 // State is how a cell's run stands, as the runner knows it.
@@ -162,6 +166,9 @@ func (v *View) shown(c notebook.Cell) *shown {
 			clear(v.outs) // outputs replaced by runs since
 		}
 		sh = parse(o)
+		if sh.data != nil {
+			sh.grid = v.h.Grid(c.ID, sh.data, sh.total)
+		}
 		v.outs[o] = sh
 	}
 	return sh

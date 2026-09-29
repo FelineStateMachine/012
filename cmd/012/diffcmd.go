@@ -19,7 +19,7 @@ import (
 const (
 	diffUsage = "usage: 012 diff a.012 b.012 [--format text|json|nuon] [--color auto|always|never]\n" +
 		"       012 diff --textconv file.012"
-	mergeUsage = "usage: 012 merge-driver base.012 ours.012 theirs.012 [path]"
+	mergeUsage = "usage: 012 merge-driver base.012 ours.012 theirs.012 [path] [--format text|json|nuon]"
 )
 
 // runDiff is 012 diff: exit status 0 when the workbooks are the same, 1
@@ -156,10 +156,13 @@ func textconv(path string, w io.Writer) error {
 // as a conflict to resolve; on trouble it leaves ours as it was and
 // exits 2.
 func runMergeDriver(args []string, e env) error {
-	a, err := parseArgs(args, nil, []string{"help"})
+	a, err := parseArgs(args, []string{"format"}, []string{"help"})
+	format, ferr := resultFormat(a)
 	switch {
 	case err != nil:
 		return usageError(err.Error(), mergeUsage)
+	case ferr != nil:
+		return usageError(ferr.Error(), mergeUsage)
 	case a.has("help"):
 		fmt.Fprintln(e.stdout, mergeUsage)
 		return nil
@@ -188,6 +191,11 @@ func runMergeDriver(args []string, e env) error {
 			return &exitError{code: 2, err: err}
 		}
 	}
+	if format != "text" {
+		if err := headless.Encode(e.stdout, format, mergeResult(conflicts)); err != nil {
+			return &exitError{code: 2, err: err}
+		}
+	}
 	if len(conflicts) == 0 {
 		return nil
 	}
@@ -206,4 +214,23 @@ func fileMode(path string) fs.FileMode {
 		return 0o644
 	}
 	return st.Mode().Perm()
+}
+
+// mergeConflict is a conflict as merge-driver --format json lists it.
+type mergeConflict struct {
+	Where  string `json:"where"`
+	Field  string `json:"field"`
+	Base   string `json:"base"`
+	Ours   string `json:"ours"`
+	Theirs string `json:"theirs"`
+	What   string `json:"what"`
+}
+
+// mergeResult is what merge-driver --format json writes.
+func mergeResult(conflicts []diff.Conflict) map[string]any {
+	out := []mergeConflict{}
+	for _, c := range conflicts {
+		out = append(out, mergeConflict{c.Where, c.Field, c.Base, c.Ours, c.Theirs, c.What})
+	}
+	return map[string]any{"conflicts": out}
 }

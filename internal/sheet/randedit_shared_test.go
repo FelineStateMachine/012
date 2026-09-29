@@ -57,7 +57,7 @@ func randomSharedEdits(data []byte, steps int, rng *rand.Rand) (string, []string
 		a := 1 + e.n(randAuthors)
 		r.wb.SetAuthor(a)
 		log = append(log, fmt.Sprintf("%d: %s", a, r.edit(e)))
-		r.feedStale()
+		feedStale(r.wb, r.feeds)
 	}
 	for undone := 0; ; undone++ {
 		a, ok := r.nextUndo(rng)
@@ -70,7 +70,7 @@ func randomSharedEdits(data []byte, steps int, rng *rand.Rand) (string, []string
 		if _, ok := r.wb.Undo(); !ok {
 			return fmt.Sprintf("author %d's undo of %q refused though nothing blocks it", a, label), log
 		}
-		r.feedStale()
+		feedStale(r.wb, r.feeds)
 		log = append(log, fmt.Sprintf("%d undoes %q", a, label))
 		if rng.IntN(3) > 0 {
 			continue
@@ -78,14 +78,15 @@ func randomSharedEdits(data []byte, steps int, rng *rand.Rand) (string, []string
 		if _, ok := r.wb.Redo(); !ok {
 			return fmt.Sprintf("author %d can't redo %q at once", a, label), log
 		}
-		r.feedStale()
+		feedStale(r.wb, r.feeds)
 		if got := r.save(); !bytes.Equal(got, before) {
 			return fmt.Sprintf("author %d's redo of %q saves differently:\n%s", a, label, lineDiff(string(before), string(got))), log
 		}
 		r.wb.Undo()
-		r.feedStale()
+		feedStale(r.wb, r.feeds)
 	}
 	feedAll(r.wb, startFeeds)
+	feedStale(r.wb, startFeeds)
 	if got := r.save(); !bytes.Equal(got, start) {
 		return "undoing every step saves differently:\n" + lineDiff(string(start), string(got)), log
 	}
