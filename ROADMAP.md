@@ -58,7 +58,6 @@ shared editing in section 3.
 | Item | Result | Size |
 |---|---|---|
 | A workbook of formulas where 012 matches Sheets on purpose (dates, text, rounding, errors, spills), results checked once in Sheets and asserted after; differences chosen on purpose listed in the docs | Formula results people rely on stay put | S |
-| Cycles found from the formulas as written rather than as evaluation walks them: a cycle behind an error that ends a range read or an IF branch not taken, and arrays and notebook outputs in each other's way, settle the same whatever order they're computed in (`-randedit.seeds=20000` still finds about one sequence in 2,500 that reopens differently, and `randKnown` skips one of the default seeds) | Every workbook reads the same when reopened | M |
 | A week of real use by the owner, problems triaged into this page | Rough edges found by use | S |
 
 ### 5. Around the grid
@@ -96,6 +95,7 @@ stream above rather than a design of their own.
 - An Excel-sized grid in compact column storage, with a ten-million-cell `max-cells` budget; operations cost the data, not the grid: [Bounds of support](docs/contributing/limits.md#sheet-size)
 - Undo steps in the compact form: clearing a full ten-million-cell sheet holds about what the sheet does, and a step past 1 GB asks first: [Bounds of support](docs/contributing/limits.md#undo)
 - Spilled cells and pivot results in the compact form, about 20 B each: [Bounds of support](docs/contributing/limits.md#sheet-size)
+- Cycles found from the formulas as written, and arrays and notebook outputs in each other's way settled the same in any order, so a workbook reads the same when reopened: [Formulas](docs/formulas/README.md#values-and-errors)
 
 **Finding and using features**
 

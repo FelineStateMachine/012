@@ -66,7 +66,9 @@ the same cells, blank ones of theirs included, the one whose formula
 comes first, row by row, spills and the other shows `#REF!`, whichever
 was typed first, so a sheet looks the same when opened again. An array that would
 spill into cells its formula reads, `=SORT(B8:D9)` in A9, is a circular
-dependency and shows `#REF!` too.
+dependency and shows `#REF!` too, as are arrays that would spill into
+each other's inputs, even when one of them, blocked and read as
+`#REF!`, would come out smaller and free the other.
 
 ## Names in a formula: LET and LAMBDA
 

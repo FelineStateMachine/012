@@ -49,6 +49,67 @@ func (s *Sheet) spillsIntoItself(a Addr, area Rect) (string, []loc) {
 	return "", nil
 }
 
+// spillCycle is spillsIntoItself for the array at a, whose spill was
+// old, holding it blocked once a cycle has blocked it twice in the
+// recalculation, freed between. Arrays whose sizes follow what they read
+// can go around a cycle without settling: blocked, one shows #REF!,
+// which the other reads, and its smaller array frees the first, which
+// spills and blocks it again. Held, they end blocked together, as they
+// are when the cycle is found in one go, whichever came first.
+func (s *Sheet) spillCycle(a Addr, area Rect, old *spill) (string, []loc) {
+	l, w := loc{s, a}, s.wb
+	why, cycle := s.spillsIntoItself(a, area)
+	blocked := old != nil && old.circular
+	checked := w.checkedCycle(l)
+	switch {
+	case why != "" && (!blocked || !checked):
+		w.noteCycle(l)
+	case why == "" && blocked && w.spillCycles[l] >= 2:
+		why = old.why
+	}
+	return why, cycle
+}
+
+// checkedCycle reports whether the array at l was checked for a cycle
+// already in the recalculation, and notes that it has been.
+func (w *Workbook) checkedCycle(l loc) bool {
+	if _, ok := w.spillCycles[l]; ok {
+		return true
+	}
+	if w.spillCycles == nil {
+		w.spillCycles = map[loc]int{}
+	}
+	w.spillCycles[l] = 0
+	return false
+}
+
+// cycleMoved reports whether the arrays are to be checked again, the
+// array whose spill was old found blocked by a cycle (circ) or not: a
+// cycle through arrays began or ended at it, which may take in or let go
+// of others, or it is blocked still, the first time in the
+// recalculation: something changed on the way around its cycle, as a
+// formula typed reading another array's cells, which may have closed a
+// cycle through another array, which isn't computed again for it.
+func (w *Workbook) cycleMoved(circ bool, old *spill) bool {
+	switch was := old != nil && old.circular; {
+	case circ != was:
+		return true
+	case circ && !w.spillRechecked:
+		w.spillRechecked = true
+		return true
+	}
+	return false
+}
+
+// noteCycle counts the array at l found blocked by a cycle, from spilling
+// or not, in the recalculation.
+func (w *Workbook) noteCycle(l loc) {
+	if w.spillCycles == nil {
+		w.spillCycles = map[loc]int{}
+	}
+	w.spillCycles[l]++
+}
+
 // spillWalk is the state of spillsIntoItself: the formulas reached, in
 // the order found, each with how it was reached.
 type spillWalk struct {
@@ -168,6 +229,19 @@ func (w *Workbook) recheckCircular() []loc {
 	return out
 }
 
+// forgetSpill drops the anchor at a's spill for good, its formula
+// computing one value or none, returning the cells that changed. When a
+// cycle blocked it, it counted as spilling over the cells it needed, so
+// the arrays blocked by a cycle are checked again.
+func (s *Sheet) forgetSpill(a Addr) []loc {
+	old := s.spills[a]
+	changed := s.dropSpill(a)
+	if old != nil && old.circular {
+		changed = append(changed, s.wb.recheckCircular()...)
+	}
+	return changed
+}
+
 // blockCircular blocks the arrays at l, part of a cycle with another,
 // and returns the cells that changed, with the anchors, to compute
 // again, finding the cycle themselves.
@@ -181,6 +255,7 @@ func blockCircular(arrays []loc) []loc {
 		area := sp.area
 		changed = append(changed, l.s.dropSpill(l.a)...)
 		l.s.setSpill(l.a, &spill{area: area, why: "Circular dependency through another array", circular: true})
+		l.s.wb.noteCycle(l)
 		changed = append(changed, l)
 	}
 	return changed
