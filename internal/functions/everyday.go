@@ -140,7 +140,7 @@ func init() {
 		&FuncDef{Name: "ABS", Args: "value", Desc: "Absolute value", Min: 1, Max: 1, eval: math1(math.Abs), format: inherit},
 		&FuncDef{Name: "INT", Args: "value", Desc: "Round down to the nearest integer", Min: 1, Max: 1, eval: math1(math.Floor), format: inherit},
 		&FuncDef{Name: "SQRT", Args: "value", Desc: "Square root", Min: 1, Max: 1, eval: math1(math.Sqrt)},
-		&FuncDef{Name: "ROUND", Args: "value, [places]", Desc: "Round to a number of decimal places, halves away from zero", Min: 1, Max: 2,
+		&FuncDef{Name: "ROUND", Args: "value, [places]", Desc: "Round to a number of decimal places, halves away from zero, on the digits a cell shows: ROUND(1.5, 14) is 1.5", Min: 1, Max: 2,
 			eval: rounder(numfmt.HalfUp), format: inheritFrom(0)},
 		&FuncDef{Name: "MOD", Args: "dividend, divisor", Desc: "Remainder, with the sign of the divisor: MOD(0.3, 0.1) is 0.1 as in Excel, where Sheets gives -5.55E-17", Min: 2, Max: 2,
 			eval: numeric(func(x []float64) Value {

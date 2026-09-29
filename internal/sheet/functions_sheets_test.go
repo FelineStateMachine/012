@@ -30,8 +30,12 @@ func TestSheetsSemantics(t *testing.T) {
 		{`=COUNTIF(E1:E3, 0.1+0.2+1.2)`, num(1)},
 		{"=123456789012345678", num(123456789012345000)},
 		{"=123456789012345678=123456789012345000", boolean(true)},
-		{"=ROUND(1.23456789012345, 14)=1.23456789012346", boolean(true)}, // the half added carries
-		{"=ROUND(2.675, 2)", num(2.68)},
+		// ROUND is half away from zero on the shortest decimal, as in
+		// Sheets and Excel; exact inputs stay exact.
+		{"=ROUND(2.675, 2)=2.68", boolean(true)},
+		{"=ROUND(-1.005, 2)=-1.01", boolean(true)},
+		{"=ROUND(1.5, 14)-1.5=0", boolean(true)},
+		{"=ROUND(0.1+0.2, 15)-0.3=0", boolean(true)},
 		{"=ROUND(-2.5)", num(-3)},
 		// Errors and conditions.
 		{"=IFERROR(NA())", Value{}},

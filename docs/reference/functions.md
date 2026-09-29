@@ -33,7 +33,7 @@ Aliases: `AVG` for `AVERAGE`.
 | `NOT(logical)` | The opposite of a logical value |
 | `OR(logical1, [logical2, ...])` | TRUE if any argument is true |
 | `PI()` | The number pi |
-| `ROUND(value, [places])` | Round to a number of decimal places, halves away from zero |
+| `ROUND(value, [places])` | Round to a number of decimal places, halves away from zero, on the digits a cell shows: ROUND(1.5, 14) is 1.5 |
 | `SQRT(value)` | Square root |
 | `SUM(value1, [value2, ...])` | Sum of numbers |
 | `TRUE()` | The logical value TRUE |

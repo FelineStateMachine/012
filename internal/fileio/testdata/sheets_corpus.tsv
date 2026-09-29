@@ -126,7 +126,7 @@
 =ROUND(0.285, 2)	0.29	0.29
 =ROUND(-2.5)	-3	-3
 =ROUND(1.5, 0.9)	2	2
-=ROUND(1.23456789012345, 14)	1.23456789012346	1.23456789012346
+=ROUND(1.23456789012345, 14)	1.23456789012345	1.23456789012346	on purpose: 012 rounds the shortest decimal half away from zero, so an exact input stays exact; Sheets' ...346 fits only a rule that also turns ROUND(1.5, 14) into 1.50000000000001
 =ROUNDUP(0.1+0.2, 1)	0.3	0.3
 =ROUNDDOWN(1-0.9, 1)	0.1	0.1
 =TRUNC(1234, -2)	1200	1200

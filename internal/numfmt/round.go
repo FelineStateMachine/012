@@ -87,18 +87,8 @@ func increment(d []byte, point int) ([]byte, int) {
 
 // Round rounds x to places decimal places (negative places round to
 // tens, hundreds...) with mode, on x's 15 significant digits.
-//
-// HalfUp rounds as Sheets' ROUND does: it adds half a unit of the last
-// place kept and drops the digits after it, on the sum's 15 significant
-// digits. That is Fixed's rounding, except at the 15th digit itself,
-// where the half added carries: ROUND(1.23456789012345, 14) is
-// 1.23456789012346.
 func Round(x float64, places int, mode Rounding) float64 {
-	a := math.Abs(x)
-	if mode == HalfUp {
-		a, mode = a+0.5*math.Pow10(-places), Down
-	}
-	whole, frac := Fixed(a, places, mode)
+	whole, frac := Fixed(x, places, mode)
 	s := whole
 	if s == "" {
 		s = "0"

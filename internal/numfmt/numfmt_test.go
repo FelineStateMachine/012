@@ -152,7 +152,10 @@ func TestRound(t *testing.T) {
 		{2.675, 2, HalfUp, 2.68},
 		{-2.5, 0, HalfUp, -3},
 		{1234.5, -2, HalfUp, 1200},
-		{1.23456789012345, 14, HalfUp, 1.23456789012346}, // the half added carries, as in Sheets
+		{-1.005, 2, HalfUp, -1.01},
+		{1.5, 14, HalfUp, 1.5}, // exact inputs stay exact
+		{0.1 + 0.2, 15, HalfUp, 0.3},
+		{1.23456789012345, 14, HalfUp, 1.23456789012345}, // Sheets says ...346
 		{1.23456789012345, 15, HalfUp, 1.23456789012345},
 		{2.301, 1, Up, 2.4},
 		{-2.39, 1, Down, -2.3},
