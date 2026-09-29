@@ -51,7 +51,7 @@ var followScreens = []screen{
 	{name: "follow-ask", files: writeAppLog, setup: func(s *session) { s.linkTableAsk("app.csv") }},
 	{name: "follow-missing", files: func(t *testing.T, dir string) {
 		writeText(t, filepath.Join(dir, "gone.012"),
-			`{"version": 2, "cells": {"D1": "Nightly run"}, "links": [{"at": "A1", "path": "nightly.csv"}]}`)
+			`{"version": 2, "cells": {"D1": "Nightly run"}, "regions": [{"name": "nightly", "at": "A1", "path": "nightly.csv"}]}`)
 	}, setup: func(s *session) {
 		s.keys("<ctrl+o>", "gone", "<enter>")
 		s.waitFor("#REF!")

@@ -115,7 +115,7 @@ var menuBar = []menuDef{
 		}}, sep,
 		{cmd: "data.filter"}, {cmd: "data.filter_column"}, {cmd: "data.filter_remove"}, sep,
 		{cmd: "data.pivot"}, {cmd: "data.pivot_edit"}, {cmd: "data.frequency"}, sep,
-		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, {cmd: "data.protect"}, sep,
+		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, {cmd: "data.protect"},
 		{cmd: "data.validation"}, {cmd: "data.validation_clear"}, sep,
 		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,
 		{title: "Macros", items: macroItems}, {cmd: "nu.prompt"}, {title: "Shell regions", items: []menuItem{
