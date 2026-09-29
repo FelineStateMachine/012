@@ -28,8 +28,9 @@ func TestMain(m *testing.M) {
 	}
 	binPath = filepath.Join(dir, "012")
 	// fakekeyring swaps the OS credential store for a file under
-	// XDG_CONFIG_HOME, which every session points at a temporary directory.
-	build := exec.Command("go", "build", "-tags", "fakekeyring", "-o", binPath, "./cmd/012")
+	// XDG_CONFIG_HOME, which every session points at a temporary
+	// directory; crashtest makes F12 panic (crash_test.go).
+	build := exec.Command("go", "build", "-tags", "fakekeyring,crashtest", "-o", binPath, "./cmd/012")
 	build.Dir = ".."
 	build.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := build.CombinedOutput(); err != nil {

@@ -128,6 +128,8 @@ func run(args []string, e env) error {
 		Keys:      keyStore(cfg, e),
 		Connect:   func(key string) (jev.Client, error) { return jev.NewClient(jevConfig(cfg, key)) },
 		Notes:     configNotes(cfg),
+		// Where a crash keeps unsaved work: crash.go.
+		RecoveryDir: recoveryDir(),
 	}
 	client, notes := startJEV(cfg, e, settings.Keys)
 	settings.Notes = append(settings.Notes, notes...)
@@ -138,13 +140,20 @@ func run(args []string, e env) error {
 	if notebook {
 		m.OpenShell()
 	}
+	if offersKept(args, pipe.stdin) {
+		m.OfferKept()
+	}
 	setPipe(m, pipe, e.stdin)
 	opts, closeTTY, err := tuiOptions(pipe, e)
 	if err != nil {
 		return err
 	}
-	err = e.runTUI(m, opts...)
+	g := ui.Guard(m)
+	err = e.runTUI(g, opts...)
 	closeTTY()
+	if c := g.Finish(err); c != nil {
+		return crashed(g, c)
+	}
 	if err != nil {
 		return err
 	}

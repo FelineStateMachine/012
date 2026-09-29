@@ -2,6 +2,8 @@ package ui
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -27,6 +29,11 @@ import (
 // back. The directory is hidden, so names typed in a session never reach
 // it (internal/confine); only this file reads and writes it. See
 // docs/terminal/ssh.md.
+//
+// A local session keeps them too when it stops on an internal error
+// (crash.go), in Settings.RecoveryDir, keyed by the file's absolute path,
+// and offers them back when that file is opened again. See
+// docs/files/saving.md.
 
 // RecoveryDir is the directory, inside the served one, recovery files
 // are kept in.
@@ -36,6 +43,9 @@ const (
 	recoveryKeep     = 3            // recovery files kept per file name; older ones are removed
 	recoveryUntitled = "(untitled)" // the key for a book never saved; "(" is escaped in file names
 	recoveryStamp    = "20060102-150405"
+	// recoveryKeyMax keeps a recovery file's name (the key, the time and
+	// .012) under the 255 bytes file systems allow.
+	recoveryKeyMax = 200
 )
 
 // recoveryName matches a recovery file's name after its key and "-":
@@ -50,9 +60,19 @@ func (m *Model) OpenOnStart(name string) {
 	m.start = &name
 }
 
+// OfferKept makes a local session offer, once it starts, the changes
+// kept for its file (or for an untitled book) when 012 last stopped on
+// an internal error. cmd/012 asks for it when started on a file or on
+// nothing, not on an import or standard input.
+func (m *Model) OfferKept() { m.offerKept = true }
+
 // startOpenCmd opens what OpenOnStart set, once, when the program starts.
 func (m *Model) startOpenCmd() tea.Cmd {
 	if m.start == nil {
+		if m.offerKept {
+			m.offerKept = false
+			m.offerRecovery(m.filename)
+		}
 		return nil
 	}
 	name := *m.start
@@ -101,22 +121,19 @@ func (m *Model) Unsaved() bool {
 func (m *Model) Filename() string { return m.filename }
 
 // Recover writes the workbook to a new recovery file for its name,
-// removing the oldest beyond recoveryKeep, and returns the file's name
-// relative to the served directory. It's for 012 serve, when the program
-// has stopped; a model that isn't served has nowhere to put one.
+// removing the oldest beyond recoveryKeep, and returns the file's name:
+// relative to the served directory in 012 serve, its full path in a
+// local session. It's for when the program has stopped; a local model
+// without Settings.RecoveryDir has nowhere to put one.
 func (m *Model) Recover(now time.Time) (string, error) {
-	if !m.root.Confined() {
-		return "", errors.New("recovery files are only kept for served sessions")
+	dir, key, err := m.recoveryPlace(m.filename, true)
+	if err != nil {
+		return "", err
 	}
 	var buf bytes.Buffer
 	if err := m.sheet.Write(&buf); err != nil {
 		return "", err
 	}
-	dir, err := recoveryDir(m.root.Dir(), true)
-	if err != nil {
-		return "", err
-	}
-	key := recoveryKey(m.filename)
 	base := key + "-" + now.Format(recoveryStamp)
 	for i := 1; i < 100; i++ {
 		name := base + sheet.FileExt
@@ -139,9 +156,39 @@ func (m *Model) Recover(now time.Time) (string, error) {
 			return "", err
 		}
 		prune(dir, key)
+		if !m.root.Confined() {
+			return filepath.Join(dir, name), nil
+		}
 		return filepath.Join(RecoveryDir, name), nil
 	}
 	return "", errors.New("too many recovery files this second")
+}
+
+// recoveryPlace is the directory recovery files for name are kept in,
+// made when create is set, and the start of their names there.
+func (m *Model) recoveryPlace(name string, create bool) (dir, key string, err error) {
+	if m.root.Confined() {
+		dir, err = recoveryDir(m.root.Dir(), create)
+		return dir, recoveryKey(name), err
+	}
+	dir = m.prefs.RecoveryDir
+	if dir == "" {
+		return "", "", errors.New("this session keeps no recovery files")
+	}
+	if create {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return "", "", err
+		}
+	}
+	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
+		return "", "", fmt.Errorf("no recovery directory at %s", dir)
+	}
+	if name != "" {
+		if abs, err := filepath.Abs(name); err == nil {
+			name = abs
+		}
+	}
+	return dir, recoveryKey(name), nil
 }
 
 // recoveryDir is the recovery directory in root, made 0700 when create
@@ -165,13 +212,19 @@ func recoveryDir(root string, create bool) (string, error) {
 
 // recoveryKey is the start of the recovery files' names for a file name
 // as typed: the name without its extension, escaped so any path is one
-// file name, or recoveryUntitled for a book never saved.
+// file name, or recoveryUntitled for a book never saved. A key too long
+// for a file name keeps its end after a hash of the whole.
 func recoveryKey(name string) string {
 	if name == "" {
 		return recoveryUntitled
 	}
 	name = filepath.ToSlash(filepath.Clean(name))
-	return url.PathEscape(strings.TrimSuffix(name, filepath.Ext(name)))
+	key := url.PathEscape(strings.TrimSuffix(name, filepath.Ext(name)))
+	if len(key) > recoveryKeyMax {
+		sum := sha256.Sum256([]byte(key))
+		key = hex.EncodeToString(sum[:8]) + "-" + key[len(key)-(recoveryKeyMax-17):]
+	}
+	return key
 }
 
 // recoveryFile is a recovery file found for a name.
@@ -219,16 +272,13 @@ func prune(dir, key string) {
 }
 
 // offerRecovery asks, on the context line, whether to restore the
-// newest recovery file kept for name, when a served session opens it.
+// newest recovery file kept for name, when a session opens it.
 func (m *Model) offerRecovery(name string) {
-	if !m.root.Confined() {
-		return
-	}
-	dir, err := recoveryDir(m.root.Dir(), false)
+	dir, key, err := m.recoveryPlace(name, false)
 	if err != nil {
 		return
 	}
-	files := recoveries(dir, recoveryKey(name))
+	files := recoveries(dir, key)
 	if len(files) == 0 {
 		return
 	}
