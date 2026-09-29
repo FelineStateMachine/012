@@ -44,8 +44,6 @@ them again after each edit, undo and reopening, as the UI does. A
 failure names the fewest of the seed's edits that still fail. It takes
 about a second; `-randedit.seeds=20000` runs more, and
 `FuzzRandomEdits` (in `make fuzz`) lets the fuzzer choose the edits.
-Seeds that fail for a reason on the roadmap are listed in `randKnown`,
-with it.
 
 The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and

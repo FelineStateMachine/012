@@ -259,7 +259,9 @@ func TestReadingABlockedArray(t *testing.T) {
 
 // An array whose formula reads its own cells through another formula
 // is a circular dependency too: #REF! for it and what reads it, typed,
-// recalculated or opened, without going back and forth.
+// recalculated or opened, without going back and forth. Here the
+// formula reads the array's anchor too (VLOOKUP's range holds C19), a
+// cycle of formulas, found whether or not VLOOKUP reads that far.
 func TestSpillIntoItsInputThroughAFormula(t *testing.T) {
 	s := New()
 	s.Set(at("F11"), "=VLOOKUP(F14,C17:D19,1,FALSE)")
@@ -272,17 +274,17 @@ func TestSpillIntoItsInputThroughAFormula(t *testing.T) {
 				t.Errorf("%s: %s = %v", name, a, v)
 			}
 		}
-		if got := sh.ExplainError(at("C19")); !strings.Contains(got, "Circular dependency") {
+		if got := sh.ExplainError(at("C19")); !strings.Contains(got, "Circular") {
 			t.Errorf("%s: %q", name, got)
+		}
+		if sh.Filled(at("C20")) {
+			t.Errorf("%s: the array spilled", name)
 		}
 	}
 	check("typed", s)
 	check("reopened", roundTrip(t, s))
 	s.RecalcAll()
 	check("recalculated", s)
-	if s.Book().Circular {
-		t.Error("arrays kept moving")
-	}
 }
 
 // An array that would spill into the cells its formula reads is a

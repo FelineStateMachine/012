@@ -44,22 +44,8 @@ func TestRandomEdits(t *testing.T) {
 		for i := range data {
 			data[i] = byte(rng.Uint32())
 		}
-		t.Run(fmt.Sprint(seed), func(t *testing.T) {
-			if why, known := randKnown[seed]; known && *randSteps == 40 {
-				t.Skip(why)
-			}
-			checkRandomEdits(t, data, *randSteps)
-		})
+		t.Run(fmt.Sprint(seed), func(t *testing.T) { checkRandomEdits(t, data, *randSteps) })
 	}
-}
-
-// randKnown are the seeds, of the default 40 edits, whose failures are
-// known and on the roadmap, with why. Dynamic cycle detection finds a
-// cycle only when evaluation walks it: a range read that stops at an
-// error, or an IF branch not taken, hides one that reopening, computing
-// in another order, finds.
-var randKnown = map[int]string{
-	124: "a cycle hidden behind a range read that stops at an error (roadmap: cycles found from the formulas as written)",
 }
 
 // FuzzRandomEdits reads the edits from the fuzzer's bytes: go test

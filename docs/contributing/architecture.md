@@ -177,8 +177,13 @@ style.
   name and resolved when evaluated, so renaming rewrites them and a deleted
   sheet's references wait, as `#REF!`, for a sheet of that name. Changing a
   cell marks it and everything that transitively depends on it, on any
-  sheet, then evaluates the marked cells lazily in dependency order; a cell
-  reached again while it is being evaluated is part of a cycle. Volatile
+  sheet, then evaluates the marked cells lazily in dependency order.
+  Before evaluating, cycles among the marked formulas are found from the
+  references as written, IF branches not taken and range reads cut short
+  included, with a segment tree per column standing in for ranges and
+  Tarjan's algorithm (`cyclefind.go`), so a cycle's cells are `#REF!`
+  whatever order they're computed in; a cell reached again while it is
+  being evaluated is part of a cycle too. Volatile
   functions (TODAY, RAND, the JEV functions) are recomputed on every
   recalculation (`recalc.go`). Formulas read other cells through each
   sheet's `reader`, the engine's side of the function library's `Book`

@@ -47,7 +47,7 @@ text. Errors use Sheets' codes:
 | `#DIV/0!` | division by zero |
 | `#VALUE!` | the wrong kind of value, e.g. text in arithmetic |
 | `#NAME?` | an unknown name |
-| `#REF!` | a reference to deleted cells, or a circular reference: every cell of the cycle, even one whose formula catches errors (`IFERROR`) or skips them (`COUNTIF`), as in Sheets |
+| `#REF!` | a reference to deleted cells, or a circular reference: every cell of the cycle, even one whose formula catches errors (`IFERROR`) or skips them (`COUNTIF`), and one reached only through an `IF` branch not taken or a part of a range the formula doesn't read (`INDEX`, `VLOOKUP`), as in Sheets |
 | `#N/A` | not available, e.g. a lookup found nothing |
 | `#NUM!` | a number out of range, e.g. `SQRT(-1)` |
 

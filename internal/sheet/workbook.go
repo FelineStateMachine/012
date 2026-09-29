@@ -39,6 +39,8 @@ type Workbook struct {
 
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
+	// cycles keeps the buffers finding cycles takes (cyclefind.go).
+	cycles *cycleGraph
 	// circArrays counts the arrays blocked by a cycle (spillblock.go),
 	// so arrays that stop spilling look for them only when there are.
 	circArrays int
