@@ -206,9 +206,10 @@ func cellsOf(l []monoCell, text string) []monoCell {
 	return l[len([]rune(cellText(l)[:i])):][:len([]rune(text))]
 }
 
-// A notebook's states read without color: the selected cell's head in
-// reverse video, the mode in words, an output table's header bold and
-// underlined, a stale output and a failure in words.
+// A notebook's states read without color: the active cell marked by ▌
+// at its left, the other cells selected with it by ▎, the cell being
+// edited in a heavy box, the mode in words, an output table's header
+// bold and underlined, a stale output and a failure in words.
 func TestMonochromeNotebook(t *testing.T) {
 	m, nu := notebookModel(t, map[string]string{"ls": lsOut, "$files | first": "{name: a.txt}"})
 	write(t, m, "files = ls")
@@ -216,19 +217,24 @@ func TestMonochromeNotebook(t *testing.T) {
 	write(t, m, "nope")
 	run(m, m.runCommand("nb.run_all"))
 	press(t, m, "<home>")
-	if head := findLine(t, m, "[1] files"); !every(head, false, isReverse) {
-		t.Errorf("the selected cell's head isn't reversed: %+v", head)
+	bar := func(text string) string { return string([]rune(cellText(findLine(t, m, text)))[:1]) }
+	if bar("[1]:") != "▌" || bar("[2]:") != " " {
+		t.Errorf("the active cell's bar: %q %q", bar("[1]:"), bar("[2]:"))
 	}
-	if head := findLine(t, m, "[2]"); every(head, true, isReverse) {
-		t.Error("a cell not selected has its head reversed")
+	press(t, m, "<shift+down>", "<shift+down>")
+	if bar("[1]:") != "▎" || bar("[2]:") != "▎" || bar("[3]:") != "▌" {
+		t.Errorf("the cells selected: %q %q %q", bar("[1]:"), bar("[2]:"), bar("[3]:"))
 	}
+	press(t, m, "<home>")
 	hdr := findLine(t, m, "name")
 	if c := cellsOf(hdr, "name"); !every(c, true, func(c monoCell) bool { return c.bold && c.underline == "1" }) {
 		t.Errorf("an output's header: %+v", c)
 	}
+	press(t, m, "<end>")
 	if !strings.Contains(cellText(findLine(t, m, "× Command")), "× Command `nope` not found") {
 		t.Error("the failure isn't in words")
 	}
+	press(t, m, "<home>")
 	nu.out["ls"] = "[[name]; [z]]"
 	press(t, m, "<ctrl+enter>")
 	findLine(t, m, "stale")
@@ -236,6 +242,7 @@ func TestMonochromeNotebook(t *testing.T) {
 	if !strings.Contains(cellText(monoLine(m, menuLine)), " EDIT ") {
 		t.Error("edit mode isn't in words")
 	}
+	findLine(t, m, "┏━")
 }
 
 func TestMonochromeError(t *testing.T) {

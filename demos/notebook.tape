@@ -30,7 +30,7 @@ Sleep 800ms
 Enter
 Sleep 1.2s
 Ctrl+K
-Type@60ms "next sheet"
+Type@40ms "next sh"
 Sleep 500ms
 Enter
 Sleep 600ms
@@ -39,12 +39,12 @@ Type "=SUM(nu.top)" Enter
 Sleep 1.5s
 Screenshot out/stills/notebook-sent.png
 Ctrl+K
-Type@60ms "previous sheet"
+Type@40ms "previous sh"
 Sleep 500ms
 Enter
 Sleep 600ms
 Ctrl+K
-Type@80ms "reactive"
+Type@50ms "reacti"
 Sleep 600ms
 Enter
 Sleep 400ms
@@ -57,7 +57,7 @@ Type "r"
 Sleep 2.5s
 Screenshot out/stills/notebook-reactive.png
 Ctrl+K
-Type@60ms "next sheet"
+Type@40ms "next sh"
 Sleep 500ms
 Enter
 Sleep 2s

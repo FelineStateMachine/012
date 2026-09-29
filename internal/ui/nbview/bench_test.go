@@ -26,7 +26,7 @@ func bigNotebook() (*fakeHost, *View) {
 	}
 	v := newView(h, 120, 40)
 	for _, c := range h.cells {
-		v.expand[c.ID] = true
+		v.foldFor(c.ID).whole = true
 	}
 	return h, v
 }
@@ -40,13 +40,13 @@ func TestScrollsAtFrameSpeed(t *testing.T) {
 	_, v := bigNotebook()
 	v.Lines() // parses what shows
 	for range 50 {
-		v.Wheel(10000) // passes every output, parsing it
+		v.Wheel(-1, 10000) // passes every output, parsing it
 	}
-	v.Wheel(-1 << 30)
+	v.Wheel(-1, -1<<30)
 	start := time.Now()
 	const frames = 200
 	for range frames {
-		v.Wheel(97)
+		v.Wheel(-1, 97)
 		v.Lines()
 	}
 	if per := time.Since(start) / frames; per > 8*time.Millisecond {
@@ -57,12 +57,12 @@ func TestScrollsAtFrameSpeed(t *testing.T) {
 func BenchmarkScroll(b *testing.B) {
 	_, v := bigNotebook()
 	for range 60 {
-		v.Wheel(10000)
+		v.Wheel(-1, 10000)
 	}
-	v.Wheel(-1 << 30)
+	v.Wheel(-1, -1<<30)
 	b.ResetTimer()
 	for b.Loop() {
-		v.Wheel(97)
+		v.Wheel(-1, 97)
 		v.Lines()
 	}
 }

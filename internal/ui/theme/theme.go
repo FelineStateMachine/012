@@ -147,15 +147,20 @@ type Theme struct {
 	Palette *Palette
 
 	// Notebooks: see package nbview. Code is a code cell's syntax, by
-	// its kind (SyntaxCommand and the rest). CellHead is a cell's head
-	// line, its run count, name and state; the selected cell's is drawn
-	// in Selection, or in Pointer while it's edited. OutputHead is an
-	// output table's header row, bold and underlined so it reads without
-	// color, and Stale the mark of an output that may be out of date.
-	Code       [NumSyntax]lipgloss.Style
-	CellHead   lipgloss.Style
-	OutputHead lipgloss.Style
-	Stale      lipgloss.Style
+	// its kind (SyntaxCommand and the rest). CellHead is what the cells
+	// say around their code: the [1]: and Out[1]: prompts, a cell's name
+	// and state on its box. CellBar is the bar left of the active cell in
+	// command mode, blue as Jupyter's, and CellBarEdit in edit mode,
+	// green, which also draws the edited cell's box; both are glyphs, so
+	// they read without color. OutputHead is an output table's header
+	// row, bold and underlined so it reads without color, and Stale the
+	// mark of an output that may be out of date.
+	Code        [NumSyntax]lipgloss.Style
+	CellHead    lipgloss.Style
+	CellBar     lipgloss.Style
+	CellBarEdit lipgloss.Style
+	OutputHead  lipgloss.Style
+	Stale       lipgloss.Style
 
 	// Charts: see charts.go in package ui.
 	ChartFrame    lipgloss.Style // a chart's border

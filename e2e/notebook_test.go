@@ -25,10 +25,10 @@ func TestNotebookWithNu(t *testing.T) {
 	dir := t.TempDir()
 	s := startWith(t, options{dir: dir, startsOn: "EDIT"}, "nu", "book.012")
 	s.keys("sizes = [[name size]; [a 2kb] [b 10b] [c 5mb]]", "<shift+enter>")
-	s.waitFor("[1] sizes")
+	s.waitFor("Out[1]:")
 	s.waitFor("5.0 MB")
 	s.keys("<enter>", "$sizes | where size > 1kb | sort-by size --reverse", "<shift+enter>")
-	s.waitFor("[2]")
+	s.waitFor("Out[2]:")
 	s.keys("<enter>", "nope-not-a-command", "<ctrl+enter>")
 	s.waitFor("failed")
 	s.keys("<ctrl+s>")
@@ -43,20 +43,20 @@ func TestNotebookWithNu(t *testing.T) {
 	s.waitFor("5.0 MB") // the outputs, saved, show without running
 	s.waitFor("saved")
 	s.keys("<f9>")
-	s.waitFor("[1] sizes")
+	s.waitFor("[1]:")
 }
 
 func TestNotebookSendsToSheetWithNu(t *testing.T) {
 	needNu(t)
 	s := startWith(t, options{startsOn: "EDIT"}, "nu")
 	s.keys("n = [[k]; [1] [2] [3]]", "<ctrl+enter>")
-	s.waitFor("[1] n")
+	s.waitFor("Out[1]:")
 	s.keys("G", "<enter>")
 	s.waitFor("Sent n to")
 	s.keys("<ctrl+pgdown>", "<ctrl+home>", "<right>", "<right>", "=SUM(nu.n)", "<enter>")
 	s.waitFor("       6")
 	s.keys("<ctrl+pgup>", "<enter>", " | append {k: 10}", "<ctrl+enter>")
-	s.waitFor("[2] n")
+	s.waitFor("Out[2]:")
 	s.keys("<ctrl+pgdown>")
 	s.waitFor("      16")
 }
@@ -103,9 +103,7 @@ func TestNotebookLongPipeline(t *testing.T) {
 	whole := func() bool {
 		var got []string
 		for _, l := range strings.Split(s.screen(), "\n") {
-			if rest, ok := strings.CutPrefix(l, "│ "); ok {
-				got = append(got, strings.Fields(rest)...)
-			}
+			got = append(got, strings.Fields(boxText(l))...)
 		}
 		return strings.Join(got, " ") == strings.Join(strings.Fields(src), " ")
 	}

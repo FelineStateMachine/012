@@ -36,20 +36,29 @@ works as before.
 
 ## Cells
 
-A cell is its head, its source and, for a code cell, its output:
+The tab looks and works like Jupyter's: a toolbar over the cells, a
+code cell's pipeline in a box with its prompt at the left and a `▶` that
+runs it at the right, its output under it, and note cells drawn as text:
 
 ```
-  [2] big                                                  ✓ <1s
-│ big = $files | where size > 1kb
-│   | sort-by size --reverse
-  name       size
-  README.md  9.8 kB
-  012        4.2 kB
+ ▶ Run  ■ Stop  ↻ Restart  ▶▶ Run all  │  + Add  ✂ Cut  ⧉ Copy  ⎘ Paste  │  Code ▾   nu ○ idle
+ big: reads $files; read as $big, nu.big in formulas ──────────────── Enter  edit
+            Files
+            What's big in the repo, from ls.
+
+▌         ╭─ big ───────────────────────────────────────────── ✓ <1s ─╮
+▌    [2]: │ big = $files | where size > 1kb                            │ ▶
+▌         │   | sort-by size --reverse                                 │
+▌         ╰────────────────────────────────────────────────────────────╯
+▌ Out[2]:   name       size
+▌           README.md  9.8 kB
+▌           012        4.2 kB
 ```
 
-The head says how many runs came before this one (`[2]`, `[*]` while it
-runs, `[ ]` before it has), the cell's name, and at the right how its run
-stands, `saved` for an output read from the file:
+The prompt says how many runs came before this one (`[2]:`, `[*]:` while
+it runs, `[ ]:` before it has), and `Out[2]:` marks the output of that
+run. The box's top border names the cell and says at its right how its
+run stands, `saved` for an output read from the file:
 
 ```mermaid
 stateDiagram-v2
@@ -78,21 +87,44 @@ Outputs are drawn by what they are, with values formatted as cells
 
 | Output | Shows |
 |---|---|
-| A table (a list of records) | Its columns fitted to their values, numbers right-aligned, its first 10 rows and how many more there are |
+| A table (a list of records) | Its columns fitted to their values, numbers right-aligned, under its header |
 | A record | Its fields, one a line: `key  value` |
 | A list | Its items, numbered from 0, as nushell numbers them |
 | Text | Its lines, wrapped |
 | A value | As a cell shows it: `4.2 kB`, `9/27/2026 11:27:31` |
-| An error | `×` and nushell's message, then its help line |
+| An error | `×` and nushell's message, then its help line, without an `Out` prompt |
 
-`o` shows a long output whole, and again its first rows. **Enter** on an
-output opens it full-screen: arrows (or `h` `j` `k` `l`) move, `s` sorts
-by the pointer's column and `S` in descending order (again for the
-output's own order), `/` keeps the rows holding what's typed, and Esc
-goes back. The output itself doesn't change.
+A long output scrolls in a window of its own, 10 rows high, so the cells
+under it stay where they are: with the output selected, Up and Down
+scroll it before they move on, the wheel scrolls the window under the
+mouse, and its last line says which rows show (`rows 11 to 20 of 45`).
+`O` shows every row instead, and again the window; `o` hides the output
+to one line, and again shows it, as does a click left of it. **Data >
+Shell > Clear output** clears the selected cells' outputs, **Clear
+outputs** every one.
+
+```mermaid
+stateDiagram-v2
+    window: a window of 10 rows, scrolled
+    whole: every row
+    hidden: one line, output hidden
+    [*] --> window
+    window --> whole: O
+    whole --> window: O
+    window --> hidden: o, or a click left of it
+    whole --> hidden: o
+    hidden --> window: o
+```
+
+**Enter** on an output, or a double click, opens it full-screen: arrows
+(or `h` `j` `k` `l`) move, `s` sorts by the pointer's column and `S` in
+descending order (again for the output's own order), `/` keeps the rows
+holding what's typed, and Esc (or `◀ Back`) goes back. The output itself
+doesn't change.
 
 Note cells are Markdown: headings, **bold**, *italic*, `code`, links (the
-terminal opens them), lists and quotes.
+terminal opens them), lists and quotes. They're drawn as text, without a
+box or a prompt, and show their Markdown in a box only while edited.
 
 ## Keys
 
@@ -110,24 +142,34 @@ stateDiagram-v2
     Output --> Command: Esc
 ```
 
+A bar at the left marks the active cell: `▌`, blue in command mode and
+green in edit mode, where the cell's box is drawn in heavy lines too, so
+the mode reads without color. Shift+Up and Shift+Down (or `K` and `J`,
+or Shift+click) select the cells passed over as well, marked `▎`, and
+the commands below that act on "the cells" act on all of them: run,
+delete, copy, cut, move, make notes or code, hide or clear outputs.
+
 | Key | In command mode |
 |---|---|
-| Up, Down, `j`, `k` | Move between cells, stopping at each output |
+| Up, Down, `j`, `k` | Move between cells, stopping at each output; on an output, scroll its window first |
+| Shift+Up, Shift+Down, `K`, `J` | Select the cells passed over too |
 | Home, End, PgUp, PgDn | The first cell, the last, a screen up or down |
 | Enter | Edit the cell; on an output, open it full-screen |
-| Shift+Enter | Run the cell and select the next, adding one at the end |
-| Ctrl+Enter, `r` | Run the cell, staying on it |
-| Alt+Enter | Run the cell and add a code cell under it |
+| Shift+Enter | Run the cells and select the next, adding one at the end |
+| Ctrl+Enter, `r` | Run the cells, staying on them |
+| Alt+Enter | Run the cells and add a code cell under them |
 | F9 | Run every cell |
 | `a`, `b` | Add a code cell above, below |
 | `!` | Add a code cell below and edit it |
-| `dd` | Delete the cell |
-| `z` | Undo, bringing back a deleted cell (as Ctrl+Z) |
-| `m`, `y` | Make the cell a note (Markdown), or code |
-| `c`, `x`, `v` | Copy, cut, paste a cell below |
+| `dd` | Delete the cells |
+| `z` | Undo, bringing back deleted cells (as Ctrl+Z) |
+| Alt+Up, Alt+Down (or Ctrl+Shift+Up, Ctrl+Shift+Down) | Move the cells up or down |
+| `m`, `y` | Make the cells notes (Markdown), or code |
+| `c`, `x`, `v`, `V` | Copy, cut the cells; paste below, above |
 | `n` | Name the cell |
-| `o` | Show the output whole, or its first rows |
+| `o`, `O` | Hide the output, or show it again; show every row, or the window again |
 | `G` | Send the output to a sheet |
+| Ctrl+G | Go to a cell by its number, name, code or heading |
 | `ii` | Stop: kill the cell running, and forget those waiting |
 | `00` | Restart: stop, clear every output, count runs from 1 |
 
@@ -149,6 +191,31 @@ Every action is a command, in **Data > Shell**, the palette and the
 shortcuts (Ctrl+/), and File, Edit and the sheet tabs work as anywhere;
 commands for a sheet's cells are off on a notebook's tab. Changes to
 cells are undo steps, as any edit is.
+
+### Toolbar and mouse
+
+The toolbar runs the commands Jupyter's does: `▶ Run` (the cells, then
+the next), `■ Stop`, `↻ Restart`, `▶▶ Run all`, `+ Add`, `✂ Cut`, `⧉ Copy`,
+`⎘ Paste`, and `Code ▾` or `Markdown ▾`, which makes the cells either. Each
+shows its key where the width allows. At the right, `nu ○ idle`, `nu ●
+busy` with how many cells wait, or `nu ⊘ off` where cells don't run,
+stands for Jupyter's kernel; `reactive` beside it says the notebook is.
+While every cell runs, the view follows the cell running until you
+scroll.
+
+The mouse works as in JupyterLab: a click selects a cell and a click in
+a code cell's box edits it with the caret where you clicked; `▶` runs the
+cell and `■` stops it while it runs; a double click edits a note or opens
+an output full-screen; the wheel scrolls an output's window, then the
+notebook; right-click opens the cell menu. All of them are listed in
+[Keys and mouse](../reference/keys.md#mouse).
+
+### Moving around
+
+**Ctrl+G** (Go to cell) lists every cell by its number, name and first
+line, and the notes' headings, to jump to by typing any of them. **View
+> Table of contents** lists the headings alone, indented by level, as
+Jupyter's table of contents.
 
 ## Writing a cell
 

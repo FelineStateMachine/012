@@ -144,15 +144,19 @@ on a sheet, `!` starts an entry as any character does.
 
 | Key | In command mode |
 |---|---|
-| Up, Down, `j`, `k`, Home, End, PgUp, PgDn | Move between cells and their outputs |
+| Up, Down, `j`, `k`, Home, End, PgUp, PgDn | Move between cells and their outputs; on an output, Up and Down scroll its window first |
+| Shift+Up, Shift+Down, `K`, `J` | Select the cells passed over too, to run, delete, copy or move together |
+| Alt+Up, Alt+Down, Ctrl+Shift+Up, Ctrl+Shift+Down | Move the selected cells up or down |
 | Enter | Edit the cell; on an output, open it full-screen |
-| Shift+Enter, Ctrl+Enter, `r`, Alt+Enter | Run the cell and select the next; run it in place (`r` too); run it and add a cell under it |
+| Shift+Enter, Ctrl+Enter, `r`, Alt+Enter | Run the cells and select the next; run them in place (`r` too); run them and add a cell under them |
 | F9 | Run every cell |
 | `a`, `b`, `!` | Add a code cell above, below; add one below and edit it |
-| `dd`, `z` | Delete the cell; undo |
-| `m`, `y` | Make the cell a note, or code |
-| `c`, `x`, `v` | Copy, cut, paste a cell |
-| `n`, `o`, `G` | Name the cell; show all of its output or its first rows; send the output to a sheet |
+| `dd`, `z` | Delete the selected cells; undo |
+| `m`, `y` | Make the cells notes, or code |
+| `c`, `x`, `v`, `V` | Copy, cut the cells; paste below, above |
+| `o`, `O` | Hide the output, or show it again; show all of it rather than a window |
+| `n`, `G` | Name the cell; send the output to a sheet |
+| Ctrl+G | Go to a cell by its number, name, code or heading |
 | `ii`, `00` | Stop what's running; restart, clearing every output |
 
 | Key | In edit mode |
@@ -311,6 +315,19 @@ own.
 | Click a chart; drag it or its corner | Select it; move or resize it (then arrows move it, Shift+arrows resize, Enter edits, Del deletes) |
 | Cmd- or Ctrl-click a link | Open a URL in a cell or a `=HYPERLINK(url, [label])` |
 | Hover a cell with a note | Show the note beside it |
+
+On a notebook's tab, as in JupyterLab:
+
+| Gesture | Action |
+|---|---|
+| Click a cell; Shift+click | Select it; select the cells between too |
+| Click in a code cell's box; double-click a note | Edit it, the caret where you clicked |
+| Click `▶` (`■` while it runs) | Run the cell (stop it) |
+| Click an output; double-click it | Select it; open it full-screen |
+| Click left of an output | Hide it, or show it again |
+| Wheel over an output's window | Scroll the output, then the notebook |
+| Click a toolbar button | Run, stop, restart, run all, add, cut, copy, paste, or pick the cell's kind |
+| Right-click a cell | The cell menu |
 
 The sheet tabs take the mouse too: see [sheets and tabs](../sheets/sheets-and-tabs.md).
 While typing a formula, clicking a cell or a tab points at it, as in

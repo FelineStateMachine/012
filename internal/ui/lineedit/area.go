@@ -159,6 +159,20 @@ func posAt(r Row, buf []rune, col int, last bool) int {
 	return r.End
 }
 
+// Place puts the caret nearest column col of row row of the text
+// wrapped at width, as a click there does.
+func (a *Area) Place(width, row, col int) {
+	rows := Wrap(a.Buf, width)
+	a.goal = 0
+	if len(rows) == 0 {
+		a.Pos = 0
+		return
+	}
+	row = min(max(row, 0), len(rows)-1)
+	last := row == len(rows)-1 || !rows[row+1].Cont
+	a.Pos = posAt(rows[row], a.Buf, max(col, 0), last)
+}
+
 // Key applies an editing key at width, reporting whether it was one.
 // Enter breaks the line, keeping its indent.
 func (a *Area) Key(k tea.KeyPressMsg, width int) bool {

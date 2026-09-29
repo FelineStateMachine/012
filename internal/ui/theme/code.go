@@ -34,6 +34,8 @@ func codeRoles(t *Theme, dark bool) {
 		SyntaxComment:  lipgloss.NewStyle().Foreground(muted).Italic(true),
 	}
 	t.CellHead = lipgloss.NewStyle().Foreground(muted)
+	t.CellBar = lipgloss.NewStyle().Foreground(lipgloss.Blue)
+	t.CellBarEdit = lipgloss.NewStyle().Foreground(lipgloss.Green)
 	t.OutputHead = lipgloss.NewStyle().Bold(true).Underline(true)
 	t.Stale = lipgloss.NewStyle().Foreground(lipgloss.Yellow).Italic(true)
 	if !dark {

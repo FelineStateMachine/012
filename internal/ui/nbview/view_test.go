@@ -23,6 +23,7 @@ type fakeHost struct {
 	ran    []string
 	edits  []string
 	onRun  func(id string)
+	kernel Kernel
 }
 
 func newHost(srcs ...string) *fakeHost {
@@ -38,6 +39,7 @@ func (h *fakeHost) Locale() *locale.Locale         { return locale.Canonical }
 func (h *fakeHost) Cells() []notebook.Cell         { return h.cells }
 func (h *fakeHost) Output(id int) *notebook.Output { return h.outs[id] }
 func (h *fakeHost) State(id int) State             { return h.states[id] }
+func (h *fakeHost) Kernel() Kernel                 { return h.kernel }
 func (h *fakeHost) Run(id string) tea.Cmd {
 	h.ran = append(h.ran, id)
 	if h.onRun != nil {
@@ -85,7 +87,7 @@ func TestOutputsShow(t *testing.T) {
 	v := newView(h, 80, 60)
 	got := text(v)
 	for _, want := range []string{
-		"[1] files", "name    size    ok", "a.txt   2.0 kB  TRUE", "bb.txt    10 B  FALSE",
+		"[1]:", "─ files ─", "name    size    ok", "a.txt   2.0 kB  TRUE", "bb.txt    10 B  FALSE",
 		"a         1", "long_key  two words", "line one", "line two",
 		"× Command `nope` not found", "help: try ls", "not saved; run to see", "0  1", "1  2",
 	} {
@@ -108,8 +110,8 @@ func TestLongOutputWindow(t *testing.T) {
 	if got := text(v); !strings.Contains(got, "9,991 more rows") || strings.Contains(got, "  10\n") {
 		t.Errorf("collapsed:\n%s", got)
 	}
-	v.Toggle()
-	v.Wheel(100)
+	v.ToggleWhole()
+	v.Wheel(-1, 100)
 	if got := text(v); strings.Contains(got, "more rows") || !strings.Contains(got, " 98\n") {
 		t.Errorf("expanded, scrolled:\n%s", got)
 	}
@@ -146,7 +148,7 @@ func TestMovesBetweenCellsAndOutputs(t *testing.T) {
 
 func TestEditsWithWrapAndCompletes(t *testing.T) {
 	h := newHost("ls")
-	v := newView(h, 30, 20)
+	v := newView(h, 38, 20)
 	v.Providers.Completer = Words(func() []Word { return []Word{{Text: "$files", Desc: "cell"}, {Text: "sort-by", Desc: "command"}} })
 	h.onRun = func(id string) {
 		if id == "nb.command_mode" {
@@ -166,11 +168,11 @@ func TestEditsWithWrapAndCompletes(t *testing.T) {
 		t.Errorf("completed %q", got)
 	}
 	x, y, ok := v.Cursor()
-	if !ok || y != 2 || x != gutter+2+len("| sort-by") {
+	if !ok || y != 2 || x != textX+2+len("| sort-by") {
 		t.Errorf("caret %d,%d %v:\n%s", x, y, ok, text(v))
 	}
 	lines := strings.Split(text(v), "\n")
-	if lines[1] != "│ ls | where size > 1kb " || lines[2] != "│   | sort-by" {
+	if !strings.Contains(lines[1], "[ ]: ┃ ls | where size > 1kb  ┃ ▶") || !strings.Contains(lines[2], "┃   | sort-by") {
 		t.Errorf("wrapped:\n%s", text(v))
 	}
 	v.Key(key("esc"))

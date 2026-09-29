@@ -41,7 +41,7 @@ internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   lineedit       the one-line editor every text field shares, and the multi-line one of notebook cells
   picker         the searchable list behind the palette and every picker
   cmdline        the : command line and its completions
-  nbview         a notebook tab: its cells, outputs, command and edit modes, the code editor and its language providers
+  nbview         a notebook tab as Jupyter's: its toolbar, cells, outputs, command and edit modes, mouse, the code editor and its language providers
   findbar        find and replace, a bar on the context line
   evalview       Data > Evaluate formula: a formula stepped through part by part
   themepicker    File > Settings > Theme, previewing as it moves

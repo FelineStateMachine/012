@@ -7,8 +7,9 @@ sidebar_position: 8
 
 A release is an annotated version tag whose message is the release
 notes, and archives of the binaries built from it on a maintainer's
-machine. The GitHub repository only hosts the code: nothing builds or
-publishes there, and `make dist` uploads nothing.
+machine, served with the docs site on the owner's nzip server along
+with the install scripts that download them. The GitHub repository only
+hosts the code: nothing builds or publishes there.
 
 ## Checklist
 
@@ -26,6 +27,9 @@ flowchart TD
   tag -->|the module proxy| install[go install ...@v1.2.3]
   tag --> dist[make dist]
   dist --> archives[dist/: archives, SHA256SUMS]
+  archives --> site[make site-release]
+  site --> push[nzip site push website/build public:012]
+  push --> live[install.sh, /releases/v1.2.3/ and /releases/latest/ live]
 ```
 
 1. **`make check`** passes on the commit to be tagged (see
@@ -56,6 +60,18 @@ flowchart TD
    The Go module proxy picks the tag up, so `go install
    github.com/FelineStateMachine/012/cmd/012@v1.2.3` works from then on.
 6. **Binaries**: `make dist VERSION=v1.2.3` on the tagged commit.
+7. **Publish** the site with the release
+   ([Publishing](#publishing)):
+
+   ```sh
+   SITE_URL=https://f58b.n.zip make site-release VERSION=v1.2.3
+   nzip site push website/build public:012
+   ```
+
+   then check the live copy: `SHA256SUMS` at
+   `https://f58b.n.zip/releases/v1.2.3/` matches `dist/SHA256SUMS`, and
+   `curl -fsSL https://f58b.n.zip/install.sh | PREFIX=$(mktemp -d) sh`
+   installs a `012` whose `012 version` prints v1.2.3.
 
 ## File fixtures
 
@@ -106,4 +122,40 @@ dist/SHA256SUMS
 refuses a version that isn't `vMAJOR.MINOR.PATCH` (with an optional
 `-suffix`) or that is tagged at another commit than the one checked
 out, and warns when the tree has uncommitted changes. The archives and
-`SHA256SUMS` are what a release attaches, wherever it is published.
+`SHA256SUMS` are what a release publishes.
+
+## Publishing
+
+`make site-release` (`scripts/site-release.sh`) builds the docs site as
+`make site` does and adds the release to `website/build`:
+
+```
+website/build/install.sh
+website/build/install.ps1
+website/build/releases/v1.2.3/   archives, SHA256SUMS, an index page
+website/build/releases/latest/   the same files
+```
+
+`VERSION` defaults to the newest version tag. The archives are `dist/`'s
+when its `SHA256SUMS` names that version; otherwise the script checks
+the tag out in a temporary git worktree, runs `make dist` there and
+keeps the result in `dist/`, so the site can be published from a commit
+after the tag. It checks the archives against `SHA256SUMS` before
+copying them. `SITE_URL` also goes into the copied install scripts, so a
+site built for another address serves scripts that download from it.
+
+The site serves one release, `VERSION`, under both addresses; earlier
+releases stay installable with `go install ...@v1.2.3`. Every push
+replaces the whole site, so the docs are always published with
+`make site-release` ([The docs site](site.md#where-it-lives)): a push
+of a plain `make site` build leaves the install script without its
+archives.
+
+The install scripts live in `scripts/install/`. `install.sh` is POSIX
+sh (it runs under dash as well as sh) and needs curl or wget, tar, and
+sha256sum, shasum or openssl. `install_test.go`, in `make test`, runs
+it as a file and piped to the shell against a local server holding a
+fake release: the latest into `~/.local/bin`, a version under `PREFIX`,
+and a refusal of an archive whose checksum doesn't match. `install.ps1`
+has no automated test, as no PowerShell is assumed on a maintainer's
+machine; try it on Windows when it changes.

@@ -37,6 +37,11 @@ case $cmd in
 	echo '[[name, type, size]; ["012", file, 4.2kb], [README.md, file, 9.8kb], [demos, dir, 3.1kb]]' ;;
 '$files | get name | str join ", "')
 	echo '"012, CLAUDE.md, README.md, demos, go.mod"' ;;
+'1..30'*)
+	printf '[[n, square]; '
+	i=1
+	while [ $i -le 30 ]; do printf '[%d, %d], ' $i $((i * i)); i=$((i + 1)); done
+	echo ']' ;;
 '{'*)
 	echo '{name: "012", files: 5, largest: README.md, total: 18.9kb}' ;;
 'sleep'*)

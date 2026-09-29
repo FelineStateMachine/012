@@ -101,7 +101,7 @@ func TestNotebookWritesAndRuns(t *testing.T) {
 		t.Fatalf("ran %v", nu.ran())
 	}
 	s := screen(m)
-	for _, want := range []string{"[1] files", "a.txt", "2.0 kB", "c.txt"} {
+	for _, want := range []string{"[1]:", "─ files ─", "Out[1]:", "a.txt", "2.0 kB", "c.txt"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("screen lacks %q:\n%s", want, s)
 		}
@@ -254,9 +254,7 @@ func TestNotebookLongPipelineWraps(t *testing.T) {
 		s := strings.ReplaceAll(screen(m), "\n", "")
 		var joined strings.Builder
 		for _, l := range strings.Split(screen(m), "\n") {
-			if rest, ok := strings.CutPrefix(l, "│ "); ok {
-				joined.WriteString(strings.TrimSpace(rest) + " ")
-			}
+			joined.WriteString(boxText(l) + " ")
 		}
 		got := strings.Join(strings.Fields(joined.String()), " ")
 		if got != strings.Join(strings.Fields(src), " ") {
@@ -376,4 +374,18 @@ func TestNotebookBangAndTab(t *testing.T) {
 	if got := line(m, m.height-1); !strings.Contains(got, "❯ Notebook") {
 		t.Errorf("the tab: %q", got)
 	}
+}
+
+// boxText is the text inside a code cell's box on screen line l, or "".
+func boxText(l string) string {
+	rs := []rune(l)
+	const at = 10 // the box's left side, after the bar and the prompt
+	if len(rs) <= at || rs[at] != '│' && rs[at] != '┃' {
+		return ""
+	}
+	rest := string(rs[at+1:])
+	if j := strings.LastIndexAny(rest, "│┃"); j >= 0 {
+		rest = rest[:j]
+	}
+	return strings.TrimSpace(rest)
 }

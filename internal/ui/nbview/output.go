@@ -18,12 +18,12 @@ import (
 // Outputs as they show under a code cell. What a cell printed, NUON, is
 // parsed once into a shown output: a table (a list of records), a
 // record, a list, text, or a single value; values are the cells
-// importing them would make, formatted as cells are. A long output shows
-// a window of its first rows and says how many more there are, until o
-// expands it; its lines are drawn only when they're on screen, so an
-// expanded output of ten thousand rows costs the rows showing.
+// importing them would make, formatted as cells are. A long output
+// scrolls in a window of its own (outwin.go) until O shows it whole; its
+// lines are drawn only when they're on screen, so an output of ten
+// thousand rows costs the rows showing.
 
-// window is how many rows (or lines) an output shows collapsed.
+// window is how many rows (or lines) an output's window shows.
 const window = 10
 
 // maxColWidth caps how wide fitting makes a column, as a sheet's.
@@ -183,42 +183,6 @@ func cellText(lc sheet.LiveCell, loc *locale.Locale) string {
 	return strings.ReplaceAll(sheet.FormatTextIn(lc.V, lc.F, loc), "\n", " ")
 }
 
-// height is how many lines the output takes, collapsed or expanded, at
-// width.
-func (sh *shown) height(expanded bool, width int) int {
-	switch sh.kind {
-	case outNone:
-		return 0
-	case outTable:
-		n := sh.total
-		if !expanded && n > window {
-			n = window
-		}
-		return 1 + n + sh.footerLines(expanded, width)
-	case outText, outError:
-		n := len(sh.wrapped(width))
-		if !expanded && n > window {
-			return window + 1
-		}
-		return n
-	case outRecord, outList:
-		if !expanded && sh.total > window {
-			return window + 1
-		}
-		return sh.total
-	}
-	return 1
-}
-
-// footerLines is 1 when a table has more to say under its rows: rows or
-// columns it doesn't show.
-func (sh *shown) footerLines(expanded bool, width int) int {
-	if !expanded && sh.total > window || sh.hiddenCols(width) > 0 {
-		return 1
-	}
-	return 0
-}
-
 // shownCols is how many of a table's columns fit in width.
 func (sh *shown) shownCols(width int) int {
 	x := 0
@@ -236,85 +200,21 @@ func (sh *shown) shownCols(width int) int {
 
 func (sh *shown) hiddenCols(width int) int { return len(sh.fit) - sh.shownCols(width) }
 
-// line draws line i of the output at width.
-func (sh *shown) line(th *theme.Theme, loc *locale.Locale, i int, expanded bool, width int) string {
-	switch sh.kind {
-	case outTable:
-		return sh.tableLine(th, loc, i, expanded, width)
-	case outText, outError:
-		return sh.textLine(th, i, expanded, width)
-	case outRecord, outList:
-		if !expanded && sh.total > window && i == window {
-			return th.Muted.Render("… " + more(sh.total-window, "more line") + "  (o shows all)")
-		}
-		return sh.fieldLine(th, loc, i, width)
-	case outValue:
-		return ansi.Truncate(cellText(sh.rows[0][0], loc), width, "…")
-	case outUnsaved:
-		return th.Muted.Render("not saved; run to see")
-	case outBad:
-		return th.Warning.Render(ansi.Truncate(sh.text[0], width, "…"))
-	}
-	return ""
-}
-
 // more counts what's left out: "9,991 more rows".
 func more(n int, what string) string {
+	if n != 1 {
+		what += "s"
+	}
+	return grouped(n) + " " + what
+}
+
+// grouped is n with its thousands apart: 9,991.
+func grouped(n int) string {
 	s := strconv.Itoa(n)
 	for i := len(s) - 3; i > 0; i -= 3 {
 		s = s[:i] + "," + s[i:]
 	}
-	if n != 1 {
-		what += "s"
-	}
-	return s + " " + what
-}
-
-// tableLine is a table's header (i 0), a row, or its footer.
-func (sh *shown) tableLine(th *theme.Theme, loc *locale.Locale, i int, expanded bool, width int) string {
-	ncols := sh.shownCols(width)
-	rows := sh.total
-	if !expanded && rows > window {
-		rows = window
-	}
-	switch {
-	case i == 0:
-		var b strings.Builder
-		for c := range ncols {
-			if c > 0 {
-				b.WriteString("  ")
-			}
-			name := ansi.Truncate(sh.cols[c], sh.fit[c], "…")
-			b.WriteString(th.OutputHead.Render(name) + strings.Repeat(" ", sh.fit[c]-ansi.StringWidth(name)))
-		}
-		return b.String()
-	case i <= rows:
-		row := sh.rows[i-1]
-		var b strings.Builder
-		for c := range ncols {
-			if c > 0 {
-				b.WriteString("  ")
-			}
-			var lc sheet.LiveCell
-			if c < len(row) {
-				lc = row[c]
-			}
-			b.WriteString(pad(ansi.Truncate(cellText(lc, loc), sh.fit[c], "…"), sh.fit[c], align(lc)))
-		}
-		return b.String()
-	}
-	var parts []string
-	if n := sh.total - rows; n > 0 {
-		parts = append(parts, more(n, "more row"))
-	}
-	if n := sh.hiddenCols(width); n > 0 {
-		parts = append(parts, more(n, "more column"))
-	}
-	hint := "Enter opens it"
-	if !expanded && sh.total > window {
-		hint = "o shows all, " + hint
-	}
-	return th.Muted.Render("… " + strings.Join(parts, ", ") + "  (" + hint + ")")
+	return s
 }
 
 // align is how a value lines up in its column, as in a cell.
@@ -363,24 +263,6 @@ func (sh *shown) fieldLine(th *theme.Theme, loc *locale.Locale, i, width int) st
 	}
 	room := max(width-ansi.StringWidth(key), 1)
 	return key + ansi.Truncate(cellText(sh.rows[i][0], loc), room, "…")
-}
-
-// textLine is line i of text or an error, wrapped at width.
-func (sh *shown) textLine(th *theme.Theme, i int, expanded bool, width int) string {
-	lines := sh.wrapped(width)
-	if !expanded && len(lines) > window && i == window {
-		return th.Muted.Render("… " + more(len(lines)-window, "more line") + "  (o shows all)")
-	}
-	if i >= len(lines) {
-		return ""
-	}
-	if sh.kind == outError {
-		if i == 0 {
-			return th.Warning.Render(lines[i])
-		}
-		return th.Muted.Render(lines[i])
-	}
-	return lines[i]
 }
 
 // wrapped is the text's lines wrapped at width, kept for the width last
