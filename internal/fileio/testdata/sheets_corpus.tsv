@@ -58,13 +58,13 @@
 =LEFT(12345, 2)	"12"	"12"
 =LEFT(TRUE, 1)	"T"	"T"
 =MID("abc", 5, 2)	""	""
-=MID("abc", 0, 2)	#VALUE!	#NUM!
-=LEN(Data!F1)	5	9
+=MID("abc", 0, 2)	#NUM!	#NUM!
+=LEN(Data!F1)	5	9	on purpose: F1 is a date, stored in the XLSX as its serial with a m/d/yyyy format; Sheets' text functions read a date cell as it shows (9/26/2026), 012 reads its serial, as Excel does
 =LEN(1/4)	4	4
 =LEN("héllo")	5	5
-=LEN("😀")	1	2
+=LEN("😀")	1	2	on purpose: LEN counts characters (code points), where Sheets counts UTF-16 units
 =LEFT("日本語", 2)	"日本"	"日本"
-=UPPER("straße")	"STRAßE"	"STRASSE"
+=UPPER("straße")	"STRASSE"	"STRASSE"
 =UPPER(1.5)	"1.5"	"1.5"
 =PROPER("hello wORLD it's")	"Hello World It'S"	"Hello World It'S"
 =PROPER("o'neil mcdonald 3rd")	"O'Neil Mcdonald 3Rd"	"O'Neil Mcdonald 3Rd"
@@ -92,7 +92,7 @@
 =REGEXMATCH("ABC", "(?i)abc")	TRUE	unconfirmed
 =REGEXMATCH(123, "1")	#VALUE!	unconfirmed
 =REGEXEXTRACT("abc", "\d+")	#N/A	unconfirmed
-=TEXTJOIN("|", TRUE, REGEXEXTRACT("a1b2", "(\d)b(\d)"))	"1"	unconfirmed
+=TEXTJOIN("|", TRUE, REGEXEXTRACT("a1b2", "(\d)b(\d)"))	"1|2"	unconfirmed
 =REGEXREPLACE("john smith", "(\w+) (\w+)", "$2, $1")	"smith, john"	"smith, john"
 =COLUMNS(SPLIT("a,b,,c", ",", TRUE, FALSE))	4	unconfirmed
 =SUM(SPLIT("1,2,3", ","))	6	unconfirmed
@@ -108,10 +108,10 @@
 =TEXT(2.5, "0")	"3"	"3"
 =TEXT(-0.5, "0")	"-1"	"-1"
 =TEXT(1.005, "0.00")	"1.01"	"1.01"
-=TEXT(0.75, "# ?/?")	"  /1"	"3/4"
+=TEXT(0.75, "# ?/?")	"3/4"	"3/4"
 =TEXT("abc", "0")	"abc"	"abc"
 =TEXT("12", "0.00")	"12.00"	"12.00"
-=TEXT(TRUE, "0")	"1"	"TRUE"
+=TEXT(TRUE, "0")	"TRUE"	"TRUE"
 =TEXT(Data!F1, "dddd")	"Saturday"	"Saturday"
 =TEXT(Data!F1, "mmm d, yyyy")	"Sep 26, 2026"	"Sep 26, 2026"
 =TEXT(Data!F1, "dddd, mmmm d, yyyy")	"Saturday, September 26, 2026"	"Saturday, September 26, 2026"
@@ -126,7 +126,7 @@
 =ROUND(0.285, 2)	0.29	0.29
 =ROUND(-2.5)	-3	-3
 =ROUND(1.5, 0.9)	2	2
-=ROUND(1.23456789012345, 14)	1.23456789012345	1.23456789012346
+=ROUND(1.23456789012345, 14)	1.23456789012346	1.23456789012346
 =ROUNDUP(0.1+0.2, 1)	0.3	0.3
 =ROUNDDOWN(1-0.9, 1)	0.1	0.1
 =TRUNC(1234, -2)	1200	1200
@@ -141,26 +141,26 @@
 =FLOOR(-2.5, -1)	-2	-2
 =MOD(-7, 3)	2	2
 =MOD(10, 0)	#DIV/0!	#DIV/0!
-=MOD(0.3, 0.1)	0.1	-5.55111512312578E-17
+=MOD(0.3, 0.1)	0.1	-5.55111512312578E-17	on purpose: 012 computes n - d*INT(n/d) as Excel does, keeping the divisor's sign; Sheets' -5.55E-17 is a floating artefact
 =QUOTIENT(-7, 2)	-3	-3
 =0.1+0.2	0.3	0.3
-=0.1+0.2=0.3	FALSE	TRUE
+=0.1+0.2=0.3	TRUE	TRUE
 =0.1+0.2-0.3	5.55111512312578E-17	5.55111512312578E-17
 =1-0.9	0.1	0.1
-=(1-0.9)=0.1	FALSE	TRUE
-=SUM(0.1, 0.2, 0.3)=0.6	FALSE	TRUE
+=(1-0.9)=0.1	TRUE	TRUE
+=SUM(0.1, 0.2, 0.3)=0.6	TRUE	TRUE
 =1/3	0.333333333333333	0.333333333333333
-=100*1.1	110	110.
+=100*1.1	110	110
 =1E+21	1E+21	1E+21
-=123456789012345678	123456789012346000	123456789012345000
+=123456789012345678	123456789012345000	123456789012345000
 =9007199254740993	9007199254740990	9007199254740990
 =0.000001	0.000001	0.000001
 =-0	0	0
 =-2^2	4	4
 =0^0	1	1
 =POWER(0, 0)	1	1
-=POWER(-8, 1/3)	#NUM!	-2
-=(-8)^(1/3)	#NUM!	-2
+=POWER(-8, 1/3)	-2	-2
+=(-8)^(1/3)	-2	-2
 =1E+308*10	#NUM!	#NUM!
 =LOG(10, 1)	#DIV/0!	#DIV/0!
 ## Errors and their propagation
@@ -171,7 +171,7 @@
 =NA()+1/0	#N/A	#N/A
 =1/0+NA()	#DIV/0!	#DIV/0!
 =IFERROR(1/0, "x")	"x"	"x"
-=IFERROR(NA())	""	(blank)
+=IFERROR(NA())	(blank)	(blank)
 =IFERROR(Data!J2, Data!J4)	#N/A	#N/A
 =IFNA(1/0, 0)	#DIV/0!	#DIV/0!
 =ISERR(NA())	FALSE	FALSE
@@ -180,13 +180,13 @@
 =AND(TRUE, 1/0)	#DIV/0!	#DIV/0!
 =OR(TRUE, NA())	#N/A	#N/A
 =Data!A1+nosuchname	#NAME?	#NAME?
-=CHOOSE(0, "a")	#VALUE!	#NUM!
-=INDEX(Data!A1:A3, 5)	#REF!	#NUM!
+=CHOOSE(0, "a")	#NUM!	#NUM!
+=INDEX(Data!A1:A3, 5)	#NUM!	#NUM!
 =AVERAGEIF(Data!A1:A7, ">100")	#DIV/0!	#DIV/0!
 =SWITCH(Data!B4, "north", 1)	#N/A	#N/A
 =PMT(0, 0, 1000)	#NUM!	#NUM!
-=COUNT(Data!J1:J4)	#DIV/0!	0
-=COUNTA(Data!J1:J4)	#DIV/0!	4
+=COUNT(Data!J1:J4)	0	0
+=COUNTA(Data!J1:J4)	4	4
 ## Coercion
 =" 3 "*1	3	3
 ="1,000"*1	1000	1000
@@ -213,13 +213,13 @@
 =TRUE="TRUE"	FALSE	FALSE
 =Data!A5<"a"	TRUE	TRUE
 =""=0	FALSE	FALSE
-=IF("TRUE", 1, 2)	#VALUE!	1
+=IF("TRUE", 1, 2)	1	1
 =IF(Data!A5, "y", "n")	"n"	"n"
 =AND("abc")	#VALUE!	#VALUE!
 =AND(Data!A4)	#VALUE!	#VALUE!
-=NOT("")	#VALUE!	TRUE
+=NOT("")	TRUE	TRUE
 =ROUND("2.5")	3	3
-=LEFT(Data!F1, 3)	"462"	"9/2"
+=LEFT(Data!F1, 3)	"462"	"9/2"	on purpose: F1 is a date, stored in the XLSX as its serial with a m/d/yyyy format; Sheets' text functions read a date cell as it shows (9/26/2026), 012 reads its serial, as Excel does
 ## Lookups and criteria
 =VLOOKUP("B*", Data!D1:E3, 2, FALSE)	2.5	2.5
 =VLOOKUP("Blueberry", Data!D1:E3, 2)	2.5	2.5
@@ -236,9 +236,9 @@
 =MATCH(35, Data!I1:I3, -1)	#N/A	#N/A
 =MATCH(3, {1, 3, 5}, 0)	2	2
 =INDEX(Data!C1:E1, 2)	"Apple"	"Apple"
-=INDEX(Data!D1:E3, 4, 1)	#REF!	#NUM!
-=ROWS(INDEX(Data!A1:C3, 0, 1))	1	3
-=SUM(INDEX(Data!C1:E3, 0, 1))	1	6
+=INDEX(Data!D1:E3, 4, 1)	#NUM!	#NUM!
+=ROWS(INDEX(Data!A1:C3, 0, 1))	3	3
+=SUM(INDEX(Data!C1:E3, 0, 1))	6	6
 =XLOOKUP("kiwi", Data!D1:D3, Data!E1:E3)	#N/A	#N/A
 =XLOOKUP("Apple", Data!D1:D5, Data!E1:E5, , 0, -1)	9	9
 =XLOOKUP(3.2, Data!C1:C7, Data!D1:D7, , -1)	"Cherry"	"Cherry"
@@ -254,19 +254,19 @@
 =COUNTIF(Data!B1:B7, "<>north")	4	4
 =COUNTIF(Data!A1:A7, "")	2	2
 =COUNTIF(Data!A1:A7, "10")	1	1
-=COUNTIF(Data!J1:J4, 3)	0	1
+=COUNTIF(Data!J1:J4, 3)	1	1
 =COUNTIF(Data!E1:E7, TRUE)	1	1
 =COUNTIF(Data!F1:F5, ">" & DATE(2026, 1, 1))	2	2
 ## Arrays and spills
 =SUM(SEQUENCE(3, 3, 0, 2))	72	72
 =INDEX(SEQUENCE(3, 2, 10, 5), 3, 2)	35	35
-=ROWS(SEQUENCE(0))	1	#NUM!
-=ROWS(FILTER(Data!A1:A7, Data!C1:C7>3))	4	#NAME?
-=TEXTJOIN(",", TRUE, FILTER(Data!D1:D5, Data!B1:B5="north"))	"Apple,Cherry,Apple"	#NAME?
-=FILTER(Data!A1:A3, Data!A1:A3>100)	#N/A	#NAME?
-=TEXTJOIN(",", TRUE, SORT(Data!C1:C5, 1, FALSE))	"5,4,3,2,1"	#NAME?
-=INDEX(SORT(Data!D1:E5, 2, FALSE), 1, 1)	"date"	#NAME?
-=TEXTJOIN(",", TRUE, SORT(Data!D1:D5))	"Apple,Apple,Banana,Cherry,date"	#NAME?
+=ROWS(SEQUENCE(0))	#NUM!	#NUM!
+=ROWS(FILTER(Data!A1:A7, Data!C1:C7>3))	4	unconfirmed	Sheets read _xlfn._xlws.FILTER and _xlfn._xlws.SORT, which is how Excel writes them, as #NAME?: confirm on the next import
+=TEXTJOIN(",", TRUE, FILTER(Data!D1:D5, Data!B1:B5="north"))	"Apple,Cherry,Apple"	unconfirmed	Sheets read _xlfn._xlws.FILTER and _xlfn._xlws.SORT, which is how Excel writes them, as #NAME?: confirm on the next import
+=FILTER(Data!A1:A3, Data!A1:A3>100)	#N/A	unconfirmed	Sheets read _xlfn._xlws.FILTER and _xlfn._xlws.SORT, which is how Excel writes them, as #NAME?: confirm on the next import
+=TEXTJOIN(",", TRUE, SORT(Data!C1:C5, 1, FALSE))	"5,4,3,2,1"	unconfirmed	Sheets read _xlfn._xlws.FILTER and _xlfn._xlws.SORT, which is how Excel writes them, as #NAME?: confirm on the next import
+=INDEX(SORT(Data!D1:E5, 2, FALSE), 1, 1)	"date"	unconfirmed	Sheets read _xlfn._xlws.FILTER and _xlfn._xlws.SORT, which is how Excel writes them, as #NAME?: confirm on the next import
+=TEXTJOIN(",", TRUE, SORT(Data!D1:D5))	"Apple,Apple,Banana,Cherry,date"	unconfirmed	Sheets read _xlfn._xlws.FILTER and _xlfn._xlws.SORT, which is how Excel writes them, as #NAME?: confirm on the next import
 =TEXTJOIN(",", TRUE, UNIQUE(Data!B1:B5))	"north,south,east"	"north,south,east"
 =TEXTJOIN(",", TRUE, UNIQUE(Data!G1:G4, FALSE, TRUE))	"1,3"	"1,3"
 =TEXTJOIN(",", TRUE, FLATTEN(Data!C1:D2))	"1,Apple,2,Banana"	unconfirmed
@@ -277,15 +277,15 @@
 =ROWS(CHOOSEROWS(Data!A1:A7, 1, 3))	2	2
 =SUM(ARRAYFORMULA(Data!C1:C3*Data!G1:G3))	11	unconfirmed
 =ARRAYFORMULA(SUM(Data!C1:C3^2))	14	14
-=SUM(Data!C1:C3*2)	12	#VALUE!
-=SUMPRODUCT(Data!C1:C3>1)	0	2
+=SUM(Data!C1:C3*2)	12	#VALUE!	on purpose: 012 computes the arguments of functions that take ranges as arrays, as Excel 365 does; Sheets needs ARRAYFORMULA
+=SUMPRODUCT(Data!C1:C3>1)	2	2
 =SUMPRODUCT(Data!A1:A4, Data!C1:C4)	140	140
 =SUM({1, 2; 3, 4})	10	10
 =INDEX({1, 2; 3, 4}, 2, 1)	3	3
 ## LET and LAMBDA
 =LET(x, 2, y, x+1, x*y)	6	6
 =LET(x, SEQUENCE(3), SUM(x))	6	6
-=LET(x, 1/0, 5)	#DIV/0!	5
+=LET(x, 1/0, 5)	5	5
 =LAMBDA(x, x+1)()	#N/A	#N/A
 =LET(f, LAMBDA(x, x+1), f(f(1)))	3	3
 =SUM(MAP({1, 2, 3}, LAMBDA(x, x*10)))	60	60
