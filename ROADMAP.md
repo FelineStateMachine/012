@@ -59,13 +59,7 @@ shared editing in section 3.
 |---|---|---|
 | A workbook of formulas where 012 matches Sheets on purpose (dates, text, rounding, errors, spills), results checked once in Sheets and asserted after; differences chosen on purpose listed in the docs | Formula results people rely on stay put | S |
 
-### 5. Around the grid
-
-| Item | Result | Size |
-|---|---|---|
-| A sheet or chart exported as a static HTML page in 012's look | Sharing a sheet with someone without 012 | S |
-
-### 6. Agents
+### 5. Agents
 
 Agents work on workbooks through the same operations people do (the
 `Batch`/`Change` path), so their edits are undoable, attributed and
@@ -74,9 +68,6 @@ section 3's shared editing with an agent as one participant.
 
 | Step | Result | Size |
 |---|---|---|
-| `012 describe` (sheets, used ranges, headers, names, tables, regions, charts), `--format json` on every command, `012 set --dry-run` printing the change as a diff, an agents page in the docs and a Claude Code skill installed by 012 | Agents with a shell use 012 well | S |
-| `012 mcp` over stdio on a workbook file: tools (describe, read, write, apply operations, evaluate without writing, find, sort, filter, chart, pivot, run a notebook cell), resources (`012://book/Sheet1!A1:D40`, tables, notebook cells), prompts | Any MCP host works with workbooks | M |
-| MCP Apps views: a sheet or chart rendered as an interactive view inside the host, from the HTML export | Workbooks shown in the chat | S to M |
 | Live mode: `012 --listen` and `012 mcp --attach`; the agent's cursor and name in the grid, its changes arriving as a suggestion (marked cells, accepted or rejected whole or by cell) unless direct edits are allowed, its own undo, a scope (sheet, range, read-only), elicitation to ask the person | Coworking with an agent in the grid | M to L |
 
 ## Later: other transports (shelved)
@@ -158,7 +149,14 @@ stream above rather than a design of their own.
 - `012 diff` cell by cell, as git's diff command or textconv, and `012 merge-driver` merging cell by cell with conflicts noted on the cells: [Diff and merge in git](docs/files/git.md)
 - Following files: a linked region follows a CSV, TSV, JSON lines or NUON file as it grows and any importable file as it's rewritten, keeping every row or the last ones, its rows arriving as the change stream: [Following files](docs/files/following.md)
 - The `.012` format written down with a version, and each release's workbooks kept as fixtures that every later build opens and saves unchanged: [The .012 format](docs/files/format.md#versions), [Releasing](docs/contributing/releasing.md#file-fixtures)
+- Web pages in 012's look: a sheet, a range or a chart as one self-contained `.html` file, charts as SVG, from File > Download and `012 export`: [Files](docs/files/README.md#web-pages)
 - A crash keeps unsaved work for recovery, restores the terminal and writes a report, locally and in `012 serve`: [Saving](docs/files/saving.md#if-012-crashes)
+
+**Agents**
+
+- `012 describe`, results as JSON with stable schemas, `012 set --dry-run` as a diff, and a Claude Code skill installed by `012 agent --install-skill`: [Agents](docs/agents/README.md)
+- `012 mcp`, an MCP server on a workbook file: tools that read, evaluate, write, sort, filter, chart, pivot and run notebook cells through the same checks as `012 set`, resources and prompts: [MCP server](docs/agents/mcp.md)
+- MCP Apps views: ranges read and charts made drawn in the chat from the HTML export, where the host supports the extension: [MCP server](docs/agents/mcp.md#views-in-the-chat)
 
 **Upkeep**
 

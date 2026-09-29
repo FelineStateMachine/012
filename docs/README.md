@@ -13,7 +13,8 @@ sidebar_position: 1
 | [Files](files/README.md) | Import and download, Excel files, saving, the `.012` format, scripts, diff and merge in git |
 | [The terminal](terminal/README.md) | Terminal features, themes, serving over SSH |
 | [Nushell](nushell/README.md) | 012 in a pipeline, nushell notebooks, types, a cookbook |
-| [Reference](reference/README.md) | Keys, functions, configuration, the macro API, the command line |
+| [Agents](agents/README.md) | Agents working on workbooks: the commands and their JSON, the Claude Code skill |
+| [Reference](reference/README.md) | Keys, functions, configuration, the macro API, the command line, JSON output |
 | [Contributing](contributing/README.md) | Architecture, extending, the UX bar, testing, limits, observability |
 
 The [roadmap](../ROADMAP.md) says what's ahead. The docs are Markdown that

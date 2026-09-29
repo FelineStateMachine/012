@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"runtime"
 	"runtime/debug"
+
+	"github.com/FelineStateMachine/012/internal/headless"
 )
 
 // version is the release this binary was built as, set by make dist
@@ -37,7 +39,26 @@ func buildVersion() string {
 	return v
 }
 
-func runVersion(e env) error {
-	_, err := fmt.Fprintf(e.stdout, "012 %s %s %s/%s\n", buildVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
+// versionResult is what 012 version --format json writes.
+type versionResult struct {
+	Version string `json:"version"`
+	Go      string `json:"go"`
+	OS      string `json:"os"`
+	Arch    string `json:"arch"`
+}
+
+func runVersion(args []string, e env) error {
+	a, err := parseArgs(args, []string{"format"}, nil)
+	if err != nil || len(a.pos) > 0 {
+		return usageError("", "usage: 012 version [--format text|json|nuon]")
+	}
+	format, err := resultFormat(a)
+	if err != nil {
+		return usageError(err.Error(), "usage: 012 version [--format text|json|nuon]")
+	}
+	if format != "text" {
+		return headless.Encode(e.stdout, format, versionResult{buildVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH})
+	}
+	_, err = fmt.Fprintf(e.stdout, "012 %s %s %s/%s\n", buildVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	return err
 }

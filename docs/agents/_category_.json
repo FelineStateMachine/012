@@ -1,0 +1,8 @@
+{
+  "label": "Agents",
+  "position": 7,
+  "link": {
+    "type": "doc",
+    "id": "agents/README"
+  }
+}

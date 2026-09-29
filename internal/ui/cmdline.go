@@ -115,7 +115,7 @@ func (m *Model) writeTo(name string, force bool) tea.Cmd {
 		}
 		return m.runCommand("file.save")
 	}
-	k, ok := fileio.KindOf(name)
+	k, ok := fileio.ExportKindOf(name)
 	switch {
 	case !ok && force:
 		return m.saveAs(withExt(name), false)

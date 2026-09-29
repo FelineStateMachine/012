@@ -47,7 +47,12 @@ rest: building from a clone, importing files, `012 serve` and settings.
   ([charts](docs/sheets/charts.md)).
 - **Files**: a diff-friendly JSON format, import from CSV, TSV, JSON,
   nushell's NUON, XLSX, SQLite, Parquet and Lotus 1-2-3, export to CSV,
-  TSV, JSON, NUON, XLSX and SQLite ([files](docs/files/README.md)).
+  TSV, JSON, NUON, XLSX, SQLite and a self-contained web page with its
+  charts as SVG ([files](docs/files/README.md)).
+- **For agents**: `012 describe`, `get`, `set --dry-run` and `recalc`
+  with JSON results, a Claude Code skill, and `012 mcp`, an MCP server
+  whose writes go through the same checks as yours, with views
+  of ranges and charts in the chat ([agents](docs/agents/README.md)).
 - **A stage in a pipeline**: `ls | sheet | where size > 1kb` edits a
   table on the terminal and sends it on with its types, through the
   nushell module `012 nu --install-module` installs, or as
