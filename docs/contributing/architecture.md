@@ -25,6 +25,7 @@ internal/jev     the API key's resolution, answer cache and TypeSafe client
 internal/keyring the OS credential store the API key lives in
 internal/macro   macros: the Starlark scripting API, recorded actions as scripts, step limits
 internal/nushell a notebook's commands: nu run as a process, tables in as NUON files, a table back
+  module         012.nu, the nushell module with sheet, embedded for 012 nu --module and --install-module
 internal/telemetry  opt-in JSON log and OTLP export of spans, events and frame stats
 internal/serve   the SSH server: auth, host key, a Model per session (charm.land/wish/v2)
 internal/confine resolving typed file names, confined to a directory when served

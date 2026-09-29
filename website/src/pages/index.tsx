@@ -60,7 +60,7 @@ const cells: Cell[] = [
   },
   {
     addr: 'A3',
-    entry: "'ls | to nuon | ^012 --pipe | from nuon",
+    entry: "'ls | sheet | where size > 1kb",
     hint: 'Nushell: pipelines, notebooks, types, a cookbook',
     title: 'Nushell, both ways',
     body: "A stage in a nushell pipeline with file sizes, durations and dates kept, or a notebook where each pipeline's table is a live, named region that formulas and charts read.",

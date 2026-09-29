@@ -19,19 +19,32 @@ ls | select name size | to nuon | ^012 --pipe | from nuon | where size > 1kb
 the table in NUON, nushell's own notation, so file sizes, durations and
 dates arrive as themselves, and
 [`from nuon`](https://www.nushell.sh/commands/docs/from_nuon.html) reads
-what 012 sends back with the same types ([Types](types.md)). In
-nushell, 012 is called as `^012`, since a word starting with a digit is
-a number there.
+what 012 sends back with the same types ([Types](types.md)). With the
+[`sheet` command](#the-sheet-command) installed, the same stage is
+`ls | select name size | sheet | where size > 1kb`.
 
 The screen is the terminal's own (`/dev/tty`, or the console on
 Windows), not standard input or output, so the pipeline's data never
 mixes with what 012 draws, and nothing but the table reaches standard
 output.
 
+```mermaid
+sequenceDiagram
+    participant nu as nushell
+    participant o12 as 012 --pipe
+    participant tty as the terminal
+    nu->>o12: to nuon: the table on standard input
+    o12->>tty: the sheet, drawn on /dev/tty
+    tty->>o12: keys: edit, select, Ctrl+Q, Enter
+    o12->>nu: the selection or the sheet, as NUON on standard output
+    Note over nu: from nuon: a table with its types
+```
+
 | Command | Reads | Writes |
 |---|---|---|
 | `012 -` | A table from standard input, into a new sheet | Nothing; the table stays in 012 until you save or download it |
 | `012 --pipe` | A table from standard input, or a file named after it | The sheet or the selection, to standard output, when you quit |
+| `sheet`, `sheet view` | As `012 --pipe` and `012 -`, from nushell values | A nushell table, or nothing |
 
 ## Reading a table: `012 -`
 
@@ -80,6 +93,32 @@ instead:
 open budget.xlsx | to nuon | ^012 --pipe --to csv | save budget.csv
 ```
 
+## The `sheet` command
+
+The nushell module that comes with 012 ([Install the `sheet`
+command](README.md#install-the-sheet-command)) wraps both commands, so a
+pipeline needs neither `^012` nor NUON on either side:
+
+```nu
+ls | select name size | sheet | where size > 1kb
+ps | sheet view
+sheet budget.xlsx | save -f budget.csv
+```
+
+![In nushell, ls's table goes through sheet, three rows are selected and sent back, and nu keeps filtering them by size; then quitting without sending raises sheet's error](../media/sheet.gif)
+
+`sheet` is `to nuon | ^012 --pipe --to nuon | from nuon`: it opens the
+table piped in, or the file it names, and returns what you send back
+with its types. Text piped in, such as `open --raw data.csv`, goes to
+012 as it is, to be read as `012 -` reads it. `sheet view` is
+`to nuon | ^012 -`, and returns nothing. Quitting without sending makes
+`sheet` fail with 012's reason:
+
+```nu
+try { ls | sheet | save -f picked.nuon } catch {|e| print $e.msg }
+# quit without sending anything to the pipeline
+```
+
 ## The exit status
 
 Quitting without sending (D at the question) writes nothing and exits
@@ -95,25 +134,26 @@ try { ls | to nuon | ^012 --pipe | from nuon | save -f picked.nuon } catch { pri
 
 ## Recipes
 
-Each of these reads a table into 012; add `--pipe` and `| from nuon`
-to carry on with what you send back.
+Each of these reads a table into 012 with `sheet view`; `sheet`
+instead carries on with what you send back. Without the module, each
+`sheet view` is `to nuon | ^012 -`.
 
 ```nu
 # Files, largest first: sizes in the Size format, dates as dates
-ls | sort-by size --reverse | to nuon | ^012 -
+ls | sort-by size --reverse | sheet view
 
 # Processes: CPU as numbers, memory as file sizes
-ps | select pid name cpu mem | to nuon | ^012 -
+ps | select pid name cpu mem | sheet view
 
 # Every CSV here, one table, with the file each row came from
-glob *.csv | each {|f| open $f | insert file ($f | path basename) } | flatten | to nuon | ^012 -
+glob *.csv | each {|f| open $f | insert file ($f | path basename) } | flatten | sheet view
 
 # An API's JSON, its dates made datetimes on the way
-http get https://api.github.com/repos/nushell/nushell/releases | select name published_at | update published_at { into datetime } | to nuon | ^012 -
+http get https://api.github.com/repos/nushell/nushell/releases | select name published_at | update published_at { into datetime } | sheet view
 
 # This computer: sys host is a record, which comes in as one row
-sys host | to nuon | ^012 -
-sys disks | select mount total free | to nuon | ^012 -
+sys host | sheet view
+sys disks | select mount total free | sheet | sort-by free
 ```
 
 The commands are nushell's:

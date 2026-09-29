@@ -42,8 +42,10 @@ rest: building from a clone, importing files, `012 serve` and settings.
 - **Files**: a diff-friendly JSON format, import from CSV, TSV, JSON,
   nushell's NUON, XLSX, SQLite, Parquet and Lotus 1-2-3, export to CSV,
   TSV, JSON, NUON, XLSX and SQLite ([files](docs/files/README.md)).
-- **A stage in a pipeline**: `ls | to nuon | ^012 --pipe | from nuon`
-  edits a table on the terminal and sends it on with its types
+- **A stage in a pipeline**: `ls | sheet | where size > 1kb` edits a
+  table on the terminal and sends it on with its types, through the
+  nushell module `012 nu --install-module` installs, or as
+  `ls | to nuon | ^012 --pipe | from nuon` without it
   ([pipelines](docs/nushell/pipelines.md)).
 - **Nushell notebooks**: `012 nu` (or Data > Shell in any workbook) runs nushell
   pipelines whose tables become live, named regions of the sheet;
