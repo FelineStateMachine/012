@@ -217,7 +217,7 @@ func (m *Model) finishRegion(msg nuDoneMsg) tea.Cmd {
 			m.failRegion(r.Name, err.Error())
 			break
 		}
-		m.shell.said = m.th.Hint.Render(r.Name + ": " + transfer.Rows(msg.data.Rows) + noteSuffix(msg.data.Note))
+		m.shell.said = m.th.Hint.Render(r.Name + ": " + transfer.Rows(max(msg.data.Rows-1, 0)) + noteSuffix(msg.data.Note))
 	}
 	if len(m.shell.queue) == 0 && time.Since(msg.job.start) > 5*time.Second {
 		return tea.Batch(m.nextRegion(), m.term.notify("Shell commands finished in "+m.displayName()))

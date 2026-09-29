@@ -65,7 +65,7 @@ func TestShellMakesRegions(t *testing.T) {
 	if got := m.sheet.ShownText(addr("B3")); got != "2.0 kB" {
 		t.Errorf("B3 shows %q", got)
 	}
-	if !strings.Contains(m.shell.said, "r1: 4 rows") {
+	if !strings.Contains(m.shell.said, "r1: 3 rows") {
 		t.Errorf("said %q", m.shell.said)
 	}
 	press(t, m, "$r1 | where size > 1kb", "<enter>")

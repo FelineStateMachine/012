@@ -241,7 +241,7 @@ func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp *rowtext.Span, spills boo
 	case m.trace.covers(m.sheet, a):
 		return &m.th.Traced, true
 	}
-	if lc.labels != nil && lc.labels.Contains(a) {
+	if lc.labels != nil && (lc.labels.Contains(a) || sp.Text != "" && lc.labels.Contains(sheet.Addr{Col: sp.Owner, Row: lc.row})) {
 		return &m.th.Region, true
 	}
 	switch v := m.sheet.Value(a); {

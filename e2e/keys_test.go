@@ -124,7 +124,7 @@ var namedKeys = map[string]ghostty.Key{
 	"up": ghostty.KeyArrowUp, "down": ghostty.KeyArrowDown,
 	"left": ghostty.KeyArrowLeft, "right": ghostty.KeyArrowRight,
 	"pgup": ghostty.KeyPageUp, "pgdown": ghostty.KeyPageDown,
-	"f1": ghostty.KeyF1, "f2": ghostty.KeyF2, "f5": ghostty.KeyF5, "f10": ghostty.KeyF10, "f11": ghostty.KeyF11,
+	"f1": ghostty.KeyF1, "f2": ghostty.KeyF2, "f5": ghostty.KeyF5, "f9": ghostty.KeyF9, "f10": ghostty.KeyF10, "f11": ghostty.KeyF11,
 	"space": ghostty.KeySpace,
 }
 
@@ -156,6 +156,7 @@ var charKeys = func() map[rune]physKey {
 		{',', '<', ghostty.KeyComma}, {'.', '>', ghostty.KeyPeriod},
 		{'/', '?', ghostty.KeySlash}, {';', ':', ghostty.KeySemicolon},
 		{'\'', '"', ghostty.KeyQuote}, {'`', '~', ghostty.KeyBackquote},
+		{'\\', '|', ghostty.KeyBackslash}, {'[', '{', ghostty.KeyBracketLeft}, {']', '}', ghostty.KeyBracketRight},
 	} {
 		m[p.plain] = physKey{key: p.key}
 		m[p.shifted] = physKey{key: p.key, mods: ghostty.ModShift, base: p.plain}

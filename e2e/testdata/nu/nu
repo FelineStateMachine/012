@@ -1,0 +1,21 @@
+#!/bin/sh
+# A stand-in for nu in the golden screens: it answers the commands the
+# screens type with fixed tables, so the screens don't depend on nu being
+# installed or on what ls finds. The script 012 runs is the last argument.
+for arg; do script=$arg; done
+case $script in
+*'help commands'*)
+	echo '["ls", "where", "sort-by", "first", "get", "str join", "window"]' ;;
+*'$r1 | where size > 1kb'*)
+	echo '[[name, type, size]; ["012", file, 4.2kb], [README.md, file, 9.8kb], [demos, dir, 3.1kb]]' ;;
+*'do {
+ls
+}'*)
+	echo '[[name, type, size]; ["012", file, 4.2kb], [CLAUDE.md, file, 1kb], [README.md, file, 9.8kb], [demos, dir, 3.1kb], [go.mod, file, 812b]]' ;;
+*)
+	cmd=$(printf '%s\n' "$script" | sed -n '/^do {$/{n;p;q;}')
+	echo "Error: nu::parser::extra_positional" >&2
+	echo "" >&2
+	echo "  × Command \`${cmd%% *}\` not found" >&2
+	exit 1 ;;
+esac

@@ -261,8 +261,11 @@ func (s *Sheet) RegionStatus(name string) string {
 			return me.why
 		}
 	}
-	if s.regions.data[k] == nil {
+	switch d := s.regions.data[k]; {
+	case d == nil:
 		return "not run"
+	case d.Rows == 0:
+		return "no rows"
 	}
 	return ""
 }
