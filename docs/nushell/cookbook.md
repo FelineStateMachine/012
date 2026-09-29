@@ -6,7 +6,7 @@ sidebar_position: 5
 # Cookbook
 
 Short worked examples. Pipelines that end in `^012` run in a nushell
-session; lines of the form `name = pipeline` are typed at a
+session; lines that start with a region's name and `=` are typed at a
 [notebook's](notebooks.md) `nu❯` prompt (`012 nu`, or `!` in any workbook). Nushell's own
 [cookbook](https://www.nushell.sh/cookbook/) has more pipelines to start
 from.

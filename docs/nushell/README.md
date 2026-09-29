@@ -19,7 +19,7 @@ each pipeline's table a live part of the sheet.
 | Way | Looks like | For |
 |---|---|---|
 | [A stage in a pipeline](pipelines.md) | `ls \| to nuon \| ^012 --pipe \| from nuon` | Looking at a table on the terminal, editing it, and sending it on to the next command |
-| [A notebook](notebooks.md) | `012 nu`, then `sizes = ls \| select name size` at the `nu❯` prompt | Pipelines you keep: each one's table is a named region of the sheet that formulas, charts and other pipelines read, run again when you ask |
+| [A notebook](notebooks.md) | `012 nu`, then `ls \| select name size` at the `nu❯` prompt | Pipelines you keep: each one's table is a named region of the sheet that formulas, charts and other pipelines read, run again when you ask |
 | [A followed file](../files/following.md) | Data > Linked file, then `$app \| where status >= 500` | A log or export that keeps growing: its rows come in as they're written, and pipelines read the rows it has now |
 
 The first needs nothing but nushell. The other two run `nu` from inside
