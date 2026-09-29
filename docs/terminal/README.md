@@ -13,6 +13,7 @@ colors that follow light and dark.
 |---|---|
 | [Themes](themes.md) | Your terminal's colors, a built-in scheme, or your own |
 | [Serving over SSH](ssh.md) | `012 serve`: a 012 per session, on one directory |
+| [Nushell and pipelines](nushell.md) | `012 -` and `012 --pipe`: tables in on standard input and out on standard output, with nushell's types |
 
 ## Terminal features 012 uses
 

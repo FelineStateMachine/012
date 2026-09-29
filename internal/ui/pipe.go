@@ -121,8 +121,8 @@ func (m *Model) askSend() tea.Cmd {
 		choice{key: "d", label: "Don't send", run: (*Model).exit},
 		choice{key: "esc", label: "Cancel", run: func(*Model) tea.Cmd { return nil }})
 	m.ask(question{
-		msg:     "Send " + m.sendWhat() + " to the pipeline as " + m.pipeKind().String() + "?",
-		desc:    "Quitting without sending exits with status 1, so the pipeline stops",
+		msg:     "Send " + m.sendWhat() + " as " + m.pipeKind().String() + "?",
+		desc:    "To standard output, for the next command; quitting without sending exits with status 1",
 		choices: choices,
 	})
 	return nil

@@ -58,7 +58,7 @@ func importTable(ctx context.Context, name string, opt Options) (*Result, error)
 func readTable(ctx context.Context, in io.Reader, maxCells int, progress func(rows int)) (*Result, bool, error) {
 	r := nuon.NewReader(in)
 	b := newBuilder(ctx, maxCells)
-	t := tableCells{b: b, cols: map[string]int{}, zone: zone()}
+	t := tableCells{b: b, cols: map[string]int{}, zone: zone(), dated: map[int]bool{}}
 	row := 0
 	for ; ; row++ {
 		if row%256 == 0 {
@@ -89,10 +89,15 @@ func readTable(ctx context.Context, in io.Reader, maxCells int, progress func(ro
 // tableCells stores a table's rows: each column's name in the header
 // row once it's first seen, and each value under its column.
 type tableCells struct {
-	b    *builder
-	cols map[string]int
-	zone *time.Location
+	b     *builder
+	cols  map[string]int
+	zone  *time.Location
+	dated map[int]bool // columns widened for dates
 }
+
+// dateTimeWidth fits a date and time in the Date time format, in any
+// locale's order: 9/27/2026 11:27:31, 27.09.2026 11:27:31.
+const dateTimeWidth = 20
 
 // header adds the table form's columns, in their order, before any row
 // names them.
@@ -156,6 +161,10 @@ func (t *tableCells) value(a sheet.Addr, v nuon.Value) {
 		b.number(a, float64(v.Int)/nsPerDay, f, none)
 	case nuon.Date:
 		b.number(a, numfmt.SerialOf(v.Time.In(t.zone)), sheet.Preset(sheet.FmtDateTime), none)
+		if !t.dated[a.Col] && a.Valid() {
+			t.dated[a.Col] = true
+			b.s.LoadColWidth(a.Col, dateTimeWidth)
+		}
 	default: // binary, lists and records
 		b.text(a, v.String(), sheet.Format{}, none)
 	}

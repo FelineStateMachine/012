@@ -15,12 +15,15 @@ go install github.com/FelineStateMachine/012/cmd/012@latest
 ```sh
 012                  # a new sheet
 012 budget.012       # open a sheet, or create it when it doesn't exist
-012 sales.xlsx       # import .xlsx, .csv, .tsv, .sqlite, .parquet or Lotus .wk1
+012 sales.xlsx       # import .xlsx, .csv, .tsv, .json, .nuon, .sqlite, .parquet or Lotus .wk1
+ls | to nuon | 012 - # a table from standard input
 012 serve ~/sheets   # serve a directory over SSH, a 012 per session
 ```
 
 A file on the command line opens as File > Open would: a `.012` sheet, or
-another format imported ([files](../files/README.md)). `012 serve` is
+another format imported ([files](../files/README.md)). `012 -` and
+`012 --pipe`, 012 as a stage in a pipeline, are in
+[Nushell and pipelines](../terminal/nushell.md). `012 serve` is
 described in [Serving over SSH](../terminal/ssh.md).
 
 `012 config` prints the settings in effect and `012 config edit` opens the

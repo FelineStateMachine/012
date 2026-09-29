@@ -24,6 +24,7 @@ type screen struct {
 	// ssh client, with these words on the ssh command line; files fills
 	// the served directory then.
 	ssh   []string
+	args  []string // 012's command line, e.g. --pipe
 	setup func(s *session)
 }
 
@@ -75,7 +76,7 @@ func startScreen(t *testing.T, sc screen) *session {
 		opts.dir = t.TempDir()
 		sc.files(t, opts.dir)
 	}
-	var args []string
+	args := sc.args
 	if sc.ssh != nil {
 		top, served := t.TempDir(), opts.dir
 		if served == "" {

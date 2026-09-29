@@ -55,7 +55,7 @@ func TestPipeSendsTheSheet(t *testing.T) {
 		t.Errorf("status line %q", st)
 	}
 	press(t, m, "<ctrl+q>")
-	if got := line(m, contextLine); !strings.Contains(got, "Send the sheet to the pipeline as NUON?") ||
+	if got := line(m, contextLine); !strings.Contains(got, "Send the sheet as NUON?") ||
 		!strings.Contains(got, "Enter  Send sheet") || !strings.Contains(got, "D  Don't send") || strings.Contains(got, "Send selection") {
 		t.Errorf("question %q", got)
 	}
@@ -75,7 +75,7 @@ func TestPipeSendsTheSelection(t *testing.T) {
 		t.Errorf("status line %q", st)
 	}
 	press(t, m, "<ctrl+q>")
-	if got := line(m, contextLine); !strings.Contains(got, "Send A1:A2 to the pipeline as CSV?") || !strings.Contains(got, "S  Send sheet") {
+	if got := line(m, contextLine); !strings.Contains(got, "Send A1:A2 as CSV?") || !strings.Contains(got, "S  Send sheet") {
 		t.Errorf("question %q", got)
 	}
 	press(t, m, "<enter>")

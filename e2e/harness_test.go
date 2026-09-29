@@ -64,6 +64,7 @@ type session struct {
 	legacy *keyFilter
 
 	exited chan struct{} // closed when the pty reader stops
+	stdout *lockedBuffer // a piped session's standard output
 }
 
 // options configures a session.
@@ -92,6 +93,11 @@ type options struct {
 	// startsOn is what the first screen shows once it's up: READY
 	// unless set, such as a question asked at once.
 	startsOn string
+	// piped runs 012 with stdin as its standard input and its standard
+	// output captured, as a stage of a pipeline: the terminal is its
+	// controlling terminal and standard error only (pipe_test.go).
+	piped bool
+	stdin string
 }
 
 // start launches 012 in dir (a fresh temp dir if empty) with args.
@@ -149,7 +155,11 @@ func startWith(t *testing.T, o options, args ...string) *session {
 	s.cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor", "TYPESAFE_API_KEY=", "TYPESAFE_BASE_URL=")
 	s.cmd.Env = append(s.cmd.Env, configEnv(t, o)...)
 	s.cmd.Env = append(s.cmd.Env, o.env...)
-	s.pty, err = pty.StartWithSize(s.cmd, &pty.Winsize{Cols: s.cols, Rows: s.rows})
+	if o.piped {
+		s.pty, err = s.startPiped(o.stdin)
+	} else {
+		s.pty, err = pty.StartWithSize(s.cmd, &pty.Winsize{Cols: s.cols, Rows: s.rows})
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

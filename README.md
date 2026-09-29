@@ -39,9 +39,12 @@ rest: building from a clone, importing files, `012 serve` and settings.
 - **Charts** that float over the grid and follow their data, drawn as real
   images in kitty, Ghostty and WezTerm and as text elsewhere
   ([charts](docs/sheets/charts.md)).
-- **Files**: a diff-friendly JSON format, import from CSV, TSV, XLSX,
-  SQLite, Parquet and Lotus 1-2-3, export to CSV, TSV, XLSX and SQLite
-  ([files](docs/files/README.md)).
+- **Files**: a diff-friendly JSON format, import from CSV, TSV, JSON,
+  nushell's NUON, XLSX, SQLite, Parquet and Lotus 1-2-3, export to CSV,
+  TSV, JSON, NUON, XLSX and SQLite ([files](docs/files/README.md)).
+- **A stage in a pipeline**: `ls | to nuon | 012 --pipe | from nuon`
+  edits a table on the terminal and sends it on with its types
+  ([nushell and pipelines](docs/terminal/nushell.md)).
 - **Macros**, recorded or written as Starlark scripts saved with the sheet
   ([macros](docs/sheets/macros.md)).
 - **Made for terminals**: the mouse, hyperlinks, the system clipboard over
