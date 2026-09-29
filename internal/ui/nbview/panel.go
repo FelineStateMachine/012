@@ -13,8 +13,9 @@ import (
 // What the notebook puts on the control panel: the context line's
 // hints and messages, and the completions' box.
 
-// keyLabel is how a key of Keys shows: "d d" as dd, others as chips do.
-func keyLabel(k string) string {
+// KeyLabel is how a key of Keys shows: "d d" as dd, a letter as it is
+// typed (G is Shift+g), others as chips show them.
+func KeyLabel(k string) string {
 	if a, b, ok := strings.Cut(k, " "); ok {
 		return a + b
 	}
@@ -41,7 +42,7 @@ func keyFor(keys map[string]string, id string) string {
 	if len(found) == 0 {
 		return ""
 	}
-	return keyLabel(found[0])
+	return KeyLabel(found[0])
 }
 
 // hints are key hints for commands, leaving out those without a key.

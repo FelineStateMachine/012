@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"slices"
 	"strconv"
 
@@ -51,6 +52,50 @@ var nbEditKeys = map[string]string{
 	"shift+enter": "nb.run_next",
 	"ctrl+enter":  "nb.run",
 	"alt+enter":   "nb.run_insert",
+}
+
+// nbShortcut is the notebook's key for command id, as shown: its
+// command mode's, or edit mode's, the shortest first.
+func nbShortcut(id string) string {
+	return nbKeyLabels(id)[0]
+}
+
+// nbKeyLabels are the notebook's keys for id, shown, command mode's
+// first; "" alone for none.
+func nbKeyLabels(id string) []string {
+	var out []string
+	for _, keys := range []map[string]string{nbKeys, nbEditKeys} {
+		var found []string
+		for k, c := range keys {
+			if c == id {
+				found = append(found, nbview.KeyLabel(k))
+			}
+		}
+		slices.SortFunc(found, func(a, b string) int { return cmp.Or(cmp.Compare(len(a), len(b)), cmp.Compare(a, b)) })
+		for _, k := range found {
+			if !slices.Contains(out, k) {
+				out = append(out, k)
+			}
+		}
+	}
+	if len(out) == 0 {
+		return []string{""}
+	}
+	return out
+}
+
+// nbHelpRows are the notebook's keys for help, in the order of its menu.
+func nbHelpRows(listed map[string]bool) []helpRow {
+	rows := []helpRow{{keys: []string{"Up", "Down", "j", "k"}, action: "Move between cells and outputs"}}
+	for _, it := range append([]menuItem{{cmd: "nb.edit"}, {cmd: "nb.command_mode"}, {cmd: "nb.add_code"}}, notebookItems...) {
+		keys := nbKeyLabels(it.cmd)
+		if it.sep || keys[0] == "" || listed[it.cmd] || commands[it.cmd] == nil {
+			continue
+		}
+		listed[it.cmd] = true
+		rows = append(rows, helpRow{keys: keys, action: commands[it.cmd].title})
+	}
+	return rows
 }
 
 // notebookItems are Data > Notebook's items.

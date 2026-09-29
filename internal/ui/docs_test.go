@@ -9,6 +9,7 @@ import (
 	"testing"
 	"unicode"
 
+	"github.com/FelineStateMachine/012/internal/ui/nbview"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -198,6 +199,15 @@ func TestKeysDocCoversKeymap(t *testing.T) {
 		re := regexp.MustCompile(`(^|[\s,|(/])` + regexp.QuoteMeta(label) + `($|[\s,|)/.;:])`)
 		if !re.MatchString(doc) {
 			t.Errorf("docs/reference/keys.md doesn't list %s (%s, %s)", label, id, commands[id].title)
+		}
+	}
+	for _, keys := range []map[string]string{nbKeys, nbEditKeys} {
+		for k, id := range keys {
+			label := nbview.KeyLabel(k)
+			re := regexp.MustCompile("(^|[\\s,|(/`])" + regexp.QuoteMeta(label) + "($|[\\s,|)/.;:`])")
+			if commands[id] == nil || !re.MatchString(doc) {
+				t.Errorf("docs/reference/keys.md doesn't list the notebook's %s (%s)", label, id)
+			}
 		}
 	}
 	var vimKeys []string

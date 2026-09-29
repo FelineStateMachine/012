@@ -173,7 +173,7 @@ func shortcut(id string) string {
 	if keys := keysFor(id, false); len(keys) > 0 {
 		return keyLabel(keys[0])
 	}
-	return ""
+	return nbShortcut(id)
 }
 
 // shortcut is the key shown for a command with the keys in use: with vim
@@ -182,7 +182,7 @@ func (m *Model) shortcut(id string) string {
 	if keys := keysFor(id, m.prefs.vim); len(keys) > 0 {
 		return keyLabel(keys[0])
 	}
-	return ""
+	return nbShortcut(id)
 }
 
 // runCommand runs a registered command by ID. It is the one place a

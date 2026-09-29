@@ -152,7 +152,7 @@ func (t *tokenizer) word() {
 	case slices.Contains(operators, w) && !t.command:
 		t.add(start, theme.SyntaxOperator)
 		return
-	case t.command && !strings.HasPrefix(w, "-"):
+	case t.command && !strings.HasPrefix(w, "-") && !strings.HasSuffix(w, ":"): // a record's key isn't a command
 		t.add(start, theme.SyntaxCommand)
 	}
 	t.command = false

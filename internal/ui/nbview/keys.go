@@ -48,6 +48,9 @@ func (v *View) commandKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 			return v.h.Run(id), true
 		}
 	}
+	if key == "esc" {
+		return nil, true // command mode is the notebook's outermost level
+	}
 	if v.move(key) {
 		return nil, true
 	}
@@ -337,10 +340,14 @@ func (v *View) Head() (name, text string) {
 			reads = append(reads, "$sheet."+r.Ref)
 		}
 	}
-	if len(reads) == 0 {
-		return name, "nushell"
+	text = "a nushell pipeline"
+	if len(reads) > 0 {
+		text = "reads " + strings.Join(reads, ", ")
 	}
-	return name, "reads " + strings.Join(reads, ", ")
+	if n := c.Name(); n != "" {
+		text += "; read as $" + n + ", nu." + n + " in formulas"
+	}
+	return name, text
 }
 
 // outputSummary says what an output holds.

@@ -284,7 +284,8 @@ func (sh *shown) tableLine(th *theme.Theme, loc *locale.Locale, i int, expanded 
 			if c > 0 {
 				b.WriteString("  ")
 			}
-			b.WriteString(th.OutputHead.Render(pad(ansi.Truncate(sh.cols[c], sh.fit[c], "…"), sh.fit[c], sheet.AlignLeft)))
+			name := ansi.Truncate(sh.cols[c], sh.fit[c], "…")
+			b.WriteString(th.OutputHead.Render(name) + strings.Repeat(" ", sh.fit[c]-ansi.StringWidth(name)))
 		}
 		return b.String()
 	case i <= rows:
@@ -354,7 +355,8 @@ func (sh *shown) fieldLine(th *theme.Theme, loc *locale.Locale, i, width int) st
 			kw = max(kw, ansi.StringWidth(k))
 		}
 		kw = min(kw, 24)
-		key = th.OutputHead.Render(pad(ansi.Truncate(sh.cols[i], kw, "…"), kw, sheet.AlignLeft)) + "  "
+		k := ansi.Truncate(sh.cols[i], kw, "…")
+		key = th.OutputHead.Render(k) + strings.Repeat(" ", kw-ansi.StringWidth(k)+2)
 	} else {
 		n := len(strconv.Itoa(sh.total - 1))
 		key = th.Muted.Render(pad(strconv.Itoa(i), n, sheet.AlignRight)) + "  "
