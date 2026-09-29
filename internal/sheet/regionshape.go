@@ -76,7 +76,7 @@ func (s *Sheet) shiftRegions(rows bool, sp formula.Span) {
 			st.list = append(st.list, r) // before the lines: untouched
 			continue
 		}
-		for _, c := range s.emptyRegion(s.meta(nameKey(r.Name))) {
+		for _, c := range s.emptyRegion(r, s.meta(nameKey(r.Name))) {
 			s.wb.markDirty(c)
 		}
 		at, ok := cell(r.At)
@@ -121,7 +121,7 @@ func (w *Workbook) regionsInUse() []namedUsers {
 				continue
 			}
 			if t, ok := s.RegionTable(r.Name); ok {
-				out = append(out, namedUsers{s, t, users})
+				out = append(out, namedUsers{s: s, r: t, users: users, region: true})
 			}
 		}
 	}

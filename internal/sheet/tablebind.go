@@ -185,7 +185,7 @@ func (w *Workbook) tablesInUse() []namedUsers {
 			continue
 		}
 		if v, ok := w.findTable(k); ok && v.ok {
-			out = append(out, namedUsers{v.s, v.r, users})
+			out = append(out, namedUsers{s: v.s, r: v.r, users: users})
 		}
 	}
 	return out

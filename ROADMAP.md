@@ -59,15 +59,8 @@ shared editing in section 3.
 | Item | Result | Size |
 |---|---|---|
 | A workbook of formulas where 012 matches Sheets on purpose (dates, text, rounding, errors, spills), results checked once in Sheets and asserted after; differences chosen on purpose listed in the docs | Formula results people rely on stay put | S |
-| Cycles found from the formulas as written rather than as evaluation walks them: a cycle behind an error that ends a range read or an IF branch not taken, and arrays and notebook outputs in each other's way, settle the same whatever order they're computed in (`-randedit.seeds=20000` still finds about one sequence in 2,500 that reopens differently, and `randKnown` skips one of the default seeds) | Every workbook reads the same when reopened | M |
 
-### 5. Around the grid
-
-| Item | Result | Size |
-|---|---|---|
-| Release archives and an install script served from the owner's nzip server | Installing without Go | S |
-
-### 6. Agents
+### 5. Agents
 
 Agents work on workbooks through the same operations people do (the
 `Batch`/`Change` path), so their edits are undoable, attributed and
@@ -106,6 +99,7 @@ stream above rather than a design of their own.
 - An Excel-sized grid in compact column storage, with a ten-million-cell `max-cells` budget; operations cost the data, not the grid: [Bounds of support](docs/contributing/limits.md#sheet-size)
 - Undo steps in the compact form: clearing a full ten-million-cell sheet holds about what the sheet does, and a step past 1 GB asks first: [Bounds of support](docs/contributing/limits.md#undo)
 - Spilled cells and pivot results in the compact form, about 20 B each: [Bounds of support](docs/contributing/limits.md#sheet-size)
+- Cycles found from the formulas as written, and arrays and notebook outputs in each other's way settled the same in any order, so a workbook reads the same when reopened: [Formulas](docs/formulas/README.md#values-and-errors)
 
 **Finding and using features**
 
@@ -168,6 +162,7 @@ stream above rather than a design of their own.
 
 - `make check` before every push; demo tapes (`make demos`); annotated version tags with release notes (v0.2.0 onward; v0.1.0 remains on the Go module proxy): [Testing](docs/contributing/testing.md)
 - A release checklist (XLSX output opened in Excel, LibreOffice and Google Sheets) and `make dist`, release archives cross-compiled locally with SHA256SUMS: [Releasing](docs/contributing/releasing.md)
+- Installing without Go: `curl -fsSL https://f58b.n.zip/install.sh | sh` (and `install.ps1` on Windows) with the release archives served from the docs site by `make site-release`: [Install and run](docs/getting-started/install.md), [Releasing](docs/contributing/releasing.md#publishing)
 - `make stress-report` flags regressions against the last release's run, allowing for noise: [Observability](docs/contributing/observability.md#regressions-against-the-last-release)
 - Grafana: recent traces and a trace view of the nested spans: [Observability](docs/contributing/observability.md#the-stack)
 - Every overlay, prompts and formula suggestions behind narrow hosts, most in packages of their own with fake-host tests: [Architecture](docs/contributing/architecture.md#the-ui)

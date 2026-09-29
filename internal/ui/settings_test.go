@@ -11,7 +11,7 @@ import (
 // and Ctrl+Z turns it back off.
 func TestDecimalSetting(t *testing.T) {
 	m := newModel()
-	press(t, m, "=0.1+0.2=0.3", "<enter>")
+	press(t, m, "=0.1+0.2-0.3=0", "<enter>")
 	value := func() string { return m.sheet.Value(addr("A1")).String() }
 	if value() != "FALSE" {
 		t.Fatalf("binary: A1 = %s", value())

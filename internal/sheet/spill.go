@@ -88,6 +88,7 @@ func (w *Workbook) noteSpill(s *Sheet, a Addr, c *Cell, arr *functions.Array) {
 // sheets whose pivots to refresh: stale, and those whose source a spill
 // changed.
 func (w *Workbook) settleSpills(stale []*Sheet) []*Sheet {
+	defer func() { w.spillCycles, w.spillRechecked = nil, false }()
 	for pass := 0; len(w.spillWork) > 0; pass++ {
 		var changed, anchors []loc
 		for _, l := range w.spillOrder() {
@@ -133,24 +134,24 @@ func (w *Workbook) spillOrder() []loc {
 func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 	c := s.cells.get(a)
 	if c == nil || !c.IsFormula() || p.arr == nil {
-		return s.dropSpill(a), false
+		return s.forgetSpill(a), false
 	}
 	area, why, later := s.spillArea(a, p.arr)
 	var cycle []loc
 	circ := false
+	old := s.spills[a]
 	if why == "" {
 		// Checked each time the anchor is computed: a formula typed since
 		// it spilled may lead from its cells back to it.
-		why, cycle = s.spillsIntoItself(a, area)
+		why, cycle = s.spillCycle(a, area, old)
 		circ = why != ""
 	}
-	old := s.spills[a]
 	if why == "" && len(later) == 0 && old != nil && old.why == "" && !old.stale && old.auto == c.auto && sameArray(old.arr, p.arr) {
 		return nil, false // written already, and nothing has changed in its way
 	}
 	var changed []loc
-	if circ != (old != nil && old.circular) {
-		changed = s.wb.recheckArrays(loc{s, a}) // a cycle through arrays began or ended here
+	if s.wb.cycleMoved(circ, old) {
+		changed = s.wb.recheckArrays(loc{s, a})
 	}
 	if why != "" {
 		changed = append(changed, s.dropSpill(a)...)
@@ -166,6 +167,9 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 	changed = append(changed, s.regionsGiveWay(area)...)
 	if old != nil && old.why == "" {
 		changed = append(changed, s.clearSpilled(old.area, area)...)
+		if old.area != area {
+			changed = append(changed, s.wb.recheckCircular()...)
+		}
 	}
 	s.setSpill(a, &spill{area: area, arr: p.arr, auto: c.auto})
 	c.Value = p.top
@@ -338,7 +342,7 @@ func (s *Sheet) dropSpill(a Addr) []loc {
 	if old.why != "" {
 		return nil
 	}
-	return s.clearSpilled(old.area, Rect{From: a, To: a})
+	return append(s.clearSpilled(old.area, Rect{From: a, To: a}), s.wb.recheckCircular()...)
 }
 
 // setSpill records the anchor at a's spill (nil for none), indexing
@@ -347,9 +351,15 @@ func (s *Sheet) setSpill(a Addr, sp *spill) {
 	if old := s.spills[a]; old != nil {
 		s.spillAt.remove(a, []Rect{old.area})
 		delete(s.spills, a)
+		if old.circular {
+			s.wb.circArrays--
+		}
 	}
 	if sp == nil {
 		return
+	}
+	if sp.circular {
+		s.wb.circArrays++
 	}
 	if s.spills == nil {
 		s.spills = map[Addr]*spill{}
@@ -366,7 +376,7 @@ func (s *Sheet) spillTouched(a Addr, c *Cell) {
 		return
 	}
 	if s.spills[a] != nil && (c == nil || !c.IsFormula()) {
-		for _, l := range s.dropSpill(a) {
+		for _, l := range s.forgetSpill(a) {
 			s.wb.markDirty(l)
 		}
 	}

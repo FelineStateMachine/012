@@ -183,11 +183,8 @@ func (s *Sheet) Merge(r Rect, k MergeKind) error {
 				s.place(a, c.leftover())
 			}
 		}
-		next := slices.DeleteFunc(slices.Clone(s.view.merges), func(m Rect) bool {
-			_, overlaps := intersectRect(m, r)
-			return overlaps
-		})
-		s.setMerges(append(next, areas...), r)
+		next, span := s.mergesOutside(r)
+		s.setMerges(append(next, areas...), span)
 	})
 	return nil
 }
@@ -211,18 +208,27 @@ func (s *Sheet) MergeAcross(rows bool, n int) (Rect, bool) {
 // Unmerge splits the merges overlapping r back into cells, as one undo
 // step, and returns how many there were.
 func (s *Sheet) Unmerge(r Rect) int {
-	n := 0
+	next, span := s.mergesOutside(r)
+	n := len(s.view.merges) - len(next)
+	if n > 0 {
+		s.change("unmerge "+r.String(), r, func() { s.setMerges(next, span) })
+	}
+	return n
+}
+
+// mergesOutside returns the merges that don't overlap r, and the range
+// holding r and those that do: where arrays blocked by them may spill
+// once they go.
+func (s *Sheet) mergesOutside(r Rect) ([]Rect, Rect) {
+	span := r
 	next := slices.DeleteFunc(slices.Clone(s.view.merges), func(m Rect) bool {
 		_, overlaps := intersectRect(m, r)
 		if overlaps {
-			n++
+			span = union(span, m)
 		}
 		return overlaps
 	})
-	if n > 0 {
-		s.change("unmerge "+r.String(), r, func() { s.setMerges(next, r) })
-	}
-	return n
+	return next, span
 }
 
 // setMerges replaces the merges, recording them for undo, and has the
