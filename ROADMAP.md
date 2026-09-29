@@ -24,16 +24,21 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 |---|---|---|
 | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid | L |
 
-### 4. Nushell notebook
+### 2. A TUI Jupyter for nushell
 
-What's left of making 012 and nushell one tool, on top of the notebook
-([Notebooks](docs/nushell/notebooks.md)).
+A notebook is its own kind of tab in a workbook: cells, not a grid. Code
+cells hold a nushell pipeline (several lines if needed) with its output
+under it (a scrollable table view, text, a record or an error); note cells
+hold Markdown. You run cells in the order you choose, with the usual
+controls, and send any output to a sheet, where it is a live region that
+formulas, charts and pivots use. It replaces the grid-based notebook sheet.
 
 | Item | Result | Size |
 |---|---|---|
-| Nushell's own completions in the prompt; `nu_plugin_012` only if `--pipe` proves clumsy from inside nu | | S to M |
+| Notebook tabs: code and note cells, outputs rendered in place (tables that scroll and open full-screen as a grid, text, records, errors), Jupyter keys inside the notebook (Shift+Enter run and next, Ctrl+Enter run, a/b add above/below, dd delete, m/y note/code, Esc/Enter command/edit mode) plus menus and palette; run cell, run all, run above, run below, stop, clear outputs; run counts and timings; cells named for their output (`$files`), stale marks when a cell they read has changed, an opt-in reactive mode that re-runs dependents; send an output to a sheet as a live region (`nu.files`); outputs saved in the workbook up to a size cap; existing notebook sheets converted, one code cell per region; `012 nu` opens a notebook | A TUI Jupyter with nushell and 012 | L |
+| Nushell's own completions in code cells; a way to call 012 from nu without `^012` (a shipped `012.nu` module, or `nu_plugin_012`) | | S to M |
 
-### 5. Toward multiplayer
+### 3. Toward multiplayer
 
 Sessions share one workbook through the server that already hosts them
 (`012 serve`), so every change is ordered in one place: the workbook's one
