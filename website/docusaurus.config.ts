@@ -75,7 +75,7 @@ const config: Config = {
   themeConfig: {
     colorMode: {defaultMode: 'dark', respectPrefersColorScheme: true},
     navbar: {
-      title: '012',
+      // The logomark alone: it already reads 012, so no title beside it.
       logo: {alt: '012', src: 'img/logo.svg'},
       items: [
         {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
