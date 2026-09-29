@@ -64,6 +64,10 @@ type nbState struct {
 	// follow scrolls the view to each cell as it starts, while a run of
 	// several cells goes on and the user hasn't scrolled away.
 	follow bool
+	// streams are the cells running as streams, by cell ID, and
+	// streamTick is set while their heads are ticking: nbstream.go.
+	streams    map[int]*nbStream
+	streamTick bool
 }
 
 // nbQueued is a cell waiting to run.
@@ -117,6 +121,9 @@ func (m *Model) cellState(s *sheet.Sheet, id int) nbview.State {
 	var st nbview.State
 	if r := m.nb.running; r != nil && r.s == s && r.id == id {
 		st.Running, st.Started = true, r.start
+	}
+	if r := m.nb.streams[id]; r != nil && r.s == s {
+		st.Running, st.Started, st.Live, st.Rows = true, r.start, true, r.rows
 	}
 	st.Waiting = slices.Contains(m.nb.queue, nbQueued{s, id})
 	st.Stale = m.staleCells(s)[id]
@@ -270,6 +277,7 @@ func (m *Model) nextCell() tea.Cmd {
 			m.failCell(q, c, why)
 			continue
 		}
+		m.stopStream(q.id) // run once, it no longer follows
 		run := &nbRun{nbQueued: q, source: c.Source, start: time.Now()}
 		job, err := m.jobFor(q.s, c, run)
 		if err != nil {
@@ -400,13 +408,14 @@ func runError(err error) string {
 	return err.Error()
 }
 
-// stopCells stops the cell running, killing its process, and forgets
-// those waiting.
+// stopCells stops the cell running, killing its process, forgets
+// those waiting, and stops every stream.
 func (m *Model) stopCells() {
 	if r := m.nb.running; r != nil {
 		r.cancel()
 	}
 	m.nb.queue = nil
+	m.stopStreams()
 }
 
 // clearOutputs clears every output of the notebook shown; restart also

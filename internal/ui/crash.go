@@ -145,6 +145,7 @@ func (g *Guarded) guard(cmd tea.Cmd) tea.Cmd {
 // caught, or one only Bubble Tea caught (a panic in a sequence's
 // command), whose stack it printed on the terminal.
 func (g *Guarded) Finish(runErr error) *Crash {
+	g.m.closeStreams() // a stream runs until it's stopped
 	if g.crash == nil && errors.Is(runErr, tea.ErrProgramPanic) {
 		g.crash = &Crash{Where: "a command", Value: "a panic Bubble Tea caught, its stack printed on the terminal"}
 	}

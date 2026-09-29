@@ -2,7 +2,8 @@
 # A stand-in for nu in the golden screens: it answers the pipelines the
 # screens run with fixed outputs, so the screens don't depend on nu being
 # installed or on what ls finds. The script 012 runs is the last
-# argument; the pipeline is between its "do {" and "} | to nuon".
+# argument; the pipeline is between its "do {" and "} | to nuon", or
+# "} | each" for a cell run as a stream, which prints a value a line.
 for arg; do script=$arg; done
 # The code editor's questions (--ide-ast and the rest, about the file
 # named last) are answered as nu 0.116 answered them about the same
@@ -27,7 +28,7 @@ if [ -n "$answer" ]; then
 	echo "Error: not recorded" >&2
 	exit 1
 fi
-cmd=$(printf '%s\n' "$script" | sed -n '/^do {$/,/^} | to nuon$/p' | sed '1d;$d')
+cmd=$(printf '%s\n' "$script" | sed -n '/^do {$/,/^} | /p' | sed '1d;$d')
 case $cmd in
 *'help commands'*)
 	echo '["ls", "where", "sort-by", "first", "get", "str join", "window", "sleep"]' ;;
@@ -46,6 +47,11 @@ case $cmd in
 	echo '{name: "012", files: 5, largest: README.md, total: 18.9kb}' ;;
 'sleep'*)
 	sleep 600 ;;
+'tail -f'*)
+	echo '{time: "09:00:01", level: info, msg: "server started"}'
+	echo '{time: "09:00:04", level: warn, msg: "slow query, 812ms"}'
+	echo '{time: "09:00:09", level: info, msg: "GET /health 200"}'
+	exec sleep 600 ;;
 *)
 	echo "Error: nu::parser::extra_positional" >&2
 	echo "" >&2

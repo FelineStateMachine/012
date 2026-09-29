@@ -283,12 +283,14 @@ style.
 
 Rows reach a region as `sheet.LiveOp`s, each applied at once by
 `Workbook.ApplyLive` through the regions' one write path, `writeTable`:
-what follows a linked file sends them, and the UI sends a notebook
-cell's output to the region it was sent to whenever the cell runs.
+what follows a linked file sends them, the UI sends a notebook cell's
+output to the region it was sent to whenever the cell runs, and a cell
+run as a stream sends each batch of rows its pipeline prints.
 
 ```mermaid
 flowchart TD
   file[a linked file] -->|polled| source[live.Source]
+  stream[a cell run as a stream: nu printing a value a line] -->|live.Stream| source
   source -->|live.Update| op[sheet.LiveOp]
   cell[a notebook cell's run] -->|its output, fileio.NUONRows| op
   op --> apply[Workbook.ApplyLive]
@@ -605,8 +607,10 @@ file followed as it grows: the importers' readers run on a goroutine of
 its own over a pipe that waits for the next piece, so a record cut off
 at the end of one waits for the rest, and rows come out typed as an
 import types them (`tail.go`). A `live.Source` is anything that yields a
-table's rows over time, which a notebook cell following a pipeline
-would be too.
+table's rows over time: a followed file (`live.File`), or a notebook
+cell run as a stream (`live.Stream`), whose pipeline nu runs printing
+each value as NUON on a line of its own (`nushell.Stream`), read by the
+same `Tail` as it arrives.
 
 XLSX is read by 012's own SpreadsheetML reader on `archive/zip` and
 `encoding/xml`: the workbook, shared strings (kept end to end in one

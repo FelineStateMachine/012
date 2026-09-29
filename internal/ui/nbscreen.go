@@ -123,6 +123,11 @@ func (m *Model) nbKernel(s *sheet.Sheet) nbview.Kernel {
 			k.Waiting++
 		}
 	}
+	for _, st := range m.nb.streams {
+		if st.s == s {
+			k.Live++
+		}
+	}
 	return k
 }
 
@@ -249,6 +254,10 @@ func (m *Model) notebookMsg(msg tea.Msg) (tea.Cmd, bool) {
 		return nil, true
 	case nbTickMsg:
 		return m.ticked(msg), true
+	case nbStreamMsg:
+		return m.streamPolled(msg), true
+	case nbStreamTickMsg:
+		return m.streamTicked(), true
 	}
 	for _, v := range m.nb.views {
 		if cmd, ok := v.Update(msg); ok {

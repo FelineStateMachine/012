@@ -176,6 +176,8 @@ func (v *View) state(c notebook.Cell) (string, lipgloss.Style) {
 	switch {
 	case st.Problem != "":
 		return st.Problem, th.Warning
+	case st.Live:
+		return live(st.Rows), th.CellHead
 	case st.Running:
 		return running(time.Since(st.Started)), th.CellHead
 	case st.Waiting:
@@ -234,6 +236,16 @@ func running(d time.Duration) string {
 		return "running"
 	}
 	return spinner[int(d/(100*time.Millisecond))%len(spinner)] + " running " + duration(d)
+}
+
+// live is a streaming cell's state: ● live, and how many rows it has
+// printed.
+func live(rows int) string {
+	s := "● live, " + itoa(rows) + " row"
+	if rows != 1 {
+		s += "s"
+	}
+	return s
 }
 
 func took(o *notebook.Output) string {

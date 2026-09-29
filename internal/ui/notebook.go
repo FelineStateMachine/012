@@ -43,6 +43,7 @@ var nbKeys = map[string]string{
 	"n":               "nb.name",
 	"G":               "nb.send",
 	"i i":             "nb.stop",
+	"f":               "nb.stream", // follow
 	"0 0":             "nb.restart",
 	"f9":              "nb.run_all",
 	"V":               "nb.paste_above",
@@ -110,7 +111,7 @@ func nbHelpRows(listed map[string]bool) []helpRow {
 // notebookItems are Data > Shell's items.
 var notebookItems = []menuItem{
 	{cmd: "nb.open"}, sep,
-	{cmd: "nb.run"}, {cmd: "nb.run_next"}, {cmd: "nb.run_all"}, {cmd: "nb.run_above"}, {cmd: "nb.run_below"}, {cmd: "nb.stop"}, sep,
+	{cmd: "nb.run"}, {cmd: "nb.run_next"}, {cmd: "nb.run_all"}, {cmd: "nb.run_above"}, {cmd: "nb.run_below"}, {cmd: "nb.stream"}, {cmd: "nb.stop"}, sep,
 	{cmd: "nb.insert_above"}, {cmd: "nb.insert_below"}, {cmd: "nb.delete"}, {cmd: "nb.move_up"}, {cmd: "nb.move_down"}, sep,
 	{cmd: "nb.to_code"}, {cmd: "nb.to_note"}, {cmd: "nb.name"}, sep,
 	{cmd: "nb.copy"}, {cmd: "nb.cut"}, {cmd: "nb.paste"}, {cmd: "nb.paste_above"}, sep,
@@ -122,7 +123,7 @@ var notebookItems = []menuItem{
 
 // nbCellMenu is a cell's context menu, on a right click.
 var nbCellMenu = []menuItem{
-	{cmd: "nb.run"}, {cmd: "nb.run_below"}, sep,
+	{cmd: "nb.run"}, {cmd: "nb.run_below"}, {cmd: "nb.stream"}, sep,
 	{cmd: "nb.cut"}, {cmd: "nb.copy"}, {cmd: "nb.paste"}, {cmd: "nb.paste_above"}, {cmd: "nb.delete"}, sep,
 	{cmd: "nb.move_up"}, {cmd: "nb.move_down"}, {cmd: "nb.to_code"}, {cmd: "nb.to_note"}, {cmd: "nb.name"}, sep,
 	{cmd: "nb.toggle_output"}, {cmd: "nb.toggle_whole"}, {cmd: "nb.clear_output"}, {cmd: "nb.open_output"}, {cmd: "nb.send"},
@@ -152,8 +153,10 @@ func init() {
 			enabled: onCell, run: func(m *Model) tea.Cmd { i, _ := m.nbView().Selected(); return m.runRange(0, i) }},
 		&command{id: "nb.run_below", macro: macroNever, title: "Run cell and below", desc: "Run the selected cell and every code cell under it",
 			enabled: onCell, run: func(m *Model) tea.Cmd { i, _ := m.nbView().Selected(); return m.runRange(i, -1) }},
-		&command{id: "nb.stop", macro: macroNever, title: "Stop running", desc: "Stop the cell running, killing its process, and those waiting",
-			enabled: func(m *Model) bool { return m.nb.running != nil || len(m.nb.queue) > 0 },
+		&command{id: "nb.stream", macro: macroNever, title: "Run as stream", desc: "Run the selected cell until it's stopped, its rows arriving as the pipeline prints them (tail -f, watch)",
+			enabled: onCode, run: (*Model).streamSelected},
+		&command{id: "nb.stop", macro: macroNever, title: "Stop running", desc: "Stop the cell running, killing its process, those waiting and the cells running as streams",
+			enabled: func(m *Model) bool { return m.nb.running != nil || len(m.nb.queue) > 0 || len(m.nb.streams) > 0 },
 			run:     func(m *Model) tea.Cmd { m.stopCells(); return nil }},
 		&command{id: "nb.clear_outputs", title: "Clear outputs", desc: "Clear every cell's output",
 			enabled: onTab, run: func(m *Model) tea.Cmd { m.clearOutputs(false); return nil }},

@@ -157,7 +157,8 @@ on a sheet, `!` starts an entry as any character does.
 | `o`, `O` | Hide the output, or show it again; show all of it rather than a window |
 | `n`, `G` | Name the cell; send the output to a sheet |
 | Ctrl+G | Go to a cell by its number, name, code or heading |
-| `ii`, `00` | Stop what's running; restart, clearing every output |
+| `f` | Run the cell as a stream, its rows arriving as the pipeline prints them |
+| `ii`, `00` | Stop what's running, streams too; restart, clearing every output |
 
 | Key | In edit mode |
 |---|---|

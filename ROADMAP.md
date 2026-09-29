@@ -46,7 +46,6 @@ log macros record. Each step is useful on its own.
 
 | Step | Result | Size |
 |---|---|---|
-| A notebook cell's output follows a streaming pipeline through the linked regions' live sources (`live.Source`), rows arriving on its sheet as the pipeline writes them | Pipelines as live sheets | S |
 | Shared viewing over SSH: several `012 serve` sessions open the same workbook; one edits, the others follow live with their own cursor, scroll and theme; presence shows who is where | Watch-along and review, one writer | M |
 | Shared editing over SSH: every session edits, the server orders operations (no CRDT needed while one server holds the workbook), per-user undo, presence and edit ownership shown in the grid, saves by the server | Multiplayer 012 over SSH | L |
 
@@ -149,6 +148,7 @@ stream above rather than a design of their own.
 - 012 as a stage in a pipeline: `012 -` reads a table from standard input, `012 --pipe` sends the sheet or selection on, with nushell's types kept through NUON: [Pipelines](docs/nushell/pipelines.md)
 - The `sheet` command: a nushell module shipped in the binary (`012 nu --install-module`), so nu calls 012 without `^012` or NUON on either side: [Pipelines](docs/nushell/pipelines.md#the-sheet-command)
 - Notebook tabs, a TUI Jupyter for nushell: code and note cells with Jupyter's keys, outputs drawn in place and opened full-screen, `$name` between cells, stale marks and a reactive mode, outputs sent to sheets as live regions (`nu.name`), saved up to a cap, and earlier notebook sheets converted on open: [Notebooks](docs/nushell/notebooks.md)
+- Cells run as streams: a pipeline that never ends (`tail -f`, `watch`) followed live, its rows reaching the output and its sheet as nu prints them: [Notebooks](docs/nushell/notebooks.md#streams)
 - Code cells highlighted, checked and completed as they're written by nu itself (`--ide-ast`, `--ide-check`, `--ide-complete`), in the background, falling back to 012's own when nu is missing, old, slow or not trusted: [Notebooks](docs/nushell/notebooks.md#writing-a-cell)
 
 **Files**

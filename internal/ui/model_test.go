@@ -88,6 +88,10 @@ func run(m *Model, cmd tea.Cmd) tea.Msg {
 	if _, ok := out.(autoscrollMsg); ok {
 		return nil
 	}
+	if msg, ok := out.(nbStreamMsg); ok {
+		streamPolls = append(streamPolls, msg) // tests take them with pumpStreams
+		return nil
+	}
 	// Batches and sequences are slices of commands.
 	cmdType := reflect.TypeFor[tea.Cmd]()
 	if v := reflect.ValueOf(out); v.Kind() == reflect.Slice && v.Type().Elem() == cmdType {

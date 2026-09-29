@@ -170,7 +170,8 @@ delete, copy, cut, move, make notes or code, hide or clear outputs.
 | `o`, `O` | Hide the output, or show it again; show every row, or the window again |
 | `G` | Send the output to a sheet |
 | Ctrl+G | Go to a cell by its number, name, code or heading |
-| `ii` | Stop: kill the cell running, and forget those waiting |
+| `f` | Run the cell as a stream, until it's stopped ([Streams](#streams)) |
+| `ii` | Stop: kill the cell running, forget those waiting, and stop every stream |
 | `00` | Restart: stop, clear every output, count runs from 1 |
 
 | Key | In edit mode |
@@ -271,6 +272,31 @@ commands aren't there unless `nu-config` is on
 ([nushell's configuration](https://www.nushell.sh/book/configuration.html)).
 A cell stops after `nu-timeout` (30 seconds unless set); `ii` stops it
 sooner.
+
+### Streams
+
+A pipeline that never ends, such as following a log or `watch`ing a
+folder, runs as a stream: `f` (**Data > Shell > Run as stream**) runs
+the selected cell until you stop it, and every value it yields reaches
+the cell's output as soon as nu prints it, and the sheet the output was
+[sent to](#send-to-a-sheet) as rows under its header:
+
+```nu
+log = tail -f app.log | lines | parse '{time} {level} {msg}'
+changes = watch . --glob=*.csv --quiet
+```
+
+While it runs, the cell's box says `● live` with how many rows it has
+printed, and the toolbar how many cells stream; streams run beside the
+cells run once, each on its own, without `nu-timeout`. `ii` (or `■`)
+stops them all, keeping what they printed; running the cell once (`r`)
+stops its stream first. A stream that ends on its own keeps its output
+as a run does, and one that fails says why.
+
+The output keeps a stream's last 10,000 values; a sheet it was sent to
+keeps every row, up to `max-cells`. The rows arrive as the change
+stream does for a [followed file](../files/following.md), outside the
+undo history.
 
 ## Names and $name
 
