@@ -1,8 +1,8 @@
 # Following a log: a JSON lines log grows while 012 follows it in a
 # linked region (Data > Linked file > Link a table, here from the
-# palette). The shell prompt (Data > Shell, from the palette too) makes
-# a region that reads it as $app and keeps the errors;
-# refreshing it later reads the rows the log has now. The log is
+# palette). A notebook cell (Data > Notebook > Open notebook, from the
+# palette too) reads it as $app and keeps the errors; running the cell
+# again later (r) reads the rows the log has now. The log is
 # data/requests.jsonl written a line at a time. Needs nu on the PATH.
 Output out/follow-log.gif
 Source lib/setup.tape
@@ -27,18 +27,19 @@ Enter
 Sleep 3.5s
 Screenshot out/stills/follow-log-linked.png
 Ctrl+K
-Type@100ms "shell"
+Type@100ms "open notebook"
 Sleep 600ms
 Enter
 Sleep 600ms
+Type "!"
 Type "errors = $app | where status >= 500 | select time path status ms"
 Sleep 500ms
-Enter
+Escape
+Type "r"
 Sleep 2.5s
 Screenshot out/stills/follow-log-errors.png
-Escape
 Sleep 6s
-Enter
+Type "r"
 Sleep 2.5s
 Screenshot out/stills/follow-log-refreshed.png
 Sleep 1s

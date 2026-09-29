@@ -44,7 +44,7 @@ log macros record. Each step is useful on its own.
 
 | Step | Result | Size |
 |---|---|---|
-| A nushell region follows a streaming pipeline through the linked regions' live sources (`live.Source`), rows arriving as the pipeline writes them | Pipelines as live sheets | S |
+| A notebook cell's output follows a streaming pipeline through the linked regions' live sources (`live.Source`), rows arriving on its sheet as the pipeline writes them | Pipelines as live sheets | S |
 | Shared viewing over SSH: several `012 serve` sessions open the same workbook; one edits, the others follow live with their own cursor, scroll and theme; presence shows who is where | Watch-along and review, one writer | M |
 | Shared editing over SSH: every session edits, the server orders operations (no CRDT needed while one server holds the workbook), per-user undo, presence and edit ownership shown in the grid, saves by the server | Multiplayer 012 over SSH | L |
 

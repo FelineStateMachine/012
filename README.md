@@ -67,7 +67,7 @@ rest: building from a clone, importing files, `012 serve` and settings.
 | Menus and the command palette (Ctrl+K) | Charts that float over the grid and follow their data |
 | ![A task list with a color scale, a dropdown and checkboxes](docs/media/rules.gif) | ![A pivot table of sales by region and quarter](docs/media/pivot.gif) |
 | Conditional formatting and data validation | Pivot tables, live |
-| ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![A notebook: a cell listing files, a second reading it, its output sent to a sheet](docs/media/notebook.gif) |
+| ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![A notebook: a cell reads a CSV, a second reads its output, which is sent to a sheet and summed there](docs/media/notebook.gif) |
 | Arrays that spill | Nushell notebooks |
 | ![JEV functions classifying reviews](docs/media/jev.gif) | ![Recording a macro and replaying it](docs/media/macros.gif) |
 | JEV functions in formulas | Macros |

@@ -596,7 +596,7 @@ file followed as it grows: the importers' readers run on a goroutine of
 its own over a pipe that waits for the next piece, so a record cut off
 at the end of one waits for the rest, and rows come out typed as an
 import types them (`tail.go`). A `live.Source` is anything that yields a
-table's rows over time, which a nushell region following a pipeline
+table's rows over time, which a notebook cell following a pipeline
 would be too.
 
 XLSX is read by 012's own SpreadsheetML reader on `archive/zip` and

@@ -16,7 +16,7 @@ files = ls | where type == file
 $files | where size > 1kb | sort-by size --reverse
 ```
 
-![A notebook: a note, a cell listing files, a second reading it as $files, its output sent to a sheet and summed there](../media/notebook.gif)
+![A notebook: a cell reads a CSV as sales, a second reads it as $sales, its output is sent to a sheet and summed there, and with the notebook reactive, editing sales runs both again and the sum follows](../media/notebook.gif)
 
 Open one from a shell with `012 nu`, or from nushell with `sheet nu`
 (`sheet` comes from 012's nushell module: [Install the `sheet`
@@ -49,10 +49,29 @@ A cell is its head, its source and, for a code cell, its output:
 
 The head says how many runs came before this one (`[2]`, `[*]` while it
 runs, `[ ]` before it has), the cell's name, and at the right how its run
-stands: `running`, `waiting` for the cell before it, `✓` or `failed` with
-how long it took, `stale`, `not run`, or `saved` for an output read from
-the file. A source is shown whole: a line too long for the screen wraps
-before a pipe where it can, its next rows indented.
+stands, `saved` for an output read from the file:
+
+```mermaid
+stateDiagram-v2
+    notrun: not run
+    waiting: waiting
+    running: running
+    done: ✓ and how long it took
+    failed: failed, and nu's message under it
+    stale: stale
+    [*] --> notrun
+    notrun --> waiting: Shift+Enter, Ctrl+Enter, F9
+    waiting --> running: the cell before it ends
+    running --> done
+    running --> failed: an error, or ii
+    done --> stale: a cell it reads runs again, or its source changes
+    stale --> waiting: run again
+    failed --> waiting: run again
+    done --> waiting: run again
+```
+
+A source is shown whole: a line too long for the screen wraps before a
+pipe where it can, its next rows indented.
 
 Outputs are drawn by what they are, with values formatted as cells
 ([Types](types.md)):
@@ -83,7 +102,6 @@ type into the selected cell.
 
 ```mermaid
 stateDiagram-v2
-    direction LR
     [*] --> Command
     Command --> Edit: Enter, !
     Edit --> Command: Esc
@@ -98,7 +116,7 @@ stateDiagram-v2
 | Home, End, PgUp, PgDn | The first cell, the last, a screen up or down |
 | Enter | Edit the cell; on an output, open it full-screen |
 | Shift+Enter | Run the cell and select the next, adding one at the end |
-| Ctrl+Enter | Run the cell, staying on it |
+| Ctrl+Enter, `r` | Run the cell, staying on it |
 | Alt+Enter | Run the cell and add a code cell under it |
 | F9 | Run every cell |
 | `a`, `b` | Add a code cell above, below |
@@ -121,6 +139,11 @@ stateDiagram-v2
 | Up, Down, Home, End | Move by the lines on screen, wrapped lines too |
 | Ctrl+A, Ctrl+E | The start, the end of the line |
 | Tab | Complete the word at the caret: a cell's `$name`, `$selection`, a linked file, or one of nu's commands |
+
+A terminal without the kitty keyboard protocol sends Shift+Enter and
+Ctrl+Enter as Enter ([Keys the terminal has to tell
+apart](../reference/keys.md#keys-the-terminal-has-to-tell-apart)): there
+Esc then `r` runs the cell, and Alt+Enter runs it and adds one under it.
 
 Every action is a command, in **Data > Notebook**, the palette and the
 shortcuts (Ctrl+/), and File, Edit and the sheet tabs work as anywhere;
@@ -159,6 +182,18 @@ A name is letters, digits and `_`, not starting with a digit or `__`;
 can't share a name: the second says so and doesn't run until it's
 renamed.
 
+What a cell reads decides the order cells run in: each after the cells
+it reads, and a cell that hasn't run first when one reading it runs. A
+cell reading itself, directly or through others, doesn't run.
+
+```mermaid
+flowchart TD
+    files["files = ls"] -->|$files| big["big = $files | where size > 1kb"]
+    app["a linked file, app.csv"] -->|$app| errors["errors = $app | where status >= 500"]
+    big -->|G sends it to a sheet| region["the region big, on a sheet"]
+    region --> sum["=SUM(nu.big)"]
+```
+
 A cell reads the sheets two ways, each a table:
 
 | In a cell | Is |
@@ -178,7 +213,7 @@ directly or through others, `stale`: they were made from what it printed
 before. So is a cell's own output once its source is changed.
 
 ```mermaid
-flowchart LR
+flowchart TD
     run["files runs again"] --> stale["big, and cells reading big: stale"]
     stale -->|reactive off| you["run them when you want"]
     stale -->|reactive on| again["they run again, each after what it reads"]
@@ -230,8 +265,18 @@ Opening a file never runs its cells. Like
 run as you, with your files, so a notebook saved on another computer
 asks once before its cells run:
 
-```
-Run this file's notebook cells?   Enter Run   Esc Cancel
+```mermaid
+sequenceDiagram
+    participant You
+    participant N as The notebook
+    participant Nu as nu
+    You->>N: open a file saved on another computer
+    N-->>You: its cells and saved outputs, nothing run
+    You->>N: Shift+Enter, or F9
+    N-->>You: Run this file's notebook cells?
+    You->>N: Enter
+    N->>Nu: the cells, one at a time
+    Nu-->>N: their outputs
 ```
 
 Cells you write in a notebook made here run without asking. The options,

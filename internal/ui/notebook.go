@@ -27,6 +27,7 @@ var nbKeys = map[string]string{
 	"enter":       "nb.edit",
 	"shift+enter": "nb.run_next",
 	"ctrl+enter":  "nb.run",
+	"r":           "nb.run", // runs where Ctrl+Enter arrives as Enter
 	"alt+enter":   "nb.run_insert",
 	"a":           "nb.insert_above",
 	"b":           "nb.insert_below",

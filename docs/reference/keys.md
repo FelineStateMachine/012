@@ -137,7 +137,7 @@ on a sheet, `!` starts an entry as any character does.
 |---|---|
 | Up, Down, `j`, `k`, Home, End, PgUp, PgDn | Move between cells and their outputs |
 | Enter | Edit the cell; on an output, open it full-screen |
-| Shift+Enter, Ctrl+Enter, Alt+Enter | Run the cell and select the next; run it in place; run it and add a cell under it |
+| Shift+Enter, Ctrl+Enter, `r`, Alt+Enter | Run the cell and select the next; run it in place (`r` too); run it and add a cell under it |
 | F9 | Run every cell |
 | `a`, `b`, `!` | Add a code cell above, below; add one below and edit it |
 | `dd`, `z` | Delete the cell; undo |
@@ -172,6 +172,7 @@ tells them apart and says when a key is let go, and there 012 also does:
 |---|---|---|
 | Shift+Enter | Accept an entry and move up, as in Sheets | As Enter: accept and move down |
 | Ctrl+I | Italic | As Tab: move right |
+| Shift+Enter, Ctrl+Enter | In a notebook, run the cell (and select the next) | As Enter: edit the cell, or a new line in it; Esc then `r` runs it, and Alt+Enter runs it and adds a cell under it |
 | Space, held | On a selected chart, show it across the grid until Space is let go; in File > Settings > Theme with nothing typed, hide the list to see the whole sheet in the highlighted theme | Space does what it does there: deselects the chart and starts an entry, or types a space |
 
 ## Vim keys
