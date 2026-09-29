@@ -80,7 +80,8 @@ Charts show as text here.
 ## More
 
 - [Documentation](docs/README.md): every guide, for using 012 and for
-  working on it, starting with [getting started](docs/getting-started/README.md)
+  working on it, starting with [getting started](docs/getting-started/README.md);
+  also as a site at [f58b.n.zip](https://f58b.n.zip/)
 - [Roadmap](ROADMAP.md)
 - Working on 012: `make build`, then `make check` before a push; see
   [testing](docs/contributing/testing.md) and [CLAUDE.md](CLAUDE.md)

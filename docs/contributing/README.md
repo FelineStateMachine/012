@@ -17,5 +17,6 @@ in [CLAUDE.md](../../CLAUDE.md), then:
 | [Bounds of support](limits.md) | Measured bounds and known bottlenecks |
 | [Observability](observability.md) | Event logs, OTLP export, DuckDB queries, the local telemetry stack |
 | [Releasing](releasing.md) | The release checklist and `make dist` |
+| [The docs site](site.md) | Building and previewing the Docusaurus site over these docs |
 
 Plans are in the [roadmap](../../ROADMAP.md).
