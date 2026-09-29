@@ -134,77 +134,28 @@ func putParquetRow(b *builder, row int, r parquet.Row, cols []parquetColumn) (re
 		b.fits(sheet.Addr{Row: row})
 		return false
 	}
-	// Values arrive grouped by column; a repeated column has several.
+	eachParquetColumn(r, func(col int, vals []parquet.Value) {
+		if col < 0 || col >= len(cols) {
+			return
+		}
+		c, rep := parquetCells(vals, cols[col])
+		c.put(b, sheet.Addr{Col: col, Row: row})
+		repeated = repeated || rep
+	})
+	return repeated
+}
+
+// eachParquetColumn calls fn with each column's values in a row: they
+// arrive grouped by column, and a repeated column has several.
+func eachParquetColumn(r parquet.Row, fn func(col int, vals []parquet.Value)) {
 	for i := 0; i < len(r); {
 		col := r[i].Column()
 		j := i + 1
 		for j < len(r) && r[j].Column() == col {
 			j++
 		}
-		if col < 0 || col >= len(cols) {
-			i = j
-			continue
-		}
-		a := sheet.Addr{Col: col, Row: row}
-		vals := r[i:j]
-		if len(vals) > 1 {
-			parts := make([]string, 0, len(vals))
-			for _, v := range vals {
-				if !v.IsNull() {
-					parts = append(parts, parquetText(v, cols[col]))
-				}
-			}
-			if len(parts) > 0 {
-				b.text(a, strings.Join(parts, ", "), sheet.Format{}, sheet.Style{})
-				repeated = true
-			}
-		} else if !vals[0].IsNull() {
-			putParquetValue(b, a, vals[0], cols[col])
-		}
+		fn(col, r[i:j])
 		i = j
-	}
-	return repeated
-}
-
-func putParquetValue(b *builder, a sheet.Addr, v parquet.Value, c parquetColumn) {
-	switch lt := c.logical.(type) {
-	case *format.DateType:
-		b.number(a, float64(v.Int32())+serialOf(time.Unix(0, 0).UTC()), sheet.Format{Kind: sheet.FmtDate}, sheet.Style{})
-		return
-	case *format.TimestampType:
-		t := timestamp(v.Int64(), lt.Unit)
-		b.number(a, serialOf(t), sheet.Format{Kind: sheet.FmtDateTime}, sheet.Style{})
-		return
-	case *format.TimeType:
-		d := timeUnit(lt.Unit) * time.Duration(timeInt(v))
-		b.number(a, d.Hours()/24, sheet.Format{Kind: sheet.FmtTime}, sheet.Style{})
-		return
-	case *format.DecimalType:
-		if x, ok := decimal(v, lt.Scale); ok {
-			b.number(a, x, sheet.Format{}, sheet.Style{})
-			return
-		}
-	}
-	switch c.kind {
-	case parquet.Boolean:
-		b.boolean(a, v.Boolean(), sheet.Style{})
-	case parquet.Int32:
-		b.number(a, float64(v.Int32()), sheet.Format{}, sheet.Style{})
-	case parquet.Int64:
-		b.number(a, float64(v.Int64()), sheet.Format{}, sheet.Style{})
-	case parquet.Float:
-		b.number(a, float64(v.Float()), sheet.Format{}, sheet.Style{})
-	case parquet.Double:
-		b.number(a, v.Double(), sheet.Format{}, sheet.Style{})
-	case parquet.Int96:
-		// Legacy timestamps: nanoseconds of the day, then the Julian day.
-		i := v.Int96()
-		nanos := int64(i[1])<<32 | int64(i[0])
-		days := int64(i[2]) - 2440588 // the Julian day of 1970-01-01
-		t := time.Unix(days*86400, nanos).UTC()
-		b.number(a, serialOf(t), sheet.Format{Kind: sheet.FmtDateTime}, sheet.Style{})
-	default:
-		textOrDate(b, a, parquetText(v, c))
 	}
 }
 
