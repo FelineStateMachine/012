@@ -229,7 +229,8 @@ func (m *Model) chartBoxes() []overlay.Box {
 func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 	w, h := chartInner(c)
 	// A sixel image covers the text chart drawn under it (see sixel.go),
-	// so the plot stays text for kitty placeholders only.
+	// whose bars meet the axis in the row below the image, so the plot
+	// stops being text for kitty placeholders only.
 	o := m.term.chartOptions()
 	o.Chart = c.ChartOptions
 	if i >= maxImages {

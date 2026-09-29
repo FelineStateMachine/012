@@ -176,10 +176,14 @@ func drawPiles(sc scale, shown int, stacked bool, piles func(int, []span) []span
 }
 
 // inCells maps spans in values to spans in cells along sc, into out.
+// Text ticks and the axis are lines through the middle of their cells,
+// so values are placed half a cell back from where sc puts them: a
+// bar starts at the axis line, in the middle of cell -1 (the axis row
+// or column), and a value on a tick ends on the tick's line.
 func inCells(sc scale, spans []span, out []span) []span {
 	out = out[:0]
 	for _, s := range spans {
-		out = append(out, span{sc.at(s.lo), sc.at(s.hi), s.j})
+		out = append(out, span{sc.at(s.lo) - 0.5, sc.at(s.hi) - 0.5, s.j})
 	}
 	return out
 }

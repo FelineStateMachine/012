@@ -313,3 +313,36 @@ func TestPlaceholderAndDelete(t *testing.T) {
 		t.Errorf("query %q", got)
 	}
 }
+
+// Text bars start on the axis line, in the middle of the axis row or
+// column, and a value on a tick ends on the tick's line: columns up
+// and down from zero, bars to the right.
+func TestBarsMeetTheAxis(t *testing.T) {
+	ticks := sheet.ChartData{
+		Categories: []string{"a", "b"},
+		Series:     []sheet.ChartSeries{{Name: "v", Values: []float64{100, -100}}},
+	}
+	col := Draw(sheet.ChartColumn, ticks, 30, 10, Options{})
+	p, _ := planFor(sheet.ChartColumn, ticks, 30, 10, Options{})
+	cp := p.(*columnPlan)
+	up, _ := cp.bar(0, 0)
+	down, _ := cp.bar(1, 0)
+	zero := cp.axisRow - int(cp.sc.pos(0))/cp.sc.k*cp.sc.k // the zero tick's row
+	top := cp.axisRow - cp.sc.cells()                      // the 100 tick's row
+	for _, c := range []struct {
+		x, y int
+		want string
+	}{
+		{up, zero, "▀"}, {up, zero - 1, "█"}, {up, top, "▄"},
+		{down, zero, "▄"}, {down, cp.axisRow, "▀"},
+	} {
+		if got := col.At(c.x, c.y).Text; got != c.want {
+			t.Errorf("column cell %d,%d = %q, want %q\n%s", c.x, c.y, got, c.want, col)
+		}
+	}
+	bar := Draw(sheet.ChartBar, single, 40, 10, Options{})
+	bp, _ := planFor(sheet.ChartBar, single, 40, 10, Options{})
+	if got := bar.At(bp.(*barPlan).axisX, 0).Text; got != "▐" {
+		t.Errorf("bar at the axis = %q, want ▐\n%s", got, bar)
+	}
+}
