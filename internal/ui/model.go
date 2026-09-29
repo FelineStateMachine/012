@@ -121,6 +121,7 @@ type Model struct {
 	charts  chartState        // chart commands' target: charts.go
 	copied  clipboard         // what Ctrl+V pastes: clipboard.go
 	trace   *trace            // precedents or dependents being shown: trace.go
+	tview   *traceView        // tracing that stays on, nil when off: traceview.go
 	xfer    transfer.Transfer // the import running and the file imported: package transfer
 	pipe    pipeState         // standard input and output, for 012 - and --pipe: pipe.go
 	jev     *jevRunner        // answers JEV functions; nil without an API key: jev.go
@@ -257,6 +258,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.scrollTo(f)
 	}
 	m.clampView()
+	m.syncTrace()
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
 	// Linked regions may have come, gone or changed: follow.go.

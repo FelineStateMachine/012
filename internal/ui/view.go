@@ -238,8 +238,9 @@ func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp *rowtext.Span, spills boo
 		return &m.th.Selection, true
 	case m.found(a):
 		return &m.th.Found, true
-	case m.trace.covers(m.sheet, a):
-		return &m.th.Traced, true
+	}
+	if r := m.traceRole(a); r != nil {
+		return r, true
 	}
 	switch v := m.sheet.Value(a); {
 	case sheet.IsPending(v):

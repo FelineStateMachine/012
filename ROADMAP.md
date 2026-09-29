@@ -65,7 +65,6 @@ shared editing in section 3.
 
 | Item | Result | Size |
 |---|---|---|
-| Formula tracing: precedents and dependents shown in the grid, a formula evaluated step by step | Finding why a number is wrong | M |
 | Named tables with structured references (`Sales[Amount]`); notebook regions are tables | Formulas that read by column name | M |
 | A sheet or chart exported as a static HTML page in 012's look | Sharing a sheet with someone without 012 | S |
 | Release archives and an install script served from the owner's nzip server | Installing without Go | S |
@@ -103,7 +102,8 @@ stream above rather than a design of their own.
 
 - Sheets-structured menus, a command palette and a key for every command: [Keys and mouse](docs/reference/keys.md)
 - Formula suggestions, argument hints and pointing at cells and sheets: [Building formulas](docs/formulas/building.md)
-- Tracing precedents and dependents, hidden sheets explained: [Building formulas](docs/formulas/building.md)
+- Tracing precedents and dependents, hidden sheets explained: [Tracing formulas](docs/formulas/tracing.md#stepping-through-them)
+- Formula tracing: precedents and dependents marked in the grid as the pointer moves, named ranges, spills, regions and their sources included, listed to go to, and a formula evaluated step by step: [Tracing formulas](docs/formulas/tracing.md)
 - An optional vim keymap with a `:` command line: [Keys and mouse](docs/reference/keys.md#vim-keys)
 - Vim `.` repeat, registers, marks, `cc` and `s`, `:` line history and `:w!`: [Keys and mouse](docs/reference/keys.md#vim-keys)
 
