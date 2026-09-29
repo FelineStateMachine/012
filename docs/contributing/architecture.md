@@ -23,6 +23,7 @@ internal/chart   chart layout, text rendering and kitty image encoding
 internal/jev     the API key's resolution, answer cache and TypeSafe client
 internal/keyring the OS credential store the API key lives in
 internal/macro   macros: the Starlark scripting API, recorded actions as scripts, step limits
+internal/nushell a notebook's commands: nu run as a process, tables in as NUON files, a table back
 internal/telemetry  opt-in JSON log and OTLP export of spans, events and frame stats
 internal/serve   the SSH server: auth, host key, a Model per session (charm.land/wish/v2)
 internal/confine resolving typed file names, confined to a directory when served
@@ -35,6 +36,7 @@ internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   lineedit       the one-line editor every text field shares
   picker         the searchable list behind the palette and every picker
   cmdline        the : command line and its completions
+  nuprompt       the nushell prompt on the formula bar, its history and completions
   findbar        find and replace, a bar on the context line
   themepicker    File > Settings > Theme, previewing as it moves
   rules          the conditional formatting and data validation panel
@@ -212,6 +214,26 @@ style.
   format) keeps only its formatting and note. A blocked anchor shows
   `#REF!` with the reason. `Set` refuses spilled cells; files keep only
   the anchor.
+- **Regions.** A region (`region.go`) is a block of cells whose values
+  come from outside the engine: an anchor, its label line, and a
+  definition naming what fills it (a notebook's nushell command, opaque
+  to the engine), with the data it shows (`RegionData`) handed over by
+  the UI (`ShowRegion`). Definitions and data are the sheet's
+  `regionState`, replaced whole on every change so undo steps keep them;
+  what isn't undone (a label's status, the cells written) is kept
+  beside it. After a change touching regions, their cells are written
+  again (`regionwrite.go`) as spilled cells are, derived and outside the
+  undo history, only those that differ, and cells no region covers any
+  more are cleared; a table that would overwrite other contents shows
+  only its label, saying where. On a notebook sheet a table that grows
+  or shrinks inserts or deletes rows under it inside the same step, so
+  the rows below move as they would by hand. Formulas name a region's
+  table as `nu.name`, resolved when evaluated as named ranges are; the
+  regions' `$name` references make a dependency graph
+  (`regiongraph.go`) giving refresh and run orders, and cycles are
+  refused. The file keeps the definitions (`regionfile.go`). Anything
+  that fills cells from outside (a file followed as it grows) is a
+  region with another kind of command.
 - **Rules.** A sheet's conditional formats and data validation
   (`rules.go`, `condfmt.go`, `validation.go`) are lists of rules on
   ranges, replaced whole on every change so undo steps keep them as they
@@ -376,6 +398,7 @@ draw. The components:
 | sheet tabs | `tabstrip.Strip` | where each sheet was left, the tab strip's scroll and layout (package `tabstrip`); what clicks on it do (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer.Transfer`, `pipeState` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`); standard input read as a sheet, and what a pipeline gets on quitting (`pipe.go`) |
+| notebooks | `nuprompt.Prompt`, `shellState` | the prompt (package `nuprompt`); the commands running one at a time in the background, their queue and what they said (`nurun.go`); the notebook's commands, keys, lines and trust (`notebook.go`) |
 | macros | `recorder`, `macroState` | a recording in progress (`macrorec.go`); a macro running, trust in the file's macros (`macrorun.go`); what scripts act on (`macrohost.go`, `macrohostnav.go`); Data > Macros and the manager (`macro.go`, `macromanage.go`) |
 | others | `clipboard`, `trace`, `chartState`, `jevRunner`, `terminal`, `session` | what Ctrl+V pastes, a trace being shown, chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it, what outlasts the file open (the `:` history, whether keys can be held: `keyboard.go`) |
 
@@ -402,6 +425,7 @@ methods off `ui.Model`'s exported API:
 | `sortbar` | `sortbar.Host` | theme, size, the sheet, close, sort (recorded as the bar's command) (5) |
 | `filterpick` | `filterpick.Host` | theme, size, the edit line, close, the locale (5); what applying and cancelling do are callbacks, as the sheet's filter and a pivot's differ |
 | `cmdline` | `cmdline.Host` | theme, size, the edit line, close, the commands to complete, run a line, fail, the session's history (8) |
+| `nuprompt` | `nuprompt.Host` | theme, size, the edit line, close, run a line, the words to complete, the workbook's history, what's running, stop it, what the last run said (10) |
 | `suggest` | `suggest.Host` | theme, size, the edit line, whether an entry is being typed, the entry's sheet, the formula as parsed, where the formula bar's text starts (7) |
 | `themepicker` | `themepicker.Host` | a picker's host, and the current theme, the themes directory, preview, keep, whether keys can be held (10) |
 | `rules` | `rules.Host` | theme, size, the edit line, close, the sheet and selection, save a conditional format or a validation rule, follow a rule removed or moved (each recorded as the commands that do it), the terminal's palette colors (10) |
@@ -447,7 +471,7 @@ hints) are what every overlay is drawn with.
 
 **Packages.** `theme`, `rowtext`, `formula`, `overlay` and `lineedit`
 depend on nothing in `ui`, so they can be tested and measured alone. The
-components in `picker`, `cmdline`, `themepicker`, `findbar`, `rules`,
+components in `picker`, `cmdline`, `nuprompt`, `themepicker`, `findbar`, `rules`,
 `sortbar`, `filterpick`, `choicebar`, `shortcuts`, `suggest`, `tabstrip`
 and `transfer` build on them and reach the model only through their
 hosts, with unit tests of their own against fake hosts. A component moves out of package
@@ -524,6 +548,22 @@ just before something acts on it. Files record the computer their macros
 were made or trusted on (an id from `cmd/012`); a macro from elsewhere
 asks once before it runs. Only the local app lets scripts be edited in
 the user's editor (`AllowEditor`), since that starts a program.
+
+## Notebooks
+
+`internal/nushell` runs a notebook's command: a `Job` holds the command
+and the NUON of the tables it reads, and the script `nu -c` runs binds
+each table from a file named by an environment variable
+(`let r1 = (open --raw $env.NU012_TABLE_0 | from nuon)`), feeds the
+selection as `$in` on standard input, and ends in `to nuon`, so no data
+is ever spliced into the command. What nu prints is read as it's
+written by the NUON importer, capped at max-cells. `Runner` is the
+seam: tests hand the UI a fake, the e2e screens a stand-in `nu`
+script. The UI runs one command at a time as a `tea.Cmd` with a
+context Esc cancels and a timeout, and shows each table as an undo
+step when it arrives; the queue a refresh makes comes from the
+engine's graph. Trust is the macros': a file's commands run only once
+they were made or trusted on this computer, or the user agrees.
 
 ## Charts
 

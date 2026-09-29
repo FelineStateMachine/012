@@ -26,16 +26,11 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 
 ### 4. Nushell notebook
 
-One binary: `012 nu`, `012 -` and `012 --pipe` are modes of 012, and a
-notebook sheet lives in a workbook beside ordinary sheets. `012 nu` runs
-`nu` as a separate process; without it, it says so and the rest of 012
-is unchanged. Written like a REPL, kept like a reactive notebook: each
-command's result is a named, live region (`r1`) that later commands read
-as `$r1`, and refreshing a region re-runs what depends on it.
+What's left of making 012 and nushell one tool, on top of the notebook
+([Notebooks](docs/terminal/nushell.md#notebooks)).
 
 | Item | Result | Size |
 |---|---|---|
-| `012 nu` and the notebook sheet: a nushell prompt in the formula bar (history, Tab completion), results stacking as named live regions built on spills, `$r1` references with a dependency graph so refresh cascades, Freeze to values, other sheets reading `Shell!r1`, commands saved and never run on open, trust for files from elsewhere, timeouts and an output cap, off in `012 serve` unless configured | A reactive notebook of pipelines inside a spreadsheet | L |
 | Nushell's own completions in the prompt; `nu_plugin_012` only if `--pipe` proves clumsy from inside nu | | S to M |
 
 ### 5. Toward multiplayer
@@ -111,6 +106,7 @@ stream above rather than a design of their own.
 - Shift+Enter, Ctrl+I and keys held to preview, with the kitty keyboard protocol: [Keys and mouse](docs/reference/keys.md#keys-the-terminal-has-to-tell-apart)
 - Sixel chart images on terminals without kitty graphics, drawn after the frame and redrawn as the screen moves: [Charts](docs/sheets/charts.md)
 - 012 as a stage in a pipeline: `012 -` reads a table from standard input, `012 --pipe` sends the sheet or selection on, with nushell's types kept through NUON: [Nushell and pipelines](docs/terminal/nushell.md)
+- `012 nu` and notebook sheets: nushell pipelines at a prompt on the formula bar become live, named regions that read each other and refresh in dependency order, saved as commands and never run on open: [Notebooks](docs/terminal/nushell.md#notebooks)
 
 **Files**
 
