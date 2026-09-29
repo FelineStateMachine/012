@@ -105,7 +105,8 @@ oracle:
 # frame held). Needs vhs 0.12+ (go install
 # github.com/charmbracelet/vhs@latest), ttyd and ffmpeg. The JEV demo
 # talks to demos/fakejev, started here, never the real service.
-# DEMOS=jev renders just one.
+# Charts are drawn as text, as the tapes and README describe; VHS
+# records text, not images. DEMOS=jev renders just one.
 DEMOS ?= $(basename $(notdir $(wildcard demos/*.tape)))
 FAKEJEV_ADDR := 127.0.0.1:8799
 
@@ -115,7 +116,7 @@ demos: build
 	mkdir -p demos/out/stills
 	bin/fakejev -addr $(FAKEJEV_ADDR) & pid=$$!; trap "kill $$pid" EXIT; \
 	export DEMOS_TTYD="$$(command -v ttyd)" PATH="$(CURDIR)/demos/lib:$$PATH"; \
-	export XDG_CONFIG_HOME="$$(mktemp -d)" O12_JEV_CREDENTIAL_STORE=false O12_THEME= O12_LOCALE=en-US; \
+	export XDG_CONFIG_HOME="$$(mktemp -d)" O12_JEV_CREDENTIAL_STORE=false O12_CHART_IMAGES=false O12_THEME= O12_LOCALE=en-US; \
 	cd demos && for d in $(DEMOS); do echo "vhs $$d.tape"; vhs -q $$d.tape || exit 1; done
 	mkdir -p demos/out/media
 	for d in $(DEMOS); do ffmpeg -v error -y -i demos/out/$$d.gif -filter_complex \

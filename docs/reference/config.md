@@ -168,7 +168,7 @@ The most cells an import keeps, and a paste or fill writes at once. Numbers and 
 
 #### `shell`
 
-Whether notebook sheets run nushell commands (docs/terminal/nushell.md). `ask` runs what you type and asks once before running the commands of a file made on another computer; `on` never asks; `off` runs none. Opening a file never runs its commands.
+Whether notebook sheets run nushell commands (docs/nushell/notebooks.md). `ask` runs what you type and asks once before running the commands of a file made on another computer; `on` never asks; `off` runs none. Opening a file never runs its commands.
 
 | | |
 |---|---|

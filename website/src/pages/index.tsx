@@ -52,11 +52,27 @@ const cells: Cell[] = [
   },
   {
     addr: 'B2',
-    entry: "'ls | to nuon | 012 --pipe | from nuon",
-    hint: 'The terminal: themes, nushell pipelines, 012 serve over SSH',
+    entry: "'theme = light:Catppuccin Latte,dark:Catppuccin Mocha",
+    hint: 'The terminal: its features, themes, 012 serve over SSH',
     title: 'Native to the terminal',
-    body: 'Your terminal\'s own colors or any of hundreds of schemes, the mouse, hyperlinks, a stage in a nushell pipeline, and your sheets over SSH.',
+    body: 'Your terminal\'s own colors or any of hundreds of schemes, the mouse, hyperlinks, charts as images, and your sheets over SSH with 012 serve.',
     to: '/docs/terminal/',
+  },
+  {
+    addr: 'A3',
+    entry: "'ls | to nuon | ^012 --pipe | from nuon",
+    hint: 'Nushell: pipelines, notebooks, types, a cookbook',
+    title: 'Nushell, both ways',
+    body: "A stage in a nushell pipeline with file sizes, durations and dates kept, or a notebook where each pipeline's table is a live, named region that formulas and charts read.",
+    to: '/docs/nushell/',
+  },
+  {
+    addr: 'B3',
+    entry: "'$app | where status >= 500",
+    hint: 'Following files: a linked region follows a log as it grows',
+    title: 'Files that keep growing',
+    body: 'Link a CSV, JSON lines or NUON log and its rows come in as they are written, like tail -f; formulas, charts and pipelines over it keep up.',
+    to: '/docs/files/following/',
   },
 ];
 
@@ -67,6 +83,7 @@ const menu: {label: string; to: string}[] = [
   {label: 'Sheets', to: '/docs/sheets/'},
   {label: 'Files', to: '/docs/files/'},
   {label: 'Terminal', to: '/docs/terminal/'},
+  {label: 'Nushell', to: '/docs/nushell/'},
   {label: 'Reference', to: '/docs/reference/'},
 ];
 
@@ -142,11 +159,11 @@ function Hero() {
   );
 }
 
-// The features as a sheet: column and row headers around four cells,
+// The features as a sheet: column and row headers around six cells,
 // the one under the pointer drawn as 012 draws the active cell.
 function Sheet({active, onPoint}: {active: string | null; onPoint: (c: Cell | null) => void}) {
   const cols = ['A', 'B'];
-  const rows = [1, 2];
+  const rows = [1, 2, 3];
   return (
     <section className={styles.sheet} aria-label="Features" onMouseLeave={() => onPoint(null)}>
       <div className={styles.corner} />

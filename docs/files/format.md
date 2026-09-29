@@ -89,8 +89,8 @@ save), so they raise no version:
 | `arithmetic` | the workbook | `decimal` for [decimal arithmetic](../formulas/decimal.md) |
 | `locale` | the workbook | The [locale](../sheets/locale.md) it's typed and shown in (`"de-DE"`), when File > Settings > Locale chose one; without it, the file follows the reader's `locale` setting. Cells are stored the same way in every locale: `input` is always as typed in en-US (`1,234.5`, `9/26/2026`, `=ROUND(A1,2)`) |
 | `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on (macros', shell regions' and [linked files'](following.md#files-from-elsewhere) alike): see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
-| `notebook`, `regions` | a sheet | A [notebook sheet](../terminal/nushell.md#notebooks), and its shell regions and [linked files](following.md): see [Regions](#regions). Older builds open the sheet without them |
-| `shellHistory` | the workbook | The lines typed at its [notebook prompt](../terminal/nushell.md#the-prompt), oldest first, for Up and Down |
+| `notebook`, `regions` | a sheet | A [notebook sheet](../nushell/notebooks.md), and its shell regions and [linked files](following.md): see [Regions](#regions). Older builds open the sheet without them |
+| `shellHistory` | the workbook | The lines typed at its [notebook prompt](../nushell/notebooks.md#the-prompt), oldest first, for Up and Down |
 
 ## Column and row formats
 
@@ -163,7 +163,7 @@ with its data.
 
 ## Regions
 
-A sheet's regions, a [notebook's](../terminal/nushell.md#notebooks)
+A sheet's regions, a [notebook's](../nushell/notebooks.md)
 shell regions and [linked files](following.md), are a `regions` list
 after its cells, charts and rules, one per line, in the order they were
 made; a notebook sheet also has `"notebook": true`. The file keeps what

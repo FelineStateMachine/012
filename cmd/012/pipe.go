@@ -12,7 +12,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui"
 )
 
-// 012 - and 012 --pipe (see docs/terminal/nushell.md): standard input
+// 012 - and 012 --pipe (see docs/nushell/pipelines.md): standard input
 // may be a table to read, and with --pipe standard output is where the
 // result goes when the UI quits. The UI can't use either, so it runs on
 // the terminal itself, opened as /dev/tty (CONIN$ and CONOUT$ on
@@ -76,7 +76,7 @@ func (p *pipeMode) check(files []string, stdinTTY bool) error {
 		p.stdin = true // --pipe reads standard input unless given a file
 	}
 	if p.stdin && stdinTTY {
-		return errors.New("nothing piped in: 012 - reads a table from standard input, e.g. ls | to nuon | 012 -")
+		return errors.New("nothing piped in: 012 - reads a table from standard input, e.g. 012 - < sales.csv, or ls | to nuon | ^012 - in nushell")
 	}
 	return nil
 }

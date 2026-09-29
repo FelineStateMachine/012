@@ -46,7 +46,7 @@ type Runner interface {
 }
 
 // ErrMissing is what running a command says when nu isn't installed.
-var ErrMissing = errors.New("nu isn't installed or isn't on your PATH: see docs/terminal/nushell.md")
+var ErrMissing = errors.New("nu isn't installed or isn't on your PATH: see docs/nushell/notebooks.md")
 
 // Error is a command that failed: nu's message, and all it wrote to
 // standard error.

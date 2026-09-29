@@ -119,7 +119,7 @@ var Options = []Option{
 			"The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is."},
 
 	{Name: "shell", Kind: Enum, Group: GroupShell, Default: "ask", Values: []string{"off", "ask", "on"}, Env: []string{"O12_SHELL"}, Live: true,
-		Desc: "Whether notebook sheets run nushell commands (docs/terminal/nushell.md). `ask` runs what you type " +
+		Desc: "Whether notebook sheets run nushell commands (docs/nushell/notebooks.md). `ask` runs what you type " +
 			"and asks once before running the commands of a file made on another computer; `on` never asks; " +
 			"`off` runs none. Opening a file never runs its commands."},
 	{Name: "nu-timeout", Kind: Duration, Group: GroupShell, Default: "30s", Env: []string{"O12_NU_TIMEOUT"}, Live: true,

@@ -11,7 +11,7 @@ Sleep 2s
 Show
 
 Sleep 800ms
-Type "sales = open data/sales.csv | select Region Quarter Units"
+Type "sales = open data/sales.csv | where Region in [North South] | select Region Quarter Units"
 Sleep 500ms
 Enter
 Sleep 1.5s

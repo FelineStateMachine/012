@@ -15,7 +15,7 @@ import (
 )
 
 // NUON and JSON tables become cells with their types (see
-// docs/terminal/nushell.md for the mapping): the header row holds the
+// docs/nushell/types.md for the mapping): the header row holds the
 // column names, numbers stay numbers, file sizes are bytes in the Size
 // format, durations are elapsed time in the Duration format, dates are
 // date-time serials in the local time zone, and nested records and

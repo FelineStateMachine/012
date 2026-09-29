@@ -151,7 +151,7 @@ network or clock access in any case.
 
 ## Notebooks
 
-A session opens [notebooks](nushell.md#notebooks) and shows their
+A session opens [notebooks](../nushell/notebooks.md) and shows their
 regions, but runs none of their commands: a command is a program on the
 server, with the server's user and every file it can reach, well
 beyond the served directory. `serve-shell = on` in the server's config

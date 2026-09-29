@@ -7,13 +7,13 @@ sidebar_position: 1
 
 012 uses what the terminal it runs in can do, and degrades quietly where
 it can't: charts as images or text, links, the clipboard, the mouse,
-colors that follow light and dark.
+colors that follow light and dark. Pipelines and nushell notebooks
+have a section of their own: [Nushell](../nushell/README.md).
 
 | Page | For |
 |---|---|
 | [Themes](themes.md) | Your terminal's colors, a built-in scheme, or your own |
 | [Serving over SSH](ssh.md) | `012 serve`: a 012 per session, on one directory |
-| [Nushell and pipelines](nushell.md) | `012 -` and `012 --pipe`: tables in on standard input and out on standard output, with nushell's types |
 
 ## Terminal features 012 uses
 

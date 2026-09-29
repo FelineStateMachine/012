@@ -42,13 +42,13 @@ rest: building from a clone, importing files, `012 serve` and settings.
 - **Files**: a diff-friendly JSON format, import from CSV, TSV, JSON,
   nushell's NUON, XLSX, SQLite, Parquet and Lotus 1-2-3, export to CSV,
   TSV, JSON, NUON, XLSX and SQLite ([files](docs/files/README.md)).
-- **A stage in a pipeline**: `ls | to nuon | 012 --pipe | from nuon`
+- **A stage in a pipeline**: `ls | to nuon | ^012 --pipe | from nuon`
   edits a table on the terminal and sends it on with its types
-  ([nushell and pipelines](docs/terminal/nushell.md)).
+  ([pipelines](docs/nushell/pipelines.md)).
 - **Nushell notebooks**: `012 nu` (or `!` in any workbook) runs nushell
   pipelines whose tables become live, named regions of the sheet;
   `$r1` reads one in the next command, and refreshing it runs what reads
-  it ([notebooks](docs/terminal/nushell.md#notebooks)).
+  it ([notebooks](docs/nushell/notebooks.md)).
 - **Macros**, recorded or written as Starlark scripts saved with the sheet
   ([macros](docs/sheets/macros.md)).
 - **Made for terminals**: the mouse, hyperlinks, the system clipboard over
@@ -64,12 +64,10 @@ rest: building from a clone, importing files, `012 serve` and settings.
 | Menus and the command palette (Ctrl+K) | Charts that float over the grid and follow their data |
 | ![A task list with a color scale, a dropdown and checkboxes](docs/media/rules.gif) | ![A pivot table of sales by region and quarter](docs/media/pivot.gif) |
 | Conditional formatting and data validation | Pivot tables, live |
-| ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![A trip plan with a merged title, borders and wrapped notes](docs/media/layout.gif) |
-| Arrays that spill | Wrapped text, borders and merged cells |
+| ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![Two nushell pipelines as live regions, the second reading the first](docs/media/notebook.gif) |
+| Arrays that spill | Nushell notebooks |
 | ![JEV functions classifying reviews](docs/media/jev.gif) | ![Recording a macro and replaying it](docs/media/macros.gif) |
 | JEV functions in formulas | Macros |
-| ![Two nushell pipelines as live regions, the second following the first](docs/media/notebook.gif) | |
-| Nushell notebooks | |
 
 Each guide shows its own recordings too. They are
 [VHS](https://github.com/charmbracelet/vhs) tapes in [`demos/`](demos),

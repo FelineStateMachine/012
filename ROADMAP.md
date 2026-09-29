@@ -27,7 +27,7 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 ### 4. Nushell notebook
 
 What's left of making 012 and nushell one tool, on top of the notebook
-([Notebooks](docs/terminal/nushell.md#notebooks)).
+([Notebooks](docs/nushell/notebooks.md)).
 
 | Item | Result | Size |
 |---|---|---|
@@ -105,8 +105,11 @@ stream above rather than a design of their own.
 - `012 serve` over SSH, with files on the ssh command line and recovery of unsaved work: [Serving over SSH](docs/terminal/ssh.md)
 - Shift+Enter, Ctrl+I and keys held to preview, with the kitty keyboard protocol: [Keys and mouse](docs/reference/keys.md#keys-the-terminal-has-to-tell-apart)
 - Sixel chart images on terminals without kitty graphics, drawn after the frame and redrawn as the screen moves: [Charts](docs/sheets/charts.md)
-- 012 as a stage in a pipeline: `012 -` reads a table from standard input, `012 --pipe` sends the sheet or selection on, with nushell's types kept through NUON: [Nushell and pipelines](docs/terminal/nushell.md)
-- `012 nu` and notebook sheets: nushell pipelines at a prompt on the formula bar become live, named regions that read each other and refresh in dependency order, saved as commands and never run on open: [Notebooks](docs/terminal/nushell.md#notebooks)
+
+**Nushell**
+
+- 012 as a stage in a pipeline: `012 -` reads a table from standard input, `012 --pipe` sends the sheet or selection on, with nushell's types kept through NUON: [Pipelines](docs/nushell/pipelines.md)
+- `012 nu` and notebook sheets: nushell pipelines at a prompt on the formula bar become live, named regions that read each other and refresh in dependency order, saved as commands and never run on open: [Notebooks](docs/nushell/notebooks.md)
 
 **Files**
 

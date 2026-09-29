@@ -53,6 +53,9 @@ page that passes `make lint` but breaks on the site shows up here.
   folders, `title` and `sidebar_position` for pages
   ([Docs](testing.md#docs) has the rules the tree follows).
 - Images in `docs/media/` are bundled from the pages that show them.
+- Prism has no nushell grammar, so `nu` code blocks use a small one in
+  `website/src/prism/nushell.ts`, loaded by the swizzled
+  `website/src/theme/prism-include-languages.ts`.
 - A relative link that leaves `docs/` (the roadmap, `CLAUDE.md`)
   becomes a link to the file on GitHub
   (`website/src/remark/repo-links.ts`).

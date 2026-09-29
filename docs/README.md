@@ -12,6 +12,7 @@ sidebar_position: 1
 | [Formulas](formulas/README.md) | Entries, references, building formulas, arrays, decimal arithmetic, JEV functions |
 | [Files](files/README.md) | Import and download, Excel files, saving, the `.012` format |
 | [The terminal](terminal/README.md) | Terminal features, themes, serving over SSH |
+| [Nushell](nushell/README.md) | 012 in a pipeline, nushell notebooks, types, a cookbook |
 | [Reference](reference/README.md) | Keys, functions, configuration, the macro API |
 | [Contributing](contributing/README.md) | Architecture, extending, the UX bar, testing, limits, observability |
 

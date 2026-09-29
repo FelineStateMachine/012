@@ -101,7 +101,11 @@ so Alt+letter reaches the app. VHS has no mouse commands, so the tapes
 use the keyboard, and they reach commands through the palette (Ctrl+K)
 rather than counting menu items, so a new menu item doesn't break them.
 Tapes that change settings set them for the run (`O12_KEYMAP=vim`)
-rather than writing the config file the other tapes share.
+rather than writing the config file the other tapes share, and charts
+are drawn as text (`O12_CHART_IMAGES=false`), since VHS records text.
+The nushell tapes need `nu`: `demos/lib/nu.tape` starts a session
+without your config files, with a fixed prompt and 012 on the PATH, and
+their data is in `demos/data`, so each recording comes out the same.
 
 A change to what a tape shows means rendering it again, reading its
 stills, and copying what the docs show into `docs/media/`: GIFs from

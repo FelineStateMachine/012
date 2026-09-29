@@ -38,7 +38,7 @@ Format > Increase decimal places and Format > Decrease decimal places
 show one more or one less.
 
 Size isn't one of Sheets' formats; it's what a
-[nushell](../terminal/nushell.md) table's sizes come in as. It shows
+[nushell](../nushell/types.md) table's sizes come in as. It shows
 whole bytes below 1000 (`512 B`), and above that the number in the
 largest unit that keeps it under 1000 once rounded, units a thousand
 apart: kB, MB, GB, TB, PB and EB, with one decimal place until you

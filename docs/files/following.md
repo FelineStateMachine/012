@@ -49,12 +49,11 @@ file's rows, typed as an import types them. The region is the file's:
   the file again there; deleting its first cell's row or column unlinks
   it.
 
-A linked file is a region, as a [notebook's](../terminal/nushell.md#notebooks)
+A linked file is a region, as a [notebook's](../nushell/notebooks.md)
 shell regions are, named after the file (`app` for `app.csv`, `app_2`
-for a second link to it): formulas read its table, header row included,
-as `nu.app` (`=SUM(nu.app)`, on any sheet), and shell commands read it as
-`$app`. Refreshing a shell region that reads it runs its command on the
-rows the file has now; the linked file itself has no command to run.
+for a second link to it): formulas on any sheet read its table as
+`nu.app`, and nushell pipelines as `$app`
+([Linked files](../nushell/notebooks.md#linked-files)).
 
 The sheet's tab carries a mark, and the context line says what the
 region under the pointer is doing:
