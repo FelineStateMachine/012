@@ -36,8 +36,11 @@ type env struct {
 	stderr   io.Writer
 	readKey  func(prompt string) (string, error) // reads a secret from the terminal without echo
 	isTTY    bool                                // stdin is a terminal
-	runTUI   func(m tea.Model) error
+	runTUI   func(m tea.Model, opts ...tea.ProgramOption) error
 	editorIO bool // run the editor attached to the terminal
+	// openTTY opens the terminal for the UI when standard input and
+	// output belong to a pipeline (012 -, --pipe).
+	openTTY func() (io.ReadCloser, io.WriteCloser, error)
 }
 
 func system() env {
@@ -45,13 +48,25 @@ func system() env {
 		getenv: os.Getenv, keys: keyring.System(),
 		stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr,
 		readKey: readPassword, isTTY: isTerminal(os.Stdin), editorIO: true,
-		runTUI: func(m tea.Model) error { _, err := tea.NewProgram(m, tea.WithFPS(ui.FrameRate)).Run(); return err },
+		runTUI: func(m tea.Model, opts ...tea.ProgramOption) error {
+			_, err := tea.NewProgram(m, append([]tea.ProgramOption{tea.WithFPS(ui.FrameRate)}, opts...)...).Run()
+			return err
+		},
+		openTTY: func() (io.ReadCloser, io.WriteCloser, error) {
+			in, out, err := openTTY()
+			if err != nil {
+				return nil, nil, err
+			}
+			return in, out, nil
+		},
 	}
 }
 
 func usage() error {
 	return errors.New("usage: 012 " + config.FlagUsage() + " [file]: a " + sheet.FileExt +
-		" sheet, or a .csv, .tsv, .xlsx, .sqlite, .parquet or .wk1 file to import\n" +
+		" sheet, or a .csv, .tsv, .json, .nuon, .xlsx, .sqlite, .parquet or .wk1 file to import\n" +
+		"       012 [flags] -: a table from standard input (NUON, JSON, CSV or TSV)\n" +
+		"       012 [flags] --pipe [--to nuon|json|csv|tsv] [file]: on quitting, send the table to standard output\n" +
 		"       012 serve [flags] [dir]: serve sheets in dir over SSH (see docs/terminal/ssh.md)\n" +
 		"       012 config [path|edit|default|themes|set-key|delete-key]\n" +
 		"       012 version")
@@ -69,8 +84,18 @@ func run(args []string, e env) error {
 		return runServe(args[1:], e)
 	}
 	flags, args, err := config.ParseFlags(args)
-	if err != nil || len(args) > 1 {
+	if err != nil {
 		return usage()
+	}
+	pipe, args, err := parsePipe(args)
+	if err != nil {
+		return err
+	}
+	if len(args) > 1 {
+		return usage()
+	}
+	if err := pipe.check(args, e.isTTY); err != nil {
+		return err
 	}
 	cfg, err := loadConfig(e, flags)
 	if err != nil {
@@ -100,7 +125,17 @@ func run(args []string, e env) error {
 		m.EnableJEV(client, jev.NewCache())
 	}
 	m.Configure(settings)
-	return e.runTUI(m)
+	setPipe(m, pipe, e.stdin)
+	opts, closeTTY, err := tuiOptions(pipe, e)
+	if err != nil {
+		return err
+	}
+	err = e.runTUI(m, opts...)
+	closeTTY()
+	if err != nil {
+		return err
+	}
+	return sendPiped(m, pipe, e.stdout)
 }
 
 // loadConfig reads the config file with the environment and flags.

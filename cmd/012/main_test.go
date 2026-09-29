@@ -25,7 +25,7 @@ func testEnv(t *testing.T, vars map[string]string) (env, *bytes.Buffer, *keyring
 		getenv: func(k string) string { return vars[k] },
 		keys:   store, stdin: strings.NewReader(""), stdout: out, stderr: out,
 		readKey: func(string) (string, error) { t.Fatal("read from a terminal"); return "", nil },
-		runTUI:  func(tea.Model) error { return nil },
+		runTUI:  func(tea.Model, ...tea.ProgramOption) error { return nil },
 	}, out, store
 }
 
