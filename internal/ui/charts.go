@@ -228,11 +228,10 @@ func (m *Model) chartBoxes() []overlay.Box {
 // border with a resize handle in the corner.
 func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 	w, h := chartInner(c)
+	// A sixel image covers the text chart drawn under it (see sixel.go),
+	// so the plot stays text for kitty placeholders only.
 	o := m.term.chartOptions()
 	o.Chart = c.ChartOptions
-	if m.term.sixelOn() {
-		o.Image = m.term.six.placed(i) // see sixel.go
-	}
 	if i >= maxImages {
 		o.Image = false
 	}
@@ -251,7 +250,7 @@ func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 	lines = append(lines, border.Render("┌─")+m.th.Title.Render(title)+
 		border.Render(strings.Repeat("─", max(c.W-3-ansi.StringWidth(title), 0))+"┐"))
 	for y := range h {
-		lines = append(lines, border.Render("│")+" "+chartRow(&m.th, g, y, firstImageID+i, o.Image, m.term.kitty)+" "+border.Render("│"))
+		lines = append(lines, border.Render("│")+" "+chartRow(&m.th, g, y, firstImageID+i, o.Image)+" "+border.Render("│"))
 	}
 	corner := "┘"
 	if selected {
@@ -267,9 +266,8 @@ func (m *Model) drawChart(i int, c sheet.Chart, selected bool) []string {
 }
 
 // chartRow renders row y of a drawn chart with the theme; with images,
-// the plot area is the image's kitty placeholders, or blank cells for a
-// sixel image to cover.
-func chartRow(th *theme.Theme, g *chart.Grid, y, imageID int, image, kitty bool) string {
+// the plot area is the image's kitty placeholders.
+func chartRow(th *theme.Theme, g *chart.Grid, y, imageID int, image bool) string {
 	var b, run strings.Builder
 	var style lipgloss.Style
 	styled := false
@@ -290,8 +288,6 @@ func chartRow(th *theme.Theme, g *chart.Grid, y, imageID int, image, kitty bool)
 		key, st, isStyled := 0, lipgloss.Style{}, true
 		text := c.Text
 		switch inPlot := y >= g.Plot.Min.Y && y < g.Plot.Max.Y && x >= g.Plot.Min.X && x < g.Plot.Max.X; {
-		case image && inPlot && !kitty:
-			key, isStyled, text = 2, false, " "
 		case image && inPlot:
 			key, st = 1, th.ImageID(imageID)
 			text = chart.Placeholder(y-g.Plot.Min.Y, x-g.Plot.Min.X)

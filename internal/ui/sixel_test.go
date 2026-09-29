@@ -68,8 +68,10 @@ func sixelOut(m *Model, msg tea.Msg) string {
 
 func TestSixelImages(t *testing.T) {
 	m, clock := sixelModel(t)
-	if len(m.term.six.plan) != 1 || strings.Contains(screen(m), "█") {
-		t.Fatalf("plan %v; the plot area isn't blank:\n%s", m.term.six.plan, screen(m))
+	// The text chart stays under the image, for a terminal that says it
+	// has sixel but doesn't show it, or a recording of the text alone.
+	if len(m.term.six.plan) != 1 || !strings.Contains(screen(m), "█") {
+		t.Fatalf("plan %v; no text chart under the image:\n%s", m.term.six.plan, screen(m))
 	}
 	if !strings.Contains(screen(m), "1,500") {
 		t.Error("the axes aren't text around the image")

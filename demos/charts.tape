@@ -1,7 +1,7 @@
 # Charts: Insert > Chart (here from the palette) charts the table
 # around the active cell; the editor bar switches the type with
-# Left/Right, and the chart redraws as its data changes. Terminals with the kitty graphics protocol get a real
-# image; this recording shows the text rendering every terminal gets.
+# Left/Right, and the chart redraws as its data changes. Terminals with kitty graphics or sixel get a real
+# image; VHS records only the text layer, so this shows the text chart under it.
 Output out/charts.gif
 Source lib/setup.tape
 
