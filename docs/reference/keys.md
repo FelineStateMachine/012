@@ -128,13 +128,37 @@ range, F2 renames or repoints it and Ctrl+D deletes it.
 
 ## Notebooks
 
-| Key | Action |
+On a [notebook's](../nushell/notebooks.md#keys) tab, as in Jupyter:
+command mode (`NOTEBOOK`) acts on cells, edit mode (`EDIT`) types into
+one. **Data > Notebook > Open notebook** opens the workbook's notebook;
+on a sheet, `!` starts an entry as any character does.
+
+| Key | In command mode |
 |---|---|
-| ! | On a notebook sheet, open the nushell prompt on the formula bar (the mode indicator says NU); on other sheets `!` starts an entry, and **Data > Shell** opens the prompt ([Notebooks](../nushell/notebooks.md)) |
-| Enter, Tab, Up, Down, Esc | At the prompt: run the line; complete a region or command; the workbook's earlier lines; stop a command running, or else go back to the grid |
-| Enter, F2 | On a region's label line: run it again (and what reads it); edit its command at the prompt |
-| F9 | Run all regions, each after those it reads |
-| Esc | Stop a region's command while it runs |
+| Up, Down, `j`, `k`, Home, End, PgUp, PgDn | Move between cells and their outputs |
+| Enter | Edit the cell; on an output, open it full-screen |
+| Shift+Enter, Ctrl+Enter, Alt+Enter | Run the cell and select the next; run it in place; run it and add a cell under it |
+| F9 | Run every cell |
+| `a`, `b`, `!` | Add a code cell above, below; add one below and edit it |
+| `dd`, `z` | Delete the cell; undo |
+| `m`, `y` | Make the cell a note, or code |
+| `c`, `x`, `v` | Copy, cut, paste a cell |
+| `n`, `o`, `G` | Name the cell; show all of its output or its first rows; send the output to a sheet |
+| `ii`, `00` | Stop what's running; restart, clearing every output |
+
+| Key | In edit mode |
+|---|---|
+| Esc | Back to command mode, keeping what was typed |
+| Shift+Enter, Ctrl+Enter, Alt+Enter | Run, as in command mode |
+| Enter, Tab | A new line; complete the word at the caret |
+| Up, Down, Home, End, Ctrl+A, Ctrl+E | Move by the lines on screen; the start, the end of the line |
+
+| Key | On an output full-screen |
+|---|---|
+| Arrows, `h`, `j`, `k`, `l`, PgUp, PgDn, `g`, `G` | Move |
+| `s`, `S` | Sort by the pointer's column, A to Z or Z to A; again for the output's order |
+| `/` | Keep the rows holding what's typed; Esc clears it |
+| Esc, `q` | Back to the notebook |
 
 ## Keys the terminal has to tell apart
 

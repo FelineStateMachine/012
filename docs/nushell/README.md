@@ -9,8 +9,8 @@ sidebar_position: 1
 tables: `ls`, `ps`, `open data.csv` and `http get` all hand the next
 command rows and columns, with file sizes, durations and dates as values
 of their own type. 012 is a spreadsheet for those tables. A table can go
-through 012 in the middle of a pipeline, and nushell can run inside 012,
-each pipeline's table a live part of the sheet.
+through 012 in the middle of a pipeline, and nushell can run inside 012
+in a notebook, its cells' outputs live parts of the sheets.
 
 ![In nushell, ls's table goes through 012, three of its rows are selected and sent on, and nu keeps filtering them by size](../media/pipeline.gif)
 
@@ -19,13 +19,13 @@ each pipeline's table a live part of the sheet.
 | Way | Looks like | For |
 |---|---|---|
 | [A stage in a pipeline](pipelines.md) | `ls \| sheet \| where size > 1kb` | Looking at a table on the terminal, editing it, and sending it on to the next command |
-| [A notebook](notebooks.md) | `012 nu`, then `ls \| select name size` at the `nu❯` prompt | Pipelines you keep: each one's table is a named region of the sheet that formulas, charts and other pipelines read, run again when you ask |
+| [A notebook](notebooks.md) | `sheet nu`, then `files = ls \| select name size` in a code cell | Pipelines you keep, as in Jupyter: cells run when you ask, each output under its cell, read by later cells as `$files` and, sent to a sheet, by formulas and charts |
 | [A followed file](../files/following.md) | Data > Linked file, then `$app \| where status >= 500` | A log or export that keeps growing: its rows come in as they're written, and pipelines read the rows it has now |
 
 The first needs nothing but nushell. The other two run `nu` from inside
 012, so it has to be installed ([Installing
-nushell](https://www.nushell.sh/book/installation.html)); without it the
-prompt says so, and the rest of 012 works as before.
+nushell](https://www.nushell.sh/book/installation.html)); without it a
+cell's output says so, and the rest of 012 works as before.
 
 ## Install the `sheet` command
 
@@ -67,27 +67,27 @@ shells run it as `012`.
 # A table in, edited, and out again, with its types
 ls | select name size | sheet | where size > 1kb
 
-# A notebook: each pipeline's table lands in the grid
+# A notebook of nushell cells, their outputs under them
 sheet nu work.012
 ```
 
-At the notebook's `nu❯` prompt:
+In the notebook's cells, each run with Shift+Enter:
 
 ```nu
 sales = open sales.csv | update Revenue { str replace -ar '[$,]' '' | into float }
 $sales | group-by Region --to-table | update items { get Revenue | math sum }
 ```
 
-The second region reads the first as `$sales`; typing a new command for
-`sales` runs it and then the region that reads it. In a formula on any
-sheet, `=SUM(nu.sales)` reads the same table.
+The second cell reads the first's output as `$sales`; running `sales`
+again marks the second `stale` until it runs too. `G` sends an output to
+a sheet, where `=SUM(nu.sales)` reads it and follows each run.
 
 ## Pages
 
 | Page | For |
 |---|---|
 | [Pipelines](pipelines.md) | `sheet`, `012 -` and `012 --pipe`: tables in on standard input and out on standard output, sending back, the exit status |
-| [Notebooks](notebooks.md) | `012 nu` and the `nu❯` prompt: regions, `$r1` and `$in`, `nu.r1` in formulas, refreshing, saving and trust |
+| [Notebooks](notebooks.md) | `sheet nu` and `012 nu`: code and note cells, their keys, running, `$name`, `$selection` and `$sheet.A1:C9`, outputs sent to sheets as `nu.name`, saving and trust |
 | [Types](types.md) | How each nushell type becomes a cell and goes back, and what doesn't survive the trip |
 | [Cookbook](cookbook.md) | Worked examples: disk usage, a log followed live, a CSV cleaned and summarized, an API, processes, git history |
 

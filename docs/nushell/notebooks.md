@@ -19,7 +19,8 @@ $files | where size > 1kb | sort-by size --reverse
 ![A notebook: a note, a cell listing files, a second reading it as $files, its output sent to a sheet and summed there](../media/notebook.gif)
 
 Open one from a shell with `012 nu`, or from nushell with `sheet nu`
-(`sheet` is 012's nushell module: [Pipelines](pipelines.md)):
+(`sheet` comes from 012's nushell module: [Install the `sheet`
+command](README.md#install-the-sheet-command)):
 
 ```sh
 012 nu              # a new notebook, its first cell ready to type in
@@ -164,7 +165,7 @@ A cell reads the sheets two ways, each a table:
 |---|---|
 | `$selection` | The range selected on the sheet shown last before the notebook, with its first row as the header |
 | `$sheet.A1:C9`, `$sheet.Sales!A1:C9`, `$sheet.'Q1 data'!B2:B40` | That range, of the sheet shown last or the sheet named |
-| `$app` | A [linked file](../files/following.md) named `app`, its rows as they are now |
+| `$app` | A [linked file](../files/following.md) named `app`, its rows as they are when the cell runs |
 
 They reach nu as NUON in a file it reads, never as text spliced into
 the pipeline, so types survive ([Types](types.md)): sizes stay sizes,

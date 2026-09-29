@@ -49,11 +49,12 @@ file's rows, typed as an import types them. The region is the file's:
   the file again there; deleting its first cell's row or column unlinks
   it.
 
-A linked file is a region, as a [notebook's](../nushell/notebooks.md)
-shell regions are, named after the file (`app` for `app.csv`, `app_2`
-for a second link to it): formulas on any sheet read its table as
-`nu.app`, and nushell pipelines as `$app`
-([Linked files](../nushell/notebooks.md#linked-files)).
+A linked file is a region, as a [notebook](../nushell/notebooks.md)
+cell's output sent to a sheet is, named after the file (`app` for
+`app.csv`, `app_2` for a second link to it): formulas on any sheet read
+its table as `nu.app`, and notebook cells as `$app`, its rows as they
+are when the cell runs ([Names and
+$name](../nushell/notebooks.md#names-and-name)).
 
 The sheet's tab carries a mark, and the context line says what the
 region under the pointer is doing:

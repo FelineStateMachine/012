@@ -23,7 +23,7 @@ import (
 // part of the undo state: the source is where they come from, and undo
 // can't bring back what it held. When undo puts a region back, or it
 // moves, it is emptied and marked stale, and the UI sends its rows
-// again: the file read again, or the cell's output as it is now.
+// again: the file read again, or the cell's output as it stands.
 //
 // The definitions are undo steps. So are a notebook tab's cells, which
 // the same state holds (notebook.go).

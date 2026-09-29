@@ -24,7 +24,8 @@ internal/chart   chart layout, text rendering and kitty image encoding
 internal/jev     the API key's resolution, answer cache and TypeSafe client
 internal/keyring the OS credential store the API key lives in
 internal/macro   macros: the Starlark scripting API, recorded actions as scripts, step limits
-internal/nushell a notebook's commands: nu run as a process, tables in as NUON files, a table back
+internal/notebook a notebook's document: code and note cells, names, what each reads, run orders, stale outputs, save caps
+internal/nushell a notebook cell's run: nu as a process, tables in as NUON files, NUON back
   module         012.nu, the nushell module with sheet, embedded for 012 nu --module and --install-module
 internal/telemetry  opt-in JSON log and OTLP export of spans, events and frame stats
 internal/serve   the SSH server: auth, host key, a Model per session (charm.land/wish/v2)
@@ -35,10 +36,10 @@ internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   rowtext        laying out a row of cell text across the columns on screen
   formula        reading the formula being typed (F4, the word and call at the caret)
   overlay        the contract of what takes over input: Overlay, boxes, mouse events, lists
-  lineedit       the one-line editor every text field shares
+  lineedit       the one-line editor every text field shares, and the multi-line one of notebook cells
   picker         the searchable list behind the palette and every picker
   cmdline        the : command line and its completions
-  nuprompt       the nushell prompt on the formula bar, its history and completions
+  nbview         a notebook tab: its cells, outputs, command and edit modes, the code editor and its language providers
   findbar        find and replace, a bar on the context line
   themepicker    File > Settings > Theme, previewing as it moves
   rules          the conditional formatting and data validation panel
@@ -217,35 +218,35 @@ style.
   `#REF!` with the reason. `Set` refuses spilled cells; files keep only
   the anchor.
 - **Regions.** A region (`region.go`) is a block of cells whose values
-  come from outside the engine, of two kinds: a command region, a
-  notebook's nushell command (opaque to the engine) with a label line
-  above its table, and a linked file (`linked.go`), a file the UI
-  follows, its table at its anchor. Both are one list per sheet, the
-  sheet's `regionState`, replaced whole on every change so undo steps
-  keep the definitions; what isn't undone (a label's status, the cells
-  written, how a linked file's reading goes) is kept beside it
-  (`regionMeta`). Their cells have one write path, `writeTable`
-  (`regionwrite.go`): a header and rows, written as spilled cells are,
-  derived and outside the undo history, only those that differ, with
-  the region's cells it no longer needs cleared; a table that would
-  overwrite other contents isn't shown, its label or first cell saying
-  where, and clearing that cell shows it. Rows arrive as live
-  operations, the change stream below. What undo keeps of the rows is a
-  policy per kind: a command region's table (`RegionData`, handed over
-  by `ShowRegion`) is in the undo state, since a run was the user's
-  action and its output can't be had again, and is written again from
-  there whenever its region moves; a linked file's rows are only in its
-  cells, since undo can't bring back what a file held, so a linked file
-  undo brings back or moves is emptied and read again. Placing a cell in
-  a region (a format, undo) keeps the region's value. On a notebook
-  sheet a command region's table that grows or shrinks inserts or
-  deletes rows under it inside the same step, so the rows below move as
-  they would by hand (`regionshape.go`). Formulas name a region's table
-  as `nu.name`, resolved when evaluated as named ranges are; commands
-  read regions as `$name`, which makes a dependency graph
-  (`regiongraph.go`) giving refresh and run orders, cycles refused, and
-  a linked file in it never runs. The file keeps the definitions
-  (`regionfile.go`).
+  come from outside the engine, of two kinds: a linked file
+  (`linked.go`), a file the UI follows, and a notebook cell's output sent
+  to a sheet (`Region.Output`), each its table at its anchor. Both are
+  one list per sheet, the sheet's `regionState`, replaced whole on every
+  change so undo steps keep the definitions; what isn't undone (the
+  cells written, how the rows arrive) is kept beside it (`regionMeta`).
+  Their cells have one write path, `writeTable` (`regionwrite.go`): a
+  header and rows, written as spilled cells are, derived and outside the
+  undo history, only those that differ, with the region's cells it no
+  longer needs cleared; a table that would overwrite other contents
+  isn't shown, its first cell saying where, and clearing that cell shows
+  it. Rows arrive only as live operations, the change stream below, and
+  are never part of the undo state, since undo can't bring back what a
+  file held or a run printed: a region undo brings back or moves is
+  emptied and marked stale, and the UI sends its rows again, the file
+  read again or the cell's output as it is. Placing a cell in a region
+  (a format, undo) keeps the region's value. Formulas name a region's
+  table as `nu.name`, resolved when evaluated as named ranges are. The
+  file keeps the definitions (`regionfile.go`), and converts the command
+  regions of earlier files into notebook cells (`notebookfile.go`).
+- **Notebooks.** A notebook tab is a sheet whose `regionState` holds
+  cells (`notebook.go`), so adding, editing, moving and deleting cells
+  are undo steps as any change is, and the tab is named, moved, hidden
+  and deleted as a sheet is. The document itself, cells, names, what a
+  cell reads, run orders and stale outputs, is `internal/notebook`,
+  which knows nothing of sheets. Outputs aren't undone: the workbook
+  keeps each cell's last `notebook.Output` by the cell's ID, its NUON as
+  nu printed it, and the file keeps them up to the caps
+  (`notebookfile.go`).
 - **Rules.** A sheet's conditional formats and data validation
   (`rules.go`, `condfmt.go`, `validation.go`) are lists of rules on
   ranges, replaced whole on every change so undo steps keep them as they
@@ -268,8 +269,8 @@ style.
 
 Rows reach a region as `sheet.LiveOp`s, each applied at once by
 `Workbook.ApplyLive` through the regions' one write path: what follows
-a linked file sends them, and a command region's table is written the
-same way from its `RegionData`.
+a linked file sends them, and the UI sends a notebook cell's output to
+the region it was sent to whenever the cell runs.
 
 | Field | Holds |
 |---|---|
@@ -288,8 +289,7 @@ step (a macro run) they recalculate when it ends. An op carries whole
 values and names nothing but its region, so applying the same ops in the
 same order to the same workbook makes the same cells: it is what a
 session following another's over `012 serve` would be sent, beside the
-steps `Batch` records (a command region's run is one of those, since
-its table is in the undo state). `OnLive` times each op for telemetry.
+steps `Batch` records. `OnLive` times each op for telemetry.
 
 ### Functions
 
@@ -438,7 +438,7 @@ draw. The components:
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer.Transfer`, `pipeState` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`); standard input read as a sheet, and what a pipeline gets on quitting (`pipe.go`) |
 | linked files | `followState` | a source (`live.Source`) for each linked region, polled one poll at a time on a command every `live.Interval` and reconciled with the workbook after every update, so undo, opening a file and unlinking need nothing of their own; trust in files outside a workbook's folder (`follow.go`); Data > Linked file and Import's Follow the file (`linked.go`) |
-| notebooks | `nuprompt.Prompt`, `shellState` | the prompt (package `nuprompt`); the commands running one at a time in the background, their queue and what they said (`nurun.go`); the notebook's commands, keys, lines and trust (`notebook.go`) |
+| notebooks | `nbview.View`, `nbState` | a view of each notebook tab, its selection, mode, scroll and editor (package `nbview`); the tab on the screen (`nbscreen.go`); the notebook's commands and keys (`notebook.go`); cells running one at a time in the background, their queue, stale outputs, trust (`nbrun.go`); what a run reads (`nbjob.go`); outputs sent to sheets (`nbsend.go`) |
 | macros | `recorder`, `macroState` | a recording in progress (`macrorec.go`); a macro running, trust in the file's macros (`macrorun.go`); what scripts act on (`macrohost.go`, `macrohostnav.go`); Data > Macros and the manager (`macro.go`, `macromanage.go`) |
 | others | `clipboard`, `trace`, `chartState`, `jevRunner`, `terminal`, `session` | what Ctrl+V pastes, a trace being shown, chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it, what outlasts the file open (the `:` history, whether keys can be held: `keyboard.go`) |
 
@@ -465,7 +465,7 @@ methods off `ui.Model`'s exported API:
 | `sortbar` | `sortbar.Host` | theme, size, the sheet, close, sort (recorded as the bar's command) (5) |
 | `filterpick` | `filterpick.Host` | theme, size, the edit line, close, the locale (5); what applying and cancelling do are callbacks, as the sheet's filter and a pivot's differ |
 | `cmdline` | `cmdline.Host` | theme, size, the edit line, close, the commands to complete, run a line, fail, the session's history (8) |
-| `nuprompt` | `nuprompt.Host` | theme, size, the edit line, close, run a line, the words to complete, the workbook's history, what's running, stop it, what the last run said (10) |
+| `nbview` | `nbview.Host` | theme, locale, the cells, a cell's output, how its run stands, run a command, keep a cell's new source (7); the language's highlighter, completer and checker are `nbview.Providers`, small interfaces of their own |
 | `suggest` | `suggest.Host` | theme, size, the edit line, whether an entry is being typed, the entry's sheet, the formula as parsed, where the formula bar's text starts (7) |
 | `themepicker` | `themepicker.Host` | a picker's host, and the current theme, the themes directory, preview, keep, whether keys can be held (10) |
 | `rules` | `rules.Host` | theme, size, the edit line, close, the sheet and selection, save a conditional format or a validation rule, follow a rule removed or moved (each recorded as the commands that do it), the terminal's palette colors (10) |
@@ -511,7 +511,7 @@ hints) are what every overlay is drawn with.
 
 **Packages.** `theme`, `rowtext`, `formula`, `overlay` and `lineedit`
 depend on nothing in `ui`, so they can be tested and measured alone. The
-components in `picker`, `cmdline`, `nuprompt`, `themepicker`, `findbar`, `rules`,
+components in `picker`, `cmdline`, `nbview`, `themepicker`, `findbar`, `rules`,
 `sortbar`, `filterpick`, `choicebar`, `shortcuts`, `suggest`, `tabstrip`
 and `transfer` build on them and reach the model only through their
 hosts, with unit tests of their own against fake hosts. A component moves out of package
@@ -600,19 +600,34 @@ the user's editor (`AllowEditor`), since that starts a program.
 
 ## Notebooks
 
-`internal/nushell` runs a notebook's command: a `Job` holds the command
-and the NUON of the tables it reads, and the script `nu -c` runs binds
-each table from a file named by an environment variable
-(`let r1 = (open --raw $env.NU012_TABLE_0 | from nuon)`), feeds the
-selection as `$in` on standard input, and ends in `to nuon`, so no data
-is ever spliced into the command. What nu prints is read as it's
-written by the NUON importer, capped at max-cells. `Runner` is the
-seam: tests hand the UI a fake, the e2e screens a stand-in `nu`
-script. The UI runs one command at a time as a `tea.Cmd` with a
-context Esc cancels and a timeout, and shows each table as an undo
-step when it arrives; the queue a refresh makes comes from the
-engine's graph. Trust is the macros': a file's commands run only once
-they were made or trusted on this computer, or the user agrees.
+`internal/nushell` runs a code cell: a `Job` holds the pipeline and the
+NUON of what it reads, and the script `nu -c` runs binds each from a
+file named by an environment variable
+(`let files = (open --raw $env.NU012_TABLE_0 | from nuon)`) and ends in
+`to nuon`, so no data is ever spliced into the pipeline; a range of a
+sheet (`$sheet.A1:C9`) is renamed to a variable of its own first
+(`notebook.Bind`). What nu prints is kept as it is, NUON, the cell's
+output: a later cell reads it byte for byte as `$name`, `nbview` parses
+it once to draw it, and `fileio.NUONRows` reads it as a region's rows to
+send to a sheet. `Runner` is the seam: tests hand the UI a fake, the e2e
+screens a stand-in `nu` script. The UI runs one cell at a time as a
+`tea.Cmd` with a context Stop cancels and a timeout; the queue a run
+makes comes from `notebook.Order` (each cell after those it reads) and
+`notebook.Inputs` (what it reads that hasn't run), and a reactive
+notebook adds `notebook.Dependents`. An output records the source it
+ran and the `Seq` of each output it read, so `notebook.Stale` tells
+which outputs may be out of date without running anything. Trust is
+the macros': a file's cells run only once they were made or trusted on
+this computer, or the user agrees.
+
+`nbview` draws each cell as a block of lines, working out only how many
+lines each takes and drawing those on screen, so an expanded output of
+ten thousand rows costs the rows showing; a table's column widths are
+fitted once, when its output is parsed. The code editor
+(`lineedit.Area`) wraps at the cell's width, before pipes where it can;
+highlighting, completion and diagnostics come from `nbview.Providers`,
+asked in the background once typing pauses, with a tokenizer and the
+notebook's names as the built-in answers.
 
 ## Charts
 
