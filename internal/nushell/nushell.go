@@ -33,6 +33,11 @@ type Job struct {
 	Tables map[string][]byte
 	// Config runs nu with the user's config files rather than without.
 	Config bool
+	// IDE asks nu about the script rather than running it: the flags
+	// that ask (--ide-ast, or --ide-complete 14), nu reading the script
+	// from a file named after them, without config files or the
+	// standard library (see ide.go).
+	IDE []string
 }
 
 // Runner runs a job's script, writing what it prints to stdout. A test
@@ -171,9 +176,9 @@ func (n Nu) Run(ctx context.Context, job Job, script string, stdout io.Writer) e
 		}
 		env = append(env, "NU012_TABLE_"+strconv.Itoa(i)+"="+file)
 	}
-	args := []string{"-c", script}
-	if !job.Config {
-		args = append([]string{"--no-config-file"}, args...)
+	args, err := nuArgs(job, script, dir)
+	if err != nil {
+		return err
 	}
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Env, cmd.Stdout = env, stdout
@@ -188,6 +193,23 @@ func (n Nu) Run(ctx context.Context, job Job, script string, stdout io.Writer) e
 		return &Error{Msg: Message(text, err), Stderr: text}
 	}
 	return nil
+}
+
+// nuArgs is nu's command line for job: the script to run, or the flags
+// that ask about it, the script in a file in dir.
+func nuArgs(job Job, script, dir string) ([]string, error) {
+	if len(job.IDE) > 0 {
+		file := dir + string(os.PathSeparator) + "cell.nu"
+		if err := os.WriteFile(file, []byte(script), 0o600); err != nil {
+			return nil, err
+		}
+		return append(append([]string{"--no-config-file", "--no-std-lib"}, job.IDE...), file), nil
+	}
+	args := []string{"-c", script}
+	if !job.Config {
+		args = append([]string{"--no-config-file"}, args...)
+	}
+	return args, nil
 }
 
 // Message is the line of nu's standard error that says what went wrong:

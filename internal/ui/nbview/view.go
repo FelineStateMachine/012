@@ -387,7 +387,7 @@ func pad2(n int) string {
 // edited, a note's Markdown, or a pipeline highlighted.
 func (v *View) sourceLine(i int, c notebook.Cell, r int) string {
 	if v.edit.on && i == v.sel {
-		return v.edit.line(v.h.Theme(), r, v.content(), v.spansFor(v.edit.text(), c.Kind))
+		return v.edit.line(v.h.Theme(), r, v.content(), v.spansFor(v.edit.text(), c.Kind, true))
 	}
 	if c.Kind == notebook.Note {
 		lines := v.noteLines(c)
@@ -401,5 +401,5 @@ func (v *View) sourceLine(i int, c notebook.Cell, r int) string {
 	if r >= len(rows) {
 		return ""
 	}
-	return drawRow(v.h.Theme(), buf, rows[r], v.spansFor(c.Source, c.Kind), nil)
+	return drawRow(v.h.Theme(), buf, rows[r], v.spansFor(c.Source, c.Kind, false), nil)
 }

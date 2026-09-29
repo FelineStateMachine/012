@@ -61,6 +61,17 @@ func TestNotebookSendsToSheetWithNu(t *testing.T) {
 	s.waitFor("      16")
 }
 
+// With the real nu, a cell being written is highlighted by nu's shapes
+// once typing pauses, and Tab completes what only nu knows: a flag.
+func TestNotebookHighlightsAndCompletesWithNu(t *testing.T) {
+	needNu(t)
+	s := startWith(t, options{startsOn: "EDIT"}, "nu")
+	s.keys("ls | where size > 1kb | sort-by size")
+	s.eventually("nu's highlighting", func() bool { return nuHighlighted(s.html(), "sort-by", "size") })
+	s.keys(" --rev", "<tab>")
+	s.waitFor("sort-by size --reverse")
+}
+
 // Data > Shell from a workbook makes a Notebook tab; $selection is
 // the range selected on the sheet shown before it.
 func TestNotebookReadsSelection(t *testing.T) {

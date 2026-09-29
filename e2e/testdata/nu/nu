@@ -4,6 +4,29 @@
 # installed or on what ls finds. The script 012 runs is the last
 # argument; the pipeline is between its "do {" and "} | to nuon".
 for arg; do script=$arg; done
+# The code editor's questions (--ide-ast and the rest, about the file
+# named last) are answered as nu 0.116 answered them about the same
+# text, recorded in ide/: name.nu, and its name.ast.json,
+# name.check.jsonl or name.complete.json. Text not recorded fails, and
+# 012 falls back to its own highlighting.
+case " $* " in
+*' --version '*)
+	echo 0.116.0
+	exit 0 ;;
+*' --ide-ast '*) answer=ast.json ;;
+*' --ide-check '*) answer=check.jsonl ;;
+*' --ide-complete '*) answer=complete.json ;;
+esac
+if [ -n "$answer" ]; then
+	for nu in "$(dirname "$0")"/ide/*.nu; do
+		if cmp -s "$nu" "$script" && [ -f "${nu%.nu}.$answer" ]; then
+			cat "${nu%.nu}.$answer"
+			exit 0
+		fi
+	done
+	echo "Error: not recorded" >&2
+	exit 1
+fi
 cmd=$(printf '%s\n' "$script" | sed -n '/^do {$/,/^} | to nuon$/p' | sed '1d;$d')
 case $cmd in
 *'help commands'*)

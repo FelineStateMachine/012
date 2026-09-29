@@ -51,6 +51,14 @@ func TestBind(t *testing.T) {
 	if len(refs) != 2 || refs[0].Ref != "A1:C9" || refs[1].Ref != "'Q1 data'!B2:B5" || refs[1].Var != "__sheet2" {
 		t.Errorf("refs %+v", refs)
 	}
+	src := "$sheet.A1:C9 | append $sheet.'Q1 data'!B2:B5 | append $sheet.A1:C9.name | $x$sheet.A1 | $sheet."
+	var spans []string
+	for _, s := range RangeSpans(src) {
+		spans = append(spans, src[s[0]:s[1]])
+	}
+	if !slices.Equal(spans, []string{"$sheet.A1:C9", "$sheet.'Q1 data'!B2:B5", "$sheet.A1:C9"}) {
+		t.Errorf("RangeSpans %q", spans)
+	}
 }
 
 func cells(srcs ...string) []Cell {

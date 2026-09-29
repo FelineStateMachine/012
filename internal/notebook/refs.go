@@ -100,6 +100,27 @@ func Bind(pipeline string) (string, []SheetRef) {
 	}
 }
 
+// RangeSpans are where a pipeline reads ranges of sheets, by byte
+// offsets: each $sheet.A1:C9 whole, as Bind renames them.
+func RangeSpans(pipeline string) [][2]int {
+	var out [][2]int
+	for i := 0; ; {
+		k := strings.Index(pipeline[i:], sheetVar)
+		if k < 0 {
+			return out
+		}
+		k += i
+		i = k + len(sheetVar)
+		if k > 0 && isWord(pipeline[k-1]) {
+			continue
+		}
+		if n := refLen(pipeline[i:]); n > 0 {
+			i += n
+			out = append(out, [2]int{k, i})
+		}
+	}
+}
+
 // refLen is how long the range at the start of s is: a sheet's name,
 // quoted in ” if it needs to be, then ! and cells, or cells alone. A
 // dot ends it, so a cell path may follow: $sheet.A1:C9.name.

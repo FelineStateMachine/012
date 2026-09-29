@@ -74,3 +74,5 @@ own 8,192 by 256. See [Bounds of support](../contributing/limits.md#imports) for
 | [Saving](saving.md) | Atomic saves, overwrite checks, unsaved work under `012 serve` |
 | [Following files](following.md) | Linked regions that follow a file as it grows or is rewritten, like `tail -f` |
 | [The .012 format](format.md) | The JSON format, its versions and fields |
+| [Scripts](scripts.md) | `012 get`, `set`, `recalc` and `export`: workbooks read and changed without the screen |
+| [Diff and merge in git](git.md) | `012 diff` cell by cell, and git's diff and merge drivers for `.012` files |

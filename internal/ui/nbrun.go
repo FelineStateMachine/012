@@ -57,6 +57,10 @@ type nbState struct {
 	// saved is the outputs' change count when the file was last saved,
 	// and saving when it was being saved.
 	saved, saving int
+	// lang asks nu about the cells being written (nblang.go), and
+	// langKey is what the words it was last given were worked out from.
+	lang    *nbview.NuSession
+	langKey nbLangKey
 }
 
 // nbQueued is a cell waiting to run.
@@ -89,8 +93,14 @@ type (
 	nbTickMsg struct{ gen int }
 )
 
-// SetShellRunner makes cells run with r rather than nu, for tests.
-func (m *Model) SetShellRunner(r nushell.Runner) { m.nb.runner = r }
+// SetShellRunner makes cells run, and the code editor ask, with r
+// rather than nu, for tests; it's set before anything is asked.
+func (m *Model) SetShellRunner(r nushell.Runner) {
+	m.nb.runner = r
+	if m.nb.lang != nil {
+		m.nb.lang.Runner = r
+	}
+}
 
 func (m *Model) runner() nushell.Runner {
 	if m.nb.runner == nil {

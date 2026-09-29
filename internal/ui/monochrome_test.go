@@ -465,3 +465,26 @@ func TestMonochromeBarsIconsChips(t *testing.T) {
 		t.Errorf("chip %q %+v", got, c1[2])
 	}
 }
+
+// A problem nu finds in the cell being written is underlined, curly as
+// an error cell is, and in words on the context line with the caret on
+// it.
+func TestMonochromeNuProblem(t *testing.T) {
+	nu := &ideNu{fakeNu: &fakeNu{}, problem: "--revrse"}
+	m := newModel()
+	m.SetShellRunner(nu)
+	m.SetMachine("here")
+	run(m, m.runCommand("nb.open"))
+	press(t, m, "b", "<enter>")
+	send(m, pasteMsg("ls | sort-by name --revrse"))
+	l := findLine(t, m, "sort-by")
+	if c := cellsOf(l, "--revrse"); !every(c, true, func(c monoCell) bool { return c.underline == "3" }) {
+		t.Errorf("the problem isn't underlined: %+v", c)
+	}
+	if c := cellsOf(l, "name"); every(c, true, func(c monoCell) bool { return c.underline == "3" }) {
+		t.Error("what's fine is underlined")
+	}
+	if !strings.Contains(cellText(monoLine(m, contextLine)), "Not a flag.") {
+		t.Errorf("the context line: %q", cellText(monoLine(m, contextLine)))
+	}
+}

@@ -99,7 +99,7 @@ there.
 | Entries failing validation | A dotted underline, and `Invalid:` with the rule on the context line |
 | Values an array spilled | Italic, and `Spilled from B2` on the context line |
 | Linked files' rows, following, paused or failing | Italic; `●`, `‖` or `!` beside the tab's name and on the context line, with the state in words (`Following`, `Paused`, the error) |
-| A notebook's cells and outputs | `❯` before the tab's name; the selected cell's head in reverse video; the head's words for its state (`[*]` and `running`, `waiting`, `failed`, `stale`); `×` before an error; an output table's header bold and underlined; an output sent to a sheet in italic, with `Output of files` on the context line |
+| A notebook's cells and outputs | `❯` before the tab's name; the selected cell's head in reverse video; the head's words for its state (`[*]` and `running`, `waiting`, `failed`, `stale`); `×` before an error; an output table's header bold and underlined; an output sent to a sheet in italic, with `Output of files` on the context line; a problem nu finds in the cell being written curly-underlined, in words on the context line with the caret on it |
 | Pivot table results | Their headings (`SUM of Units`, `Grand Total`), and a note in words when an edit is refused |
 | Protected ranges | A question in words before an edit (`A1:B2 is protected.`) |
 | Notes | A `▝` in the cell's top-right corner |

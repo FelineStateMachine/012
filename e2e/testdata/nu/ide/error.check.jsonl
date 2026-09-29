@@ -1,0 +1,4 @@
+{"type":"diagnostic","severity":"Error","message":"The `sort-by` command doesn't have flag `revrse`.","span":{"start":86,"end":94}}
+{"type":"hint","typename":"any","position":{"start":4,"end":13}}
+{"type":"hint","typename":"any","position":{"start":28,"end":33}}
+{"type":"hint","typename":"any","position":{"start":48,"end":53}}

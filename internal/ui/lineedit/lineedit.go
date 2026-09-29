@@ -57,6 +57,9 @@ func (l *Line) Insert(text string) {
 
 // Key applies a line-editing Key.
 func (l *Line) Key(k tea.KeyPressMsg) {
+	if l.wordKey(k.String()) {
+		return
+	}
 	switch k.String() {
 	case "left":
 		l.Pos = max(l.Pos-1, 0)
