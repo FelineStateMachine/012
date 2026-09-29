@@ -1,6 +1,9 @@
 package sheet
 
-import "github.com/FelineStateMachine/012/internal/formula"
+import (
+	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/functions"
+)
 
 // Where regions are (see region.go): the cells they cover and their
 // tables, finding them by cell and by the name formulas use, and keeping
@@ -17,6 +20,10 @@ func (s *Sheet) RegionTable(name string) (Rect, bool) {
 		return Rect{}, false
 	}
 	r := s.regions.list[i]
+	if r.File.Paged {
+		t, _, ok := s.sourceTable(r)
+		return t, ok
+	}
 	me := s.regionMeta[nameKey(r.Name)]
 	if me == nil || me.why != "" || me.rows == 0 || me.cols == 0 {
 		return Rect{}, false
@@ -136,6 +143,8 @@ func (s *Sheet) boundRegion(nn formula.Name) Node {
 	switch {
 	case !ok:
 		return nn
+	case r == (Rect{}) && t.IsSource() && t.sourceErr(t.regions.list[0]) == "":
+		return functions.Const(Pending) // its host is opening it
 	case r == (Rect{}):
 		return formula.RefErr{}
 	}

@@ -23,8 +23,10 @@ const FileExt = ".012"
 // a "name" field that earlier builds ignore.
 // Version 5 is version 4 with pivot tables; a workbook without one is
 // still written as version 4. Version 6 is version 5 with tables
-// (tablefile.go), written only for a workbook with one.
-const fileVersion = 6
+// (tablefile.go), written only for a workbook with one. Version 7 is
+// version 6 with linked sources (sourcefile.go), written only for a
+// workbook linking one.
+const fileVersion = 7
 
 // The file is JSON with one entry per cell, keyed by address. A cell
 // without formatting is just its input, as in version 1; a formatted cell
@@ -114,6 +116,8 @@ func (w *Workbook) Write(out io.Writer) error {
 	} else {
 		version := 4
 		switch {
+		case w.hasSources():
+			version = 7
 		case w.hasTables():
 			version = 6
 		case w.hasPivots():
@@ -149,7 +153,7 @@ func (w *Workbook) Write(out io.Writer) error {
 // versions 2 and 3: one sheet, not a notebook, no pivot table nor table,
 // and no formula naming a sheet.
 func (w *Workbook) single() bool {
-	return len(w.sheets) == 1 && len(w.crossUsers) == 0 && !w.hasPivots() && !w.hasNotebook() && !w.hasTables()
+	return len(w.sheets) == 1 && len(w.crossUsers) == 0 && !w.hasPivots() && !w.hasNotebook() && !w.hasTables() && !w.hasSources()
 }
 
 func jsonString(s string) string {
@@ -372,6 +376,9 @@ func (s *Sheet) read(f fileSheet, old *[]oldRegion) error {
 		return err
 	}
 	if err := s.readNotebook(f); err != nil {
+		return err
+	}
+	if err := s.checkSourceTab(); err != nil {
 		return err
 	}
 	return s.readView(f.fileView)

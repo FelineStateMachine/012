@@ -58,6 +58,10 @@ type Workbook struct {
 	// being evaluated, which a question is asked for (see remote.go).
 	waiting    map[string]map[loc]struct{}
 	evaluating loc
+	// sources answers what formulas and pivots ask of linked sources;
+	// src keeps who asked what (sourceask.go).
+	sources SourceHost
+	src     sourceAsks
 	// depth counts the cells and operators being evaluated, nested; see
 	// evaluate.go.
 	depth  int

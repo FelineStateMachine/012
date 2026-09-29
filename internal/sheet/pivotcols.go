@@ -32,7 +32,7 @@ func (c *pivotCalc) colGroupsOf(row int) []int {
 	c.colIDs = c.colIDs[:0]
 	n := &c.colRoot
 	for k, g := range c.p.Columns {
-		key := keyOf(c.src.Value(Addr{Col: g.Col, Row: row}), true)
+		key := keyOf(c.d.value(Addr{Col: g.Col, Row: row}), true)
 		kid := n.kids[key]
 		if kid == nil {
 			if n.kids == nil {
@@ -57,8 +57,8 @@ func (c *pivotCalc) newColGroup(row, depth int) *colGroup {
 	c.nextCol++
 	for _, g := range c.p.Columns[:depth] {
 		a := Addr{Col: g.Col, Row: row}
-		cg.labels = append(cg.labels, c.src.Value(a))
-		cg.formats = append(cg.formats, c.src.DisplayFormat(a))
+		cg.labels = append(cg.labels, c.d.value(a))
+		cg.formats = append(cg.formats, c.d.format(a))
 	}
 	return cg
 }

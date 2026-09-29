@@ -56,6 +56,9 @@ func (rd *reader) RangeAgg(sheet string, r Rect) (functions.Agg, *Value, bool) {
 	if t == nil {
 		return functions.Agg{}, nil, false
 	}
+	if _, ok := t.pagedRegion(); ok {
+		return functions.Agg{}, nil, false
+	}
 	key := aggKey{t, r.From.Col, r.To.Col, r.From.Row}
 	run := memo.m[key]
 	if run == nil {
@@ -84,6 +87,9 @@ func (rd *reader) Fold(sheet string, r Rect, s functions.Agg) (functions.Agg, *V
 	t := rd.sheet(sheet)
 	if t == nil {
 		return s, s.Add(ErrRef, false)
+	}
+	if reg, ok := t.pagedRegion(); ok {
+		return rd.pagedFold(t, reg, r, s)
 	}
 	var e *Value
 	add := func(a Addr) bool {

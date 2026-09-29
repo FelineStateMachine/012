@@ -30,6 +30,9 @@ type fileRegion struct {
 	Table  string `json:"table,omitempty"`
 	Query  string `json:"query,omitempty"`
 	Window int    `json:"window,omitempty"`
+	// A linked source's: see sourcefile.go.
+	Paged bool             `json:"paged,omitempty"`
+	Order *fileSourceOrder `json:"order,omitempty"`
 	// A command region's, read to convert it.
 	Command string           `json:"command,omitempty"`
 	Input   string           `json:"input,omitempty"`
@@ -53,7 +56,8 @@ func (s *Sheet) writeRegionDefs(b *bufio.Writer, indent string) error {
 	b.WriteString(",\n" + indent + `"regions": [`)
 	for i, r := range s.regions.list {
 		fr := fileRegion{Name: r.Name, At: r.At.String(), Output: r.Output,
-			Path: r.File.Path, Format: r.File.Format, Table: r.File.Table, Query: r.File.Query, Window: r.File.Window}
+			Path: r.File.Path, Format: r.File.Format, Table: r.File.Table, Query: r.File.Query, Window: r.File.Window,
+			Paged: r.File.Paged, Order: encodeOrder(r.File.Order)}
 		raw, err := json.Marshal(fr)
 		if err != nil {
 			return err
@@ -83,6 +87,12 @@ func (s *Sheet) readRegions(frs []fileRegion, old *[]oldRegion) error {
 		}
 		r := Region{Name: fr.Name, At: at, Output: fr.Output,
 			File: LinkSource{Path: fr.Path, Format: fr.Format, Table: fr.Table, Query: fr.Query, Window: fr.Window}}
+		if fr.Paged || fr.Order != nil {
+			if err := s.readSource(fr, r); err != nil {
+				return fmt.Errorf("region %s: %w", fr.Name, err)
+			}
+			continue
+		}
 		switch {
 		case fr.Window < 0:
 			return fmt.Errorf("region %s: invalid window %d", fr.Name, fr.Window)

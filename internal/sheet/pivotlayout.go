@@ -346,8 +346,19 @@ func (w *Workbook) computePivot(s *Sheet) ([]pivotCell, *pivotCalc, error) {
 			return nil, nil, fmt.Errorf("Column %s is outside the pivot table's source range %s", ColName(col), p.Range)
 		}
 	}
-	c := newPivotCalc(w, p, src)
-	c.gather()
+	var c *pivotCalc
+	if reg, ok := src.pagedRegion(); ok {
+		var err error
+		switch c, err = w.sourcePivot(s, reg, p); {
+		case err != nil:
+			return nil, nil, err
+		case c == nil:
+			return []pivotCell{{v: Pending}}, nil, nil
+		}
+	} else {
+		c = newPivotCalc(w, p, sheetData{src})
+		c.gather()
+	}
 	l := c.layout()
 	if l.over {
 		return nil, c, fmt.Errorf("The pivot table doesn't fit on a sheet")
