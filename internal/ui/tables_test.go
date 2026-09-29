@@ -37,6 +37,9 @@ func TestConvertToTable(t *testing.T) {
 	if l := line(m, contextLine); !strings.Contains(l, "=SUM(Sales[Amount])") {
 		t.Errorf("note %q", l)
 	}
+	if l := line(m, formulaLine); !strings.HasPrefix(l, " Sales") {
+		t.Errorf("name box %q", l)
+	}
 	if m.available("table.create") {
 		t.Error("Convert to table offered inside a table")
 	}
@@ -124,6 +127,10 @@ func TestTablesPicker(t *testing.T) {
 	press(t, m, "oth", "<enter>")
 	if m.selection() != rectOf("F1:G3") {
 		t.Errorf("went to %v", m.selection())
+	}
+	press(t, m, "<esc>", "<f5>", "sales", "<enter>")
+	if m.selection() != rectOf("A1:C4") {
+		t.Errorf("Go to a table: %v", m.selection())
 	}
 	m.runCommand("data.tables")
 	press(t, m, "sales", "<ctrl+d>")

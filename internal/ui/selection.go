@@ -258,15 +258,15 @@ func isMoveKey(key string) bool {
 func (m *Model) openGoto() {
 	m.openText("Go to:", m.cur.String(), func(m *Model, text string) tea.Cmd {
 		if !m.gotoText(strings.TrimSpace(text)) {
-			m.fail("Not a cell, range, named range or region: " + text)
+			m.fail("Not a cell, range, named range, table or region: " + text)
 		}
 		return nil
 	})
 	m.prompt.indicator = "POINT"
 }
 
-// gotoText goes to a cell, range, named range or region's table (nu.r1,
-// as formulas name it), on any sheet, and reports whether text named
+// gotoText goes to a cell, range, named range, table (a region's too,
+// by its name or as formulas name it, nu.r1), on any sheet, and reports whether text named
 // one. A sheet may lead: Sheet2!A1, 'Q3 plan'!B2:C9, or just Sheet2!.
 func (m *Model) gotoText(text string) bool {
 	target := m.sheet
@@ -285,6 +285,9 @@ func (m *Model) gotoText(text string) bool {
 	r, ok := sheet.ParseRange(text)
 	if n, named := m.sheet.LookupName(text); named && !n.Gone() && target == m.sheet {
 		r, ok, target = n.Range, true, n.Sheet
+	}
+	if t, found := m.book().LookupTable(text); !ok && found && t.Shown() && target == m.sheet {
+		r, ok, target = t.Range, true, t.Sheet
 	}
 	if !ok && target == m.sheet {
 		r, target, ok = m.regionTable(text)
