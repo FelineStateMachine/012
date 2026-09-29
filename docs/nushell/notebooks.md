@@ -50,9 +50,9 @@ runs it at the right, its output under it, and note cells drawn as text:
 ▌    [2]: │ big = $files | where size > 1kb                            │ ▶
 ▌         │   | sort-by size --reverse                                 │
 ▌         ╰────────────────────────────────────────────────────────────╯
-▌ Out[2]:   name       size
-▌           README.md  9.8 kB
-▌           012        4.2 kB
+▌ Out[2]:             name        size
+▌              1  README.md       9.8 kB
+▌              2  012             4.2 kB
 ```
 
 The prompt says how many runs came before this one (`[2]:`, `[*]:` while
@@ -87,8 +87,8 @@ Outputs are drawn by what they are, with values formatted as cells
 
 | Output | Shows |
 |---|---|
-| A table (a list of records) | Its columns fitted to their values, numbers right-aligned, under its header |
-| A record | Its fields, one a line: `key  value` |
+| A table (a list of records) | 012's grid ([Outputs as grids](#outputs-as-grids)): its columns headed by their names and fitted to their values, its rows numbered from 1 |
+| A record | The same grid of two columns, `field` and `value`, a field a row |
 | A list | Its items, numbered from 0, as nushell numbers them |
 | Text | Its lines, wrapped |
 | A value | As a cell shows it: `4.2 kB`, `9/27/2026 11:27:31` |
@@ -116,11 +116,63 @@ stateDiagram-v2
     hidden --> window: o
 ```
 
-**Enter** on an output, or a double click, opens it full-screen: arrows
-(or `h` `j` `k` `l`) move, `s` sorts by the pointer's column and `S` in
-descending order (again for the output's own order), `/` keeps the rows
-holding what's typed, and Esc (or `◀ Back`) goes back. The output itself
-doesn't change.
+**Enter** on any other output, or a double click, opens it full-screen,
+its lines scrolled with the arrows; Esc (or `◀ Back`) goes back.
+
+### Outputs as grids
+
+A table or a record is drawn as 012's own grid, the one a sheet has:
+the values are the cells [sending it to a sheet](#send-to-a-sheet)
+makes, each in the format of its type (sizes as `4.2 kB`, durations,
+dates), right-aligned numbers, fitted columns and the grid's row
+numbers, with the table's column names where a sheet has letters.
+
+**Enter** on the output, or a click in it, works in it (the mode
+indicator says `OUTPUT`, and the bar left of it turns green, as for a
+cell edited): an active cell moves with the arrows, and the grid's keys,
+menus and mouse work on it as on a sheet, in its window:
+
+- Shift+arrows, Ctrl+A or a drag select a range, and the status line
+  shows its Sum, Avg and Count; Ctrl+C copies it, as TSV to the system
+  clipboard and with its formats for Ctrl+V on a sheet.
+- **Data > Sort sheet** (or the column's right-click menu) sorts by the
+  active column, **Data > Create a filter** puts `▾` on each column's
+  name, and Alt+Down (or a click on `▾`) opens the column's filter;
+  Ctrl+F finds.
+- Drag the right edge of a column's name, or **Format > Column width**,
+  to resize it; Shift+wheel scrolls a wide table sideways; the names
+  stay on top as the rows scroll.
+- Ctrl+Z undoes a sort, a filter or a width; typing, Del, paste and
+  formats are refused, as they'd change the output: `G` sends it to a
+  sheet, where its copy can change.
+- **Enter** shows the grid full-screen, where it all works the same;
+  **Esc** deselects, then goes back from full-screen, then back to the
+  notebook.
+
+```mermaid
+stateDiagram-v2
+    selected: output selected (NOTEBOOK)
+    window: its grid, in its window (OUTPUT)
+    full: its grid, full-screen (OUTPUT)
+    selected --> window: Enter, a click in it
+    window --> full: Enter, a double click
+    full --> window: Esc
+    window --> selected: Esc
+```
+
+Sorting and filtering act on the grid's copy: the output, what later
+cells read as `$name`, doesn't change, and running the cell again
+draws its new output afresh.
+
+**Insert > Chart**, **Data > Pivot table** and the frequency table
+(Alt+Shift+F) on the grid make them where charts and pivot tables live,
+on a sheet: the output is [sent to a sheet](#send-to-a-sheet) first (a new
+one named after the cell, unless it's on one already), and the command
+runs there on the columns selected in the grid, every row under the
+header. A chart drawn under the output would have to squeeze into the
+notebook's column and scroll with the cells; on the sheet it has room,
+its editor, images where the terminal draws them, and it follows the
+cell's next run, as the region it charts does.
 
 Note cells are Markdown: headings, **bold**, *italic*, `code`, links (the
 terminal opens them), lists and quotes. They're drawn as text, without a
@@ -154,7 +206,7 @@ delete, copy, cut, move, make notes or code, hide or clear outputs.
 | Up, Down, `j`, `k` | Move between cells, stopping at each output; on an output, scroll its window first |
 | Shift+Up, Shift+Down, `K`, `J` | Select the cells passed over too |
 | Home, End, PgUp, PgDn | The first cell, the last, a screen up or down |
-| Enter | Edit the cell; on an output, open it full-screen |
+| Enter | Edit the cell; on a table or record output, work in its grid; on another, open it full-screen |
 | Shift+Enter | Run the cells and select the next, adding one at the end |
 | Ctrl+Enter, `r` | Run the cells, staying on them |
 | Alt+Enter | Run the cells and add a code cell under them |

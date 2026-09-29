@@ -89,7 +89,7 @@ http get https://api.github.com/repos/nushell/nushell/issues | select number tit
 Sort by comments, filter by author, or make a pivot table of issues by
 author, in the sheet. In a notebook, the same pipeline without
 `| sheet view` is a cell that fetches the list again each time it runs;
-Enter on its output opens it full-screen to sort and filter, and
+Enter on its output works in it as a grid, to sort, filter and chart, and
 `nu-timeout` stops a request that hangs.
 
 Nushell: [`http get`](https://www.nushell.sh/commands/docs/http_get.html),
