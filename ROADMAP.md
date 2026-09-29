@@ -24,6 +24,21 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 |---|---|---|
 | Linked, paged read-only ranges over Parquet and SQLite that feed pivots and formulas by streaming | Sources too big for any grid | L |
 
+### 4. Nushell notebook
+
+One binary: `012 nu`, `012 -` and `012 --pipe` are modes of 012, and a
+notebook sheet lives in a workbook beside ordinary sheets. 012 runs `nu`
+as a separate process; without it, these modes say so and the rest of 012
+is unchanged. Written like a REPL, kept like a reactive notebook: each
+command's result is a named, live region (`r1`) that later commands read
+as `$r1`, and refreshing a region re-runs what depends on it.
+
+| Item | Result | Size |
+|---|---|---|
+| Nushell tables to typed cells and back (NUON: numbers, file sizes, durations, dates, records), `012 -` reading a table from standard input, and `012 --pipe` returning the edited sheet or selection on standard output while the UI draws on the terminal | 012 as a stage in a pipeline | M |
+| `012 nu` and the notebook sheet: a nushell prompt in the formula bar (history, Tab completion), results stacking as named live regions built on spills, `$r1` references with a dependency graph so refresh cascades, Freeze to values, other sheets reading `Shell!r1`, commands saved and never run on open, trust for files from elsewhere, timeouts and an output cap, off in `012 serve` unless configured | A reactive notebook of pipelines inside a spreadsheet | L |
+| Nushell's own completions in the prompt; `nu_plugin_012` only if `--pipe` proves clumsy from inside nu | | S to M |
+
 ## Later: sharing a live sheet (shelved)
 
 Explored, not scheduled. `012 serve` gives each SSH session its own
