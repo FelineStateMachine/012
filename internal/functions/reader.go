@@ -228,6 +228,9 @@ func (c *cursor) fill() (Addr, bool) {
 	if c.from.Row > c.r.To.Row {
 		return Addr{}, false
 	}
+	// Grown here, before the chunk is read: growing makes a new buffer,
+	// which mustn't happen while the last chunk is still being walked.
+	c.b.fit(c.size)
 	c.n, c.i = c.rd.book.Scan(c.sheet, c.r, c.from, c.b.addrs[:c.size], nil), 1
 	if c.n <= 0 {
 		c.from.Row = c.r.To.Row + 1
@@ -239,7 +242,6 @@ func (c *cursor) fill() (Addr, bool) {
 		c.from = next(c.r, c.b.addrs[c.n-1])
 		if c.size < maxChunk {
 			c.size *= 2
-			c.b.fit(c.size)
 		}
 	}
 	return c.b.addrs[0], true
