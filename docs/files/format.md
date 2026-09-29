@@ -88,9 +88,9 @@ save), so they raise no version:
 | `conditionalFormats`, `validations` | a sheet | [Rules](#conditional-formats-and-data-validation), one per line |
 | `arithmetic` | the workbook | `decimal` for [decimal arithmetic](../formulas/decimal.md) |
 | `locale` | the workbook | The [locale](../sheets/locale.md) it's typed and shown in (`"de-DE"`), when File > Settings > Locale chose one; without it, the file follows the reader's `locale` setting. Cells are stored the same way in every locale: `input` is always as typed in en-US (`1,234.5`, `9/26/2026`, `=ROUND(A1,2)`) |
-| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on (macros', shell regions' and [linked files'](following.md#files-from-elsewhere) alike): see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
-| `notebook`, `regions` | a sheet | A [notebook sheet](../nushell/notebooks.md), and its shell regions and [linked files](following.md): see [Regions](#regions). Older builds open the sheet without them |
-| `shellHistory` | the workbook | The lines typed at its [notebook prompt](../nushell/notebooks.md#the-prompt), oldest first, for Up and Down |
+| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on (macros', notebook cells' and [linked files'](following.md#files-from-elsewhere) alike): see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
+| `regions` | a sheet | Its [linked files](following.md) and notebook cells' [outputs sent there](../nushell/notebooks.md#send-to-a-sheet): see [Regions](#regions). Older builds open the sheet without them |
+| `tab`, `reactive`, `notebookCells` | a sheet | A [notebook](../nushell/notebooks.md) tab and its cells: see [Notebooks](#notebooks). Older builds open it as an empty sheet |
 
 ## Column and row formats
 
@@ -163,39 +163,65 @@ with its data.
 
 ## Regions
 
-A sheet's regions, a [notebook's](../nushell/notebooks.md)
-shell regions and [linked files](following.md), are a `regions` list
-after its cells, charts and rules, one per line, in the order they were
-made; a notebook sheet also has `"notebook": true`. The file keeps what
-each region reads, never its table: reopening shows shell regions as not
-run, and nothing runs until you run it; linked files are read again.
+A sheet's regions, [linked files](following.md) and notebook cells'
+[outputs sent there](../nushell/notebooks.md#send-to-a-sheet), are a
+`regions` list after its cells, charts and rules, one per line, in the
+order they were made. The file keeps where each region is and what feeds
+it, never its table: opening the file reads linked files again and sends
+each output from its cell's saved output.
 
 ```json
-  "notebook": true,
   "regions": [
-    {"name":"r1","command":"ls","at":"A1","rows":12,"cols":4},
-    {"name":"big","command":"$r1 | where size > 1kb","at":"A16","rows":3,"cols":4,"reads":["r1"],"sort":[{"column":3,"desc":true}]},
+    {"name":"big","at":"A1","output":true},
     {"name":"app","at":"F1","path":"logs/app.csv","window":500}
   ]
 ```
 
-- `name` is what commands read it as (`$r1`) and formulas name it by
-  (`nu.r1`); `command` is a shell region's nushell pipeline.
-- `at` is its label line's cell; `rows` and `cols` the size of its table
-  when saved, header row included, which it keeps until it runs.
-- `reads` are the regions its command reads, `input` the range it read
-  as `$in` (`Sheet1!A1:C9`), and `sort` the columns its table is sorted
-  by, counting from 1 at its first column, with `desc` for Z to A.
-- A linked file has `path` instead of a command: the file, relative to
-  the workbook's folder when it's saved there or below, and otherwise as
-  it was linked; `at` is its table's first cell. `format` names the
-  file's format (`CSV`, `TSV`, `JSON`, `NUON`, `XLSX`, `SQLite`,
-  `Parquet`) when the extension doesn't tell it, `table` or `query` say
-  what to read from a SQLite database, and `window` keeps the last rows
-  under the header.
+- `name` is what formulas name it by (`nu.big`, `nu.app`) and notebook
+  cells read a linked file as (`$app`); an output's is its cell's.
+- `at` is its table's first cell, the header row's.
+- `output` marks a notebook cell's output.
+- A linked file has `path`: the file, relative to the workbook's folder
+  when it's saved there or below, and otherwise as it was linked.
+  `format` names the file's format (`CSV`, `TSV`, `JSON`, `NUON`,
+  `XLSX`, `SQLite`, `Parquet`) when the extension doesn't tell it,
+  `table` or `query` say what to read from a SQLite database, and
+  `window` keeps the last rows under the header.
 
 The table's cells are saved only for their formatting and notes, as a
-spill's are.
+spill's are. A region with a `command`, which the notebook sheets of
+earlier versions wrote (with `input`, the range it read as `$in`, and
+`rows`, `cols`, `reads` and `sort`, which opening it doesn't need),
+opens as a code cell of the workbook's notebook, its table sent where it
+was ([Notebook sheets](../nushell/notebooks.md#notebook-sheets)).
+
+## Notebooks
+
+A notebook tab is a sheet with `"tab": "notebook"`, `"reactive": true`
+when it's [reactive](../nushell/notebooks.md#stale-outputs-and-reactive-notebooks),
+and its cells in `notebookCells`, one per line:
+
+```json
+  "tab": "notebook",
+  "notebookCells": [
+    {"kind":"note","source":"# Files"},
+    {"source":"files = ls","output":"[[name, size]; [go.mod, 812b]]"},
+    {"source":"$files | nope","error":"Command `nope` not found","detail":"help: ..."},
+    {"source":"ls **/*","unsaved":true}
+  ]
+```
+
+- `kind` is `note` for Markdown, left out for code; `source` is what the
+  cell holds, a code cell's name and all, as `files` above.
+- `output` is what the cell's last run printed, as NUON text, kept when
+  it fits the `nu-save-cell-kb` and `nu-save-notebook-kb` caps
+  ([Configuration](../reference/config.md#nushell-notebooks)); `unsaved`
+  marks one left out for its size.
+- `error` and `detail` are a failed run's message and help line, `note`
+  what an output left out.
+
+Run counts, timings and stale marks aren't saved: an output read from
+the file is what its cell's source and inputs gave.
 
 ## Conditional formats and data validation
 

@@ -1,14 +1,13 @@
-// Package nushell runs a notebook's commands: each command is a nushell
-// pipeline run by `nu` as a separate process, reading other regions'
-// tables as variables ($r1) and the selection as $in, and writing a
-// table back as NUON, which becomes the region's cells. Tables reach nu
-// as NUON in files it opens, never as text spliced into the command.
-// The package knows neither the terminal nor the workbook's regions:
-// the UI hands it a Job and gets back a table.
+// Package nushell runs a notebook's code cells: each is a nushell
+// pipeline run by `nu` as a separate process, reading other cells'
+// outputs and ranges of sheets as variables ($sales, $selection), and
+// printing what it made as NUON, which the notebook keeps as the cell's
+// output. Tables reach nu as NUON in files it opens, never as text
+// spliced into the pipeline. The package knows neither the terminal nor
+// the notebook: the UI hands it a Job and gets back NUON.
 package nushell
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -23,18 +22,15 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/nuon"
 )
 
-// Job is a command to run.
+// Job is a pipeline to run.
 type Job struct {
 	Command string
-	// Tables are the regions the command reads, by name, as NUON: each
-	// becomes the variable of its name.
+	// Tables are what the pipeline reads, by variable name, as NUON:
+	// each becomes the variable of its name.
 	Tables map[string][]byte
-	// Input is the table the command reads as $in, as NUON, or nil.
-	Input []byte
 	// Config runs nu with the user's config files rather than without.
 	Config bool
 }
@@ -45,10 +41,10 @@ type Runner interface {
 	Run(ctx context.Context, job Job, script string, stdout io.Writer) error
 }
 
-// ErrMissing is what running a command says when nu isn't installed.
+// ErrMissing is what running a cell says when nu isn't installed.
 var ErrMissing = errors.New("nu isn't installed or isn't on your PATH: see docs/nushell/notebooks.md")
 
-// Error is a command that failed: nu's message, and all it wrote to
+// Error is a pipeline that failed: nu's message, and all it wrote to
 // standard error.
 type Error struct {
 	Msg    string
@@ -57,8 +53,18 @@ type Error struct {
 
 func (e *Error) Error() string { return e.Msg }
 
+// Help is the help line of nu's message, "help: ...", or "".
+func (e *Error) Help() string {
+	for line := range strings.SplitSeq(e.Stderr, "\n") {
+		if line = strings.TrimSpace(line); strings.HasPrefix(line, "help:") {
+			return line
+		}
+	}
+	return ""
+}
+
 // Script is what nu runs for job: the tables bound to their names, then
-// the command, its output as NUON. The files are named by environment
+// the pipeline, its output as NUON. The files are named by environment
 // variables (NU012_TABLE_0 and so on) the runner sets, so no data and no
 // path is written into the script.
 func Script(job Job, names []string) string {
@@ -66,80 +72,47 @@ func Script(job Job, names []string) string {
 	for i, name := range names {
 		fmt.Fprintf(&b, "let %s = (open --raw $env.NU012_TABLE_%d | from nuon)\n", name, i)
 	}
-	if job.Input != nil {
-		b.WriteString("$in | from nuon | ")
-	}
 	b.WriteString("do {\n" + job.Command + "\n} | to nuon\n")
 	return b.String()
 }
 
-// Exec runs job and reads what it prints as a table, keeping at most
-// maxCells cells (0 for the max-cells setting), within timeout.
-func Exec(ctx context.Context, r Runner, job Job, timeout time.Duration, maxCells int) (*sheet.RegionData, error) {
+// ErrTooLarge is a run that printed more than it may keep.
+var ErrTooLarge = errors.New("the output is too large to keep")
+
+// Exec runs job and returns what it printed, NUON, at most maxBytes of
+// it, within timeout.
+func Exec(ctx context.Context, r Runner, job Job, timeout time.Duration, maxBytes int) ([]byte, error) {
 	if timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeoutCause(ctx, timeout, fmt.Errorf("stopped after %s", timeout))
 		defer cancel()
 	}
-	names := sortedNames(job.Tables)
-	pr, pw := io.Pipe()
-	done := make(chan error, 1)
-	go func() {
-		err := r.Run(ctx, job, Script(job, names), pw)
-		pw.CloseWithError(err)
-		done <- err
-	}()
-	data, readErr := readTable(ctx, pr, maxCells)
-	pr.CloseWithError(errors.New("done reading")) // the command stops if it's still writing
-	runErr := <-done
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	out := &capped{max: maxBytes, stop: func() { cancel(ErrTooLarge) }}
+	err := r.Run(ctx, job, Script(job, sortedNames(job.Tables)), out)
 	switch {
 	case ctx.Err() != nil:
 		return nil, context.Cause(ctx)
-	case runErr != nil:
-		return nil, runErr
-	case readErr != nil:
-		return nil, fmt.Errorf("nu's output isn't NUON: %w", readErr)
-	}
-	return data, nil
-}
-
-// readTable reads NUON as a region's table. A value that isn't a table,
-// record or list (a number, a string, null) is read as a list of one,
-// a table of one column named value.
-func readTable(ctx context.Context, r io.Reader, maxCells int) (*sheet.RegionData, error) {
-	br := bufio.NewReader(r)
-	first, err := firstByte(br)
-	if err != nil {
+	case err != nil:
 		return nil, err
 	}
-	in := io.Reader(br)
-	if first != '[' && first != '{' {
-		in = io.MultiReader(strings.NewReader("["), br, strings.NewReader("]"))
-	}
-	res, err := fileio.ImportReader(ctx, "nu", in, fileio.Options{MaxCells: maxCells})
-	if err != nil {
-		return nil, err
-	}
-	d := sheet.RegionDataOf(res.Sheet)
-	d.Note = strings.Join(res.Notes, "; ")
-	return d, nil
+	return bytes.TrimSpace(out.b.Bytes()), nil
 }
 
-// firstByte is the first byte past spaces, without taking it; 0 when
-// there's nothing else.
-func firstByte(br *bufio.Reader) (byte, error) {
-	for {
-		c, err := br.ReadByte()
-		switch {
-		case errors.Is(err, io.EOF):
-			return 0, nil
-		case err != nil:
-			return 0, err
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
-			continue
-		}
-		return c, br.UnreadByte()
+// capped keeps at most max bytes, stopping the run past them.
+type capped struct {
+	b    bytes.Buffer
+	max  int
+	stop func()
+}
+
+func (c *capped) Write(p []byte) (int, error) {
+	if c.max > 0 && c.b.Len()+len(p) > c.max {
+		c.stop()
+		return 0, ErrTooLarge
 	}
+	return c.b.Write(p)
 }
 
 func sortedNames(tables map[string][]byte) []string {
@@ -153,14 +126,18 @@ func sortedNames(tables map[string][]byte) []string {
 
 // Commands lists nu's command names, for completing them.
 func Commands(ctx context.Context, r Runner, timeout time.Duration) ([]string, error) {
-	d, err := Exec(ctx, r, Job{Command: "help commands | get name"}, timeout, -1)
+	data, err := Exec(ctx, r, Job{Command: "help commands | get name"}, timeout, 0)
+	if err != nil {
+		return nil, err
+	}
+	v, err := nuon.Parse(data)
 	if err != nil {
 		return nil, err
 	}
 	var out []string
-	for row := 1; row < d.Rows; row++ {
-		if v, _ := d.At(row, 0); v.Kind == sheet.Text {
-			out = append(out, v.Str)
+	for _, n := range v.List {
+		if n.Kind == nuon.String {
+			out = append(out, n.Str)
 		}
 	}
 	return out, nil
@@ -198,15 +175,9 @@ func (n Nu) Run(ctx context.Context, job Job, script string, stdout io.Writer) e
 	if !job.Config {
 		args = append([]string{"--no-config-file"}, args...)
 	}
-	if job.Input != nil {
-		args = append([]string{"--stdin"}, args...)
-	}
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Env, cmd.Stdout = env, stdout
 	cmd.WaitDelay = 2 * time.Second
-	if job.Input != nil {
-		cmd.Stdin = bytes.NewReader(job.Input)
-	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &limited{w: &stderr, n: 64 << 10}
 	if err := cmd.Run(); err != nil {

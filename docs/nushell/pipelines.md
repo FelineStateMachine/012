@@ -93,6 +93,23 @@ wants the same thing back:
 open orders.csv | to nuon | ^012 --pipe --send sheet | from nuon | save -f orders.nuon
 ```
 
+What quitting sends, and the [exit status](#the-exit-status) the
+pipeline sees:
+
+```mermaid
+flowchart TD
+    quit["Quit: Ctrl+Q, File > Quit, :q"] --> send{"--send"}
+    send -->|ask| question["the question"]
+    send -->|selection| sel["the selection, or the sheet while only the active cell is selected"]
+    send -->|sheet| sheet["the sheet"]
+    question -->|Enter| sel
+    question -->|S| sheet
+    question -->|D| none["nothing, exit status 1"]
+    question -->|Esc| back["back to the sheet"]
+    sel --> out["the table on standard output, exit status 0"]
+    sheet --> out
+```
+
 The status line still names what Ctrl+Q will send, and File > Quit
 without sending stays in the menu. The active cell on its own isn't a
 selection to send, as at the question: `--send selection` sends the

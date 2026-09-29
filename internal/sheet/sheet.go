@@ -113,9 +113,10 @@ type Sheet struct {
 	rules rulesState // conditional formats and data validation, see rules.go
 	looks looksCache // how the rules draw cells, see looks.go
 
-	// regions are the sheet's regions and the data they show, and
-	// regionMeta what isn't undone of them; regionsStale has their cells
-	// written again once the change ends. See region.go.
+	// regions are the sheet's regions and, on a notebook tab, its cells;
+	// regionMeta what isn't undone of the regions; regionsStale has their
+	// cells written again once the change ends. See region.go and
+	// notebook.go.
 	regions      regionState
 	regionMeta   map[string]*regionMeta
 	regionsStale bool
@@ -241,11 +242,11 @@ func (s *Sheet) Set(a Addr, input string) error {
 	if _, ok := s.SpillAnchor(a); ok {
 		return ErrSpillEdit
 	}
-	if r, _, ok := s.RegionAt(a); ok {
+	if r, ok := s.RegionAt(a); ok {
 		if r.Linked() {
 			return ErrLinkedEdit
 		}
-		return ErrRegionEdit
+		return ErrOutputEdit
 	}
 	var err error
 	s.change("edit "+a.String(), Rect{From: a, To: a}, func() { err = s.put(a, input) })

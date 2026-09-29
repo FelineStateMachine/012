@@ -33,9 +33,14 @@ func (m *Model) View() tea.View {
 	clear(m.painted) // the theme may have changed since the last frame
 	clear(m.mergeLines)
 	clear(m.shaded)
-	lines := []string{m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.headerRow()}
-	for _, b := range m.bands() {
-		lines = m.appendBand(lines, b)
+	var lines []string
+	if v := m.nbView(); v != nil {
+		lines = m.notebookLines(v)
+	} else {
+		lines = []string{m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.headerRow()}
+		for _, b := range m.bands() {
+			lines = m.appendBand(lines, b)
+		}
 	}
 	for len(lines) < gridTop+m.visibleRows() {
 		lines = append(lines, "")
@@ -147,6 +152,8 @@ func (m *Model) indicator() string {
 		return m.overlay.Indicator()
 	case m.mode == modePrompt:
 		return m.prompt.indicator
+	case m.nbView() != nil && m.mode == modeReady:
+		return notebookIndicator(m.nbView())
 	case m.vimActive() && m.visual() != visualNone:
 		return "VISUAL"
 	case m.vimActive():
@@ -174,6 +181,12 @@ func formulaBarTextX() int { return nameBoxW + 1 }
 // and the active cell's contents as typed. While typing, the entry is
 // edited here with the terminal cursor, and shown in the cell too.
 func (m *Model) formulaBar() string {
+	if v := m.nbView(); v != nil && m.mode != modePrompt {
+		if b, ok := m.overlay.(overlay.Bar); ok {
+			return m.th.Header.Render(theme.PadRight(" ", nameBoxW)) + " " + b.FormulaBar()
+		}
+		return m.notebookFormulaBar(v)
+	}
 	name := m.cur.String()
 	if m.away() {
 		name = sheet.Qualified(m.entry.home.Name(), sheet.Rect{From: m.cur, To: m.cur})
@@ -193,9 +206,6 @@ func (m *Model) formulaBar() string {
 	}
 	if b, ok := m.overlay.(overlay.Bar); ok {
 		return box + b.FormulaBar()
-	}
-	if entry, ok := m.regionEntry(); ok {
-		return box + entry
 	}
 	if anchor, ok := m.sheet.SpillAnchor(m.cur); ok && m.sheet.HasSpills() {
 		// A spilled cell shows the formula it spills from, dimmed, as
@@ -230,30 +240,8 @@ func (m *Model) contextLineText() string {
 		left, right = "Running "+m.macros.run.name+"…", m.th.KeyHints("Esc", "stop")
 	case m.vimActive() && (m.vim.pending() != "" || m.visual() != visualNone):
 		left = m.vimLine()
-	case m.mode == modeReady && m.trace != nil:
-		left, right = m.trace.line(&m.th, m.width, m.sheet)
 	case m.mode == modeReady:
-		if left = m.readyLine(); left == "" {
-			left = m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur))
-		}
-		if left == "" {
-			left = m.errorLine()
-		}
-		if left == "" {
-			left = m.validationLine() // looks.go
-		}
-		if left == "" {
-			left = m.noteLine()
-		}
-		if left == "" {
-			left = m.spillLine()
-		}
-		if left == "" {
-			left = m.regionLine()
-		}
-		if left == "" {
-			left = m.recordingLine()
-		}
+		left, right = m.readyContext()
 	case m.mode == modeMenu:
 		if o, ok := m.overlay.(overlay.Liner); ok {
 			left, right = o.ContextLine()
@@ -278,6 +266,24 @@ func (m *Model) contextLineText() string {
 	return m.spread(left, right)
 }
 
+// readyContext is the context line in READY: a notebook's, a trace's, or
+// the first thing to say about the active cell.
+func (m *Model) readyContext() (left, right string) {
+	switch {
+	case m.nbView() != nil:
+		return m.notebookContext(m.nbView())
+	case m.trace != nil:
+		return m.trace.line(&m.th, m.width, m.sheet)
+	}
+	for _, f := range []func() string{m.readyLine, func() string { return m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur)) },
+		m.errorLine, m.validationLine, m.noteLine, m.spillLine, m.regionLine, m.recordingLine} {
+		if left = f(); left != "" {
+			return left, ""
+		}
+	}
+	return "", ""
+}
+
 // spread puts right at the right edge after left, dropping it if there
 // isn't room for both.
 func (m *Model) spread(left, right string) string {
@@ -295,6 +301,9 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 	if o, isText := m.overlay.(overlay.Text); isText {
 		x, y = o.Cursor()
 		return x, y, x >= 0
+	}
+	if v := m.nbView(); v != nil && m.mode == modeReady && m.overlay == nil {
+		return m.notebookCursor(v)
 	}
 	switch {
 	case m.mode == modeEnter, m.mode == modeEdit:

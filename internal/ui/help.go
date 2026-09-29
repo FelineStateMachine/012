@@ -146,6 +146,7 @@ func keyHelpRows(vim bool) []helpRow {
 		{keys: []string{"Ctrl+Alt+Shift+0-9"}, action: "Run the macro with that shortcut"},
 		{keys: []string{"Esc"}, action: "Stop a macro while it runs"},
 	})
+	group("Notebooks", nbHelpRows(listed))
 	group("Menus and search", []helpRow{
 		{keys: []string{"Alt+letter"}, action: "Open a menu by its underlined letter"},
 	}, "palette", "menu", "menu.context", "help")

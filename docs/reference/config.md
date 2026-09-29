@@ -77,6 +77,8 @@ start.
 | [`shell`](#shell) | `ask` | `O12_SHELL` |
 | [`nu-timeout`](#nu-timeout) | `30s` | `O12_NU_TIMEOUT` |
 | [`nu-config`](#nu-config) | `false` | `O12_NU_CONFIG` |
+| [`nu-save-cell-kb`](#nu-save-cell-kb) | `1024` | `O12_NU_SAVE_CELL_KB` |
+| [`nu-save-notebook-kb`](#nu-save-notebook-kb) | `8192` | `O12_NU_SAVE_NOTEBOOK_KB` |
 | [`jev-api-key-command`](#jev-api-key-command) |  |  |
 | [`jev-credential-store`](#jev-credential-store) | `true` | `O12_JEV_CREDENTIAL_STORE` |
 | [`jev-base-url`](#jev-base-url) |  | `TYPESAFE_BASE_URL` |
@@ -168,7 +170,7 @@ The most cells an import keeps, and a paste or fill writes at once. Numbers and 
 
 #### `shell`
 
-Whether notebook sheets run nushell commands (docs/nushell/notebooks.md). `ask` runs what you type and asks once before running the commands of a file made on another computer; `on` never asks; `off` runs none. Opening a file never runs its commands.
+Whether notebooks run their code cells (docs/nushell/notebooks.md). `ask` runs what you write and asks once before running the cells of a file made on another computer; `on` never asks; `off` runs none. Opening a file never runs its cells.
 
 | | |
 |---|---|
@@ -179,7 +181,7 @@ Whether notebook sheets run nushell commands (docs/nushell/notebooks.md). `ask` 
 
 #### `nu-timeout`
 
-Stop a notebook's command that runs longer than this; 0 lets it run until Esc stops it.
+Stop a notebook cell that runs longer than this; 0 lets it run until Stop (i i) stops it.
 
 | | |
 |---|---|
@@ -190,13 +192,35 @@ Stop a notebook's command that runs longer than this; 0 lets it run until Esc st
 
 #### `nu-config`
 
-Run notebook commands with your nushell config files (config.nu, env.nu) rather than `nu --no-config-file`, for your own commands and aliases.
+Run notebook cells with your nushell config files (config.nu, env.nu) rather than `nu --no-config-file`, for your own commands and aliases.
 
 | | |
 |---|---|
 | Type | true or false |
 | Default | `false` |
 | Environment | `O12_NU_CONFIG` |
+| Applies | File > Settings > Reload config |
+
+#### `nu-save-cell-kb`
+
+The largest output of one cell a saved file keeps, in kilobytes of NUON; a larger one is left out and shows `not saved; run to see` when the file is opened.
+
+| | |
+|---|---|
+| Type | number |
+| Default | `1024` |
+| Environment | `O12_NU_SAVE_CELL_KB` |
+| Applies | File > Settings > Reload config |
+
+#### `nu-save-notebook-kb`
+
+How much of all its cells' outputs a saved file keeps, in kilobytes of NUON: the outputs that fit, in the notebook's order.
+
+| | |
+|---|---|
+| Type | number |
+| Default | `8192` |
+| Environment | `O12_NU_SAVE_NOTEBOOK_KB` |
 | Applies | File > Settings > Reload config |
 
 ### JEV functions
@@ -335,7 +359,7 @@ How many 012 serve sessions may run at once; more are turned away.
 
 #### `serve-shell`
 
-Let 012 serve sessions run notebooks' nushell commands, as the user 012 serve runs as, following the shell option. Off, served notebooks show their regions but run nothing.
+Let 012 serve sessions run notebooks' code cells, as the user 012 serve runs as, following the shell option. Off, served notebooks show their cells and saved outputs but run nothing.
 
 | | |
 |---|---|

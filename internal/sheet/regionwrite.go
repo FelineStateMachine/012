@@ -3,30 +3,10 @@ package sheet
 // Writing regions' cells (see region.go). Every region's cells go
 // through writeTable: a header and rows under it, written as spilled
 // cells are, only those that differ, the region's cells it no longer
-// needs cleared. Rows arrive from live operations (live.go); a command
-// region's are its RegionData, written again after any change that
-// touched its sheet's regions (settleRegions). A table that would
-// overwrite other contents isn't shown: a command region's label, or a
-// linked file's first cell, says where it's blocked, and clearing that
-// cell has it shown (a linked file is read again for it).
-
-// SetRegionStatus sets what a region's label says it's doing, such as
-// "Running…", "" for nothing. It isn't an undo step.
-func (s *Sheet) SetRegionStatus(name, status string) {
-	k := nameKey(name)
-	if s.regionIndex(k) < 0 {
-		return
-	}
-	me := s.meta(k)
-	if me.status == status {
-		return
-	}
-	me.status = status
-	s.regionsStale = true
-	if s.wb.hist.open == nil {
-		s.wb.settleRegions()
-	}
-}
+// needs cleared. Rows arrive from live operations (live.go). A table
+// that would overwrite other contents isn't shown: the region's first
+// cell says where it's blocked, and clearing that cell has its source
+// send it again.
 
 // meta is the region with key k's meta, made when missing.
 func (s *Sheet) meta(k string) *regionMeta {
@@ -42,18 +22,11 @@ func (s *Sheet) meta(k string) *regionMeta {
 }
 
 // regionTouched notes that the cell at a is being placed: a region
-// blocked by it tries again, a command region from its table, a linked
-// file by being read again.
+// blocked by it tries again, its source sending its rows again.
 func (s *Sheet) regionTouched(a Addr) {
 	for _, r := range s.regions.list {
-		me := s.regionMeta[nameKey(r.Name)]
-		if me == nil || me.why == "" || !me.need.Contains(a) {
-			continue
-		}
-		if r.Linked() {
+		if me := s.regionMeta[nameKey(r.Name)]; me != nil && me.why != "" && me.need.Contains(a) {
 			me.stale = true
-		} else {
-			s.regionsStale = true
 		}
 	}
 }
@@ -88,10 +61,8 @@ func (w *Workbook) settleRegions() {
 	}
 }
 
-// writeRegions writes every command region's table on s from its data,
-// empties the linked files that are to be read again, and clears the
-// cells of regions gone, returning the cells that changed and the
-// formulas naming a region whose table moved.
+// writeRegions empties the regions that are to be fed again and clears
+// the cells of regions gone, returning the cells that changed.
 func (s *Sheet) writeRegions() []loc {
 	var changed []loc
 	for k, me := range s.regionMeta {
@@ -100,74 +71,21 @@ func (s *Sheet) writeRegions() []loc {
 			delete(s.regionMeta, k)
 		}
 	}
-	// Tables first leave the cells they no longer need, so regions that
-	// moved past each other don't find each other in the way.
-	type table struct {
-		header LiveRow
-		rows   []LiveRow
-	}
-	tables := make([]table, len(s.regions.list))
-	for i, r := range s.regions.list {
-		me := s.meta(nameKey(r.Name))
-		switch {
-		case !r.Linked():
-			header, rows := s.dataRows(r)
-			tables[i] = table{header, rows}
-			cols, nrows := tableSize(me, header, rows, true)
-			keep := s.tableArea(r, cols, nrows)
-			changed = append(changed, s.clearOwned(me, keep)...)
-			if me.has {
-				me.written, me.has = intersectRect(me.written, keep) // what it holds now
-			}
-		case me.reread:
+	for _, r := range s.regions.list {
+		if me := s.meta(nameKey(r.Name)); me.reread {
 			me.reread = false
-			changed = append(changed, s.emptyRegion(r, me)...)
-		}
-	}
-	for i, r := range s.regions.list {
-		if r.Linked() {
-			continue
-		}
-		me := s.meta(nameKey(r.Name))
-		changed = append(changed, s.writeTable(r, me, tables[i].header, tables[i].rows, true)...)
-		if tables[i].header == nil && me.why == "" {
-			me.written = s.regionArea(r) // not run: its place is kept
+			changed = append(changed, s.emptyRegion(me)...)
 		}
 	}
 	return changed
 }
 
-// dataRows is a command region's table as rows, the header first, the
-// rest in the region's order; nil when it hasn't run.
-func (s *Sheet) dataRows(r Region) (LiveRow, []LiveRow) {
-	d := s.regions.data[nameKey(r.Name)]
-	if d == nil || d.Rows == 0 {
-		return nil, nil
-	}
-	order := sortedTable(d, r.Sort)
-	row := func(i int) LiveRow {
-		out := make(LiveRow, d.Cols)
-		for c := range d.Cols {
-			v, f := d.At(order[i], c)
-			out[c] = LiveCell{V: v, F: f}
-		}
-		return out
-	}
-	rows := make([]LiveRow, d.Rows-1)
-	for i := range rows {
-		rows[i] = row(i + 1)
-	}
-	return row(0), rows
-}
-
-// emptyRegion clears a region's cells, outside the undo history: a
-// linked file's, to be read again whole, which it is marked stale for.
-func (s *Sheet) emptyRegion(r Region, me *regionMeta) []loc {
+// emptyRegion clears a region's cells, outside the undo history, to be
+// fed again whole, which it is marked stale for.
+func (s *Sheet) emptyRegion(me *regionMeta) []loc {
 	changed := s.clearOwned(me, noRect)
 	me.has, me.rows, me.cols, me.why = false, 0, 0, ""
-	if r.Linked() {
-		me.data, me.stale = 0, true
-	}
+	me.data, me.stale = 0, true
 	return changed
 }
 
@@ -197,12 +115,10 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 	}
 	changed = append(changed, s.clearOwned(me, need)...)
 	me.written, me.has = need, true
-	if r.labelled() {
-		changed = s.writeRegionCell(r.At, LiveCell{V: Value{Kind: Text, Str: s.regionLabel(r)}}, me, changed)
-	} else if me.why != "" || nrows == 0 && me.err != "" {
+	if me.why != "" || nrows == 0 && me.err != "" {
 		changed = s.writeRegionCell(r.At, LiveCell{V: ErrRef}, me, changed)
 	}
-	o := tableOrigin(r)
+	o := r.At
 	if cols > 0 {
 		changed = s.writeRow(o, header, cols, true, me, changed)
 	}
@@ -214,7 +130,7 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 		}
 	}
 	me.rows, me.cols = nrows, cols
-	if r.Linked() && !me.fitted && nrows > 1 {
+	if !me.fitted && nrows > 1 {
 		me.fitted = true
 		s.fitTable(o, nrows, cols)
 	}
@@ -245,16 +161,11 @@ func tableSize(me *regionMeta, header LiveRow, rows []LiveRow, reset bool) (cols
 	return cols, nrows
 }
 
-// tableArea is the cells r takes to show a table of cols by nrows: its
-// label line and the table, or its anchor alone for an empty linked
-// file.
+// tableArea is the cells r takes to show a table of cols by nrows, or
+// its anchor alone for an empty one.
 func (s *Sheet) tableArea(r Region, cols, nrows int) Rect {
-	o := tableOrigin(r)
-	end := o.Row + nrows - 1
-	if nrows == 0 {
-		end = r.At.Row
-	}
-	return Rect{From: r.At, To: Addr{Col: o.Col + max(cols, 1) - 1, Row: end}}
+	end := r.At.Row + max(nrows, 1) - 1
+	return Rect{From: r.At, To: Addr{Col: r.At.Col + max(cols, 1) - 1, Row: end}}
 }
 
 // writeRow writes a table's row at at, cols cells wide, adding the cells
@@ -285,16 +196,6 @@ func (s *Sheet) writeRegionCell(a Addr, c LiveCell, me *regionMeta, changed []lo
 		changed = append(changed, loc{s, a})
 	}
 	return changed
-}
-
-// regionLabel is what a command region's label line says: its name and
-// command, and what it's doing.
-func (s *Sheet) regionLabel(r Region) string {
-	label := r.Name + "  " + r.Command
-	if st := s.RegionStatus(r.Name); st != "" {
-		label += "   " + st
-	}
-	return label
 }
 
 // inTheWay returns a cell of need holding something the region with

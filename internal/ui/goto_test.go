@@ -4,34 +4,35 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/FelineStateMachine/012/internal/notebook"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// withRegion adds a notebook sheet after the one shown with region name
-// showing a table of a header row and two rows of numbers, and returns
-// the sheet and the table.
+// withRegion adds a sheet after the one shown holding, at B2, the
+// output of a notebook cell named name: a header row and two rows of
+// numbers. It returns the sheet and the table.
 func withRegion(t *testing.T, m *Model, name string) (*sheet.Sheet, sheet.Rect) {
 	t.Helper()
-	nb, err := m.book().AddNotebook("Shell", m.sheet)
+	w := m.book()
+	nb, err := w.AddNotebook("", m.sheet)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := nb.AddRegion(sheet.Region{Name: name, Command: "ls"}); err != nil {
+	nb.SetNotebookCells("add cell", []notebook.Cell{{Source: name + " = ls"}})
+	w.SetOutput(nb.NotebookCells()[0].ID, &notebook.Output{NUON: []byte("[[name, size]; [a, 1], [b, 2]]")})
+	s, err := w.AddSheet("Shell", w.Index(m.sheet)+1)
+	if err != nil {
 		t.Fatal(err)
 	}
-	d := &sheet.RegionData{Rows: 3, Cols: 2, Values: []sheet.Value{
-		{Kind: sheet.Text, Str: "name"}, {Kind: sheet.Text, Str: "size"},
-		{Kind: sheet.Text, Str: "a"}, {Kind: sheet.Number, Num: 1},
-		{Kind: sheet.Text, Str: "b"}, {Kind: sheet.Number, Num: 2},
-	}}
-	if err := nb.ShowRegion(name, d); err != nil {
+	if err := s.AddRegion(sheet.Region{Name: name, At: sheet.Addr{Col: 1, Row: 1}, Output: true}); err != nil {
 		t.Fatal(err)
 	}
-	table, ok := nb.RegionTable(name)
+	m.feedOutput(name)
+	table, ok := s.RegionTable(name)
 	if !ok {
 		t.Fatal("no table")
 	}
-	return nb, table
+	return s, table
 }
 
 // Go to takes a region's name as formulas write it and selects its
@@ -52,15 +53,15 @@ func TestGotoRegion(t *testing.T) {
 	}
 }
 
-// From a cell of a region, or its label, the table around it is the
-// region's table, not the block of data that takes in the label line;
-// Insert > Chart and a pivot table read it.
+// From a cell of a region, the table around it is the region's table,
+// not the block of data around the cell, which may run into cells next
+// to it; Insert > Chart and a pivot table read it.
 func TestTableAroundRegion(t *testing.T) {
 	m := newModel()
 	nb, table := withRegion(t, m, "r1")
 	m.showSheet(nb)
-	label := sheet.Addr{Col: table.From.Col, Row: table.From.Row - 1}
-	for _, at := range []sheet.Addr{table.To, label} {
+	nb.Set(sheet.Addr{Col: 3, Row: 1}, "next to it")
+	for _, at := range []sheet.Addr{table.To, table.From} {
 		m.clearSelection()
 		m.cur = at
 		if got := m.dataRange(); got != table {

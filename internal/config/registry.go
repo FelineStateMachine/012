@@ -119,14 +119,20 @@ var Options = []Option{
 			"The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is."},
 
 	{Name: "shell", Kind: Enum, Group: GroupShell, Default: "ask", Values: []string{"off", "ask", "on"}, Env: []string{"O12_SHELL"}, Live: true,
-		Desc: "Whether notebook sheets run nushell commands (docs/nushell/notebooks.md). `ask` runs what you type " +
-			"and asks once before running the commands of a file made on another computer; `on` never asks; " +
-			"`off` runs none. Opening a file never runs its commands."},
+		Desc: "Whether notebooks run their code cells (docs/nushell/notebooks.md). `ask` runs what you write " +
+			"and asks once before running the cells of a file made on another computer; `on` never asks; " +
+			"`off` runs none. Opening a file never runs its cells."},
 	{Name: "nu-timeout", Kind: Duration, Group: GroupShell, Default: "30s", Env: []string{"O12_NU_TIMEOUT"}, Live: true,
-		Desc: "Stop a notebook's command that runs longer than this; 0 lets it run until Esc stops it."},
+		Desc: "Stop a notebook cell that runs longer than this; 0 lets it run until Stop (i i) stops it."},
 	{Name: "nu-config", Kind: Bool, Group: GroupShell, Default: "false", Env: []string{"O12_NU_CONFIG"}, Live: true,
-		Desc: "Run notebook commands with your nushell config files (config.nu, env.nu) rather than " +
+		Desc: "Run notebook cells with your nushell config files (config.nu, env.nu) rather than " +
 			"`nu --no-config-file`, for your own commands and aliases."},
+	{Name: "nu-save-cell-kb", Kind: Int, Group: GroupShell, Default: "1024", Env: []string{"O12_NU_SAVE_CELL_KB"}, Live: true,
+		Desc: "The largest output of one cell a saved file keeps, in kilobytes of NUON; a larger one is left out " +
+			"and shows `not saved; run to see` when the file is opened."},
+	{Name: "nu-save-notebook-kb", Kind: Int, Group: GroupShell, Default: "8192", Env: []string{"O12_NU_SAVE_NOTEBOOK_KB"}, Live: true,
+		Desc: "How much of all its cells' outputs a saved file keeps, in kilobytes of NUON: the outputs that fit, " +
+			"in the notebook's order."},
 
 	{Name: "jev-api-key-command", Kind: Command, Group: GroupJEV,
 		Desc: "A command that prints the TypeSafe API key, used when TYPESAFE_API_KEY isn't set and the " +
@@ -165,8 +171,8 @@ var Options = []Option{
 	{Name: "serve-max-sessions", Kind: Int, Group: GroupServe, Default: "8",
 		Desc: "How many 012 serve sessions may run at once; more are turned away."},
 	{Name: "serve-shell", Kind: Bool, Group: GroupServe, Default: "false",
-		Desc: "Let 012 serve sessions run notebooks' nushell commands, as the user 012 serve runs as, " +
-			"following the shell option. Off, served notebooks show their regions but run nothing."},
+		Desc: "Let 012 serve sessions run notebooks' code cells, as the user 012 serve runs as, " +
+			"following the shell option. Off, served notebooks show their cells and saved outputs but run nothing."},
 
 	{Name: "config-file", Kind: Path, Group: GroupFiles, Repeat: true,
 		Desc: "Read another config file after this one, relative to this file's directory. " +

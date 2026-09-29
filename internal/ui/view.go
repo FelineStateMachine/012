@@ -241,15 +241,12 @@ func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp *rowtext.Span, spills boo
 	case m.trace.covers(m.sheet, a):
 		return &m.th.Traced, true
 	}
-	if lc.labels != nil && (lc.labels.Contains(a) || sp.Text != "" && lc.labels.Contains(sheet.Addr{Col: sp.Owner, Row: lc.row})) {
-		return &m.th.Region, true
-	}
 	switch v := m.sheet.Value(a); {
 	case sheet.IsPending(v):
 		return &m.th.Muted, true
 	case v.Kind == sheet.Error:
 		return &m.th.ErrorCell, true
-	case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: lc.row}).Spilled() && !lc.tables.Contains(sheet.Addr{Col: sp.Owner, Row: lc.row}):
+	case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: lc.row}).Spilled():
 		return &m.th.Spilled, true
 	}
 	return &m.th.Cell, false

@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// 012 nu opens a new file as a notebook, at its prompt.
+// 012 nu opens a new file as a notebook, editing its first cell.
 func TestNuOpensNotebook(t *testing.T) {
 	e, _, _ := testEnv(t, nil)
 	var screen string
@@ -23,10 +23,10 @@ func TestNuOpensNotebook(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(screen, "\n")
-	if !strings.Contains(lines[0], " NU ") || !strings.Contains(lines[1], "nu❯") {
-		t.Errorf("not at the prompt:\n%s", screen)
+	if !strings.HasSuffix(strings.TrimSpace(lines[0]), "EDIT") || !strings.Contains(screen, "[ ]") {
+		t.Errorf("not editing a cell:\n%s", screen)
 	}
-	if !strings.Contains(lines[len(lines)-1], "Shell 1") {
-		t.Errorf("no Shell 1 tab: %q", lines[len(lines)-1])
+	if !strings.Contains(lines[len(lines)-1], "❯ Notebook") {
+		t.Errorf("no notebook tab: %q", lines[len(lines)-1])
 	}
 }

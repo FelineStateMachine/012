@@ -9,10 +9,9 @@ import (
 )
 
 // Linked files: regions (region.go) whose rows come from a file the UI
-// follows as it grows or is rewritten. A linked file has no label line:
-// its anchor is its table's first cell, the file's first row, which
-// stays; the rows under it are the file's, all of them up to max-cells,
-// or the last Window of them. Its rows arrive only as live operations
+// follows as it grows or is rewritten. Its anchor is its table's first
+// cell, the file's first row, which stays; the rows under it are the
+// file's, all of them up to max-cells, or the last Window of them. Its rows arrive only as live operations
 // (live.go) and are never part of the undo state (see region.go for
 // why), so a linked file is read again whenever its cells may no longer
 // be the file's: undo put it back, it moved, or a cell blocking it was
@@ -88,7 +87,7 @@ func (s *Sheet) linkedInfo(r Region) LinkedRegion {
 
 // LinkedAt returns the linked file covering the cell at a.
 func (s *Sheet) LinkedAt(a Addr) (LinkedRegion, bool) {
-	if r, _, ok := s.RegionAt(a); ok && r.Linked() {
+	if r, ok := s.RegionAt(a); ok && r.Linked() {
 		return s.linkedInfo(r), true
 	}
 	return LinkedRegion{}, false
@@ -138,20 +137,12 @@ var errLinkOver = errors.New("A linked file needs an empty cell to start in")
 
 // AddLinked makes a linked file at a reading src, named after the file,
 // as one undo step, and returns its name. It starts empty and stale: the
-// UI reads the file and sends its rows. On a notebook sheet it goes
-// below everything, as a command region does.
+// UI reads the file and sends its rows.
 func (s *Sheet) AddLinked(a Addr, src LinkSource) (string, error) {
-	if !a.Valid() || s.cells.filledAt(a) || s.InPivot(Rect{From: a, To: a}) {
-		return "", errLinkOver
-	}
-	if _, _, ok := s.RegionAt(a); ok {
-		return "", errLinkOver
-	}
 	name := s.wb.linkName(src.Path)
 	if err := s.AddRegion(Region{Name: name, At: a, File: src}); err != nil {
 		return "", err
 	}
-	s.meta(nameKey(name)).stale = true
 	return name, nil
 }
 
@@ -175,27 +166,10 @@ func (w *Workbook) linkName(path string) string {
 	if ValidRegionName(name) != nil {
 		name = "file_" + name
 	}
-	for n := 2; w.checkRegionName(name) != nil; n++ {
+	for n := 2; w.checkRegionName(name, false) != nil; n++ {
 		name = strings.TrimSuffix(name, "_"+strconv.Itoa(n-1)) + "_" + strconv.Itoa(n)
 	}
 	return name
-}
-
-// putRegionsBack puts back a sheet's regions from an undo step. A
-// linked file the step brings back, or moves, is emptied and read again
-// once the change ends: its rows aren't part of the undo state, so the
-// cells undo put there may not be the file's.
-func (s *Sheet) putRegionsBack(st regionState) {
-	for _, r := range st.list {
-		if !r.Linked() {
-			continue
-		}
-		i := s.regionIndex(nameKey(r.Name))
-		if i < 0 || s.regions.list[i].At != r.At || s.regions.list[i].File != r.File {
-			s.meta(nameKey(r.Name)).reread = true
-		}
-	}
-	s.regions, s.regionsStale = st, true
 }
 
 // SetLinkSource changes what a linked file reads (its window, say), as

@@ -131,7 +131,7 @@ type Model struct {
 	rec    *recorder   // a macro being recorded: macrorec.go
 	macros macroState  // a macro running, and trust in the file's macros: macrorun.go
 	follow followState // the linked regions followed, and trust in them: follow.go
-	shell  shellState  // a notebook's commands running, and what they said: nurun.go
+	nb     nbState     // notebooks' views and the cells running: notebook.go, nbrun.go
 
 	keyAt time.Time        // when the key the next frame answers was pressed, for telemetry
 	spans *telemetry.Trace // the spans open, which what the model starts nests in: trace.go
@@ -147,6 +147,7 @@ func New(s *sheet.Sheet, filename string) *Model {
 	if filename != "" {
 		m.disk = diskStamp(filename)
 	}
+	m.bookOpened()
 	return m
 }
 
@@ -158,7 +159,7 @@ func (m *Model) TraceUnder(p telemetry.Parent) { m.spans.Enter(p) }
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
 	// jev.send starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd(), m.startShell(), m.syncFollowers())
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd(), m.startNotebook(), m.syncFollowers())
 }
 
 // Update implements tea.Model.
@@ -185,7 +186,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if mouse, ok := msg.(tea.MouseMsg); ok {
 		var handled bool
 		if cmd, handled = m.shellMouse(mouse); handled {
-			msg = nil // taken by the menu bar or an overlay, not the grid
+			msg = nil // taken by the menu bar, an overlay or a notebook, not the grid
 		}
 	}
 	switch msg := msg.(type) {
@@ -195,7 +196,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		cmd = m.handleKey(msg)
 	case tea.PasteMsg:
-		m.handlePaste(msg.Content)
+		cmd = m.pasteMsg(msg.Content)
 	case tea.MouseClickMsg:
 		cmd = m.handlePress(msg.Mouse())
 	case tea.MouseMotionMsg:
@@ -233,10 +234,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.finishMacro(msg.r, msg.done)
 	case macroEditedMsg:
 		m.macroEdited(msg)
-	case nuDoneMsg:
-		cmd = m.finishRegion(msg)
-	case nuWordsMsg:
-		m.shell.words = msg.words
 	case tea.KeyReleaseMsg:
 		cmd = m.keyReleased(msg)
 	case tea.KeyboardEnhancementsMsg:
@@ -246,7 +243,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pasteClipboard(msg.Content)
 		}
 	default:
-		if !m.handlePrefs(msg) {
+		var ok bool
+		if cmd, ok = m.notebookMsg(msg); !ok && !m.handlePrefs(msg) {
 			cmd = m.term.handle(msg)
 		}
 	}
@@ -261,7 +259,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
 	// Linked regions may have come, gone or changed: follow.go.
-	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg), m.syncFollowers())
+	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg), m.syncFollowers(), m.notebookSync())
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state
@@ -328,15 +326,15 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 }
 
 func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
+	if m.sheet.IsNotebook() {
+		return m.notebookReadyKey(k)
+	}
 	if m.prefs.vim {
 		if cmd, ok := m.vimKeyPress(k); ok {
 			return cmd
 		}
 	}
 	key := k.String()
-	if cmd, ok := m.notebookKey(key); ok {
-		return cmd
-	}
 	if m.recordMove(key) {
 		m.entry.tabbing = false
 		return nil
@@ -355,6 +353,24 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 		m.startEntry(modeEnter, text)
 	}
 	return nil
+}
+
+// notebookReadyKey is a key on a notebook tab: the notebook's, or else
+// the UI's (menus, other sheets, Save), which never types into a cell.
+func (m *Model) notebookReadyKey(k tea.KeyPressMsg) tea.Cmd {
+	if cmd, ok := m.notebookKey(k); ok {
+		return cmd
+	}
+	key := k.String()
+	if i := barMenuFor(key); i >= 0 {
+		m.showBarMenu(i)
+		return nil
+	}
+	if id, ok := keymap[canonicalKey(key)]; ok && commands[id].available(m) {
+		return m.runCommand(id)
+	}
+	cmd, _ := m.runShortcut(key)
+	return cmd
 }
 
 func (m *Model) handleWheel(mouse tea.Mouse) {
