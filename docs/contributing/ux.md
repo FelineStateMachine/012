@@ -92,6 +92,7 @@ there.
 | Warnings | Text on the context line or status line (`Invalid: ...`, `Circular reference`) |
 | Entries failing validation | A dotted underline, and `Invalid:` with the rule on the context line |
 | Values an array spilled | Italic, and `Spilled from B2` on the context line |
+| Linked files' rows, following, paused or failing | Italic; `●`, `‖` or `!` beside the tab's name and on the context line, with the state in words (`Following`, `Paused`, the error) |
 | Pivot table results | Their headings (`SUM of Units`, `Grand Total`), and a note in words when an edit is refused |
 | Protected ranges | A question in words before an edit (`A1:B2 is protected.`) |
 | Notes | A `▝` in the cell's top-right corner |

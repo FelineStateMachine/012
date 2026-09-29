@@ -38,6 +38,7 @@ it lags, and past a second it stalls.
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
 | SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 8.7 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 120 fps pacing; per session, the terminal's cell buffers |
 | Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 0.8 to 2.5 ms | | Results past the grid (the pivot shows #REF!) | Grouping the source rows |
+| Following files | A log growing by 10,000 rows a second, formulas over it: each update (about 2,500 rows, four times a second) applied in 7 to 10 ms keeping every row, 1.6 to 2.2 ms keeping the last 1000, 14 ms the last 10,000; frames 2 to 3 ms at 200 x 60 | | Rows past `max-cells`: left out, with a note | Writing the rows and recalculating what reads them; a window rewrites its rows on every update |
 | Arrays and spills | FILTER, SORT or UNIQUE over 8192 rows: about 0.1 ms each per edit; 1000 of them spilling 516 k cells, an edit recomputing 500: 52 ms | Full recalculation of those 1000: 106 ms | An array past `maxArray` values (2,097,152) stored: `#VALUE!`; a spill past the sheet's edge or `max-cells` cells: `#REF!` | Computing each array's values; writing only the spilled cells that changed |
 
 ## Sheet size
@@ -346,6 +347,30 @@ expanding shared formulas; rows past 1,048,576, columns past XFD and
 rows of more than 16,384 cells; part names that are absolute, climb with
 `..` or hold a backslash. encoding/xml expands no external or declared
 entities, so entity bombs fail as unknown entities.
+
+## Following files
+
+`BenchmarkFollow` (`internal/ui/followstress_test.go`) follows a CSV
+log while another goroutine appends 10,000 rows a second to it for three
+seconds, with `=SUM(D:D)`, `=COUNTIF(B:B,"error")` and an AVERAGE over
+the region, polling as the UI does and drawing a 200 x 60 frame after
+each update:
+
+| Rows kept | Update applied (slowest) | Frame (slowest) | Rows a second taken in |
+|---|---|---|---|
+| Every row (30,000) | 7.5 to 10.5 ms | 2.3 to 2.7 ms | 8,100 to 8,300 |
+| The last 1000 | 1.6 to 2.2 ms | 2.9 ms | 8,300 to 8,400 |
+| The last 10,000 | 13.7 to 14.2 ms | 2.2 to 2.8 ms | 8,000 to 8,100 |
+
+(Rows a second counts to the last row read, after the writer stopped;
+the writer itself manages a little under 10,000 with its pauses.) An
+update costs the rows it brings, and with a window the rows it keeps:
+the window's rows move up one row each on every update, so a window of
+100,000 rows under a fast log would take about 140 ms an update. A
+followed file costs one `os.Stat` four times a second while it doesn't
+change; a growing file is read a megabyte a poll at most, so a large
+file loads over several frames. Rows are held once, in the region's
+cells; a window reads the rows it keeps back from them.
 
 ## Undo
 

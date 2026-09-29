@@ -103,8 +103,10 @@ open, and in their docs: sorting by several columns
 ([Freeze, sort and filter](../sheets/sort-filter.md#sort)), conditional formatting and data validation
 ([rules panel](../sheets/rules.md#conditional-formatting)), pivot tables
 ([pivot editor](../sheets/pivots.md)), protected ranges
-([Notes and protection](../sheets/notes-protection.md#protected-sheets-and-ranges)) and charts
-([Charts](../sheets/charts.md)). In Data > Named ranges, Enter goes to a
+([Notes and protection](../sheets/notes-protection.md#protected-sheets-and-ranges)), charts
+([Charts](../sheets/charts.md)) and linked files (Data > Linked file, where
+Enter keeps every row and L the last ones:
+[Following files](../files/following.md)). In Data > Named ranges, Enter goes to a
 range, F2 renames or repoints it and Ctrl+D deletes it.
 
 ## Files, menus and help

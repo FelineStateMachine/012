@@ -47,7 +47,7 @@ log macros record. Each step is useful on its own.
 
 | Step | Result | Size |
 |---|---|---|
-| Streaming files: a sheet or linked range follows a file as it grows (CSV, TSV, NDJSON, NUON; `tail -f` style) or is rewritten, and a nushell region can follow a streaming pipeline, with rows arriving live and no full reload | Logs and feeds as live sheets; the change stream multiplayer needs | M |
+| A nushell region follows a streaming pipeline through the linked regions' live sources (`live.Source`), rows arriving as the pipeline writes them | Pipelines as live sheets | S |
 | Shared viewing over SSH: several `012 serve` sessions open the same workbook; one edits, the others follow live with their own cursor, scroll and theme; presence shows who is where | Watch-along and review, one writer | M |
 | Shared editing over SSH: every session edits, the server orders operations (no CRDT needed while one server holds the workbook), per-user undo, presence and edit ownership shown in the grid, saves by the server | Multiplayer 012 over SSH | L |
 
@@ -116,6 +116,7 @@ stream above rather than a design of their own.
 
 - Import CSV, TSV, JSON, NUON, XLSX, SQLite, Parquet and Lotus `.wk1`; export CSV, TSV, JSON, NUON, XLSX and SQLite; import locations; save-as and overwrite checks: [Files](docs/files/README.md)
 - `.012` files read and written as a stream, cells straight into and out of the store: [The .012 format](docs/files/format.md#reading-and-writing)
+- Following files: a linked region follows a CSV, TSV, JSON lines or NUON file as it grows and any importable file as it's rewritten, keeping every row or the last ones, its rows arriving as the change stream: [Following files](docs/files/following.md)
 
 **Upkeep**
 

@@ -19,6 +19,7 @@ internal/numfmt  number formats, rounding, General, date serials
 internal/locale  the locales: separators, date order, currency, formula separators
 internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1, JSON, NUON; tables on streams
 internal/nuon    nushell's object notation: typed values, tables read a row at a time, written back
+internal/live    the sources of linked regions: files followed as they grow or are rewritten
 internal/chart   chart layout, text rendering and kitty image encoding
 internal/jev     the API key's resolution, answer cache and TypeSafe client
 internal/keyring the OS credential store the API key lives in
@@ -212,6 +213,17 @@ style.
   format) keeps only its formatting and note. A blocked anchor shows
   `#REF!` with the reason. `Set` refuses spilled cells; files keep only
   the anchor.
+- **Linked regions.** A sheet may hold regions whose rows come from
+  outside the workbook (`linked.go`, `live.go`): an anchor, the source's
+  definition (path, format, table or query, the rows to keep), and the
+  cells it has written, spilled cells as an array's are, so they are
+  refused by `Set`, constants to formulas, values to copies and exports,
+  and never saved (the file keeps the definition, `linkfile.go`). Rows
+  arrive as live operations, the change stream below; placing a cell in
+  a region (a format, undo) keeps the region's value. The definitions
+  are replaced whole on every change, so undo steps keep them; a region
+  undo puts back, or one moved by inserted lines, is emptied and marked
+  stale, and the UI reads its source again.
 - **Rules.** A sheet's conditional formats and data validation
   (`rules.go`, `condfmt.go`, `validation.go`) are lists of rules on
   ranges, replaced whole on every change so undo steps keep them as they
@@ -229,6 +241,30 @@ style.
   in the workbook's `RemoteSource`, set with `SetRemote`; `internal/jev`
   answers from a cache and queues new questions, and the UI sends them as
   background commands.
+
+### The change stream
+
+What reads a linked region's source hands the workbook `sheet.LiveOp`s,
+each applied at once by `Workbook.ApplyLive`:
+
+| Field | Holds |
+|---|---|
+| `Link` | the region, by ID |
+| `At` | when the source changed |
+| `Reset` | the rows replace every row under the header; otherwise they follow the last |
+| `Header` | the first row, when it is new or changed |
+| `Rows` | data rows: values with the formats they arrived in (`LiveCell`) |
+| `Err`, `Note` | why the source can't be read, what it left out |
+
+An op is applied outside the undo history, as a spill is written: the
+window drops the oldest rows (read back from the region's cells and
+written again one row up), only the cells that changed are written, and
+what reads them recalculates, pivots and spills included; inside an open
+step (a macro run) they recalculate when it ends. An op carries whole
+values and names nothing but its region, so applying the same ops in the
+same order to the same workbook makes the same cells: it is what a
+session following another's over `012 serve` would be sent, beside the
+steps `Batch` records. `OnLive` times each op for telemetry.
 
 ### Functions
 
@@ -376,6 +412,7 @@ draw. The components:
 | sheet tabs | `tabstrip.Strip` | where each sheet was left, the tab strip's scroll and layout (package `tabstrip`); what clicks on it do (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer.Transfer`, `pipeState` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`); standard input read as a sheet, and what a pipeline gets on quitting (`pipe.go`) |
+| linked files | `followState` | a source (`live.Source`) for each linked region, polled one poll at a time on a command every `live.Interval` and reconciled with the workbook after every update, so undo, opening a file and unlinking need nothing of their own; trust in files outside a workbook's folder (`follow.go`); Data > Linked file and Import's Follow the file (`linked.go`) |
 | macros | `recorder`, `macroState` | a recording in progress (`macrorec.go`); a macro running, trust in the file's macros (`macrorun.go`); what scripts act on (`macrohost.go`, `macrohostnav.go`); Data > Macros and the manager (`macro.go`, `macromanage.go`) |
 | others | `clipboard`, `trace`, `chartState`, `jevRunner`, `terminal`, `session` | what Ctrl+V pastes, a trace being shown, chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it, what outlasts the file open (the `:` history, whether keys can be held: `keyboard.go`) |
 
@@ -470,7 +507,16 @@ counts what didn't fit. They stream: CSV and TSV are read record by
 record, NUON and JSON a row at a time (`nuon.Reader`, which yields rows
 from a pipe as they arrive), Parquet a batch of rows at a time, SQLite a row at a time, and
 Parquet files and SQLite tables stop at the sheet's last row, taking the
-number of rows left out from the file. XLSX is read by 012's own
+number of rows left out from the file. A `Tail` reads CSV, TSV, JSON and
+NUON as they arrive in pieces, for a file followed as it grows: the
+importers' readers run on a goroutine of its own over a pipe that waits
+for the next piece, so a record cut off at the end of one waits for the
+rest, and rows come out typed as an import types them (`tail.go`).
+`internal/live` follows files with `os.Stat` alone, reading what a
+growing file gained through a `Tail`, and any other format again whole,
+through its importer, once it holds still (`live.File`); a `live.Source`
+is anything that yields a table's rows over time, which a nushell region
+following a pipeline would be too. XLSX is read by 012's own
 SpreadsheetML reader on `archive/zip` and `encoding/xml`: the workbook,
 shared strings (kept end to end in one buffer) and styles first, then
 each worksheet a token at a time, a row at a time, expanding shared
