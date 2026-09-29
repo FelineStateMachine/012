@@ -316,6 +316,10 @@ func (s *Sheet) ShownText(a Addr) string {
 // condition, as the filter tests it.
 func (c Condition) Matches(v Value, shown string) bool { return c.test()(v, shown) }
 
+// Test compiles the condition, for what filters rows outside a sheet (a
+// linked source's view): see test.
+func (c Condition) Test() func(v Value, shown string) bool { return c.test() }
+
 // test compiles the condition. Text conditions ignore case; comparisons
 // need a number for a number (entered as $1,200 or 12% too) and text for
 // text, and never match blanks.
