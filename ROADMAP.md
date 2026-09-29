@@ -36,7 +36,7 @@ formulas, charts and pivots use. It replaces the grid-based notebook sheet.
 | Item | Result | Size |
 |---|---|---|
 | Notebook tabs: code and note cells, outputs rendered in place (tables that scroll and open full-screen as a grid, text, records, errors), Jupyter keys inside the notebook (Shift+Enter run and next, Ctrl+Enter run, a/b add above/below, dd delete, m/y note/code, Esc/Enter command/edit mode) plus menus and palette; run cell, run all, run above, run below, stop, clear outputs; run counts and timings; cells named for their output (`$files`), stale marks when a cell they read has changed, an opt-in reactive mode that re-runs dependents; send an output to a sheet as a live region (`nu.files`); outputs saved in the workbook up to a size cap; existing notebook sheets converted, one code cell per region; `012 nu` opens a notebook | A TUI Jupyter with nushell and 012 | L |
-| Nushell's own completions in code cells; a way to call 012 from nu without `^012` (a shipped `012.nu` module, or `nu_plugin_012`) | | S to M |
+| Code cells highlighted, completed and checked as you type by nushell itself: `nu --ide-ast` token shapes mapped to theme roles, `nu --ide-complete` plus 012's cell, region and sheet names on Tab, `nu --ide-check` errors underlined; debounced in the background, plain text when nu is missing or slow; hover docs through `nu --lsp` later | Writing pipelines in 012 feels like nushell's own prompt | S to M |
 
 ### 3. Toward multiplayer
 
@@ -114,6 +114,7 @@ stream above rather than a design of their own.
 **Nushell**
 
 - 012 as a stage in a pipeline: `012 -` reads a table from standard input, `012 --pipe` sends the sheet or selection on, with nushell's types kept through NUON: [Pipelines](docs/nushell/pipelines.md)
+- The `sheet` command: a nushell module shipped in the binary (`012 nu --install-module`), so nu calls 012 without `^012` or NUON on either side: [Pipelines](docs/nushell/pipelines.md#the-sheet-command)
 - `012 nu` and notebook sheets: nushell pipelines at a prompt on the formula bar become live, named regions that read each other and refresh in dependency order, saved as commands and never run on open: [Notebooks](docs/nushell/notebooks.md)
 
 **Files**

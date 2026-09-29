@@ -9,10 +9,11 @@ Each [nushell type](https://www.nushell.sh/book/types_of_data.html)
 becomes a cell of a kind a spreadsheet can work with, and goes back to
 the same type. A file size is a number of bytes in the Size format, so
 `=SUM` adds it and `where size > 1kb` still compares it once it's back
-in nushell:
+in nushell ([`sheet`](pipelines.md#the-sheet-command) is 012 as a stage
+of a pipeline):
 
 ```nu
-ls | select name size | to nuon | ^012 --pipe | from nuon | describe
+ls | select name size | sheet | describe
 # table<name: string, size: filesize>
 ```
 
