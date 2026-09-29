@@ -101,3 +101,28 @@ func TestFullSheetChain(t *testing.T) {
 		t.Errorf("IV8192 = %+v, want %v", got, fmt.Sprint(want.Num))
 	}
 }
+
+// Every cell of a cycle is #REF!, even one whose formula would make
+// something else of the #REF! it reads (COUNTIF skips errors, IFERROR
+// catches them), whichever of its cells is evaluated first: typed in
+// either order, or all at once on opening.
+func TestCycleIsRefWhateverReadsIt(t *testing.T) {
+	for _, reader := range []string{`=COUNTIF(F1:F20,">2")`, "=IFERROR(F13,0)"} {
+		for _, order := range [][2]string{{"C5", "F13"}, {"F13", "C5"}} {
+			s := New()
+			in := map[string]string{"C5": reader, "F13": "=C5+1"}
+			for _, a := range order {
+				s.Set(at(a), in[a])
+			}
+			reopened := roundTrip(t, s)
+			for _, a := range order {
+				if v := s.Value(at(a)); v != ErrRef {
+					t.Errorf("%s typed %v: %s = %v", reader, order, a, v)
+				}
+				if v := reopened.Value(at(a)); v != ErrRef {
+					t.Errorf("%s reopened: %s = %v", reader, a, v)
+				}
+			}
+		}
+	}
+}

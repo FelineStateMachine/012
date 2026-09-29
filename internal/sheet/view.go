@@ -104,28 +104,38 @@ func (s *Sheet) shiftView(rows bool, sp formula.Span) {
 		}
 		*frozen = min(*frozen, MaxFrozen)
 	}
-	if f := v.filter; f != nil {
-		_, rng := formula.AxisMaps(rows, sp)
-		if r, ok := rng(f.Range); ok {
-			nf := &Filter{Range: r, Cols: map[int]Criteria{}}
-			for c, cr := range f.Cols {
-				if !rows {
-					var keep bool
-					if c, keep = sp.Point(c); !keep || c < r.From.Col || c > r.To.Col {
-						continue
-					}
-				}
-				nf.Cols[c] = cr
-			}
-			v.filter = nf
-		} else {
-			v.filter = nil
-		}
+	if v.filter != nil {
+		v.filter = shiftFilter(v.filter, rows, sp)
 	}
 	if !v.equal(s.view) {
 		s.recordView()
+		merged := !slices.Equal(v.merges, s.view.merges)
 		s.view = v
+		if merged { // a merge gone may free an array to spill
+			s.respill(Rect{To: Addr{Col: MaxCols - 1, Row: MaxRows - 1}})
+		}
 	}
+}
+
+// shiftFilter is f with rows or columns inserted or deleted, nil once
+// its range is all deleted.
+func shiftFilter(f *Filter, rows bool, sp formula.Span) *Filter {
+	_, rng := formula.AxisMaps(rows, sp)
+	r, ok := rng(f.Range)
+	if !ok {
+		return nil
+	}
+	nf := &Filter{Range: r, Cols: map[int]Criteria{}}
+	for c, cr := range f.Cols {
+		if !rows {
+			var keep bool
+			if c, keep = sp.Point(c); !keep || c < r.From.Col || c > r.To.Col {
+				continue
+			}
+		}
+		nf.Cols[c] = cr
+	}
+	return nf
 }
 
 // fileView is the view state in the file (version 3), e.g.

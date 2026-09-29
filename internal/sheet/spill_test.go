@@ -204,3 +204,101 @@ func TestSpillRules(t *testing.T) {
 		t.Errorf("A4's look = %+v, want styled and invalid", l)
 	}
 }
+
+// When two arrays need the same cells, the one anchored first, row by
+// row, gets them, whichever was typed first, even where the other's
+// cells are blank; reopening the file agrees.
+func TestOverlappingArraysFirstAnchorWins(t *testing.T) {
+	cases := []struct {
+		first, second [2]string
+		win, lose     string
+	}{
+		{[2]string{"C9", "=SORT(E4:G8)"}, [2]string{"D8", "=SEQUENCE(2)"}, "D8", "C9"},
+		{[2]string{"D8", "=SEQUENCE(2)"}, [2]string{"C9", "=SORT(E4:G8)"}, "D8", "C9"},
+		{[2]string{"E5", "=SEQUENCE(3,2)"}, [2]string{"F4", "=SEQUENCE(3)"}, "F4", "E5"},
+		{[2]string{"F4", "=SEQUENCE(3)"}, [2]string{"E5", "=SEQUENCE(3,2)"}, "F4", "E5"},
+	}
+	for _, c := range cases {
+		s := sheetOf(t, map[string]string{"E4": "5", "G8": "1"})
+		s.Set(at(c.first[0]), c.first[1])
+		s.Set(at(c.second[0]), c.second[1])
+		for name, sh := range map[string]*Sheet{"typed": s, "reopened": roundTrip(t, s)} {
+			if v := sh.Value(at(c.lose)); v != ErrRef {
+				t.Errorf("%v then %v, %s: %s = %v", c.first, c.second, name, c.lose, v)
+			}
+			if _, ok := sh.SpillArea(at(c.win)); !ok {
+				t.Errorf("%v then %v, %s: %s doesn't spill", c.first, c.second, name, c.win)
+			}
+		}
+		// Taking the second back frees the first to spill.
+		s.Undo()
+		if _, ok := s.SpillArea(at(c.first[0])); !ok {
+			t.Errorf("%v then %v, undone: %s doesn't spill", c.first, c.second, c.first[0])
+		}
+	}
+}
+
+// A formula reading an array blocked by that formula's own cell reads
+// the anchor's #REF!, settling rather than going back and forth as the
+// formula's own array comes and goes.
+func TestReadingABlockedArray(t *testing.T) {
+	s := New()
+	s.Set(at("A18"), "=SORT(A16:C16)")
+	s.Set(at("A16"), "=SEQUENCE(3)")
+	for name, sh := range map[string]*Sheet{"typed": s, "reopened": roundTrip(t, s)} {
+		for _, a := range []string{"A16", "A18"} {
+			if v := sh.Value(at(a)); v != ErrRef {
+				t.Errorf("%s: %s = %v", name, a, v)
+			}
+		}
+		if sh.Book().Circular {
+			t.Errorf("%s: arrays kept moving", name)
+		}
+	}
+}
+
+// An array whose formula reads its own cells through another formula
+// is a circular dependency too: #REF! for it and what reads it, typed,
+// recalculated or opened, without going back and forth.
+func TestSpillIntoItsInputThroughAFormula(t *testing.T) {
+	s := New()
+	s.Set(at("F11"), "=VLOOKUP(F14,C17:D19,1,FALSE)")
+	s.Set(at("C19"), "=SORT(E9:F11)")
+	s.Set(at("H15"), "=MAX(E:C)")
+	check := func(name string, sh *Sheet) {
+		t.Helper()
+		for _, a := range []string{"C19", "H15"} {
+			if v := sh.Value(at(a)); v != ErrRef {
+				t.Errorf("%s: %s = %v", name, a, v)
+			}
+		}
+		if got := sh.ExplainError(at("C19")); !strings.Contains(got, "Circular dependency") {
+			t.Errorf("%s: %q", name, got)
+		}
+	}
+	check("typed", s)
+	check("reopened", roundTrip(t, s))
+	s.RecalcAll()
+	check("recalculated", s)
+	if s.Book().Circular {
+		t.Error("arrays kept moving")
+	}
+}
+
+// An array that would spill into the cells its formula reads is a
+// circular dependency: #REF!, whether typed or opened, rather than a
+// result that depends on what was computed first.
+func TestSpillIntoItsInput(t *testing.T) {
+	s := sheetOf(t, map[string]string{"C8": "3", "A9": "=SORT(B8:D9)"})
+	for name, sh := range map[string]*Sheet{"typed": s, "reopened": roundTrip(t, s)} {
+		if v := sh.Value(at("A9")); v != ErrRef {
+			t.Errorf("%s: A9 = %v", name, v)
+		}
+		if sh.Filled(at("B9")) || sh.Filled(at("B10")) {
+			t.Errorf("%s: spilled into its input", name)
+		}
+		if got := sh.ExplainError(at("A9")); !strings.Contains(got, "Circular dependency") {
+			t.Errorf("%s: %q", name, got)
+		}
+	}
+}

@@ -38,3 +38,17 @@ func TestMergeFormattingUndo(t *testing.T) {
 		t.Errorf("pasted C1 %+v", c)
 	}
 }
+
+// A merge that deleting rows takes away frees the array it blocked.
+func TestDeletedMergeFreesArray(t *testing.T) {
+	s := New()
+	s.Merge(NewRect(at("B18"), at("C20")), MergeVertically)
+	s.Set(at("B17"), "=SEQUENCE(2)")
+	if v := s.Value(at("B17")); v != ErrRef {
+		t.Fatalf("B17 over a merge = %v", v)
+	}
+	s.DeleteRows(18, 3)
+	if v := s.Value(at("B18")); v != num(2) {
+		t.Errorf("B18 once the merge went = %v", v)
+	}
+}

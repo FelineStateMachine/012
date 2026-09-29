@@ -33,6 +33,9 @@ import (
 type spill struct {
 	area Rect   // the cells it covers, the anchor first; when blocked, those it needs
 	why  string // why the anchor shows #REF! instead, or ""
+	// circular is set when it's blocked by a cycle through its cells
+	// (spillblock.go).
+	circular bool
 	// arr and auto are the array written and its format, so the same
 	// array computed again isn't written again, unless stale says a cell
 	// of area changed since.
@@ -55,22 +58,29 @@ type spillWork map[loc]pendingSpill
 
 type pendingSpill struct {
 	arr *functions.Array // nil when the formula computed one value
-	v   Value            // what the formula computed, before spilling
+	v   Value            // what the anchor showed formulas read meanwhile
+	top Value            // what the formula computed, the array's first value
 }
 
-// noteSpill records what the formula of c, at a on s, computed, when it
-// spills or did.
+// noteSpill records what the formula of c, at a on s, computed (top,
+// and arr, nil for one value), when it spills or did. An array blocked
+// before keeps showing #REF! until spilling finds it free, so formulas
+// reading it don't see it come and go while it stays blocked.
 //
 //go:noinline
-func (w *Workbook) noteSpill(s *Sheet, a Addr, c *Cell) {
-	arr, v, l := s.calcGet.lib.Spilled(), c.Value, loc{s, a}
-	if arr == nil && s.spills[a] == nil {
+func (w *Workbook) noteSpill(s *Sheet, a Addr, c *Cell, arr *functions.Array) {
+	l, top := loc{s, a}, c.Value
+	sp := s.spills[a]
+	if arr == nil && sp == nil {
 		return
+	}
+	if arr != nil && sp != nil && sp.why != "" {
+		c.Value = ErrRef
 	}
 	if w.spillWork == nil {
 		w.spillWork = spillWork{}
 	}
-	w.spillWork[l] = pendingSpill{arr, v}
+	w.spillWork[l] = pendingSpill{arr, c.Value, top}
 }
 
 // settleSpills writes the arrays evaluated, then recalculates what reads
@@ -125,22 +135,39 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 	if c == nil || !c.IsFormula() || p.arr == nil {
 		return s.dropSpill(a), false
 	}
+	area, why, later := s.spillArea(a, p.arr)
+	var cycle []loc
+	circ := false
+	if why == "" {
+		// Checked each time the anchor is computed: a formula typed since
+		// it spilled may lead from its cells back to it.
+		why, cycle = s.spillsIntoItself(a, area)
+		circ = why != ""
+	}
 	old := s.spills[a]
-	if old != nil && old.why == "" && !old.stale && old.auto == c.auto && sameArray(old.arr, p.arr) {
+	if why == "" && len(later) == 0 && old != nil && old.why == "" && !old.stale && old.auto == c.auto && sameArray(old.arr, p.arr) {
 		return nil, false // written already, and nothing has changed in its way
 	}
-	area, why := s.spillArea(a, p.arr)
-	if why != "" {
-		changed := s.dropSpill(a)
-		s.setSpill(a, &spill{area: area, why: why})
-		c.Value = ErrRef
-		return changed, p.v != ErrRef
-	}
 	var changed []loc
+	if circ != (old != nil && old.circular) {
+		changed = s.wb.recheckArrays(loc{s, a}) // a cycle through arrays began or ended here
+	}
+	if why != "" {
+		changed = append(changed, s.dropSpill(a)...)
+		s.setSpill(a, &spill{area: area, why: why, circular: circ})
+		c.Value = ErrRef
+		return append(changed, blockCircular(cycle)...), p.v != ErrRef
+	}
+	for _, b := range later {
+		// b's array gives way, and b is computed again to find itself
+		// blocked by this one.
+		changed = append(append(changed, s.dropSpill(b)...), loc{s, b})
+	}
 	if old != nil && old.why == "" {
-		changed = s.clearSpilled(old.area, area)
+		changed = append(changed, s.clearSpilled(old.area, area)...)
 	}
 	s.setSpill(a, &spill{area: area, arr: p.arr, auto: c.auto})
+	c.Value = p.top
 	for r := range area.To.Row - a.Row + 1 {
 		for col := range area.To.Col - a.Col + 1 {
 			if r == 0 && col == 0 {
@@ -152,40 +179,82 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 			}
 		}
 	}
-	return changed, false
+	return changed, p.v != p.top
 }
 
 // spillArea is where the array computed at a goes, or why it can't: past
 // the sheet's edge, past max-cells, or over a cell that isn't empty.
 // Blank entries past the array's data aren't spilled, so a whole column
 // read as an array spills what it holds.
-func (s *Sheet) spillArea(a Addr, arr *functions.Array) (Rect, string) {
+//
+// When two arrays need the same cells, the one whose anchor comes first,
+// row by row, gets them, whichever spilled first: later lists the
+// anchors whose arrays give way to this one. So what spills doesn't
+// depend on the order formulas were typed or computed in, and a file
+// opens as it was saved.
+func (s *Sheet) spillArea(a Addr, arr *functions.Array) (area Rect, why string, later []Addr) {
 	rows, cols := arr.Rows, arr.Cols
 	if arr.Fill.Kind == Empty {
 		rows, cols = min(rows, max(arr.DRows, 1)), min(cols, max(arr.DCols, 1))
 	}
-	area := Rect{From: a, To: Addr{Col: a.Col + cols - 1, Row: a.Row + rows - 1}}
+	area = Rect{From: a, To: Addr{Col: a.Col + cols - 1, Row: a.Row + rows - 1}}
 	switch {
 	case area.To.Row >= MaxRows || area.To.Col >= MaxCols:
 		area.To = Addr{Col: min(area.To.Col, MaxCols-1), Row: min(area.To.Row, MaxRows-1)}
-		return area, "Array result was not expanded because it would go past the edge of the sheet"
+		return area, "Array result was not expanded because it would go past the edge of the sheet", nil
 	case rows*cols > MaxCells():
-		return area, fmt.Sprintf("Array result was not expanded because it would write more cells than max-cells allows (%d)", MaxCells())
+		return area, fmt.Sprintf("Array result was not expanded because it would write more cells than max-cells allows (%d)", MaxCells()), nil
 	}
 	if ms := s.MergesIn(area); len(ms) > 0 {
-		return area, "Array result was not expanded because it would overwrite merged cells in " + ms[0].String()
+		return area, "Array result was not expanded because it would overwrite merged cells in " + ms[0].String(), nil
+	}
+	if at, blocked := s.arraysInTheWay(a, area, &later); blocked {
+		return area, "Array result was not expanded because it would overwrite data in " + at.String(), nil
 	}
 	old := s.spills[a]
 	for at := range s.cells.anyKeysIn(area) {
 		if at == a || !s.cells.filledAt(at) {
 			continue
 		}
-		if s.cells.derivedAt(at) == slotSpill && old != nil && old.why == "" && old.area.Contains(at) {
-			continue
+		if s.cells.derivedAt(at) == slotSpill {
+			if old != nil && old.why == "" && old.area.Contains(at) {
+				continue
+			}
+			if _, ok := s.SpillAnchor(at); ok {
+				continue // an array's, found above
+			}
 		}
-		return area, "Array result was not expanded because it would overwrite data in " + at.String()
+		return area, "Array result was not expanded because it would overwrite data in " + at.String(), nil
 	}
-	return area, ""
+	return area, "", later
+}
+
+// arraysInTheWay finds the other arrays spilled over area, where the
+// array at a would go, blank cells of theirs included, as Sheets keeps
+// an array's whole range: it reports a cell of one whose anchor comes
+// before a, which blocks it, and adds to later those whose anchors come
+// after.
+func (s *Sheet) arraysInTheWay(a Addr, area Rect, later *[]Addr) (Addr, bool) {
+	if n := len(s.spills); n == 0 || n == 1 && s.spills[a] != nil {
+		return Addr{}, false
+	}
+	var at Addr
+	blocked := false
+	for row := area.From.Row; row <= area.To.Row && !blocked; row++ {
+		for col := area.From.Col; col <= area.To.Col && !blocked; col++ {
+			cell := Addr{Col: col, Row: row}
+			s.spillAt.readers(cell, func(b Addr) {
+				switch sp := s.spills[b]; {
+				case b == a || sp == nil || sp.why != "" || blocked:
+				case b.Row < a.Row || b.Row == a.Row && b.Col < a.Col:
+					at, blocked = cell, true
+				case !slices.Contains(*later, b):
+					*later = append(*later, b)
+				}
+			})
+		}
+	}
+	return at, blocked
 }
 
 // writeSpilled makes the cell at a show v as a spilled cell, keeping its
@@ -229,7 +298,22 @@ func (s *Sheet) clearSpilled(area, keep Rect) []loc {
 		s.setDerived(at, s.cells.get(at).leftover())
 		changed = append(changed, loc{s, at})
 	}
-	return changed
+	return append(changed, s.wakeBlocked(area, keep)...)
+}
+
+// wakeBlocked returns the anchors of arrays blocked from spilling over
+// the cells of area outside keep, which an array leaving them freed, to
+// compute again. The cells it left may have been blank, which changing
+// wouldn't find.
+func (s *Sheet) wakeBlocked(area, keep Rect) []loc {
+	var out []loc
+	for b, sp := range s.spills {
+		if x, ok := intersectRect(sp.area, area); ok && sp.why != "" && !(keep.Contains(x.From) && keep.Contains(x.To)) {
+			sp.stale = true
+			out = append(out, loc{s, b})
+		}
+	}
+	return out
 }
 
 // dropSpill forgets the anchor at a's spill and clears its cells,

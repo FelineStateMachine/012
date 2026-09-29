@@ -34,6 +34,14 @@ type tooDeep struct{}
 type evaluator struct {
 	w       *Workbook
 	pending []loc // cells put off, each needed by the one before
+	// stack holds the formulas being evaluated, outermost first, and
+	// cycle the cells found to be part of a cycle: every formula on the
+	// stack from the cell reached again up. Each of them is #REF!,
+	// whatever its formula makes of the #REF! it read (IFERROR, COUNTIF),
+	// as in Sheets, so a cycle's values don't depend on the order its
+	// cells were evaluated in.
+	stack []loc
+	cycle map[loc]bool
 }
 
 // evaluate computes the cells marked dirty in each sheet's calc. Cells
@@ -79,7 +87,10 @@ func (e *evaluator) compute(s *Sheet, a Addr) Value {
 		return v
 	}
 	switch st := s.calc[a]; {
-	case st == visiting, st == deferred:
+	case st == visiting:
+		e.inCycle(loc{s, a})
+		return ErrRef
+	case st == deferred:
 		w.Circular = true
 		return ErrRef
 	case st != dirty:
@@ -119,15 +130,36 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 	s.calc[a] = visiting
 	w.depth++
 	expr := s.bound(c)
-	outer := w.evaluating
-	w.evaluating = loc{s, a}
+	outer, l := w.evaluating, loc{s, a}
+	w.evaluating = l
+	e.stack = append(e.stack, l)
 	c.Value = functions.EvalCell(w.arith(expr), s.calcGet.lib, a)
-	if s.calcGet.lib.Spilled() != nil || s.spills != nil {
-		w.noteSpill(s, a, c)
+	e.stack = e.stack[:len(e.stack)-1]
+	arr := s.calcGet.lib.Spilled()
+	if e.cycle[l] {
+		c.Value, arr = ErrRef, nil
+	}
+	if arr != nil || s.spills != nil {
+		w.noteSpill(s, a, c, arr)
 	}
 	w.evaluating = outer
 	c.auto = functions.InferFormat(expr, s.calcFmt)
 	w.depth--
+}
+
+// inCycle notes that the formula at l, being evaluated, was reached
+// again: it and the formulas it led to, up the stack, form a cycle.
+func (e *evaluator) inCycle(l loc) {
+	e.w.Circular = true
+	if e.cycle == nil {
+		e.cycle = map[loc]bool{}
+	}
+	for i := len(e.stack) - 1; i >= 0; i-- {
+		e.cycle[e.stack[i]] = true
+		if e.stack[i] == l {
+			return
+		}
+	}
 }
 
 // sweep evaluates s's dirty cells, reporting false if it went too deep
@@ -188,5 +220,6 @@ func (e *evaluator) abandon(finished *bool) {
 	}
 	e.w.depth = 0
 	e.w.evaluating = loc{}
+	e.stack = e.stack[:0]
 	*finished = false
 }

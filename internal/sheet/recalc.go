@@ -81,10 +81,9 @@ func (w *Workbook) affected(changed []loc, volatiles bool) int {
 // readers marked too, but not those cells: spilling changed what an
 // anchor shows (spill.go), not its formula.
 func (w *Workbook) affectedBy(changed, readers []loc, volatiles bool) int {
-	m := marking{w: w, queue: append([]loc(nil), changed...), named: w.namedInUse(), byName: map[*Sheet]bool{}}
+	m := marking{readerLookup: w.readerLookup(), queue: append([]loc(nil), changed...)}
 	for _, s := range w.sheets {
 		s.calc = make(map[Addr]int)
-		m.byName[s] = w.crossKeys[formula.SheetKey(s.name)] > 0
 		if !volatiles {
 			continue
 		}
@@ -109,13 +108,26 @@ func (w *Workbook) affectedBy(changed, readers []loc, volatiles bool) int {
 	return n
 }
 
-// marking is the state of affected: the cells still to mark, and what it
-// looks up once rather than for every cell.
+// marking is the state of affected: the cells still to mark.
 type marking struct {
+	readerLookup
+	queue []loc
+}
+
+// readerLookup finds the formulas that read a cell, with what it looks
+// up once rather than for every cell.
+type readerLookup struct {
 	w      *Workbook
-	queue  []loc
 	named  []namedUsers
 	byName map[*Sheet]bool // whether some formula names the sheet
+}
+
+func (w *Workbook) readerLookup() readerLookup {
+	r := readerLookup{w: w, named: w.namedInUse(), byName: make(map[*Sheet]bool, len(w.sheets))}
+	for _, s := range w.sheets {
+		r.byName[s] = w.crossKeys[formula.SheetKey(s.name)] > 0
+	}
+	return r
 }
 
 // namedUsers are the formulas that use a named range, with its cells.
@@ -144,27 +156,30 @@ func (m *marking) push(u loc) {
 	}
 }
 
-// readersOf queues the formulas that read the cell l: by reference, by a
-// range over it, through a named range, or by naming its sheet.
-func (m *marking) readersOf(l loc) {
+// readersOf queues the formulas that read the cell l.
+func (m *marking) readersOf(l loc) { m.each(l, m.push) }
+
+// each calls fn with the formulas that read the cell l: by reference, by
+// a range over it, through a named range, or by naming its sheet.
+func (r readerLookup) each(l loc, fn func(loc)) {
 	s, a := l.s, l.a
 	for d := range s.dependents[a] {
-		m.push(loc{s, d})
+		fn(loc{s, d})
 	}
-	s.rangeUsers.readers(a, func(u Addr) { m.push(loc{s, u}) })
-	for _, nu := range m.named {
+	s.rangeUsers.readers(a, func(u Addr) { fn(loc{s, u}) })
+	for _, nu := range r.named {
 		if nu.s == s && nu.r.Contains(a) {
 			for u := range nu.users {
-				m.push(u)
+				fn(u)
 			}
 		}
 	}
-	if !m.byName[s] {
+	if !r.byName[s] {
 		return // no formula names this sheet
 	}
-	for u := range m.w.crossUsers {
-		if m.w.crossReads(u, l) {
-			m.push(u)
+	for u := range r.w.crossUsers {
+		if r.w.crossReads(u, l) {
+			fn(u)
 		}
 	}
 }
