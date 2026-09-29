@@ -49,6 +49,10 @@ type fileFormat struct {
 	// tables is set for databases: an import picks a table, and an
 	// export writes the sheet or the selection as a named table.
 	tables bool
+	// widths is set for formats that keep column widths: an import
+	// keeps them, where the other formats' columns are fitted to their
+	// data (Sheet.LoadFitWidths).
+	widths bool
 }
 
 // An importer reads a file into a new workbook, returning the sheet to
@@ -71,7 +75,7 @@ var kinds = []fileFormat{{
 	kind: XLSX, name: "XLSX", noun: "Excel", label: "Excel workbook", exts: []string{".xlsx", ".xlsm"},
 	read: importXLSX, write: exportXLSX, menu: "Microsoft Excel",
 	about: "Save as an Excel workbook (.xlsx) with formulas, formats and widths",
-	book:  true,
+	book:  true, widths: true,
 }, {
 	kind: SQLite, name: "SQLite", noun: "SQLite", label: "SQLite database", exts: []string{".sqlite", ".sqlite3", ".db"},
 	read: importSQLite, write: exportSQLite, menu: "SQLite database",
@@ -82,7 +86,7 @@ var kinds = []fileFormat{{
 	read: importParquet,
 }, {
 	kind: WK1, name: "WK1", noun: "1-2-3", label: "Lotus 1-2-3 worksheet", exts: []string{".wk1", ".wks"},
-	read: importWK1,
+	read: importWK1, widths: true,
 }, {
 	kind: JSON, name: "JSON", noun: "JSON", label: "JSON list of records", exts: []string{".json", ".ndjson", ".jsonl"},
 	read: importJSON, write: exportJSON, menu: "JSON list of records", encode: encodeJSON,

@@ -33,7 +33,9 @@ Sheets copies a filtered range; XLSX keeps every row, the hidden ones
 hidden.
 
 Formats other than XLSX import as one sheet named after the file (or the
-SQLite table). A file can also be followed instead, its table in a
+SQLite table). Formats that keep no column widths (all but XLSX and
+1-2-3) have their columns fitted to the header and the first 200 rows,
+at most 30 characters wide, as are tables read from standard input. A file can also be followed instead, its table in a
 linked region that takes in new rows as the file grows or is rewritten:
 see [Following files](following.md). A table can also come in on standard input, and go back
 out on standard output: see [Pipelines](../nushell/pipelines.md).
