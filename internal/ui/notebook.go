@@ -207,7 +207,8 @@ func (m *Model) viewOf(s *sheet.Sheet) *nbview.View {
 	if v == nil {
 		v = nbview.New(nbHost{m, s})
 		v.Keys, v.EditKeys = nbKeys, nbEditKeys
-		v.Providers = nbview.Providers{Highlighter: nbview.Tokens{}, Completer: nbview.Words(func() []nbview.Word { return m.nbWords(s) })}
+		lang := m.nbLang().For()
+		v.Providers = nbview.Providers{Highlighter: lang, Completer: lang, Checker: lang}
 		m.nb.views[s] = v
 	}
 	return v
@@ -356,30 +357,6 @@ func (m *Model) renameCell(s *sheet.Sheet, c notebook.Cell, name string) {
 			m.moveOutput(r, name)
 		}
 	}
-}
-
-// nbWords are the completions of notebook s's cells: its names, the
-// workbook's regions, and nu's commands once they're known.
-func (m *Model) nbWords(s *sheet.Sheet) []nbview.Word {
-	var out []nbview.Word
-	for _, c := range s.NotebookCells() {
-		if n := c.Name(); n != "" {
-			out = append(out, nbview.Word{Text: "$" + n, Desc: "a cell's output"})
-		}
-	}
-	for _, t := range m.book().Sheets() {
-		for _, r := range t.Regions() {
-			if r.Linked() {
-				out = append(out, nbview.Word{Text: "$" + r.Name, Desc: "linked file " + r.File.Path})
-			}
-		}
-	}
-	out = append(out, nbview.Word{Text: "$selection", Desc: "the selection on the sheet shown last"},
-		nbview.Word{Text: "$sheet.", Desc: "a range of a sheet: $sheet.A1:C9"})
-	for _, c := range m.nb.words {
-		out = append(out, nbview.Word{Text: c, Desc: "command"})
-	}
-	return out
 }
 
 // nbHost is how a notebook's view reaches the model.

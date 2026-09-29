@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -32,6 +31,7 @@ type editor struct {
 	diagFor string // the text the diagnostics are of
 	comp    []Completion
 	compSel int
+	stop    context.CancelFunc // stops the questions about the text still out
 }
 
 func (e *editor) text() string { return e.area.Text() }
@@ -49,11 +49,22 @@ func (e *editor) line(th *theme.Theme, r, width int, roles []int8) string {
 	if r >= len(rows) {
 		return ""
 	}
-	var marks []bool
-	if e.diagFor == e.text() && len(e.diags) > 0 {
-		marks = diagMarks(e.text(), e.diags)
+	return drawRow(th, e.area.Buf, rows[r], roles, e.marks())
+}
+
+// marks are the runes the diagnostics underline: those of the text they
+// were of, where the text is unchanged since, so the underline doesn't
+// blink off as keys are typed.
+func (e *editor) marks() []bool {
+	if len(e.diags) == 0 {
+		return nil
 	}
-	return drawRow(th, e.area.Buf, rows[r], roles, marks)
+	text := e.text()
+	marks := diagMarks(e.diagFor, e.diags)
+	if e.diagFor == text {
+		return marks
+	}
+	return blend(e.diagFor, text, marks, make([]bool, len(e.area.Buf)))
 }
 
 // diagMarks marks the runes a diagnostic covers.
@@ -110,76 +121,15 @@ func roleAt(roles []int8, i int) int8 {
 
 func markAt(marks []bool, i int) bool { return i < len(marks) && marks[i] }
 
-// syntaxCache keeps what the highlighter said of each source, as a role
-// per rune, and which sources it has been asked about.
-type syntaxCache struct {
-	spans map[string][]Span
-	roles map[string][]int8
-	asked map[string]bool
-	want  []string // sources drawn without an answer yet
-}
-
-// Instant is a highlighter quick enough to ask while drawing, as the
-// built-in tokenizer is.
-type Instant interface{ Instant() bool }
-
-// Instant implements Instant: the tokenizer is.
-func (Tokens) Instant() bool { return true }
-
-// spansFor is src's roles, a role per rune, or nil until the
-// highlighter has answered.
-func (v *View) spansFor(src string, kind notebook.Kind) []int8 {
-	hl := v.Providers.Highlighter
-	if kind != notebook.Code || hl == nil {
-		return nil
-	}
-	c := &v.syntax
-	if roles, ok := c.roles[src]; ok {
-		return roles
-	}
-	if in, ok := hl.(Instant); ok && in.Instant() {
-		v.keepSpans(src, hl.Highlight(context.Background(), src))
-		return c.roles[src]
-	}
-	if c.asked == nil {
-		c.asked = map[string]bool{}
-	}
-	if !c.asked[src] {
-		c.asked[src] = true
-		c.want = append(c.want, src)
-	}
-	return nil
-}
-
-// keepSpans keeps what the highlighter said of src.
-func (v *View) keepSpans(src string, spans []Span) {
-	c := &v.syntax
-	if c.roles == nil || len(c.roles) > 512 {
-		c.roles, c.spans = map[string][]int8{}, map[string][]Span{}
-	}
-	c.spans[src] = spans
-	roles := make([]int8, len([]rune(src)))
-	for i := range roles {
-		roles[i] = -1
-	}
-	ri := 0
-	for bi := range src {
-		for _, s := range spans {
-			if bi >= s.From && bi < s.To {
-				roles[ri] = int8(s.Kind)
-			}
-		}
-		ri++
-	}
-	c.roles[src] = roles
-}
-
 // Messages the view sends itself.
 type (
-	// highlightMsg is the highlighter's answer about src.
+	// highlightMsg is the highlighter's answer about src; edited says
+	// src was the text being edited.
 	highlightMsg struct {
-		src   string
-		spans []Span
+		view   *View
+		src    string
+		spans  []Span
+		edited bool
 	}
 	// pausedMsg is typing having paused at version.
 	pausedMsg struct {
@@ -200,40 +150,35 @@ type (
 	}
 )
 
-// Fetch asks the highlighter about the sources drawn without an answer,
-// in the background.
-func (v *View) Fetch() tea.Cmd {
-	hl := v.Providers.Highlighter
-	want := v.syntax.want
-	v.syntax.want = nil
-	if hl == nil || len(want) == 0 {
-		return nil
-	}
-	cmds := make([]tea.Cmd, len(want))
-	for i, src := range want {
-		cmds[i] = func() tea.Msg { return highlightMsg{src: src, spans: hl.Highlight(context.Background(), src)} }
-	}
-	return tea.Batch(cmds...)
-}
-
 // Update takes the view's own messages, reporting whether msg was one.
 func (v *View) Update(msg tea.Msg) (tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case highlightMsg:
+		if msg.view != v {
+			return nil, false
+		}
 		v.keepSpans(msg.src, msg.spans)
-		if v.syntax.asked != nil {
-			delete(v.syntax.asked, msg.src)
+		delete(v.syntax.asked, msg.src)
+		if msg.edited {
+			v.syntax.last = msg.src
 		}
 	case pausedMsg:
-		if msg.view == v && v.edit.on && msg.version == v.edit.version {
+		if msg.view != v {
+			return nil, false
+		}
+		if v.edit.on && msg.version == v.edit.version {
 			return v.check(), true
 		}
 	case checkedMsg:
-		if msg.view == v {
-			v.edit.diags, v.edit.diagFor = msg.diags, msg.src
+		if msg.view != v {
+			return nil, false
 		}
+		v.edit.diags, v.edit.diagFor = msg.diags, msg.src
 	case completedMsg:
-		if msg.view == v && v.edit.on && msg.version == v.edit.version {
+		if msg.view != v {
+			return nil, false
+		}
+		if v.edit.on && msg.version == v.edit.version {
 			v.edit.comp, v.edit.compSel = msg.comp, 0
 			if len(msg.comp) == 1 {
 				v.complete()
@@ -245,32 +190,54 @@ func (v *View) Update(msg tea.Msg) (tea.Cmd, bool) {
 	return nil, true
 }
 
-// changed notes that the text changed: the language is asked about it
-// once typing pauses.
+// changed notes that the text changed: what the language was asked
+// about the text before is stale, and it's asked about this text once
+// typing pauses.
 func (v *View) changed() tea.Cmd {
 	v.edit.version++
 	v.edit.comp = nil
-	if v.Providers.Checker == nil && (v.Providers.Highlighter == nil || isInstant(v.Providers.Highlighter)) {
+	v.edit.cancel()
+	if !v.asksLater() {
 		return nil
 	}
 	version := v.edit.version
 	return tea.Tick(pause, func(time.Time) tea.Msg { return pausedMsg{view: v, version: version} })
 }
 
-func isInstant(hl Highlighter) bool {
-	in, ok := hl.(Instant)
-	return ok && in.Instant()
+// cancel stops the questions about the text being edited that are
+// still out.
+func (e *editor) cancel() {
+	if e.stop != nil {
+		e.stop()
+		e.stop = nil
+	}
 }
 
-// check asks the highlighter and checker about the text being edited.
+// check asks the highlighter and checker about the text being edited,
+// in the background; answers that come once it has changed are dropped.
 func (v *View) check() tea.Cmd {
 	src := v.edit.text()
+	v.edit.cancel()
+	ctx, stop := context.WithCancel(context.Background())
+	v.edit.stop = stop
 	var cmds []tea.Cmd
 	if hl := v.Providers.Highlighter; hl != nil && !isInstant(hl) {
-		cmds = append(cmds, func() tea.Msg { return highlightMsg{src: src, spans: hl.Highlight(context.Background(), src)} })
+		cmds = append(cmds, func() tea.Msg {
+			spans := hl.Highlight(ctx, src)
+			if ctx.Err() != nil {
+				return nil
+			}
+			return highlightMsg{view: v, src: src, spans: spans, edited: true}
+		})
 	}
-	if ck := v.Providers.Checker; ck != nil {
-		cmds = append(cmds, func() tea.Msg { return checkedMsg{view: v, src: src, diags: ck.Check(context.Background(), src)} })
+	if ck := v.Providers.Checker; ck != nil && !isInstant(ck) {
+		cmds = append(cmds, func() tea.Msg {
+			diags := ck.Check(ctx, src)
+			if ctx.Err() != nil {
+				return nil
+			}
+			return checkedMsg{view: v, src: src, diags: diags}
+		})
 	}
 	return tea.Batch(cmds...)
 }
@@ -305,7 +272,8 @@ func (v *View) complete() {
 	e.version++
 }
 
-// Diagnostic is the problem at the caret, for the context line.
+// Diagnostic is the problem the caret is on, for the context line, or
+// "" when it is on none.
 func (v *View) Diagnostic() string {
 	e := &v.edit
 	if !e.on || e.diagFor != e.text() {
@@ -316,9 +284,6 @@ func (v *View) Diagnostic() string {
 		if off >= d.From && off <= max(d.To, d.From+1) {
 			return d.Msg
 		}
-	}
-	if len(e.diags) > 0 {
-		return e.diags[0].Msg
 	}
 	return ""
 }

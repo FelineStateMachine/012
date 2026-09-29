@@ -236,13 +236,15 @@ func (m *Model) notebookMsg(msg tea.Msg) (tea.Cmd, bool) {
 }
 
 // notebookSync is what follows any message: outputs sent again where
-// they're stale, and the highlighter asked about what was drawn.
+// they're stale, the language told what the notebook binds, and the
+// highlighter asked about what was drawn.
 func (m *Model) notebookSync() tea.Cmd {
 	m.syncOutputs()
 	if m.book().OutputsChanged() != m.nb.saved {
 		m.changed = true
 	}
 	if v := m.nbView(); v != nil {
+		m.syncLang(m.sheet, v)
 		return v.Fetch()
 	}
 	return nil

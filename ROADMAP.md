@@ -29,12 +29,12 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 
 Notebook tabs are a TUI Jupyter for nushell
 ([Notebooks](docs/nushell/notebooks.md)): code and note cells, outputs in
-place, sent to sheets as live regions. What's ahead makes writing a cell
-feel like nushell's own prompt.
+place, sent to sheets as live regions, and cells highlighted, checked and
+completed by nu as they're written.
 
 | Item | Result | Size |
 |---|---|---|
-| Code cells highlighted, completed and checked as you type by nushell itself: `nu --ide-ast` token shapes mapped to theme roles, `nu --ide-complete` plus 012's cell, region and sheet names on Tab, `nu --ide-check` errors underlined; debounced in the background, plain text when nu is missing or slow; hover docs through `nu --lsp` later | Writing pipelines in 012 feels like nushell's own prompt | S to M |
+| A command's signature and description for the word at the caret, on the context line, through `nu --ide-hover` or `nu --lsp` | Writing a cell without leaving for `help` | S |
 
 ### 3. Toward multiplayer
 
@@ -138,6 +138,7 @@ stream above rather than a design of their own.
 - 012 as a stage in a pipeline: `012 -` reads a table from standard input, `012 --pipe` sends the sheet or selection on, with nushell's types kept through NUON: [Pipelines](docs/nushell/pipelines.md)
 - The `sheet` command: a nushell module shipped in the binary (`012 nu --install-module`), so nu calls 012 without `^012` or NUON on either side: [Pipelines](docs/nushell/pipelines.md#the-sheet-command)
 - Notebook tabs, a TUI Jupyter for nushell: code and note cells with Jupyter's keys, outputs drawn in place and opened full-screen, `$name` between cells, stale marks and a reactive mode, outputs sent to sheets as live regions (`nu.name`), saved up to a cap, and earlier notebook sheets converted on open: [Notebooks](docs/nushell/notebooks.md)
+- Code cells highlighted, checked and completed as they're written by nu itself (`--ide-ast`, `--ide-check`, `--ide-complete`), in the background, falling back to 012's own when nu is missing, old, slow or not trusted: [Notebooks](docs/nushell/notebooks.md#writing-a-cell)
 
 **Files**
 

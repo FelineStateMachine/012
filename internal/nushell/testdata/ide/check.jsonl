@@ -1,0 +1,6 @@
+{"type":"diagnostic","severity":"Error","message":"Unclosed delimiter.","span":{"start":31,"end":32}}
+{"type":"diagnostic","severity":"Error","message":"The `math sum` command doesn't have flag `foo`.","span":{"start":17,"end":22}}
+{"type":"diagnostic","severity":"Error","message":"Unclosed delimiter.","span":{"start":31,"end":32}}
+{"type":"diagnostic","severity":"Error","message":"Unclosed delimiter.","span":{"start":32,"end":32}}
+{"type":"diagnostic","severity":"Error","message":"Type mismatch.","span":{"start":31,"end":32}}
+{"type":"diagnostic","severity":"Error","message":"Command does not support number input.","span":{"start":25,"end":30}}

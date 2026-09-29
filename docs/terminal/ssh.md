@@ -158,7 +158,9 @@ reach, well beyond the served directory. `serve-shell = on` in the
 server's config lets sessions run them, as the user 012 serve runs as,
 following the `shell` option as the local app does; a file's cells still
 ask once per session before they run. Only turn it on when everyone holding an
-authorized key may run programs on the server.
+authorized key may run programs on the server. The same setting decides
+whether nu is started to [highlight and check](../nushell/notebooks.md#writing-a-cell)
+the cell being written; without it, 012's own highlighting answers.
 
 ## Unsaved work
 

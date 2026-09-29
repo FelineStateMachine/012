@@ -186,6 +186,7 @@ func (v *View) StartEdit() tea.Cmd {
 		return nil
 	}
 	v.full, v.onOut = nil, false
+	v.edit.cancel()
 	v.edit = editor{on: true, id: c.ID}
 	v.edit.area.SetText(c.Source)
 	v.follow()
@@ -198,6 +199,7 @@ func (v *View) StopEdit() {
 		return
 	}
 	id, text := v.edit.id, v.edit.text()
+	v.edit.cancel()
 	v.edit = editor{}
 	for _, c := range v.h.Cells() {
 		if c.ID == id && c.Source != text {

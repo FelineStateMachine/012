@@ -3,14 +3,17 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 // Golden screens for notebooks: cells with a note and table outputs, a
 // cell edited with a long pipeline wrapped (at 80 and 60 columns), a
-// failure, a cell running and one waiting, stale outputs, an output
-// full-screen, and an output sent to a sheet. Each is recorded on a
-// light terminal and in the high-contrast theme too. nu is testdata/nu/nu,
-// which answers what the screens run with fixed outputs.
+// failure, nu's highlighting and a problem nu found, a cell running and
+// one waiting, stale outputs, an output full-screen, and an output sent
+// to a sheet. Each is recorded on a light terminal and in the
+// high-contrast theme too. nu is testdata/nu/nu, which answers what the
+// screens run, and what the code editor asks, with fixed outputs.
 
 // fakeNu puts the stand-in nu first on the PATH.
 var fakeNu = func() []string {
@@ -20,6 +23,24 @@ var fakeNu = func() []string {
 	}
 	return []string{"PATH=" + dir + string(os.PathListSeparator) + os.Getenv("PATH")}
 }()
+
+// nuHighlighted reports whether the line of screen html holding mark
+// draws word twice in two styles, as nu's shapes of `where size > 1kb
+// | sort-by size` do (a column, then a string) where the tokenizer
+// leaves both plain.
+func nuHighlighted(html, mark, word string) bool {
+	for line := range strings.SplitSeq(html, "\n") {
+		if !strings.Contains(line, mark) {
+			continue
+		}
+		var styles []string
+		for _, m := range regexp.MustCompile(`<span style="([^"]*)">`+regexp.QuoteMeta(word)+`</span>`).FindAllStringSubmatch(line, -1) {
+			styles = append(styles, m[1])
+		}
+		return len(styles) == 2 && styles[0] != styles[1]
+	}
+	return false
+}
 
 // longPipeline is a pipeline too long for one line at 80 columns.
 const longPipeline = "$files | where size > 1kb | where type == file | sort-by size --reverse | select name size | first 10 | rename file bytes"
@@ -72,6 +93,16 @@ var notebookScreens = []screen{
 		filesNotebook(s)
 		s.keys("<up>", "<up>", "<up>", "<enter>")
 		s.waitFor("full-screen")
+	}},
+	{name: "notebook-nu-highlight", setup: func(s *session) {
+		filesNotebook(s)
+		s.keys("<enter>", "big = $files | where size > 1kb | sort-by size --reverse # largest")
+		s.eventually("nu's highlighting", func() bool { return nuHighlighted(s.html(), "largest", "size") })
+	}},
+	{name: "notebook-nu-error", setup: func(s *session) {
+		filesNotebook(s)
+		s.keys("<enter>", "$files | sort-by size --revrse")
+		s.waitFor("doesn't have flag `revrse`")
 	}},
 	{name: "notebook-sent", setup: func(s *session) {
 		filesNotebook(s)
