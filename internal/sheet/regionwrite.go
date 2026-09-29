@@ -116,8 +116,11 @@ func (s *Sheet) writeRegions() []loc {
 			cols, nrows := tableSize(me, header, rows, true)
 			keep := s.tableArea(r, cols, nrows)
 			changed = append(changed, s.clearOwned(me, keep)...)
-			if me.has {
+			if was := me.written; me.has {
 				me.written, me.has = intersectRect(me.written, keep) // what it holds now
+				if me.written != was {
+					changed = s.regionUsers(r, changed) // its table shrank
+				}
 			}
 		case me.reread:
 			me.reread = false
@@ -199,6 +202,7 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 	me.written, me.has = need, true
 	if r.labelled() {
 		changed = s.writeRegionCell(r.At, LiveCell{V: Value{Kind: Text, Str: s.regionLabel(r)}}, me, changed)
+		changed = s.clearBesideLabel(r, need, me, changed)
 	} else if me.why != "" || nrows == 0 && me.err != "" {
 		changed = s.writeRegionCell(r.At, LiveCell{V: ErrRef}, me, changed)
 	}
@@ -222,9 +226,37 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 		s.freedFor(c.a)
 	}
 	if !had || was != me.written {
-		for u := range s.wb.nameUsers[nameKey(r.FormulaName())] {
-			changed = append(changed, u)
+		changed = s.regionUsers(r, changed)
+	}
+	return changed
+}
+
+// clearBesideLabel clears the cells of the label line, beside the label,
+// that the region wrote as part of its table before it moved down onto
+// them (undone and redone, a region may find its old rows there).
+func (s *Sheet) clearBesideLabel(r Region, need Rect, me *regionMeta, changed []loc) []loc {
+	line := Rect{From: Addr{Col: r.At.Col + 1, Row: r.At.Row}, To: Addr{Col: need.To.Col, Row: r.At.Row}}
+	if line.To.Col < line.From.Col {
+		return changed
+	}
+	var gone []Addr
+	for a := range s.cells.anyKeysIn(line) {
+		if s.cells.filledAt(a) && s.regionOwns(a, me) {
+			gone = append(gone, a)
 		}
+	}
+	for _, a := range gone {
+		s.setDerived(a, s.cells.get(a).leftover())
+		changed = append(changed, loc{s, a})
+	}
+	return changed
+}
+
+// regionUsers appends the formulas naming r to changed, to recalculate
+// when its table moves or changes size.
+func (s *Sheet) regionUsers(r Region, changed []loc) []loc {
+	for u := range s.wb.nameUsers[nameKey(r.FormulaName())] {
+		changed = append(changed, u)
 	}
 	return changed
 }

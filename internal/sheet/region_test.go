@@ -125,6 +125,47 @@ func TestRegionFormulaName(t *testing.T) {
 	}
 }
 
+// A region pushed down onto rows its table showed, then undone and
+// redone, shows its label line alone: nothing of those rows is left
+// beside the label.
+func TestRegionRedoneOverItsOldRows(t *testing.T) {
+	s := notebook(t)
+	w := s.Book()
+	addShown(t, s, "r1", "ls", table([]string{"a", "b"}, []string{"14", "13"}))
+	w.ClearHistory()
+	addShown(t, s, "r2", "$r1 | first 2", table([]string{"x", "y", "z"}, []string{"12", "1", "7"}, []string{"2", "10", "0"}))
+	s.ShowRegion("r1", table([]string{"a"}, []string{"4"}, []string{"12"}, []string{"8"}, []string{"13"}))
+	want := map[string]string{"A8": "r2  $r1 | first 2", "B8": "", "C8": "", "A9": "x", "C11": "0"}
+	wantShown(t, s, want)
+	for w.CanUndo() {
+		w.Undo()
+	}
+	for w.CanRedo() {
+		w.Redo()
+	}
+	wantShown(t, s, want)
+}
+
+// A formula naming a region follows its table as it shrinks, run with
+// fewer rows or undone to them, as it does as it grows.
+func TestRegionFormulaFollowsShrinking(t *testing.T) {
+	s := notebook(t)
+	w := s.Book()
+	other, _ := w.AddSheet("Sheet2", 1)
+	other.Set(at("A1"), "=SUM(nu.r1)")
+	addShown(t, s, "r1", "ls", table([]string{"n"}))
+	s.ShowRegion("r1", table([]string{"n"}, []string{"7"}, []string{"2"}))
+	wantShown(t, other, map[string]string{"A1": "9"})
+	s.ShowRegion("r1", table([]string{"n"}, []string{"7"}))
+	wantShown(t, other, map[string]string{"A1": "7"})
+	w.Undo()
+	wantShown(t, other, map[string]string{"A1": "9"})
+	w.Undo()
+	wantShown(t, other, map[string]string{"A1": "0"})
+	w.Redo()
+	wantShown(t, other, map[string]string{"A1": "9"})
+}
+
 func TestRegionGraph(t *testing.T) {
 	s := notebook(t)
 	w := s.Book()
