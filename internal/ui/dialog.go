@@ -38,7 +38,7 @@ func (m *Model) quit() tea.Cmd {
 	if m.pipe.on {
 		return m.quitPiped()
 	}
-	if !m.changed {
+	if !m.changed || m.shared() { // the others keep the workbook open
 		return m.exit()
 	}
 	m.ask(question{

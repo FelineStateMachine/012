@@ -69,7 +69,7 @@ func (m *Model) startStream(q nbQueued) tea.Cmd {
 		return nil
 	}
 	m.stopStream(q.id)
-	m.nb.queue = slices.DeleteFunc(m.nb.queue, func(x nbQueued) bool { return x == q })
+	m.nb.runs.queue = slices.DeleteFunc(m.nb.runs.queue, func(x nbQueued) bool { return x == q })
 	cells := q.s.NotebookCells()
 	i := slices.IndexFunc(cells, func(x notebook.Cell) bool { return x.ID == c.ID })
 	if why := notebook.Taken(cells, i); why != "" {
@@ -90,17 +90,17 @@ func (m *Model) startStream(q nbQueued) tea.Cmd {
 		return err
 	})
 	src.Wait = streamOutputEvery // an idle poll brings the output up to date
-	m.nb.count++
-	st := &nbStream{nbRun: run, src: src, count: m.nb.count}
-	if m.nb.streams == nil {
-		m.nb.streams = map[int]*nbStream{}
+	m.nb.runs.count++
+	st := &nbStream{nbRun: run, src: src, count: m.nb.runs.count}
+	if m.nb.runs.streams == nil {
+		m.nb.runs.streams = map[int]*nbStream{}
 	}
-	m.nb.streams[q.id] = st
+	m.nb.runs.streams[q.id] = st
 	m.showStream(st)
 	st.shown = time.Time{} // the first rows show at once
 	m.feedOutput(c.Name())
 	m.note = "Following cell " + strconv.Itoa(i+1) + " as a stream: Stop (i i) ends it"
-	return tea.Batch(pollStream(st), m.tickStreams())
+	return tea.Batch(m.roomOwned(pollStream(st)), m.tickStreams())
 }
 
 // pollStream polls st's stream on a goroutine of its own.
@@ -115,7 +115,7 @@ func pollStream(st *nbStream) tea.Cmd {
 // the output was sent to, and to the output, until the stream ends.
 func (m *Model) streamPolled(msg nbStreamMsg) tea.Cmd {
 	st := msg.st
-	if m.nb.streams[st.id] != st {
+	if m.nb.runs.streams[st.id] != st {
 		st.src.Close() // stopped, or started again since
 		return nil
 	}
@@ -134,14 +134,14 @@ func (m *Model) streamPolled(msg nbStreamMsg) tea.Cmd {
 		}
 	}
 	if done, err := st.src.Ended(); done {
-		delete(m.nb.streams, st.id)
+		delete(m.nb.runs.streams, st.id)
 		m.endStream(st, err)
 		return nil
 	}
 	if st.behind && time.Since(st.shown) >= streamOutputEvery {
 		m.showStream(st)
 	}
-	return pollStream(st)
+	return m.roomOwned(pollStream(st))
 }
 
 // showStream keeps what the stream has printed so far as the cell's
@@ -165,18 +165,18 @@ func (m *Model) endStream(st *nbStream, err error) {
 
 // stopStream stops cell id's stream, keeping what it printed.
 func (m *Model) stopStream(id int) {
-	st := m.nb.streams[id]
+	st := m.nb.runs.streams[id]
 	if st == nil {
 		return
 	}
-	delete(m.nb.streams, id)
+	delete(m.nb.runs.streams, id)
 	st.src.Close()
 	m.showStream(st)
 }
 
 // stopStreams stops every stream.
 func (m *Model) stopStreams() {
-	for id := range m.nb.streams {
+	for id := range m.nb.runs.streams {
 		m.stopStream(id)
 	}
 }
@@ -184,7 +184,7 @@ func (m *Model) stopStreams() {
 // closeStreams stops every stream's process as the program ends,
 // touching nothing else: the model may be broken by a crash.
 func (m *Model) closeStreams() {
-	for _, st := range m.nb.streams {
+	for _, st := range m.nb.runs.streams {
 		st.src.Close()
 	}
 }
@@ -205,7 +205,7 @@ type nbStreamTickMsg struct{}
 // streamTicked keeps the ticks going while a stream runs.
 func (m *Model) streamTicked() tea.Cmd {
 	m.nb.streamTick = false
-	if len(m.nb.streams) == 0 {
+	if len(m.nb.runs.streams) == 0 {
 		return nil
 	}
 	return m.tickStreams()

@@ -68,7 +68,7 @@ func TestNotebookStream(t *testing.T) {
 	m.SetShellRunner(nu)
 	write(t, m, "log = tail -f app.log | lines | parse '{level} {msg}'")
 	press(t, m, "f")
-	if len(m.nb.streams) != 1 || !strings.Contains(screen(m), "● live, 0 rows") {
+	if len(m.nb.runs.streams) != 1 || !strings.Contains(screen(m), "● live, 0 rows") {
 		t.Fatalf("not live:\n%s", screen(m))
 	}
 	if script := <-nu.scripts; !strings.Contains(script, "to nuon --raw | print") {
@@ -98,7 +98,7 @@ func TestNotebookStream(t *testing.T) {
 		t.Errorf("state %+v", st)
 	}
 	run(m, m.runCommand("nb.stop"))
-	if len(m.nb.streams) != 0 {
+	if len(m.nb.runs.streams) != 0 {
 		t.Fatal("still streaming after Stop")
 	}
 	m.showSheet(nb)
@@ -116,7 +116,7 @@ func TestNotebookStream(t *testing.T) {
 }
 
 func firstStream(m *Model) int {
-	for id := range m.nb.streams {
+	for id := range m.nb.runs.streams {
 		return id
 	}
 	return -1

@@ -27,12 +27,18 @@ var named = map[string]tea.Key{
 // except tea.Quit, which is returned.
 func press(t *testing.T, m *Model, keys ...string) tea.Msg {
 	t.Helper()
+	return pressTo(t, func(msg tea.Msg) tea.Msg { return send(m, msg) }, keys...)
+}
+
+// pressTo sends keys, as press does, through send.
+func pressTo(t *testing.T, send func(tea.Msg) tea.Msg, keys ...string) tea.Msg {
+	t.Helper()
 	var last tea.Msg
 	for _, k := range keys {
 		name, ok := strings.CutPrefix(k, "<")
 		if !ok {
 			for _, r := range k {
-				if msg := send(m, tea.KeyPressMsg{Code: r, Text: string(r)}); msg != nil {
+				if msg := send(tea.KeyPressMsg{Code: r, Text: string(r)}); msg != nil {
 					last = msg
 				}
 			}
@@ -59,7 +65,7 @@ func press(t *testing.T, m *Model, keys ...string) tea.Msg {
 			t.Fatalf("unknown key %q", k)
 		}
 		key.Mod = mod
-		if msg := send(m, tea.KeyPressMsg(key)); msg != nil {
+		if msg := send(tea.KeyPressMsg(key)); msg != nil {
 			last = msg
 		}
 	}
@@ -75,6 +81,11 @@ func send(m *Model, msg tea.Msg) tea.Msg {
 }
 
 func run(m *Model, cmd tea.Cmd) tea.Msg {
+	return runVia(func(msg tea.Msg) tea.Cmd { _, next := m.Update(msg); return next }, cmd)
+}
+
+// runVia runs cmd as run does, handing its messages to update.
+func runVia(update func(tea.Msg) tea.Cmd, cmd tea.Cmd) tea.Msg {
 	if cmd == nil {
 		return nil
 	}
@@ -97,15 +108,14 @@ func run(m *Model, cmd tea.Cmd) tea.Msg {
 	if v := reflect.ValueOf(out); v.Kind() == reflect.Slice && v.Type().Elem() == cmdType {
 		for i := range v.Len() {
 			if c, ok := v.Index(i).Interface().(tea.Cmd); ok {
-				if q := run(m, c); q != nil {
+				if q := runVia(update, c); q != nil {
 					return q
 				}
 			}
 		}
 		return nil
 	}
-	_, next := m.Update(out)
-	return run(m, next)
+	return runVia(update, update(out))
 }
 
 func newModel() *Model {

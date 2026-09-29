@@ -143,10 +143,14 @@ func (m *Model) rowLine(row int, ln rowtext.Line) string {
 	if ln.K == ln.N-1 {
 		num = strconv.Itoa(row + 1)
 	}
+	tags, n := "", 0
+	if ln.K == ln.N-1 && len(m.share.frame.here) > 0 {
+		tags, n = m.rowTags(row)
+	}
 	if m.showRowHandle(row) && ln.K == ln.N-1 {
-		b.WriteString(hdr.Render(theme.PadLeft(num, m.hdrW()-1)) + m.th.Handle.Render("▄"))
+		b.WriteString(tags + hdr.Render(theme.PadLeft(num, m.hdrW()-1-n)) + m.th.Handle.Render("▄"))
 	} else {
-		b.WriteString(hdr.Render(theme.PadLeft(num, m.hdrW()-1) + " "))
+		b.WriteString(tags + hdr.Render(theme.PadLeft(num, m.hdrW()-1-n)+" "))
 	}
 
 	_, fc := m.frozen()
@@ -239,6 +243,9 @@ func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp *rowtext.Span, spills boo
 	case m.found(a):
 		return &m.th.Found, true
 	}
+	if r, ok := m.peerRole(a); ok {
+		return r, true
+	}
 	if r := m.traceRole(a); r != nil {
 		return r, true
 	}
@@ -272,6 +279,9 @@ func (m *Model) cellMarks(lc *lineCtx, a sheet.Addr, text string, look *sheet.Lo
 		text = m.noteMark(text, a, *base, colored)
 	case look.Dropdown && m.valueLine(lc, a):
 		text = m.dropdownMark(text, w, *base, colored)
+	}
+	if lc.ln.K == 0 && len(m.share.frame.fresh) > 0 {
+		text = m.changedMark(text, a, *base, colored)
 	}
 	if lc.shaped {
 		text = m.leftEdge(a, text)

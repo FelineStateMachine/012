@@ -156,8 +156,10 @@ func init() {
 		&command{id: "nb.stream", macro: macroNever, title: "Run as stream", desc: "Run the selected cell until it's stopped, its rows arriving as the pipeline prints them (tail -f, watch)",
 			enabled: onCode, run: (*Model).streamSelected},
 		&command{id: "nb.stop", macro: macroNever, title: "Stop running", desc: "Stop the cell running, killing its process, those waiting and the cells running as streams",
-			enabled: func(m *Model) bool { return m.nb.running != nil || len(m.nb.queue) > 0 || len(m.nb.streams) > 0 },
-			run:     func(m *Model) tea.Cmd { m.stopCells(); return nil }},
+			enabled: func(m *Model) bool {
+				return m.nb.runs.running != nil || len(m.nb.runs.queue) > 0 || len(m.nb.runs.streams) > 0
+			},
+			run: func(m *Model) tea.Cmd { m.stopCells(); return nil }},
 		&command{id: "nb.clear_outputs", title: "Clear outputs", desc: "Clear every cell's output",
 			enabled: onTab, run: func(m *Model) tea.Cmd { m.clearOutputs(false); return nil }},
 		&command{id: "nb.restart", title: "Restart", desc: "Stop what's running, clear every output and count runs from 1 again",

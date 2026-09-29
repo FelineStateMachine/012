@@ -91,6 +91,7 @@ start.
 | [`serve-host-key`](#serve-host-key) |  |  |
 | [`serve-idle-timeout`](#serve-idle-timeout) | `30m` |  |
 | [`serve-max-sessions`](#serve-max-sessions) | `8` |  |
+| [`serve-share`](#serve-share) | `edit` |  |
 | [`serve-shell`](#serve-shell) | `false` |  |
 | [`config-file`](#config-file) |  |  |
 
@@ -355,6 +356,16 @@ How many 012 serve sessions may run at once; more are turned away.
 |---|---|
 | Type | number |
 | Default | `8` |
+| Applies | restart 012 |
+
+#### `serve-share`
+
+Whether 012 serve sessions opening the same file share its workbook: edit, everyone edits; view, one writes and the others follow until writing is handed over; off, each session has its own copy.
+
+| | |
+|---|---|
+| Type | one of `edit`, `view`, `off` |
+| Default | `edit` |
 | Applies | restart 012 |
 
 #### `serve-shell`

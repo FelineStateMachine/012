@@ -67,6 +67,12 @@ func (m *Model) sourceKey(src sheet.LinkSource) string {
 // sources for new ones, none for those gone, a whole read for stale
 // ones, and the next poll for each that follows.
 func (m *Model) syncFollowers() tea.Cmd {
+	if seat := m.share.seat; seat != nil && !seat.Keeper() {
+		for _, f := range m.follow.by {
+			m.dropFollower(f) // the room's keeper follows them
+		}
+		return nil
+	}
 	regions := m.book().LinkedRegions()
 	if len(regions) == 0 && len(m.follow.by) == 0 {
 		return nil
@@ -162,7 +168,7 @@ func (m *Model) dropFollower(f *follower) {
 
 // pollFollower polls f's source on a goroutine of its own.
 func pollFollower(f *follower) tea.Cmd {
-	f.busy = true
+	f.busy = true // what it finds comes back to this model: see syncFollowers
 	return func() tea.Msg {
 		u, ok := f.src.Poll(context.Background())
 		return followMsg{f, u, ok}

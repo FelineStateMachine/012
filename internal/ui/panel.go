@@ -33,6 +33,7 @@ func (m *Model) View() tea.View {
 	clear(m.painted) // the theme may have changed since the last frame
 	clear(m.mergeLines)
 	clear(m.shaded)
+	m.frameShare()
 	var lines []string
 	if v := m.nbView(); v != nil {
 		lines = m.notebookLines(v)
@@ -137,6 +138,9 @@ func (m *Model) timeFrame(start time.Time) {
 func (m *Model) displayName() string {
 	if m.filename == "" && m.xfer.Source != "" {
 		return filepath.Base(m.xfer.Source)
+	}
+	if m.filename == "" && m.share.seat != nil && strings.HasPrefix(m.share.seat.Key(), "@") {
+		return m.share.seat.Key() // a named room not saved yet
 	}
 	if m.filename == "" {
 		return "untitled"
@@ -287,7 +291,7 @@ func (m *Model) readyContext() (left, right string) {
 		return m.traceLine()
 	}
 	for _, f := range []func() string{func() string { return m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur)) },
-		m.errorLine, m.validationLine, m.noteLine, m.spillLine, m.regionLine, m.tableLine, m.recordingLine} {
+		m.errorLine, m.shareLine, m.validationLine, m.noteLine, m.spillLine, m.regionLine, m.tableLine, m.recordingLine} {
 		if left = f(); left != "" {
 			return left, ""
 		}
@@ -414,6 +418,7 @@ func (m *Model) statusState() string {
 	if m.changed {
 		b.WriteString(m.th.Muted.Render("  modified"))
 	}
+	b.WriteString(m.peersStatus())
 	if m.book().Decimal() {
 		b.WriteString(m.th.Muted.Render("  decimal"))
 	}

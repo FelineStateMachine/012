@@ -25,13 +25,12 @@ import (
 
 // nbState is the notebooks' part of the model.
 type nbState struct {
-	views   map[*sheet.Sheet]*nbview.View
-	runner  nushell.Runner // nu, or a fake in tests
-	queue   []nbQueued
-	running *nbRun
-	gen     int
-	count   int // runs this session, for [n]
-	clip    []notebook.Cell
+	views  map[*sheet.Sheet]*nbview.View
+	runner nushell.Runner // nu, or a fake in tests
+	// runs are the cells running and waiting: the model's own, or in a
+	// shared room the room's (share.go).
+	runs *nbRuns
+	clip []notebook.Cell
 	// words are nu's command names, asked for once (asked).
 	words []string
 	asked bool
@@ -64,10 +63,22 @@ type nbState struct {
 	// follow scrolls the view to each cell as it starts, while a run of
 	// several cells goes on and the user hasn't scrolled away.
 	follow bool
-	// streams are the cells running as streams, by cell ID, and
-	// streamTick is set while their heads are ticking: nbstream.go.
-	streams    map[int]*nbStream
+	// streamTick is set while streaming cells' heads are ticking:
+	// nbstream.go.
 	streamTick bool
+}
+
+// nbRuns are the cells running, waiting and streaming. In a room of
+// 012 serve they are the room's, which every participant sees and any
+// may stop, and whose results reach whoever keeps the room then
+// (room.Seat.Post), so they outlast the participant who started them.
+type nbRuns struct {
+	queue   []nbQueued
+	running *nbRun
+	gen     int
+	count   int // runs of this workbook, for [n]
+	// streams are the cells running as streams, by cell ID: nbstream.go.
+	streams map[int]*nbStream
 }
 
 // nbQueued is a cell waiting to run.
@@ -119,13 +130,13 @@ func (m *Model) runner() nushell.Runner {
 // cellState is how cell id of notebook s stands.
 func (m *Model) cellState(s *sheet.Sheet, id int) nbview.State {
 	var st nbview.State
-	if r := m.nb.running; r != nil && r.s == s && r.id == id {
+	if r := m.nb.runs.running; r != nil && r.s == s && r.id == id {
 		st.Running, st.Started = true, r.start
 	}
-	if r := m.nb.streams[id]; r != nil && r.s == s {
+	if r := m.nb.runs.streams[id]; r != nil && r.s == s {
 		st.Running, st.Started, st.Live, st.Rows = true, r.start, true, r.rows
 	}
-	st.Waiting = slices.Contains(m.nb.queue, nbQueued{s, id})
+	st.Waiting = slices.Contains(m.nb.runs.queue, nbQueued{s, id})
 	st.Stale = m.staleCells(s)[id]
 	cells := s.NotebookCells()
 	if i := slices.IndexFunc(cells, func(c notebook.Cell) bool { return c.ID == id }); i >= 0 {
@@ -219,11 +230,11 @@ func (m *Model) queueCells(s *sheet.Sheet, cells []notebook.Cell, want []int) te
 	return m.trustNotebook(func(m *Model) tea.Cmd {
 		for _, i := range order {
 			q := nbQueued{s, cells[i].ID}
-			if !slices.Contains(m.nb.queue, q) && (m.nb.running == nil || m.nb.running.nbQueued != q) {
-				m.nb.queue = append(m.nb.queue, q)
+			if !slices.Contains(m.nb.runs.queue, q) && (m.nb.runs.running == nil || m.nb.runs.running.nbQueued != q) {
+				m.nb.runs.queue = append(m.nb.runs.queue, q)
 			}
 		}
-		if m.nb.running != nil {
+		if m.nb.runs.running != nil {
 			return nil
 		}
 		return m.nextCell()
@@ -264,9 +275,9 @@ func (m *Model) trustNotebook(run func(*Model) tea.Cmd) tea.Cmd {
 
 // nextCell starts the first cell queued.
 func (m *Model) nextCell() tea.Cmd {
-	for len(m.nb.queue) > 0 {
-		q := m.nb.queue[0]
-		m.nb.queue = m.nb.queue[1:]
+	for len(m.nb.runs.queue) > 0 {
+		q := m.nb.runs.queue[0]
+		m.nb.runs.queue = m.nb.runs.queue[1:]
 		c, ok := cellOf(q)
 		if !ok || c.Kind != notebook.Code {
 			continue
@@ -303,17 +314,17 @@ func cellOf(q nbQueued) (notebook.Cell, bool) {
 // failCell gives a cell that can't run an output saying why, and stops
 // the queue.
 func (m *Model) failCell(q nbQueued, c notebook.Cell, why string) {
-	m.nb.count++
-	m.book().SetOutput(q.id, &notebook.Output{Err: why, Count: m.nb.count, Source: c.Source})
-	m.nb.queue = nil
+	m.nb.runs.count++
+	m.book().SetOutput(q.id, &notebook.Output{Err: why, Count: m.nb.runs.count, Source: c.Source})
+	m.nb.runs.queue = nil
 }
 
 // startCell runs a cell in the background.
 func (m *Model) startCell(run *nbRun, job nushell.Job) tea.Cmd {
-	m.nb.gen++
+	m.nb.runs.gen++
 	ctx, cancel := context.WithCancel(context.Background())
-	run.gen, run.cancel = m.nb.gen, cancel
-	m.nb.running = run
+	run.gen, run.cancel = m.nb.runs.gen, cancel
+	m.nb.runs.running = run
 	if m.nb.follow {
 		m.viewOf(run.s).Reveal(run.id) // Run all: the view follows the cell running
 	}
@@ -329,7 +340,7 @@ func (m *Model) startCell(run *nbRun, job nushell.Job) tea.Cmd {
 		}
 		return nbDoneMsg{run: run, nuon: out, err: err}
 	}
-	return tea.Batch(exec, m.tickCell(run.gen))
+	return tea.Batch(m.roomOwned(exec), m.tickCell(run.gen))
 }
 
 // maxOutput is the most a run may print: past it the run is stopped.
@@ -345,7 +356,7 @@ func (m *Model) tickCell(gen int) tea.Cmd {
 
 // ticked keeps the running cell's head turning.
 func (m *Model) ticked(msg nbTickMsg) tea.Cmd {
-	if r := m.nb.running; r != nil && r.gen == msg.gen {
+	if r := m.nb.runs.running; r != nil && r.gen == msg.gen {
 		return m.tickCell(msg.gen)
 	}
 	return nil
@@ -355,23 +366,23 @@ func (m *Model) ticked(msg nbTickMsg) tea.Cmd {
 // starts the next cell queued.
 func (m *Model) finishCell(msg nbDoneMsg) tea.Cmd {
 	r := msg.run
-	if m.nb.running != r {
+	if m.nb.runs.running != r {
 		return nil // stopped, and another started since
 	}
-	m.nb.running = nil
+	m.nb.runs.running = nil
 	c, ok := cellOf(r.nbQueued)
 	if !ok {
 		return m.nextCell()
 	}
-	m.nb.count++
-	o := &notebook.Output{Count: m.nb.count, Took: time.Since(r.start), Source: r.source, Reads: r.reads, Selection: r.selection}
+	m.nb.runs.count++
+	o := &notebook.Output{Count: m.nb.runs.count, Took: time.Since(r.start), Source: r.source, Reads: r.reads, Selection: r.selection}
 	if msg.err != nil {
 		o.Err = runError(msg.err)
 		var nuErr *nushell.Error
 		if errors.As(msg.err, &nuErr) {
 			o.Detail = nuErr.Help()
 		}
-		m.nb.queue = nil
+		m.nb.runs.queue = nil
 	} else {
 		o.NUON = msg.nuon
 		if o.NUON == nil {
@@ -384,13 +395,13 @@ func (m *Model) finishCell(msg nbDoneMsg) tea.Cmd {
 		cells := r.s.NotebookCells()
 		if i := slices.IndexFunc(cells, func(x notebook.Cell) bool { return x.ID == c.ID }); i >= 0 {
 			for _, j := range notebook.Dependents(cells, i) {
-				if q := (nbQueued{r.s, cells[j].ID}); !slices.Contains(m.nb.queue, q) {
-					m.nb.queue = append(m.nb.queue, q)
+				if q := (nbQueued{r.s, cells[j].ID}); !slices.Contains(m.nb.runs.queue, q) {
+					m.nb.runs.queue = append(m.nb.runs.queue, q)
 				}
 			}
 		}
 	}
-	if len(m.nb.queue) == 0 && time.Since(r.start) > 5*time.Second {
+	if len(m.nb.runs.queue) == 0 && time.Since(r.start) > 5*time.Second {
 		return tea.Batch(m.nextCell(), m.term.notify("Notebook cells finished in "+m.displayName()))
 	}
 	return m.nextCell()
@@ -411,10 +422,10 @@ func runError(err error) string {
 // stopCells stops the cell running, killing its process, forgets
 // those waiting, and stops every stream.
 func (m *Model) stopCells() {
-	if r := m.nb.running; r != nil {
+	if r := m.nb.runs.running; r != nil {
 		r.cancel()
 	}
-	m.nb.queue = nil
+	m.nb.runs.queue = nil
 	m.stopStreams()
 }
 
@@ -423,8 +434,8 @@ func (m *Model) stopCells() {
 func (m *Model) clearOutputs(restart bool) {
 	if restart {
 		m.stopCells()
-		m.nb.running = nil
-		m.nb.count = 0
+		m.nb.runs.running = nil
+		m.nb.runs.count = 0
 	}
 	for _, c := range m.sheet.NotebookCells() {
 		if m.book().Output(c.ID) != nil {

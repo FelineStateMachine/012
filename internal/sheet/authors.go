@@ -76,6 +76,17 @@ func (w *Workbook) OpsSince(seq uint64) ([]Op, uint64) {
 	return slices.Clone(h.log[i:]), h.seq
 }
 
+// LastOp is the latest operation's sequence number, 0 before any.
+func (w *Workbook) LastOp() uint64 { return w.hist.seq }
+
+// EndStep closes the step left open (Begin) by a participant who is
+// gone, as if they had ended it: what it did stays, one step.
+func (w *Workbook) EndStep() {
+	for w.hist.depth > 0 {
+		w.finish()
+	}
+}
+
 // InStep reports whether a step is open (Begin, a macro running), and
 // whose it is.
 func (w *Workbook) InStep() (bool, int) {
