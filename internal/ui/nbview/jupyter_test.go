@@ -23,7 +23,6 @@ func at(t *testing.T, v *View, want string) (x, y int) {
 	return 0, 0
 }
 
-
 func TestToolbarFitsAndClicks(t *testing.T) {
 	h := newHost("ls")
 	v := newView(h, 120, 20)
