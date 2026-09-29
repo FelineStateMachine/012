@@ -41,12 +41,9 @@ type Theme struct {
 	// ErrorMark is layered on an error's text, so errors show beyond
 	// color: a curly underline, in the error color where the terminal
 	// supports colored underlines.
-	ErrorMark lipgloss.Style
-	Link      lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
-	Spilled   lipgloss.Style // values an array formula spilled into the cells below and right of it
-	// Region is a notebook region's label line, its name and command,
-	// dimmed and underlined as wide as its table: the top of its frame.
-	Region       lipgloss.Style
+	ErrorMark    lipgloss.Style
+	Link         lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
+	Spilled      lipgloss.Style // values an array formula spilled into the cells below and right of it
 	Found        lipgloss.Style // cells matching an open search
 	Traced       lipgloss.Style // precedents or dependents being traced
 	Argument     lipgloss.Style // the argument at the caret in a function's signature
@@ -133,6 +130,17 @@ type Theme struct {
 	// terminal theme, whose colors only the terminal knows.
 	Name    string
 	Palette *Palette
+
+	// Notebooks: see package nbview. Code is a code cell's syntax, by
+	// its kind (SyntaxCommand and the rest). CellHead is a cell's head
+	// line, its run count, name and state; the selected cell's is drawn
+	// in Selection, or in Pointer while it's edited. OutputHead is an
+	// output table's header row, bold and underlined so it reads without
+	// color, and Stale the mark of an output that may be out of date.
+	Code       [NumSyntax]lipgloss.Style
+	CellHead   lipgloss.Style
+	OutputHead lipgloss.Style
+	Stale      lipgloss.Style
 
 	// Charts: see charts.go in package ui.
 	ChartFrame    lipgloss.Style // a chart's border
@@ -260,7 +268,6 @@ func roles(dark bool) Theme {
 		ErrorMark:    lipgloss.NewStyle().UnderlineStyle(lipgloss.UnderlineCurly).UnderlineColor(lipgloss.Red),
 		Link:         lipgloss.NewStyle().Foreground(link).Underline(true),
 		Spilled:      lipgloss.NewStyle().Foreground(bar).Italic(true),
-		Region:       lipgloss.NewStyle().Foreground(muted).Underline(true).UnderlineSpaces(true),
 		Found:        lipgloss.NewStyle().Background(lipgloss.Yellow).Foreground(lipgloss.Black),
 		Traced:       lipgloss.NewStyle().Background(lipgloss.Green).Foreground(lipgloss.Black),
 		Argument:     lipgloss.NewStyle().Bold(true).Underline(true),
@@ -304,6 +311,7 @@ func roles(dark bool) Theme {
 		levels:       aa,
 	}
 	ruleRoles(&t, dark)
+	codeRoles(&t, dark)
 	for i, c := range series {
 		t.Series[i] = lipgloss.NewStyle().Foreground(c)
 		t.SeriesBg[i] = lipgloss.NewStyle().Background(c)

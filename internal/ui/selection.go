@@ -307,7 +307,7 @@ func (m *Model) gotoText(text string) bool {
 
 // regionTable finds the region formulas name as text (nu.r1), ignoring
 // case, and returns its table, header row included, and its sheet. A
-// region not run yet has no table: its label line stands for it.
+// region with no rows yet has no table: its first cell stands for it.
 func (m *Model) regionTable(text string) (sheet.Rect, *sheet.Sheet, bool) {
 	const prefix = "nu."
 	if len(text) <= len(prefix) || !strings.EqualFold(text[:len(prefix)], prefix) {

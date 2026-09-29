@@ -57,7 +57,7 @@ type Workbook struct {
 	macros      []Macro // see macros.go
 	macroOrigin string
 
-	shellHistory []string // lines typed at a notebook's prompt: shellhistory.go
+	nb notebookState // notebooks' outputs: notebook.go
 
 	// structural is set when sheets were added, deleted or renamed during
 	// the open change, which then recalculates everything: references by
@@ -224,7 +224,7 @@ func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
 	}
 	cp := w.newSheet(w.freeName("Copy of " + s.name))
 	for a, c := range s.cells.all() {
-		if _, _, ok := s.RegionAt(a); ok && c.spilled {
+		if _, ok := s.RegionAt(a); ok && c.spilled {
 			c = frozen(c) // a region's table, as values: the copy has no regions
 		}
 		c := c.clone()

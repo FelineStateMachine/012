@@ -16,8 +16,8 @@ import (
 // depends on nothing but the region: the same op applied to the same
 // workbook elsewhere makes the same cells, which is what a session
 // following another's would be sent. Whatever reads a linked file sends
-// them; a command region's table is written through the same path
-// (writeTable), from its RegionData.
+// them, and the UI sends a notebook cell's output to the region it was
+// sent to whenever the cell runs.
 
 // LiveCell is a value as a source gave it, with its format (a date's,
 // a file size's), Automatic for none.
@@ -65,9 +65,7 @@ var OnLive func(trace any, i LiveInfo)
 
 // ApplyLive applies op to its region: its rows are written, a window
 // drops the oldest, and what reads the cells that changed recalculates.
-// A command region's table so written lasts until the region shows its
-// table again (ShowRegion). It returns ErrNoRegion for a region the
-// workbook doesn't hold.
+// It returns ErrNoRegion for a region the workbook doesn't hold.
 func (w *Workbook) ApplyLive(op LiveOp) error {
 	s, r, ok := w.Region(op.Region)
 	if !ok {
@@ -172,7 +170,7 @@ func (s *Sheet) liveRows(r Region, me *regionMeta, op LiveOp) (rows []LiveRow, h
 // readRow reads row i of the region's table (0 for the header) back
 // from its cells.
 func (s *Sheet) readRow(r Region, me *regionMeta, i int) LiveRow {
-	o := tableOrigin(r)
+	o := r.At
 	row := make(LiveRow, me.cols)
 	for c := range me.cols {
 		v, lk, kind := s.cells.derivedOf(Addr{Col: o.Col + c, Row: o.Row + i})

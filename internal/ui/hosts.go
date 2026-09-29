@@ -11,7 +11,6 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/filterpick"
 	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
-	"github.com/FelineStateMachine/012/internal/ui/nuprompt"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
 	"github.com/FelineStateMachine/012/internal/ui/rules"
 	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
@@ -32,7 +31,6 @@ func (m *Model) host() host { return host{m} }
 var (
 	_ picker.Host      = host{}
 	_ cmdline.Host     = host{}
-	_ nuprompt.Host    = host{}
 	_ findbar.Host     = host{}
 	_ themepicker.Host = host{}
 	_ rules.Host       = host{}
@@ -130,20 +128,6 @@ func (h host) Commands() []cmdline.Item {
 func (h host) Run(text string) (tea.Cmd, bool) { return h.m.runCmdLine(text) }
 func (h host) Fail(msg string)                 { h.m.fail(msg) }
 func (h host) History() *cmdline.History       { return &h.m.session.history }
-
-// The shell prompt's host: nuprompt.Host.
-
-func (h host) Submit(line string) tea.Cmd { return h.m.submitShell(line) }
-func (h host) Words() []nuprompt.Word     { return h.m.shellWords() }
-func (h host) ShellHistory() []string     { return h.m.book().ShellHistory() }
-func (h host) Stop()                      { h.m.stopShell() }
-func (h host) Said() string               { return h.m.shell.said }
-func (h host) Running() string {
-	if j := h.m.shell.running; j != nil {
-		return j.name
-	}
-	return ""
-}
 
 // The theme picker.
 

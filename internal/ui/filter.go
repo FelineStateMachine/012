@@ -70,12 +70,11 @@ func (g *grid) dataRange() sheet.Rect {
 	return r
 }
 
-// tableAround is the table around a: in a region (on its label line
-// too), the region's table from its header row down, which the block of
-// data around a would run into the label line above it; elsewhere the
-// block of data around a (Sheet.Region).
+// tableAround is the table around a: in a region, the region's table
+// from its header row down, whatever is next to it; elsewhere the block
+// of data around a (Sheet.Region).
 func (g *grid) tableAround(a sheet.Addr) sheet.Rect {
-	if reg, _, ok := g.sheet.RegionAt(a); ok {
+	if reg, ok := g.sheet.RegionAt(a); ok {
 		if t, ok := g.sheet.RegionTable(reg.Name); ok {
 			return t
 		}
