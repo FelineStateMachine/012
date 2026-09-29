@@ -130,11 +130,13 @@ func (w *Workbook) readerLookup() readerLookup {
 	return r
 }
 
-// namedUsers are the formulas that use a named range, with its cells.
+// namedUsers are the formulas that use a named range, with its cells,
+// and whether it is a region's table.
 type namedUsers struct {
-	s     *Sheet
-	r     Rect
-	users map[loc]struct{}
+	s      *Sheet
+	r      Rect
+	users  map[loc]struct{}
+	region bool
 }
 
 // namedInUse returns the defined named ranges, tables and regions that
@@ -143,7 +145,7 @@ func (w *Workbook) namedInUse() []namedUsers {
 	var named []namedUsers
 	for k, users := range w.nameUsers {
 		if nm, ok := w.names[k]; ok && !nm.Gone() {
-			named = append(named, namedUsers{nm.Sheet, nm.Range, users})
+			named = append(named, namedUsers{s: nm.Sheet, r: nm.Range, users: users})
 		}
 	}
 	named = append(named, w.tablesInUse()...)

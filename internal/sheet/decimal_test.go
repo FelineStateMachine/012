@@ -36,12 +36,13 @@ func TestDecimalArithmetic(t *testing.T) {
 		binary, decim string
 	}{
 		{"sum of two", "=0.1+0.2", nil, "0.30000000000000004", "0.3"},
-		{"comparison", "=0.1+0.2=0.3", nil, "FALSE", "TRUE"},
+		{"comparison", "=0.1+0.2=0.3", nil, "TRUE", "TRUE"}, // at the 15 digits shown
+		{"comparison with zero", "=0.1+0.2-0.3=0", nil, "FALSE", "TRUE"},
 		{"residue", "=1.1-1-0.1", nil, "8.326672684688674E-17", "0"},
 		{"product", "=0.07*3", nil, "0.21000000000000002", "0.21"},
 		{"cents to whole", "=INT(A1*100)", []string{"$4.35"}, "434", "435"},
 		{"currency sum", "=SUM(A1:A10)", tenCents, "0.9999999999999999", "1"},
-		{"currency sum equals", "=SUM(A1:A10)=1", tenCents, "FALSE", "TRUE"},
+		{"currency sum equals", "=SUM(A1:A10)-1=0", tenCents, "FALSE", "TRUE"},
 		{"average", "=AVERAGE(0.1, 0.2)", nil, "0.15000000000000002", "0.15"},
 		{"division", "=0.3/0.1", nil, "2.9999999999999996", "3"},
 		{"postfix percent", "=1.1%", nil, "0.011000000000000001", "0.011"},
@@ -77,7 +78,7 @@ func TestDecimalArithmetic(t *testing.T) {
 		{"product of text", `=PRODUCT("a")`, nil, "#VALUE!", "#VALUE!"},
 		{"huge product falls back", "=PRODUCT(1E308, 10)", nil, "#NUM!", "#NUM!"},
 		{"sumif", `=SUMIF(A1:A10, ">0")`, tenCents, "0.9999999999999999", "1"},
-		{"sumif equals", `=SUMIF(A1:A10, ">0")=1`, tenCents, "FALSE", "TRUE"},
+		{"sumif equals", `=SUMIF(A1:A10, ">0")-1=0`, tenCents, "FALSE", "TRUE"},
 		{"sumif with sum range", `=SUMIF(A1:A3, "<>x", A1:A3)`, []string{"0.1", "x", "0.2"}, "0.30000000000000004", "0.3"},
 		{"sumif error", `=SUMIF(A1:A2, ">0")`, []string{"1", "=1/0"}, "1", "1"},
 		{"sumifs", `=SUMIFS(A1:A10, A1:A10, "0.1")`, tenCents, "0.9999999999999999", "1"},
@@ -110,7 +111,7 @@ func TestDecimalArithmetic(t *testing.T) {
 // Turning the setting on and off recalculates, is one undo step, and
 // undo and redo recalculate too.
 func TestDecimalUndo(t *testing.T) {
-	s := decimalSheet(t, false, "=0.1+0.2=0.3")
+	s := decimalSheet(t, false, "=0.1+0.2-0.3=0")
 	s.ClearHistory()
 	check := func(when string, want bool) {
 		t.Helper()

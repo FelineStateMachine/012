@@ -29,6 +29,8 @@ right and below, as in Sheets:
   The arguments of functions that take ranges are computed the same way,
   so `=SUM(LEN(A2:A9))` counts every character and
   `=SUMPRODUCT((B2:B99="north")*C2:C99)` sums a column by a condition.
+  This follows Excel 365 on purpose: Sheets computes `=SUM(C2:C4*2)` only
+  inside `ARRAYFORMULA`, and is `#VALUE!` without it.
 - Elsewhere an array reads as its first value, as Sheets does:
   `=LEN(SEQUENCE(3)*100)` is 3. `IF`, `IFERROR`, `IFNA`, `IFS`, `SWITCH`,
   `CHOOSE` and `INDEX` pass an array through, so
@@ -66,7 +68,9 @@ the same cells, blank ones of theirs included, the one whose formula
 comes first, row by row, spills and the other shows `#REF!`, whichever
 was typed first, so a sheet looks the same when opened again. An array that would
 spill into cells its formula reads, `=SORT(B8:D9)` in A9, is a circular
-dependency and shows `#REF!` too.
+dependency and shows `#REF!` too, as are arrays that would spill into
+each other's inputs, even when one of them, blocked and read as
+`#REF!`, would come out smaller and free the other.
 
 ## Names in a formula: LET and LAMBDA
 

@@ -111,7 +111,10 @@ var formulas = []string{
 // Excel disagree, or where excelize departs from Excel. Each says why.
 var skipped = map[string]string{
 	// Sheets and Excel disagree; 012 follows Sheets.
-	`=ROUND(-2.5)`: "Sheets makes ROUND's places optional; Excel requires them",
+	`=ROUND(-2.5)`:              "Sheets makes ROUND's places optional; Excel requires them",
+	`=MID("abc", 0, 2)`:         "Sheets gives #NUM! for a start before the text; Excel gives #VALUE!",
+	`=INDEX(D1:E3, 4, 1)`:       "Sheets gives #NUM! for a row past the range; Excel gives #REF!",
+	`=CHOOSE(4, "a", "b", "c")`: "Sheets gives #NUM! for an index past the choices; Excel gives #VALUE!",
 
 	// excelize departs from Excel (and Sheets) here.
 	`=SUM(C1:C2, E6)`:                          "excelize counts TRUE in a referenced cell as 1; Excel and Sheets ignore it",

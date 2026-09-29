@@ -16,7 +16,7 @@ func TestTextFunctions(t *testing.T) {
 		{`=RIGHT("hello", 3)`, txt("llo")},
 		{`=MID("spreadsheet", 7, 5)`, txt("sheet")},
 		{`=MID("abc", 5, 2)`, txt("")},
-		{`=MID("abc", 0, 2)`, ErrValue},
+		{`=MID("abc", 0, 2)`, ErrNum}, // as Sheets; Excel says #VALUE!
 		{`=LEN("héllo")`, num(5)},
 		{"=LEN(A1)", num(2)},
 		{`=UPPER("abc")`, txt("ABC")},

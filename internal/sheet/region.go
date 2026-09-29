@@ -65,6 +65,7 @@ type regionMeta struct {
 	written Rect
 	has     bool   // written holds something
 	why     string // why the table isn't shown, or ""
+	placed  bool   // contents were placed in a blank cell of its table
 	need    Rect   // the cells the table needs while it isn't shown
 	// rows and cols are the table's size as written, header included.
 	rows, cols int
@@ -281,8 +282,8 @@ func (s *Sheet) emptyUnder(img *image) []loc {
 		if c == nil || c.Blank() || c.Spilled() {
 			return
 		}
-		if _, me, ok := s.ownerOf(a); ok {
-			changed = append(changed, s.emptyRegion(me)...)
+		if r, me, ok := s.ownerOf(a); ok {
+			changed = append(changed, s.emptyRegion(r, me)...)
 		}
 	})
 	return changed
@@ -297,7 +298,7 @@ func (s *Sheet) emptyMoved(st regionState) []loc {
 	for _, r := range s.regions.list {
 		i := slices.IndexFunc(st.list, func(x Region) bool { return nameKey(x.Name) == nameKey(r.Name) })
 		if me := s.regionMeta[nameKey(r.Name)]; me != nil && (i < 0 || st.list[i] != r) {
-			changed = append(changed, s.emptyRegion(me)...)
+			changed = append(changed, s.emptyRegion(r, me)...)
 		}
 	}
 	return changed

@@ -259,7 +259,9 @@ func TestReadingABlockedArray(t *testing.T) {
 
 // An array whose formula reads its own cells through another formula
 // is a circular dependency too: #REF! for it and what reads it, typed,
-// recalculated or opened, without going back and forth.
+// recalculated or opened, without going back and forth. Here the
+// formula reads the array's anchor too (VLOOKUP's range holds C19), a
+// cycle of formulas, found whether or not VLOOKUP reads that far.
 func TestSpillIntoItsInputThroughAFormula(t *testing.T) {
 	s := New()
 	s.Set(at("F11"), "=VLOOKUP(F14,C17:D19,1,FALSE)")
@@ -272,17 +274,17 @@ func TestSpillIntoItsInputThroughAFormula(t *testing.T) {
 				t.Errorf("%s: %s = %v", name, a, v)
 			}
 		}
-		if got := sh.ExplainError(at("C19")); !strings.Contains(got, "Circular dependency") {
+		if got := sh.ExplainError(at("C19")); !strings.Contains(got, "Circular") {
 			t.Errorf("%s: %q", name, got)
+		}
+		if sh.Filled(at("C20")) {
+			t.Errorf("%s: the array spilled", name)
 		}
 	}
 	check("typed", s)
 	check("reopened", roundTrip(t, s))
 	s.RecalcAll()
 	check("recalculated", s)
-	if s.Book().Circular {
-		t.Error("arrays kept moving")
-	}
 }
 
 // An array that would spill into the cells its formula reads is a
@@ -300,5 +302,20 @@ func TestSpillIntoItsInput(t *testing.T) {
 		if got := sh.ExplainError(at("A9")); !strings.Contains(got, "Circular dependency") {
 			t.Errorf("%s: %q", name, got)
 		}
+	}
+}
+
+// An array isn't left blocked by a cycle through the cells of an array
+// that stopped spilling in the same recalculation: deleting a row moves
+// the array at A3 to A2, and puts at A3 a formula reading B2 whose
+// array spilled over C3, which G1 reads, until it's computed again.
+func TestNoCycleThroughAnArrayGone(t *testing.T) {
+	s := sheetOf(t, map[string]string{"A3": "=D11:F11", "A4": "=B3", "G2": "=C4", "F11": "=G2"})
+	if sp := s.spills[at("A3")]; sp == nil || sp.why != "" {
+		t.Fatalf("A3's array: %+v", sp)
+	}
+	s.DeleteRows(0, 1)
+	if sp := s.spills[at("A2")]; sp == nil || sp.why != "" {
+		t.Fatalf("A2's array after deleting a row: %+v", sp)
 	}
 }

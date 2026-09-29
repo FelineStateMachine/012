@@ -1,8 +1,6 @@
 package functions
 
 import (
-	"math"
-
 	"github.com/FelineStateMachine/012/internal/formula"
 	"github.com/FelineStateMachine/012/internal/value"
 )
@@ -278,7 +276,7 @@ func binaryOp(op string, l, r Value, dec bool) Value {
 	case "&":
 		return Value{Kind: value.Text, Str: text(l) + text(r)}
 	case "=", "<>", "<", ">", "<=", ">=":
-		return boolean(cmpResult(op, compare(l, r)))
+		return boolean(cmpResult(op, value.CompareShown(l, r)))
 	}
 	a, err := toNum(l)
 	if err != nil {
@@ -306,7 +304,7 @@ func binaryOp(op string, l, r Value, dec bool) Value {
 		}
 		return num(a / b)
 	case "^":
-		return num(math.Pow(a, b))
+		return powerOf(a, b)
 	case "#AND#":
 		return boolean(a != 0 && b != 0)
 	case "#OR#":

@@ -44,8 +44,6 @@ them again after each edit, undo and reopening, as the UI does. A
 failure names the fewest of the seed's edits that still fail. It takes
 about a second; `-randedit.seeds=20000` runs more, and
 `FuzzRandomEdits` (in `make fuzz`) lets the fuzzer choose the edits.
-Seeds that fail for a reason on the roadmap are listed in `randKnown`,
-with it.
 
 The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and
@@ -134,7 +132,12 @@ they agree (for two errors, compare C and F by eye). The exporter saves
 formulas Excel has nothing like (`SPLIT`, `REGEXMATCH`, `SORTN`,
 `FLATTEN`, `ARRAYFORMULA` inside a formula) as values, so those rows
 leave C empty and say so in the note: type the formula from B into C
-before downloading, or `-update-from` leaves them unconfirmed.
+before downloading, or `-update-from` leaves them unconfirmed. It also
+leaves a row unconfirmed where Sheets says `#NAME?` and 012 doesn't: the
+import didn't recognize a function, as Sheets doesn't read `FILTER` and
+`SORT` written with the `_xlfn._xlws.` prefix Excel gives them. A number
+Sheets downloads with a trailing point (`110.` for `=100*1.1`) is read
+without it.
 
 ## The XLSX differential test
 

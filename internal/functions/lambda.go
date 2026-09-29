@@ -13,7 +13,7 @@ import (
 
 func init() {
 	define(
-		&FuncDef{Name: "LET", Args: "name1, value_expression1, [name2, value_expression2, ...], formula_expression", Desc: "Name values for use in a formula", Min: 3, Max: -1, step: 2,
+		&FuncDef{Name: "LET", Args: "name1, value_expression1, [name2, value_expression2, ...], formula_expression", Desc: "Name values for use in a formula; an error counts only where its name is used", Min: 3, Max: -1, step: 2,
 			eval: let, arrays: takesArrays, binds: formula.BindLet, format: func(args []Node, infer func(Node) Format) Format { return infer(args[len(args)-1]) }},
 		&FuncDef{Name: "LAMBDA", Args: "[name, ...], formula_expression", Desc: "A function of names, called with values: LAMBDA(x, x*2)(3)", Min: 1, Max: -1,
 			eval: makeLambda, arrays: takesArrays, binds: formula.BindLambda},
@@ -37,11 +37,9 @@ func let(args []Node, get lookup) Value {
 	defer func() { get.scope = get.scope[:outer] }()
 	last := len(args) - 1
 	for i := 0; i < last; i += 2 {
-		b := get.bind(args[i].(formula.Local).Name, args[i+1])
-		if b.ref == nil && b.val.Kind == value.Error {
-			return b.val
-		}
-		get.scope = append(get.scope, b)
+		// An error is the result only where a name bound to it is used:
+		// LET(x, 1/0, 5) is 5, as in Sheets.
+		get.scope = append(get.scope, get.bind(args[i].(formula.Local).Name, args[i+1]))
 	}
 	return eval(args[last], get)
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -59,8 +60,8 @@ func excelKeeps(formula string) bool {
 
 // foldSheets records Sheets' results from name, a CSV download of the
 // corpus sheet after importing the XLSX workbook into Sheets. Rows left
-// out of the download, and formulas saved as values that weren't typed
-// in, stay as they are.
+// out of the download, formulas saved as values that weren't typed in,
+// and functions the import didn't recognize stay as they are.
 func foldSheets(t *testing.T, rows []*corpusLine, name string) {
 	t.Helper()
 	f, err := os.Open(name)
@@ -78,13 +79,22 @@ func foldSheets(t *testing.T, rows []*corpusLine, name string) {
 	sheets := map[string]string{}
 	for _, rec := range recs[1:] {
 		if len(rec) > colKind {
-			sheets[rec[colFormula]] = encodeResult(rec[colText], rec[colKind])
+			text := rec[colText]
+			if rec[colKind] == "number" {
+				// Sheets writes a number a hair off a whole one, such as
+				// 100*1.1, as "110." when it rounds to 15 digits.
+				text = strings.TrimSuffix(text, ".")
+			}
+			sheets[rec[colFormula]] = encodeResult(text, rec[colKind])
 		}
 	}
 	skipped := 0
 	for _, r := range rows {
 		got, ok := sheets[r.formula]
-		if !ok || (got == "(blank)" && !excelKeeps(r.formula)) {
+		// #NAME? where 012 knows every name means the import didn't
+		// recognize a function (Sheets reads Excel's _xlfn._xlws.FILTER
+		// so): the formula wasn't computed.
+		if !ok || (got == "(blank)" && !excelKeeps(r.formula)) || (got == "#NAME?" && r.ours != got) {
 			skipped++
 			continue
 		}

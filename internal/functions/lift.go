@@ -88,7 +88,8 @@ func liftCall(f *FuncDef, args []Node, get lookup) Value {
 	lift, want := get.lift, get.wantArr
 	get.lift, get.wantArr = 0, f.arrays == liftPass
 	defer func() { get.lift, get.wantArr = lift, want }()
-	v := get.first(f.call(stand, get))
+	whole := f.call(stand, get)
+	v := get.first(whole)
 	var s shape
 	var arrs []*Array
 	for i, r := range fr.read {
@@ -99,6 +100,9 @@ func liftCall(f *FuncDef, args []Node, get lookup) Value {
 		}
 	}
 	if len(arrs) == 0 {
+		if f.arrays == liftPass {
+			return whole // mapped over nothing: an array it returns stays whole
+		}
 		return v
 	}
 	s.data(arrs...)

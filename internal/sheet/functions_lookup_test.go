@@ -25,8 +25,8 @@ func TestLookupFunctions(t *testing.T) {
 		{`=MATCH(2, C1:D2, 0)`, ErrNA}, // not a single row or column
 		{"=INDEX(D1:E3, 2, 2)", num(2.5)},
 		{"=INDEX(D1:D3, 3)", txt("Cherry")},
-		{"=INDEX(C1:E1, 2)", txt("Apple")}, // a single row counts across
-		{"=INDEX(D1:E3, 4, 1)", ErrRef},
+		{"=INDEX(C1:E1, 2)", txt("Apple")},  // a single row counts across
+		{"=INDEX(D1:E3, 4, 1)", ErrNum},     // as Sheets; Excel says #REF!
 		{"=INDEX(D1:E3, 2)", txt("Banana")}, // a whole row, spilled
 		{`=XLOOKUP("Cherry", D1:D3, E1:E3)`, num(3.5)},
 		{`=XLOOKUP("kiwi", D1:D3, E1:E3)`, ErrNA},
@@ -39,7 +39,8 @@ func TestLookupFunctions(t *testing.T) {
 		{`=XLOOKUP(1, C1:C3, E1:E2)`, ErrValue},
 		{`=CHOOSE(2, "a", "b", "c")`, txt("b")},
 		{`=CHOOSE(2.9, "a", "b", "c")`, txt("b")},
-		{`=CHOOSE(4, "a", "b", "c")`, ErrValue},
+		{`=CHOOSE(4, "a", "b", "c")`, ErrNum},
+		{`=CHOOSE(0, "a")`, ErrNum},
 		{`=CHOOSE(1, "a", 1/0)`, txt("a")}, // only the chosen value is evaluated
 		{"=ROWS(A1:C7)", num(7)},
 		{"=COLUMNS(A1:C7)", num(3)},
