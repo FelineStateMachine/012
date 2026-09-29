@@ -63,7 +63,7 @@ const cells: Cell[] = [
     entry: "'ls | sheet | where size > 1kb",
     hint: 'Nushell: pipelines, notebooks, types, a cookbook',
     title: 'Nushell, both ways',
-    body: "A stage in a nushell pipeline with file sizes, durations and dates kept, or a notebook where each pipeline's table is a live, named region that formulas and charts read.",
+    body: "A stage in a nushell pipeline with file sizes, durations and dates kept, or a notebook of nushell cells whose outputs, sent to a sheet, are live tables that formulas and charts read.",
     to: '/docs/nushell/',
   },
   {

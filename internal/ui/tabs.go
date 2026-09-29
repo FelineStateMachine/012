@@ -128,6 +128,10 @@ func (m *Model) showSheet(s *sheet.Sheet) {
 		return
 	}
 	m.leave()
+	m.leftGrid()
+	if v := m.nbView(); v != nil {
+		v.StopEdit()
+	}
 	m.sheet = s
 	p := m.tabs.Places[s]
 	m.cur, m.top, m.left = p.Cur, p.Top, p.Left

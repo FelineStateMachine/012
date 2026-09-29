@@ -43,6 +43,7 @@ func readWhole(data []byte) (w *Workbook, ambiguous bool, err error) {
 	if err := w.readNames(f.Names); err != nil {
 		return nil, false, err
 	}
+	var old []oldRegion
 	for i, body := range bodies {
 		s := w.sheets[i]
 		amb, err := placeWhole(s, body.Cells, f.Version)
@@ -50,7 +51,7 @@ func readWhole(data []byte) (w *Workbook, ambiguous bool, err error) {
 			return nil, false, err
 		}
 		ambiguous = ambiguous || amb
-		if err := s.read(body); err != nil {
+		if err := s.read(body, &old); err != nil {
 			return nil, false, err
 		}
 	}
@@ -64,7 +65,8 @@ func readWhole(data []byte) (w *Workbook, ambiguous bool, err error) {
 		return nil, false, err
 	}
 	w.macroOrigin = f.MacroOrigin
-	w.readShellHistory(f.ShellHistory)
+	w.convertOld(old)
+	w.nb.changed = 0
 	w.RecalcAll()
 	return w, ambiguous, nil
 }
@@ -243,6 +245,14 @@ func streamSeeds(t testing.TB) [][]byte {
 		[]byte(`{"version": 2, "regions": [{"name": "r1", "command": "ls", "at": "A1"}, {"name": "R1", "command": "x", "at": "A5"}]}`),
 		[]byte(`{"version": 2, "regions": [{"name": "in", "command": "ls", "at": "A1"}, {"name": "r2", "at": "ZZZZ1", "rows": -1}]}`),
 		[]byte(`{"version": 2, "regions": [{"name": "a", "command": "$b", "at": "A1", "reads": ["b"]}, {"name": "b", "command": "$a", "at": "A3", "reads": ["a"], "sort": [{"column": 0}]}]}`),
+		[]byte(`{"version": 4, "sheets": [{"name": "S", "cells": {}, "regions": [{"name": "files", "at": "B2", "output": true}]},
+			{"name": "Notebook", "tab": "notebook", "reactive": true, "cells": {}, "notebookCells": [
+			{"kind": "note", "source": "# Files"}, {"source": "files = ls", "output": "[[name, size]; [a, 2kb]]"},
+			{"source": "$files | nope", "error": "Command not found", "detail": "help: ls", "note": "x"}, {"source": "ls **/*", "unsaved": true}]}]}`),
+		[]byte(`{"version": 4, "sheets": [{"name": "N", "tab": "notebook", "cells": {}, "notebookCells": [{"kind": "table", "source": "x"}]}]}`),
+		[]byte(`{"version": 4, "sheets": [{"name": "N", "cells": {}, "notebookCells": [{"source": "x"}]}]}`),
+		[]byte(`{"version": 2, "cells": {}, "regions": [{"name": "o", "at": "A1", "output": true, "command": "ls"}, {"name": "p", "at": "A1", "output": true, "path": "p"}]}`),
+		[]byte(`{"version": 4, "sheets": [{"name": "Notebook", "tab": "notebook", "cells": {}}, {"name": "Shell 1", "notebook": true, "cells": {}, "regions": [{"name": "r1", "command": "ls", "at": "A1"}]}]}`),
 		[]byte(`null`), []byte(`[]`), []byte(`{"version": 2, "cells": {"A1": "1",}}`), []byte(`{"version": 2, "cells": {"A1"`),
 	}
 }

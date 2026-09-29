@@ -32,30 +32,11 @@ type lineCtx struct {
 	selecting bool
 	shaped    bool         // the sheet wraps, draws borders or merges
 	merges    []sheet.Rect // merges crossing the row
-	labels    labelSpans   // regions' label lines on the row
-	tables    labelSpans   // command regions' tables on the row, drawn plain
-}
-
-// labelSpans are the label lines of regions on a row.
-type labelSpans []sheet.Rect
-
-// Contains reports whether a is on one of them.
-func (l labelSpans) Contains(a sheet.Addr) bool {
-	for _, r := range l {
-		if r.Contains(a) {
-			return true
-		}
-	}
-	return false
 }
 
 func (m *Model) lineContext(row int, ln rowtext.Line) lineCtx {
 	lc := lineCtx{row: row, ln: ln, focus: m.active(), shaped: m.sheet.Shaped()}
 	lc.sel, lc.selecting = m.highlight()
-	if m.sheet.HasRegions() {
-		lc.labels = m.sheet.RegionLabels(row)
-		lc.tables = m.sheet.CommandTables(row)
-	}
 	if lc.shaped {
 		lc.merges = m.sheet.MergesIn(sheet.Rect{From: sheet.Addr{Row: row}, To: sheet.Addr{Col: sheet.MaxCols - 1, Row: row}})
 	}

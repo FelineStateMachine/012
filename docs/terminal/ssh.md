@@ -88,7 +88,7 @@ the authorized keys. Everything else is closed.
   others.
 - **What a session can do.** Run 012, nothing else; no command is
   executed, unless the server's config turns on notebooks' nushell
-  commands (see [Notebooks](#notebooks)). A shell request starts 012 on a new sheet. An exec request
+  cells (see [Notebooks](#notebooks)). A shell request starts 012 on a new sheet. An exec request
   is accepted only with a terminal (`ssh -t`) and only when it is one
   word, which is taken as a file name and never run: it resolves inside
   the served directory like a name typed in File > Open, and anything
@@ -152,13 +152,15 @@ network or clock access in any case.
 ## Notebooks
 
 A session opens [notebooks](../nushell/notebooks.md) and shows their
-regions, but runs none of their commands: a command is a program on the
-server, with the server's user and every file it can reach, well
-beyond the served directory. `serve-shell = on` in the server's config
-lets sessions run them, as the user 012 serve runs as, following the
-`shell` option as the local app does; a file's commands still ask once
-per session before they run. Only turn it on when everyone holding an
-authorized key may run programs on the server.
+cells and saved outputs, but runs none of their cells: a cell is a
+program on the server, with the server's user and every file it can
+reach, well beyond the served directory. `serve-shell = on` in the
+server's config lets sessions run them, as the user 012 serve runs as,
+following the `shell` option as the local app does; a file's cells still
+ask once per session before they run. Only turn it on when everyone holding an
+authorized key may run programs on the server. The same setting decides
+whether nu is started to [highlight and check](../nushell/notebooks.md#writing-a-cell)
+the cell being written; without it, 012's own highlighting answers.
 
 ## Unsaved work
 

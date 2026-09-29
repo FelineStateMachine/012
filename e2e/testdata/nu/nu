@@ -1,21 +1,50 @@
 #!/bin/sh
-# A stand-in for nu in the golden screens: it answers the commands the
-# screens type with fixed tables, so the screens don't depend on nu being
-# installed or on what ls finds. The script 012 runs is the last argument.
+# A stand-in for nu in the golden screens: it answers the pipelines the
+# screens run with fixed outputs, so the screens don't depend on nu being
+# installed or on what ls finds. The script 012 runs is the last
+# argument; the pipeline is between its "do {" and "} | to nuon".
 for arg; do script=$arg; done
-case $script in
+# The code editor's questions (--ide-ast and the rest, about the file
+# named last) are answered as nu 0.116 answered them about the same
+# text, recorded in ide/: name.nu, and its name.ast.json,
+# name.check.jsonl or name.complete.json. Text not recorded fails, and
+# 012 falls back to its own highlighting.
+case " $* " in
+*' --version '*)
+	echo 0.116.0
+	exit 0 ;;
+*' --ide-ast '*) answer=ast.json ;;
+*' --ide-check '*) answer=check.jsonl ;;
+*' --ide-complete '*) answer=complete.json ;;
+esac
+if [ -n "$answer" ]; then
+	for nu in "$(dirname "$0")"/ide/*.nu; do
+		if cmp -s "$nu" "$script" && [ -f "${nu%.nu}.$answer" ]; then
+			cat "${nu%.nu}.$answer"
+			exit 0
+		fi
+	done
+	echo "Error: not recorded" >&2
+	exit 1
+fi
+cmd=$(printf '%s\n' "$script" | sed -n '/^do {$/,/^} | to nuon$/p' | sed '1d;$d')
+case $cmd in
 *'help commands'*)
-	echo '["ls", "where", "sort-by", "first", "get", "str join", "window"]' ;;
-*'$r1 | where size > 1kb'*)
-	echo '[[name, type, size]; ["012", file, 4.2kb], [README.md, file, 9.8kb], [demos, dir, 3.1kb]]' ;;
-*'do {
-ls
-}'*)
+	echo '["ls", "where", "sort-by", "first", "get", "str join", "window", "sleep"]' ;;
+'ls')
 	echo '[[name, type, size]; ["012", file, 4.2kb], [CLAUDE.md, file, 1kb], [README.md, file, 9.8kb], [demos, dir, 3.1kb], [go.mod, file, 812b]]' ;;
+'$files | where size > 1kb'*)
+	echo '[[name, type, size]; ["012", file, 4.2kb], [README.md, file, 9.8kb], [demos, dir, 3.1kb]]' ;;
+'$files | get name | str join ", "')
+	echo '"012, CLAUDE.md, README.md, demos, go.mod"' ;;
+'{'*)
+	echo '{name: "012", files: 5, largest: README.md, total: 18.9kb}' ;;
+'sleep'*)
+	sleep 600 ;;
 *)
-	cmd=$(printf '%s\n' "$script" | sed -n '/^do {$/{n;p;q;}')
 	echo "Error: nu::parser::extra_positional" >&2
 	echo "" >&2
 	echo "  × Command \`${cmd%% *}\` not found" >&2
+	echo "  help: commands are listed by \`help commands\`" >&2
 	exit 1 ;;
 esac

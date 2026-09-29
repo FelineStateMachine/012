@@ -86,6 +86,9 @@ const (
 
 // available reports whether the command can run in m's current state.
 func (c *command) available(m *Model) bool {
+	if m.sheet.IsNotebook() && !notebookSafe(c.id) {
+		return false
+	}
 	return c.enabled == nil || c.enabled(m)
 }
 
@@ -170,7 +173,7 @@ func shortcut(id string) string {
 	if keys := keysFor(id, false); len(keys) > 0 {
 		return keyLabel(keys[0])
 	}
-	return ""
+	return nbShortcut(id)
 }
 
 // shortcut is the key shown for a command with the keys in use: with vim
@@ -179,7 +182,7 @@ func (m *Model) shortcut(id string) string {
 	if keys := keysFor(id, m.prefs.vim); len(keys) > 0 {
 		return keyLabel(keys[0])
 	}
-	return ""
+	return nbShortcut(id)
 }
 
 // runCommand runs a registered command by ID. It is the one place a
@@ -195,6 +198,10 @@ func (m *Model) runCommand(id string) tea.Cmd {
 	// recalculation, a pivot refresh, a sort.
 	span := m.spans.Start("command", slog.String("id", id))
 	defer span.End()
+	if m.sheet.IsNotebook() && !notebookSafe(id) {
+		m.note = c.title + " works on a sheet's cells: this tab is a notebook"
+		return nil
+	}
 	if c.edits != nil && m.refuseEdit(c.edits(m), c.keepsSpills) {
 		return nil
 	}

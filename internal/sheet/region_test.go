@@ -1,230 +1,238 @@
 package sheet
 
 import (
-	"slices"
+	"bytes"
+	"strings"
 	"testing"
+
+	"github.com/FelineStateMachine/012/internal/notebook"
 )
 
-// table makes region data of text rows: the first is the header, and
-// cells that read as numbers are numbers.
-func table(rows ...[]string) *RegionData {
-	d := &RegionData{Rows: len(rows)}
-	for _, r := range rows {
-		d.Cols = max(d.Cols, len(r))
-	}
-	d.Values = make([]Value, d.Rows*d.Cols)
-	for i, r := range rows {
-		for j, text := range r {
-			v, _, ok := ParseValue(text)
-			switch {
-			case text == "":
-				continue
-			case ok && i > 0:
-				d.Values[i*d.Cols+j] = Value{Kind: Number, Num: v}
-			default:
-				d.Values[i*d.Cols+j] = Value{Kind: Text, Str: text}
-			}
-		}
-	}
-	return d
-}
-
-func notebook(t *testing.T) *Sheet {
+// sent adds a notebook cell named name to a new notebook tab and sends
+// its output to s at a, returning the notebook.
+func sent(t *testing.T, s *Sheet, name, a string) *Sheet {
 	t.Helper()
-	s := New()
-	s.MakeNotebook()
-	return s
-}
-
-func addShown(t *testing.T, s *Sheet, name, command string, d *RegionData) {
-	t.Helper()
-	if err := s.AddRegion(Region{Name: name, Command: command, Deps: s.Book().RegionDeps(command)}); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.ShowRegion(name, d); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestRegionsStack(t *testing.T) {
-	s := notebook(t)
-	addShown(t, s, "r1", "ls", table([]string{"name", "size"}, []string{"a", "1"}, []string{"b", "2"}))
-	wantShown(t, s, map[string]string{"A1": "r1  ls", "A2": "name", "B2": "size", "A3": "a", "B4": "2", "A5": ""})
-	addShown(t, s, "r2", "$r1 | where size > 1", table([]string{"name", "size"}, []string{"b", "2"}))
-	// A gap row, then r2's label.
-	wantShown(t, s, map[string]string{"A5": "", "A6": "r2  $r1 | where size > 1", "A7": "name", "A8": "b"})
-	if r, ok := s.RegionTable("r2"); !ok || r != rect("A7:B8") {
-		t.Errorf("r2's table %v %v", r, ok)
-	}
-	// r1 growing pushes r2 down; shrinking pulls it back.
-	if err := s.ShowRegion("r1", table([]string{"name", "size"}, []string{"a", "1"}, []string{"b", "2"}, []string{"c", "3"})); err != nil {
-		t.Fatal(err)
-	}
-	wantShown(t, s, map[string]string{"A5": "c", "A6": "", "A7": "r2  $r1 | where size > 1", "A9": "b"})
-	s.ShowRegion("r1", table([]string{"name"}, []string{"a"}))
-	wantShown(t, s, map[string]string{"A3": "a", "B2": "", "A4": "", "A5": "r2  $r1 | where size > 1", "A7": "b"})
-	// Undo shows the table it replaced, with r2 where it was.
-	s.Book().Undo()
-	wantShown(t, s, map[string]string{"A5": "c", "A7": "r2  $r1 | where size > 1"})
-	s.Book().Undo()
-	s.Book().Undo() // r2's run
-	wantShown(t, s, map[string]string{"A6": "r2  $r1 | where size > 1   not run", "A7": ""})
-	s.Book().Undo() // r2 itself
-	wantShown(t, s, map[string]string{"A6": ""})
-}
-
-func TestRegionGuards(t *testing.T) {
-	s := notebook(t)
-	addShown(t, s, "r1", "ls", table([]string{"n"}, []string{"1"}))
-	for _, a := range []string{"A1", "A2", "A3"} {
-		if err := s.Set(at(a), "x"); err != ErrRegionEdit {
-			t.Errorf("Set %s: %v, want ErrRegionEdit", a, err)
-		}
-	}
-	if a, r, ok := s.InRegion(rect("A3:C9")); !ok || a != at("A3") || r.Name != "r1" {
-		t.Errorf("InRegion = %v %v %v", a, r.Name, ok)
-	}
-	// Formatting stays, and the value with it.
-	s.Batch(Change{Label: "bold"}, func() error {
-		c := s.Cell(at("A3")).clone()
-		c.Style.Bold = true
-		s.place(at("A3"), c)
-		return nil
-	})
-	if c := s.Cell(at("A3")); c == nil || !c.Style.Bold || c.Value.Num != 1 {
-		t.Errorf("A3 after bold: %+v", c)
-	}
-	// Saved: the definition, not the table.
-	t2 := roundTrip(t, s)
-	if !t2.Notebook() || len(t2.Regions()) != 1 || t2.RegionShown("r1") {
-		t.Fatalf("read back: notebook %v, regions %+v", t2.Notebook(), t2.Regions())
-	}
-	wantShown(t, t2, map[string]string{"A1": "r1  ls   not run", "A3": ""})
-	if !t2.Cell(at("A3")).Style.Bold {
-		t.Error("the table's formatting wasn't kept")
-	}
-}
-
-func TestRegionFormulaName(t *testing.T) {
-	s := notebook(t)
 	w := s.Book()
+	nb := w.Notebook()
+	if nb == nil {
+		var err error
+		if nb, err = w.AddNotebook("", s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	nb.SetNotebookCells("add cell", append(nb.NotebookCells(), notebook.Cell{Source: name + " = ls"}))
+	if err := s.AddRegion(Region{Name: name, At: at(a), Output: true}); err != nil {
+		t.Fatal(err)
+	}
+	return nb
+}
+
+func TestSentOutputFollowsRuns(t *testing.T) {
+	s := New()
+	w := s.Book()
+	sent(t, s, "files", "B2")
 	other, _ := w.AddSheet("Sheet2", 1)
-	if err := other.Set(at("A1"), "=SUM(nu.r1)"); err != nil {
-		t.Fatal(err)
-	}
-	wantShown(t, other, map[string]string{"A1": "#NAME?"})
-	addShown(t, s, "r1", "ls", table([]string{"n"}, []string{"1"}, []string{"2"}))
+	other.Set(at("A1"), "=SUM(nu.files)")
+	wantShown(t, other, map[string]string{"A1": "#REF!"}) // not run yet
+	apply(t, s, LiveOp{Region: "files", Reset: true, Header: liveRow("n", "size"), Rows: []LiveRow{liveRow("a", "1"), liveRow("b", "2")}})
+	wantShown(t, s, map[string]string{"B2": "n", "C3": "1", "B4": "b", "B1": ""})
 	wantShown(t, other, map[string]string{"A1": "3"})
-	s.ShowRegion("r1", table([]string{"n"}, []string{"5"}))
-	wantShown(t, other, map[string]string{"A1": "5"})
-	if err := w.DefineName("nu.r2", s, rect("A1")); err != nil {
+	// A run that gives fewer rows clears the rest.
+	apply(t, s, LiveOp{Region: "files", Reset: true, Header: liveRow("n", "size"), Rows: []LiveRow{liveRow("c", "10")}})
+	wantShown(t, s, map[string]string{"B3": "c", "B4": ""})
+	wantShown(t, other, map[string]string{"A1": "10"})
+	if err := s.Set(at("B3"), "x"); err != ErrOutputEdit {
+		t.Errorf("typing over an output: %v", err)
+	}
+	if w.UndoLabel() != "edit A1" {
+		t.Errorf("rows arriving made an undo step: %q", w.UndoLabel())
+	}
+}
+
+func TestSentOutputNames(t *testing.T) {
+	s := New()
+	w := s.Book()
+	sent(t, s, "files", "A1")
+	if err := s.AddRegion(Region{Name: "files", At: at("D1"), Output: true}); err == nil {
+		t.Error("two regions share a name")
+	}
+	if _, err := s.AddLinked(at("F1"), LinkSource{Path: "files.csv"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.AddRegion(Region{Name: "r2", Command: "x"}); err == nil {
+	if _, r, _ := w.Region("files_2"); !r.Linked() {
+		t.Error("a linked file took a cell's name")
+	}
+	if got := w.FreeCellName("files"); got != "files_3" {
+		t.Errorf("a free name like files: %q", got)
+	}
+	if err := w.DefineName("nu.big", s, rect("A9")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddRegion(Region{Name: "big", At: at("H1"), Output: true}); err == nil {
 		t.Error("a region took a named range's name")
 	}
 }
 
-// A region pushed down onto rows its table showed, then undone and
-// redone, shows its label line alone: nothing of those rows is left
-// beside the label.
-func TestRegionRedoneOverItsOldRows(t *testing.T) {
-	s := notebook(t)
-	w := s.Book()
-	addShown(t, s, "r1", "ls", table([]string{"a", "b"}, []string{"14", "13"}))
-	w.ClearHistory()
-	addShown(t, s, "r2", "$r1 | first 2", table([]string{"x", "y", "z"}, []string{"12", "1", "7"}, []string{"2", "10", "0"}))
-	s.ShowRegion("r1", table([]string{"a"}, []string{"4"}, []string{"12"}, []string{"8"}, []string{"13"}))
-	want := map[string]string{"A8": "r2  $r1 | first 2", "B8": "", "C8": "", "A9": "x", "C11": "0"}
-	wantShown(t, s, want)
-	for w.CanUndo() {
-		w.Undo()
-	}
-	for w.CanRedo() {
-		w.Redo()
-	}
-	wantShown(t, s, want)
-}
-
-// A formula naming a region follows its table as it shrinks, run with
-// fewer rows or undone to them, as it does as it grows.
-func TestRegionFormulaFollowsShrinking(t *testing.T) {
-	s := notebook(t)
-	w := s.Book()
-	other, _ := w.AddSheet("Sheet2", 1)
-	other.Set(at("A1"), "=SUM(nu.r1)")
-	addShown(t, s, "r1", "ls", table([]string{"n"}))
-	s.ShowRegion("r1", table([]string{"n"}, []string{"7"}, []string{"2"}))
-	wantShown(t, other, map[string]string{"A1": "9"})
-	s.ShowRegion("r1", table([]string{"n"}, []string{"7"}))
-	wantShown(t, other, map[string]string{"A1": "7"})
-	w.Undo()
-	wantShown(t, other, map[string]string{"A1": "9"})
-	w.Undo()
-	wantShown(t, other, map[string]string{"A1": "0"})
-	w.Redo()
-	wantShown(t, other, map[string]string{"A1": "9"})
-}
-
-func TestRegionGraph(t *testing.T) {
-	s := notebook(t)
-	w := s.Book()
-	addShown(t, s, "r1", "ls", table([]string{"n"}))
-	addShown(t, s, "r2", "$r1 | first", table([]string{"n"}))
-	addShown(t, s, "big", "$r2 | append $r1", table([]string{"n"}))
-	addShown(t, s, "r3", "$env.PATH | $in", table([]string{"n"}))
-	if got := w.RefreshOrder("r1"); !slices.Equal(got, []string{"r1", "r2", "big"}) {
-		t.Errorf("refresh r1: %v", got)
-	}
-	if got := w.RefreshOrder("r2"); !slices.Equal(got, []string{"r2", "big"}) {
-		t.Errorf("refresh r2: %v", got)
-	}
-	if got := w.RunOrder(); !slices.Equal(got, []string{"r1", "r2", "big", "r3"}) {
-		t.Errorf("run all: %v", got)
-	}
-	if err := s.EditRegion("r1", "$big", w.RegionDeps("$big"), ""); err == nil {
-		t.Error("a cycle was accepted")
-	}
-	if err := s.EditRegion("r1", "$r1", w.RegionDeps("$r1"), ""); err == nil {
-		t.Error("a region reading itself was accepted")
-	}
-	if got := RegionRefs("$r1 | where x == $in.a and $nu.home | $r_2.x"); !slices.Equal(got, []string{"r1", "r_2"}) {
-		t.Errorf("refs %v", got)
-	}
-}
-
-func TestRegionFreezeAndSort(t *testing.T) {
-	s := notebook(t)
-	addShown(t, s, "r1", "ls", table([]string{"n", "s"}, []string{"b", "2"}, []string{"a", "10"}, []string{"c", ""}))
-	if err := s.SortRegion("r1", []SortKey{{Col: 1, Desc: true}}); err != nil {
-		t.Fatal(err)
-	}
-	wantShown(t, s, map[string]string{"A3": "a", "A4": "b", "A5": "c"})
-	// Running again keeps the order.
-	s.ShowRegion("r1", table([]string{"n", "s"}, []string{"x", "1"}, []string{"y", "3"}))
-	wantShown(t, s, map[string]string{"A3": "y", "A4": "x"})
-	if err := s.FreezeRegion("r1"); err != nil {
-		t.Fatal(err)
-	}
-	wantShown(t, s, map[string]string{"A1": "", "A2": "n", "A3": "y", "B3": "3"})
-	if err := s.Set(at("A3"), "z"); err != nil {
-		t.Errorf("a frozen cell can't be edited: %v", err)
-	}
-	s.Book().Undo()
-	s.Book().Undo()
-	wantShown(t, s, map[string]string{"A1": "r1  ls", "A3": "y"})
-}
-
-func TestRegionBlocked(t *testing.T) {
+// Undo puts a region back emptied and stale, for its source to send its
+// rows again; moving it with inserted rows does the same.
+func TestSentOutputUndoAndShift(t *testing.T) {
 	s := New()
-	if err := s.Set(at("B3"), "mine"); err != nil {
+	w := s.Book()
+	sent(t, s, "t", "A2")
+	apply(t, s, LiveOp{Region: "t", Reset: true, Header: liveRow("n"), Rows: []LiveRow{liveRow("1")}})
+	if err := s.DeleteRegion("t"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.AddRegion(Region{Name: "feed", Command: "tail", At: at("A1")}); err != nil {
+	wantShown(t, s, map[string]string{"A2": "", "A3": ""})
+	w.Undo()
+	if !s.regionMeta[nameKey("t")].stale {
+		t.Error("the region undo put back isn't stale")
+	}
+	apply(t, s, LiveOp{Region: "t", Reset: true, Header: liveRow("n"), Rows: []LiveRow{liveRow("1")}})
+	s.InsertRows(0, 2)
+	if _, r, _ := w.Region("t"); r.At != at("A4") {
+		t.Errorf("after inserting rows the region is at %v", r.At)
+	}
+	if !s.regionMeta[nameKey("t")].stale {
+		t.Error("the region moved isn't stale")
+	}
+	if err := s.FreezeRegion("t"); err != nil {
 		t.Fatal(err)
 	}
-	s.ShowRegion("feed", table([]string{"a", "b"}, []string{"1", "2"}, []string{"3", "4"}))
-	wantShown(t, s, map[string]string{"A1": "feed  tail   can't show: it would overwrite data in B3", "A2": ""})
-	s.Set(at("B3"), "")
-	wantShown(t, s, map[string]string{"A1": "feed  tail", "A2": "a", "B3": "2", "B4": "4"})
+}
+
+func TestNotebookCellsUndo(t *testing.T) {
+	w := NewBook()
+	nb, err := w.AddNotebook("", w.Sheet(0))
+	if err != nil || nb.Name() != "Notebook" || !nb.IsNotebook() {
+		t.Fatalf("%v %v", nb, err)
+	}
+	nb.SetNotebookCells("add cell", []notebook.Cell{{Source: "ls"}})
+	cells := nb.NotebookCells()
+	if len(cells) != 1 || cells[0].ID == 0 {
+		t.Fatalf("cells %+v", cells)
+	}
+	nb.SetNotebookCells("edit cell 1", []notebook.Cell{{ID: cells[0].ID, Source: "files = ls"}})
+	w.Undo()
+	if got := nb.NotebookCells(); got[0].Source != "ls" {
+		t.Errorf("after undo: %+v", got)
+	}
+	nb.SetReactive(true)
+	w.Undo()
+	if nb.Reactive() {
+		t.Error("undo left the notebook reactive")
+	}
+	if w.Notebook() != nb {
+		t.Error("the workbook's notebook")
+	}
+}
+
+func writeBook(t *testing.T, w *Workbook) string {
+	t.Helper()
+	var b bytes.Buffer
+	if err := w.Write(&b); err != nil {
+		t.Fatal(err)
+	}
+	return b.String()
+}
+
+func TestNotebookRoundTrip(t *testing.T) {
+	w := NewBook()
+	nb, _ := w.AddNotebook("", w.Sheet(0))
+	nb.SetNotebookCells("add cells", []notebook.Cell{
+		{Kind: notebook.Note, Source: "# Files"},
+		{Source: "files = ls"},
+		{Source: "$files | where size > 1kb"},
+		{Source: "nope"},
+	})
+	nb.SetReactive(true)
+	cells := nb.NotebookCells()
+	w.SetOutput(cells[1].ID, &notebook.Output{NUON: []byte(`[[name, size]; [a, 2kb]]`), Count: 1, Source: cells[1].Source})
+	w.SetOutput(cells[2].ID, &notebook.Output{NUON: []byte(strings.Repeat("x", 100)), Count: 2})
+	w.SetOutput(cells[3].ID, &notebook.Output{Err: "Command `nope` not found", Detail: "help: try ls"})
+	w.SetOutputCaps(notebook.Caps{Cell: 50, Total: 1000})
+	if got := w.UnsavedOutputs(); len(got) != 1 || got[0] != "cell 3" {
+		t.Errorf("unsaved %v", got)
+	}
+	text := writeBook(t, w)
+	for _, want := range []string{`"tab": "notebook"`, `"reactive": true`, `{"kind":"note","source":"# Files"}`,
+		`"output":"[[name, size]; [a, 2kb]]"`, `"unsaved":true`, `"error":"Command`} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the file lacks %s:\n%s", want, text)
+		}
+	}
+	back, err := ReadBook(strings.NewReader(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	nb2 := back.Notebook()
+	if nb2 == nil || !nb2.Reactive() || nb2.Name() != "Notebook" {
+		t.Fatalf("read back %v", nb2)
+	}
+	got := nb2.NotebookCells()
+	if len(got) != 4 || got[0].Kind != notebook.Note || got[1].Source != "files = ls" {
+		t.Fatalf("cells %+v", got)
+	}
+	if o := back.Output(got[1].ID); o == nil || string(o.NUON) != `[[name, size]; [a, 2kb]]` || o.Count != 0 {
+		t.Errorf("output of files: %+v", o)
+	}
+	if o := back.Output(got[2].ID); o == nil || !o.Unsaved || o.NUON != nil {
+		t.Errorf("the output over the cap: %+v", o)
+	}
+	if o := back.Output(got[3].ID); o == nil || o.Err == "" || o.Detail != "help: try ls" {
+		t.Errorf("the error: %+v", o)
+	}
+	if st := notebook.Stale(got, back.Output); len(st) != 0 {
+		t.Errorf("stale on opening: %v", st)
+	}
+	if back.OutputsChanged() != 0 {
+		t.Error("reading outputs counts as a change")
+	}
+	// Written again, it's the same file.
+	if again := writeBook(t, back); again != text {
+		t.Errorf("written again:\n%s\nwas\n%s", again, text)
+	}
+}
+
+// A notebook sheet of an earlier build opens with its commands as code
+// cells of a notebook tab, their tables sent where they were.
+func TestOldNotebookConverted(t *testing.T) {
+	old := `{"version": 4, "sheets": [
+  {"name": "Shell 1", "notebook": true, "cells": {}, "regions": [
+    {"name": "r1", "command": "ls", "at": "A1", "rows": 3, "cols": 2},
+    {"name": "big", "command": "$r1 | where size > 1kb", "at": "A6", "reads": ["r1"]},
+    {"name": "sel", "command": "$in | math sum", "at": "A9", "input": "Data 1!A1:A4"}
+  ]},
+  {"name": "Data 1", "cells": {"B1": "=SUM(nu.big)"}}
+]}`
+	w, err := ReadBook(strings.NewReader(old))
+	if err != nil {
+		t.Fatal(err)
+	}
+	nb := w.Notebook()
+	if nb == nil || w.Index(nb) != 1 || nb.Name() != "Notebook" {
+		t.Fatalf("notebook %v at %d", nb, w.Index(nb))
+	}
+	cells := nb.NotebookCells()
+	want := []string{"r1 = ls", "big = $r1 | where size > 1kb", "sel = $sheet.'Data 1'!A1:A4 | do {\n$in | math sum\n}"}
+	for i, c := range cells {
+		if c.Source != want[i] {
+			t.Errorf("cell %d: %q, want %q", i+1, c.Source, want[i])
+		}
+	}
+	shell := w.Lookup("Shell 1")
+	if shell.IsNotebook() {
+		t.Error("the old notebook sheet is a notebook tab")
+	}
+	if _, r, ok := w.Region("big"); !ok || !r.Output || r.At != at("A7") {
+		t.Errorf("big's table: %+v %v", r, ok)
+	}
+	if notes := w.LoadNotes(); len(notes) != 1 || !strings.Contains(notes[0], "Shell 1") {
+		t.Errorf("notes %v", notes)
+	}
+	apply(t, shell, LiveOp{Region: "big", Reset: true, Header: liveRow("n"), Rows: []LiveRow{liveRow("4")}})
+	wantShown(t, w.Lookup("Data 1"), map[string]string{"B1": "4"})
+	if text := writeBook(t, w); strings.Contains(text, `"command"`) || !strings.Contains(text, `"output":true`) {
+		t.Errorf("saved again:\n%s", text)
+	}
 }

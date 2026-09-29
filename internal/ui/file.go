@@ -33,7 +33,7 @@ import (
 func (m *Model) Serve(root confine.Root, env []string) {
 	m.root = root
 	m.term = newTerminal(envLookup(env))
-	m.shell.served = true
+	m.nb.served = true
 }
 
 // envLookup reads a variable from a list of KEY=value pairs, the last
@@ -123,9 +123,9 @@ func (m *Model) openFile(text string) tea.Cmd {
 // session rather than the sheet carries over: the window, theme, terminal
 // state, served directory and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
-	m.stopShell() // the old workbook's commands
-	sh := shellState{runner: m.shell.runner, served: m.shell.served, words: m.shell.words, asked: m.shell.asked}
-	defer func() { m.shell = sh }()
+	m.stopCells() // the old workbook's cells
+	nb := nbState{runner: m.nb.runner, served: m.nb.served, words: m.nb.words, asked: m.nb.asked, lang: m.nb.lang}
+	defer func() { m.nb = nb; m.bookOpened() }()
 	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}, prefs: m.prefs, session: m.session, pipe: m.pipe,
 		macros: macroState{machine: m.macros.machine, editor: m.macros.editor}, spans: m.spans}
 	s.Book().SetTrace(m.spans)
@@ -194,6 +194,8 @@ func (m *Model) saveAs(name string, check bool) tea.Cmd {
 	// Linked files are saved relative to the new file's folder, and stay
 	// relative to this one's until the save is done.
 	m.rebaseLinks(m.filename, name)
+	m.book().SetOutputCaps(m.outputCaps())
+	m.nb.saving = m.book().OutputsChanged()
 	cmd := saveCmd(m.sheet, name, p, expect, m.spans)
 	m.rebaseLinks(name, m.filename)
 	return cmd
@@ -345,7 +347,11 @@ func (m *Model) handleSaved(msg savedMsg) tea.Cmd {
 	m.rebaseLinks(m.filename, msg.name)
 	m.filename, m.disk = msg.name, msg.stamp
 	m.changed = false
+	m.nb.saved = m.nb.saving
 	m.savedRecovered()
+	if left := m.book().UnsavedOutputs(); len(left) > 0 {
+		m.note = "Saved without the outputs of " + strings.Join(left, ", ") + " (over nu-save-cell-kb or nu-save-notebook-kb): run them to see them again"
+	}
 	if quit {
 		return m.exit()
 	}

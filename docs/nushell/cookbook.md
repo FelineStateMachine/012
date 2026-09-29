@@ -5,31 +5,37 @@ sidebar_position: 5
 
 # Cookbook
 
-Short worked examples. Pipelines that end in `^012` run in a nushell
-session; lines that start with a region's name and `=` are typed at a
-[notebook's](notebooks.md) `nu❯` prompt (`012 nu`, or **Data > Shell** in any workbook). Nushell's own
+Short worked examples. Pipelines that end in `sheet` or `sheet view`
+run in a nushell session, with 012's module installed ([Install the
+`sheet` command](README.md#install-the-sheet-command)); lines that start
+with a name and `=` are code cells of a [notebook](notebooks.md)
+(`sheet nu`, or **Data > Shell > Open notebook** in any workbook), one
+cell a line, each run with Shift+Enter. Nushell's own
 [cookbook](https://www.nushell.sh/cookbook/) has more pipelines to start
 from.
 
 ## A CSV cleaned, then summarized
 
 Money written as text (`"$2,252.50"`) becomes numbers in nushell, and a
-second region totals it by region, with a chart that follows it.
+second cell totals it by region, sent to a sheet with a chart that
+follows it.
 
-![Nushell turns a CSV's money text into numbers, a second region totals it by region, and a column chart of the totals follows the table](../media/nu-recipe.gif)
+![Nushell turns a CSV's money text into numbers, a second cell totals it by region, and its output, sent to a sheet, feeds a column chart](../media/nu-recipe.gif)
 
 ```nu
 sales = open sales.csv | update Revenue { str replace -ar '[$,]' '' | into float }
 totals = $sales | group-by Region --to-table | update items { get Revenue | math sum } | rename Region Revenue
 ```
 
-To chart it, select the totals table, its header row and rows, and
-**Insert > Chart**. Change `sales`'s command (F2 on its label) to read
-another file, and `totals` runs again after it and the chart redraws.
+To chart it, `G` on `totals` sends its output to a new sheet; there,
+**Insert > Chart** charts the table around the pointer. Edit `sales` to
+read another file and run it: `totals` shows `stale` until it runs too
+(at once in a [reactive notebook](notebooks.md#stale-outputs-and-reactive-notebooks)),
+and then the sheet and the chart follow.
 
-To pivot rather than total, select the `sales` table and
-**Data > Pivot table** ([Pivot tables](../sheets/pivots.md)): Region in
-rows, Quarter in columns, Revenue in values.
+To pivot rather than total, send `sales` to a sheet and **Data > Pivot
+table** there ([Pivot tables](../sheets/pivots.md)): Region in rows,
+Quarter in columns, Revenue in values.
 
 Nushell:
 [`update`](https://www.nushell.sh/commands/docs/update.html),
@@ -42,20 +48,20 @@ Nushell:
 
 A JSON lines log (`app.jsonl`) linked with **Data > Linked file > Link a
 table** takes in rows as they're written ([Following
-files](../files/following.md)). A region reads it as `$app`:
+files](../files/following.md)). A notebook's cells read it as `$app`:
 
-![A JSON lines log grows in a linked region; a shell region keeps its errors, and refreshing it later picks up the errors written since](../media/follow-log.gif)
+![A JSON lines log grows in a linked region; a notebook cell keeps its errors, and running it again later picks up the errors written since](../media/follow-log.gif)
 
 ```nu
 errors = $app | where status >= 500 | select time path status ms
 by_path = $errors | group-by path --to-table | update items { length } | rename path errors
 ```
 
-The linked region grows by itself; Enter on `errors`'s label reads the
-rows the log has now, and `by_path` follows. A log in CSV or TSV works
-the same; a plain text log needs a line of nushell to become a table,
-such as [`parse`](https://www.nushell.sh/commands/docs/parse.html) in a
-region's command:
+The linked region grows by itself; running `errors` again (Ctrl+Enter)
+reads the rows the log has now, and a reactive notebook runs `by_path`
+after it. A log in CSV or TSV works the same; a plain text log needs a
+line of nushell to become a table, such as
+[`parse`](https://www.nushell.sh/commands/docs/parse.html) in a cell:
 
 ```nu
 lines = open --raw app.log | lines | parse "{time} {level} {message}"
@@ -67,23 +73,24 @@ lines = open --raw app.log | lines | parse "{time} {level} {message}"
 usage = du * | select path physical | update path { path basename } | sort-by physical --reverse
 ```
 
-Sizes arrive in the Size format ([Types](types.md)), so a chart's axis
-and `=SUM(nu.usage)` read them as bytes. Select the table and
-**Insert > Chart** for a column chart; Enter on the label runs `du`
-again.
+Sizes arrive in the Size format ([Types](types.md)), so once `G` sends
+the output to a sheet, a chart's axis and `=SUM(nu.usage)` read them as
+bytes: **Insert > Chart** there for a column chart. Ctrl+Enter on the
+cell runs `du` again, and the sheet follows.
 
 Nushell: [`du`](https://www.nushell.sh/commands/docs/du.html).
 
 ## An API response as a table
 
 ```nu
-http get https://api.github.com/repos/nushell/nushell/issues | select number title user.login comments created_at | update created_at { into datetime } | to nuon | ^012 -
+http get https://api.github.com/repos/nushell/nushell/issues | select number title user.login comments created_at | update created_at { into datetime } | sheet view
 ```
 
 Sort by comments, filter by author, or make a pivot table of issues by
 author, in the sheet. In a notebook, the same pipeline without
-`| to nuon | ^012 -` is a region that fetches the list again when
-refreshed; `nu-timeout` stops a request that hangs.
+`| sheet view` is a cell that fetches the list again each time it runs;
+Enter on its output opens it full-screen to sort and filter, and
+`nu-timeout` stops a request that hangs.
 
 Nushell: [`http get`](https://www.nushell.sh/commands/docs/http_get.html),
 [`into datetime`](https://www.nushell.sh/commands/docs/into_datetime.html),
@@ -93,7 +100,7 @@ page.
 ## Processes, sorted, filtered and sent back
 
 ```nu
-ps | where cpu > 1 | sort-by cpu --reverse | select pid name cpu mem | to nuon | ^012 --pipe | from nuon | get pid | each {|pid| kill $pid }
+ps | where cpu > 1 | sort-by cpu --reverse | select pid name cpu mem | sheet | get pid | each {|pid| kill $pid }
 ```
 
 In 012, sort the list and filter it down to the processes to stop
@@ -115,3 +122,23 @@ authors = $commits | group-by author --to-table | update items { length } | rena
 works on it in the sheet. The pattern is the one nushell's cookbook
 explains in [Parsing git
 log](https://www.nushell.sh/cookbook/parsing_git_log.html).
+
+## A workbook read and written from a script
+
+[`012 get` and `012 set`](../files/scripts.md) work on a workbook file
+without the screen, so a nushell script can read a range with its types,
+compute, and write results back:
+
+```nu
+let sales = ^012 get budget.012 'Q3!A1:C40' --format nuon | from nuon
+let total = $sales | where region == West | get amount | math sum
+^012 set budget.012 'Summary!B2' ($total | into string) 'Summary!B3' (date now | format date '%Y-%m-%d')
+^012 recalc budget.012
+```
+
+`012 recalc` exits 1 when a formula shows an error, so a script stops
+there. What changed between two versions comes back as a table too:
+
+```nu
+^012 diff last-week.012 budget.012 --format nuon | from nuon | where field == value
+```

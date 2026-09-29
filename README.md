@@ -48,10 +48,11 @@ rest: building from a clone, importing files, `012 serve` and settings.
   nushell module `012 nu --install-module` installs, or as
   `ls | to nuon | ^012 --pipe | from nuon` without it
   ([pipelines](docs/nushell/pipelines.md)).
-- **Nushell notebooks**: `012 nu` (or Data > Shell in any workbook) runs nushell
-  pipelines whose tables become live, named regions of the sheet;
-  `$r1` reads one in the next command, and refreshing it runs what reads
-  it ([notebooks](docs/nushell/notebooks.md)).
+- **Nushell notebooks**: `012 nu` (or Data > Shell in any workbook)
+  opens a notebook tab of code and note cells, run with Jupyter's keys,
+  each output under its cell; later cells read it as `$name`, and sent to
+  a sheet it's a live table formulas read as `nu.name`
+  ([notebooks](docs/nushell/notebooks.md)).
 - **Macros**, recorded or written as Starlark scripts saved with the sheet
   ([macros](docs/sheets/macros.md)).
 - **Made for terminals**: the mouse, hyperlinks, the system clipboard over
@@ -67,7 +68,7 @@ rest: building from a clone, importing files, `012 serve` and settings.
 | Menus and the command palette (Ctrl+K) | Charts that float over the grid and follow their data |
 | ![A task list with a color scale, a dropdown and checkboxes](docs/media/rules.gif) | ![A pivot table of sales by region and quarter](docs/media/pivot.gif) |
 | Conditional formatting and data validation | Pivot tables, live |
-| ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![Two nushell pipelines as live regions, the second reading the first](docs/media/notebook.gif) |
+| ![UNIQUE, SORT and FILTER spilling their results](docs/media/arrays.gif) | ![A notebook: a cell reads a CSV, a second reads its output, which is sent to a sheet and summed there](docs/media/notebook.gif) |
 | Arrays that spill | Nushell notebooks |
 | ![JEV functions classifying reviews](docs/media/jev.gif) | ![Recording a macro and replaying it](docs/media/macros.gif) |
 | JEV functions in formulas | Macros |

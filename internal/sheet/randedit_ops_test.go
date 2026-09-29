@@ -3,6 +3,8 @@ package sheet
 import (
 	"fmt"
 	"strings"
+
+	"github.com/FelineStateMachine/012/internal/notebook"
 )
 
 // The edits TestRandomEdits draws from, each one undo step (or none,
@@ -25,7 +27,7 @@ func (r *randBook) edit(e *edits) string {
 func (r *randBook) sheet(e *edits) *Sheet {
 	var grids []*Sheet
 	for _, s := range r.wb.sheets {
-		if !s.Notebook() {
+		if !s.IsNotebook() {
 			grids = append(grids, s)
 		}
 	}
@@ -231,25 +233,47 @@ func (r *randBook) editRule(e *edits) string {
 }
 
 func (r *randBook) editRegion(e *edits) string {
-	switch e.n(4) {
+	_, _, has2 := r.wb.Region("r2")
+	switch e.n(5) {
 	case 0:
-		keys := []SortKey{{Col: e.n(3), Desc: e.n(2) == 0}}
-		err := r.nb.SortRegion("r1", keys)
-		return fmt.Sprintf("sort r1 by %v (%v)", keys, err)
+		cells := r.nb.NotebookCells()
+		if len(cells) > 2 {
+			cells = cells[:2]
+		} else {
+			cells = append(cells, notebook.Cell{Source: "r2 = $r1 | first 2"})
+		}
+		r.nb.SetNotebookCells("edit cells", cells)
+		return fmt.Sprintf("notebook cells %d", len(cells))
 	case 1:
-		if _, _, ok := r.wb.Region("r2"); ok {
-			err := r.nb.DeleteRegion("r2")
+		if has2 {
+			err := r.wb.deleteRegion("r2")
 			return fmt.Sprintf("delete r2 (%v)", err)
 		}
-		err := r.nb.AddRegion(Region{Name: "r2", Command: "$r1 | first 2", Deps: []string{"r1"}})
-		return fmt.Sprintf("add r2 (%v)", err)
+		s := r.sheet(e)
+		err := r.addOutput(s, "r2", e)
+		return fmt.Sprintf("send r2 to %s (%v)", s.name, err)
+	case 2:
+		if has2 {
+			s, _, _ := r.wb.Region("r2")
+			err := s.FreezeRegion("r2")
+			return fmt.Sprintf("freeze r2 (%v)", err)
+		}
 	}
 	name := "r1"
-	if _, _, ok := r.wb.Region("r2"); ok && e.n(2) == 0 {
+	if has2 && e.n(2) == 0 {
 		name = "r2"
 	}
-	r.run(name, e)
-	return "run " + name
+	r.feed(name, e)
+	return "feed " + name
+}
+
+// deleteRegion deletes the region name, wherever it is.
+func (w *Workbook) deleteRegion(name string) error {
+	s, _, ok := w.Region(name)
+	if !ok {
+		return ErrNoRegion
+	}
+	return s.DeleteRegion(name)
 }
 
 func (r *randBook) editSheets(e *edits) string {

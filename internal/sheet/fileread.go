@@ -88,8 +88,9 @@ func readBook(r io.Reader, trace any) (*Workbook, error) {
 	if err := w.readNames(f.Names); err != nil {
 		return nil, err
 	}
+	var old []oldRegion
 	for _, rs := range list {
-		if err := rs.s.read(rs.body); err != nil {
+		if err := rs.s.read(rs.body, &old); err != nil {
 			if len(list) > 1 {
 				err = fmt.Errorf("sheet %s: %w", rs.body.Name, err)
 			}
@@ -109,7 +110,8 @@ func readBook(r io.Reader, trace any) (*Workbook, error) {
 		return nil, err
 	}
 	w.macroOrigin = f.MacroOrigin
-	w.readShellHistory(f.ShellHistory)
+	w.convertOld(old)
+	w.nb.changed = 0 // the outputs read are the file's
 	w.RecalcAll()
 	return w, nil
 }

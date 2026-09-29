@@ -18,7 +18,7 @@ ls | select name size | sheet | describe
 ```
 
 This holds wherever NUON carries a table: [pipelines](pipelines.md),
-[notebook regions](notebooks.md), `.nuon` files opened, imported or
+[notebook cells](notebooks.md) and their outputs sent to sheets, `.nuon` files opened, imported or
 downloaded, and linked `.nuon` files.
 
 | Nushell | Cell | Sent back as |

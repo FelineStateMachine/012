@@ -69,7 +69,7 @@ func (m *Model) refuseEdit(r sheet.Rect, keepsSpills bool) bool {
 			m.note = sheet.ErrLinkedEdit.Error()
 			return true
 		}
-		m.note = a.String() + " is part of region " + reg.Name + ", which its command fills: change the command, or Freeze the region"
+		m.note = a.String() + " shows " + reg.Name + ", a notebook cell's output: change the cell, or freeze the region"
 		return true
 	}
 	a, ok := m.sheet.InSpill(r)

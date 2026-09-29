@@ -92,6 +92,45 @@ formatted values with 012's. Known differences between Sheets and Excel,
 and places where excelize departs from Excel, are listed as skips with a
 reason.
 
+## The Sheets corpus
+
+012 follows Google Sheets' formula results where people rely on them
+([UX](ux.md)), and `internal/fileio/testdata/sheets_corpus.tsv` holds
+about 300 formulas that pin it down: dates and times, text, rounding and
+floating point, errors and how they propagate, coercion of text,
+booleans and blanks, lookups and criteria, array sizes, LET and LAMBDA,
+and `TEXT` formats. Each line is a formula, 012's result, Sheets'
+result and a note, separated by tabs. Results read `"text"` quoted,
+`12.5`, `TRUE`, `#N/A`, or `(blank)`. Formulas read a small fixture on a
+sheet named `Data`, and each computes one value: an array is measured
+with `ROWS`, `COLUMNS`, `INDEX` or `TEXTJOIN`, so its size is checked
+and nothing spills.
+
+`TestSheetsCorpus` holds 012 to the results recorded for it, and fails
+on a row where Sheets' result differs unless its note starts
+`on purpose:` and says why; that reason also goes in the docs page for
+the feature. Sheets' result reads `unconfirmed` until it is checked in
+Sheets:
+
+```sh
+# Add formulas as lines of their own, then record 012's results.
+go test ./internal/fileio -run SheetsCorpus -update-corpus
+# Write the corpus as a workbook with 012's XLSX exporter.
+go test ./internal/fileio -run SheetsCorpus -corpus-xlsx=$HOME/012-sheets-corpus.xlsx
+# In Sheets (locale United States): File > Import the workbook, then
+# File > Download > CSV of the Corpus sheet. Record Sheets' results:
+go test ./internal/fileio -run SheetsCorpus -update-from="$HOME/Downloads/012-sheets-corpus - Corpus.csv"
+```
+
+In the workbook, column C holds each formula, which Sheets recalculates
+on import; D and E read its result as text and its kind with formulas
+both 012 and Sheets compute, F holds 012's result and G says whether
+they agree (for two errors, compare C and F by eye). The exporter saves
+formulas Excel has nothing like (`SPLIT`, `REGEXMATCH`, `SORTN`,
+`FLATTEN`, `ARRAYFORMULA` inside a formula) as values, so those rows
+leave C empty and say so in the note: type the formula from B into C
+before downloading, or `-update-from` leaves them unconfirmed.
+
 ## The XLSX differential test
 
 `TestXLSXDifferential` (`internal/fileio/xlsx_diff_test.go`) imports a

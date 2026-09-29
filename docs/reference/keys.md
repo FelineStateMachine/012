@@ -35,6 +35,9 @@ mouse and the vim keymap added.
 | Ctrl+Enter | Enter the same entry in every selected cell |
 | Arrows, Shift+arrows | While typing a formula, after an operator: point at a cell, or a range |
 | F4 | While typing a formula: cycle the reference at the caret through `A1`, `$A$1`, `A$1`, `$A1` |
+| Ctrl+Left, Ctrl+Right (Option+arrows on macOS; Alt+arrows outside a cell) | While editing any text: move by word; in ENTER mode Ctrl+arrows commit and jump, as arrows do |
+| Ctrl+Backspace, Option+Backspace, Ctrl+W; Alt+D, Ctrl+Delete | While editing any text: delete the word before the caret; the word after it |
+| Ctrl+U, Cmd+Backspace | While editing any text: delete to the start of the line |
 | Up, Down; Tab, Enter | While suggestions for a function, range or sheet name show: pick one; insert it (a sheet as `Summary!`, then arrows point into it). Esc hides them |
 
 ## Selecting
@@ -128,13 +131,38 @@ range, F2 renames or repoints it and Ctrl+D deletes it.
 
 ## Notebooks
 
-| Key | Action |
+On a [notebook's](../nushell/notebooks.md#keys) tab, as in Jupyter:
+command mode (`NOTEBOOK`) acts on cells, edit mode (`EDIT`) types into
+one. **Data > Shell > Open notebook** opens the workbook's notebook;
+on a sheet, `!` starts an entry as any character does.
+
+| Key | In command mode |
 |---|---|
-| ! | On a notebook sheet, open the nushell prompt on the formula bar (the mode indicator says NU); on other sheets `!` starts an entry, and **Data > Shell** opens the prompt ([Notebooks](../nushell/notebooks.md)) |
-| Enter, Tab, Up, Down, Esc | At the prompt: run the line; complete a region or command; the workbook's earlier lines; stop a command running, or else go back to the grid |
-| Enter, F2 | On a region's label line: run it again (and what reads it); edit its command at the prompt |
-| F9 | Run all regions, each after those it reads |
-| Esc | Stop a region's command while it runs |
+| Up, Down, `j`, `k`, Home, End, PgUp, PgDn | Move between cells and their outputs |
+| Enter | Edit the cell; on an output, open it full-screen |
+| Shift+Enter, Ctrl+Enter, `r`, Alt+Enter | Run the cell and select the next; run it in place (`r` too); run it and add a cell under it |
+| F9 | Run every cell |
+| `a`, `b`, `!` | Add a code cell above, below; add one below and edit it |
+| `dd`, `z` | Delete the cell; undo |
+| `m`, `y` | Make the cell a note, or code |
+| `c`, `x`, `v` | Copy, cut, paste a cell |
+| `n`, `o`, `G` | Name the cell; show all of its output or its first rows; send the output to a sheet |
+| `ii`, `00` | Stop what's running; restart, clearing every output |
+
+| Key | In edit mode |
+|---|---|
+| Esc | Back to command mode, keeping what was typed |
+| Shift+Enter, Ctrl+Enter, Alt+Enter | Run, as in command mode |
+| Enter, Tab | A new line; complete the word at the caret, with what nu completes there ([Writing a cell](../nushell/notebooks.md#writing-a-cell)) |
+| Up, Down, Home, End, Ctrl+A, Ctrl+E | Move by the lines on screen; the start, the end of the line |
+| Word keys | As [anywhere text is edited](#entering-data); Ctrl+U deletes to the start of the line, not the cell |
+
+| Key | On an output full-screen |
+|---|---|
+| Arrows, `h`, `j`, `k`, `l`, PgUp, PgDn, `g`, `G` | Move |
+| `s`, `S` | Sort by the pointer's column, A to Z or Z to A; again for the output's order |
+| `/` | Keep the rows holding what's typed; Esc clears it |
+| Esc, `q` | Back to the notebook |
 
 ## Keys the terminal has to tell apart
 
@@ -148,6 +176,7 @@ tells them apart and says when a key is let go, and there 012 also does:
 |---|---|---|
 | Shift+Enter | Accept an entry and move up, as in Sheets | As Enter: accept and move down |
 | Ctrl+I | Italic | As Tab: move right |
+| Shift+Enter, Ctrl+Enter | In a notebook, run the cell (and select the next) | As Enter: edit the cell, or a new line in it; Esc then `r` runs it, and Alt+Enter runs it and adds a cell under it |
 | Space, held | On a selected chart, show it across the grid until Space is let go; in File > Settings > Theme with nothing typed, hide the list to see the whole sheet in the highlighted theme | Space does what it does there: deselects the chart and starts an entry, or types a space |
 
 ## Vim keys

@@ -5,177 +5,339 @@ sidebar_position: 3
 
 # Notebooks
 
-A notebook is a sheet where you type nushell pipelines and each one's
-table lands in the grid, named, typed and kept live. Written like a
-REPL, kept like a spreadsheet.
+A notebook is a tab of the workbook, beside its sheets, that holds cells
+rather than a grid: code cells of nushell, each with its output under it,
+and note cells of Markdown. You run the cells you choose, in the order
+you choose, as in Jupyter; any output can go to a sheet, where formulas,
+charts and pivots read it and it follows the cell's next run.
 
 ```nu
-sales = open sales.csv | where Region in [North South] | select Region Quarter Units
-$sales | where Units > 250 | sort-by Units --reverse
+files = ls | where type == file
+$files | where size > 1kb | sort-by size --reverse
 ```
 
-![Two pipelines at the nu❯ prompt become regions, the second reading the first as $sales; giving sales a new command runs both again](../media/notebook.gif)
+![A notebook: a cell reads a CSV as sales, a second reads it as $sales, its output is sent to a sheet and summed there, and with the notebook reactive, editing sales runs both again and the sum follows](../media/notebook.gif)
 
-`012 nu` opens one, at its prompt:
+Open one from a shell with `012 nu`, or from nushell with `sheet nu`
+(`sheet` comes from 012's nushell module: [Install the `sheet`
+command](README.md#install-the-sheet-command)):
 
 ```sh
-012 nu              # a new notebook
-012 nu work.012     # open one, or make it
+012 nu              # a new notebook, its first cell ready to type in
+012 nu work.012     # the workbook's notebook, made if it has none
 ```
 
-In any workbook, **Data > Shell** (or the palette, or `!` on a notebook
-sheet) opens the same prompt, writing into the workbook's notebook
-sheet, or a new one named Shell 1 at the first command. On other sheets
-`!` starts an entry, as typing does. Commands run `nu` as a separate
-process, so [nushell](https://www.nushell.sh/book/installation.html)
-must be installed; without it, the prompt says so and the rest of 012
+In any workbook, **Data > Shell > Open notebook** (or the palette)
+shows the workbook's notebook, or adds one after the sheet shown. A
+notebook's tab is marked `❯`. Cells run `nu` as a separate process, so
+[nushell](https://www.nushell.sh/book/installation.html) must be
+installed; without it, a cell's output says so and the rest of 012
 works as before.
 
-## The prompt
+## Cells
 
-The formula bar becomes `nu❯`, and the mode indicator says `NU`:
+A cell is its head, its source and, for a code cell, its output:
 
-| Key | Does |
+```
+  [2] big                                                  ✓ <1s
+│ big = $files | where size > 1kb
+│   | sort-by size --reverse
+  name       size
+  README.md  9.8 kB
+  012        4.2 kB
+```
+
+The head says how many runs came before this one (`[2]`, `[*]` while it
+runs, `[ ]` before it has), the cell's name, and at the right how its run
+stands, `saved` for an output read from the file:
+
+```mermaid
+stateDiagram-v2
+    notrun: not run
+    waiting: waiting
+    running: running
+    done: ✓ and how long it took
+    failed: failed, and nu's message under it
+    stale: stale
+    [*] --> notrun
+    notrun --> waiting: Shift+Enter, Ctrl+Enter, F9
+    waiting --> running: the cell before it ends
+    running --> done
+    running --> failed: an error, or ii
+    done --> stale: a cell it reads runs again, or its source changes
+    stale --> waiting: run again
+    failed --> waiting: run again
+    done --> waiting: run again
+```
+
+A source is shown whole: a line too long for the screen wraps before a
+pipe where it can, its next rows indented.
+
+Outputs are drawn by what they are, with values formatted as cells
+([Types](types.md)):
+
+| Output | Shows |
 |---|---|
-| Enter | Run the line; the prompt stays open for the next |
-| Tab, Shift+Tab | Complete the word at the caret: a region (`$r1`) or one of nu's commands, from the box under the context line; again for the next |
-| Up, Down | The workbook's earlier lines, those starting with what's typed; the last 100 are saved with the file |
-| Esc | Stop the command running; otherwise, back to the grid |
+| A table (a list of records) | Its columns fitted to their values, numbers right-aligned, its first 10 rows and how many more there are |
+| A record | Its fields, one a line: `key  value` |
+| A list | Its items, numbered from 0, as nushell numbers them |
+| Text | Its lines, wrapped |
+| A value | As a cell shows it: `4.2 kB`, `9/27/2026 11:27:31` |
+| An error | `×` and nushell's message, then its help line |
 
-A name and `=` before the pipeline name the region; without one it's
-`r1`, `r2` and so on:
+`o` shows a long output whole, and again its first rows. **Enter** on an
+output opens it full-screen: arrows (or `h` `j` `k` `l`) move, `s` sorts
+by the pointer's column and `S` in descending order (again for the
+output's own order), `/` keeps the rows holding what's typed, and Esc
+goes back. The output itself doesn't change.
 
-```nu
-sizes = ls | select name size
+Note cells are Markdown: headings, **bold**, *italic*, `code`, links (the
+terminal opens them), lists and quotes.
+
+## Keys
+
+Like Jupyter, a notebook has two modes. In command mode (the mode
+indicator says `NOTEBOOK`) keys act on cells; in edit mode (`EDIT`) they
+type into the selected cell.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Command
+    Command --> Edit: Enter, !
+    Edit --> Command: Esc
+    Edit --> Command: Shift+Enter or Ctrl+Enter runs
+    Command --> Output: Enter on an output
+    Output --> Command: Esc
 ```
 
-A name is letters, digits and `_`, not starting with a digit, as a
-nushell [variable's](https://www.nushell.sh/book/variables.html) is;
-`in`, `env`, `nu` and `it` are nushell's own. Typing a name that exists
-gives that region a new command and runs it again, as does F2 on its
-label.
+| Key | In command mode |
+|---|---|
+| Up, Down, `j`, `k` | Move between cells, stopping at each output |
+| Home, End, PgUp, PgDn | The first cell, the last, a screen up or down |
+| Enter | Edit the cell; on an output, open it full-screen |
+| Shift+Enter | Run the cell and select the next, adding one at the end |
+| Ctrl+Enter, `r` | Run the cell, staying on it |
+| Alt+Enter | Run the cell and add a code cell under it |
+| F9 | Run every cell |
+| `a`, `b` | Add a code cell above, below |
+| `!` | Add a code cell below and edit it |
+| `dd` | Delete the cell |
+| `z` | Undo, bringing back a deleted cell (as Ctrl+Z) |
+| `m`, `y` | Make the cell a note (Markdown), or code |
+| `c`, `x`, `v` | Copy, cut, paste a cell below |
+| `n` | Name the cell |
+| `o` | Show the output whole, or its first rows |
+| `G` | Send the output to a sheet |
+| `ii` | Stop: kill the cell running, and forget those waiting |
+| `00` | Restart: stop, clear every output, count runs from 1 |
 
-## Regions
+| Key | In edit mode |
+|---|---|
+| Esc | Keep what's typed and go back to command mode |
+| Shift+Enter, Ctrl+Enter, Alt+Enter | Run, as in command mode |
+| Enter | A new line, as indented as the one before |
+| Up, Down, Home, End | Move by the lines on screen, wrapped lines too |
+| Ctrl+A, Ctrl+E | The start, the end of the line |
+| Tab | Complete the word at the caret: a cell's `$name`, `$selection`, a linked file, then what nu completes there (commands, flags, paths); one completion goes in at once ([Writing a cell](#writing-a-cell)) |
 
-Each command's table is a region: a label line with its name and
-command, dimmed and underlined as wide as the table, then the table,
-its first row the column names. Regions stack down the sheet in the
-order they ran, a row between them; when a table grows or shrinks, the
-rows below it move, as if you'd inserted or deleted rows.
+A terminal without the kitty keyboard protocol sends Shift+Enter and
+Ctrl+Enter as Enter ([Keys the terminal has to tell
+apart](../reference/keys.md#keys-the-terminal-has-to-tell-apart)): there
+Esc then `r` runs the cell, and Alt+Enter runs it and adds one under it.
 
-A region is still cells of the grid. Its values are
-[typed](types.md) (file sizes in the Size format, durations, dates),
-formulas read them, and you can format them, filter them
-(**Data > Create a filter**), sort them (the sort is kept, so the table
-stays sorted when it runs again), chart them and make pivot tables of
-them: from any of its cells, or its label, with nothing selected, those
-commands take the region's table, from its header row down. Go to
-(Ctrl+G) takes a region's name as formulas write it (`nu.r1`). Like an
-[array's spill](../formulas/arrays.md#spilled-cells), they can't be
-typed over: change the command, or freeze the region. Copies paste
-values; downloads and XLSX hold the values; undo takes back a run (the
-table it replaced comes back) or the region itself.
+Every action is a command, in **Data > Shell**, the palette and the
+shortcuts (Ctrl+/), and File, Edit and the sheet tabs work as anywhere;
+commands for a sheet's cells are off on a notebook's tab. Changes to
+cells are undo steps, as any edit is.
 
-The context line says what's under the pointer: on a label, the keys
-that refresh and edit it, and why it failed if it did; on its table,
-which region the cell is part of. A label's end says what it's doing:
-`Running…`, `waiting` for a region it reads, `failed`, `stopped`,
-`not run`, or `no rows`.
+## Writing a cell
 
-**Data > Shell regions** acts on the region under the pointer:
+The cell being written is read by nu itself, as nushell's own prompt
+reads what you type: once typing pauses, 012 asks `nu --ide-ast` what
+each word is and colors it (commands, strings, variables, numbers,
+keywords, operators; flags stay plain), and `nu --ide-check` what's
+wrong. A problem is underlined with a curly line, and with the caret on
+it the context line says what nu said:
 
-| Command | Key | Does |
-|---|---|---|
-| Refresh region | Enter on its label | Runs its command again, then every region that reads it |
-| Run all regions | F9 | Runs every region, each after the regions it reads |
-| Edit region's command | F2 on its label | Opens its command at the prompt, to change it and run it again |
-| Freeze region | | Turns its table into plain values you can edit, and stops running its command |
-| Delete region | | Removes the region, its command and its table |
-| Stop shell command | Esc | Stops the command running, and those waiting after it |
-
-## Tables between regions
-
-`$r1` in a command is region r1's table, and `$in` is the range
-selected when the prompt was opened, on a sheet that isn't the notebook,
-read again each time the region runs:
-
-```nu
-big = $r1 | where size > 1kb | sort-by size --reverse
-$in | group-by region --to-table
+```
+  [ ]                                                        not run
+│ $files | sort-by size --revrse
+                        ~~~~~~~~
+The `sort-by` command doesn't have flag `revrse`.
 ```
 
-Both reach nu as NUON in a file it reads, never as text spliced into
-the command: `$r1` is a nushell variable holding a table, and `$in` is
-the pipeline's input, as nushell's own
-[`$in`](https://www.nushell.sh/book/pipelines.html#pipeline-input-and-the-special-in-variable)
-is.
+Tab asks `nu --ide-complete` too, after the notebook's own names, so it
+completes flags, subcommands and paths as well as cells and commands.
+nu doesn't know the variables a notebook binds, so it's asked about the
+cell with `$name` for each named cell and linked file, `$selection` and
+`$sheet` declared before it; a `$sheet.A1:C9` range reads as one
+variable, and `name =` isn't part of what nu reads.
 
-A region reading another depends on it. Refreshing a region runs it
-again and then every region that reads it, directly or through others,
-each after what it reads; a region it reads that hasn't run yet runs
-first. A command reading itself, directly or through others, is
-refused.
+Questions to nu run in the background and never on each key: one
+process for each question after a pause, at most two at a time, each
+stopped once the text changes and after a second and a half. Until nu
+answers, the cell shows 012's own highlighting, and what's unchanged
+keeps nu's colors, so nothing flickers or moves. 012 falls back to its
+own highlighting and names, without saying so, when:
 
-### Linked files
+- nu isn't installed, or is older than 0.100;
+- nu timed out three times in a row (asked again in the next session);
+- the cells couldn't run without asking: a file from another computer
+  not yet trusted ([Saving and trust](#saving-and-trust)), `shell =
+  off`, or [012 serve](../terminal/ssh.md#notebooks) without
+  `serve-shell`.
 
-A [linked file](../files/following.md) is a region too, named after the
-file ([The region](../files/following.md#the-region)), so commands read
-`app.csv` as `$app`. A region reading it doesn't run as rows
-arrive: refreshing it runs its command on the rows the file has now.
-The linked file itself has no command to run.
-
-```nu
-errors = $app | where status >= 500 | select time path status ms
-```
-
-[A log file followed live](cookbook.md#a-log-file-followed-live) shows
-it working.
-
-### In formulas
-
-Other sheets read a region by name with `nu.` in front, as a named range
-of its table, header included: `=SUM(nu.big)`, `=VLOOKUP("go.mod",
-nu.r1, 3, FALSE)`, `=COUNTIF(nu.app, 503)`. Formulas follow the table as
-it grows, shrinks or moves, and show `#REF!` while it has none.
+nu reads the cell without your `config.nu` or its standard library, so
+your own commands aren't known to it; they still run when the cell does
+with `nu-config`.
 
 ## Running
 
-Commands run in the background, one at a time: the screen stays live,
-and Esc stops the one running and those waiting after it. Each runs as
-`nu --no-config-file -c`, so your aliases and custom commands aren't
-there unless `nu-config` is on
-([nushell's configuration](https://www.nushell.sh/book/configuration.html)).
-A command stops after `nu-timeout` (30 seconds unless set), and keeps at
-most `max-cells` cells, whole rows, saying how many it left out.
+Cells run in the background, one at a time, so the screen stays live:
+the one running shows `[*]` and those after it `waiting`. **Data >
+Shell** runs one cell, every cell (F9), the cells above the selected
+one or it and those below; each runs after the cells it reads. A cell
+that fails stops the rest.
 
-What a command prints is read as a table: a record is one row, a list
-of values that aren't records one column named `value`, and a single
-value that column with one row. When a command fails, its label says
-so and the context line gives nushell's message.
+Each cell runs as `nu --no-config-file -c`, so your aliases and custom
+commands aren't there unless `nu-config` is on
+([nushell's configuration](https://www.nushell.sh/book/configuration.html)).
+A cell stops after `nu-timeout` (30 seconds unless set); `ii` stops it
+sooner.
+
+## Names and $name
+
+A cell that starts `name =` gives its output that name; `n` names a
+cell for you. Later cells read the output as `$name`, a nushell
+variable holding the value, and formulas on any sheet as `nu.name` once
+it's [sent to a sheet](#send-to-a-sheet):
+
+```nu
+files = ls
+big = $files | where size > 1kb
+$big | get name | str join ", "
+```
+
+A name is letters, digits and `_`, not starting with a digit or `__`;
+`in`, `env`, `nu`, `it`, `selection` and `sheet` are taken. Two cells
+can't share a name: the second says so and doesn't run until it's
+renamed.
+
+What a cell reads decides the order cells run in: each after the cells
+it reads, and a cell that hasn't run first when one reading it runs. A
+cell reading itself, directly or through others, doesn't run.
+
+```mermaid
+flowchart TD
+    files["files = ls"] -->|$files| big["big = $files | where size > 1kb"]
+    app["a linked file, app.csv"] -->|$app| errors["errors = $app | where status >= 500"]
+    big -->|G sends it to a sheet| region["the region big, on a sheet"]
+    region --> sum["=SUM(nu.big)"]
+```
+
+A cell reads the sheets two ways, each a table:
+
+| In a cell | Is |
+|---|---|
+| `$selection` | The range selected on the sheet shown last before the notebook, with its first row as the header |
+| `$sheet.A1:C9`, `$sheet.Sales!A1:C9`, `$sheet.'Q1 data'!B2:B40` | That range, of the sheet shown last or the sheet named |
+| `$app` | A [linked file](../files/following.md) named `app`, its rows as they are when the cell runs |
+
+They reach nu as NUON in a file it reads, never as text spliced into
+the pipeline, so types survive ([Types](types.md)): sizes stay sizes,
+dates stay dates.
+
+### Stale outputs and reactive notebooks
+
+Running a cell again makes the outputs of the cells that read it,
+directly or through others, `stale`: they were made from what it printed
+before. So is a cell's own output once its source is changed.
+
+```mermaid
+flowchart TD
+    run["files runs again"] --> stale["big, and cells reading big: stale"]
+    stale -->|reactive off| you["run them when you want"]
+    stale -->|reactive on| again["they run again, each after what it reads"]
+    you --> fresh["fresh outputs"]
+    again --> fresh
+```
+
+**Data > Shell > Reactive notebook** (off unless turned on, saved
+with the notebook) runs them again whenever a cell they read runs.
+
+## Send to a sheet
+
+`G` sends the selected cell's output to a sheet: a new sheet named after
+the cell, or a cell of a sheet you pick. There it's a region named after
+the cell, italic as a linked file's rows are, that formulas read as
+`nu.name`, header row included (`=SUM(nu.big)`, `=VLOOKUP("go.mod",
+nu.files, 3, FALSE)`), and charts and pivot tables use. A cell without a
+name is given one first.
+
+```mermaid
+sequenceDiagram
+    participant C as Cell big
+    participant R as Region big on a sheet
+    participant F as =SUM(nu.big)
+    C->>R: G sends the output's rows
+    R->>F: recalculates
+    C->>C: runs again
+    C->>R: the new rows replace the old
+    R->>F: recalculates
+```
+
+Like an [array's spill](../formulas/arrays.md#spilled-cells), its cells
+can't be typed over: **Data > Shell > Freeze output** turns them into
+plain values, and **Remove output** takes them off the sheet. Undo takes
+back sending it, and the rows come back from the cell's output whenever
+undo brings the region back.
 
 ## Saving and trust
 
-The file keeps each region's command, name, place and what it reads,
-not its table ([format](../files/format.md#regions)), and the lines
-typed at the prompt. Opening a notebook never runs anything: its
-regions say `not run`, and F9 runs them all, each after what it reads.
+The file keeps the cells and their outputs as NUON
+([format](../files/format.md#notebooks)), so opening it shows every
+output without running anything; the heads say `saved`. An output larger
+than `nu-save-cell-kb` (1 MB), or past `nu-save-notebook-kb` (8 MB) for
+all of them, is left out: the cell shows `not saved; run to see`, and
+saving says which.
 
-Like [macros](../sheets/macros.md#macros-from-other-computers), a
-file's commands run as you, with your files, so a notebook saved on
-another computer asks once before they run:
+Opening a file never runs its cells. Like
+[macros](../sheets/macros.md#macros-from-other-computers), a file's cells
+run as you, with your files, so a notebook saved on another computer
+asks once before its cells run:
 
+```mermaid
+sequenceDiagram
+    participant You
+    participant N as The notebook
+    participant Nu as nu
+    You->>N: open a file saved on another computer
+    N-->>You: its cells and saved outputs, nothing run
+    You->>N: Shift+Enter, or F9
+    N-->>You: Run this file's notebook cells?
+    You->>N: Enter
+    N->>Nu: the cells, one at a time
+    Nu-->>N: their outputs
 ```
-Run this file's shell commands?   Enter Run   Esc Cancel
-```
 
-What you type at the prompt runs without asking. The options, in
-[Configuration](../reference/config.md#nushell-notebooks):
+Cells you write in a notebook made here run without asking. The options,
+in [Configuration](../reference/config.md#nushell-notebooks):
 
 | Option | Default | Does |
 |---|---|---|
-| `shell` | `ask` | `ask` as above; `on` never asks; `off` runs nothing |
-| `nu-timeout` | `30s` | Stops a command that runs longer; `0` lets it run until Esc |
-| `nu-config` | `false` | Runs commands with your `config.nu` and `env.nu` |
+| `shell` | `ask` | `ask` as above; `on` never asks; `off` runs no cells |
+| `nu-timeout` | `30s` | Stops a cell that runs longer; `0` lets it run until `ii` |
+| `nu-config` | `false` | Runs cells with your `config.nu` and `env.nu` |
+| `nu-save-cell-kb`, `nu-save-notebook-kb` | `1024`, `8192` | How much of the outputs a file keeps |
 
-[012 serve](../terminal/ssh.md#notebooks) shows notebooks but runs no
-commands unless the server's `serve-shell` is on.
+[012 serve](../terminal/ssh.md#notebooks) shows notebooks and their
+saved outputs, but runs no cells unless the server's `serve-shell` is on.
+
+### Notebook sheets
+
+A file with the notebook sheets of earlier versions of 012, whose
+pipelines were typed at a prompt on the formula bar, opens with each of
+those pipelines as a code cell of the workbook's notebook, named as the
+region was. Their tables stay where they were on the sheet, as the
+cells' outputs sent there, so formulas reading `nu.r1` keep working once
+the cells run; a note on opening says which sheets were converted.

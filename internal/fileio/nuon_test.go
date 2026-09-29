@@ -173,18 +173,20 @@ func TestEncodeFiltered(t *testing.T) {
 	}
 }
 
-// A notebook's regions download as their values, labels included.
+// A notebook cell's output sent to a sheet downloads as its values.
 func TestExportRegion(t *testing.T) {
 	s := sheet.New()
-	s.MakeNotebook()
-	if err := s.AddRegion(sheet.Region{Name: "r1", Command: "ls"}); err != nil {
+	if err := s.AddRegion(sheet.Region{Name: "r1", Output: true}); err != nil {
 		t.Fatal(err)
 	}
-	d := &sheet.RegionData{Rows: 2, Cols: 2, Values: []sheet.Value{{Kind: sheet.Text, Str: "name"}, {Kind: sheet.Text, Str: "n"}, {Kind: sheet.Text, Str: "a"}, {Kind: sheet.Number, Num: 1}}}
-	if err := s.ShowRegion("r1", d); err != nil {
+	rows, _, err := NUONRows(context.Background(), []byte("[[name, n]; [a, 1]]"), 0)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got := encode(t, s, CSV); got != "r1  ls,\nname,n\na,1\n" {
+	if err := s.Book().ApplyLive(sheet.LiveOp{Region: "r1", Reset: true, Header: rows.Header, Rows: rows.Rows}); err != nil {
+		t.Fatal(err)
+	}
+	if got := encode(t, s, CSV); got != "name,n\na,1\n" {
 		t.Errorf("CSV %q", got)
 	}
 	path := filepath.Join(t.TempDir(), "nb.xlsx")
@@ -195,8 +197,48 @@ func TestExportRegion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c := res.Sheet.Cell(addr(t, "B3")); c == nil || c.IsFormula() || c.Value.Num != 1 {
-		t.Errorf("B3 read back as %+v", c)
+	if c := res.Sheet.Cell(addr(t, "B2")); c == nil || c.IsFormula() || c.Value.Num != 1 {
+		t.Errorf("B2 read back as %+v", c)
+	}
+}
+
+// NUONRows reads any value nu prints as a region's rows.
+func TestNUONRows(t *testing.T) {
+	for _, c := range []struct {
+		out  string
+		want string
+	}{
+		{"[[name, size]; [a, 1kb], [b, 2b]]", "name size|a 1.0 kB|b 2 B"},
+		{"{a: 1, b: true}", "a b|1 TRUE"},
+		{"3", "value|3"},
+		{`"hello"`, "value|hello"},
+		{"null", "value"},
+		{"[1, 2]", "value|1|2"},
+		{"", ""},
+	} {
+		rows, _, err := NUONRows(context.Background(), []byte(c.out), 0)
+		if err != nil {
+			t.Errorf("%q: %v", c.out, err)
+			continue
+		}
+		var lines []string
+		for _, r := range append([]sheet.LiveRow{rows.Header}, rows.Rows...) {
+			var texts []string
+			for _, lc := range r {
+				texts = append(texts, sheet.FormatText(lc.V, lc.F))
+			}
+			if len(texts) > 0 {
+				lines = append(lines, strings.TrimSpace(strings.Join(texts, " ")))
+			}
+		}
+		if got := strings.Join(lines, "|"); got != c.want {
+			t.Errorf("%q read as %q, want %q", c.out, got, c.want)
+		}
+	}
+	// Past max-cells, whole rows are kept and the note says so.
+	rows, note, err := NUONRows(context.Background(), []byte("[[a, b]; [1, 2], [3, 4], [5, 6]]"), 4)
+	if err != nil || len(rows.Rows) != 1 || note == "" {
+		t.Errorf("capped: %+v %q %v", rows, note, err)
 	}
 }
 
