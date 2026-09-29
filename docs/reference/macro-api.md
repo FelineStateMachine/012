@@ -86,7 +86,7 @@ width, a name, a confirmation) needs `answer`: the text you'd type, a range
 for a range question, the key of a choice (`"enter"`, `"d"`) or its
 label, or the item picked from a list (View > Hidden sheets takes the
 sheet's name). A command that opens a dialog takes what you'd choose in
-it as a dict (see [Dialogs](#dialogs)). Other pickers (Named ranges) can't
+it as a dict (see [Dialogs](#dialogs)). Other pickers (Named ranges, Tables) can't
 run in a script; nor can files, menus, help, undo or macros. The ids are
 those in the recorded scripts; a few:
 
@@ -102,6 +102,7 @@ those in the recorded scripts; a few:
 | `column.width` (answer: the width), `column.reset` | Column widths |
 | `data.sort_sheet_az`, `data.sort_range_az`, `data.sort_range_za`, `data.filter`, `data.filter_remove` | Sorting and filters |
 | `data.define_name` (answer: the name) | Name the selection |
+| `table.create` (answer: the name), `table.rename` (answer: the name), `table.resize` (answer: the range), `table.banded`, `table.header`, `table.remove` | [Tables](../sheets/tables.md): make the selection one, or change the one the active cell is in |
 | `format.conditional_add`, `data.validation_add` (answer: the rule as a line of the file, see [The .012 format](../files/format.md#conditional-formats-and-data-validation)), `insert.checkbox`, `format.conditional_clear`, `data.validation_clear`, `data.checkbox_toggle` | Conditional formats, data validation and checkboxes |
 | `format.conditional_set`, `data.validation_set` (answer: `{"rule": 2, ...}`, the rule's number and its new line), `format.conditional_remove`, `data.validation_remove` (answer: the rule's number), `format.conditional_move` (answer: `{"rule": 2, "to": 1}`) | Change the rules of the sheet shown, numbered from 1 as the panel lists them |
 | `sheet.new`, `sheet.duplicate`, `sheet.rename` (answer: the name), `sheet.delete` (answer: `"enter"` when it asks), `sheet.hide`, `sheet.unhide` (answer: the sheet's name) | Sheets |

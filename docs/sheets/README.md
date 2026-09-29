@@ -16,6 +16,7 @@ working with its data.
 | [Formatting](formatting.md) | Number formats, text styles, column and row formats, widths |
 | [Sheets and tabs](sheets-and-tabs.md) | Several sheets: adding, moving, hiding |
 | [Freeze, sort and filter](sort-filter.md) | Keeping headers on screen, sorting, filtering by values or conditions |
+| [Tables](tables.md) | Named ranges with a header row that formulas read by column name, and that grow with their rows |
 | [Find and replace](find-replace.md) | Searching one sheet, all of them or a range |
 | [Conditional formatting and data validation](rules.md) | Coloring cells by their values; dropdowns, checkboxes and entry rules |
 | [Pivot tables](pivots.md) | Summaries of a table on a sheet of their own, and frequency tables |

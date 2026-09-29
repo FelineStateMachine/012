@@ -171,6 +171,27 @@ func TestTableSuggestions(t *testing.T) {
 	wantShown(t, m, "D2", "2")
 }
 
+// Scripts answer the table commands' questions, as a recording writes
+// them.
+func TestTableCommandsInScripts(t *testing.T) {
+	m := unitsModel(t)
+	script(t, m, `
+select("A1:C4")
+run("table.create", answer="Sales")
+select("B2")
+run("table.rename", answer="Revenue")
+run("table.resize", answer="A1:B4")
+run("table.banded")
+`)
+	if m.warn != "" {
+		t.Fatal(m.warn)
+	}
+	tb, ok := m.sheet.TableAt(addr("A2"))
+	if !ok || tb.Name != "Revenue" || tb.Range != rectOf("A1:B4") || tb.Banded {
+		t.Errorf("table %+v", tb)
+	}
+}
+
 // wantShown checks the value the cell at a shows.
 func wantShown(t *testing.T, m *Model, a, want string) {
 	t.Helper()

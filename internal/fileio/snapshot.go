@@ -105,15 +105,7 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		CondFormats: s.CondFormats(), Validations: s.Validations()}
 	snap.FrozenRows, snap.FrozenCols = s.Frozen()
 	snap.Heights, snap.Merges = heightsMergesIn(s, r)
-	for _, t := range s.Tables() {
-		if whole {
-			// A whole sheet's range holds its tables, blank rows and all.
-			snap.Range.To.Col, snap.Range.To.Row = max(snap.Range.To.Col, t.Range.To.Col), max(snap.Range.To.Row, t.Range.To.Row)
-		}
-		if snap.Range.Contains(t.Range.From) && snap.Range.Contains(t.Range.To) {
-			snap.Tables = append(snap.Tables, t)
-		}
-	}
+	snapTables(snap, s, whole)
 	for _, a := range s.NotesIn(notes) {
 		if snap.Notes == nil {
 			snap.Notes = map[sheet.Addr]string{}
@@ -151,6 +143,19 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		}
 	}
 	return snap
+}
+
+// snapTables adds the sheet's tables in the snapshot's range to it; a
+// whole sheet's range grows to hold its tables, blank rows and all.
+func snapTables(snap *Snapshot, s *sheet.Sheet, whole bool) {
+	for _, t := range s.Tables() {
+		if whole {
+			snap.Range.To.Col, snap.Range.To.Row = max(snap.Range.To.Col, t.Range.To.Col), max(snap.Range.To.Row, t.Range.To.Row)
+		}
+		if snap.Range.Contains(t.Range.From) && snap.Range.Contains(t.Range.To) {
+			snap.Tables = append(snap.Tables, t)
+		}
+	}
 }
 
 // heightsMergesIn are the heights of the rows of r and the merges inside

@@ -168,8 +168,8 @@ sooner.
 
 A cell that starts `name =` gives its output that name; `n` names a
 cell for you. Later cells read the output as `$name`, a nushell
-variable holding the value, and formulas on any sheet as `nu.name` once
-it's [sent to a sheet](#send-to-a-sheet):
+variable holding the value, and formulas on any sheet as `nu.name`, or
+a column of it as `name[column]`, once it's [sent to a sheet](#send-to-a-sheet):
 
 ```nu
 files = ls
@@ -230,7 +230,10 @@ with the notebook) runs them again whenever a cell they read runs.
 the cell, or a cell of a sheet you pick. There it's a region named after
 the cell, italic as a linked file's rows are, that formulas read as
 `nu.name`, header row included (`=SUM(nu.big)`, `=VLOOKUP("go.mod",
-nu.files, 3, FALSE)`), and charts and pivot tables use. A cell without a
+nu.files, 3, FALSE)`), and charts and pivot tables use. It's also a
+[table](../sheets/tables.md#notebook-outputs-and-linked-files) by the
+cell's name, read by column: `=SUM(big[size])`, `=COUNTIF(app[status],
+500)`, with `big` alone its rows under the header. A cell without a
 name is given one first.
 
 ```mermaid
