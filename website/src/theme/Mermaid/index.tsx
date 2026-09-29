@@ -4,7 +4,7 @@
 // home. Mermaid needs literal colors, not CSS variables, which is why
 // they are read from the page rather than passed through.
 
-import React, {useEffect, useMemo, useRef, type ReactNode} from 'react';
+import React, {useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import ErrorBoundary from '@docusaurus/ErrorBoundary';
 import {ErrorBoundaryErrorMessageFallback, useColorMode} from '@docusaurus/theme-common';
 import {
@@ -125,10 +125,16 @@ function useMermaidConfig(): MermaidConfig | undefined {
     if (mode === undefined) {
       return undefined;
     }
+    const palette = readPalette();
+    // The font is also set outside the theme: diagrams that size boxes
+    // by measuring their text (sequence diagrams) measure it in these,
+    // and text measured in another font overflows its box.
     return {
       startOnLoad: false,
       theme: 'base',
-      themeVariables: themeVariables(readPalette(), mode === 'dark'),
+      fontFamily: palette['font-mono'],
+      fontSize: 14,
+      themeVariables: themeVariables(palette, mode === 'dark'),
       flowchart: {curve: 'linear', htmlLabels: true},
     } as MermaidConfig;
   }, [mode]);
@@ -160,10 +166,25 @@ function MermaidRenderer({value}: Props): ReactNode {
   return <MermaidRenderResult renderResult={renderResult} />;
 }
 
+// Mermaid sizes boxes by measuring their text, so it draws once the
+// site's fonts have loaded; measured in a fallback font, text overflows.
+function useFontsReady(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let live = true;
+    document.fonts.ready.then(() => live && setReady(true));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return ready;
+}
+
 export default function Mermaid(props: Props): ReactNode {
+  const ready = useFontsReady();
   return (
     <ErrorBoundary fallback={(params) => <ErrorBoundaryErrorMessageFallback {...params} />}>
-      <MermaidRenderer {...props} />
+      {ready && <MermaidRenderer {...props} />}
     </ErrorBoundary>
   );
 }
