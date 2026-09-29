@@ -23,6 +23,19 @@ To look at the built site as a static host serves it, run
 address canonical links and the sitemap use (`SITE_URL=https://... make
 site`); the site sits at the root of its host.
 
+## Where it lives
+
+The site is published at [f58b.n.zip](https://f58b.n.zip/), a public,
+permanent address on the owner's nzip server. To publish a new build to
+the same address:
+
+```sh
+SITE_URL=https://f58b.n.zip make site
+nzip site push website/build public:012
+```
+
+The target keeps its policies (public, no expiry) between pushes.
+
 ## The build is a docs check
 
 `make site` fails on a link to a page that doesn't exist, an anchor no
