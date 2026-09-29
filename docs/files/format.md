@@ -6,7 +6,9 @@ sidebar_position: 4
 # The .012 format
 
 `.012` files are JSON with one line per cell, keyed by address, so diffs
-read naturally and files merge reasonably in version control. A cell
+read naturally and files merge reasonably in version control. This page
+is the format at version 5, the newest; [Versions](#versions) says what
+each version adds and what 012 promises about old files. A cell
 without formatting is just what was typed; a formatted cell is a small
 object:
 
@@ -48,6 +50,13 @@ spacing, and the case of field names don't matter. A cell given twice
 takes its last entry, though an invalid earlier one is refused; the
 `version` or the `sheets` list given twice around cells is refused.
 
+012 writes one form of each workbook: the fields in the order this page
+shows them, cells by row and then column, widths and heights by
+position, column and row formats with the whole sheet's first, then
+columns', then rows', names by name, and charts, rules, regions and
+macros in the order they were made. Saving a file 012 wrote, without
+changing it, gives back the same bytes.
+
 012 reads and writes the file as a stream, each cell straight into or
 out of its sheet, so opening a file takes about the memory of the
 workbook however large the file; what that costs, and why there is no
@@ -67,6 +76,21 @@ still load.
 | 3 | A sheet has named ranges, frozen panes or a filter | `names` (each name's range, `#REF!` once its cells were deleted), `freeze` (`rows`, `cols`), `filter` (its `range`, and `columns` by letter, each with `hidden` values or a `condition` and its `value`) |
 | 4 | Several sheets, or a formula naming a sheet | `sheets`, a list; see [Several sheets](#several-sheets) |
 | 5 | A pivot table | a sheet's `pivot`; see [Pivot tables](#pivot-tables) |
+
+What stays the same from release to release:
+
+- Every file a release saved opens in every later build, and saving it
+  unchanged gives back its bytes. Each release keeps workbooks it saved
+  as fixtures (`internal/sheet/testdata/fixtures/<release>`), which every
+  build's tests open and save again
+  ([Releasing](../contributing/releasing.md#file-fixtures)).
+- Fields are only added, never renamed or given another meaning; the
+  version rises only for a field older builds can't do without, and the
+  rest are listed under [Fields that need no version](#fields-that-need-no-version).
+- An older build ignores a field it doesn't know, but refuses a value it
+  doesn't know in a field it does (a chart type, a rule's condition such
+  as a date period), rather than open the file with the rule or chart
+  quietly changed.
 
 ## Fields that need no version
 

@@ -22,7 +22,10 @@ make site     # build the docs site, failing on broken links (needs Node; see si
 The engine is tested directly: parsing, every function, recalculation,
 undo, reference rewriting, file round trips. `FuzzRead` holds the
 streaming `.012` reader to encoding/json decoding the whole file: both
-refuse a file or both read it into workbooks that save the same bytes. The UI is tested by sending
+refuse a file or both read it into workbooks that save the same bytes.
+`TestFixturesOpenAndSaveUnchanged` opens the workbooks every release
+saved and saves them again, byte for byte
+([File fixtures](releasing.md#file-fixtures)). The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and
 reading what `View` renders, without a terminal.
 
