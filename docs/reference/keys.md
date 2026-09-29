@@ -113,7 +113,7 @@ range, F2 renames or repoints it and Ctrl+D deletes it.
 
 | Key | Action |
 |---|---|
-| Ctrl+S, Ctrl+O, Ctrl+Q | Save, open (and import other formats), quit |
+| Ctrl+S, Ctrl+O, Ctrl+Q | Save, open (and import other formats), quit; with `012 --pipe`, quitting asks what to send, or sends what `--send` chose ([Pipelines](../nushell/pipelines.md#sending-it-on-012---pipe)) |
 | F10, Alt+F, Alt+E, Alt+V, Alt+I, Alt+O, Alt+D, Alt+H | Open a menu; arrows move, Enter runs, Esc closes |
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
 | Shift+F10, right-click | The cell, column or row menu |
@@ -231,7 +231,7 @@ The `:` line takes:
 | `:40` | Go to row 40 |
 | `:w`, `:w name`, `:w out.csv` | Save, Save as, or Download as another format, as the File menu does |
 | `:w!`, `:w! name`, `:wq!` | Save even if the file changed on disk since it was opened, and replace a file of the name given, without asking (as choosing Overwrite or Replace would) |
-| `:q`, `:q!` | Quit (asking about unsaved changes), quit discarding them |
+| `:q`, `:q!` | Quit (asking about unsaved changes), quit discarding them; with `012 --pipe`, `:q` quits as Ctrl+Q does and `:q!` quits without sending |
 | `:wq`, `:x` | Save and quit; `:x` saves only if something changed |
 | `:e name`, `:e!` | Open a sheet or import a file; refused with unsaved changes unless `:e!` |
 | `:edit.fill_down`, `:fill down` | Any command, by its id or title |
