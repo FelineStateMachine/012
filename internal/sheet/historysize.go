@@ -57,6 +57,9 @@ func (st *step) size() int64 {
 	for _, r := range st.rules {
 		n += entryBytes + int64(len(r.formats)+len(r.validations))*ruleBytes
 	}
+	for _, r := range st.regions {
+		n += entryBytes + int64(len(r.list))*ruleBytes
+	}
 	if st.sheets != nil {
 		n += int64(len(st.sheets.order)) * 2 * entryBytes
 	}

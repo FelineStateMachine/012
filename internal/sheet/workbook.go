@@ -58,6 +58,8 @@ type Workbook struct {
 	macroOrigin string
 	linkOrigin  string // see linkfile.go
 
+	shellHistory []string // lines typed at a notebook's prompt: shellhistory.go
+
 	// structural is set when sheets were added, deleted or renamed during
 	// the open change, which then recalculates everything: references by
 	// sheet name may now resolve differently.
@@ -75,6 +77,8 @@ type Workbook struct {
 	spillWork spillWork
 	// linkSeq is the last linked region's ID; see linked.go.
 	linkSeq int
+	// settling is set while regions write their cells; see regionwrite.go.
+	settling bool
 }
 
 // loc is a cell on a particular sheet.
@@ -223,6 +227,9 @@ func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
 	}
 	cp := w.newSheet(w.freeName("Copy of " + s.name))
 	for a, c := range s.cells.all() {
+		if _, _, ok := s.RegionAt(a); ok && c.spilled {
+			c = frozen(c) // a region's table, as values: the copy has no regions
+		}
 		c := c.clone()
 		c.setExpr(c.expr) // fresh reference slices, shared with nothing
 		cp.place(a, c)

@@ -18,7 +18,7 @@ var named = map[string]tea.Key{
 	"tab": {Code: tea.KeyTab}, "delete": {Code: tea.KeyDelete}, "home": {Code: tea.KeyHome}, "end": {Code: tea.KeyEnd},
 	"up": {Code: tea.KeyUp}, "down": {Code: tea.KeyDown}, "left": {Code: tea.KeyLeft}, "right": {Code: tea.KeyRight},
 	"pgdown": {Code: tea.KeyPgDown}, "pgup": {Code: tea.KeyPgUp}, "f1": {Code: tea.KeyF1}, "f2": {Code: tea.KeyF2}, "f3": {Code: tea.KeyF3}, "f4": {Code: tea.KeyF4}, "f5": {Code: tea.KeyF5},
-	"f10": {Code: tea.KeyF10}, "f11": {Code: tea.KeyF11}, "space": {Code: tea.KeySpace},
+	"f9": {Code: tea.KeyF9}, "f10": {Code: tea.KeyF10}, "f11": {Code: tea.KeyF11}, "space": {Code: tea.KeySpace},
 }
 
 // press sends keys to m. Named keys go in angle brackets with optional

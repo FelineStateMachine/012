@@ -86,8 +86,9 @@ the authorized keys. Everything else is closed.
 - **Host key.** An ed25519 key generated on first run, written `0600`
   in a `0700` directory. 012 refuses to start if the key is readable by
   others.
-- **What a session can do.** Run 012, nothing else; no command is ever
-  executed. A shell request starts 012 on a new sheet. An exec request
+- **What a session can do.** Run 012, nothing else; no command is
+  executed, unless the server's config turns on notebooks' nushell
+  commands (see [Notebooks](#notebooks)). A shell request starts 012 on a new sheet. An exec request
   is accepted only with a terminal (`ssh -t`) and only when it is one
   word, which is taken as a file name and never run: it resolves inside
   the served directory like a name typed in File > Open, and anything
@@ -147,6 +148,17 @@ session, but not edited as scripts: that would start an editor on the
 server. A file's macros ask for trust once per session, since the
 session isn't the server's own computer, and scripts have no file,
 network or clock access in any case.
+
+## Notebooks
+
+A session opens [notebooks](nushell.md#notebooks) and shows their
+regions, but runs none of their commands: a command is a program on the
+server, with the server's user and every file it can reach, well
+beyond the served directory. `serve-shell = on` in the server's config
+lets sessions run them, as the user 012 serve runs as, following the
+`shell` option as the local app does; a file's commands still ask once
+per session before they run. Only turn it on when everyone holding an
+authorized key may run programs on the server.
 
 ## Unsaved work
 

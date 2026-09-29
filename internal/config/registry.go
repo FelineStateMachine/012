@@ -75,11 +75,12 @@ const (
 	GroupTelemetry  = "Telemetry"
 	GroupServe      = "012 serve"
 	GroupData       = "Data"
+	GroupShell      = "Nushell notebooks"
 	GroupFiles      = "Config files"
 )
 
 // Groups is the order groups are listed in.
-var Groups = []string{GroupAppearance, GroupData, GroupJEV, GroupTelemetry, GroupServe, GroupFiles}
+var Groups = []string{GroupAppearance, GroupData, GroupShell, GroupJEV, GroupTelemetry, GroupServe, GroupFiles}
 
 // Options is every setting. Add an option here and read it with
 // Config.String, Bool or List; parsing, `012 config`, docs/reference/config.md
@@ -117,6 +118,16 @@ var Options = []Option{
 			"up to the budget and say how many they left out; larger pastes and fills are refused. " +
 			"The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is."},
 
+	{Name: "shell", Kind: Enum, Group: GroupShell, Default: "ask", Values: []string{"off", "ask", "on"}, Env: []string{"O12_SHELL"}, Live: true,
+		Desc: "Whether notebook sheets run nushell commands (docs/terminal/nushell.md). `ask` runs what you type " +
+			"and asks once before running the commands of a file made on another computer; `on` never asks; " +
+			"`off` runs none. Opening a file never runs its commands."},
+	{Name: "nu-timeout", Kind: Duration, Group: GroupShell, Default: "30s", Env: []string{"O12_NU_TIMEOUT"}, Live: true,
+		Desc: "Stop a notebook's command that runs longer than this; 0 lets it run until Esc stops it."},
+	{Name: "nu-config", Kind: Bool, Group: GroupShell, Default: "false", Env: []string{"O12_NU_CONFIG"}, Live: true,
+		Desc: "Run notebook commands with your nushell config files (config.nu, env.nu) rather than " +
+			"`nu --no-config-file`, for your own commands and aliases."},
+
 	{Name: "jev-api-key-command", Kind: Command, Group: GroupJEV,
 		Desc: "A command that prints the TypeSafe API key, used when TYPESAFE_API_KEY isn't set and the " +
 			"credential store has no key, e.g. `op read op://Private/TypeSafe/credential` or " +
@@ -153,6 +164,9 @@ var Options = []Option{
 		Desc: "End a 012 serve session that has had no input for this long; 0 never does."},
 	{Name: "serve-max-sessions", Kind: Int, Group: GroupServe, Default: "8",
 		Desc: "How many 012 serve sessions may run at once; more are turned away."},
+	{Name: "serve-shell", Kind: Bool, Group: GroupServe, Default: "false",
+		Desc: "Let 012 serve sessions run notebooks' nushell commands, as the user 012 serve runs as, " +
+			"following the shell option. Off, served notebooks show their regions but run nothing."},
 
 	{Name: "config-file", Kind: Path, Group: GroupFiles, Repeat: true,
 		Desc: "Read another config file after this one, relative to this file's directory. " +

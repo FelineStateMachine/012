@@ -28,6 +28,10 @@ it back in its format.
 | JSON `.json`, `.ndjson`, `.jsonl` | A list of records (or records one after another, as NDJSON): keys become the header row, numbers, booleans and text keep their types, nested lists and records are their text | The sheet shown as a list of records named by its first row, numbers as numbers |
 | Nushell `.nuon` | A nushell table with its types: file sizes, durations and dates become numbers in the Size, Duration and Date time formats; see [Nushell](../terminal/nushell.md#types) | The sheet shown as a nushell table, first row as column names, types kept by the cells' formats |
 
+CSV, TSV, JSON and NUON downloads hold the rows a filter shows, as
+Sheets copies a filtered range; XLSX keeps every row, the hidden ones
+hidden.
+
 Formats other than XLSX import as one sheet named after the file (or the
 SQLite table). A file can also be followed instead, its table in a
 linked region that takes in new rows as the file grows or is rewritten:

@@ -191,6 +191,12 @@ func (m *Model) formulaBar() string {
 	case modePoint:
 		return box + m.entry.prefix + m.th.Selection.Render(m.pointRef()) + m.entry.suffix
 	}
+	if b, ok := m.overlay.(overlay.Bar); ok {
+		return box + b.FormulaBar()
+	}
+	if entry, ok := m.regionEntry(); ok {
+		return box + entry
+	}
 	if anchor, ok := m.sheet.SpillAnchor(m.cur); ok && m.sheet.HasSpills() {
 		// A spilled cell shows the formula it spills from, dimmed, as
 		// Sheets does.
@@ -244,6 +250,9 @@ func (m *Model) contextLineText() string {
 		}
 		if left == "" {
 			left = m.spillLine()
+		}
+		if left == "" {
+			left = m.regionLine()
 		}
 		if left == "" {
 			left = m.recordingLine()

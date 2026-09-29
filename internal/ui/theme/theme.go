@@ -41,9 +41,12 @@ type Theme struct {
 	// ErrorMark is layered on an error's text, so errors show beyond
 	// color: a curly underline, in the error color where the terminal
 	// supports colored underlines.
-	ErrorMark    lipgloss.Style
-	Link         lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
-	Spilled      lipgloss.Style // values an array formula spilled into the cells below and right of it
+	ErrorMark lipgloss.Style
+	Link      lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
+	Spilled   lipgloss.Style // values an array formula spilled into the cells below and right of it
+	// Region is a notebook region's label line, its name and command,
+	// dimmed and underlined as wide as its table: the top of its frame.
+	Region       lipgloss.Style
 	Found        lipgloss.Style // cells matching an open search
 	Traced       lipgloss.Style // precedents or dependents being traced
 	Argument     lipgloss.Style // the argument at the caret in a function's signature
@@ -257,6 +260,7 @@ func roles(dark bool) Theme {
 		ErrorMark:    lipgloss.NewStyle().UnderlineStyle(lipgloss.UnderlineCurly).UnderlineColor(lipgloss.Red),
 		Link:         lipgloss.NewStyle().Foreground(link).Underline(true),
 		Spilled:      lipgloss.NewStyle().Foreground(bar).Italic(true),
+		Region:       lipgloss.NewStyle().Foreground(muted).Underline(true).UnderlineSpaces(true),
 		Found:        lipgloss.NewStyle().Background(lipgloss.Yellow).Foreground(lipgloss.Black),
 		Traced:       lipgloss.NewStyle().Background(lipgloss.Green).Foreground(lipgloss.Black),
 		Argument:     lipgloss.NewStyle().Bold(true).Underline(true),

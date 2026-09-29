@@ -124,13 +124,16 @@ func snapColumns(snap *Snapshot) []string {
 	return cols
 }
 
-// snapRecords yields the values of each row after the first. The slice
-// is reused from row to row.
+// snapRecords yields the values of each row after the first that the
+// filter shows. The slice is reused from row to row.
 func snapRecords(snap *Snapshot, n int) func(yield func([]nuon.Value) bool) {
 	return func(yield func([]nuon.Value) bool) {
 		r, loc := snap.Range, zone()
 		row := make([]nuon.Value, n)
 		for y := r.From.Row + 1; y <= r.To.Row; y++ {
+			if snap.HiddenRows[y] {
+				continue
+			}
 			for x := r.From.Col; x <= r.To.Col; x++ {
 				c, ok := snap.Cells[sheet.Addr{Col: x, Row: y}]
 				row[x-r.From.Col] = nuon.NullValue()

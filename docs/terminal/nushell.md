@@ -21,6 +21,128 @@ Windows), not standard input or output, so the pipeline's data never
 mixes with what 012 draws, and nothing but the table reaches standard
 output.
 
+The other way round, a [notebook](#notebooks) runs nushell from inside
+012: each pipeline's table becomes a live part of the sheet.
+
+## Notebooks
+
+![Running ls and a pipeline reading it at the nu❯ prompt, then refreshing the first and watching the second follow](../media/notebook.gif)
+
+`012 nu` opens a notebook: a sheet where you type nushell pipelines and
+each one's table lands in the grid, named, typed and kept live. Written
+like a REPL, kept like a spreadsheet.
+
+```sh
+012 nu              # a new notebook
+012 nu work.012     # open one, or make it
+```
+
+In any workbook, `!` (or **Data > Shell**, or the palette) opens the
+same prompt, writing into the workbook's notebook sheet, or a new one
+named Shell 1 at the first command. Commands run `nu` as a separate
+process, so nushell must be installed; without it, the prompt says so
+and the rest of 012 works as before.
+
+### The prompt
+
+The formula bar becomes `nu❯`, and the mode indicator says `NU`:
+
+| Key | Does |
+|---|---|
+| Enter | Run the line; the prompt stays open for the next |
+| Tab, Shift+Tab | Complete the word at the caret: a region (`$r1`) or one of nu's commands, from the box under the context line; again for the next |
+| Up, Down | The workbook's earlier lines, those starting with what's typed; they're saved with the file |
+| Esc | Stop the command running; otherwise, back to the grid |
+
+A name and `=` before the pipeline name the region; without one it's
+`r1`, `r2` and so on:
+
+```nu
+sizes = ls | select name size
+```
+
+Typing a name that exists gives that region a new command and runs it
+again, as does F2 on its label.
+
+### Regions
+
+Each command's table is a region: a label line with its name and
+command, dimmed and underlined as wide as the table, then the table,
+its first row the column names. Regions stack down the sheet in the
+order they ran, a row between them; when a table grows or shrinks, the
+rows below it move, as if you'd inserted or deleted rows.
+
+A region is still cells of the grid. Its values are
+[typed](#types) (file sizes in the Size format, durations, dates),
+formulas read them, and you can format them, filter them
+(**Data > Create a filter**), sort them (the sort is kept, so the table
+stays sorted when it runs again) and chart them. Like an
+[array's spill](../formulas/arrays.md#spilled-cells), they can't be
+typed over: change the command, or **Data > Shell regions > Freeze
+region** turns the table into plain values and stops running it. Copies
+paste values; downloads and XLSX hold the values; undo takes back a run
+(the table it replaced comes back) or the region itself.
+
+The context line says what's under the pointer: on a label, the keys
+that refresh and edit it, and why it failed if it did; on its table,
+which region the cell is part of. A label's end says what it's doing:
+`Running…`, `waiting` for a region it reads, `failed`, `stopped`,
+`not run`, or `no rows`.
+
+### Tables between regions
+
+`$r1` in a command is region r1's table, handed to nu as NUON in a file
+nu reads, never as text spliced into the command. `$in` is the range
+selected when the prompt was opened, on a sheet that isn't the
+notebook, read again each time the region runs:
+
+```nu
+big = $r1 | where size > 1kb | sort-by size --reverse
+$in | group-by region | transpose region rows
+```
+
+A region reading another depends on it. Refreshing a region (Enter on
+its label, **Data > Shell regions > Refresh region**) runs it again and then every region
+that reads it, directly or through others, each after what it reads.
+F9 (**Data > Shell regions > Run all regions**) runs them all. A command
+reading itself, directly or through others, is refused.
+
+Other sheets read a region by name with `nu.` in front, as a named range
+of its table, header included: `=SUM(nu.big)`, `=VLOOKUP("go.mod",
+nu.r1, 3, FALSE)`. Formulas follow the table as it grows, shrinks or
+moves, and show `#REF!` while it has none.
+
+### Running
+
+Commands run in the background, one at a time: the screen stays live,
+and Esc stops the one running and those waiting after it. Each runs as
+`nu --no-config-file -c` (with your own config files if `nu-config` is
+on), stops after `nu-timeout` (30 seconds unless set), and keeps at
+most `max-cells` cells, whole rows, saying how many it left out. When a
+command fails, its label says so and the context line gives nushell's
+message.
+
+### Saving and trust
+
+The file keeps each region's command, name, place and what it reads,
+not its table ([format](../files/format.md#regions)). Opening a notebook
+never runs anything: its regions say `not run`, and F9 runs them all,
+each after what it reads.
+
+Like [macros](../sheets/macros.md#macros-from-other-computers), a
+file's commands run as you, with your files, so a notebook saved on
+another computer asks once before they run:
+
+```
+Run this file's shell commands?   Enter Run   Esc Cancel
+```
+
+What you type at the prompt runs without asking. The `shell` option
+decides: `ask` (the default) as above, `on` never asks, and `off` runs
+nothing. [012 serve](ssh.md#notebooks) runs no commands unless the
+server's `serve-shell` is on. See [Configuration](../reference/config.md#nushell-notebooks)
+for the options.
+
 ## Reading standard input
 
 `012 -` reads a table from standard input into a new sheet named
@@ -55,9 +177,9 @@ standard output:
   without asking. They're in the menus and the palette only with
   `--pipe`.
 
-The sheet is its used range from A1: every row, including rows a filter
-hides. A selection is sent as selected, and its first row names the
-columns. Quitting without sending writes nothing and exits with status
+The sheet is its used range from A1. A selection is sent as selected,
+and its first row names the columns. Either way, rows a filter hides
+stay behind, as Sheets copies a filtered range. Quitting without sending writes nothing and exits with status
 1, so the pipeline stops rather than carrying on with nothing.
 
 The table goes out in the format it came in (NUON, JSON, CSV or TSV);

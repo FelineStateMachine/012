@@ -45,6 +45,10 @@ rest: building from a clone, importing files, `012 serve` and settings.
 - **A stage in a pipeline**: `ls | to nuon | 012 --pipe | from nuon`
   edits a table on the terminal and sends it on with its types
   ([nushell and pipelines](docs/terminal/nushell.md)).
+- **Nushell notebooks**: `012 nu` (or `!` in any workbook) runs nushell
+  pipelines whose tables become live, named regions of the sheet;
+  `$r1` reads one in the next command, and refreshing it runs what reads
+  it ([notebooks](docs/terminal/nushell.md#notebooks)).
 - **Macros**, recorded or written as Starlark scripts saved with the sheet
   ([macros](docs/sheets/macros.md)).
 - **Made for terminals**: the mouse, hyperlinks, the system clipboard over
@@ -64,6 +68,8 @@ rest: building from a clone, importing files, `012 serve` and settings.
 | Arrays that spill | Wrapped text, borders and merged cells |
 | ![JEV functions classifying reviews](docs/media/jev.gif) | ![Recording a macro and replaying it](docs/media/macros.gif) |
 | JEV functions in formulas | Macros |
+| ![Two nushell pipelines as live regions, the second following the first](docs/media/notebook.gif) | |
+| Nushell notebooks | |
 
 Each guide shows its own recordings too. They are
 [VHS](https://github.com/charmbracelet/vhs) tapes in [`demos/`](demos),

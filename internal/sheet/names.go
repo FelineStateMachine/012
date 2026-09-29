@@ -104,6 +104,9 @@ func (w *Workbook) DefineName(name string, s *Sheet, r Rect) error {
 	if old, ok := w.LookupName(name); ok {
 		return fmt.Errorf("%s already names %s", old.Name, old.Ref())
 	}
+	if _, _, ok := w.regionName(nameKey(name)); ok {
+		return fmt.Errorf("%s names a shell region", name)
+	}
 	w.change(s, "name "+r.String()+" "+name, r, func() { w.putName(nameKey(name), &Name{Name: name, Sheet: s, Range: r}) })
 	return nil
 }
@@ -227,9 +230,10 @@ func (s *Sheet) bound(c *Cell) Node {
 	const fixed = formula.AbsCol | formula.AbsRow
 	n, _ := formula.Rewrite(c.expr, formula.Rewriter{Name: func(nn formula.Name) Node {
 		nm, ok := s.wb.names[nameKey(nn.Name)]
+		if !ok {
+			return s.boundRegion(nn)
+		}
 		switch {
-		case !ok:
-			return nn
 		case nm.Gone():
 			return formula.RefErr{}
 		}

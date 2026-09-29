@@ -90,6 +90,9 @@ save), so they raise no version:
 | `locale` | the workbook | The [locale](../sheets/locale.md) it's typed and shown in (`"de-DE"`), when File > Settings > Locale chose one; without it, the file follows the reader's `locale` setting. Cells are stored the same way in every locale: `input` is always as typed in en-US (`1,234.5`, `9/26/2026`, `=ROUND(A1,2)`) |
 | `linkOrigin` | the workbook | The computer its linked files were linked or trusted on: see [Following files](following.md#files-from-elsewhere) |
 | `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on: see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
+| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on (macros' and shell regions' both): see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
+| `notebook`, `regions` | a sheet | A [notebook sheet](../terminal/nushell.md#notebooks) and its shell regions: see [Regions](#regions). Older builds open the sheet without them |
+| `shellHistory` | the workbook | The lines typed at its [notebook prompt](../terminal/nushell.md#the-prompt), oldest first, for Up and Down |
 
 ## Column and row formats
 
@@ -180,6 +183,33 @@ what it reads, never its rows:
   `XLSX`, `SQLite`, `Parquet`) when it isn't told by the extension.
 - `table` or `query` say what to read from a SQLite database.
 - `window` keeps the last rows under the header, when set.
+
+## Regions
+
+A [notebook sheet](../terminal/nushell.md#notebooks) has `"notebook":
+true` and its regions in a `regions` list after its cells, charts and
+rules, one per line, in run order. The file keeps each region's
+command, never its table: reopening shows the regions as not run, and
+nothing runs until you run it.
+
+```json
+  "notebook": true,
+  "regions": [
+    {"name":"r1","command":"ls","at":"A1","rows":12,"cols":4},
+    {"name":"big","command":"$r1 | where size > 1kb","at":"A16","rows":3,"cols":4,"reads":["r1"],"sort":[{"column":3,"desc":true}]}
+  ]
+```
+
+- `name` is what commands read it as (`$r1`) and formulas name it by
+  (`nu.r1`); `command` is the nushell pipeline.
+- `at` is its label line's cell; `rows` and `cols` the size of its table
+  when saved, header row included, which it keeps until it runs.
+- `reads` are the regions its command reads, `input` the range it read
+  as `$in` (`Sheet1!A1:C9`), and `sort` the columns its table is sorted
+  by, counting from 1 at its first column, with `desc` for Z to A.
+
+The table's cells are saved only for their formatting and notes, as a
+spill's are.
 
 ## Conditional formats and data validation
 

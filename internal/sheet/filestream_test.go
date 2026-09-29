@@ -64,6 +64,7 @@ func readWhole(data []byte) (w *Workbook, ambiguous bool, err error) {
 		return nil, false, err
 	}
 	w.macroOrigin, w.linkOrigin = f.MacroOrigin, f.LinkOrigin
+	w.readShellHistory(f.ShellHistory)
 	w.RecalcAll()
 	return w, ambiguous, nil
 }
@@ -236,6 +237,12 @@ func streamSeeds(t testing.TB) [][]byte {
 		[]byte(`{"version": 2, "linkOrigin": "m", "cells": {"C1": "x"}, "links": [{"at": "A1", "path": "logs/app.csv", "window": 3}, {"at": "E5", "path": "/tmp/t.db", "format": "SQLite", "query": "select 1"}]}`),
 		[]byte(`{"version": 4, "sheets": [{"name": "Log", "cells": {}, "links": [{"at": "B2", "path": "a.nuon"}]}, {"name": "S", "cells": {"A1": "=SUM(Log!B:B)"}}]}`),
 		[]byte(`{"version": 2, "cells": {}, "links": [{"at": "A1", "path": "a"}, {"at": "A1", "path": "b"}, {"at": "", "window": -2}]}`),
+		[]byte(`{"version": 2, "macroOrigin": "m1", "shellHistory": ["ls", "$r1 | first"], "notebook": true, "cells": {"A3": {"bold": true}}, "regions": [
+			{"name": "r1", "command": "ls", "at": "A1", "rows": 3, "cols": 2},
+			{"name": "big", "command": "$r1 | where size > 1kb", "at": "A6", "rows": 2, "cols": 2, "reads": ["r1"], "input": "Sheet1!D1:E4", "sort": [{"column": 2, "desc": true}]}]}`),
+		[]byte(`{"version": 2, "regions": [{"name": "r1", "command": "ls", "at": "A1"}, {"name": "R1", "command": "x", "at": "A5"}]}`),
+		[]byte(`{"version": 2, "regions": [{"name": "in", "command": "ls", "at": "A1"}, {"name": "r2", "at": "ZZZZ1", "rows": -1}]}`),
+		[]byte(`{"version": 2, "regions": [{"name": "a", "command": "$b", "at": "A1", "reads": ["b"]}, {"name": "b", "command": "$a", "at": "A3", "reads": ["a"], "sort": [{"column": 0}]}]}`),
 		[]byte(`null`), []byte(`[]`), []byte(`{"version": 2, "cells": {"A1": "1",}}`), []byte(`{"version": 2, "cells": {"A1"`),
 	}
 }

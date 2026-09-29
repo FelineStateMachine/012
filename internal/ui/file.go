@@ -29,9 +29,11 @@ import (
 // Serve prepares m for a session served over SSH: file names resolve
 // inside root, and env (KEY=value pairs) is the client's environment,
 // used instead of the server's to learn about the client's terminal.
+// Notebooks' commands run only when the server's serve-shell allows.
 func (m *Model) Serve(root confine.Root, env []string) {
 	m.root = root
 	m.term = newTerminal(envLookup(env))
+	m.shell.served = true
 }
 
 // envLookup reads a variable from a list of KEY=value pairs, the last
@@ -121,6 +123,9 @@ func (m *Model) openFile(text string) tea.Cmd {
 // session rather than the sheet carries over: the window, theme, terminal
 // state, served directory and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
+	m.stopShell() // the old workbook's commands
+	sh := shellState{runner: m.shell.runner, served: m.shell.served, words: m.shell.words, asked: m.shell.asked}
+	defer func() { m.shell = sh }()
 	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}, prefs: m.prefs, session: m.session, pipe: m.pipe,
 		macros: macroState{machine: m.macros.machine, editor: m.macros.editor}, spans: m.spans}
 	s.Book().SetTrace(m.spans)

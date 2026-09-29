@@ -17,8 +17,12 @@ import (
 // The control panel's rows that overlays anchor to.
 const (
 	MenuLine    = 0 // the menu bar; dropdowns and pickers open under it
+	FormulaLine = 1 // the formula bar: the name box, then the cell's contents or an entry
 	ContextLine = 2 // prompts and bars; completions open under it
 	GridTop     = 4 // the grid's first row, under the column header; boxes over the grid start here
+	// FormulaBarX is the column the formula bar's text starts at, after
+	// the name box.
+	FormulaBarX = 12
 )
 
 // SearchPrompt starts a search field, in pickers and bars.
@@ -68,6 +72,12 @@ type Text interface {
 // Liner is an overlay drawn on the context line, such as the find bar.
 type Liner interface {
 	ContextLine() (left, right string)
+}
+
+// Bar is an overlay typed on the formula bar, such as the shell prompt:
+// FormulaBar is what the bar shows after the name box.
+type Bar interface {
+	FormulaBar() string
 }
 
 // Box is a rectangle of styled lines at a screen position. Every line has

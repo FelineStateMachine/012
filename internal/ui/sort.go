@@ -62,6 +62,9 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 		m.note = "Nothing to sort"
 		return nil
 	}
+	if _, reg, ok := m.sheet.InRegion(r); ok {
+		return m.sortRegion(reg, r, keys)
+	}
 	if m.refuseEdit(r, false) {
 		return nil
 	}

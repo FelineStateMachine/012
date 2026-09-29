@@ -220,13 +220,17 @@ func excelRange(ws string, r sheet.Rect) string {
 }
 
 // textRows yields the snapshot's displayed text row by row across its
-// range as shown in its locale, for text formats. The slice is reused
-// from row to row.
+// range as shown in its locale, for text formats: the rows the filter
+// shows, as Sheets copies a filtered range. The slice is reused from row
+// to row.
 func (s *Snapshot) textRows() iter.Seq[[]string] {
 	return func(yield func([]string) bool) {
 		r := s.Range
 		line := make([]string, r.To.Col-r.From.Col+1)
 		for row := r.From.Row; row <= r.To.Row; row++ {
+			if s.HiddenRows[row] {
+				continue
+			}
 			for col := r.From.Col; col <= r.To.Col; col++ {
 				line[col-r.From.Col] = ""
 				if c, ok := s.Cells[sheet.Addr{Col: col, Row: row}]; ok {

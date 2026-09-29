@@ -188,6 +188,26 @@ func TestMonochromeSelection(t *testing.T) {
 	}
 }
 
+// A notebook region's label line is underlined as wide as its table, with
+// its name and command as text; the table's cells are plain.
+func TestMonochromeRegion(t *testing.T) {
+	m, _ := notebookModel(t, map[string]string{"ls": lsOut})
+	press(t, m, "!", "ls", "<enter>", "<esc>")
+	m.cur = addr("C9")
+	for _, a := range []string{"A1", "B1"} {
+		c := cellAt(m, addr(a))
+		if !every(c, false, func(c monoCell) bool { return c.underline == "1" }) {
+			t.Errorf("%s on the label line isn't underlined: %+v", a, c)
+		}
+	}
+	if strings.TrimSpace(cellText(cellAt(m, addr("A1")))) != "r1  ls" {
+		t.Errorf("label %q", cellText(cellAt(m, addr("A1"))))
+	}
+	if c := cellAt(m, addr("A3")); !every(c, false, plain) {
+		t.Errorf("a region's cell has attributes: %+v", c)
+	}
+}
+
 func TestMonochromeError(t *testing.T) {
 	m := newModel()
 	m.sheet.Set(addr("B1"), "=1/0")

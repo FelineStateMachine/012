@@ -56,13 +56,15 @@ type fileFormat struct {
 	Locale string `json:"locale,omitempty"`
 	// Macros and where they were made need no version bump either:
 	// earlier builds ignore them, and the sheets read the same.
-	MacroOrigin string      `json:"macroOrigin,omitempty"`
-	Macros      []fileMacro `json:"macros,omitempty"`
+	MacroOrigin string `json:"macroOrigin,omitempty"`
 	// LinkOrigin, like MacroOrigin, is where the linked regions were
 	// made or trusted (linkfile.go).
-	LinkOrigin string      `json:"linkOrigin,omitempty"`
-	fileSheet              // versions 1 to 3: the only sheet
-	Sheets     []fileSheet `json:"sheets,omitempty"` // version 4
+	LinkOrigin string `json:"linkOrigin,omitempty"`
+	// ShellHistory needs no version either: see shellhistory.go.
+	ShellHistory []string    `json:"shellHistory,omitempty"`
+	Macros       []fileMacro `json:"macros,omitempty"`
+	fileSheet                // versions 1 to 3: the only sheet
+	Sheets       []fileSheet `json:"sheets,omitempty"` // version 4
 }
 
 // fileSheet is one sheet of a file.
@@ -83,6 +85,9 @@ type fileSheet struct {
 	Validations []fileValidation `json:"validations,omitempty"`
 	// Links need no version: see linkfile.go.
 	Links []fileLink `json:"links,omitempty"`
+	// A notebook and its regions need no version: see regionfile.go.
+	Notebook bool         `json:"notebook,omitempty"`
+	Regions  []fileRegion `json:"regions,omitempty"`
 }
 
 // Write saves the workbook the sheet belongs to; see Workbook.Write.
@@ -164,14 +169,18 @@ func (w *Workbook) headLines() string {
 	if w.locale != nil {
 		lines = append(lines, `"locale": `+jsonString(w.locale.Tag))
 	}
+	if w.macroOrigin != "" && (len(w.macros) > 0 || len(w.allRegions()) > 0) {
+		lines = append(lines, `"macroOrigin": `+jsonString(w.macroOrigin))
+	}
 	if len(w.macros) > 0 {
-		if w.macroOrigin != "" {
-			lines = append(lines, `"macroOrigin": `+jsonString(w.macroOrigin))
-		}
 		lines = append(lines, w.macrosLines())
 	}
 	if w.linkOrigin != "" && len(w.LinkedRegions()) > 0 {
 		lines = append(lines, `"linkOrigin": `+jsonString(w.linkOrigin))
+	}
+	if len(w.shellHistory) > 0 {
+		raw, _ := json.Marshal(w.shellHistory)
+		lines = append(lines, `"shellHistory": `+string(raw))
 	}
 	return strings.Join(lines, ",\n  ")
 }
@@ -274,6 +283,9 @@ func (s *Sheet) writeObjects(b *bufio.Writer, indent string) error {
 		fmt.Fprintf(b, ",\n%s\"pivot\": %s", indent, raw)
 	}
 	s.writeRules(b, indent)
+	if err := s.writeRegionDefs(b, indent); err != nil {
+		return err
+	}
 	return s.writeLinks(b, indent)
 }
 
@@ -363,6 +375,9 @@ func (s *Sheet) read(f fileSheet) error {
 		return err
 	}
 	if err := s.readLinks(f.Links); err != nil {
+		return err
+	}
+	if err := s.readRegions(f.Notebook, f.Regions); err != nil {
 		return err
 	}
 	return s.readView(f.fileView)

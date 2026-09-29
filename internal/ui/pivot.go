@@ -68,6 +68,10 @@ func (m *Model) refuseEdit(r sheet.Rect, keepsSpills bool) bool {
 		m.note = sheet.ErrLinkedEdit.Error()
 		return true
 	}
+	if a, reg, ok := m.sheet.InRegion(r); ok {
+		m.note = a.String() + " is part of region " + reg.Name + ", which its command fills: change the command, or Freeze the region"
+		return true
+	}
 	a, ok := m.sheet.InSpill(r)
 	if !ok {
 		return false

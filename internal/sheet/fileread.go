@@ -110,6 +110,7 @@ func readBook(r io.Reader, trace any) (*Workbook, error) {
 	}
 	w.macroOrigin = f.MacroOrigin
 	w.linkOrigin = f.LinkOrigin
+	w.readShellHistory(f.ShellHistory)
 	w.RecalcAll()
 	return w, nil
 }
