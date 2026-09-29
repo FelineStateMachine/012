@@ -49,17 +49,7 @@ log macros record. Each step is useful on its own.
 | Shared viewing over SSH: several `012 serve` sessions open the same workbook; one edits, the others follow live with their own cursor, scroll and theme; presence shows who is where | Watch-along and review, one writer | M |
 | Shared editing over SSH: every session edits, the server orders operations (no CRDT needed while one server holds the workbook), per-user undo, presence and edit ownership shown in the grid, saves by the server | Multiplayer 012 over SSH | L |
 
-### 4. Toward 1.0
-
-Solid before shared: what 012 already does keeps working from release to
-release, and shared editing builds on these guarantees. These come before
-shared editing in section 3.
-
-| Item | Result | Size |
-|---|---|---|
-| A workbook of formulas where 012 matches Sheets on purpose (dates, text, rounding, errors, spills), results checked once in Sheets and asserted after; differences chosen on purpose listed in the docs | Formula results people rely on stay put | S |
-
-### 5. Agents
+### 4. Agents
 
 Agents work on workbooks through the same operations people do (the
 `Batch`/`Change` path), so their edits are undoable, attributed and
@@ -99,6 +89,7 @@ stream above rather than a design of their own.
 - Undo steps in the compact form: clearing a full ten-million-cell sheet holds about what the sheet does, and a step past 1 GB asks first: [Bounds of support](docs/contributing/limits.md#undo)
 - Spilled cells and pivot results in the compact form, about 20 B each: [Bounds of support](docs/contributing/limits.md#sheet-size)
 - Cycles found from the formulas as written, and arrays and notebook outputs in each other's way settled the same in any order, so a workbook reads the same when reopened: [Formulas](docs/formulas/README.md#values-and-errors)
+- Formula results checked against Google Sheets once and asserted after, with the differences 012 keeps on purpose listed: [Testing](docs/contributing/testing.md#the-sheets-corpus)
 
 **Finding and using features**
 
