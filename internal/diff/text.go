@@ -72,8 +72,8 @@ func writeText(w io.Writer, changes []Change, color bool) error {
 	return bw.Flush()
 }
 
-// sheetText is the end of a sheet's line: where it was renamed or moved
-// from.
+// sheetText is the end of a sheet's line: its name or place in the
+// first workbook, for a sheet renamed or put elsewhere.
 func sheetText(c Change) string {
 	switch c.Field {
 	case "renamed":

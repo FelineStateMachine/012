@@ -9,7 +9,7 @@ sidebar_position: 2
 Lip Gloss v2.
 
 ```
-cmd/012          entry point: flags and config, 012 config, 012 serve, JEV setup, opening or importing a file, 012 - and --pipe on the terminal
+cmd/012          entry point: flags and config, 012 config, 012 serve, JEV setup, opening or importing a file, 012 - and --pipe on the terminal, the commands without the screen
 internal/config  the config file and the registry of options
 internal/sheet   the engine: cells, recalculation, undo, files, names, pivots
 internal/functions the function library: the FuncDef table, evaluation, decimal arithmetic, JEV questions
@@ -20,6 +20,8 @@ internal/locale  the locales: separators, date order, currency, formula separato
 internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1, JSON, NUON; tables on streams
 internal/nuon    nushell's object notation: typed values, tables read a row at a time, written back
 internal/live    the sources of linked regions: files followed as they grow or are rewritten
+internal/headless workbook files without the screen: references, get, set, recalc, regions and JEV when asked, atomic saves
+internal/diff    workbooks compared and merged cell by cell, from their files' fields
 internal/chart   chart layout, text rendering and kitty image encoding
 internal/jev     the API key's resolution, answer cache and TypeSafe client
 internal/keyring the OS credential store the API key lives in
@@ -67,6 +69,7 @@ flowchart TD
     direction LR
     ui[internal/ui] ~~~ fileio[internal/fileio] ~~~ live[internal/live] ~~~ nushell[internal/nushell]
     chart[internal/chart] ~~~ jev[internal/jev] ~~~ stress[internal/stress] ~~~ oracle[oracle]
+    headless[internal/headless] ~~~ diff[internal/diff]
   end
   callers --> sheet[internal/sheet]
   sheet --> functions[internal/functions]
@@ -618,6 +621,21 @@ written a row at a time. One package suits formats that share this much
 (the builder, number formats, serial dates and Excel formula
 translation); a format that grew its own dependencies would move to a
 subpackage behind the same table row.
+
+`internal/headless` is the engine without the screen, for `012 get`,
+`set`, `recalc` and `export` ([Scripts](../files/scripts.md)): it
+resolves references, writes values through the same snapshots and
+encoders as downloads, types entries through `Sheet.Set` in one
+`Batch`, and saves with a write-then-rename. It runs regions through
+`internal/nushell` and asks `internal/jev` only when its caller says
+so; `cmd/012` decides, by the flags and the macro-origin trust.
+
+`internal/diff` reads a `.012` file as its JSON fields: the workbook's,
+and each sheet's with its cells by address. Comparing and merging go
+field by field, so a field added to the format is compared and merged
+without teaching them about it, and the engine is used only to compute
+values (`Compare`) and to check and write the merged workbook
+(`Merge`), which it reads back as 012 would open it.
 
 ## Macros
 
