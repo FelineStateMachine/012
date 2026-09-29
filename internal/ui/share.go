@@ -239,7 +239,7 @@ func (m *Model) mayEdit() bool {
 	if seat == nil || seat.Writing() {
 		return true
 	}
-	m.warn = seat.Writer() + " writes here: you follow. Ask them to hand writing to you (File > Hand over writing)"
+	m.warn = seat.Writer() + " writes here and you follow: they can hand writing to you"
 	return false
 }
 

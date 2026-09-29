@@ -66,6 +66,9 @@ type session struct {
 
 	exited chan struct{} // closed when the pty reader stops
 	stdout *lockedBuffer // a piped session's standard output
+	// peers are others' sessions of the same served file, for screens
+	// of a shared workbook (screen.peers).
+	peers []*session
 }
 
 // options configures a session.

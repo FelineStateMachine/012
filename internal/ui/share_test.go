@@ -237,7 +237,7 @@ func TestSharedOneWriter(t *testing.T) {
 	ann := r.open("ann", "@talk")
 	bob := r.open("bob", "@talk")
 	bob.press("hello")
-	if bob.m.mode != modeReady || !strings.Contains(bob.m.warn, "ann writes here") {
+	if bob.m.mode != modeReady || !strings.Contains(bob.m.warn, "ann writes here and you follow") {
 		t.Fatalf("bob typed: mode %v, %q", bob.m.mode, bob.m.warn)
 	}
 	if !strings.Contains(bob.screen(), "ann writes") {

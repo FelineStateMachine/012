@@ -123,7 +123,7 @@ func (m *Model) undoBlocked(redo bool) bool {
 	if !blocked {
 		return false
 	}
-	m.warn = "Can't " + verb + ": " + m.peerName(b.Author) + " changed the same cells since (" + b.Label + "). Undo takes back only your own changes"
+	m.warn = "Can't " + verb + ": " + m.peerName(b.Author) + " has changed it since, and undo takes back only your own changes"
 	return true
 }
 

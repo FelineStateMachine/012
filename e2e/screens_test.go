@@ -23,7 +23,14 @@ type screen struct {
 	// ssh, when set, records the screen through 012 serve and a real
 	// ssh client, with these words on the ssh command line; files fills
 	// the served directory then.
-	ssh   []string
+	ssh []string
+	// serve is 012 serve's flags, e.g. --share view.
+	serve []string
+	// user is the ssh user the screen is recorded as, and peers the
+	// sessions of others that join the same served file first and act,
+	// so the screen shows them.
+	user  string
+	peers []peer
 	args  []string // 012's command line, e.g. --pipe
 	setup func(s *session)
 }
@@ -82,10 +89,45 @@ func startScreen(t *testing.T, sc screen) *session {
 		if served == "" {
 			served = t.TempDir()
 		}
-		opts.program, args = serveSSH(t, top, served)
+		opts.program, args = serveSSH(t, top, served, sc.serve...)
 		opts.dir, args = top, append(args, sc.ssh...)
+		var peers []*session
+		for _, p := range sc.peers {
+			peers = append(peers, p.join(t, opts, args))
+		}
+		if sc.user != "" {
+			args = asUser(sc.user, args)
+		}
+		s := startWith(t, opts, args...)
+		s.peers = peers
+		return s
 	}
 	return startWith(t, opts, args...)
+}
+
+// peer is someone else's session of a served file, for a screen that
+// shows others: who, and the keys they press once in.
+type peer struct {
+	user string
+	keys []string
+	// sees is what their screen shows once they've acted.
+	sees string
+}
+
+// join starts the peer's session through ssh with args, and acts.
+func (p peer) join(t *testing.T, opts options, args []string) *session {
+	o := options{dir: opts.dir, program: opts.program, cols: 80, rows: 24}
+	s := startWith(t, o, asUser(p.user, args)...)
+	s.keys(p.keys...)
+	if p.sees != "" {
+		s.waitFor(p.sees)
+	}
+	return s
+}
+
+// asUser is ssh's arguments args, logging in as user.
+func asUser(user string, args []string) []string {
+	return append([]string{"-l", user}, args...)
 }
 
 // stableHTML waits until two captures in a row match, so a snapshot never
