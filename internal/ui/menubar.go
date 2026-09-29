@@ -118,9 +118,7 @@ var menuBar = []menuDef{
 		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, {cmd: "data.protect"},
 		{cmd: "data.validation"}, {cmd: "data.validation_clear"}, sep,
 		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,
-		{title: "Macros", items: macroItems}, {cmd: "nu.prompt"}, {title: "Shell regions", items: []menuItem{
-			{cmd: "nu.refresh"}, {cmd: "nu.run_all"}, {cmd: "nu.edit"}, sep, {cmd: "nu.freeze"}, {cmd: "nu.delete"}, sep, {cmd: "nu.stop"},
-		}}, {title: "Linked file", items: linkedItems}, sep,
+		{title: "Macros", items: macroItems}, {title: "Notebook", items: notebookItems}, {title: "Linked file", items: linkedItems}, sep,
 		{cmd: "jev.refresh"},
 	}},
 	{title: "Help", accel: 'h', items: []menuItem{

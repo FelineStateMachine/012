@@ -132,7 +132,7 @@ func run(args []string, e env) error {
 	}
 	m.Configure(settings)
 	if notebook {
-		m.OpenShell()
+		m.OpenNotebook()
 	}
 	setPipe(m, pipe, e.stdin)
 	opts, closeTTY, err := tuiOptions(pipe, e)

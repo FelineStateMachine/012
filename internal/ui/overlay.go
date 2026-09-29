@@ -57,7 +57,7 @@ func (m *Model) floating() []overlay.Box {
 	if b, ok := m.noteBox(); ok {
 		return []overlay.Box{b}
 	}
-	return nil
+	return m.notebookBoxes()
 }
 
 // compose draws the charts floating over the grid, then boxes (the open
@@ -77,6 +77,9 @@ func (m *Model) compose(screen string, boxes []overlay.Box) string {
 // shellMouse gives the open overlay, or else the menu bar, the first look
 // at a mouse message. It reports false for messages the grid handles.
 func (m *Model) shellMouse(msg tea.MouseMsg) (tea.Cmd, bool) {
+	if cmd, ok := m.notebookMouse(msg); ok {
+		return cmd, true
+	}
 	if m.overlay != nil {
 		return m.overlayMouse(msg), true
 	}

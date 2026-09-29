@@ -68,10 +68,17 @@ const maxName = 20
 // space after it.
 const addW, arrowW = 3, 2
 
-// Label is a sheet's name as its tab shows it, with the mark of its
-// linked regions, if it has any.
+// NotebookMark starts a notebook tab's label, so it reads apart from
+// the sheets' without color.
+const NotebookMark = "❯ "
+
+// Label is a sheet's name as its tab shows it, a notebook's after its
+// mark, with the mark of its linked regions, if it has any.
 func Label(s *sheet.Sheet) string {
 	label := " " + ansi.Truncate(s.Name(), maxName, "…") + " "
+	if s.IsNotebook() {
+		label = " " + NotebookMark + ansi.Truncate(s.Name(), maxName, "…") + " "
+	}
 	if s.HasLinked() {
 		label += liveMark(s) + " "
 	}

@@ -63,7 +63,11 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 		return nil
 	}
 	if _, reg, ok := m.sheet.InRegion(r); ok {
-		return m.sortRegion(reg, r, keys)
+		m.note = "A region keeps its source's order: sort it in its cell (sort-by), or freeze it first"
+		if reg.Linked() {
+			m.note = "A linked file's rows keep the file's order: unlink it to sort them"
+		}
+		return nil
 	}
 	if m.refuseEdit(r, false) {
 		return nil

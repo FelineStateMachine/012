@@ -236,7 +236,7 @@ func (m *Model) followInNewSheet(src sheet.LinkSource) {
 // file, unless regions or macros came from elsewhere untrusted.
 func (m *Model) linkedHere(before int) {
 	w := m.book()
-	if m.macroTrusted() || before == 0 && len(w.Macros()) == 0 && len(w.RunOrder()) == 0 {
+	if m.macroTrusted() || before == 0 && len(w.Macros()) == 0 && !m.nb.fromFile {
 		m.trustHere()
 	}
 }

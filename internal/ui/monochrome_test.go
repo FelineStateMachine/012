@@ -188,23 +188,53 @@ func TestMonochromeSelection(t *testing.T) {
 	}
 }
 
-// A notebook region's label line is underlined as wide as its table, with
-// its name and command as text; the table's cells are plain.
-func TestMonochromeRegion(t *testing.T) {
-	m, _ := notebookModel(t, map[string]string{"ls": lsOut})
-	shell(t, m, "ls", "<enter>", "<esc>")
-	m.cur = addr("C9")
-	for _, a := range []string{"A1", "B1"} {
-		c := cellAt(m, addr(a))
-		if !every(c, false, func(c monoCell) bool { return c.underline == "1" }) {
-			t.Errorf("%s on the label line isn't underlined: %+v", a, c)
+// findLine is the first screen line holding text, drawn in monochrome.
+func findLine(t *testing.T, m *Model, text string) []monoCell {
+	t.Helper()
+	for y := range m.height {
+		if l := monoLine(m, y); strings.Contains(cellText(l), text) {
+			return l
 		}
 	}
-	if strings.TrimSpace(cellText(cellAt(m, addr("A1")))) != "r1  ls" {
-		t.Errorf("label %q", cellText(cellAt(m, addr("A1"))))
+	t.Fatalf("no line holds %q:\n%s", text, screen(m))
+	return nil
+}
+
+// cellsOf are the cells of line l holding text.
+func cellsOf(l []monoCell, text string) []monoCell {
+	i := strings.Index(cellText(l), text)
+	return l[len([]rune(cellText(l)[:i])):][:len([]rune(text))]
+}
+
+// A notebook's states read without color: the selected cell's head in
+// reverse video, the mode in words, an output table's header bold and
+// underlined, a stale output and a failure in words.
+func TestMonochromeNotebook(t *testing.T) {
+	m, nu := notebookModel(t, map[string]string{"ls": lsOut, "$files | first": "{name: a.txt}"})
+	write(t, m, "files = ls")
+	write(t, m, "$files | first")
+	write(t, m, "nope")
+	run(m, m.runCommand("nb.run_all"))
+	press(t, m, "<home>")
+	if head := findLine(t, m, "[1] files"); !every(head, false, isReverse) {
+		t.Errorf("the selected cell's head isn't reversed: %+v", head)
 	}
-	if c := cellAt(m, addr("A3")); !every(c, false, plain) {
-		t.Errorf("a region's cell has attributes: %+v", c)
+	if head := findLine(t, m, "[2]"); every(head, true, isReverse) {
+		t.Error("a cell not selected has its head reversed")
+	}
+	hdr := findLine(t, m, "name")
+	if c := cellsOf(hdr, "name"); !every(c, true, func(c monoCell) bool { return c.bold && c.underline == "1" }) {
+		t.Errorf("an output's header: %+v", c)
+	}
+	if !strings.Contains(cellText(findLine(t, m, "× Command")), "× Command `nope` not found") {
+		t.Error("the failure isn't in words")
+	}
+	nu.out["ls"] = "[[name]; [z]]"
+	press(t, m, "<ctrl+enter>")
+	findLine(t, m, "stale")
+	press(t, m, "<enter>")
+	if !strings.Contains(cellText(monoLine(m, menuLine)), " EDIT ") {
+		t.Error("edit mode isn't in words")
 	}
 }
 
