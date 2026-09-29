@@ -60,11 +60,8 @@ shared editing in section 3.
 
 | Item | Result | Size |
 |---|---|---|
-| Files saved by each release kept as fixtures that every later build opens and saves unchanged; the `.012` format written down with a version | Old files keep opening | S |
-| Random sequences of edits, sorts, fills and region runs checked for invariants: undo all restores the start, save and reopen match, a full recalc agrees with the incremental one | Bugs between features found before users hit them | M |
 | A workbook of formulas where 012 matches Sheets on purpose (dates, text, rounding, errors, spills), results checked once in Sheets and asserted after; differences chosen on purpose listed in the docs | Formula results people rely on stay put | S |
-| Frame time and recalculation checked in `make check` against a baseline with a noise margin | Slowdowns fail the check, not a later benchmark | S |
-| A panic in any session saves the workbook for recovery and writes a short report, tested end to end | A crash loses nothing | S |
+| Cycles through several arrays settled the same whatever order they're computed in: the rare cycles the random edits still find with `-randedit.seeds=40000` (an array blocked or not depending on which of two was checked first) | Every cycle reads the same when reopened | S |
 | A week of real use by the owner, problems triaged into this page | Rough edges found by use | S |
 
 ### 5. Around the grid
@@ -149,6 +146,8 @@ stream above rather than a design of their own.
 - Import CSV, TSV, JSON, NUON, XLSX, SQLite, Parquet and Lotus `.wk1`; export CSV, TSV, JSON, NUON, XLSX and SQLite; import locations; save-as and overwrite checks: [Files](docs/files/README.md)
 - `.012` files read and written as a stream, cells straight into and out of the store: [The .012 format](docs/files/format.md#reading-and-writing)
 - Following files: a linked region follows a CSV, TSV, JSON lines or NUON file as it grows and any importable file as it's rewritten, keeping every row or the last ones, its rows arriving as the change stream: [Following files](docs/files/following.md)
+- The `.012` format written down with a version, and each release's workbooks kept as fixtures that every later build opens and saves unchanged: [The .012 format](docs/files/format.md#versions), [Releasing](docs/contributing/releasing.md#file-fixtures)
+- A crash keeps unsaved work for recovery, restores the terminal and writes a report, locally and in `012 serve`: [Saving](docs/files/saving.md#if-012-crashes)
 
 **Upkeep**
 
@@ -157,3 +156,5 @@ stream above rather than a design of their own.
 - `make stress-report` flags regressions against the last release's run, allowing for noise: [Observability](docs/contributing/observability.md#regressions-against-the-last-release)
 - Grafana: recent traces and a trace view of the nested spans: [Observability](docs/contributing/observability.md#the-stack)
 - Every overlay, prompts and formula suggestions behind narrow hosts, most in packages of their own with fake-host tests: [Architecture](docs/contributing/architecture.md#the-ui)
+- Random sequences of edits, pastes, fills, sorts, inserts, formats and region runs checked for undo, reopening and full recalculation agreeing: [Testing](docs/contributing/testing.md#unit-tests)
+- Frame time and recalculation held to a checked-in baseline in `make check`: [Bounds of support](docs/contributing/limits.md#the-speed-gate)
