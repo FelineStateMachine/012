@@ -196,9 +196,15 @@ func (a *Area) Key(k tea.KeyPressMsg, width int) bool {
 		indent := a.indent()
 		a.insert('\n')
 		a.insert(indent...)
+	case "ctrl+u", "super+backspace":
+		a.DeleteBack(a.lineStart())
 	case "left", "right", "backspace", "delete":
 		a.Line.Key(k)
 	default:
+		if IsWordKey(k.String()) {
+			a.Line.Key(k)
+			break
+		}
 		text := Typed(k)
 		if text == "" {
 			return false

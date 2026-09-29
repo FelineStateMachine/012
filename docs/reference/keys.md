@@ -35,6 +35,9 @@ mouse and the vim keymap added.
 | Ctrl+Enter | Enter the same entry in every selected cell |
 | Arrows, Shift+arrows | While typing a formula, after an operator: point at a cell, or a range |
 | F4 | While typing a formula: cycle the reference at the caret through `A1`, `$A$1`, `A$1`, `$A1` |
+| Ctrl+Left, Ctrl+Right (Option+arrows on macOS; Alt+arrows outside a cell) | While editing any text: move by word; in ENTER mode Ctrl+arrows commit and jump, as arrows do |
+| Ctrl+Backspace, Option+Backspace, Ctrl+W; Alt+D, Ctrl+Delete | While editing any text: delete the word before the caret; the word after it |
+| Ctrl+U, Cmd+Backspace | While editing any text: delete to the start of the line |
 | Up, Down; Tab, Enter | While suggestions for a function, range or sheet name show: pick one; insert it (a sheet as `Summary!`, then arrows point into it). Esc hides them |
 
 ## Selecting
@@ -152,6 +155,7 @@ on a sheet, `!` starts an entry as any character does.
 | Shift+Enter, Ctrl+Enter, Alt+Enter | Run, as in command mode |
 | Enter, Tab | A new line; complete the word at the caret |
 | Up, Down, Home, End, Ctrl+A, Ctrl+E | Move by the lines on screen; the start, the end of the line |
+| Word keys | As [anywhere text is edited](#entering-data); Ctrl+U deletes to the start of the line, not the cell |
 
 | Key | On an output full-screen |
 |---|---|

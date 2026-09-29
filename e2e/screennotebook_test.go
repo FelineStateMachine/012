@@ -60,7 +60,8 @@ var notebookScreens = []screen{
 	{name: "notebook-running", setup: func(s *session) {
 		filesNotebook(s)
 		s.keys("<enter>", "sleep 10min", "<esc>", "b", "<enter>", "{name: 1}", "<esc>", "<f9>")
-		s.waitFor("waiting")
+		// F9 queues every cell; the first two finish, then sleep runs.
+		s.waitFor("running 1, 1 waiting")
 	}},
 	{name: "notebook-stale", setup: func(s *session) {
 		filesNotebook(s)
