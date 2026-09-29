@@ -163,6 +163,7 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 		// blocked by this one.
 		changed = append(append(changed, s.dropSpill(b)...), loc{s, b})
 	}
+	changed = append(changed, s.regionsGiveWay(area)...)
 	if old != nil && old.why == "" {
 		changed = append(changed, s.clearSpilled(old.area, area)...)
 	}
@@ -220,8 +221,8 @@ func (s *Sheet) spillArea(a Addr, arr *functions.Array) (area Rect, why string, 
 			if old != nil && old.why == "" && old.area.Contains(at) {
 				continue
 			}
-			if _, ok := s.SpillAnchor(at); ok {
-				continue // an array's, found above
+			if _, ok := s.SpillAnchor(at); ok || s.regionCell(at) {
+				continue // an array's, found above, or a region's, which gives way
 			}
 		}
 		return area, "Array result was not expanded because it would overwrite data in " + at.String(), nil
@@ -290,7 +291,7 @@ func (s *Sheet) clearSpilled(area, keep Rect) []loc {
 	var changed []loc
 	var gone []Addr
 	for at := range s.cells.anyKeysIn(area) {
-		if s.cells.derivedAt(at) == slotSpill && !keep.Contains(at) {
+		if s.cells.derivedAt(at) == slotSpill && !keep.Contains(at) && !s.regionCell(at) {
 			gone = append(gone, at)
 		}
 	}
@@ -303,14 +304,24 @@ func (s *Sheet) clearSpilled(area, keep Rect) []loc {
 
 // wakeBlocked returns the anchors of arrays blocked from spilling over
 // the cells of area outside keep, which an array leaving them freed, to
-// compute again. The cells it left may have been blank, which changing
+// compute again, and marks the regions blocked there to be sent again.
+// The cells it left may have been blank, which changing
 // wouldn't find.
 func (s *Sheet) wakeBlocked(area, keep Rect) []loc {
 	var out []loc
+	freed := func(r Rect) bool {
+		x, ok := intersectRect(r, area)
+		return ok && !(keep.Contains(x.From) && keep.Contains(x.To))
+	}
 	for b, sp := range s.spills {
-		if x, ok := intersectRect(sp.area, area); ok && sp.why != "" && !(keep.Contains(x.From) && keep.Contains(x.To)) {
+		if sp.why != "" && freed(sp.area) {
 			sp.stale = true
 			out = append(out, loc{s, b})
+		}
+	}
+	for _, me := range s.regionMeta {
+		if me.why != "" && freed(me.need) {
+			me.stale = true // sent again, as a region blocked by a cell cleared is
 		}
 	}
 	return out

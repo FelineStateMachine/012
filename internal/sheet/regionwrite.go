@@ -62,13 +62,17 @@ func (w *Workbook) settleRegions() {
 }
 
 // writeRegions empties the regions that are to be fed again and clears
-// the cells of regions gone, returning the cells that changed.
+// the cells of regions gone, returning the cells that changed and the
+// formulas naming regions gone.
 func (s *Sheet) writeRegions() []loc {
 	var changed []loc
 	for k, me := range s.regionMeta {
 		if s.regionIndex(k) < 0 {
 			changed = append(changed, s.clearOwned(me, noRect)...)
 			delete(s.regionMeta, k)
+			for u := range s.wb.nameUsers[nameKey(regionPrefix+k)] {
+				changed = append(changed, u) // the name reads nothing now
+			}
 		}
 	}
 	for _, r := range s.regions.list {
@@ -94,10 +98,11 @@ func (s *Sheet) emptyRegion(me *regionMeta) []loc {
 // nil rows show already. It writes only the cells that differ and
 // clears the region's cells it no longer needs; when a cell it needs
 // holds something else, it shows only why. It returns the cells that
-// changed, with the formulas naming the region when its table moved.
+// changed, with the formulas naming the region when its table moved or
+// changed shape.
 func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []LiveRow, reset bool) []loc {
 	cols, nrows := tableSize(me, header, rows, reset)
-	was, had := me.written, me.has
+	was, had, shape := me.written, me.has, [2]int{me.rows, me.cols}
 	need := s.tableArea(r, cols, nrows)
 	me.why = ""
 	switch {
@@ -137,7 +142,7 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 	for _, c := range changed {
 		s.freedFor(c.a)
 	}
-	if !had || was != me.written {
+	if !had || was != me.written || shape != [2]int{me.rows, me.cols} { // moved, or its table changed shape
 		for u := range s.wb.nameUsers[nameKey(r.FormulaName())] {
 			changed = append(changed, u)
 		}
@@ -202,6 +207,16 @@ func (s *Sheet) writeRegionCell(a Addr, c LiveCell, me *regionMeta, changed []lo
 // meta me didn't write. Only what the region didn't hold is looked at:
 // nothing else can be placed in a region's cells.
 func (s *Sheet) inTheWay(need Rect, me *regionMeta) (Addr, bool) {
+	// An array's cells are in the way even where it spilled blanks, as
+	// another array's are (spill.go).
+	for a, sp := range s.spills {
+		if x, ok := intersectRect(sp.area, need); ok && sp.why == "" {
+			if x.From != a {
+				return x.From, true
+			}
+			return a, true
+		}
+	}
 	for _, part := range fresh(need, me) {
 		for a := range s.cells.anyKeysIn(part) {
 			if s.cells.filledAt(a) && !s.regionOwns(a, me) {
@@ -210,6 +225,15 @@ func (s *Sheet) inTheWay(need Rect, me *regionMeta) (Addr, bool) {
 		}
 	}
 	return Addr{}, false
+}
+
+// regionCell reports whether a region holds the cell at a.
+func (s *Sheet) regionCell(a Addr) bool {
+	if len(s.regions.list) == 0 {
+		return false
+	}
+	_, _, ok := s.ownerOf(a)
+	return ok
 }
 
 // fresh is the parts of need the region with meta me doesn't hold: all
@@ -233,7 +257,25 @@ func fresh(need Rect, me *regionMeta) []Rect {
 // writable reports whether the cell at a is free for the region with
 // meta me to write.
 func (s *Sheet) writable(a Addr, me *regionMeta) bool {
-	return !s.cells.filledAt(a) || s.regionOwns(a, me)
+	if s.regionOwns(a, me) {
+		return true
+	}
+	_, spilled := s.SpillAnchor(a) // an array's blank cell is its own
+	return !spilled && !s.cells.filledAt(a)
+}
+
+// regionsGiveWay empties the regions whose tables are in area, where an
+// array spills: an array spills over a region's table, whichever came
+// first, as it does when the file opens and arrays spill before regions
+// are sent their rows. Sent again, a region finds the array in its way.
+func (s *Sheet) regionsGiveWay(area Rect) []loc {
+	var changed []loc
+	for _, r := range s.regions.list {
+		if me := s.regionMeta[nameKey(r.Name)]; me != nil && me.has && overlaps(me.written, area) {
+			changed = append(changed, s.emptyRegion(me)...)
+		}
+	}
+	return changed
 }
 
 // regionOwns reports whether the cell at a is one the region with meta
