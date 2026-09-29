@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -206,6 +207,26 @@ func TestLinksFromElsewhereAskOnce(t *testing.T) {
 	pump(t, m)
 	if m.sheet.Value(addr("A2")).Num != 1 || m.overlay != nil {
 		t.Errorf("a file beside the workbook: A2 %v, overlay %T", m.sheet.Value(addr("A2")), m.overlay)
+	}
+}
+
+// Served, a linked file resolves inside the served folder: one outside
+// shows why in its region, one inside is followed.
+func TestLinkServedConfined(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "in.csv"), "a\n1\n")
+	m := newModel()
+	m.root, _ = confine.New(dir)
+	m.SetMachine("here")
+	m.book().SetLinkOrigin("here")
+	out, _ := m.sheet.AddLinked(addr("A1"), sheet.LinkSource{Path: "../out.csv"})
+	m.sheet.AddLinked(addr("C1"), sheet.LinkSource{Path: "in.csv"})
+	pump(t, m)
+	if r, _ := m.book().LinkedRegion(out); !strings.Contains(r.Err, "outside") || m.sheet.Value(addr("A1")).Str != "#REF!" {
+		t.Errorf("outside the served folder: %+v, A1 %v", r, m.sheet.Value(addr("A1")))
+	}
+	if m.sheet.Value(addr("C2")).Num != 1 {
+		t.Errorf("inside it: C2 %v", m.sheet.Value(addr("C2")))
 	}
 }
 
