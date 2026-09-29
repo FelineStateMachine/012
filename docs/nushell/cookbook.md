@@ -20,15 +20,16 @@ Money written as text (`"$2,252.50"`) becomes numbers in nushell, and a
 second cell totals it by region, sent to a sheet with a chart that
 follows it.
 
-![Nushell turns a CSV's money text into numbers, a second cell totals it by region, and its output, sent to a sheet, feeds a column chart](../media/nu-recipe.gif)
+![Nushell turns a CSV's money text into numbers, a second cell totals it by region, and Insert > Chart on its output's grid sends it to a sheet and charts it there](../media/nu-recipe.gif)
 
 ```nu
 sales = open sales.csv | update Revenue { str replace -ar '[$,]' '' | into float }
 totals = $sales | group-by Region --to-table | update items { get Revenue | math sum } | rename Region Revenue
 ```
 
-To chart it, `G` on `totals` sends its output to a new sheet; there,
-**Insert > Chart** charts the table around the pointer. Edit `sales` to
+To chart it, Enter on `totals`'s output, then **Insert > Chart**: the
+output goes to a new sheet named `totals` and the chart goes beside it
+([Outputs as grids](notebooks.md#outputs-as-grids)). Edit `sales` to
 read another file and run it: `totals` shows `stale` until it runs too
 (at once in a [reactive notebook](notebooks.md#stale-outputs-and-reactive-notebooks)),
 and then the sheet and the chart follow.

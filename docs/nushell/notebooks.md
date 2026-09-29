@@ -16,7 +16,7 @@ files = ls | where type == file
 $files | where size > 1kb | sort-by size --reverse
 ```
 
-![A notebook: a cell reads a CSV as sales, a second reads it as $sales, its output is sent to a sheet and summed there, and with the notebook reactive, editing sales runs both again and the sum follows](../media/notebook.gif)
+![A notebook: a cell reads a CSV as sales, a second reads it as $sales, its output is a grid to select in and is sent to a sheet and summed there, and with the notebook reactive, editing sales runs both again and the sum follows](../media/notebook.gif)
 
 Open one from a shell with `012 nu`, or from nushell with `sheet nu`
 (`sheet` comes from 012's nushell module: [Install the `sheet`
@@ -131,6 +131,8 @@ numbers, with the table's column names where a sheet has letters.
 indicator says `OUTPUT`, and the bar left of it turns green, as for a
 cell edited): an active cell moves with the arrows, and the grid's keys,
 menus and mouse work on it as on a sheet, in its window:
+
+![An output worked as a grid: its column of regions selected, the status line counting it](../media/notebook-grid.png)
 
 - Shift+arrows, Ctrl+A or a drag select a range, and the status line
   shows its Sum, Avg and Count; Ctrl+C copies it, as TSV to the system
