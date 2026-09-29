@@ -14,6 +14,7 @@ make oracle   # compare formulas and number formats with excelize
 make e2e      # run the real binary in a terminal emulator (needs Zig and pkg-config)
 make screens  # rewrite the golden screens and build the review gallery
 make stress   # benchmarks on synthetic and real data (see limits.md)
+make site     # build the docs site, failing on broken links (needs Node; see site.md)
 ```
 
 ## Unit tests
@@ -122,7 +123,8 @@ reads on GitHub and builds with Docusaurus as it is:
   in `docs/media/`.
 
 A new page goes in the folder a reader would look in, with front matter,
-and a line in the folder's README.
+and a line in the folder's README. `make site` builds them into the
+[docs site](site.md) and fails on any link or anchor it can't resolve.
 
 `make lint` runs `scripts/doclint`, which flags wording that narrates
 history (see [CLAUDE.md](../../CLAUDE.md)), and `scripts/doccheck`, which
