@@ -1,7 +1,8 @@
 # Roadmap
 
-Principles: inside the grid 012 behaves like Google Sheets; 1-2-3 is the
-visual identity around it. The main binary stays pure Go
+Principles: Google Sheets is the seed for behavior inside the grid and
+1-2-3 for the visual identity around it; both are inspiration, not specs
+to match in every detail. The main binary stays pure Go
 (`CGO_ENABLED=0`), and every feature ships with unit tests, a libghostty
 e2e test and reviewed golden screens. Visual and UX quality keep pace
 with features: see [UX and visual bar](docs/contributing/ux.md).
@@ -50,6 +51,32 @@ log macros record. Each step is useful on its own.
 | A nushell region follows a streaming pipeline through the linked regions' live sources (`live.Source`), rows arriving as the pipeline writes them | Pipelines as live sheets | S |
 | Shared viewing over SSH: several `012 serve` sessions open the same workbook; one edits, the others follow live with their own cursor, scroll and theme; presence shows who is where | Watch-along and review, one writer | M |
 | Shared editing over SSH: every session edits, the server orders operations (no CRDT needed while one server holds the workbook), per-user undo, presence and edit ownership shown in the grid, saves by the server | Multiplayer 012 over SSH | L |
+
+### 4. Toward 1.0
+
+Solid before shared: what 012 already does keeps working from release to
+release, and shared editing builds on these guarantees. These come before
+shared editing in section 3.
+
+| Item | Result | Size |
+|---|---|---|
+| Files saved by each release kept as fixtures that every later build opens and saves unchanged; the `.012` format written down with a version | Old files keep opening | S |
+| Random sequences of edits, sorts, fills and region runs checked for invariants: undo all restores the start, save and reopen match, a full recalc agrees with the incremental one | Bugs between features found before users hit them | M |
+| A workbook of formulas where 012 matches Sheets on purpose (dates, text, rounding, errors, spills), results checked once in Sheets and asserted after; differences chosen on purpose listed in the docs | Formula results people rely on stay put | S |
+| Frame time and recalculation checked in `make check` against a baseline with a noise margin | Slowdowns fail the check, not a later benchmark | S |
+| A panic in any session saves the workbook for recovery and writes a short report, tested end to end | A crash loses nothing | S |
+| A week of real use by the owner, problems triaged into this page | Rough edges found by use | S |
+
+### 5. Around the grid
+
+| Item | Result | Size |
+|---|---|---|
+| Commands for scripts without the screen: `012 get`, `012 set`, `012 recalc`, `012 export` on a workbook file | 012 in scripts, cron and nushell pipelines | S to M |
+| `012 diff` cell by cell (values, formulas, formats, regions) and a git diff and merge driver for `.012` | Sheets kept in git review like code | M |
+| Formula tracing: precedents and dependents shown in the grid, a formula evaluated step by step | Finding why a number is wrong | M |
+| Named tables with structured references (`Sales[Amount]`); notebook regions are tables | Formulas that read by column name | M |
+| A sheet or chart exported as a static HTML page in 012's look | Sharing a sheet with someone without 012 | S |
+| Release archives and an install script served from the owner's nzip server | Installing without Go | S |
 
 ## Later: other transports (shelved)
 

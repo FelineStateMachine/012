@@ -18,6 +18,12 @@ follow-up task.
    1-2-3 disagree, Sheets wins. 1-2-3 lives on as the visual identity:
    the control panel doubling as the formula bar, the mode indicator, the
    crisp character grid.
+
+   Both are the seed and the design pattern, not a spec. Match them
+   where users' habits depend on it (keys, entry, formula syntax and
+   results people rely on); elsewhere do what serves a terminal
+   spreadsheet best, and say so in the docs where 012 differs on purpose.
+   "Sheets does it differently" is a reason to look, not a bug by itself.
 2. **Familiar, but native to the terminal.** Sheets tells us which jobs
    users expect to get done and which keys they reach for, not what the
    screen must look like. This is a Bubble Tea program: prefer patterns
