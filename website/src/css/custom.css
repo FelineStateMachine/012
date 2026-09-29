@@ -247,6 +247,18 @@ kbd {
   margin: 1rem 0;
 }
 
+/* Stills of 012 come in a dark and a light picture, marked as GitHub
+   marks them (#gh-dark-mode-only), and the site shows the one for its
+   color mode. Each draws its own window, so it has no border. */
+[data-theme='light'] .markdown img[src$='#gh-dark-mode-only'],
+[data-theme='dark'] .markdown img[src$='#gh-light-mode-only'] {
+  display: none;
+}
+
+.markdown img[src$='-mode-only'] {
+  border: 0;
+}
+
 /* ---------- Navbar: the control panel's first line ---------- */
 
 .navbar {

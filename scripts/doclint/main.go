@@ -10,6 +10,9 @@
 // "doclint:allow" and a reason, in a comment on that line (or an HTML
 // comment in Markdown).
 //
+// It also refuses a code block that draws 012's screen as text: a
+// picture of 012 is a still drawn from a golden screen.
+//
 // Usage: go run ./scripts/doclint [dirs or files...]
 package main
 
@@ -90,7 +93,7 @@ func main() {
 		fmt.Printf("%s:%d: %s: %s\n", f.file, f.line, f.why, strings.TrimSpace(f.text))
 	}
 	if len(found) > 0 {
-		fmt.Printf("doclint: %d lines describe development rather than the code\n", len(found))
+		fmt.Printf("doclint: %d findings\n", len(found))
 		os.Exit(1)
 	}
 }
@@ -140,21 +143,46 @@ func markdown(path string) []finding {
 	}
 	defer f.Close()
 	var out []finding
-	fenced := false
+	fenced, start := false, 0
+	var block []string
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 1<<20), 1<<20)
 	for n := 1; sc.Scan(); n++ {
 		l := sc.Text()
 		if strings.HasPrefix(strings.TrimSpace(l), "```") {
-			fenced = !fenced
+			if fenced && drawnScreen(block) {
+				out = append(out, finding{path, start, "```", screenWhy})
+			}
+			fenced, start, block = !fenced, n, nil
 			continue
 		}
 		if fenced {
+			block = append(block, l)
 			continue
 		}
 		out = append(out, check(path, n, stripCode(l))...)
 	}
 	return out
+}
+
+// screenWhy is what a code block drawing 012's screen is told.
+const screenWhy = "a code block drawing 012's screen; show a still of it instead (docs/contributing/site.md#pictures-of-012)"
+
+var (
+	boxDrawing = regexp.MustCompile(`[\x{2500}-\x{257F}]`)
+	// chrome is the menu bar or the notebook's toolbar.
+	chrome = regexp.MustCompile(`File\s+Edit\s+View|▶ Run|■ Stop`)
+	// columnHeaders are the grid's column letters over its cells.
+	columnHeaders = regexp.MustCompile(`(?m)^\s*A\s{2,}B\s{2,}C(\s|$)`)
+)
+
+// drawnScreen reports whether a code block's lines draw 012's screen as
+// text: box drawing with the menu bar or the toolbar, or the grid's
+// column headers. Command output (tables a shell prints, logs) is none
+// of these.
+func drawnScreen(lines []string) bool {
+	text := strings.Join(lines, "\n")
+	return boxDrawing.MatchString(text) && chrome.MatchString(text) || columnHeaders.MatchString(text)
 }
 
 var inlineCode = regexp.MustCompile("`[^`]*`")

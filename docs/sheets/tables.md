@@ -10,6 +10,9 @@ Sheets' and Excel's tables. Formulas read it by those names,
 `=SUM(Sales[Amount])`, so they keep reading the right cells as the table
 grows and its columns move ([Structured references](../formulas/references.md#tables-by-column-name)).
 
+![The table Sales, its header styled and its rows banded, the pointer on its Amount column; the context line says how formulas read the column, and the total beside the table sums it](../media/table-dark.png#gh-dark-mode-only)
+![The table Sales, its header styled and its rows banded, the pointer on its Amount column; the context line says how formulas read the column, and the total beside the table sums it](../media/table-light.png#gh-light-mode-only)
+
 ## Making one
 
 Format > Convert to table (Ctrl+Alt+T) makes a table of the selection, or
@@ -25,18 +28,9 @@ A blank header is named after its place (`Column3`) and a repeat
 numbered (`Amount2`), in the cell too, so the header shows what formulas
 use. A selection of one row gains an empty row of data below it.
 
-```
-     A         B        C
- 1   Region    Units    Amount
- 2   North     2        10
- 3   South     3        20
- 4   East      5        30
-```
-
-Made a table named `Sales`, this reads `Sales[Amount]` as C2:C4 and
-`Sales[#All]` as A1:C4; a value typed in row 5 joins it.
-
-On a table's cell the context line names the table and the column, and
+The table above is A1:D7, named `Sales`: `Sales[Amount]` reads D2:D7
+and `Sales[#All]` reads A1:D7, and a value typed in row 8 joins it. On
+a table's cell the context line names the table and the column, and
 how a formula reads it: `Table Sales, column Amount: Sales[Amount] in
 formulas`.
 

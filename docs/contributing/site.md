@@ -75,7 +75,9 @@ the site's first commit for every page there has been.
   and the sidebar is generated from the tree: `_category_.json` for
   folders, `title` and `sidebar_position` for pages
   ([Docs](testing.md#docs) has the rules the tree follows).
-- Images in `docs/media/` are bundled from the pages that show them.
+- Images in `docs/media/` are bundled from the pages that show them;
+  an image marked `#gh-dark-mode-only` or `#gh-light-mode-only` shows in
+  that color mode only ([Pictures of 012](#pictures-of-012)).
 - Prism has no nushell grammar, so `nu` code blocks use a small one in
   `website/src/prism/nushell.ts`, loaded by the swizzled
   `website/src/theme/prism-include-languages.ts`.
@@ -105,8 +107,8 @@ are IBM Plex Mono, body text IBM Plex Sans, both bundled with the site.
 
 Diagrams are Mermaid, in a `mermaid` code block, never ASCII art: the
 same source is drawn on the site and on GitHub. A code block of text
-stays for what is text on a terminal: screens, mockups of them and
-command output.
+stays for text a reader types or a shell prints; 012's own screen is a
+picture ([Pictures of 012](#pictures-of-012)).
 
 - Draw one where a flow, a state machine or a sequence would otherwise
   take paragraphs: a flowchart for data moving through the code, a state
@@ -121,3 +123,50 @@ command output.
   (Docusaurus's component, swizzled) draws with Mermaid's `base` theme
   and variables read from the palette in `custom.css` for the color
   mode shown, so diagrams don't set their own styles.
+
+## Pictures of 012
+
+A page shows 012 as a picture: a still of the screen in the site's
+color mode, or a recording. A screen typed out in a code block reads as
+a test fixture, loses the colors that carry meaning, and wraps on a
+narrow page, so `scripts/doclint` fails a code block that draws one
+(box-drawing lines with the menu bar or the notebook's toolbar, or the
+grid's column headers).
+
+A still is a [golden screen](testing.md#golden-screens) drawn as a PNG.
+Each is an entry of `docScreens` in `e2e/stills_test.go`: its name,
+the screen whose setup it records, and a terminal size that reads on a
+page (80 columns, unless the state needs more). `make screens` records
+it on a dark and a light terminal and draws both into `docs/media`:
+
+```go
+{name: "evaluate", from: "evaluate", cols: 80, rows: 12},
+// docs/media/evaluate-dark.png and docs/media/evaluate-light.png
+```
+
+The drawing is Go (`e2e/stilldraw_test.go`): the golden's cells in the
+[reference palettes](testing.md#golden-screens), text in Go Mono, and
+box drawing, blocks, braille and the chrome's symbols drawn as a
+terminal draws them, so frames join and every machine draws the same
+picture. Each PNG records which golden it was drawn from, and
+`make e2e` fails when a golden has changed since.
+
+A page shows both pictures together, marked as GitHub marks an image for
+one color mode; `custom.css` shows the site's the same way:
+
+```md
+![Evaluate formula on B8, two steps in: the next part underlined](../media/evaluate-dark.png#gh-dark-mode-only)
+![Evaluate formula on B8, two steps in: the next part underlined](../media/evaluate-light.png#gh-light-mode-only)
+```
+
+- The alt text says what the picture shows, the state and what to look
+  at, the same words on both. Write a range in it as `B3 to B5`: the site
+  reads `:B5` in text as a directive and drops it.
+- One still where the state is the point: what a feature looks like
+  before a page explains it, or a state words describe badly (a box,
+  marks in the grid). The prose keeps what the picture can't: keys,
+  limits, why.
+- A flow of several steps is a recording, a VHS tape in `demos/`
+  ([Demo recordings](testing.md#demo-recordings)).
+- `scripts/doccheck` fails on a still no page shows, or one shown
+  without its other color mode.
