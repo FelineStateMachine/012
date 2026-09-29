@@ -28,7 +28,7 @@ it lags, and past a second it stalls.
 | Sheet size | A grid of 1,048,576 x 16,384 (A..XFD), with up to `max-cells` cells (ten million by default): navigation, drawing and every command cost what the cells cost, not the grid; ten million numbers take 205 MB, build in 1.8 s and save in 0.54 s | Opening a `.012` file of ten million cells: 1.2 s, 311 MB of heap at its peak | More than `max-cells` cells: imports keep whole rows up to it and say what they dropped; larger pastes and fills are refused | Parsing each cell's entry from the file's JSON; heap per cell (about 20 B for numbers, 20 to 60 B for real data, 750 B for formulas) |
 | Incremental recalc | A change that makes formulas read under about 500,000 cells in total (fan-out, chains and volatiles of 8192 cells: 1.3 to 1.9 ms); 1000 SUMs over a full column: 0.53 ms; 8192 running totals: 2.7 ms | 60 criteria functions (SUMIF, COUNTIFS, AVERAGEIF) over whole columns of 8192 rows: 29 ms an edit | | About 3 ns per cell read: an index into the column's block |
 | Full recalc | Any sheet: numbers and text hold their values and cost nothing; 1000 full-column SUMs 0.5 ms; 8192 running totals 1.8 ms | 60 whole-column criteria functions over 8192 rows: 44 ms | | Same as above |
-| Rendering | Any sheet at up to 200 x 60: 1 ms a frame; 400 x 120: 4.5 ms; a color scale on every cell shown adds 0.4 ms at 200 x 60, borders on every cell and wrapped text 0.4 ms | 20 charts at 400 x 120: 7 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
+| Rendering | Any sheet at up to 200 x 60: 1.3 ms a frame; 400 x 120: 4.2 ms; a color scale on every cell shown adds 0.4 ms at 200 x 60, borders on every cell and wrapped text 0.4 ms | 20 charts at 400 x 120: 6 ms | | View building styled strings, then Bubble Tea parsing and diffing them |
 | Selection statistics | Any selection: extending one over all 2.1 M cells of 8192 x 256 costs 0.3 ms a key | | | Per column with data, 1024 or 64 rows at a time from an index on the blocks of filled cells, plus the rows at the selection's ends |
 | Imports | CSV, SQLite, Parquet: 2 to 4 M cells/s (a million cells in 0.25 to 0.4 s); XLSX numbers or text: 0.8 to 1.4 M cells/s | XLSX with formulas: 0.4 to 0.6 M cells/s | Data past `max-cells` or the grid (dropped, with a note); XLSX files past the reader's limits (refused) | Building cells one at a time; XML decoding; XLSX formula translation |
 | Undo | One step of any size: undo costs what the edit cost; clearing all ten million cells of a full sheet holds 193 MB | History capped at 100 steps and 256 MB of before-images: 100 whole-column steps hold 15 MB | A step past 1 GB (millions of formulas or long distinct texts at once): asks, and runs without undo if told to | Before-images in the store's form: a slot (20 B) per plain cell, a whole `Cell` per formula |
@@ -59,7 +59,7 @@ as a stream, so opening costs about the memory the workbook then holds
 | Open `.012` (heap at the peak, the workbook included) | 24 ms (15 MB) | 0.24 s (60 MB) | 1.2 s (311 MB; 0.9 GB resident, the file's bytes and a sheet built beside it included) |
 | Export CSV / TSV / XLSX / SQLite | 33 / 31 / 45 / 38 ms | 0.51 / 0.52 / 0.65 / 0.68 s | |
 | Edit a number, undo and redo it | 0.6 us, 1.2 us | | 0.6 us, 1.2 us |
-| Frame at 200 x 60, whole | 0.88 ms | 0.87 ms | |
+| Frame at 200 x 60, whole | 0.80 ms | 0.80 ms | |
 
 XLSX exports are written by 012 with archive/zip: 1.9 MB allocated for
 8192 x 26 and 17 MB for 8192 x 256, whose time is mostly compression.
@@ -204,13 +204,13 @@ terminal (`BenchmarkFrame`).
 
 | Sheet | 80 x 24 | 200 x 60 | 400 x 120 |
 |---|---|---|---|
-| Empty | 0.19 ms | 0.89 ms | 3.2 ms |
-| 8192 x 256 numbers | 0.18 ms | 0.87 ms | 3.4 ms |
-| 8192 rows of 500-character unicode text | 0.34 ms | 1.37 ms | 4.4 ms |
-| 1000 named ranges | 0.30 ms | 1.06 ms | 3.5 ms |
-| 20 charts (text) | 0.82 ms | 2.9 ms | 7.3 ms |
+| Empty | 0.14 ms | 0.63 ms | 2.3 ms |
+| 8192 x 256 numbers | 0.17 ms | 0.80 ms | 3.1 ms |
+| 8192 rows of 500-character unicode text | 0.30 ms | 1.26 ms | 4.2 ms |
+| 1000 named ranges | 0.24 ms | 0.73 ms | 2.4 ms |
+| 20 charts (text) | 0.78 ms | 2.7 ms | 6.0 ms |
 
-About half of a frame at 400 x 120 is Bubble Tea's parse and diff of the
+More than half of a frame at 400 x 120 is Bubble Tea's parse and diff of the
 view string.
 
 Conditional formats and validation cost what the screen shows. A cell's
@@ -224,8 +224,8 @@ every cell on screen a shade), at 200 x 60 (`BenchmarkFrame`,
 
 | | Without rules | With the scale |
 |---|---|---|
-| A frame, or an arrow key through to it | 0.89 ms | 1.28 ms |
-| Typing a number and Enter, through to the frame | 0.89 ms | 2.3 ms (the scale's percentile over 213 k numbers) |
+| A frame, or an arrow key through to it | 0.80 ms | 1.2 ms |
+| Typing a number and Enter, through to the frame | 0.81 ms | 2.2 ms (the scale's percentile over 213 k numbers) |
 
 Shades and rule colors keep their escape codes, so a plain cell on one
 costs a string concatenation, not a style render. A custom formula is
@@ -241,8 +241,8 @@ more than a shade. `bars-8192x26` puts a data bar over
 
 | | 80 x 24 | 200 x 60 | 400 x 120 |
 |---|---|---|---|
-| 8192 x 26 numbers, a frame | 0.18 ms | 0.89 ms | 3.1 ms |
-| The same with bars and icons on every cell | 0.27 ms | 1.5 ms | 4.9 ms |
+| 8192 x 26 numbers, a frame | 0.17 ms | 0.80 ms | 2.8 ms |
+| The same with bars and icons on every cell | 0.26 ms | 1.4 ms | 4.6 ms |
 
 Wrapped text, borders, row heights and merged cells cost what the
 screen shows too. A sheet with none of them is drawn a line per row
@@ -256,9 +256,9 @@ top (`BenchmarkFrame`, `BenchmarkKeystroke`):
 
 | | 80 x 24 | 200 x 60 | 400 x 120 |
 |---|---|---|---|
-| 8192 x 26 numbers, a frame | 0.18 ms | 0.90 ms | 3.1 ms |
-| The same laid out, a frame | 0.24 ms | 1.28 ms | 4.3 ms |
-| The same laid out, an arrow key through to its frame | 0.25 ms | 1.25 ms | |
+| 8192 x 26 numbers, a frame | 0.17 ms | 0.80 ms | 2.8 ms |
+| The same laid out, a frame | 0.24 ms | 1.22 ms | 4.1 ms |
+| The same laid out, an arrow key through to its frame | 0.25 ms | 1.23 ms | |
 
 A chart drawn as text costs 4 to 50 us at 24 x 10 to 120 x 40 cells,
 whatever its data: only the categories that fit are drawn (a pie of 8192
@@ -269,8 +269,8 @@ when its data, size or theme changes: 25 to 260 us at 24 x 10 cells and
 in 0.07 to 0.3 ms at 24 x 10 cells and 3 to 7 ms at 120 x 40 (10 x 20
 pixel cells), 0.6 to 67 KB to send (`BenchmarkSixel`); it is sent again,
 without encoding, whenever the screen under it is redrawn. Key presses add little: an arrow key
-through to its frame is 0.19 ms at 80 x 24 and 0.9 ms at 200 x 60;
-Page Down 1.1 ms.
+through to its frame is 0.17 ms at 80 x 24 and 0.8 ms at 200 x 60;
+Page Down 1.0 ms.
 
 ## Selection statistics
 

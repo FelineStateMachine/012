@@ -56,13 +56,30 @@ type Line struct{ K, N int }
 // stays in its column. Text doesn't run on across a border or into
 // merged cells, whose contents the caller draws (see Merged).
 func LayoutLine(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int, ln Line) []Span {
-	l := rowLayout{s: s, loc: s.Locale(), row: row, lo: lo, hi: lo + ncols - 1, out: make([]Span, ncols), ln: ln, shaped: s.Shaped()}
+	var sc Scratch
+	return sc.LayoutLine(s, row, lo, ncols, minCol, maxCol, ln)
+}
+
+// Scratch keeps the slices a layout works in, so the lines of a frame
+// reuse them rather than allocate their own. The spans a layout through
+// it returns hold until its next layout.
+type Scratch struct {
+	spans []Span
+	x     []int
+}
+
+// LayoutLine is the package's LayoutLine, laid out in sc's slices.
+func (sc *Scratch) LayoutLine(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int, ln Line) []Span {
+	sc.spans = resize(sc.spans, ncols)
+	l := rowLayout{s: s, loc: s.Locale(), row: row, lo: lo, hi: lo + ncols - 1, out: sc.spans, ln: ln, shaped: s.Shaped()}
 	for i := range l.out {
 		l.out[i] = Span{Trail: s.ColWidth(lo + i)}
 	}
 	l.first, l.last = l.reach(minCol, maxCol)
 	// x[k] is where column first+k starts, relative to column first.
-	l.x = make([]int, l.last-l.first+2)
+	sc.x = resize(sc.x, l.last-l.first+2)
+	l.x = sc.x
+	l.x[0] = 0
 	for c := l.first; c <= l.last; c++ {
 		l.x[c-l.first+1] = l.x[c-l.first] + s.ColWidth(c)
 	}
@@ -73,6 +90,15 @@ func LayoutLine(s *sheet.Sheet, row, lo, ncols, minCol, maxCol int, ln Line) []S
 	}
 	keepGaps(l.out)
 	return l.out
+}
+
+// resize returns s n long, reusing its array when it has room; what it
+// holds is the caller's to set.
+func resize[T any](s []T, n int) []T {
+	if cap(s) < n {
+		return make([]T, n)
+	}
+	return s[:n]
 }
 
 // rowLayout is Layout's work in progress on one row.
@@ -146,8 +172,8 @@ func (l *rowLayout) free(k, side int) bool {
 // reaches.
 func (l *rowLayout) place(c int, v sheet.Value) {
 	x0, x1 := l.col(c)
-	text, align, pad := l.display(c, v, x1-x0)
 	style := l.s.CellStyle(sheet.Addr{Col: c, Row: l.row})
+	text, align, pad := l.display(c, v, style.Align, x1-x0)
 	own := style.Wrap != sheet.WrapOverflow // the text stays in its column
 	if l.shaped {
 		var show bool
@@ -155,7 +181,7 @@ func (l *rowLayout) place(c int, v sheet.Value) {
 			return
 		}
 	}
-	tw := ansi.StringWidth(text)
+	tw := textWidth(text)
 	start := x0 + pad
 	switch align {
 	case sheet.AlignFill:
@@ -184,9 +210,10 @@ func (l *rowLayout) place(c int, v sheet.Value) {
 	}
 }
 
-// display formats the cell in column c for a column w wide, returning
-// the text, its alignment and the padding on its aligned side.
-func (l *rowLayout) display(c int, v sheet.Value, w int) (string, sheet.Align, int) {
+// display formats the cell in column c, which its style aligns as a
+// says, for a column w wide, returning the text, its alignment and the
+// padding on its aligned side.
+func (l *rowLayout) display(c int, v sheet.Value, a sheet.Align, w int) (string, sheet.Align, int) {
 	f := l.s.DisplayFormat(sheet.Addr{Col: c, Row: l.row})
 	text, align := sheet.DisplayIn(v, f, w, l.loc)
 	pad := 1
@@ -198,7 +225,7 @@ func (l *rowLayout) display(c int, v sheet.Value, w int) (string, sheet.Align, i
 			text, pad = wider, 0
 		}
 	}
-	if a := l.s.CellStyle(sheet.Addr{Col: c, Row: l.row}).Align; a != sheet.AlignAuto && align != sheet.AlignFill {
+	if a != sheet.AlignAuto && align != sheet.AlignFill {
 		align = a
 	}
 	return text, align, pad
@@ -298,4 +325,15 @@ func nextCluster(s string) (n, w int) {
 	}
 	g, w := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
 	return len(g), w
+}
+
+// textWidth is ansi.StringWidth of s, counted at once when s is
+// printable ASCII, as numbers and most text are: one column a byte.
+func textWidth(s string) int {
+	for i := 0; i < len(s); i++ {
+		if b := s[i]; b < 0x20 || b >= 0x7f {
+			return ansi.StringWidth(s)
+		}
+	}
+	return len(s)
 }

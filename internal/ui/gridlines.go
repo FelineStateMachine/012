@@ -97,9 +97,10 @@ func (lc *lineCtx) merged(a, focus sheet.Addr) bool {
 }
 
 // layoutLine lays out ncols columns of the line from lo, with the merges
-// crossing them drawn over.
+// crossing them drawn over. The spans are the model's scratch, good
+// until the next line is laid out.
 func (m *Model) layoutLine(lc *lineCtx, lo, ncols, minCol, maxCol int) []rowtext.Span {
-	spans := rowtext.LayoutLine(m.sheet, lc.row, lo, ncols, minCol, maxCol, lc.ln)
+	spans := m.rowScratch.LayoutLine(m.sheet, lc.row, lo, ncols, minCol, maxCol, lc.ln)
 	hi := lo + ncols - 1
 	for _, mg := range lc.merges {
 		from, to := max(lo, mg.From.Col), min(hi, mg.To.Col)
