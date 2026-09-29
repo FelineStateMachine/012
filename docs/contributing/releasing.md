@@ -12,6 +12,21 @@ publishes there, and `make dist` uploads nothing.
 
 ## Checklist
 
+The steps in order, and what each leaves behind; a small release may
+skip the stress run:
+
+```mermaid
+flowchart TD
+  check[make check, the gallery reviewed] --> small{a small release?}
+  small -->|no| stress[make stress, make stress-report]
+  small -->|yes| xlsx
+  stress -->|the run recorded on the commit| xlsx[XLSX opened in Excel, LibreOffice, Sheets]
+  xlsx --> tag[git tag -a, git push]
+  tag -->|the module proxy| install[go install ...@v1.2.3]
+  tag --> dist[make dist]
+  dist --> archives[dist/: archives, SHA256SUMS]
+```
+
 1. **`make check`** passes on the commit to be tagged (see
    [Testing](testing.md)), with the golden screens reviewed in the
    gallery.

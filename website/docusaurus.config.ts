@@ -35,6 +35,9 @@ const config: Config = {
     // .md files are CommonMark, as GitHub reads them: <, { and HTML
     // comments are text and markup, not JSX. .mdx files would be MDX.
     format: 'detect',
+    // ```mermaid blocks are drawn as diagrams, as GitHub draws them; the
+    // swizzled src/theme/Mermaid gives them the site's palette.
+    mermaid: true,
     hooks: {
       onBrokenMarkdownLinks: 'throw',
       onBrokenMarkdownImages: 'throw',
@@ -66,6 +69,7 @@ const config: Config = {
   plugins: [['@docusaurus/plugin-client-redirects', {redirects}]],
 
   themes: [
+    '@docusaurus/theme-mermaid',
     [
       '@easyops-cn/docusaurus-search-local',
       {
@@ -117,6 +121,9 @@ const config: Config = {
       ],
       copyright: `<span class="mode-chip">READY</span> 012 is free software under the <a href="${repo}/blob/main/LICENSE">MIT license</a>.`,
     },
+    // The base theme is the one Mermaid lets every color of be set;
+    // src/theme/Mermaid sets them from custom.css for each color mode.
+    mermaid: {theme: {light: 'base', dark: 'base'}},
     prism: {
       theme: prismThemes.oneLight,
       darkTheme: prismThemes.oneDark,

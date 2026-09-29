@@ -79,6 +79,9 @@ the site's first commit for every page there has been.
   (`website/src/remark/repo-links.ts`).
 - The generated pages, [Functions](../reference/functions.md) and
   [Configuration](../reference/config.md), are pages like any other.
+- `mermaid` code blocks are drawn as diagrams
+  (`@docusaurus/theme-mermaid`), as GitHub draws them; see
+  [Diagrams](#diagrams).
 - Search is local: `@easyops-cn/docusaurus-search-local` builds an index
   at build time, and nothing is sent to a service.
 
@@ -92,3 +95,24 @@ colors in `website/src/css/custom.css` are the reference palettes of the
 golden screens, given the roles the app gives them: cyan where you are,
 bright black header bands, blue links and selection. Headings and chrome
 are IBM Plex Mono, body text IBM Plex Sans, both bundled with the site.
+
+## Diagrams
+
+Diagrams are Mermaid, in a `mermaid` code block, never ASCII art: the
+same source is drawn on the site and on GitHub. A code block of text
+stays for what is text on a terminal: screens, mockups of them and
+command output.
+
+- Draw one where a flow, a state machine or a sequence would otherwise
+  take paragraphs: a flowchart for data moving through the code, a state
+  diagram for modes, a sequence diagram for two programs talking. Not
+  for its own sake: a list or a table that reads well stays one.
+- A short sentence before it says what it shows, and the prose around
+  it keeps the facts the diagram can't (why, limits, names to search
+  for) without walking through it again.
+- Labels are the words the docs use: the key, the command's title, the
+  function or type name; menu paths in them are checked as in prose.
+- Colors and fonts come from the site: `website/src/theme/Mermaid`
+  (Docusaurus's component, swizzled) draws with Mermaid's `base` theme
+  and variables read from the palette in `custom.css` for the color
+  mode shown, so diagrams don't set their own styles.

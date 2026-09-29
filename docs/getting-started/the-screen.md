@@ -33,4 +33,23 @@ say what's going on.
 | NORMAL, VISUAL, COMMAND | In the [vim keymap](../reference/keys.md#vim-keys), in place of READY, while selecting, and on the `:` line |
 
 Whatever the mode, the context line shows the keys that apply, and Esc
-backs out one level.
+backs out one level. Typing into a cell moves between READY, ENTER, EDIT
+and POINT; menus and the other tools open over READY and close back to
+it:
+
+```mermaid
+stateDiagram-v2
+  state "MENU, HELP, FIND, SORT and the other tools" as tools
+  [*] --> READY
+  READY --> ENTER: type
+  READY --> EDIT: Enter, F2, double-click
+  ENTER --> EDIT: F2, or a formula that can't be stored
+  ENTER --> POINT: an arrow after an operator
+  EDIT --> POINT: Shift+arrow after an operator
+  POINT --> ENTER: type, Esc
+  ENTER --> READY: Enter, Tab, Esc
+  EDIT --> READY: Enter, Tab, Esc
+  POINT --> READY: Enter, Tab
+  READY --> tools: F10, Ctrl+K, Ctrl+F, right-click
+  tools --> READY: Esc, or a command run
+```
