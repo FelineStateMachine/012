@@ -34,6 +34,7 @@ completed by nu as they're written.
 
 | Item | Result | Size |
 |---|---|---|
+| Outputs drawn as 012's own grid rather than text: column widths and number formats by type, the active cell and selection, sort, filter and find in place, copy a range, freeze the header, a chart or pivot from the output, and formulas beside it when sent to a sheet | An output works like the data it is | M |
 | A command's signature and description for the word at the caret, on the context line, through `nu --ide-hover` or `nu --lsp` | Writing a cell without leaving for `help` | S |
 
 ### 3. Toward multiplayer
@@ -59,7 +60,6 @@ shared editing in section 3.
 |---|---|---|
 | A workbook of formulas where 012 matches Sheets on purpose (dates, text, rounding, errors, spills), results checked once in Sheets and asserted after; differences chosen on purpose listed in the docs | Formula results people rely on stay put | S |
 | Cycles found from the formulas as written rather than as evaluation walks them: a cycle behind an error that ends a range read or an IF branch not taken, and arrays and notebook outputs in each other's way, settle the same whatever order they're computed in (`-randedit.seeds=20000` still finds about one sequence in 2,500 that reopens differently, and `randKnown` skips one of the default seeds) | Every workbook reads the same when reopened | M |
-| A week of real use by the owner, problems triaged into this page | Rough edges found by use | S |
 
 ### 5. Around the grid
 
@@ -67,6 +67,20 @@ shared editing in section 3.
 |---|---|---|
 | A sheet or chart exported as a static HTML page in 012's look | Sharing a sheet with someone without 012 | S |
 | Release archives and an install script served from the owner's nzip server | Installing without Go | S |
+
+### 6. Agents
+
+Agents work on workbooks through the same operations people do (the
+`Batch`/`Change` path), so their edits are undoable, attributed and
+shown by `012 diff`, under the same trust rules as macros. Live mode is
+section 3's shared editing with an agent as one participant.
+
+| Step | Result | Size |
+|---|---|---|
+| `012 describe` (sheets, used ranges, headers, names, tables, regions, charts), `--format json` on every command, `012 set --dry-run` printing the change as a diff, an agents page in the docs and a Claude Code skill installed by 012 | Agents with a shell use 012 well | S |
+| `012 mcp` over stdio on a workbook file: tools (describe, read, write, apply operations, evaluate without writing, find, sort, filter, chart, pivot, run a notebook cell), resources (`012://book/Sheet1!A1:D40`, tables, notebook cells), prompts | Any MCP host works with workbooks | M |
+| MCP Apps views: a sheet or chart rendered as an interactive view inside the host, from the HTML export | Workbooks shown in the chat | S to M |
+| Live mode: `012 --listen` and `012 mcp --attach`; the agent's cursor and name in the grid, its changes arriving as a suggestion (marked cells, accepted or rejected whole or by cell) unless direct edits are allowed, its own undo, a scope (sheet, range, read-only), elicitation to ask the person | Coworking with an agent in the grid | M to L |
 
 ## Later: other transports (shelved)
 
