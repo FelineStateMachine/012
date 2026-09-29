@@ -31,6 +31,7 @@ func (m *Model) View() tea.View {
 		defer m.timeFrame(time.Now())
 	}
 	clear(m.painted) // the theme may have changed since the last frame
+	m.nb.frame++     // and outputs' grids clear theirs: nbgrid.go
 	clear(m.mergeLines)
 	clear(m.shaded)
 	var lines []string
@@ -156,7 +157,7 @@ func (m *Model) indicator() string {
 	case m.mode == modePrompt:
 		return m.prompt.indicator
 	case m.nbView() != nil && m.mode == modeReady:
-		return notebookIndicator(m.nbView())
+		return m.notebookIndicator(m.nbView())
 	case m.vimActive() && m.visual() != visualNone:
 		return "VISUAL"
 	case m.vimActive():
@@ -187,6 +188,11 @@ func (m *Model) formulaBar() string {
 	if v := m.nbView(); v != nil && m.mode != modePrompt {
 		if b, ok := m.overlay.(overlay.Bar); ok {
 			return m.th.Header.Render(theme.PadRight(" ", nameBoxW)) + " " + b.FormulaBar()
+		}
+		if g := m.gridIn(); g != nil {
+			if _, ok := g.child.overlay.(overlay.Bar); ok {
+				return g.child.formulaBar() // its find bar's field
+			}
 		}
 		return m.notebookToolbar(v)
 	}
@@ -314,6 +320,9 @@ func (m *Model) cursorPos() (x, y int, ok bool) {
 		return x, y, x >= 0
 	}
 	if v := m.nbView(); v != nil && m.mode == modeReady && m.overlay == nil {
+		if g := m.gridIn(); g != nil {
+			return m.gridCursor(g, v)
+		}
 		return m.notebookCursor(v)
 	}
 	switch {
@@ -339,6 +348,9 @@ func (m *Model) statusLayout() (string, []tabstrip.Span) {
 	if m.mode == modeError {
 		return m.th.Error.Render(m.errMsg) + m.th.Muted.Render("   press any key"), nil
 	}
+	if g := m.gridIn(); g != nil && g.child.mode == modeError {
+		return g.child.statusLayout()
+	}
 	if m.xfer.Busy() {
 		return m.spread(m.xfer.Status(&m.th, m.width)), nil
 	}
@@ -352,6 +364,9 @@ func (m *Model) statusLayout() (string, []tabstrip.Span) {
 // formula suggestions does, and the keys that apply.
 func (m *Model) floatingStatus() (string, bool) {
 	desc, keys, floating := m.entry.assist.Status(m.host())
+	if g := m.gridIn(); g != nil && m.overlay == nil && g.child.overlay != nil {
+		return g.child.floatingStatus() // the grid's menu or filter
+	}
 	if m.overlay != nil {
 		desc, keys = m.overlay.Status()
 		floating = true
@@ -435,10 +450,13 @@ func (m *Model) statusState() string {
 // the keys that open the palette, the shortcuts and the menu.
 func (m *Model) statusRights() []string {
 	var out []string
+	if g := m.gridIn(); g != nil && g.child.hasRange() {
+		return g.child.statusRights() // the grid's selection
+	}
 	if m.hasRange() && m.mode == modeReady {
 		r := m.selection()
 		st := m.sheet.RangeStats(r)
-		rng := m.th.Key.Render(r.String())
+		rng := m.th.Key.Render(m.rangeLabel(r))
 		sum, avg := "", ""
 		if st.Nums > 0 {
 			sum = m.th.Muted.Render("Sum ") + m.fmtStat(st.Sum)

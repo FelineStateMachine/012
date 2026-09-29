@@ -48,9 +48,14 @@ func TestGuardUpdatePanicKeepsWork(t *testing.T) {
 	m.filename = "book.012"
 	press(t, m, "mine", "<enter>")
 	g := Guard(m)
-	if _, cmd := g.Update(f12); !isQuit(cmd) {
+	next, cmd := g.Update(f12)
+	if !isQuit(cmd) {
 		t.Fatal("a panic in Update didn't quit")
 	}
+	if next != g {
+		t.Fatalf("Update returned %v after a panic; Bubble Tea draws what it returns", next)
+	}
+	next.View()
 	if _, cmd := g.Update(tea.KeyPressMsg{Code: 'x', Text: "x"}); cmd != nil {
 		t.Error("a crashed model took more input")
 	}

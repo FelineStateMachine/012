@@ -107,7 +107,7 @@ there.
 | Entries failing validation | A dotted underline, and `Invalid:` with the rule on the context line |
 | Values an array spilled | Italic, and `Spilled from B2` on the context line |
 | Linked files' rows, following, paused or failing | Italic; `●`, `‖` or `!` beside the tab's name and on the context line, with the state in words (`Following`, `Paused`, the error) |
-| A notebook's cells and outputs | Marks and words, listed in [Notebooks](../nushell/notebooks.md#reading-a-cell): the bar left of the active cell, a heavy box while it's edited, the prompt's and the box's words for its state, `×` before an error, an output sent to a sheet in italic |
+| A notebook's cells and outputs | Marks and words, listed in [Notebooks](../nushell/notebooks.md#reading-a-cell): the bar left of the active cell, a heavy box while it's edited, the prompt's and the box's words for its state, `×` before an error, `OUTPUT` in an output's grid, an output sent to a sheet in italic |
 | A table's header row | Bold and underlined, when the table styles its header; `Table Sales, column Amount` on the context line |
 | Pivot table results | Their headings (`SUM of Units`, `Grand Total`), and a note in words when an edit is refused |
 | Protected ranges | A question in words before an edit (`A1:B2 is protected.`) |

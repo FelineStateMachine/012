@@ -37,6 +37,9 @@ type lineCtx struct {
 func (m *Model) lineContext(row int, ln rowtext.Line) lineCtx {
 	lc := lineCtx{row: row, ln: ln, focus: m.active(), shaped: m.sheet.Shaped()}
 	lc.sel, lc.selecting = m.highlight()
+	if m.unfocused() {
+		lc.focus, lc.selecting = sheet.Addr{Col: -1, Row: -1}, false
+	}
 	if lc.shaped {
 		lc.merges = m.sheet.MergesIn(sheet.Rect{From: sheet.Addr{Row: row}, To: sheet.Addr{Col: sheet.MaxCols - 1, Row: row}})
 	}

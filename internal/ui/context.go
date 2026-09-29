@@ -48,7 +48,7 @@ func concat(lists ...[]menuItem) []menuItem {
 func init() {
 	register(&command{id: "menu.context", macro: macroNever, title: "Cell menu", desc: "Open the right-click menu for the selection", run: func(m *Model) tea.Cmd {
 		x, y := m.cellPos(m.cur)
-		m.showContextMenu(cellMenu, x, y+1)
+		m.showContextMenu(m.cellMenu(), x, y+1)
 		return nil
 	}})
 	keymap["shift+f10"] = "menu.context"
@@ -66,7 +66,7 @@ func (m *Model) rightClick(x, y int) {
 			m.cur = h.addr
 			m.clearSelection()
 		}
-		m.showContextMenu(cellMenu, x, y+1)
+		m.showContextMenu(m.cellMenu(), x, y+1)
 	case hitColHeader, hitColBorder, hitFilterButton:
 		if m.whole != wholeCols || h.addr.Col < sel.From.Col || h.addr.Col > sel.To.Col {
 			m.cur = h.addr

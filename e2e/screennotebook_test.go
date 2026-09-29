@@ -10,8 +10,9 @@ import (
 // Golden screens for notebooks: cells with a note and table outputs, a
 // cell edited with a long pipeline wrapped (at 80 and 60 columns), a
 // failure, nu's highlighting and a problem nu found, a cell running and
-// one waiting, stale outputs, an output full-screen, and an output sent
-// to a sheet. Each is recorded on a light terminal and in the
+// one waiting, stale outputs, an output's grid entered with a range
+// selected, its filter open, and full-screen, and an output sent to a
+// sheet. Each is recorded on a light terminal and in the
 // high-contrast theme too. nu is testdata/nu/nu, which answers what the
 // screens run, and what the code editor asks, with fixed outputs.
 
@@ -91,8 +92,20 @@ var notebookScreens = []screen{
 	}},
 	{name: "notebook-output", setup: func(s *session) {
 		filesNotebook(s)
-		s.keys("<up>", "<up>", "<up>", "<enter>")
-		s.waitFor("full-screen")
+		s.keys("<up>", "<up>", "<up>", "<enter>", "<enter>")
+		s.waitFor("◀ Back")
+	}},
+	{name: "notebook-grid", setup: func(s *session) {
+		filesNotebook(s)
+		s.keys("<up>", "<up>", "<up>", "<enter>", "<shift+down>", "<shift+right>", "<shift+right>")
+		s.waitFor("Count 6")
+	}},
+	{name: "notebook-grid-filter", setup: func(s *session) {
+		filesNotebook(s)
+		s.keys("<up>", "<up>", "<up>", "<enter>", "<ctrl+k>", "Create a filter", "<enter>")
+		s.waitFor("▾")
+		s.keys("<right>", "<alt+down>")
+		s.waitFor("Select all")
 	}},
 	{name: "notebook-nu-highlight", setup: func(s *session) {
 		filesNotebook(s)

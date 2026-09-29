@@ -37,6 +37,11 @@
       "ratio": 2.045,
       "allocs": 5223
     },
+    "frame/output-100000x4": {
+      "ns": 566323,
+      "ratio": 0.977,
+      "allocs": 2031
+    },
     "frame/scale-8192x26": {
       "ns": 1215229,
       "ratio": 2.076,

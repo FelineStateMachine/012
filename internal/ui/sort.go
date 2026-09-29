@@ -69,7 +69,8 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 		}
 		return nil
 	}
-	if m.refuseEdit(r, false) {
+	if m.out == nil && m.refuseEdit(r, false) { // an output's grid sorts its own copy
+
 		return nil
 	}
 	if len(m.sheet.MergesIn(r)) > 0 {
@@ -86,9 +87,9 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 	m.changed = true
 	var by []string
 	for _, k := range keys {
-		by = append(by, sheet.ColName(k.Col)+" "+sortbar.OrderName(k.Desc))
+		by = append(by, m.colName(k.Col)+" "+sortbar.OrderName(k.Desc))
 	}
-	m.note = "Sorted " + r.String() + " by " + strings.Join(by, ", then ")
+	m.note = "Sorted " + m.rangeLabel(r) + " by " + strings.Join(by, ", then ")
 	return nil
 }
 

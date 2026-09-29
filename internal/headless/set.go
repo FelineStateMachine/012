@@ -11,7 +11,8 @@ import (
 // in it, as the file stores entries (numbers and dates in en-US's form,
 // formulas with commas, whatever the workbook's locale); "" clears it.
 type Entry struct {
-	Ref, Input string
+	Ref   string `json:"ref" jsonschema:"one cell, as formulas write it: B7, Q3!B7, 'Q3 plan'!B7"`
+	Input string `json:"input" jsonschema:"what to type, in en-US form: 1.5, =SUM(A1:A6), $1,200, 12%, 2026-09-29; empty clears the cell"`
 }
 
 // SetOptions tune Set.

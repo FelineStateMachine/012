@@ -68,7 +68,7 @@ func (g *Guarded) Init() (cmd tea.Cmd) {
 }
 
 // Update implements tea.Model.
-func (g *Guarded) Update(msg tea.Msg) (_ tea.Model, cmd tea.Cmd) {
+func (g *Guarded) Update(msg tea.Msg) (next tea.Model, cmd tea.Cmd) {
 	if c, ok := msg.(crashMsg); ok {
 		if g.crash == nil {
 			g.crash = c.crash
@@ -81,7 +81,7 @@ func (g *Guarded) Update(msg tea.Msg) (_ tea.Model, cmd tea.Cmd) {
 	defer func() {
 		if r := recover(); r != nil {
 			g.crash = caught("update", r)
-			cmd = tea.Quit
+			next, cmd = g, tea.Quit // never nil: Bubble Tea draws what Update returns
 		}
 	}()
 	if crashTest != nil {
@@ -89,8 +89,8 @@ func (g *Guarded) Update(msg tea.Msg) (_ tea.Model, cmd tea.Cmd) {
 			return g, c
 		}
 	}
-	next, cmd := g.m.Update(msg)
-	if m, ok := next.(*Model); ok {
+	inner, cmd := g.m.Update(msg)
+	if m, ok := inner.(*Model); ok {
 		g.m = m
 	}
 	return g, g.guard(cmd)
