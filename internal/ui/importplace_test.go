@@ -36,7 +36,7 @@ func TestImportLocation(t *testing.T) {
 	m.runCommand("file.import")
 	press(t, m, "sales.csv", "<enter>")
 	got := strings.Join(pickerTitles(t, m), "\n")
-	want := "Insert new sheet | after Sheet1\nReplace current sheet | Sheet1\nReplace spreadsheet | open it instead"
+	want := "Insert new sheet | after Sheet1\nReplace current sheet | Sheet1\nFollow the file | live, in a new sheet\nReplace spreadsheet | open it instead"
 	if got != want {
 		t.Errorf("locations:\n%s\nwant\n%s", got, want)
 	}
@@ -115,7 +115,7 @@ func TestImportLocationWorkbook(t *testing.T) {
 	press(t, m, "x", "<enter>")
 	m.runCommand("file.import")
 	press(t, m, "book", "<enter>")
-	if got := strings.Join(pickerTitles(t, m), "\n"); got != "Insert new sheets | after Sheet1\nReplace spreadsheet | unsaved changes" {
+	if got := strings.Join(pickerTitles(t, m), "\n"); got != "Insert new sheets | after Sheet1\nFollow the file | live, in a new sheet\nReplace spreadsheet | unsaved changes" {
 		t.Errorf("locations:\n%s", got)
 	}
 	press(t, m, "insert", "<enter>")

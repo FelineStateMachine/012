@@ -234,6 +234,9 @@ func (m *Model) contextLineText() string {
 			left = m.errorLine()
 		}
 		if left == "" {
+			left = m.linkedLine() // linked.go
+		}
+		if left == "" {
 			left = m.validationLine() // looks.go
 		}
 		if left == "" {

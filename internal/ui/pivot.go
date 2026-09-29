@@ -64,6 +64,10 @@ func (m *Model) refuseEdit(r sheet.Rect, keepsSpills bool) bool {
 	if keepsSpills {
 		return false
 	}
+	if _, ok := m.sheet.InLinked(r); ok {
+		m.note = sheet.ErrLinkedEdit.Error()
+		return true
+	}
 	a, ok := m.sheet.InSpill(r)
 	if !ok {
 		return false

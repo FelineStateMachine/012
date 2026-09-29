@@ -84,7 +84,7 @@ var kinds = []fileFormat{{
 	kind: WK1, name: "WK1", noun: "1-2-3", label: "Lotus 1-2-3 worksheet", exts: []string{".wk1", ".wks"},
 	read: importWK1,
 }, {
-	kind: JSON, name: "JSON", noun: "JSON", label: "JSON list of records", exts: []string{".json"},
+	kind: JSON, name: "JSON", noun: "JSON", label: "JSON list of records", exts: []string{".json", ".ndjson", ".jsonl"},
 	read: importJSON, write: exportJSON, menu: "JSON list of records", encode: encodeJSON,
 	about: "Save the sheet as a JSON list of records, named by its first row",
 }, {

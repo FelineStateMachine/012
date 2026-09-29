@@ -82,6 +82,9 @@ func run(m *Model, cmd tea.Cmd) tea.Msg {
 	if _, ok := out.(tea.QuitMsg); ok {
 		return out
 	}
+	if _, ok := out.(followTickMsg); ok {
+		return nil // tests poll with pump
+	}
 	if _, ok := out.(autoscrollMsg); ok {
 		return nil
 	}

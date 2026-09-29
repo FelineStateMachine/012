@@ -55,6 +55,10 @@ func (m *Model) askImportPlace(name string) tea.Cmd {
 		items = append(items, item("Replace current sheet", m.sheet.Name(), "Put "+base+" in place of "+m.sheet.Name()+keeping,
 			func(m *Model) tea.Cmd { return m.startImport(name, fileio.Options{}, transfer.Sheet) }))
 	}
+	items = append(items, item("Follow the file", "live, in a new sheet", "Add "+base+" as a new sheet linked to the file, following it as it grows or is rewritten",
+		func(m *Model) tea.Cmd {
+			return m.linkFile(name, func(m *Model, src sheet.LinkSource) { m.followInNewSheet(src) })
+		}))
 	detail := "open it instead"
 	if m.changed {
 		detail = "unsaved changes"

@@ -68,9 +68,40 @@ const maxName = 20
 // space after it.
 const addW, arrowW = 3, 2
 
-// Label is a sheet's name as its tab shows it.
+// Label is a sheet's name as its tab shows it, with the mark of its
+// linked regions, if it has any.
 func Label(s *sheet.Sheet) string {
-	return " " + ansi.Truncate(s.Name(), maxName, "…") + " "
+	label := " " + ansi.Truncate(s.Name(), maxName, "…") + " "
+	if s.HasLinked() {
+		label += liveMark(s) + " "
+	}
+	return label
+}
+
+// Mark is the glyph that shows how a linked region follows its file:
+// ● following, ‖ paused, ! when the file can't be read. It reads without
+// color.
+func Mark(paused, failed bool) string {
+	switch {
+	case failed:
+		return "!"
+	case paused:
+		return "‖"
+	}
+	return "●"
+}
+
+// liveMark is the mark of a sheet's linked regions: a failing one's
+// first, then a following one's.
+func liveMark(s *sheet.Sheet) string {
+	paused := true
+	for _, r := range s.LinkedRegions() {
+		if r.Err != "" {
+			return Mark(false, true)
+		}
+		paused = paused && r.Paused
+	}
+	return Mark(paused, false)
 }
 
 // MinWidth is the narrowest the strip gets: the shown sheet's tab, the

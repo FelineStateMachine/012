@@ -115,6 +115,7 @@ var menuBar = []menuDef{
 		}}, sep,
 		{cmd: "data.filter"}, {cmd: "data.filter_column"}, {cmd: "data.filter_remove"}, sep,
 		{cmd: "data.pivot"}, {cmd: "data.pivot_edit"}, {cmd: "data.frequency"}, sep,
+		{title: "Linked file", items: linkedItems}, sep,
 		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, {cmd: "data.protect"}, sep,
 		{cmd: "data.validation"}, {cmd: "data.validation_clear"}, sep,
 		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,

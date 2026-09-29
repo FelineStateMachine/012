@@ -127,9 +127,10 @@ type Model struct {
 	prefs   prefs             // the settings in effect and the theme chosen: prefs.go
 	session session           // what outlasts the file open: the : history, the keyboard: keyboard.go
 
-	vim    vimState   // a vim key sequence in progress: vim.go
-	rec    *recorder  // a macro being recorded: macrorec.go
-	macros macroState // a macro running, and trust in the file's macros: macrorun.go
+	vim    vimState    // a vim key sequence in progress: vim.go
+	rec    *recorder   // a macro being recorded: macrorec.go
+	macros macroState  // a macro running, and trust in the file's macros: macrorun.go
+	follow followState // the linked regions followed, and trust in them: follow.go
 
 	keyAt time.Time        // when the key the next frame answers was pressed, for telemetry
 	spans *telemetry.Trace // the spans open, which what the model starts nests in: trace.go
@@ -156,7 +157,7 @@ func (m *Model) TraceUnder(p telemetry.Parent) { m.spans.Enter(p) }
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
 	// jev.send starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd())
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd(), m.syncFollowers())
 }
 
 // Update implements tea.Model.
@@ -223,6 +224,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.recalcAnswered()
 	case transfer.ImportedMsg, transfer.TickMsg, exportedMsg:
 		cmd = m.handleTransfer(msg)
+	case followTickMsg, followMsg:
+		cmd = m.handleFollow(msg)
 	case macroCallMsg:
 		cmd = m.serveMacro(msg)
 	case macroDoneMsg:
@@ -252,7 +255,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.clampView()
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
-	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg))
+	// Linked regions may have come, gone or changed: follow.go.
+	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg), m.syncFollowers())
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state

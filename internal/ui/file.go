@@ -186,7 +186,12 @@ func (m *Model) saveAs(name string, check bool) tea.Cmd {
 	if check && name == m.filename {
 		expect = &m.disk
 	}
-	return saveCmd(m.sheet, name, p, expect, m.spans)
+	// Linked files are saved relative to the new file's folder, and stay
+	// relative to this one's until the save is done.
+	m.rebaseLinks(m.filename, name)
+	cmd := saveCmd(m.sheet, name, p, expect, m.spans)
+	m.rebaseLinks(name, m.filename)
+	return cmd
 }
 
 // saveCmd writes the worksheet to path atomically: to a temporary file
@@ -332,6 +337,7 @@ func (m *Model) handleSaved(msg savedMsg) tea.Cmd {
 		m.fail(fmt.Sprintf("Couldn't save %s: %v", msg.name, msg.err))
 		return nil
 	}
+	m.rebaseLinks(m.filename, msg.name)
 	m.filename, m.disk = msg.name, msg.stamp
 	m.changed = false
 	m.savedRecovered()
