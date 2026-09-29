@@ -117,6 +117,7 @@ type Model struct {
 	copied  clipboard         // what Ctrl+V pastes: clipboard.go
 	trace   *trace            // precedents or dependents being shown: trace.go
 	xfer    transfer.Transfer // the import running and the file imported: package transfer
+	pipe    pipeState         // standard input and output, for 012 - and --pipe: pipe.go
 	jev     *jevRunner        // answers JEV functions; nil without an API key: jev.go
 	term    terminal          // what the terminal supports: graphics.go
 	prefs   prefs             // the settings in effect and the theme chosen: prefs.go
@@ -151,7 +152,7 @@ func (m *Model) TraceUnder(p telemetry.Parent) { m.spans.Enter(p) }
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
 	// jev.send starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startOpenCmd())
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd())
 }
 
 // Update implements tea.Model.

@@ -237,6 +237,10 @@ func (m *Model) handleImported(msg transfer.ImportedMsg) tea.Cmd {
 		m.fail(fmt.Sprintf("Couldn't import %s: %v", filepath.Base(msg.Name), msg.Err))
 		return nil
 	}
+	if msg.Stream {
+		m.streamed(msg)
+		return m.term.notify("Read standard input")
+	}
 	what := filepath.Base(msg.Name)
 	switch {
 	case msg.Opt.Table != "":

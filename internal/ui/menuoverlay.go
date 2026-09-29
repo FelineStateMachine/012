@@ -50,7 +50,22 @@ func (m *Model) showBarMenu(i int) {
 		return
 	}
 	i = (i%len(menus) + len(menus)) % len(menus)
-	m.openOverlay(&menuOverlay{m: m, bar: i, levels: []*menuLevel{newLevel(m, visibleItems(menus[i].def.items), true)}})
+	m.openOverlay(&menuOverlay{m: m, bar: i, levels: []*menuLevel{newLevel(m, visibleItems(m.applicable(menus[i].def.items)), true)}})
+}
+
+// applicable drops the items whose commands are hidden in this session
+// (command.hidden), in submenus too.
+func (m *Model) applicable(items []menuItem) []menuItem {
+	out := make([]menuItem, 0, len(items))
+	for _, it := range items {
+		if it.items != nil {
+			it.items = m.applicable(it.items)
+		}
+		if c := commands[it.cmd]; c == nil || c.hidden == nil || !c.hidden(m) {
+			out = append(out, it)
+		}
+	}
+	return out
 }
 
 // showContextMenu opens a menu of items with its corner at x, y.

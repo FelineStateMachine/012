@@ -121,7 +121,7 @@ func (m *Model) openFile(text string) tea.Cmd {
 // session rather than the sheet carries over: the window, theme, terminal
 // state, served directory and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
-	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}, prefs: m.prefs, session: m.session,
+	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}, prefs: m.prefs, session: m.session, pipe: m.pipe,
 		macros: macroState{machine: m.macros.machine, editor: m.macros.editor}, spans: m.spans}
 	s.Book().SetTrace(m.spans)
 	if m.jev != nil {

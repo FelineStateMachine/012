@@ -397,6 +397,7 @@ func (m *Model) statusState() string {
 	if busy := m.jev.busy(); busy != "" {
 		b.WriteString("  " + m.th.Hint.Render(busy))
 	}
+	b.WriteString(m.pipeStatus())
 	return b.String()
 }
 

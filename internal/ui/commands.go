@@ -24,6 +24,10 @@ type command struct {
 	// enabled, when set, reports whether the command can run right now.
 	// Menus and the palette show unavailable commands dimmed.
 	enabled func(m *Model) bool
+	// hidden, when set, reports that the command doesn't apply to this
+	// session at all, as sending to a pipeline outside one: menus and
+	// the palette leave it out rather than dim it.
+	hidden func(m *Model) bool
 
 	// checked, when set, makes the command a setting: menus show a ✓
 	// while it is on.

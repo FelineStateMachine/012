@@ -9,7 +9,7 @@ sidebar_position: 2
 Lip Gloss v2.
 
 ```
-cmd/012          entry point: flags and config, 012 config, 012 serve, JEV setup, opening or importing a file
+cmd/012          entry point: flags and config, 012 config, 012 serve, JEV setup, opening or importing a file, 012 - and --pipe on the terminal
 internal/config  the config file and the registry of options
 internal/sheet   the engine: cells, recalculation, undo, files, names, pivots
 internal/functions the function library: the FuncDef table, evaluation, decimal arithmetic, JEV questions
@@ -17,7 +17,8 @@ internal/value   cell values, number formats, typed-entry parsing, the clock
 internal/formula the formula language: references, lexer, parser, printer, rewriting
 internal/numfmt  number formats, rounding, General, date serials
 internal/locale  the locales: separators, date order, currency, formula separators
-internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1
+internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1, JSON, NUON; tables on streams
+internal/nuon    nushell's object notation: typed values, tables read a row at a time, written back
 internal/chart   chart layout, text rendering and kitty image encoding
 internal/jev     the API key's resolution, answer cache and TypeSafe client
 internal/keyring the OS credential store the API key lives in
@@ -374,7 +375,7 @@ draw. The components:
 | overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker (package `filterpick`, with `filter.go`), the sort bar (package `sortbar`, with `sort.go`), choice bars (package `choicebar`, with `dialog.go`), the chart editor and selection (`charteditor.go`, `chartsel.go`), the pivot editor (`pivoteditor.go`, `pivotactions.go`), the rules panel (package `rules`, with `rules.go`), the shortcuts (package `shortcuts`, with `help.go`) |
 | sheet tabs | `tabstrip.Strip` | where each sheet was left, the tab strip's scroll and layout (package `tabstrip`); what clicks on it do (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
-| import | `transfer.Transfer` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`) |
+| import | `transfer.Transfer`, `pipeState` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`); standard input read as a sheet, and what a pipeline gets on quitting (`pipe.go`) |
 | macros | `recorder`, `macroState` | a recording in progress (`macrorec.go`); a macro running, trust in the file's macros (`macrorun.go`); what scripts act on (`macrohost.go`, `macrohostnav.go`); Data > Macros and the manager (`macro.go`, `macromanage.go`) |
 | others | `clipboard`, `trace`, `chartState`, `jevRunner`, `terminal`, `session` | what Ctrl+V pastes, a trace being shown, chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it, what outlasts the file open (the `:` history, whether keys can be held: `keyboard.go`) |
 
@@ -466,7 +467,8 @@ menu all come from the table. Importers build a new workbook through the
 engine's public API with a shared `builder`, which keeps text as text,
 falls back to a formula's cached value when it can't be translated, and
 counts what didn't fit. They stream: CSV and TSV are read record by
-record, Parquet a batch of rows at a time, SQLite a row at a time, and
+record, NUON and JSON a row at a time (`nuon.Reader`, which yields rows
+from a pipe as they arrive), Parquet a batch of rows at a time, SQLite a row at a time, and
 Parquet files and SQLite tables stop at the sheet's last row, taking the
 number of rows left out from the file. XLSX is read by 012's own
 SpreadsheetML reader on `archive/zip` and `encoding/xml`: the workbook,

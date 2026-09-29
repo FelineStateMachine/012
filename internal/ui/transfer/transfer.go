@@ -9,6 +9,7 @@ package transfer
 import (
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"time"
@@ -56,6 +57,9 @@ type ImportedMsg struct {
 	Place Place
 	Res   *fileio.Result
 	Err   error
+	// Stream is set for a table read from a stream (StartReader), which
+	// has no file to save back to.
+	Stream bool
 }
 
 // TickMsg refreshes the progress display.
@@ -78,6 +82,23 @@ func (x *Transfer) Start(name, path string, opt fileio.Options, place Place, par
 		func() tea.Msg {
 			res, err := fileio.Import(ctx, path, opt)
 			return ImportedMsg{ID: id, Name: name, Opt: opt, Place: place, Res: res, Err: err}
+		},
+		tickCmd(id),
+	)
+}
+
+// StartReader reads a table from r in the background, as Start reads a
+// file, into a sheet called name: standard input, for 012 -. Its result
+// is marked Stream.
+func (x *Transfer) StartReader(name string, r io.Reader, opt fileio.Options, parent telemetry.Parent) tea.Cmd {
+	ctx, cancel := context.WithCancel(telemetry.WithParent(context.Background(), parent))
+	prog := fileio.NewProgress()
+	id := x.Begin(name, prog, cancel, Book)
+	opt.Progress = prog
+	return tea.Batch(
+		func() tea.Msg {
+			res, err := fileio.ImportReader(ctx, name, r, opt)
+			return ImportedMsg{ID: id, Name: name, Opt: opt, Place: Book, Res: res, Err: err, Stream: true}
 		},
 		tickCmd(id),
 	)

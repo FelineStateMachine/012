@@ -29,11 +29,11 @@ func paletteItems(m *Model) []picker.Item {
 	var items []picker.Item
 	seen := map[string]bool{"palette": true}
 	add := func(id, path string) {
-		if seen[id] {
+		c := commands[id]
+		if seen[id] || c.hidden != nil && c.hidden(m) {
 			return
 		}
 		seen[id] = true
-		c := commands[id]
 		items = append(items, picker.Item{
 			Title: c.title, Name: len(c.title), Detail: path, Key: m.shortcut(id), Desc: c.desc,
 			Off: !c.available(m), Pick: func() tea.Cmd { return m.runFromOverlay(id) },
