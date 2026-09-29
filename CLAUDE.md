@@ -24,9 +24,11 @@ Noise that stays becomes invisible, and then real problems hide in it.
   reader would look in, link to it from elsewhere, and restructure when
   appending would make a wall of text. Shipped roadmap items move to its
   Shipped list as one line.
-- Diagrams are Mermaid code blocks, never ASCII art; screens and terminal
-  output stay code blocks. Draw one where a flow, a state machine or a
-  sequence would otherwise take paragraphs
-  ([the docs site](docs/contributing/site.md#diagrams)).
+- Diagrams are Mermaid code blocks, never ASCII art. Draw one where a
+  flow, a state machine or a sequence would otherwise take paragraphs
+  ([the docs site](docs/contributing/site.md#diagrams)). 012's screen is
+  a picture, a still drawn from a golden screen, never text in a code
+  block ([Pictures of 012](docs/contributing/site.md#pictures-of-012));
+  code blocks are for what a reader types or a shell prints.
 - No scratch files, debug tests, temporary samples or build outputs (`*.test`, binaries) in commits; `make lint` refuses compiled files and anything over 2 MB.
 - Visual changes are reviewed in the golden gallery (`make screens`).

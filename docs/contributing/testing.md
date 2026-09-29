@@ -85,7 +85,10 @@ with light-terminal variants. The states are listed in
 `e2e/screenlist_test.go`, with the fixtures they share in
 `e2e/screensetup_test.go`. `make screens` rewrites them and builds
 `e2e/testdata/screens/gallery.html` with dark and light reference palettes.
-Every visual change is reviewed there before it's committed.
+Every visual change is reviewed there before it's committed. It also
+draws the docs' stills, the screens `docScreens` lists, into
+`docs/media` ([Pictures of 012](site.md#pictures-of-012)); `make e2e`
+fails on one not drawn from its golden as it is.
 
 ## The excelize oracle
 
@@ -203,11 +206,12 @@ and a line in the folder's README. `make site` builds them into the
 [docs site](site.md) and fails on any link or anchor it can't resolve.
 
 `make lint` runs `scripts/doclint`, which flags wording that narrates
-history (see [CLAUDE.md](../../CLAUDE.md)), and `scripts/doccheck`, which
+history (see [CLAUDE.md](../../CLAUDE.md)) and code blocks that draw
+012's screen ([Pictures of 012](site.md#pictures-of-012)), and `scripts/doccheck`, which
 checks the tree above, that relative links and anchors resolve, that
 every `docs/...md` path Go code names exists, that every file in
-`docs/media` is shown by a doc and made by a tape, that every tape
-records something a doc shows, and that a page the site has published
+`docs/media` is shown by a doc and made by a tape or drawn from a golden
+screen, that every tape and still is shown by a doc, and that a page the site has published
 isn't gone without a redirect ([The docs site](site.md#old-addresses-keep-working)).
 Unit tests check what the docs say about
 the code: menu paths lead to menu items, command ids and keys exist and
