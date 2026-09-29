@@ -34,6 +34,8 @@ var docScreens = []docScreen{
 	{name: "table", from: "table", cols: 80, rows: 13},
 	{name: "layout", from: "layout", cols: 80, rows: 28},
 	{name: "palette", from: "palette", cols: 80, rows: 18},
+	{name: "notebook-cells", from: "notebook-cells", cols: 80, rows: 26},
+	{name: "notebook-nu-error", from: "notebook-nu-error", cols: 80, rows: 16},
 }
 
 // stillsVersion changes when the drawing does, so every still is
