@@ -15,14 +15,18 @@ import (
 	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/jev"
 	"github.com/FelineStateMachine/012/internal/keyring"
+	"github.com/FelineStateMachine/012/internal/nushell"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui"
 )
 
 func main() {
 	if err := run(os.Args[1:], system()); err != nil {
-		fmt.Fprintln(os.Stderr, "012:", err)
-		os.Exit(1)
+		code, show := exitCode(err)
+		if show {
+			fmt.Fprintln(os.Stderr, "012:", err)
+		}
+		os.Exit(code)
 	}
 }
 
@@ -41,13 +45,19 @@ type env struct {
 	// openTTY opens the terminal for the UI when standard input and
 	// output belong to a pipeline (012 -, --pipe).
 	openTTY func() (io.ReadCloser, io.WriteCloser, error)
+	// stdoutTTY is set when standard output is a terminal, where 012
+	// diff colors what it writes.
+	stdoutTTY bool
+	// nu runs notebook regions' commands for 012 get, recalc and export
+	// --regions; nil is the real nu.
+	nu nushell.Runner
 }
 
 func system() env {
 	return env{
 		getenv: os.Getenv, keys: keyring.System(),
 		stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr,
-		readKey: readPassword, isTTY: isTerminal(os.Stdin), editorIO: true,
+		readKey: readPassword, isTTY: isTerminal(os.Stdin), stdoutTTY: isTerminal(os.Stdout), editorIO: true,
 		runTUI: func(m tea.Model, opts ...tea.ProgramOption) error {
 			_, err := tea.NewProgram(m, append([]tea.ProgramOption{tea.WithFPS(ui.FrameRate)}, opts...)...).Run()
 			return err
@@ -70,20 +80,26 @@ func usage() error {
 		"       012 nu [flags] [file]: a nushell notebook, at its prompt (see docs/nushell/notebooks.md)\n" +
 		"       012 nu --module | --install-module [--force] [path]: the nushell module with sheet (see docs/nushell/README.md)\n" +
 		"       012 serve [flags] [dir]: serve sheets in dir over SSH (see docs/terminal/ssh.md)\n" +
+		"       012 get|set|recalc|export file.012 ...: read and change a workbook without the screen (see docs/files/scripts.md)\n" +
+		"       012 diff a.012 b.012, 012 merge-driver base ours theirs: compare and merge workbooks (see docs/files/git.md)\n" +
 		"       012 config [path|edit|default|themes|set-key|delete-key]\n" +
 		"       012 version")
 }
 
+// subcommands run without the screen. A file with one of these names
+// opens as ./name.
+var subcommands = map[string]func([]string, env) error{
+	"config": runConfig, "serve": runServe,
+	"get": runGet, "set": runSet, "recalc": runRecalc, "export": runExport,
+	"diff": runDiff, "merge-driver": runMergeDriver,
+}
+
 func run(args []string, e env) error {
-	if len(args) > 0 && args[0] == "config" {
-		return runConfig(args[1:], e)
+	if len(args) > 0 && subcommands[args[0]] != nil {
+		return subcommands[args[0]](args[1:], e)
 	}
 	if len(args) > 0 && (args[0] == "version" || args[0] == "--version") {
 		return runVersion(e)
-	}
-	if len(args) > 0 && args[0] == "serve" {
-		// A file called serve opens as ./serve.
-		return runServe(args[1:], e)
 	}
 	if len(args) > 0 && args[0] == "nu" && isModuleCommand(args[1:]) {
 		return runNuModule(args[1:], e)
