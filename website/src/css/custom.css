@@ -1,0 +1,378 @@
+/*
+ * The site's palette is 012's: the 16 ANSI colors of the reference
+ * palettes the golden screens are drawn in (e2e/palette_test.go), mapped
+ * to the same roles the app gives them (internal/ui/theme). Cyan marks
+ * where you are (the pointer, the mode indicator), bright black draws the
+ * header bands, blue is links and the selection.
+ */
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+@import '@fontsource/ibm-plex-mono/400-italic.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-sans/400-italic.css';
+
+:root {
+  /* Light reference palette */
+  --ansi-black: #1d1f21;
+  --ansi-red: #c82829;
+  --ansi-green: #718c00;
+  --ansi-yellow: #b58900;
+  --ansi-blue: #4271ae;
+  --ansi-magenta: #8959a8;
+  --ansi-cyan: #3e999f;
+  --ansi-white: #d6d6d6;
+  --ansi-bright-black: #8e908c;
+  --ansi-bright-white: #ffffff;
+  --term-bg: #fafafa;
+  --term-fg: #1d1f21;
+
+  /* Roles, as the light terminal theme assigns them */
+  --role-accent-bg: var(--ansi-cyan);
+  --role-accent-fg: var(--ansi-black);
+  --role-header-bg: var(--ansi-white);
+  --role-header-fg: var(--ansi-black);
+  --role-selection-bg: var(--ansi-blue);
+  --role-selection-fg: var(--ansi-bright-white);
+  --role-bar: var(--ansi-blue);
+  --role-muted: #5b5d5a;
+  --role-frame: var(--ansi-bright-black);
+  --role-grid: #e2e2e2;
+  --role-link: var(--ansi-blue);
+  --role-panel-bg: #f0f0f0;
+
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-sans: 'IBM Plex Sans', -apple-system, 'Segoe UI', sans-serif;
+
+  --ifm-color-primary: #4271ae;
+  --ifm-color-primary-dark: #3b669d;
+  --ifm-color-primary-darker: #386094;
+  --ifm-color-primary-darkest: #2e4f7a;
+  --ifm-color-primary-light: #5580b8;
+  --ifm-color-primary-lighter: #5f88bc;
+  --ifm-color-primary-lightest: #7c9ec9;
+  --ifm-color-success: var(--ansi-green);
+  --ifm-color-warning: var(--ansi-yellow);
+  --ifm-color-danger: var(--ansi-red);
+  --ifm-color-info: var(--ansi-cyan);
+
+  --ifm-background-color: var(--term-bg);
+  --ifm-background-surface-color: var(--role-panel-bg);
+  --ifm-font-color-base: var(--term-fg);
+  --ifm-font-family-base: var(--font-sans);
+  --ifm-font-family-monospace: var(--font-mono);
+  --ifm-heading-font-family: var(--font-mono);
+  --ifm-heading-font-weight: 600;
+  --ifm-font-size-base: 16px;
+  --ifm-line-height-base: 1.65;
+  --ifm-link-color: var(--role-link);
+  --ifm-code-font-size: 88%;
+  --ifm-code-border-radius: 0;
+  --ifm-global-radius: 0;
+  --ifm-button-border-radius: 0;
+  --ifm-pagination-nav-border-radius: 0;
+  --ifm-alert-border-radius: 0;
+  --ifm-card-border-radius: 0;
+  --ifm-toc-border-color: var(--role-grid);
+  --ifm-hr-background-color: var(--role-grid);
+  --ifm-table-border-color: var(--role-grid);
+  --ifm-table-head-background: var(--role-header-bg);
+  --ifm-table-head-color: var(--role-header-fg);
+  --ifm-table-stripe-background: transparent;
+  --ifm-navbar-background-color: var(--term-bg);
+  --ifm-navbar-shadow: none;
+  --ifm-menu-color-background-active: transparent;
+  --ifm-footer-background-color: var(--role-header-bg);
+  --docusaurus-highlighted-code-line-bg: rgba(66, 113, 174, 0.14);
+  --search-local-highlight-color: var(--ansi-cyan);
+}
+
+[data-theme='dark'] {
+  /* Dark reference palette */
+  --ansi-black: #1d1f21;
+  --ansi-red: #cc6666;
+  --ansi-green: #b5bd68;
+  --ansi-yellow: #f0c674;
+  --ansi-blue: #81a2be;
+  --ansi-magenta: #b294bb;
+  --ansi-cyan: #8abeb7;
+  --ansi-white: #c5c8c6;
+  --ansi-bright-black: #666666;
+  --ansi-bright-blue: #7aa6da;
+  --ansi-bright-white: #eaeaea;
+  --term-bg: #1d1f21;
+  --term-fg: #c5c8c6;
+
+  --role-header-bg: var(--ansi-bright-black);
+  --role-header-fg: var(--ansi-bright-white);
+  --role-selection-fg: var(--ansi-black);
+  --role-bar: var(--ansi-cyan);
+  --role-muted: #969896;
+  --role-grid: #313436;
+  --role-link: var(--ansi-bright-blue);
+  --role-panel-bg: #181a1b;
+
+  --ifm-color-primary: #8abeb7;
+  --ifm-color-primary-dark: #74b2a9;
+  --ifm-color-primary-darker: #69aca3;
+  --ifm-color-primary-darkest: #4f958b;
+  --ifm-color-primary-light: #a0cac5;
+  --ifm-color-primary-lighter: #abd0cc;
+  --ifm-color-primary-lightest: #cce2df;
+  --ifm-footer-background-color: var(--role-panel-bg);
+  --ifm-table-stripe-background: transparent;
+  --docusaurus-highlighted-code-line-bg: rgba(138, 190, 183, 0.12);
+}
+
+/* ---------- Type ---------- */
+
+body {
+  font-feature-settings: 'kern', 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  letter-spacing: -0.01em;
+}
+
+.markdown h1 {
+  font-size: 2.1rem;
+}
+
+/* A heading reads as a row label: a short cyan bar before it, like the
+   pointer sitting in column A. */
+.markdown h2 {
+  font-size: 1.45rem;
+  margin-top: 2.6rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--role-grid);
+}
+
+.markdown h2::before {
+  content: '';
+  display: inline-block;
+  width: 0.55em;
+  height: 0.95em;
+  margin-right: 0.55em;
+  vertical-align: -0.08em;
+  background: var(--role-accent-bg);
+}
+
+.markdown h3 {
+  font-size: 1.12rem;
+}
+
+code {
+  border: none;
+  background: var(--role-panel-bg);
+  color: inherit;
+  padding: 0.1em 0.35em;
+}
+
+[data-theme='dark'] code {
+  background: #26282b;
+}
+
+pre code,
+.prism-code {
+  font-size: 0.86rem;
+}
+
+.theme-code-block {
+  border-left: 3px solid var(--role-frame);
+  box-shadow: none;
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  background: var(--role-header-bg);
+  color: var(--role-header-fg);
+  padding: 0.05em 0.45em;
+}
+
+/* ---------- Tables: the grid ---------- */
+
+.markdown table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+}
+
+.markdown table thead tr {
+  border-bottom: none;
+}
+
+.markdown table th {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-align: left;
+  background: var(--role-header-bg);
+  color: var(--role-header-fg);
+  border-color: var(--role-header-bg);
+}
+
+.markdown table td {
+  vertical-align: top;
+}
+
+.markdown table tr:hover td {
+  background: color-mix(in srgb, var(--role-selection-bg) 10%, transparent);
+}
+
+/* ---------- Links and images ---------- */
+
+.markdown a {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+.markdown a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.markdown img {
+  display: block;
+  border: 1px solid var(--role-frame);
+  margin: 1rem 0;
+}
+
+/* ---------- Navbar: the control panel's first line ---------- */
+
+.navbar {
+  border-bottom: 1px solid var(--role-grid);
+  font-family: var(--font-mono);
+  height: 3.4rem;
+}
+
+.navbar__title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.navbar__link {
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.navbar__link--active {
+  color: var(--role-accent-fg);
+  background: var(--role-accent-bg);
+}
+
+.navbar__logo {
+  height: 1.6rem;
+}
+
+/* The landing page draws its own control panel with the indicator. */
+html:has([data-control-panel]) .navbar .mode-chip {
+  display: none;
+}
+
+.mode-chip {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  padding: 0.18rem 0.5rem;
+  margin-left: 0.5rem;
+  background: var(--role-accent-bg);
+  color: var(--role-accent-fg);
+}
+
+/* ---------- Sidebar and table of contents ---------- */
+
+.menu {
+  font-size: 0.92rem;
+}
+
+.menu__link,
+.menu__caret {
+  border-radius: 0;
+}
+
+.theme-doc-sidebar-item-category-level-1 > .menu__list-item-collapsible > .menu__link {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.86rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+  background: var(--role-accent-bg);
+  color: var(--role-accent-fg);
+  font-weight: 500;
+}
+
+.table-of-contents__link--active {
+  color: var(--ifm-color-primary);
+  font-weight: 500;
+}
+
+.table-of-contents__link--active::before {
+  content: '> ';
+  font-family: var(--font-mono);
+}
+
+.theme-doc-toc-desktop {
+  font-size: 0.86rem;
+}
+
+/* ---------- Admonitions: context-line messages ---------- */
+
+.alert {
+  border-width: 0 0 0 4px;
+  box-shadow: none;
+}
+
+.theme-admonition [class^='admonitionHeading'] {
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+
+/* ---------- Pagination and footer: the status line ---------- */
+
+.pagination-nav__link {
+  border-color: var(--role-grid);
+}
+
+.pagination-nav__label {
+  font-family: var(--font-mono);
+}
+
+.footer {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--role-grid);
+}
+
+.footer__copyright .mode-chip {
+  margin: 0 1ch 0 0;
+}
+
+.footer__bottom {
+  text-align: left;
+}
+
+/* ---------- Search ---------- */
+
+.navbar__search-input {
+  font-family: var(--font-mono);
+  border-radius: 0;
+}
+
+::selection {
+  background: var(--role-selection-bg);
+  color: var(--role-selection-fg);
+}
