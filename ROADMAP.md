@@ -39,20 +39,28 @@ as `$r1`, and refreshing a region re-runs what depends on it.
 | `012 nu` and the notebook sheet: a nushell prompt in the formula bar (history, Tab completion), results stacking as named live regions built on spills, `$r1` references with a dependency graph so refresh cascades, Freeze to values, other sheets reading `Shell!r1`, commands saved and never run on open, trust for files from elsewhere, timeouts and an output cap, off in `012 serve` unless configured | A reactive notebook of pipelines inside a spreadsheet | L |
 | Nushell's own completions in the prompt; `nu_plugin_012` only if `--pipe` proves clumsy from inside nu | | S to M |
 
-## Later: sharing a live sheet (shelved)
+### 5. Toward multiplayer
 
-Explored, not scheduled. `012 serve` gives each SSH session its own
-spreadsheet; saving over a file another session saved asks first, and
-that is all the sessions know of each other. One session host that runs
-a Bubble Tea program for any byte stream with window-size events, fed by
-SSH (`charm.land/wish/v2`), iroh tickets (the Go transport in
-`FelineStateMachine/allons` `local/transport/iroh`, which needs cgo and a
-prebuilt iroh-ffi archive, so it would sit behind a build tag), and the
-web (`NimbleMarkets/go-booba` serves Bubble Tea over
-WebSocket/WebTransport with ghostty-web; Bubble Tea v2 support
-unverified). Open questions: per-user sessions on one sheet versus
-mirroring one session, and whether the web page is served by the host or
-by a gateway dialing the iroh ticket.
+Sessions share one workbook through the server that already hosts them
+(`012 serve`), so every change is ordered in one place: the workbook's one
+mutation path (`Batch`/`Change`) becomes a stream of operations, the same
+log macros record. Each step is useful on its own.
+
+| Step | Result | Size |
+|---|---|---|
+| Streaming files: a sheet or linked range follows a file as it grows (CSV, TSV, NDJSON, NUON; `tail -f` style) or is rewritten, and a nushell region can follow a streaming pipeline, with rows arriving live and no full reload | Logs and feeds as live sheets; the change stream multiplayer needs | M |
+| Shared viewing over SSH: several `012 serve` sessions open the same workbook; one edits, the others follow live with their own cursor, scroll and theme; presence shows who is where | Watch-along and review, one writer | M |
+| Shared editing over SSH: every session edits, the server orders operations (no CRDT needed while one server holds the workbook), per-user undo, presence and edit ownership shown in the grid, saves by the server | Multiplayer 012 over SSH | L |
+
+## Later: other transports (shelved)
+
+Explored, not scheduled: carrying the same shared sessions over iroh
+tickets (the Go transport in `FelineStateMachine/allons`
+`local/transport/iroh`, which needs cgo and a prebuilt iroh-ffi archive, so
+it would sit behind a build tag) and the web (`NimbleMarkets/go-booba`
+serves Bubble Tea over WebSocket/WebTransport with ghostty-web; Bubble Tea
+v2 support unverified). They would reuse the server-ordered operation
+stream above rather than a design of their own.
 
 ## Shipped
 

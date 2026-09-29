@@ -9,8 +9,8 @@ sidebar_position: 3
 the client's own terminal, on the files of one directory. It's for
 reaching your sheets from another machine or a tablet with an SSH app,
 without installing anything there. It is not shared editing: two
-sessions are two separate spreadsheets (see
-[the roadmap](../../ROADMAP.md#later-sharing-a-live-sheet-shelved)).
+sessions are two separate spreadsheets. Shared viewing and editing over
+`012 serve` are planned: see [toward multiplayer](../../ROADMAP.md#5-toward-multiplayer).
 
 ```sh
 012 serve ~/sheets                 # serve ~/sheets on 127.0.0.1:2312
