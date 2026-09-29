@@ -13,6 +13,11 @@ import (
 // enough that text on them keeps its contrast.
 const barBlend = 0.12
 
+// bandBlend is how far a table's banded rows move from the background
+// toward the text color: a shade lighter than the bars, so a band reads
+// as part of the grid rather than a bar.
+const bandBlend = 0.07
+
 // FromPalette draws the roles in a color scheme's colors. The roles are
 // New's, on the ANSI slots; each slot becomes the scheme's color. Then,
 // so every scheme reads well:
@@ -45,6 +50,7 @@ func FromPalette(p Palette) Theme {
 	}
 	bar := lipgloss.NewStyle().Background(blend(p.Background, text, barBlend)).Foreground(text)
 	t.MenuBarRow, t.StatusBarRow = bar, bar
+	t.TableBand = lipgloss.NewStyle().Background(blend(p.Background, text, bandBlend)).Foreground(text)
 	eachRole(&t, func(name string, s *lipgloss.Style) { *s = fixContrast(name, *s, text, &p, t.levels) })
 	t.ColumnHeaderRow = lipgloss.NewStyle().Background(t.Header.GetBackground()).Foreground(t.Header.GetForeground())
 	t.standouts()

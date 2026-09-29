@@ -76,6 +76,7 @@ still load.
 | 3 | A sheet has named ranges, frozen panes or a filter | `names` (each name's range, `#REF!` once its cells were deleted), `freeze` (`rows`, `cols`), `filter` (its `range`, and `columns` by letter, each with `hidden` values or a `condition` and its `value`) |
 | 4 | Several sheets, or a formula naming a sheet | `sheets`, a list; see [Several sheets](#several-sheets) |
 | 5 | A pivot table | a sheet's `pivot`; see [Pivot tables](#pivot-tables) |
+| 6 | A table | a sheet's `tables`; see [Tables](#tables) |
 
 What stays the same from release to release:
 
@@ -185,6 +186,26 @@ with its data.
 - `filters` take a filter column's criteria: `hidden` values and a
   `condition` with its `value`.
 - `rowTotals` and `columnTotals` are the grand total row and column.
+
+## Tables
+
+A sheet's [tables](../sheets/tables.md) are a `tables` list among its
+view's fields, before its cells:
+
+```json
+  "tables": [{"name":"Sales","range":"A1:C20","columns":["Region","Month","Amount"],"banded":true,"header":true}],
+```
+
+- `name` is what formulas name it by (`Sales[Amount]`).
+- `range` is its cells, header row included.
+- `columns` are its columns' names, left to right, as its header row
+  shows them. Left out, or of another number than the range's columns,
+  they're read from the header row.
+- `banded` shades every other data row, and `header` styles the header
+  row.
+
+Tables need version 6: a build without them can't read the formulas
+that read them, and refuses the file rather than show them as errors.
 
 ## Regions
 

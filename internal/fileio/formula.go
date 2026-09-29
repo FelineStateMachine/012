@@ -131,6 +131,9 @@ func excelName(b *strings.Builder, src string, i int, renamed map[string]string)
 		j++
 	}
 	name := src[start:j]
+	if !at && j < len(src) && src[j] == '[' {
+		return excelTableRef(b, src, start, j)
+	}
 	k := j
 	for k < len(src) && src[k] == ' ' {
 		k++
@@ -152,6 +155,22 @@ func excelName(b *strings.Builder, src string, i int, renamed map[string]string)
 	}
 	b.WriteString(excelSheetRef(name, name, !call && !at && j < len(src) && src[j] == '!', renamed))
 	return j, true
+}
+
+// excelTableRef writes the structured reference whose table's name
+// starts at src[start] and whose brackets start at src[open] as Excel's
+// files hold it: Sales[[#This Row],[Amount]] for Sales[@Amount].
+func excelTableRef(b *strings.Builder, src string, start, open int) (int, bool) {
+	end := formula.StructuredEnd(src, open)
+	if end < 0 {
+		return 0, false
+	}
+	x, ok := formula.ExcelTableRef(src[start:end])
+	if !ok {
+		return 0, false
+	}
+	b.WriteString(x)
+	return end, true
 }
 
 // excelSheetRef is text, a sheet name as written (name, unquoted) when

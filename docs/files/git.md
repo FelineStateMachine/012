@@ -42,6 +42,7 @@ What it compares:
 | Cells | `input` (what was typed: a formula or an entry), `value` (what a formula computes, or an array spilled), `format` (the cell's formatting, by its fields in the file), `note` |
 | Notebooks | Each [notebook](../nushell/notebooks.md) cell, lined up by its source: `added`, `removed`, or which field changed (`source`, `output`, `error`) |
 | Regions | Each [linked file](following.md) or notebook output sent to a sheet, by name: added, removed, or which field changed |
+| Tables | Each [table](../sheets/tables.md), by name, the same way: `Q3 table Sales  range  A1:C9 → A1:C10` |
 | Layout | Every other field of a sheet, by its name in [the file](format.md): `widths`, `heights` and `lines` key by key, the rest (`charts`, `conditionalFormats`, `freeze`) whole |
 | Workbook | Named ranges, macros, the locale and decimal arithmetic |
 
@@ -105,7 +106,7 @@ on its own:
 
 ```mermaid
 flowchart TD
-  part["A part: a cell's input, format or note; a sheet's name; a column's width; a region; a notebook's cells; a named range"]
+  part["A part: a cell's input, format or note; a sheet's name; a column's width; a region; a table; a notebook's cells; a named range"]
   part --> same{"Did both sides change it?"}
   same -- "One side, or neither" --> take["Take the side that changed it"]
   same -- "Both, alike" --> take

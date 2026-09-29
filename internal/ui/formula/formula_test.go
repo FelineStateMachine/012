@@ -42,6 +42,31 @@ func TestScanCaret(t *testing.T) {
 	}
 }
 
+// In a structured reference's brackets the word is the item being
+// typed, spaces, commas and escapes included, and calls outside it still
+// count.
+func TestScanCaretInTable(t *testing.T) {
+	for _, tc := range []struct {
+		text, table, word, fn string
+	}{
+		{"=SUM(Sales[|", "Sales", "", "SUM"},
+		{"=SUM(Sales[Unit P|", "Sales", "Unit P", "SUM"},
+		{"=Sales[@Am|", "Sales", "@Am", ""},
+		{"=Sales[[#Headers],[To|", "Sales", "To", ""},
+		{"=Sales[[#Headers], |", "Sales", " ", ""},
+		{"=Sales['#it|", "Sales", "'#it", ""},
+		{"=Sales[x]+Co|", "", "Co", ""},
+		{"=SUM(Sales[[a]:[b]], |", "", "", "SUM"},
+	} {
+		i := strings.Index(tc.text, "|")
+		buf := []rune(strings.Replace(tc.text, "|", "", 1))
+		c := ScanCaret(buf, len([]rune(tc.text[:i])))
+		if c.Table != tc.table || c.Word != tc.word || c.Fn != tc.fn {
+			t.Errorf("%s: table %q word %q fn %q", tc.text, c.Table, c.Word, c.Fn)
+		}
+	}
+}
+
 func TestArgPart(t *testing.T) {
 	for _, tc := range []struct {
 		args     string

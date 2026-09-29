@@ -51,7 +51,11 @@ func nameKey(name string) string { return strings.ToUpper(name) }
 // ValidName checks that name can be a named range, following Sheets'
 // rules: letters, digits, _ and ., starting with a letter or _, and not
 // something a formula would read as a cell or a boolean.
-func ValidName(name string) error {
+func ValidName(name string) error { return checkName(name, formula.LooksLikeRef) }
+
+// checkName checks name against the rules of names, isRef telling
+// which read as a cell reference.
+func checkName(name string, isRef func(string) bool) error {
 	switch {
 	case name == "":
 		return errors.New("Enter a name")
@@ -68,7 +72,7 @@ func ValidName(name string) error {
 	switch k := nameKey(name); {
 	case k == "TRUE" || k == "FALSE":
 		return errors.New("TRUE and FALSE can't be names")
-	case formula.LooksLikeRef(k):
+	case isRef(k):
 		return errors.New("A name can't look like a cell reference, e.g. A1 or R1C1")
 	}
 	return nil
@@ -106,6 +110,9 @@ func (w *Workbook) DefineName(name string, s *Sheet, r Rect) error {
 	}
 	if _, _, ok := w.regionName(nameKey(name)); ok {
 		return fmt.Errorf("%s names a shell region", name)
+	}
+	if _, t, ok := w.Table(name); ok {
+		return fmt.Errorf("%s names a table", t.Name)
 	}
 	w.change(s, "name "+r.String()+" "+name, r, func() { w.putName(nameKey(name), &Name{Name: name, Sheet: s, Range: r}) })
 	return nil
@@ -218,33 +225,4 @@ func (s *Sheet) remapNames(rng func(Rect) (Rect, bool)) {
 			w.putName(k, &next)
 		}
 	}
-}
-
-// bound returns the cell's formula with its names replaced by the ranges
-// they stand for: what is evaluated and what dependencies are traced
-// through. Undefined names stay, and evaluate to #NAME?.
-func (s *Sheet) bound(c *Cell) Node {
-	if len(c.names) == 0 {
-		return c.expr
-	}
-	const fixed = formula.AbsCol | formula.AbsRow
-	n, _ := formula.Rewrite(c.expr, formula.Rewriter{Name: func(nn formula.Name) Node {
-		nm, ok := s.wb.names[nameKey(nn.Name)]
-		if !ok {
-			return s.boundRegion(nn)
-		}
-		switch {
-		case nm.Gone():
-			return formula.RefErr{}
-		}
-		sheet := ""
-		if nm.Sheet != s {
-			sheet = nm.Sheet.name
-		}
-		if nm.Range.From == nm.Range.To {
-			return formula.Ref{Addr: nm.Range.From, Abs: fixed, Sheet: sheet}
-		}
-		return formula.Range{Rect: nm.Range, Abs: [2]formula.Abs{fixed, fixed}, Sheet: sheet}
-	}})
-	return n
 }

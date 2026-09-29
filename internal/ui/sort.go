@@ -93,7 +93,7 @@ func (m *Model) sort(r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
 }
 
 // headerRows is how many rows at the top of r are headers that sorting
-// leaves in place: frozen rows, the filter's header row, and, for a range
+// leaves in place: frozen rows, the filter's or a table's header row, and, for a range
 // found around the active cell, a first row of text over numbers.
 func (g *grid) headerRows(r sheet.Rect, selected bool) int {
 	n := 0
@@ -101,6 +101,9 @@ func (g *grid) headerRows(r sheet.Rect, selected bool) int {
 		n = fr - r.From.Row
 	}
 	if f, ok := g.sheet.FilterRange(); ok && f.From.Row == r.From.Row {
+		n = max(n, 1)
+	}
+	if t, ok := g.sheet.TableAt(r.From); ok && t.Range.From.Row == r.From.Row {
 		n = max(n, 1)
 	}
 	if n == 0 && !selected && g.looksLikeHeader(r) {

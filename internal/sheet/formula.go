@@ -50,6 +50,10 @@ func SplitSheet(s string) (sheet, rest string) { return formula.SplitSheet(s) }
 // Qualified writes r on sheet as a formula would: Sheet2!A1:B3.
 func Qualified(sheet string, r Rect) string { return formula.Qualified(sheet, r) }
 
+// EscapeColumn writes a table column's name as a structured reference
+// holds it, with ' before each of [ ] # and '.
+func EscapeColumn(name string) string { return formula.EscapeColumn(name) }
+
 // Parse parses a formula with this engine's functions. src may start
 // with "="; error positions are relative to src.
 func Parse(src string) (Node, error) { return formula.Parse(src, parserFuncs) }

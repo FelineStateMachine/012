@@ -224,7 +224,7 @@ func (m *Model) traceItem(l sheet.Link, dependent bool) picker.Item {
 		detail = "dependent, the cells it spills into"
 	case !dependent:
 		detail = "precedent" + map[sheet.LinkKind]string{sheet.LinkName: ", named range " + l.Range.String(),
-			sheet.LinkRegion: ", a region's table", sheet.LinkSpill: ", the formula that spilled it",
+			sheet.LinkRegion: ", a region's table", sheet.LinkTable: ", a table's " + l.Range.String(), sheet.LinkSpill: ", the formula that spilled it",
 			sheet.LinkFile: ", the linked file its rows come from", sheet.LinkOutput: ", the notebook cell its rows come from"}[l.Kind]
 	}
 	if l.Sheet != m.sheet && l.OnGrid() {

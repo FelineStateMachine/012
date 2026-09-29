@@ -64,6 +64,48 @@ func TestOffersNamesSheetsThenFunctions(t *testing.T) {
 	}
 }
 
+// Tables are offered with named ranges; in a table's brackets its
+// columns and items are, and the context line lists its columns.
+func TestOffersTablesAndColumns(t *testing.T) {
+	h := newHost(t)
+	s := h.s
+	for a, v := range map[string]string{"C1": "Region", "D1": "Unit Price", "E1": "Q[1]"} {
+		s.Set(sheet.Addr{Col: int(a[0] - 'A')}, v)
+	}
+	if err := s.CreateTable("Orders", sheet.Rect{From: sheet.Addr{Col: 2}, To: sheet.Addr{Col: 4, Row: 3}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(For(s, "ord")); len(got) == 0 || got[0] != "Orders" {
+		t.Fatalf("for ord: %v", got)
+	}
+	var l List
+	h.line.Set("=Orders[u")
+	l.Active = true
+	list, start := l.Shown(h)
+	if strings.Join(names(list), " ") != "Unit Price" || start != len("=Orders[") {
+		t.Fatalf("columns %v from %d", names(list), start)
+	}
+	l.Key(h, "tab")
+	if h.line.Text() != "=Orders[Unit Price]" {
+		t.Fatalf("accepted %q", h.line.Text())
+	}
+	h.line.Set("=Orders[@q")
+	l.Active = true
+	l.Key(h, "tab")
+	if h.line.Text() != "=Orders[@Q'[1']]" {
+		t.Fatalf("an escaped column after @: %q", h.line.Text())
+	}
+	h.line.Set("=Orders[#")
+	l.Active = true
+	if list, _ := l.Shown(h); strings.Join(names(list), " ") != "#All #Data #Headers #This Row" {
+		t.Fatalf("items %v", names(list))
+	}
+	left, _, ok := TableLine(&h.th, 80, s, []rune("=Orders[Uni"), len("=Orders[Uni"), "")
+	if !ok || !strings.Contains(ansi.Strip(left), "Orders[Region, Unit Price, Q[1]]") || !strings.Contains(left, h.th.Argument.Render("Unit Price")) {
+		t.Errorf("context %q", left)
+	}
+}
+
 func TestKeysMoveAndAccept(t *testing.T) {
 	h := newHost(t)
 	var l List

@@ -35,6 +35,13 @@ type xlsxWriter struct {
 	dynamic      bool                      // a dynamic array formula was written: see xlsxarray.go
 	spills       map[sheet.Addr]sheet.Rect // the sheet being written's Snapshot.Spills
 	rules        ruleNotes                 // rules left out, see xlsxrules.go
+	// Tables: see xlsxtables.go. tables are the keys of those written,
+	// headers the header cells of the sheet being written, tableParts
+	// how many parts are written and tableTypes their content types.
+	tables     map[string]bool
+	headers    map[sheet.Addr]bool
+	tableParts int
+	tableTypes []string
 }
 
 // valueCount counts formulas written as values, keeping the first one's
@@ -68,7 +75,7 @@ func (w *xlsxWriter) unknownSheet(c SnapCell) (string, bool) {
 // Errors stick in bw.
 func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active bool) int {
 	r := snap.Range
-	w.spills = snap.Spills
+	w.spills, w.headers = snap.Spills, headerCells(snap)
 	bw.WriteString(xmlHead + `<worksheet xmlns="` + sheetMain + `" xmlns:r="` + officeRel + `">`)
 	if len(snap.HiddenRows) > 0 {
 		bw.WriteString(`<sheetPr filterMode="1"/>`) // a filter is hiding rows
@@ -101,12 +108,15 @@ func (w *xlsxWriter) sheet(bw *bufio.Writer, ws string, snap *Snapshot, active b
 	}
 	w.styledRows(bw, snap, styled, sheet.MaxRows)
 	bw.WriteString(`</sheetData>`)
-	writeAutoFilter(bw, snap)
+	if tableFilter(snap) < 0 {
+		writeAutoFilter(bw, snap)
+	}
 	writeMerges(bw, snap)
 	w.writeRules(bw, ws, snap)
 	if len(snap.Notes) > 0 {
 		bw.WriteString(`<legacyDrawing r:id="` + vmlRelID + `"/>`)
 	}
+	writeTableParts(bw, snap)
 	bw.WriteString(`</worksheet>`)
 	return r.To.Row - r.From.Row + 1
 }
@@ -129,6 +139,9 @@ func (w *xlsxWriter) cell(b []byte, ws string, a sheet.Addr, c SnapCell) []byte 
 		b = append(b, '"')
 	}
 	typ, v, inline := cellValue(c, fx != "")
+	if w.headers[a] && fx == "" && v != "" {
+		typ, v, inline = "inlineStr", c.Text(), true // a table's header is text
+	}
 	if typ != "" {
 		b = append(b, ` t="`...)
 		b = append(b, typ...)
@@ -182,6 +195,9 @@ func (w *xlsxWriter) formula(ws string, a sheet.Addr, c SnapCell) (string, bool)
 		return "", false
 	}
 	fx, arrays, ok := excelFormula(c.Input, w.renamed)
+	if w.unknownTable(c) {
+		fx, ok = "", false
+	}
 	if !ok {
 		w.values.add(w.multi, ws, a)
 	}

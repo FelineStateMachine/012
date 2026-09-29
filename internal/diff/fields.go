@@ -114,9 +114,9 @@ func named(raw json.RawMessage) map[string]json.RawMessage {
 	return out
 }
 
-// summary is what the text output shows of a region or macro added or
-// removed: the file a region follows or that it's a notebook's output;
-// a macro's script's first line.
+// summary is what the text output shows of a region, table or macro
+// added or removed: the file a region follows or that it's a notebook's
+// output; a table's range; a macro's script's first line.
 func summary(raw json.RawMessage) string {
 	fields, _ := object(raw)
 	var s string
@@ -125,6 +125,8 @@ func summary(raw json.RawMessage) string {
 		return s
 	case string(fields["output"]) == "true":
 		return "a notebook cell's output"
+	case json.Unmarshal(fields["range"], &s) == nil && s != "":
+		return s
 	case json.Unmarshal(fields["source"], &s) == nil && s != "":
 		return firstLine(s)
 	}

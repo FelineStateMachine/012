@@ -42,7 +42,7 @@ type Cell struct {
 	refs     []Addr   // single-cell references in expr to its own sheet
 	ranges   []Rect   // range references in expr to its own sheet
 	xrefs    []xref   // references that name a sheet, e.g. Sheet2!A1
-	names    []string // names in expr, as keys of Workbook.names
+	names    []string // names and tables in expr, as keys of Workbook.names and tables
 	Style    Style
 	volatile bool // expr calls TODAY, NOW, RAND...
 	derived  bool // a pivot table's result, owned by the engine: see pivot.go
@@ -367,6 +367,7 @@ func (c *Cell) setExpr(n Node) {
 				c.ranges = append(c.ranges, r)
 			})
 		formula.WalkNames(n, func(nn formula.Name) { c.names = append(c.names, nameKey(nn.Name)) })
+		formula.WalkTables(n, func(t formula.TableRef) { c.names = append(c.names, nameKey(t.Table)) })
 		c.volatile = functions.IsVolatile(n)
 	}
 }

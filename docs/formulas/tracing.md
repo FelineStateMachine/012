@@ -28,7 +28,7 @@ Alt+; again stops. What counts as a link:
 
 | The active cell | Its precedents | Its dependents |
 |---|---|---|
-| A formula | the cells and ranges it reads, on any sheet; a named range or a region (`nu.sales`) by its name | the formulas that read it through a reference, a range, a named range or a region's name, on any sheet |
+| A formula | the cells and ranges it reads, on any sheet; a named range, a region (`nu.sales`) or a [table's](../sheets/tables.md) cells (`Sales[Amount]`) by its name | the formulas that read it through a reference, a range, a named range, a table or a region's name, on any sheet |
 | A formula whose array spills | as any formula | the cells it spills into, and the formulas reading any of them |
 | A value an array spilled | the formula that spilled it | the formulas reading it |
 | A cell of a linked file or of a notebook output sent to the sheet ([regions](../nushell/notebooks.md)) | the file, or the notebook cell | the formulas reading it, `nu.name` included |

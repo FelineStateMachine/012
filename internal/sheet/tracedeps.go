@@ -114,12 +114,17 @@ func (s *Sheet) refReaders(r Rect, f *depFinder) {
 	}
 }
 
-// namesOverlap reports whether the name with key k, a named range or a
-// region's (nu.sales), stands for cells of r on s.
+// namesOverlap reports whether the name with key k, a named range, a
+// table (a region's too) or a region's (nu.sales), stands for cells of
+// r on s.
 func (w *Workbook) namesOverlap(k string, s *Sheet, r Rect) bool {
 	if nm, ok := w.names[k]; ok {
 		_, over := intersectRect(nm.Range, r)
 		return !nm.Gone() && nm.Sheet == s && over
+	}
+	if v, ok := w.findTable(k); ok {
+		_, over := intersectRect(v.r, r)
+		return v.ok && v.s == s && over
 	}
 	t, table, ok := w.regionName(k)
 	if !ok || t != s || table == (Rect{}) {

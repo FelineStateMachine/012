@@ -16,6 +16,7 @@ const (
 	tokOp     // operators and punctuation
 	tokRefErr // #REF!, left behind when a referenced cell is deleted
 	tokSheet  // a sheet name and its "!", as in Sheet2!A1 or 'My Sheet'!A1; text is the name
+	tokTable  // a structured reference, Sales[Amount]; text is as written
 )
 
 type token struct {
@@ -180,6 +181,9 @@ func (lx *lexer) ident() error {
 		lx.i++
 		return nil
 	}
+	if !at && lx.i < len(src) && src[lx.i] == '[' {
+		return lx.structured(start)
+	}
 	name := src[start:lx.i]
 	if at {
 		name = name[1:]
@@ -192,6 +196,18 @@ func (lx *lexer) ident() error {
 		kind = tokFunc
 	}
 	lx.emit(kind, strings.ToUpper(name), start)
+	return nil
+}
+
+// structured reads a structured reference: the table's name from
+// start, and its brackets from the lexer's position.
+func (lx *lexer) structured(start int) error {
+	end := bracketEnd(lx.src, lx.i)
+	if end < 0 {
+		return &ParseError{Pos: lx.i, Msg: "Missing ] in a table reference"}
+	}
+	lx.i = end
+	lx.emit(tokTable, lx.src[start:end], start)
 	return nil
 }
 

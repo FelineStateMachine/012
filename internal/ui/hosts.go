@@ -47,6 +47,7 @@ var (
 	_ pivotHost  = (*Model)(nil)
 	_ macrosHost = (*Model)(nil)
 	_ namesHost  = (*Model)(nil)
+	_ tablesHost = (*Model)(nil)
 	_ promptHost = (*Model)(nil)
 	_ chartHost  = (*Model)(nil)
 )

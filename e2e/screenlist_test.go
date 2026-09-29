@@ -102,7 +102,7 @@ var screens = []screen{
 	}},
 	{name: "error-goto", setup: func(s *session) {
 		s.keys("<f5>", "nope", "<enter>")
-		s.waitFor("Not a cell, range, named range or region")
+		s.waitFor("Not a cell, range, named range, table or region")
 	}},
 	{name: "help", setup: func(s *session) {
 		s.keys("<f1>")

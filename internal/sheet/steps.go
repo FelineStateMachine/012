@@ -46,7 +46,7 @@ func (s *Sheet) EvaluateSteps(a Addr) *Steps {
 		st.parts = append(st.parts, part{path: p, node: n})
 		paths = append(paths, p)
 	})
-	run := s.wb.arith(s.bound(c))
+	run := s.wb.arith(s.bound(a, c))
 	var parts []functions.Part
 	st.top, parts = functions.EvalParts(run, paths, s.wb.values(s).lib, a)
 	for i := range st.parts {
@@ -78,6 +78,10 @@ func (st *Steps) collect(n Node, path []int, fn func([]int, Node)) {
 		if nm, ok := st.sheet.wb.names[nameKey(n.Name)]; ok && !nm.Gone() && nm.Range.From == nm.Range.To {
 			fn(path, n)
 		}
+	case formula.TableRef:
+		if _, ok := st.sheet.bindTable(st.at, n, 0).(formula.Ref); ok {
+			fn(path, n) // one cell, as Sales[@Amount] is
+		}
 	}
 }
 
@@ -102,7 +106,8 @@ func (st *Steps) readRefs() {
 	}
 }
 
-// refCell is the cell a reference or single-cell name points at, and
+// refCell is the cell a reference, single-cell name or table reference
+// points at, and
 // its sheet (nil for a sheet no sheet has the name of).
 func (st *Steps) refCell(n Node) (*Sheet, Addr, bool) {
 	s := st.sheet
@@ -112,6 +117,10 @@ func (st *Steps) refCell(n Node) (*Sheet, Addr, bool) {
 	case formula.Name:
 		nm := s.wb.names[nameKey(n.Name)]
 		return nm.Sheet, nm.Range.From, true
+	case formula.TableRef:
+		if r, ok := s.bindTable(st.at, n, 0).(formula.Ref); ok {
+			return s.wb.resolve(s, r.Sheet), r.Addr, true
+		}
 	}
 	return nil, Addr{}, false
 }

@@ -137,7 +137,8 @@ type namedUsers struct {
 	users map[loc]struct{}
 }
 
-// namedInUse returns the defined named ranges that formulas use.
+// namedInUse returns the defined named ranges, tables and regions that
+// formulas use.
 func (w *Workbook) namedInUse() []namedUsers {
 	var named []namedUsers
 	for k, users := range w.nameUsers {
@@ -145,6 +146,7 @@ func (w *Workbook) namedInUse() []namedUsers {
 			named = append(named, namedUsers{nm.Sheet, nm.Range, users})
 		}
 	}
+	named = append(named, w.tablesInUse()...)
 	return append(named, w.regionsInUse()...)
 }
 

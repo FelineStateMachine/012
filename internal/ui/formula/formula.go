@@ -117,12 +117,15 @@ func (s refScan) corners(pos int) ([][2]int, bool) {
 // Caret describes the formula text before the caret: the word being
 // typed, if it may be a function, name or sheet, and the innermost
 // function call the caret is in. A sheet name being typed in quotes is a
-// word starting with the quote, e.g. "'Q3 p".
+// word starting with the quote, e.g. "'Q3 p". In a structured
+// reference's brackets, Sales[Am, the word is the column or item being
+// typed and Table the table's name.
 type Caret struct {
 	Word      string
 	WordStart int
 	Fn        string // e.g. "SUM", or "" outside any function's parentheses
 	Arg       int    // index of the argument the caret is in
+	Table     string // the table whose brackets the caret is in, as written, or ""
 }
 
 func isWordRune(r rune) bool {
@@ -141,6 +144,11 @@ func ScanCaret(buf []rune, pos int) Caret {
 		return Caret{}
 	}
 	var c Caret
+	if s.depth > 0 {
+		c.Table, c.WordStart = s.table, s.item
+		c.Word = string(buf[s.item:pos])
+		s.quote = -1
+	}
 	if s.quote >= 0 {
 		c.Word, c.WordStart = string(buf[s.quote:pos]), s.quote
 	}
@@ -150,7 +158,7 @@ func ScanCaret(buf []rune, pos int) Caret {
 			break
 		}
 	}
-	if s.quote < 0 && s.start >= 0 && (pos == len(buf) || !isWordRune(buf[pos])) {
+	if s.depth == 0 && s.quote < 0 && s.start >= 0 && (pos == len(buf) || !isWordRune(buf[pos])) {
 		w := []rune(strings.TrimPrefix(string(buf[s.start:pos]), "@"))
 		if len(w) > 0 && (unicode.IsLetter(w[0]) || w[0] == '_') {
 			c.Word, c.WordStart = string(w), pos-len(w)
@@ -166,6 +174,13 @@ type caretScan struct {
 	quote int    // start of a quoted sheet name being read, or -1
 	start int    // start of the word being read, or -1
 	prev  string // the word just before a space or "(" (SUM ( is allowed)
+	// In a structured reference's brackets: how deep, the table's name,
+	// where the item being typed starts, and whether the next character
+	// is escaped by '.
+	depth int
+	table string
+	item  int
+	esc   bool
 }
 
 // callFrame is a function call the caret may be in.
@@ -177,6 +192,10 @@ type callFrame struct {
 // step reads buf[i].
 func (s *caretScan) step(buf []rune, i int) {
 	r := buf[i]
+	if s.depth > 0 {
+		s.bracket(r, i)
+		return
+	}
 	if s.inStr {
 		s.inStr = r != '"'
 		return
@@ -203,6 +222,8 @@ func (s *caretScan) step(buf []rune, i int) {
 		s.inStr = true
 	case '\'':
 		s.quote = i
+	case '[':
+		s.table, s.depth, s.item = s.prev, 1, i+1
 	case '(':
 		s.stack = append(s.stack, callFrame{fn: strings.ToUpper(strings.TrimPrefix(s.prev, "@"))})
 	case ')':
@@ -215,6 +236,28 @@ func (s *caretScan) step(buf []rune, i int) {
 		}
 	}
 	s.prev = ""
+}
+
+// bracket reads r, at i, inside a structured reference's brackets:
+// Sales[[#Headers],[Amount]]. Each [ or item separator starts an item;
+// ' escapes the character after it.
+func (s *caretScan) bracket(r rune, i int) {
+	switch {
+	case s.esc:
+		s.esc = false
+	case r == '\'':
+		s.esc = true
+	case r == '[':
+		s.depth++
+		s.item = i + 1
+	case r == ']':
+		if s.depth--; s.depth == 0 {
+			s.table = ""
+		}
+		s.item = i + 1
+	case (r == ',' || r == ';') && s.depth == 1:
+		s.item = i + 1
+	}
 }
 
 // SplitArgs splits a signature's arguments at the top-level commas, so

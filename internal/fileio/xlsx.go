@@ -41,7 +41,7 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 	if len(sheets) == 0 {
 		sheets = []*Snapshot{snap}
 	}
-	w := &xlsxWriter{styles: newXLSXStyleTable(snap.Locale), multi: len(sheets) > 1, known: map[string]bool{}, renamed: map[string]string{}}
+	w := &xlsxWriter{styles: newXLSXStyleTable(snap.Locale), multi: len(sheets) > 1, known: map[string]bool{}, renamed: map[string]string{}, tables: tableKeys(sheets)}
 	res := &ExportResult{}
 	names, hidden, active := make([]string, len(sheets)), make([]bool, len(sheets)), 0
 	used := map[string]bool{}
@@ -70,15 +70,16 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 			res.Rows += rows
 			if len(sn.Notes) > 0 {
 				withNotes = append(withNotes, i+1)
-				if err := writeNotes(zw, i+1, sn.Notes); err != nil {
-					return err
-				}
+			}
+			if err := w.writeSheetParts(zw, i+1, sn); err != nil {
+				return err
 			}
 		}
 		if err := w.writeShared(zw); err != nil {
 			return err
 		}
-		if err := writePackage(zw, names, hidden, active, w.definedNames(snap.Names), filterRanges(sheets, names), notesTypes(withNotes), w.dynamic); err != nil {
+		types := notesTypes(withNotes) + strings.Join(w.tableTypes, "")
+		if err := writePackage(zw, names, hidden, active, w.definedNames(snap.Names), filterRanges(sheets, names), types, w.dynamic); err != nil {
 			return err
 		}
 		return zw.Close()
@@ -96,6 +97,27 @@ func exportXLSX(_ context.Context, name string, snap *Snapshot, _ ExportOptions)
 	}
 	res.Notes = append(res.Notes, w.rulesNotes()...)
 	return res, nil
+}
+
+// writeSheetParts writes the parts worksheet part n relates to, its
+// notes and tables, and the relationships to them.
+func (w *xlsxWriter) writeSheetParts(zw *zip.Writer, n int, sn *Snapshot) error {
+	var rels []string
+	if len(sn.Notes) > 0 {
+		if err := writeNotes(zw, n, sn.Notes); err != nil {
+			return err
+		}
+		rels = append(rels, notesRels(n)...)
+	}
+	tables, err := w.writeTables(zw, sn)
+	if err != nil {
+		return err
+	}
+	if rels = append(rels, tables...); len(rels) == 0 {
+		return nil
+	}
+	return writePart(zw, "xl/worksheets/_rels/sheet"+strconv.Itoa(n)+".xml.rels",
+		xmlHead+`<Relationships xmlns="`+relsNS+`">`+strings.Join(rels, "")+`</Relationships>`)
 }
 
 // writeShared writes the parts the worksheets share: the styles, and the
@@ -150,7 +172,7 @@ const (
 func filterRanges(sheets []*Snapshot, names []string) []string {
 	out := make([]string, len(sheets))
 	for i, sn := range sheets {
-		if sn.Filter != nil {
+		if sn.Filter != nil && tableFilter(sn) < 0 { // a table's filter is its own
 			out[i] = excelRange(names[i], sn.Filter.Range)
 		}
 	}

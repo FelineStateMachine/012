@@ -11,14 +11,15 @@ import (
 )
 
 // View state that belongs to the worksheet rather than to a cell: frozen
-// rows and columns, the filter, the protected ranges and the merged
-// cells. It is saved in the file and every change to it is an undo step,
+// rows and columns, the filter, the protected ranges, the merged cells
+// and the tables. It is saved in the file and every change to it is an undo step,
 // as in Sheets.
 type viewState struct {
 	frozenRows, frozenCols int
 	filter                 *Filter      // never modified in place; replaced whole
 	protected              []Protection // see protect.go; replaced whole too
 	merges                 []Rect       // see merge.go; replaced whole too
+	tables                 []Table      // see table.go; replaced whole too
 }
 
 // Frozen returns how many rows and columns are frozen at the top and left.
@@ -80,7 +81,8 @@ func (s *Sheet) recordView() {
 func (v viewState) equal(w viewState) bool {
 	return v.frozenRows == w.frozenRows && v.frozenCols == w.frozenCols &&
 		(v.filter == w.filter || reflect.DeepEqual(v.filter, w.filter)) &&
-		slices.Equal(v.protected, w.protected) && slices.Equal(v.merges, w.merges)
+		slices.Equal(v.protected, w.protected) && slices.Equal(v.merges, w.merges) &&
+		slices.EqualFunc(v.tables, w.tables, Table.equal)
 }
 
 // shiftView keeps frozen lines, the filter and protected ranges in step
@@ -92,6 +94,7 @@ func (s *Sheet) shiftView(rows bool, sp formula.Span) {
 	v := s.view
 	v.protected = shiftProtected(v.protected, rows, sp)
 	v.merges = shiftMerges(v.merges, rows, sp)
+	v.tables = shiftTables(v.tables, rows, sp)
 	frozen := &v.frozenCols
 	if rows {
 		frozen = &v.frozenRows
@@ -110,6 +113,9 @@ func (s *Sheet) shiftView(rows bool, sp formula.Span) {
 	if !v.equal(s.view) {
 		s.recordView()
 		merged := !slices.Equal(v.merges, s.view.merges)
+		if w := s.wb; w.hist.open != nil {
+			w.hist.dirty = append(w.hist.dirty, w.tableUsers(s.view.tables, v.tables)...)
+		}
 		s.view = v
 		if merged { // a merge gone may free an array to spill
 			s.respill(Rect{To: Addr{Col: MaxCols - 1, Row: MaxRows - 1}})
@@ -148,7 +154,8 @@ type fileView struct {
 	Protected []fileProtection `json:"protected,omitempty"`
 	// Merges need no version: earlier builds ignore them and show the
 	// cells unmerged.
-	Merges []string `json:"merges,omitempty"`
+	Merges []string    `json:"merges,omitempty"`
+	Tables []fileTable `json:"tables,omitempty"` // version 6, see tablefile.go
 }
 
 type fileFreeze struct {
@@ -192,6 +199,9 @@ func (s *Sheet) writeView(b *bufio.Writer, indent string) error {
 		}
 		keys, parts = append(keys, "merges"), append(parts, names)
 	}
+	if ts := s.view.tables; len(ts) > 0 {
+		keys, parts = append(keys, "tables"), append(parts, encodeTables(ts))
+	}
 	for i, p := range parts {
 		raw, err := json.Marshal(p)
 		if err != nil {
@@ -216,6 +226,9 @@ func (s *Sheet) readView(fv fileView) error {
 			return fmt.Errorf("invalid merged range %q", name)
 		}
 		s.LoadMerge(r)
+	}
+	if err := s.readTables(fv.Tables); err != nil {
+		return err
 	}
 	if fz := fv.Freeze; fz != nil {
 		s.view.frozenRows, s.view.frozenCols = clampInt(fz.Rows, 0, MaxFrozen), clampInt(fz.Cols, 0, MaxFrozen)

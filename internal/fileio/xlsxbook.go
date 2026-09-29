@@ -23,6 +23,8 @@ type xlsxBook struct {
 	// protected names the sheets read so far that Excel protects.
 	protected []string
 	skips     ruleSkips // rules left out, see xlsxrulesimport.go
+	// tablesLeft counts the tables left out, see xlsxtables.go.
+	tablesLeft int
 }
 
 // xlsxSheetInfo is a sheet as the workbook lists it.

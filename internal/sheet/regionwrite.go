@@ -143,8 +143,10 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 		s.freedFor(c.a)
 	}
 	if !had || was != me.written || shape != [2]int{me.rows, me.cols} { // moved, or its table changed shape
-		for u := range s.wb.nameUsers[nameKey(r.FormulaName())] {
-			changed = append(changed, u)
+		for _, k := range []string{nameKey(r.FormulaName()), nameKey(r.Name)} {
+			for u := range s.wb.nameUsers[k] {
+				changed = append(changed, u)
+			}
 		}
 	}
 	return changed

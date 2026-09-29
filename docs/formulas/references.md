@@ -16,6 +16,8 @@ sidebar_position: 2
 - Named ranges: `=SUM(Sales)`. Define them from Data > Named ranges or Data >
   Define named range. Names are case-insensitive, follow the selection when
   rows move, and renaming one rewrites the formulas that use it.
+- Tables by column name: `=SUM(Sales[Amount])`, `=Sales[@Amount]*2`;
+  see [Tables by column name](#tables-by-column-name).
 - Other sheets: `=Sheet2!A1`, `=SUM('Q3 plan'!B2:B9)`; names with spaces or
   punctuation, or that look like a cell, go in single quotes. While typing a
   formula, Ctrl+PgDn or clicking a tab points into another sheet and inserts
@@ -30,6 +32,43 @@ sidebar_position: 2
   what their ranges hold, not their size: `SUM(A:A)` over ten numbers reads
   ten cells, and `ROWS(A:A)` is still 1,048,576. See [Bounds of support](../contributing/limits.md)
   for what that means in practice.
+
+## Tables by column name
+
+A [table](../sheets/tables.md), or a notebook output sent to a sheet, is
+read by its columns' names with a structured reference: the table's
+name, then in brackets what to read of it.
+
+| Reference | Reads |
+|---|---|
+| `Sales[Amount]` | The Amount column's data rows, under the header |
+| `Sales` or `Sales[]` | Every data row, header left out |
+| `Sales[#All]` | The whole table, header row included |
+| `Sales[#Headers]`, `Sales[#Data]` | The header row; the data rows |
+| `Sales[@Amount]` | The Amount cell in the formula's own row (`Sales[[#This Row],[Amount]]`, as Excel's files write it); outside the table's rows, `#REF!` |
+| `Sales[[#Headers],[Amount]]` | The Amount column's header cell |
+| `Sales[[Units]:[Amount]]` | The columns from Units to Amount |
+| `Sales[[#Headers],[#Data],[Units]]` | The Units column, header and data |
+
+Names match in any case. A column whose name has characters other than
+letters, digits, `_` and spaces goes in brackets of its own,
+`Sales[[Total, EUR]]`, and `[`, `]`, `#` and `'` in a name take a `'`
+before them: `Sales['#Items]`. In a locale that separates arguments with
+`;`, so are the items: `Sales[[#Headers];[Amount]]`.
+
+A structured reference is kept as written and read when the formula
+computes, so it follows the table: rows added at its end, columns
+inserted or moved, the table moved or resized. Renaming the table or a
+column's header rewrites the formulas that read it; a deleted column, or
+a deleted table, reads as `#REF!`. Copying, pasting and filling keep
+structured references as they are, since they name columns rather than
+positions: filled down a table, `Sales[@Units]*Sales[@Amount]` reads
+each row's own cells.
+
+While typing, the table's name is offered with the named ranges, and
+after its `[` its columns, or after `#` the items; the context line lists
+the columns with the one being typed marked
+([Building formulas](building.md)).
 
 ## A range where one value is wanted
 

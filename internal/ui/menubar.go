@@ -102,6 +102,7 @@ var menuBar = []menuDef{
 			{cmd: "format.unmerge"},
 		}}, sep,
 		{cmd: "column.width"}, {cmd: "column.reset"}, {cmd: "row.height"}, {cmd: "row.fit"}, sep,
+		{cmd: "table.create"}, sep,
 		{cmd: "format.conditional"}, {cmd: "format.conditional_clear"}, sep,
 		{cmd: "format.clear", title: "Clear formatting"},
 	}},
@@ -115,7 +116,7 @@ var menuBar = []menuDef{
 		}}, sep,
 		{cmd: "data.filter"}, {cmd: "data.filter_column"}, {cmd: "data.filter_remove"}, sep,
 		{cmd: "data.pivot"}, {cmd: "data.pivot_edit"}, {cmd: "data.frequency"}, sep,
-		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, {cmd: "data.protect"},
+		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, {title: "Table", items: tableItems}, {cmd: "data.protect"},
 		{cmd: "data.validation"}, {cmd: "data.validation_clear"}, sep,
 		{title: "Formula tracing", items: []menuItem{
 			{cmd: "data.precedents"}, {cmd: "data.dependents"}, {cmd: "data.trace_list"}, sep,

@@ -209,7 +209,7 @@ func listFit(th *theme.Theme, labels []string, total, room int, more bool) strin
 // another, or by what a region's cells come from.
 func linkLabel(shown *sheet.Sheet, l sheet.Link, from *sheet.Sheet) string {
 	switch l.Kind {
-	case sheet.LinkName, sheet.LinkRegion:
+	case sheet.LinkName, sheet.LinkRegion, sheet.LinkTable:
 		return l.Name
 	case sheet.LinkFile:
 		return filepath.Base(l.Name)

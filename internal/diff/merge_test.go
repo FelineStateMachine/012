@@ -38,6 +38,35 @@ func input(w *sheet.Workbook, ref string) string {
 	return c.Input
 }
 
+// Tables merge one by one: one side resizing a table and the other
+// adding one keeps both.
+func TestMergeTables(t *testing.T) {
+	cells := []map[string]string{{"A1": "Item", "B1": "Cost", "A2": "Rent", "B2": "5", "D1": "Tag", "D2": "x"}}
+	withTables := func(ts map[string]string) func(w *sheet.Workbook) {
+		return func(w *sheet.Workbook) {
+			for name, r := range ts {
+				rr, _ := sheet.ParseRange(r)
+				if err := w.Sheet(0).CreateTable(name, rr); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+	}
+	base := file(t, []string{"S"}, cells, withTables(map[string]string{"Costs": "A1:B2"}))
+	ours := file(t, []string{"S"}, cells, withTables(map[string]string{"Costs": "A1:B3"}))
+	theirs := file(t, []string{"S"}, cells, withTables(map[string]string{"Costs": "A1:B2", "Tags": "D1:D2"}))
+	w, said := merge(t, base, ours, theirs)
+	if len(said) > 0 {
+		t.Errorf("conflicts %v", said)
+	}
+	s := w.Sheet(0)
+	costs, _ := s.TableAt(addr("A1"))
+	tags, _ := s.TableAt(addr("D1"))
+	if costs.Range.String() != "A1:B3" || tags.Name != "Tags" {
+		t.Errorf("tables %+v %+v", costs, tags)
+	}
+}
+
 func TestMergeCells(t *testing.T) {
 	base := file(t, []string{"Sheet1"}, []map[string]string{{"A1": "Item", "B1": "1", "B2": "2", "B3": "3", "B4": "=SUM(B1:B3)"}}, nil)
 	ours := file(t, []string{"Sheet1"}, []map[string]string{{"A1": "Item", "B1": "10", "B2": "2", "B3": "30", "B4": "=SUM(B1:B3)", "C1": "ours"}}, nil)

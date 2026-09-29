@@ -129,7 +129,7 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 	w := e.w
 	s.calc[a] = visiting
 	w.depth++
-	expr := s.bound(c)
+	expr := s.bound(a, c)
 	outer, l := w.evaluating, loc{s, a}
 	w.evaluating = l
 	e.stack = append(e.stack, l)

@@ -22,7 +22,7 @@ mouse and the vim keymap added.
 | PgUp, PgDn | A screen up, down |
 | Alt+PgUp, Alt+PgDn | A screen left, right |
 | Home, Ctrl+Home, Ctrl+End | Column A, cell A1, the last used cell |
-| Ctrl+G, F5 | Go to a cell, a range, a named range or a region's table (`nu.r1`), on any sheet (`Sheet2!B3`) |
+| Ctrl+G, F5 | Go to a cell, a range, a named range, a [table](../sheets/tables.md) or a region's table (`r1` or `nu.r1`), on any sheet (`Sheet2!B3`) |
 
 ## Entering data
 
@@ -102,6 +102,7 @@ The rest of the formats are in the Format menu.
 | Alt+' | Go to a precedent or dependent, picked from a list | [Tracing formulas](../formulas/tracing.md#going-to-one) |
 | Alt+= | Evaluate formula: step through the active cell's formula one part at a time; Enter evaluates, → steps into a reference, ← steps out | [Tracing formulas](../formulas/tracing.md#evaluating-a-formula-step-by-step) |
 | Alt+Shift+F | Frequency table of the active column on a new sheet, as VisiData's Shift+F | [Pivot tables](../sheets/pivots.md#frequency-tables) |
+| Ctrl+Alt+T | Make the selection, or the data around the active cell, a table whose first row names its columns (Format > Convert to table) | [Tables](../sheets/tables.md) |
 | Shift+F2 | Add or edit the active cell's note; Alt+Enter or Shift+Enter starts a new line | [Notes and protection](../sheets/notes-protection.md#notes) |
 
 Tools with no key of their own have their keys on screen while they're
@@ -113,7 +114,9 @@ open, and in their docs: sorting by several columns
 ([Charts](../sheets/charts.md)) and linked files (Data > Linked file, where
 Enter keeps every row and L the last ones:
 [Following files](../files/following.md)). In Data > Named ranges, Enter goes to a
-range, F2 renames or repoints it and Ctrl+D deletes it.
+range, F2 renames or repoints it and Ctrl+D deletes it; in Data > Table >
+Tables, Enter goes to a table, F2 renames it and Ctrl+D removes it,
+keeping its cells.
 
 ## Files, menus and help
 

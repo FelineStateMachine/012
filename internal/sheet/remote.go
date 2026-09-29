@@ -68,7 +68,7 @@ func (s *Sheet) RemoteCalls(a Addr) []RemoteCall {
 		}
 		formula.EachChild(n, walk)
 	}
-	walk(s.bound(c))
+	walk(s.bound(a, c))
 	return calls
 }
 

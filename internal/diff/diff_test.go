@@ -143,6 +143,24 @@ workbook locale  en-US → de-DE
 	}
 }
 
+func TestCompareTables(t *testing.T) {
+	cells := []map[string]string{{"A1": "Item", "B1": "Cost", "A2": "Rent", "B2": "5"}}
+	a := file(t, []string{"S"}, cells, func(w *sheet.Workbook) {
+		w.Sheet(0).CreateTable("Costs", sheet.NewRect(addr("A1"), addr("B2")))
+		w.Sheet(0).CreateTable("Old", sheet.NewRect(addr("D1"), addr("D2")))
+	})
+	b := file(t, []string{"S"}, cells, func(w *sheet.Workbook) {
+		w.Sheet(0).CreateTable("Costs", sheet.NewRect(addr("A1"), addr("B3")))
+	})
+	want := `S!D1  input  - Column1
+S table Costs  range  A1:B2 → A1:B3
+S table Old  removed  - D1:D2
+`
+	if got := lines(t, a, b); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}
+
 func TestCompareNotebooks(t *testing.T) {
 	nb := func(cells string) []byte {
 		return []byte(`{"version": 4, "sheets": [{"name": "Sheet1", "cells": {}}, {"name": "Notebook", "tab": "notebook", "notebookCells": [` + cells + `], "cells": {}}]}`)

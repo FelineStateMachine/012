@@ -228,8 +228,8 @@ func (m *Model) cellText(lc *lineCtx, a sheet.Addr, sp rowtext.Span, look *sheet
 }
 
 // cellRole is the role a cell is drawn in: the pointer, the selection,
-// a search match, a trace, an error or a spill, or the plain cell role
-// (colored false). Roles are large, so it points at the theme's.
+// a search match, a trace, an error or a spill, a table's header or
+// band, or the plain cell role (colored false). Roles are large, so it points at the theme's.
 func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp *rowtext.Span, spills bool) (*lipgloss.Style, bool) {
 	switch {
 	case a == lc.focus || lc.merges != nil && lc.merged(a, lc.focus):
@@ -249,6 +249,14 @@ func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp *rowtext.Span, spills boo
 		return &m.th.ErrorCell, true
 	case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: lc.row}).Spilled():
 		return &m.th.Spilled, true
+	}
+	if m.sheet.HasTables() {
+		switch header, band := m.sheet.TableLook(a); {
+		case header:
+			return &m.th.TableHeader, true
+		case band:
+			return &m.th.TableBand, true
+		}
 	}
 	return &m.th.Cell, false
 }

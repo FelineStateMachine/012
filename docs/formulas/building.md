@@ -8,13 +8,20 @@ sidebar_position: 3
 - After an operator or `(`, arrow keys (or a click) pick a cell and insert
   its reference; Shift+arrows (or a drag) pick a range. Keep typing to go on.
 - While you type a name, suggestions drop down: named ranges first, then
-  the other sheets, then functions with their arguments. Tab or Enter
+  [tables](../sheets/tables.md), the other sheets, then functions with
+  their arguments. Tab or Enter
   inserts `NAME(`, or a sheet with its `!`, quoted when it needs to be
   (`=Su` offers `Summary!`; `=Q3` or `='Q3` offers `'Q3 plan'!`). An arrow
   after it points into that sheet, as clicking its tab does. Hidden
   sheets aren't offered, though formulas still read them.
 - Inside a function's parentheses the context line shows its signature with
   the current argument marked, e.g. `SUMIF(range, criterion, [sum_range])`.
+- Inside a table's brackets, `=SUM(Sales[a`, suggestions offer its
+  columns (after `#`, the items `#All`, `#Data`, `#Headers`, `#This Row`;
+  after `@`, the columns again), and Tab or Enter inserts one with its
+  `]`. The context line lists the table's columns, the one being typed
+  marked: `Sales[Region, Units, Amount]`
+  ([Tables by column name](references.md#tables-by-column-name)).
 - Alt+; marks what the active cell's formula reads and the formulas that
   read it, as the pointer moves; Alt+= steps through a formula one part
   at a time. See [Tracing formulas](tracing.md).
