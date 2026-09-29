@@ -11,9 +11,12 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui"
 )
 
 // openExec starts a session with a terminal and an exec request for
@@ -256,4 +259,29 @@ func TestRecoveryOnShutdown(t *testing.T) {
 	}
 	io.WriteString(tm.stdin, "\x11")
 	tm.waitClosed(t)
+}
+
+// A session that stopped on an internal error keeps its unsaved work,
+// however it ended, and tells the client the report is in the log.
+func TestRecoveryOnCrash(t *testing.T) {
+	dir := t.TempDir()
+	root, err := confine.New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := ui.New(sheet.New(), "book.012")
+	m.Serve(root, nil)
+	m.Update(tea.KeyPressMsg{Code: '7', Text: "7"})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	e := ending{crash: &ui.Crash{Where: "update", Value: "boom"}}
+	e.keep(ui.Guard(m))
+	var out strings.Builder
+	e.tell(&out, time.Minute, root)
+	if e.err != nil || !strings.HasPrefix(e.kept, filepath.Join(".012-recovery", "book-")) {
+		t.Fatalf("kept %q, %v", e.kept, e.err)
+	}
+	if !strings.Contains(out.String(), "stopped on an internal error; the server's log has a report") ||
+		!strings.Contains(out.String(), "open book.012 again to restore them") {
+		t.Errorf("told %q", out.String())
+	}
 }
