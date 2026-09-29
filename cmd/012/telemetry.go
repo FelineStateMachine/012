@@ -52,6 +52,9 @@ func startTelemetry(c telemetry.Config) (func() error, error) {
 		endSpan(trace, "pivot", i.Duration,
 			slog.Int("records", i.Records), slog.Int("groups", i.Groups), slog.Int("cells", i.Cells), slog.Bool("failed", i.Failed))
 	}
+	sheet.OnLive = func(trace any, i sheet.LiveInfo) {
+		endSpan(trace, "live", i.Duration, slog.Int("rows", i.Rows), slog.Int("cells", i.Cells), slog.Bool("reset", i.Reset))
+	}
 	return stop, nil
 }
 

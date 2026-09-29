@@ -71,6 +71,7 @@ OTLP sends (see [Nested spans](#nested-spans)).
 | `sort`, `filter`, `find`, `replace`, `fill` | the operation itself | `rows`, `cols`, `keys`; `hidden`; `matches`; `replaced`; `cells` |
 | `pivot` | every pivot table recomputation (a change to its data or definition) | `records` (source rows summarized), `groups` (row groups at every depth), `cells` (results), `failed` (shows `#REF!`) |
 | `frequency` | making a frequency table | `rows` (data rows counted) |
+| `live` | each update of a [linked file](../files/following.md)'s rows applied, including the recalculation it causes (nested in it) | `rows` (rows it brought), `cells` (cells that changed), `reset` (the file read again whole) |
 | `import`, `export` | file transfers (`internal/fileio`) | `format`, `bytes`, `rows`, `cells`, `notes` |
 | `save`, `open` | the native `.012` file | `cells`, `bytes` (save times serializing, on the UI goroutine) |
 | `jev` | each question sent | `kind`, `queued` (waiting when sent), `outcome` (`ok` or `failed`) |
