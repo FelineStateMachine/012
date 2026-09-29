@@ -14,8 +14,8 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
-// Charts follow Sheets: Insert > Chart charts the selection (or the block
-// of data around the active cell) and opens the chart editor, a bar on the
+// Charts follow Sheets: Insert > Chart charts the selection (or the table
+// around the active cell) and opens the chart editor, a bar on the
 // context line for the type, series direction, headers, range and title.
 // Charts float over the grid anchored at a cell, redraw as their data
 // recalculates, and can be dragged, resized from the corner, and deleted
@@ -89,7 +89,7 @@ func (m *Model) targetChart() int {
 func (m *Model) insertChart() tea.Cmd {
 	r := m.selection()
 	if !m.hasRange() {
-		r = m.sheet.Region(m.cur)
+		r = m.tableAround(m.cur)
 	}
 	if used, ok := m.sheet.UsedRange(); !ok || r.From.Col > used.To.Col || r.From.Row > used.To.Row {
 		m.note = "Select the data to chart first"
