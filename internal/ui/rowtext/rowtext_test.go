@@ -31,3 +31,13 @@ func TestTextCutterMatchesCut(t *testing.T) {
 		}
 	}
 }
+
+// textWidth must measure what ansi.StringWidth does, its ASCII shortcut
+// included.
+func TestTextWidthMatchesStringWidth(t *testing.T) {
+	for _, s := range []string{"", "1234.5", " ~plain ascii! ", "tab\there", "\x1b[1mbold\x1b[0m", "café", "東京", "🙂 a", "á"} {
+		if got, want := textWidth(s), ansi.StringWidth(s); got != want {
+			t.Errorf("%q: got %d, want %d", s, got, want)
+		}
+	}
+}

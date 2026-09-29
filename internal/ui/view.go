@@ -170,11 +170,13 @@ func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
 	if rules {
 		rgb = m.slotColor
 	}
+	// A shade is a whole role, so it is kept across the loop and read
+	// through a pointer rather than zeroed and copied for every cell.
+	var shade theme.Shade
 	for i, sp := range spans {
 		a := sheet.Addr{Col: first + i, Row: row}
 		base, colored := m.cellRole(lc, a, &sp, spills)
 		var look sheet.Look
-		var shade theme.Shade
 		shaded := false
 		if piece, typing := m.entryPiece(lc, a); typing { // gridlines.go
 			sp = rowtext.Span{Text: piece}
@@ -195,7 +197,7 @@ func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
 			marked := theme.Drawable(base.Inherit(m.th.Copied))
 			base, colored, shaded = &marked, true, false
 		}
-		text := m.cellText(lc, a, sp, &look, base, colored, shade, shaded)
+		text := m.cellText(lc, a, sp, &look, base, colored, &shade, shaded)
 		b.WriteString(m.cellMarks(lc, a, text, &look, base, colored))
 	}
 	return b.String()
@@ -204,7 +206,7 @@ func (m *Model) cellsText(lc *lineCtx, first int, spans []rowtext.Span) string {
 // cellText draws a cell's span on its role: as a rule's shade, with its
 // data bar or icon, as a dropdown's chip (taking the look's ▾, which the
 // chip holds), or plainly.
-func (m *Model) cellText(lc *lineCtx, a sheet.Addr, sp rowtext.Span, look *sheet.Look, base *lipgloss.Style, colored bool, shade theme.Shade, shaded bool) string {
+func (m *Model) cellText(lc *lineCtx, a sheet.Addr, sp rowtext.Span, look *sheet.Look, base *lipgloss.Style, colored bool, shade *theme.Shade, shaded bool) string {
 	switch {
 	case look.Bar || look.Icon != "" || look.ValueHidden:
 		return m.barText(sp, m.sheet.ColWidth(a.Col), look, base, colored, m.valueLine(lc, a))
@@ -222,7 +224,7 @@ func (m *Model) cellText(lc *lineCtx, a sheet.Addr, sp rowtext.Span, look *sheet
 	case shaded && plainSpan(sp):
 		return shade.Wrap(strings.Repeat(" ", sp.Lead) + sp.Text + strings.Repeat(" ", sp.Trail))
 	}
-	return renderSpan(&m.th, sp, *base, colored)
+	return renderSpan(&m.th, sp, base, colored)
 }
 
 // cellRole is the role a cell is drawn in: the pointer, the selection,
@@ -293,7 +295,8 @@ func plainSpan(sp rowtext.Span) bool {
 
 // renderSpan draws a span on base, one of the cell roles. Plain cells
 // with no text style are written without escape codes.
-func renderSpan(th *theme.Theme, sp rowtext.Span, base lipgloss.Style, colored bool) string {
+// Roles are large, so base is read through a pointer.
+func renderSpan(th *theme.Theme, sp rowtext.Span, base *lipgloss.Style, colored bool) string {
 	lead, trail := strings.Repeat(" ", sp.Lead), strings.Repeat(" ", sp.Trail)
 	plain := plainSpan(sp)
 	switch {
@@ -302,9 +305,9 @@ func renderSpan(th *theme.Theme, sp rowtext.Span, base lipgloss.Style, colored b
 	case plain:
 		return base.Render(lead + sp.Text + trail)
 	case !colored:
-		return lead + spanStyle(th, base, sp).Render(sp.Text) + trail
+		return lead + spanStyle(th, *base, sp).Render(sp.Text) + trail
 	}
-	return base.Render(lead) + spanStyle(th, base, sp).Render(sp.Text) + base.Render(trail)
+	return base.Render(lead) + spanStyle(th, *base, sp).Render(sp.Text) + base.Render(trail)
 }
 
 // inCellText shows the entry being typed inside the cell, keeping the end

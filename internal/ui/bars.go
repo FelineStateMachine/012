@@ -81,25 +81,34 @@ func (m *Model) barText(sp rowtext.Span, w int, look *sheet.Look, base *lipgloss
 		st := spanStyle(&m.th, *base, sp)
 		text = &st
 	}
+	// A run is drawn in the cell's role (penBase), its text's style
+	// (penText) or a role of the theme (penRole, role). The theme's roles
+	// are held apart from base, so base, often a shade on the caller's
+	// stack, never flows into the frame's cache of shades.
 	var b strings.Builder
 	var run strings.Builder
-	var cur *lipgloss.Style
+	cur, curRole := penBase, (*lipgloss.Style)(nil)
 	flush := func() {
 		switch {
 		case run.Len() == 0:
-		case cur == base && !colored:
+		case cur == penBase && !colored:
 			b.WriteString(run.String())
-		case cur == text || cur == base: // either may be the cell's own, made for it
-			b.WriteString(cur.Render(run.String()))
+		case cur == penBase:
+			b.WriteString(base.Render(run.String()))
+		case cur == penText:
+			b.WriteString(text.Render(run.String()))
 		default: // a theme's role, whose address stays put for the frame
-			b.WriteString(m.shade(cur).Wrap(run.String()))
+			b.WriteString(m.shade(curRole).Wrap(run.String()))
 		}
 		run.Reset()
 	}
-	put := func(role *lipgloss.Style, s string) {
-		if role != cur {
+	put := func(p pen, role *lipgloss.Style, s string) {
+		if p == penText && text == base {
+			p = penBase
+		}
+		if p != cur || role != curRole {
 			flush()
-			cur = role
+			cur, curRole = p, role
 		}
 		run.WriteString(s)
 	}
@@ -107,15 +116,17 @@ func (m *Model) barText(sp rowtext.Span, w int, look *sheet.Look, base *lipgloss
 		switch n := coverAt(cover, x); {
 		case ch == "":
 		case icon && x == iconColumn(w):
-			put(m.ruleRole(look.IconColor, base, colored), look.Icon)
+			p, role := m.ruleRole(look.IconColor, colored)
+			put(p, role, look.Icon)
 		case n > 0 && ch == " ":
-			put(m.ruleRole(look.BarColor, base, colored), theme.Block(n))
+			p, role := m.ruleRole(look.BarColor, colored)
+			put(p, role, theme.Block(n))
 		case n >= 4 && !colored:
-			put(&m.th.BarOn[look.BarColor], ch)
+			put(penRole, &m.th.BarOn[look.BarColor], ch)
 		case ch == " ":
-			put(base, ch)
+			put(penBase, nil, ch)
 		default:
-			put(text, ch)
+			put(penText, nil, ch)
 		}
 	}
 	flush()
@@ -142,13 +153,22 @@ func coverAt(cover []int, x int) int {
 	return 0
 }
 
-// ruleRole is the role a rule color draws a glyph in: the color, or the
-// highlight's own role on a highlighted cell.
-func (m *Model) ruleRole(c sheet.Color, base *lipgloss.Style, colored bool) *lipgloss.Style {
+// pen is what barText draws a run of a cell's columns in.
+type pen uint8
+
+const (
+	penBase pen = iota // the cell's role
+	penText            // its text's style
+	penRole            // a role of the theme, kept for the frame
+)
+
+// ruleRole is the pen a rule color draws a glyph in: the color's role,
+// or the cell's own role on a highlighted cell.
+func (m *Model) ruleRole(c sheet.Color, colored bool) (pen, *lipgloss.Style) {
 	if colored || c == sheet.ColorNone || int(c) >= sheet.NumColors {
-		return base
+		return penBase, nil
 	}
-	return &m.th.RuleText[c]
+	return penRole, &m.th.RuleText[c]
 }
 
 // chipText draws a dropdown's value as a chip in a column w wide: its

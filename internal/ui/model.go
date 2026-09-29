@@ -16,6 +16,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/findbar"
 	"github.com/FelineStateMachine/012/internal/ui/lineedit"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"github.com/FelineStateMachine/012/internal/ui/rowtext"
 	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 	"github.com/FelineStateMachine/012/internal/ui/transfer"
@@ -102,6 +103,9 @@ type Model struct {
 	// mergeLines are the lines merges show their values on, worked out
 	// once a frame (see mergeText).
 	mergeLines map[sheet.Rect][2]int
+	// rowScratch holds the spans of the line of cells being drawn, which
+	// each line lays out in again (see layoutLine).
+	rowScratch rowtext.Scratch
 
 	// Components. Each owns its state and the handling of the input it
 	// takes; Model routes messages to them and composes what they draw.
