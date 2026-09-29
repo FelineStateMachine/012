@@ -98,6 +98,8 @@ func translate(src string, loc *locale.Locale, out bool) string {
 			i = skipIdent(b, i+1)
 		case isDigit(c) || c == sep.dec && i+1 < len(b) && isDigit(b[i+1]):
 			i = sep.number(b, i)
+		case c == '[':
+			i = sep.brackets(b, i)
 		case c == '(' || c == '{':
 			open = append(open, c)
 			i++
@@ -118,6 +120,45 @@ func translate(src string, loc *locale.Locale, out bool) string {
 		}
 	}
 	return string(b)
+}
+
+// brackets translates the separators between the items of a
+// structured reference, Sales[[#Headers],[Amount]], starting at the "["
+// at i, and returns where it ends. Columns' names are left alone.
+func (sep separators) brackets(b []byte, i int) int {
+	end := bracketEnd(string(b), i)
+	if end < 0 {
+		end = len(b)
+	}
+	for j := i + 1; j < end; j++ {
+		switch {
+		case b[j] == '\'':
+			j++
+		case b[j] == sep.arg && prevByte(b, j) == ']' && nextByte(b, j, end) == '[':
+			b[j] = sep.toArg
+		}
+	}
+	return end
+}
+
+// prevByte is the byte before i, past spaces, or 0.
+func prevByte(b []byte, i int) byte {
+	for i--; i >= 0 && b[i] == ' '; i-- {
+	}
+	if i < 0 {
+		return 0
+	}
+	return b[i]
+}
+
+// nextByte is the byte after i, past spaces, before end, or 0.
+func nextByte(b []byte, i, end int) byte {
+	for i++; i < end && b[i] == ' '; i++ {
+	}
+	if i >= end {
+		return 0
+	}
+	return b[i]
 }
 
 // skipQuoted skips a string or quoted sheet name starting at i, with its

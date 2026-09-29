@@ -63,6 +63,8 @@ func printNode(b *strings.Builder, n Node) {
 		b.WriteString(refErrorText)
 	case Name:
 		b.WriteString(n.Name)
+	case TableRef:
+		b.WriteString(n.String())
 	case Unary:
 		printUnary(b, n)
 	case Binary:

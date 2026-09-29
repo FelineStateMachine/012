@@ -34,12 +34,12 @@ func (s *Sheet) Precedents(a Addr) []Target {
 			out = append(out, t)
 		}
 	}
-	formula.WalkRefs(s.bound(c), func(sheet string, a Addr) { add(sheet, Rect{From: a, To: a}) }, add)
+	formula.WalkRefs(s.bound(a, c), func(sheet string, a Addr) { add(sheet, Rect{From: a, To: a}) }, add)
 	return out
 }
 
 // Dependents returns the formula cells that read a directly, through a
-// reference, a range or a named range: those on this sheet first in
+// reference, a range, a named range or a table: those on this sheet first in
 // row-major order, then those on other sheets in tab order.
 func (s *Sheet) Dependents(a Addr) []Target {
 	w := s.wb
@@ -48,9 +48,9 @@ func (s *Sheet) Dependents(a Addr) []Target {
 		seen[loc{s, d}] = true
 	}
 	s.rangeUsers.readers(a, func(u Addr) { seen[loc{s, u}] = true })
-	for k, users := range w.nameUsers {
-		if n, ok := w.names[k]; ok && !n.Lost && n.Sheet == s && n.Range.Contains(a) {
-			for u := range users {
+	for _, nu := range w.namedInUse() {
+		if nu.s == s && nu.r.Contains(a) {
+			for u := range nu.users {
 				seen[u] = true
 			}
 		}

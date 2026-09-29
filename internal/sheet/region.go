@@ -136,6 +136,9 @@ func (w *Workbook) checkRegionName(name string, output bool) error {
 	if n, ok := w.LookupName(regionPrefix + name); ok {
 		return fmt.Errorf("%s already names %s", n.Name, n.Ref())
 	}
+	if _, t, ok := w.Table(name); ok {
+		return fmt.Errorf("There's already a table named %s", t.Name)
+	}
 	if !output && w.cellNamed(name) {
 		return fmt.Errorf("A notebook cell is named %s", name)
 	}

@@ -235,7 +235,8 @@ func TestParseNumber(t *testing.T) {
 }
 
 func FuzzParse(f *testing.F) {
-	for _, s := range []string{"=A1*2", "=SUM(A1:B3)", "=IF(AND(A1>2,B1),1,NA())", `="a"&"b"`, "=1.5E-3^2", "$1,200", "12%", "@SUM(A1..B3)", "=$A$1+A$2*$B3", "=SUM($A1:B$3)", "=#REF!+1", "=A$$1"} {
+	for _, s := range []string{"=A1*2", "=SUM(A1:B3)", "=IF(AND(A1>2,B1),1,NA())", `="a"&"b"`, "=1.5E-3^2", "$1,200", "12%", "@SUM(A1..B3)", "=$A$1+A$2*$B3", "=SUM($A1:B$3)", "=#REF!+1", "=A$$1",
+		"=SUM(Sales[Amount])", "=Sales[[#Headers],[#Data],[A]:[B]]", "=T[@[Unit Price]]*T[@Qty]", "=T['#a']]", "=T[[#This Row],[x]]", "=T[#All]", "=T[[A]"} {
 		f.Add(s)
 	}
 	// Around the nesting cap: parentheses, calls and prefix operators.

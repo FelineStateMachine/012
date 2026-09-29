@@ -37,6 +37,7 @@ func (s *Sheet) Move(src Rect, to Addr) (Rect, error) {
 	s.change(label, dst, func() {
 		s.remap(label, dst, cell, rng)
 		s.remapNames(rng) // a name for exactly the moved cells follows them
+		s.remapTables(src, rng)
 		s.moveFormats(s, &f, src, dst)
 		s.moveMerges(s, src, dst)
 		s.moveRules(src, dst, cell, rng) // rulemove.go
@@ -65,6 +66,7 @@ func (s *Sheet) MoveTo(dst *Sheet, src Rect, to Addr) (Rect, error) {
 	label := "move " + src.String() + " to " + formula.QuoteSheet(dst.name) + "!" + d.String()
 	dst.change(label, d, func() {
 		mv.apply(moved, readers)
+		s.moveTablesTo(dst, src, mv.shift)
 		dst.moveFormats(s, &f, src, d)
 		dst.moveMerges(s, src, d)
 		mv.moveRules() // rulemove.go

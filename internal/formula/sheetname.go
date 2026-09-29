@@ -11,7 +11,7 @@ func SheetKey(name string) string { return strings.ToUpper(name) }
 // as a plain identifier (Sheet2), otherwise in single quotes with quotes
 // doubled, e.g. 'Q3 plan'.
 func QuoteSheet(name string) string {
-	bare := name != "" && (isLetter(name[0]) || name[0] == '_') && !looksLikeCell(strings.ToUpper(name))
+	bare := name != "" && (isLetter(name[0]) || name[0] == '_') && !LooksLikeCell(strings.ToUpper(name))
 	for i := 0; bare && i < len(name); i++ {
 		c := name[i]
 		bare = isLetter(c) || isDigit(c) || c == '_' || c == '.'
@@ -22,10 +22,10 @@ func QuoteSheet(name string) string {
 	return "'" + strings.ReplaceAll(name, "'", "''") + "'"
 }
 
-// looksLikeCell reports whether an upper-case name reads as a cell in
+// LooksLikeCell reports whether an upper-case name reads as a cell in
 // Excel, A1 to XFD1048576 or R1C1, so a sheet of that name is quoted
 // everywhere its formulas may go. Sheet1 doesn't: SHEET is no column.
-func looksLikeCell(k string) bool {
+func LooksLikeCell(k string) bool {
 	digits := strings.TrimLeft(k, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	if n := len(k) - len(digits); n >= 1 && n <= 3 && digits != "" && strings.Trim(digits, "0123456789") == "" {
 		return true

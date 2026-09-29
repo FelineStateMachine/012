@@ -151,6 +151,8 @@ func (p *parser) prefix() (Node, error) {
 			return nil, &ParseError{Pos: ref.pos, Msg: "Expected a cell after " + QuoteSheet(t.text) + "!"}
 		}
 		return p.ident(ref, t.text)
+	case tokTable:
+		return tableRef(t.text, t.pos)
 	case tokFunc:
 		return p.call(t)
 	case tokRefErr:

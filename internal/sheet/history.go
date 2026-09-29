@@ -156,6 +156,7 @@ func (w *Workbook) finish() {
 	if h.depth > 0 {
 		return
 	}
+	w.settleTables()
 	st, dirty := h.open, h.dirty
 	h.open, h.dirty = nil, nil
 	if w.structural {

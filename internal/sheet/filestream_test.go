@@ -217,6 +217,7 @@ func streamSeeds(t testing.TB) [][]byte {
 		[]byte(`{"sheets": [{"cells": {"A1": "1"}, "name": "S"}], "version": 4}`),
 		[]byte(`{"version": 4, "sheets": [{"name": "A", "cells": {"A1": "1"}}, null], "sheets": [{"name": "B", "cells": {"B2": "A\n"}}]}`),
 		[]byte(`{"version": 2, "cells": {"A1": "x", "a1": "y"}}`),
+		[]byte(`{"version": 6, "sheets": [{"name": "S", "tables": [{"name":"Sales","range":"A1:B3","columns":["Item","Amount"],"banded":true}], "cells": {"A1": "Item", "B1": "Amount", "B2": "5", "C1": "=SUM(Sales[Amount])+Sales[[#Headers],[Item]]"}}]}`),
 		[]byte(`{"version": 2, "cells": {"A1": "=(", "A1": "1", "B1": "2", "B1": ""}}`),
 		[]byte(`{"version": 2, "cells": null, "sheets": 5}`),
 		[]byte(`{"version": 4, "cells": "x", "sheets": []}`),

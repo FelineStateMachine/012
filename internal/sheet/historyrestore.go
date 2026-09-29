@@ -39,13 +39,14 @@ func (w *Workbook) restore(st *step) (inv *step, changed []loc) {
 		inv.names[k] = w.namePtr(k)
 		changed = append(changed, w.putName(k, n)...)
 	}
-	w.restoreSheetParts(st, inv)
+	changed = append(changed, w.restoreSheetParts(st, inv)...)
 	return inv, changed
 }
 
 // restoreSheetParts is restore's part for what a sheet keeps whole: its
 // charts, pivot, rules and view, and the workbook's settings and macros.
-func (w *Workbook) restoreSheetParts(st, inv *step) {
+// It returns the formulas reading the tables it changed.
+func (w *Workbook) restoreSheetParts(st, inv *step) (changed []loc) {
 	for s, charts := range st.charts {
 		inv.charts[s] = s.charts
 		s.charts = slices.Clone(charts)
@@ -76,6 +77,7 @@ func (w *Workbook) restoreSheetParts(st, inv *step) {
 	for s, v := range st.views {
 		cur := s.view
 		inv.views[s] = &cur
+		changed = append(changed, w.tableUsers(cur.tables, v.tables)...)
 		s.view = *v
 		s.hidden.valid = false
 		if !slices.Equal(cur.merges, v.merges) {
@@ -83,6 +85,7 @@ func (w *Workbook) restoreSheetParts(st, inv *step) {
 			s.respill(Rect{To: Addr{Col: MaxCols - 1, Row: MaxRows - 1}})
 		}
 	}
+	return changed
 }
 
 // Try runs fn, a change, so that it can be taken back whole: after fn

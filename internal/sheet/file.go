@@ -22,8 +22,9 @@ const FileExt = ".012"
 // name no sheet is still written as version 2 or 3, its sheet's name in
 // a "name" field that earlier builds ignore.
 // Version 5 is version 4 with pivot tables; a workbook without one is
-// still written as version 4.
-const fileVersion = 5
+// still written as version 4. Version 6 is version 5 with tables
+// (tablefile.go), written only for a workbook with one.
+const fileVersion = 6
 
 // The file is JSON with one entry per cell, keyed by address. A cell
 // without formatting is just its input, as in version 1; a formatted cell
@@ -112,8 +113,11 @@ func (w *Workbook) Write(out io.Writer) error {
 		b.WriteString("\n}\n")
 	} else {
 		version := 4
-		if w.hasPivots() {
-			version = fileVersion
+		switch {
+		case w.hasTables():
+			version = 6
+		case w.hasPivots():
+			version = 5
 		}
 		fmt.Fprintf(b, "{\n  \"version\": %d,\n", version)
 		if head := w.headLines(); head != "" {
@@ -142,10 +146,10 @@ func (w *Workbook) Write(out io.Writer) error {
 }
 
 // single reports whether the workbook fits the single-sheet format of
-// versions 2 and 3: one sheet, not a notebook, and no formula naming a
-// sheet.
+// versions 2 and 3: one sheet, not a notebook, no pivot table nor table,
+// and no formula naming a sheet.
 func (w *Workbook) single() bool {
-	return len(w.sheets) == 1 && len(w.crossUsers) == 0 && !w.hasPivots() && !w.hasNotebook()
+	return len(w.sheets) == 1 && len(w.crossUsers) == 0 && !w.hasPivots() && !w.hasNotebook() && !w.hasTables()
 }
 
 func jsonString(s string) string {

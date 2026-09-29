@@ -118,7 +118,7 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 	w := e.w
 	s.calc[a] = visiting
 	w.depth++
-	expr := s.bound(c)
+	expr := s.bound(a, c)
 	outer := w.evaluating
 	w.evaluating = loc{s, a}
 	c.Value = functions.EvalCell(w.arith(expr), s.calcGet.lib, a)
