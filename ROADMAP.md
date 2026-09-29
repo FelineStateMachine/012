@@ -71,7 +71,6 @@ shared editing in section 3.
 | Commands for scripts without the screen: `012 get`, `012 set`, `012 recalc`, `012 export` on a workbook file | 012 in scripts, cron and nushell pipelines | S to M |
 | `012 diff` cell by cell (values, formulas, formats, regions) and a git diff and merge driver for `.012` | Sheets kept in git review like code | M |
 | Formula tracing: precedents and dependents shown in the grid, a formula evaluated step by step | Finding why a number is wrong | M |
-| Named tables with structured references (`Sales[Amount]`); notebook regions are tables | Formulas that read by column name | M |
 | A sheet or chart exported as a static HTML page in 012's look | Sharing a sheet with someone without 012 | S |
 | Release archives and an install script served from the owner's nzip server | Installing without Go | S |
 
@@ -119,6 +118,7 @@ stream above rather than a design of their own.
 - Conditional formatting (single-color rules, color scales) and data validation (dropdowns, checkboxes, bounds), checked on pastes and fills and moving with cut and paste: [Conditional formatting and data validation](docs/sheets/rules.md#conditional-formatting)
 - Data bars, icon sets, top values, averages, duplicates and date periods, dropdown chips and checkboxes of their own values, in XLSX both ways; rules moving to other sheets, and macros' pastes and fills checked: [Conditional formatting and data validation](docs/sheets/rules.md#conditional-formatting)
 - Pivot tables and frequency tables, live, with subtotals and renamed values: [Pivot tables](docs/sheets/pivots.md)
+- Named tables read by column name (`Sales[Amount]`, `Sales[@Amount]`), growing with their rows, in `.012` and XLSX both ways; notebook outputs are tables too: [Tables](docs/sheets/tables.md)
 - Notes on cells: [Notes and protection](docs/sheets/notes-protection.md#notes)
 - Protected sheets and ranges that warn on edit: [Notes and protection](docs/sheets/notes-protection.md#protected-sheets-and-ranges)
 - Charts (column, bar, line, area, pie, scatter; stacking, trend lines, axis and legend options), as images or text: [Charts](docs/sheets/charts.md)

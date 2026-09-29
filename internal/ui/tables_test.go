@@ -75,7 +75,7 @@ func TestTableCommands(t *testing.T) {
 	}
 	wantShown(t, m, "E1", "#REF!")
 	press(t, m, "<ctrl+z>")
-	for id, want := range map[string]bool{"table.banded": true, "table.header": true} {
+	for id, want := range map[string]bool{"table.banded": false, "table.header": true} {
 		if c := commands[id]; !c.checked(m) != !want {
 			t.Errorf("%s checked %v", id, c.checked(m))
 		}
@@ -116,7 +116,7 @@ func TestTablesPicker(t *testing.T) {
 	m.sheet.CreateTable("Other", rectOf("F1:G3"))
 	m.runCommand("data.tables")
 	scr := screen(m)
-	for _, want := range []string{"Tables", "Sales", "Sheet1!A1:C4", "Other"} {
+	for _, want := range []string{"Tables", "Sales", "A1:C4", "Other", "F1:G3"} {
 		if !strings.Contains(scr, want) {
 			t.Errorf("missing %q in\n%s", want, scr)
 		}
@@ -187,7 +187,7 @@ run("table.banded")
 		t.Fatal(m.warn)
 	}
 	tb, ok := m.sheet.TableAt(addr("A2"))
-	if !ok || tb.Name != "Revenue" || tb.Range != rectOf("A1:B4") || tb.Banded {
+	if !ok || tb.Name != "Revenue" || tb.Range != rectOf("A1:B4") || !tb.Banded {
 		t.Errorf("table %+v", tb)
 	}
 }

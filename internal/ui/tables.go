@@ -201,7 +201,10 @@ func (m *Model) tableChanged() {
 func (m *Model) tablesItems() []picker.Item {
 	var items []picker.Item
 	for _, t := range m.book().TableInfos() {
-		where := sheet.Qualified(t.Sheet.Name(), t.Range)
+		where := t.Range.String()
+		if m.book().Len() > 1 {
+			where = sheet.Qualified(t.Sheet.Name(), t.Range)
+		}
 		desc := "Go to it; columns " + strings.Join(t.Cols, ", ")
 		switch {
 		case t.Region && !t.Shown():

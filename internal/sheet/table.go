@@ -195,7 +195,7 @@ func tableRange(r Rect) Rect {
 }
 
 // CreateTable makes a table named name of r, whose first row names its
-// columns, as one undo step. Blank or repeated names in the header row
+// columns, with its header styled and no bands, as one undo step. Blank or repeated names in the header row
 // are replaced with ones of their own (Column2, Amount2), in the cells
 // too; a range of one row gains an empty row of data.
 func (s *Sheet) CreateTable(name string, r Rect) error {
@@ -210,7 +210,7 @@ func (s *Sheet) CreateTable(name string, r Rect) error {
 		return err
 	}
 	s.change("make table "+name, r, func() {
-		t := Table{Name: name, Range: r, Banded: true, Header: true}
+		t := Table{Name: name, Range: r, Header: true}
 		t.Cols = s.headerNames(t)
 		s.putTables(append(s.Tables(), t))
 	})

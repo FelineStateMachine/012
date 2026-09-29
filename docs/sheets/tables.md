@@ -69,8 +69,10 @@ notebook output: Enter goes to one, F2 renames it and Ctrl+D removes it.
 ## Banding and the header style
 
 Data > Table > Banded rows shades every other data row, and Header style
-draws the header row bold, underlined and in the theme's accent; a new
-table has both. They are the `TableBand` and `TableHeader` roles of the
+draws the header row bold, underlined and in the theme's accent. A new
+table has its header styled and no bands: Sheets bands its tables, but
+the terminal's own palette has no shade subtle enough for every other
+row, so bands are there when you want them. They are the `TableBand` and `TableHeader` roles of the
 [theme](../terminal/themes.md): a scheme draws the band a shade off its
 background. The header's bold and underline read without color
 ([UX](../contributing/ux.md#reading-without-color)); the band is
