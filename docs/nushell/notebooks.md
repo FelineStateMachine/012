@@ -27,7 +27,7 @@ command](README.md#install-the-sheet-command)):
 012 nu work.012     # the workbook's notebook, made if it has none
 ```
 
-In any workbook, **Data > Notebook > Open notebook** (or the palette)
+In any workbook, **Data > Shell > Open notebook** (or the palette)
 shows the workbook's notebook, or adds one after the sheet shown. A
 notebook's tab is marked `❯`. Cells run `nu` as a separate process, so
 [nushell](https://www.nushell.sh/book/installation.html) must be
@@ -145,7 +145,7 @@ Ctrl+Enter as Enter ([Keys the terminal has to tell
 apart](../reference/keys.md#keys-the-terminal-has-to-tell-apart)): there
 Esc then `r` runs the cell, and Alt+Enter runs it and adds one under it.
 
-Every action is a command, in **Data > Notebook**, the palette and the
+Every action is a command, in **Data > Shell**, the palette and the
 shortcuts (Ctrl+/), and File, Edit and the sheet tabs work as anywhere;
 commands for a sheet's cells are off on a notebook's tab. Changes to
 cells are undo steps, as any edit is.
@@ -154,7 +154,7 @@ cells are undo steps, as any edit is.
 
 Cells run in the background, one at a time, so the screen stays live:
 the one running shows `[*]` and those after it `waiting`. **Data >
-Notebook** runs one cell, every cell (F9), the cells above the selected
+Shell** runs one cell, every cell (F9), the cells above the selected
 one or it and those below; each runs after the cells it reads. A cell
 that fails stops the rest.
 
@@ -221,7 +221,7 @@ flowchart TD
     again --> fresh
 ```
 
-**Data > Notebook > Reactive notebook** (off unless turned on, saved
+**Data > Shell > Reactive notebook** (off unless turned on, saved
 with the notebook) runs them again whenever a cell they read runs.
 
 ## Send to a sheet
@@ -246,7 +246,7 @@ sequenceDiagram
 ```
 
 Like an [array's spill](../formulas/arrays.md#spilled-cells), its cells
-can't be typed over: **Data > Notebook > Freeze output** turns them into
+can't be typed over: **Data > Shell > Freeze output** turns them into
 plain values, and **Remove output** takes them off the sheet. Undo takes
 back sending it, and the rows come back from the cell's output whenever
 undo brings the region back.

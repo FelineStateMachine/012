@@ -9,7 +9,7 @@ Short worked examples. Pipelines that end in `sheet` or `sheet view`
 run in a nushell session, with 012's module installed ([Install the
 `sheet` command](README.md#install-the-sheet-command)); lines that start
 with a name and `=` are code cells of a [notebook](notebooks.md)
-(`sheet nu`, or **Data > Notebook > Open notebook** in any workbook), one
+(`sheet nu`, or **Data > Shell > Open notebook** in any workbook), one
 cell a line, each run with Shift+Enter. Nushell's own
 [cookbook](https://www.nushell.sh/cookbook/) has more pipelines to start
 from.

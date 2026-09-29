@@ -1,6 +1,6 @@
 # Following a log: a JSON lines log grows while 012 follows it in a
 # linked region (Data > Linked file > Link a table, here from the
-# palette). A notebook cell (Data > Notebook > Open notebook, from the
+# palette). A notebook cell (Data > Shell > Open notebook, from the
 # palette too) reads it as $app and keeps the errors; running the cell
 # again later (r) reads the rows the log has now. The log is
 # data/requests.jsonl written a line at a time. Needs nu on the PATH.

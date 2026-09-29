@@ -61,7 +61,7 @@ func TestNotebookSendsToSheetWithNu(t *testing.T) {
 	s.waitFor("      16")
 }
 
-// Data > Notebook from a workbook makes a Notebook tab; $selection is
+// Data > Shell from a workbook makes a Notebook tab; $selection is
 // the range selected on the sheet shown before it.
 func TestNotebookReadsSelection(t *testing.T) {
 	needNu(t)

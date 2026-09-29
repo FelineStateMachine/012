@@ -16,7 +16,7 @@ import (
 
 // Notebooks: a notebook tab holds code cells (nushell pipelines) and
 // note cells (Markdown), drawn and keyed by package nbview. Every action
-// on them is a command registered here, so menus (Data > Notebook), the
+// on them is a command registered here, so menus (Data > Shell), the
 // palette and help list them; the keys Jupyter uses reach them through
 // nbKeys and nbEditKeys. The cells are the workbook's (sheet/notebook.go),
 // running them is nbrun.go's, sending an output to a sheet nbsend.go's,
@@ -99,7 +99,7 @@ func nbHelpRows(listed map[string]bool) []helpRow {
 	return rows
 }
 
-// notebookItems are Data > Notebook's items.
+// notebookItems are Data > Shell's items.
 var notebookItems = []menuItem{
 	{cmd: "nb.open"}, sep,
 	{cmd: "nb.run"}, {cmd: "nb.run_next"}, {cmd: "nb.run_all"}, {cmd: "nb.run_above"}, {cmd: "nb.run_below"}, {cmd: "nb.stop"}, sep,

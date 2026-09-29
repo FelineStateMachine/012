@@ -47,7 +47,7 @@ rest: building from a clone, importing files, `012 serve` and settings.
   nushell module `012 nu --install-module` installs, or as
   `ls | to nuon | ^012 --pipe | from nuon` without it
   ([pipelines](docs/nushell/pipelines.md)).
-- **Nushell notebooks**: `012 nu` (or Data > Notebook in any workbook)
+- **Nushell notebooks**: `012 nu` (or Data > Shell in any workbook)
   opens a notebook tab of code and note cells, run with Jupyter's keys,
   each output under its cell; later cells read it as `$name`, and sent to
   a sheet it's a live table formulas read as `nu.name`

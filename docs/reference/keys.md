@@ -130,7 +130,7 @@ range, F2 renames or repoints it and Ctrl+D deletes it.
 
 On a [notebook's](../nushell/notebooks.md#keys) tab, as in Jupyter:
 command mode (`NOTEBOOK`) acts on cells, edit mode (`EDIT`) types into
-one. **Data > Notebook > Open notebook** opens the workbook's notebook;
+one. **Data > Shell > Open notebook** opens the workbook's notebook;
 on a sheet, `!` starts an entry as any character does.
 
 | Key | In command mode |
