@@ -15,11 +15,9 @@ func TestLayoutDrawsAndSurvivesSave(t *testing.T) {
 	tripPlan(s)
 	checkTrip := func(s *session) {
 		s.t.Helper()
-		screen := s.screen()
+		// The grid may still be drawing its last rows.
 		for _, want := range []string{"Trip to Lisbon", "┏━━━━━━━━━┯", "┣━════════╪", "│Tram 28  ┃", "┃Total    │", "┗━━━━━━━━━┷"} {
-			if !strings.Contains(screen, want) {
-				t.Errorf("no %q in\n%s", want, screen)
-			}
+			s.waitFor(want)
 		}
 	}
 	checkTrip(s)
