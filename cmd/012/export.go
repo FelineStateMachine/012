@@ -13,13 +13,13 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-const exportUsage = "usage: 012 export file.012 out.csv|tsv|xlsx|json|nuon|sqlite|html [ref] [--format kind] [--table name] [--chart n|title] [--notebooks] [--jev] [--trust]"
+const exportUsage = "usage: 012 export file.012 out.csv|tsv|xlsx|json|nuon|sqlite|html [ref] [--format kind] [--table name] [--chart n|title] [--report json|nuon] [--notebooks] [--jev] [--trust]"
 
 // runExport is 012 export: a sheet, a range or (to formats holding
 // several sheets) the whole workbook written as File > Download writes
 // it.
 func runExport(args []string, e env) error {
-	a, err := parseArgs(args, []string{"format", "table", "chart"}, append([]string{"help"}, evalFlags...))
+	a, err := parseArgs(args, []string{"format", "table", "chart", "report"}, append([]string{"help"}, evalFlags...))
 	switch {
 	case err != nil:
 		return usageError(err.Error(), exportUsage)
@@ -33,6 +33,10 @@ func runExport(args []string, e env) error {
 	k, err := exportKind(out, a.flags["format"])
 	if err != nil {
 		return usageError(err.Error(), exportUsage)
+	}
+	report := strings.ToLower(a.flags["report"])
+	if a.has("report") && report != "json" && report != "nuon" {
+		return usageError("--report "+report+": json or nuon", exportUsage)
 	}
 	if a.has("chart") && k != fileio.HTML {
 		return usageError("--chart writes a web page: name an .html file", exportUsage)
@@ -57,15 +61,29 @@ func runExport(args []string, e env) error {
 		return err
 	}
 	if a.has("chart") {
-		return exportChart(out, t, a.flags["chart"], failed)
+		if err := exportChart(out, t, a.flags["chart"]); err != nil {
+			return err
+		}
+		return exportReport(e, report, headless.ExportResult{File: out, Format: "html", Notes: []string{}}, failed)
 	}
 	snap := exportSnap(t, k, ref == "")
 	res, err := fileio.Export(context.Background(), out, k, snap, fileio.ExportOptions{Table: a.flags["table"]})
 	if err != nil {
 		return fmt.Errorf("%s: %w", out, err)
 	}
-	for _, n := range res.Notes {
-		fmt.Fprintln(e.stderr, "012: note: "+n)
+	return exportReport(e, report, headless.ExportResult{File: out, Format: strings.ToLower(k.String()), Rows: res.Rows,
+		Notes: append([]string{}, res.Notes...)}, failed)
+}
+
+// exportReport says what was written: its notes on standard error, or
+// with --report the whole result on standard output.
+func exportReport(e env, report string, res headless.ExportResult, failed evalFailures) error {
+	if report == "" {
+		for _, n := range res.Notes {
+			fmt.Fprintln(e.stderr, "012: note: "+n)
+		}
+	} else if err := headless.Encode(e.stdout, report, res); err != nil {
+		return err
 	}
 	return failed.err()
 }
@@ -125,7 +143,7 @@ func same(a, b string) bool {
 
 // exportChart is 012 export --chart: one chart of the target's sheet as
 // a web page of its own, found by its number (1 is the first) or title.
-func exportChart(out string, t headless.Target, which string, failed evalFailures) error {
+func exportChart(out string, t headless.Target, which string) error {
 	i, err := headless.FindChart(t.Sheet, which)
 	if err != nil {
 		return err
@@ -138,5 +156,5 @@ func exportChart(out string, t headless.Target, which string, failed evalFailure
 	if err != nil {
 		return fmt.Errorf("%s: %w", out, err)
 	}
-	return failed.err()
+	return nil
 }

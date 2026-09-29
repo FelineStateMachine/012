@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/FelineStateMachine/012/internal/diff"
 	"github.com/FelineStateMachine/012/internal/headless"
 	"github.com/FelineStateMachine/012/internal/notebook"
 )
@@ -17,8 +18,8 @@ import (
 
 const (
 	getUsage    = "usage: 012 get file.012 [ref] [--format text|csv|tsv|json|nuon] [--input] [--no-header] [--notebooks] [--jev] [--trust]"
-	setUsage    = "usage: 012 set file.012 ref input [ref input ...] [--force]"
-	recalcUsage = "usage: 012 recalc file.012 [--notebooks] [--jev] [--trust]"
+	setUsage    = "usage: 012 set file.012 ref input [ref input ...] [--force] [--dry-run] [--format text|json|nuon]"
+	recalcUsage = "usage: 012 recalc file.012 [--format text|json|nuon] [--notebooks] [--jev] [--trust]"
 )
 
 // evalFlags are the flags that let a command run a workbook's notebook
@@ -63,9 +64,10 @@ func runGet(args []string, e env) error {
 	return failed.err()
 }
 
-// runSet is 012 set: type entries into cells and save.
+// runSet is 012 set: type entries into cells and save, or with
+// --dry-run print what would change, as 012 diff would, and not save.
 func runSet(args []string, e env) error {
-	a, err := parseArgs(args, nil, []string{"force", "help"})
+	a, err := parseArgs(args, []string{"format"}, []string{"force", "dry-run", "help"})
 	switch {
 	case err != nil:
 		return usageError(err.Error(), setUsage)
@@ -74,6 +76,10 @@ func runSet(args []string, e env) error {
 		return nil
 	case len(a.pos) < 3 || len(a.pos)%2 == 0:
 		return usageError("", setUsage)
+	}
+	format, err := resultFormat(a)
+	if err != nil {
+		return usageError(err.Error(), setUsage)
 	}
 	f, err := headless.Open(a.pos[0], true)
 	if err != nil {
@@ -87,16 +93,55 @@ func runSet(args []string, e env) error {
 	if err != nil {
 		return fmt.Errorf("%w; %s is unchanged", err, f.Path)
 	}
-	for _, w := range warnings {
-		fmt.Fprintln(e.stderr, "012: warning: "+w)
+	res := headless.SetResult{File: f.Path, Warnings: warnings, Changes: []headless.Change{}}
+	if format == "text" {
+		for _, w := range warnings {
+			fmt.Fprintln(e.stderr, "012: warning: "+w)
+		}
 	}
-	return save(f, e)
+	if format != "text" || a.has("dry-run") {
+		changes, err := f.Changes()
+		if err != nil {
+			return err
+		}
+		if format == "text" {
+			color, _ := useColor("", e)
+			return diff.WriteChanges(e.stdout, changes, "text", color)
+		}
+		res.Changes = headless.Changes(changes)
+	}
+	if !a.has("dry-run") {
+		if err := save(f, e); err != nil {
+			return err
+		}
+		res.Saved = true
+	}
+	if format == "text" {
+		return nil
+	}
+	if res.Warnings == nil {
+		res.Warnings = []string{}
+	}
+	return headless.Encode(e.stdout, format, res)
+}
+
+// resultFormat is --format's form for a command's result: text, json
+// or nuon.
+func resultFormat(a cliArgs) (string, error) {
+	switch f := strings.ToLower(a.flags["format"]); f {
+	case "", "text":
+		return "text", nil
+	case "json", "nuon":
+		return f, nil
+	default:
+		return "", errors.New("--format " + f + ": text, json or nuon")
+	}
 }
 
 // runRecalc is 012 recalc: recalculate, save, and list the cells whose
 // formulas show errors, exiting 1 when there are any.
 func runRecalc(args []string, e env) error {
-	a, err := parseArgs(args, nil, append([]string{"help"}, evalFlags...))
+	a, err := parseArgs(args, []string{"format"}, append([]string{"help"}, evalFlags...))
 	switch {
 	case err != nil:
 		return usageError(err.Error(), recalcUsage)
@@ -105,6 +150,10 @@ func runRecalc(args []string, e env) error {
 		return nil
 	case len(a.pos) != 1:
 		return usageError("", recalcUsage)
+	}
+	format, err := resultFormat(a)
+	if err != nil {
+		return usageError(err.Error(), recalcUsage)
 	}
 	f, err := headless.Open(a.pos[0], false)
 	if err != nil {
@@ -117,6 +166,14 @@ func runRecalc(args []string, e env) error {
 	problems, circular := headless.Recalc(f.Book)
 	if err := save(f, e); err != nil {
 		return err
+	}
+	if format != "text" {
+		res := headless.RecalcResult{File: f.Path, Errors: headless.Problems(problems), Circular: circular,
+			NotebookFailures: append([]string{}, failed.cells...)}
+		if err := headless.Encode(e.stdout, format, res); err != nil {
+			return err
+		}
+		return problemStatus(problems, circular, failed)
 	}
 	return reportProblems(e.stdout, problems, circular, failed)
 }
@@ -149,6 +206,12 @@ func reportProblems(w io.Writer, problems []headless.Problem, circular bool, fai
 	if circular {
 		fmt.Fprintln(w, "circular reference: a formula reads its own cell, directly or through others")
 	}
+	return problemStatus(problems, circular, failed)
+}
+
+// problemStatus is recalc's exit status: 1 when cells show errors or a
+// notebook cell failed.
+func problemStatus(problems []headless.Problem, circular bool, failed evalFailures) error {
 	if len(problems) > 0 || circular {
 		return &exitError{code: 1, err: fmt.Errorf("%d %s showing errors", len(problems), plural(len(problems), "cell", "cells"))}
 	}

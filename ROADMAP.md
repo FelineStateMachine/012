@@ -76,7 +76,6 @@ section 3's shared editing with an agent as one participant.
 
 | Step | Result | Size |
 |---|---|---|
-| `012 describe` (sheets, used ranges, headers, names, tables, regions, charts), `--format json` on every command, `012 set --dry-run` printing the change as a diff, an agents page in the docs and a Claude Code skill installed by 012 | Agents with a shell use 012 well | S |
 | `012 mcp` over stdio on a workbook file: tools (describe, read, write, apply operations, evaluate without writing, find, sort, filter, chart, pivot, run a notebook cell), resources (`012://book/Sheet1!A1:D40`, tables, notebook cells), prompts | Any MCP host works with workbooks | M |
 | MCP Apps views: a sheet or chart rendered as an interactive view inside the host, from the HTML export | Workbooks shown in the chat | S to M |
 | Live mode: `012 --listen` and `012 mcp --attach`; the agent's cursor and name in the grid, its changes arriving as a suggestion (marked cells, accepted or rejected whole or by cell) unless direct edits are allowed, its own undo, a scope (sheet, range, read-only), elicitation to ask the person | Coworking with an agent in the grid | M to L |
@@ -160,6 +159,10 @@ stream above rather than a design of their own.
 - The `.012` format written down with a version, and each release's workbooks kept as fixtures that every later build opens and saves unchanged: [The .012 format](docs/files/format.md#versions), [Releasing](docs/contributing/releasing.md#file-fixtures)
 - Web pages in 012's look: a sheet, a range or a chart as one self-contained `.html` file, charts as SVG, from File > Download and `012 export`: [Files](docs/files/README.md#web-pages)
 - A crash keeps unsaved work for recovery, restores the terminal and writes a report, locally and in `012 serve`: [Saving](docs/files/saving.md#if-012-crashes)
+
+**Agents**
+
+- `012 describe`, results as JSON with stable schemas, `012 set --dry-run` as a diff, and a Claude Code skill installed by `012 agent --install-skill`: [Agents](docs/agents/README.md)
 
 **Upkeep**
 

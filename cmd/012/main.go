@@ -80,8 +80,9 @@ func usage() error {
 		"       012 nu [flags] [file]: the workbook's nushell notebook (see docs/nushell/notebooks.md)\n" +
 		"       012 nu --module | --install-module [--force] [path]: the nushell module with sheet (see docs/nushell/README.md)\n" +
 		"       012 serve [flags] [dir]: serve sheets in dir over SSH (see docs/terminal/ssh.md)\n" +
-		"       012 get|set|recalc|export file.012 ...: read and change a workbook without the screen (see docs/files/scripts.md)\n" +
+		"       012 get|set|recalc|export|describe file.012 ...: read and change a workbook without the screen (see docs/files/scripts.md)\n" +
 		"       012 diff a.012 b.012, 012 merge-driver base ours theirs: compare and merge workbooks (see docs/files/git.md)\n" +
+		"       012 agent --skill | --install-skill [--force] [dir]: the Claude Code skill (see docs/agents/README.md)\n" +
 		"       012 config [path|edit|default|themes|set-key|delete-key]\n" +
 		"       012 version")
 }
@@ -90,8 +91,8 @@ func usage() error {
 // opens as ./name.
 var subcommands = map[string]func([]string, env) error{
 	"config": runConfig, "serve": runServe,
-	"get": runGet, "set": runSet, "recalc": runRecalc, "export": runExport,
-	"diff": runDiff, "merge-driver": runMergeDriver,
+	"get": runGet, "set": runSet, "recalc": runRecalc, "export": runExport, "describe": runDescribe,
+	"diff": runDiff, "merge-driver": runMergeDriver, "agent": runAgent,
 }
 
 func run(args []string, e env) error {
@@ -99,7 +100,7 @@ func run(args []string, e env) error {
 		return subcommands[args[0]](args[1:], e)
 	}
 	if len(args) > 0 && (args[0] == "version" || args[0] == "--version") {
-		return runVersion(e)
+		return runVersion(args[1:], e)
 	}
 	if len(args) > 0 && args[0] == "nu" && isModuleCommand(args[1:]) {
 		return runNuModule(args[1:], e)

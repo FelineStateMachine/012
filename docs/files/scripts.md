@@ -6,7 +6,8 @@ sidebar_position: 6
 # Scripts
 
 Four commands read and change a `.012` workbook without the screen, for
-shell scripts, cron jobs, Makefiles and nushell pipelines:
+shell scripts, cron jobs, Makefiles, nushell pipelines and
+[agents](../agents/README.md), which also have `012 describe`:
 
 ```sh
 012 get budget.012 B7                        # a cell's value, as the sheet shows it
@@ -97,6 +98,18 @@ An entry a rule only marks invalid is set, with a warning on standard
 error. An input that starts with `--` (a flag's shape) comes after `--`:
 `012 set budget.012 -- A1 --`.
 
+`--dry-run` checks the entries the same way but saves nothing, and
+prints what would change as [`012 diff`](git.md#012-diff) would:
+
+```
+$ 012 set budget.012 B7 '=SUM(A1:A6)' B8 1200 --dry-run
+Sheet1!B7  input  "=SUM(A1:A5)" → "=SUM(A1:A6)"
+Sheet1!B8  input  + 1200
+```
+
+`--format json` writes the result, the changes as records, instead
+([JSON output](../reference/json.md#set)).
+
 ## recalc
 
 `012 recalc file` recomputes every formula, saves the file (leaving it
@@ -109,7 +122,8 @@ Q3!D2  #N/A  JEV functions need --jev and an API key to be answered
 ```
 
 It exits 1 when any cell shows an error or a formula reads its own cell,
-so `012 recalc budget.012 && deploy` stops on a broken sheet.
+so `012 recalc budget.012 && deploy` stops on a broken sheet. `--format
+json` writes the list as [JSON](../reference/json.md#recalc).
 
 ## export
 
@@ -159,5 +173,5 @@ things need more than the file:
   network, and show `#N/A` here unless `--jev` asks it, with the API key
   from the environment, the credential store or `jev-api-key-command`.
 
-`get`, `recalc` and `export` take these flags; `set` computes values only
-to check entries.
+`get`, `recalc`, `export` and `describe` take these flags; `set`
+computes values only to check entries.
