@@ -226,6 +226,11 @@ func bracketEnd(src string, i int) int {
 	return -1
 }
 
+// StructuredEnd returns the index just past the brackets of a
+// structured reference whose "[" is at src[i], or -1 when they aren't
+// closed.
+func StructuredEnd(src string, i int) int { return bracketEnd(src, i) }
+
 // escaped are the characters a column's name escapes with ' in a
 // structured reference.
 const escaped = "[]#'"

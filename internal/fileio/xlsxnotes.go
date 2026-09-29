@@ -26,8 +26,8 @@ const (
 	vmlRelID     = "rIdVML"
 )
 
-// writeNotes writes worksheet part n's notes: its relationships, the
-// comments part and the VML drawing.
+// writeNotes writes worksheet part n's notes: the comments part and the
+// VML drawing, which notesRels relate to it.
 func writeNotes(zw *zip.Writer, n int, notes map[sheet.Addr]string) error {
 	num := strconv.Itoa(n)
 	addrs := slices.SortedFunc(maps.Keys(notes), func(a, b sheet.Addr) int {
@@ -55,12 +55,7 @@ func writeNotes(zw *zip.Writer, n int, notes map[sheet.Addr]string) error {
 	}
 	comments.WriteString(`</commentList></comments>`)
 	vml.WriteString(`</xml>`)
-	rels := xmlHead + `<Relationships xmlns="` + relsNS + `">` +
-		`<Relationship Id="` + notesRelID + `" Type="` + officeRel + `/comments" Target="../comments` + num + `.xml"/>` +
-		`<Relationship Id="` + vmlRelID + `" Type="` + officeRel + `/vmlDrawing" Target="../drawings/vmlDrawing` + num + `.vml"/>` +
-		`</Relationships>`
 	for _, p := range []struct{ name, body string }{
-		{"xl/worksheets/_rels/sheet" + num + ".xml.rels", rels},
 		{"xl/comments" + num + ".xml", comments.String()},
 		{"xl/drawings/vmlDrawing" + num + ".vml", vml.String()},
 	} {
@@ -69,6 +64,16 @@ func writeNotes(zw *zip.Writer, n int, notes map[sheet.Addr]string) error {
 		}
 	}
 	return nil
+}
+
+// notesRels are the relationships from worksheet part n to its notes'
+// parts.
+func notesRels(n int) []string {
+	num := strconv.Itoa(n)
+	return []string{
+		`<Relationship Id="` + notesRelID + `" Type="` + officeRel + `/comments" Target="../comments` + num + `.xml"/>`,
+		`<Relationship Id="` + vmlRelID + `" Type="` + officeRel + `/vmlDrawing" Target="../drawings/vmlDrawing` + num + `.vml"/>`,
+	}
 }
 
 // notesTypes are the content types of the notes of the worksheet parts

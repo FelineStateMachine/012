@@ -47,6 +47,25 @@ func (s *Sheet) NamedSheets(a Addr) []string {
 	return out
 }
 
+// NamedTables returns the tables the formula at a reads by structured
+// references, as written and without repeats (in any case), or nil for
+// anything else. Exporters check that they write them.
+func (s *Sheet) NamedTables(a Addr) []string {
+	c := s.cells.get(a)
+	if c == nil || c.expr == nil || len(c.names) == 0 {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	formula.WalkTables(c.expr, func(t formula.TableRef) {
+		if k := nameKey(t.Table); !seen[k] {
+			seen[k] = true
+			out = append(out, t.Table)
+		}
+	})
+	return out
+}
+
 // ShiftEntry returns an entry as if it were typed in one cell and copied
 // dc columns and dr rows away: a formula's relative references move and
 // $absolute ones stay, as in a paste. Other entries come back unchanged.

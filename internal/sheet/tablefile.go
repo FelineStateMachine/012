@@ -40,25 +40,38 @@ func encodeTables(ts []Table) []fileTable {
 }
 
 // readTables restores a sheet's tables from a file, its cells already
-// read. Columns the file doesn't name, or names in a number other than
-// the range's width, are named from the header row.
+// read.
 func (s *Sheet) readTables(fts []fileTable) error {
 	for _, ft := range fts {
-		if err := s.wb.checkTableName(ft.Name, ""); err != nil {
-			return fmt.Errorf("table %q: %w", ft.Name, err)
-		}
 		r, ok := ParseRange(ft.Range)
-		if !ok || r.To.Row == r.From.Row {
+		if !ok {
 			return fmt.Errorf("table %q: invalid range %q", ft.Name, ft.Range)
 		}
-		if err := s.checkTableRange(r, ""); err != nil {
+		if err := s.LoadTable(Table{Name: ft.Name, Range: r, Cols: ft.Columns, Banded: ft.Banded, Header: ft.Header}); err != nil {
 			return fmt.Errorf("table %q: %w", ft.Name, err)
 		}
-		t := Table{Name: ft.Name, Range: r, Cols: columnNames(ft.Columns, nil), Banded: ft.Banded, Header: ft.Header}
-		if len(t.Cols) != r.To.Col-r.From.Col+1 {
-			t.Cols = columnNames(s.rowTexts(Rect{From: r.From, To: Addr{Col: r.To.Col, Row: r.From.Row}}), nil)
-		}
-		s.view.tables = append(s.view.tables, t)
 	}
+	return nil
+}
+
+// LoadTable adds t to the sheet as a loader does, without recording
+// undo, its cells loaded. Columns t doesn't name, or names in a number
+// other than its range's width, are named from its header row, and the
+// names are made unique.
+func (s *Sheet) LoadTable(t Table) error {
+	if err := s.wb.checkTableName(t.Name, ""); err != nil {
+		return err
+	}
+	if t.Range.To.Row == t.Range.From.Row {
+		return fmt.Errorf("the range %s has no row below its header", t.Range)
+	}
+	if err := s.checkTableRange(t.Range, ""); err != nil {
+		return err
+	}
+	t.Cols = columnNames(t.Cols, nil)
+	if len(t.Cols) != t.Range.To.Col-t.Range.From.Col+1 {
+		t.Cols = columnNames(s.rowTexts(Rect{From: t.Range.From, To: Addr{Col: t.Range.To.Col, Row: t.Range.From.Row}}), nil)
+	}
+	s.view.tables = append(s.view.tables, t)
 	return nil
 }

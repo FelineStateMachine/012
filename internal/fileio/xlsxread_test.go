@@ -240,11 +240,23 @@ func mergeParts(p map[string]string, name, content string) map[string]string {
 	return p
 }
 
+// tableParts is a workbook of one sheet with a table over A1:B3 and a
+// formula reading it.
+func tableParts() map[string]string {
+	p := oneSheetParts("", `<row r="1"><c r="A1" t="inlineStr"><is><t>Item</t></is></c><c r="B1" t="inlineStr"><is><t>Cost</t></is></c></row>`+
+		`<row r="2"><c r="B2"><v>5</v></c><c r="C2"><f>SUM(T[Cost])+T[[#This Row],[Cost]]</f></c></row>`)
+	p["xl/worksheets/sheet1.xml"] = strings.Replace(p["xl/worksheets/sheet1.xml"], `</worksheet>`, `<tableParts count="1"><tablePart r:id="rT"/></tableParts></worksheet>`, 1)
+	p["xl/worksheets/_rels/sheet1.xml.rels"] = `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rT" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table1.xml"/></Relationships>`
+	p["xl/tables/table1.xml"] = `<table ` + mainNS + ` id="1" name="T" displayName="T" ref="A1:B3" totalsRowCount="1"><autoFilter ref="A1:B2"/><tableColumns count="2"><tableColumn id="1" name="Item"/><tableColumn id="2" name="Cost"/></tableColumns><tableStyleInfo name="TableStyleLight1" showRowStripes="1"/></table>`
+	return p
+}
+
 // FuzzReadXLSX feeds the reader arbitrary files: it must fail cleanly,
 // never panic or run past its limits.
 func FuzzReadXLSX(f *testing.F) {
 	f.Add(zipParts(f, kitchenParts()))
 	f.Add(zipParts(f, oneSheetParts(`<workbookPr date1904="1"/>`, `<row><c r="B2" t="d"><v>2026-01-01</v></c></row>`)))
+	f.Add(zipParts(f, tableParts()))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		lim := defaultXLSXLimits
 		lim.part, lim.total = 4<<20, 8<<20

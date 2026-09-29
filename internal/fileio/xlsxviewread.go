@@ -94,21 +94,27 @@ func (r *xlsxSheetReader) readTail() (*xlsxAutoFilter, error) {
 
 // readAutoFilter reads an <autoFilter>, just started.
 func (r *xlsxSheetReader) readAutoFilter(se xml.StartElement) (*xlsxAutoFilter, error) {
+	return readAutoFilter(r.x, se)
+}
+
+// readAutoFilter reads an <autoFilter> of a worksheet or a table, just
+// started in x.
+func readAutoFilter(x *xmlStream, se xml.StartElement) (*xlsxAutoFilter, error) {
 	af := &xlsxAutoFilter{}
 	af.ref, _ = attr(se, "ref")
-	for depth := r.x.depth; ; {
-		t, err := r.x.next()
+	for depth := x.depth; ; {
+		t, err := x.next()
 		if err != nil {
 			return nil, eofAsUnexpected(err)
 		}
-		if _, ok := t.(xml.EndElement); ok && r.x.depth < depth {
+		if _, ok := t.(xml.EndElement); ok && x.depth < depth {
 			return af, nil
 		}
 		se, ok := t.(xml.StartElement)
 		if !ok {
 			continue
 		}
-		if se.Name.Local == "filterColumn" && r.x.depth == depth+1 {
+		if se.Name.Local == "filterColumn" && x.depth == depth+1 {
 			af.cols = append(af.cols, xlsxFilterColumn{col: intAttr(se, "colId", -1)})
 		} else if n := len(af.cols); n > 0 {
 			af.cols[n-1].add(se)

@@ -56,6 +56,10 @@ type Snapshot struct {
 	// the merged cells in the range, for formats that keep them (XLSX).
 	Heights map[int]int
 	Merges  []sheet.Rect
+
+	// Tables are the tables wholly in the range, for formats that keep
+	// them (XLSX).
+	Tables []sheet.Table
 }
 
 // SnapName is a named range: its name, and the range on the sheet
@@ -74,6 +78,7 @@ type SnapCell struct {
 	Style   sheet.Style
 	Formula bool
 	Sheets  []string // the sheets a formula names, as written
+	Tables  []string // the tables a formula reads, as written
 }
 
 // Text is the cell as displayed, without a width limit.
@@ -86,8 +91,8 @@ func (c SnapCell) Text() string {
 // row and column with contents, so exporting whole columns writes their
 // data rather than a million blank lines.
 func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
-	notes := r
-	if r == (sheet.Rect{}) {
+	notes, whole := r, r == (sheet.Rect{})
+	if whole {
 		notes = sheet.Rect{To: sheet.Addr{Col: sheet.MaxCols - 1, Row: sheet.MaxRows - 1}}
 		r, _ = s.UsedRange()
 	} else if data, ok := s.FilledBounds(r); ok {
@@ -100,6 +105,15 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 		CondFormats: s.CondFormats(), Validations: s.Validations()}
 	snap.FrozenRows, snap.FrozenCols = s.Frozen()
 	snap.Heights, snap.Merges = heightsMergesIn(s, r)
+	for _, t := range s.Tables() {
+		if whole {
+			// A whole sheet's range holds its tables, blank rows and all.
+			snap.Range.To.Col, snap.Range.To.Row = max(snap.Range.To.Col, t.Range.To.Col), max(snap.Range.To.Row, t.Range.To.Row)
+		}
+		if snap.Range.Contains(t.Range.From) && snap.Range.Contains(t.Range.To) {
+			snap.Tables = append(snap.Tables, t)
+		}
+	}
 	for _, a := range s.NotesIn(notes) {
 		if snap.Notes == nil {
 			snap.Notes = map[sheet.Addr]string{}
@@ -133,6 +147,7 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 			Style:   s.CellStyle(a),
 			Formula: c.IsFormula(),
 			Sheets:  s.NamedSheets(a),
+			Tables:  s.NamedTables(a),
 		}
 	}
 	return snap

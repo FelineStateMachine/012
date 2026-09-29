@@ -73,6 +73,7 @@ func (bk *xlsxBook) importBook(ctx context.Context, opt Options) (*Result, error
 		done += rows
 	}
 	notes := append(bk.importNames(book), bk.protectionNote()...)
+	notes = append(notes, bk.tablesNote()...)
 	active := book.Sheet(clamp(bk.active, 0, book.Len()-1))
 	book.SetActive(active)
 	for i, info := range bk.sheets {
@@ -131,6 +132,9 @@ func (bk *xlsxBook) importSheet(ctx context.Context, b *builder, i int, af **xls
 		bk.protected = append(bk.protected, bk.sheets[i].name)
 	}
 	if err := bk.readNotes(b.s, bk.sheets[i].part); err != nil {
+		return 0, fmt.Errorf("sheet %s: %w", bk.sheets[i].name, err)
+	}
+	if err := bk.readTables(b.s, bk.sheets[i].part, af); err != nil {
 		return 0, fmt.Errorf("sheet %s: %w", bk.sheets[i].name, err)
 	}
 	loadColStyles(b, width, func(c int) (xlsxStyle, bool) {
