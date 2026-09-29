@@ -24,9 +24,14 @@ import (
 //
 //   - A chart is an image only where the whole of its plot area shows: in
 //     the grid, under no chart drawn later and no floating box (a menu,
-//     a dialog, formula suggestions, a note). Elsewhere it is text. The
-//     frame keeps blank cells where an image goes, so the renderer has
-//     nothing to write there.
+//     a dialog, formula suggestions, a note). Elsewhere it is text.
+//   - Under an image the frame keeps the text chart, which the image
+//     covers whole (every pixel is set). The renderer writes those cells
+//     only when the chart changes, and then the image is drawn again.
+//     DA1 only says a terminal parses sixel: one that lists it without
+//     showing images, or a recording of the text alone (VHS records
+//     xterm.js's text layer, not its image layer), shows the text chart
+//     rather than an empty plot.
 //   - Images are drawn after the frame: a sixelDrawMsg comes once the
 //     frame has been still for sixelSettle, longer than a frame, and
 //     draws each image with the cursor saved and restored around it.
@@ -115,11 +120,6 @@ func (s *sixelState) clock() time.Time {
 // terminal has sixel and has said its cell size, and chart-images isn't
 // off.
 func (t *terminal) sixelOn() bool { return t.sixel && !t.noImages && t.cellW > 0 && t.cellH > 0 }
-
-// placed reports whether chart i is an image in the current frame.
-func (s *sixelState) placed(i int) bool {
-	return slices.ContainsFunc(s.plan, func(p sixelPlace) bool { return p.chart == i })
-}
 
 // syncSixel follows msg, after Update has handled it: it encodes the
 // charts that changed, works out where images go, clears the screen when

@@ -67,7 +67,10 @@ A region is still cells of the grid. Its values are
 [typed](types.md) (file sizes in the Size format, durations, dates),
 formulas read them, and you can format them, filter them
 (**Data > Create a filter**), sort them (the sort is kept, so the table
-stays sorted when it runs again) and chart them. Like an
+stays sorted when it runs again), chart them and make pivot tables of
+them: from any of its cells, or its label, with nothing selected, those
+commands take the region's table, from its header row down. Go to
+(Ctrl+G) takes a region's name as formulas write it (`nu.r1`). Like an
 [array's spill](../formulas/arrays.md#spilled-cells), they can't be
 typed over: change the command, or freeze the region. Copies paste
 values; downloads and XLSX hold the values; undo takes back a run (the

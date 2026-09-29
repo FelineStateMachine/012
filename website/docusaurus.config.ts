@@ -3,6 +3,10 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import {themes as prismThemes} from 'prism-react-renderer';
 import repoLinks from './src/remark/repo-links';
+// The addresses of pages that moved or went, each to where its reader
+// goes now; doccheck makes sure every docs page the site has published
+// is still a page or is here.
+import redirects from './redirects.json';
 
 const repo = 'https://github.com/FelineStateMachine/012';
 const repoDir = path.resolve(__dirname, '..');
@@ -59,6 +63,10 @@ const config: Config = {
       } satisfies Preset.Options,
     ],
   ],
+
+  // A page at each old address that sends its reader on (a static host
+  // can't redirect by itself).
+  plugins: [['@docusaurus/plugin-client-redirects', {redirects}]],
 
   themes: [
     '@docusaurus/theme-mermaid',

@@ -13,7 +13,8 @@ import (
 // order they appear, runs of four or more as "!n", trailing empty
 // sixels left out, "$" between the colors of a band and "-" between
 // bands, a pixel with half coverage composited over the background and
-// a transparent one left unset.
+// a transparent one drawn in the background, so text under the image
+// never shows through.
 func TestSixelGolden(t *testing.T) {
 	img := image.NewRGBA(image.Rect(0, 0, 4, 7))
 	red := color.RGBA{255, 0, 0, 255}
@@ -27,9 +28,9 @@ func TestSixelGolden(t *testing.T) {
 	img.SetRGBA(0, 6, color.RGBA{0, 0, 255, 255})
 	got := Sixel(img, color.RGBA{0, 0, 0, 255}, 256)
 	want := "\x1bP0;1;0q\"1;1;4;7" +
-		"#0;2;100;0;0#1;2;0;50;0#2;2;0;0;100" +
-		"#0DDD@$#1?A" + // red: rows 0 and 2 (1+4) three times, then row 0 alone
-		"-#2@" +
+		"#0;2;100;0;0#1;2;0;0;0#2;2;0;50;0#3;2;0;0;100" +
+		"#0DDD@$#1ywy}$#2?A" + // red: rows 0 and 2 (1+4) three times, then row 0 alone; black around
+		"-#1?@@@$#3@" +
 		"\x1b\\"
 	if got != want {
 		t.Errorf("Sixel =\n%q\nwant\n%q", got, want)
@@ -81,8 +82,8 @@ func TestSixelChart(t *testing.T) {
 }
 
 // A chart's sixel image decodes to the image composited over the
-// background, each channel within sixel's percent steps, and pixels
-// without coverage unset.
+// background, each channel within sixel's percent steps, pixels
+// without coverage included.
 func TestSixelDecodes(t *testing.T) {
 	bg := color.RGBA{250, 250, 245, 255}
 	for _, ct := range []sheet.ChartType{sheet.ChartLine, sheet.ChartPie, sheet.ChartArea} {
@@ -93,7 +94,7 @@ func TestSixelDecodes(t *testing.T) {
 			for x := range b.Dx() {
 				want := over(img, x, y, bg)
 				c, set := got[image.Pt(x, y)]
-				if set != (want.A != 0) || set && (diff(c.R, want.R) > 3 || diff(c.G, want.G) > 3 || diff(c.B, want.B) > 3) {
+				if !set || (diff(c.R, want.R) > 3 || diff(c.G, want.G) > 3 || diff(c.B, want.B) > 3) {
 					t.Fatalf("%v at %d,%d: %v %v, want %v", ct, x, y, c, set, want)
 				}
 			}

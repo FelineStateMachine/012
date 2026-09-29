@@ -46,7 +46,7 @@ In a new nushell, `help sheet` describes it:
 
 | Command | Does |
 |---|---|
-| `sheet` | Opens the table piped in (or a file: `sheet budget.xlsx`) and returns what you send back, with its types ([Pipelines](pipelines.md#the-sheet-command)) |
+| `sheet` | Opens the table piped in (or a file: `sheet budget.xlsx`) and returns what you send back, with its types; `--send selection` or `--send sheet` sends it on quitting without asking ([Pipelines](pipelines.md#the-sheet-command)) |
 | `sheet view` | Opens the table piped in and returns nothing |
 | `sheet nu` | Opens a [notebook](notebooks.md), as `012 nu` |
 

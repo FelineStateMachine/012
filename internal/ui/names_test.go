@@ -126,7 +126,7 @@ func TestGotoAcceptsNamesAndRanges(t *testing.T) {
 		t.Errorf("range: %v", m.selection())
 	}
 	press(t, m, "<f5>", "nope", "<enter>")
-	if m.mode != modeError || m.errMsg != "Not a cell, range or named range: nope" {
+	if m.mode != modeError || m.errMsg != "Not a cell, range, named range or region: nope" {
 		t.Errorf("%v %q", m.mode, m.errMsg)
 	}
 }

@@ -56,11 +56,11 @@ func (m *Model) createFilter() tea.Cmd {
 }
 
 // dataRange is the range data commands act on: the selection when there
-// is one, cut to the data in it, or else the block of data around the
-// active cell.
+// is one, cut to the data in it, or else the table around the active
+// cell.
 func (g *grid) dataRange() sheet.Rect {
 	if !g.hasRange() {
-		return g.sheet.Region(g.cur)
+		return g.tableAround(g.cur)
 	}
 	r := g.selection()
 	if used, ok := g.sheet.UsedRange(); ok {
@@ -68,6 +68,19 @@ func (g *grid) dataRange() sheet.Rect {
 		r.To.Col = max(min(r.To.Col, used.To.Col), r.From.Col)
 	}
 	return r
+}
+
+// tableAround is the table around a: in a region (on its label line
+// too), the region's table from its header row down, which the block of
+// data around a would run into the label line above it; elsewhere the
+// block of data around a (Sheet.Region).
+func (g *grid) tableAround(a sheet.Addr) sheet.Rect {
+	if reg, _, ok := g.sheet.RegionAt(a); ok {
+		if t, ok := g.sheet.RegionTable(reg.Name); ok {
+			return t
+		}
+	}
+	return g.sheet.Region(a)
 }
 
 // filterMark is the filter button in column c's header, if c is in the

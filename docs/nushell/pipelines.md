@@ -43,7 +43,7 @@ sequenceDiagram
 | Command | Reads | Writes |
 |---|---|---|
 | `012 -` | A table from standard input, into a new sheet | Nothing; the table stays in 012 until you save or download it |
-| `012 --pipe` | A table from standard input, or a file named after it | The sheet or the selection, to standard output, when you quit |
+| `012 --pipe` | A table from standard input, or a file named after it | The sheet or the selection, to standard output, when you quit (asking which, unless `--send` says) |
 | `sheet`, `sheet view` | As `012 --pipe` and `012 -`, from nushell values | A nushell table, or nothing |
 
 ## Reading a table: `012 -`
@@ -77,8 +77,26 @@ standard output:
   one is made, or else the sheet; S sends the whole sheet instead; D
   quits without sending; Esc goes back to the sheet.
 - File > Quit and send selection and File > Quit and send sheet send
-  without asking. They're in the menus and the palette only with
-  `--pipe`.
+  without asking, and File > Quit without sending (or `:q!`) sends
+  nothing. They're in the menus and the palette only with `--pipe`.
+
+`--send` makes Quit send without asking, for a pipeline that always
+wants the same thing back:
+
+| `--send` | Quit sends |
+|---|---|
+| `ask` (the default) | What you choose at the question above |
+| `selection` | The selection; with only the active cell selected, the sheet, as Enter at the question does |
+| `sheet` | The sheet, whatever is selected |
+
+```nu
+open orders.csv | to nuon | ^012 --pipe --send sheet | from nuon | save -f orders.nuon
+```
+
+The status line still names what Ctrl+Q will send, and File > Quit
+without sending stays in the menu. The active cell on its own isn't a
+selection to send, as at the question: `--send selection` sends the
+sheet until a range is selected.
 
 The sheet is its used range from A1. A selection is sent as selected,
 and its first row names the columns. Either way, rows a filter hides
@@ -109,7 +127,13 @@ sheet budget.xlsx | save -f budget.csv
 
 `sheet` is `to nuon | ^012 --pipe --to nuon | from nuon`: it opens the
 table piped in, or the file it names, and returns what you send back
-with its types. Text piped in, such as `open --raw data.csv`, goes to
+with its types. `sheet --send sheet` and `sheet --send selection` pass
+`--send` on, so quitting sends without asking:
+
+```nu
+ls | sheet --send sheet | where size > 1kb
+```
+ Text piped in, such as `open --raw data.csv`, goes to
 012 as it is, to be read as `012 -` reads it. `sheet view` is
 `to nuon | ^012 -`, and returns nothing. Quitting without sending makes
 `sheet` fail with 012's reason:
@@ -121,7 +145,8 @@ try { ls | sheet | save -f picked.nuon } catch {|e| print $e.msg }
 
 ## The exit status
 
-Quitting without sending (D at the question) writes nothing and exits
+Quitting without sending (D at the question, File > Quit without
+sending, `:q!`) writes nothing and exits
 with status 1, so the pipeline stops rather than carrying on with
 nothing. Nushell treats that
 as a failed external command and stops the pipeline with an error

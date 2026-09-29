@@ -101,8 +101,10 @@ so Alt+letter reaches the app. VHS has no mouse commands, so the tapes
 use the keyboard, and they reach commands through the palette (Ctrl+K)
 rather than counting menu items, so a new menu item doesn't break them.
 Tapes that change settings set them for the run (`O12_KEYMAP=vim`)
-rather than writing the config file the other tapes share, and charts
-are drawn as text (`O12_CHART_IMAGES=false`), since VHS records text.
+rather than writing the config file the other tapes share. VHS's ttyd
+has sixel on, so 012 draws charts as sixel images, but VHS records only
+xterm.js's text layer: the recordings show the text chart each image
+covers ([Charts](../sheets/charts.md)).
 The nushell tapes need `nu`: `demos/lib/nu.tape` starts a session
 without your config files, with a fixed prompt and 012 on the PATH, and
 their data is in `demos/data`, so each recording comes out the same.
@@ -134,8 +136,10 @@ and a line in the folder's README. `make site` builds them into the
 history (see [CLAUDE.md](../../CLAUDE.md)), and `scripts/doccheck`, which
 checks the tree above, that relative links and anchors resolve, that
 every `docs/...md` path Go code names exists, that every file in
-`docs/media` is shown by a doc and made by a tape, and that every tape
-records something a doc shows. Unit tests check what the docs say about
+`docs/media` is shown by a doc and made by a tape, that every tape
+records something a doc shows, and that a page the site has published
+isn't gone without a redirect ([The docs site](site.md#old-addresses-keep-working)).
+Unit tests check what the docs say about
 the code: menu paths lead to menu items, command ids and keys exist and
 every bound key is in [Keys and mouse](../reference/keys.md)
 (`internal/ui/docs_test.go`), settings and variables are options

@@ -258,16 +258,16 @@ func isMoveKey(key string) bool {
 func (m *Model) openGoto() {
 	m.openText("Go to:", m.cur.String(), func(m *Model, text string) tea.Cmd {
 		if !m.gotoText(strings.TrimSpace(text)) {
-			m.fail("Not a cell, range or named range: " + text)
+			m.fail("Not a cell, range, named range or region: " + text)
 		}
 		return nil
 	})
 	m.prompt.indicator = "POINT"
 }
 
-// gotoText goes to a cell, range or named range, on any sheet, and
-// reports whether text named one. A sheet may lead: Sheet2!A1,
-// 'Q3 plan'!B2:C9, or just Sheet2!.
+// gotoText goes to a cell, range, named range or region's table (nu.r1,
+// as formulas name it), on any sheet, and reports whether text named
+// one. A sheet may lead: Sheet2!A1, 'Q3 plan'!B2:C9, or just Sheet2!.
 func (m *Model) gotoText(text string) bool {
 	target := m.sheet
 	if name, rest := sheet.SplitSheet(text); name != "" {
@@ -286,6 +286,9 @@ func (m *Model) gotoText(text string) bool {
 	if n, named := m.sheet.LookupName(text); named && !n.Gone() && target == m.sheet {
 		r, ok, target = n.Range, true, n.Sheet
 	}
+	if !ok && target == m.sheet {
+		r, target, ok = m.regionTable(text)
+	}
 	if !ok {
 		return false
 	}
@@ -300,4 +303,22 @@ func (m *Model) gotoText(text string) bool {
 	}
 	m.selectRect(r)
 	return true
+}
+
+// regionTable finds the region formulas name as text (nu.r1), ignoring
+// case, and returns its table, header row included, and its sheet. A
+// region not run yet has no table: its label line stands for it.
+func (m *Model) regionTable(text string) (sheet.Rect, *sheet.Sheet, bool) {
+	const prefix = "nu."
+	if len(text) <= len(prefix) || !strings.EqualFold(text[:len(prefix)], prefix) {
+		return sheet.Rect{}, nil, false
+	}
+	s, reg, ok := m.book().Region(text[len(prefix):])
+	if !ok {
+		return sheet.Rect{}, nil, false
+	}
+	if t, ok := s.RegionTable(reg.Name); ok {
+		return t, s, true
+	}
+	return sheet.Rect{From: reg.At, To: reg.At}, s, true
 }

@@ -7,20 +7,32 @@
 # Open a table in 012, and return the table sent back on quitting.
 #
 # The table piped in opens as a sheet, or the file named instead. Edit
-# it, sort it or select a range; quitting sends the selection or the
-# whole sheet back as NUON, so file sizes, durations and dates come
-# back as themselves. Quitting without sending raises an error, so
-# `try` can catch it. Text piped in (CSV, TSV, JSON, NUON) is read as
-# 012 reads it.
+# it, sort it or select a range; quitting asks whether to send the
+# selection or the whole sheet back as NUON, so file sizes, durations
+# and dates come back as themselves. With --send, quitting sends
+# without asking. Quitting without sending raises an error, so `try`
+# can catch it. Text piped in (CSV, TSV, JSON, NUON) is read as 012
+# reads it.
 @example "Pick files in 012 and keep filtering" { ls | sheet | where size > 1kb }
+@example "Edit the table and get all of it back when you quit" { ls | sheet --send sheet }
+@example "Get back the range selected when you quit, its first row naming the columns" { ls | select name size | sheet --send selection }
 @example "Edit a workbook and save what you send back as CSV" { sheet budget.xlsx | save -f budget.csv }
 @example "Carry on when nothing is sent back" { try { ps | sheet } catch { [] } }
 @search-terms [spreadsheet table edit 012]
 export def sheet [
     file?: path # open this workbook or file instead of the input
+    --send: string # send without asking on quitting: selection (the sheet when one cell is selected) or sheet
 ] {
     let input = $in
-    let args = if $file == null { [--pipe --to nuon] } else { [--pipe --to nuon $file] }
+    if $send != null and $send not-in [selection sheet] {
+        error make {
+            msg: $"--send ($send): sheet sends selection or sheet"
+            label: {text: "selection or sheet", span: (metadata $send).span}
+        }
+    }
+    let send_args = if $send == null { [] } else { [--send $send] }
+    let file_args = if $file == null { [] } else { [$file] }
+    let args = [--pipe --to nuon ...$send_args ...$file_args]
     let r = if $input == null {
         ^012 ...$args | complete
     } else if ($input | describe) in [string binary] {
@@ -32,7 +44,7 @@ export def sheet [
         let why = $r.stderr | str trim | str replace --regex '^012: ' ''
         error make {
             msg: (if $why == "" { $"012 exited with status ($r.exit_code)" } else { $why })
-            help: "nothing was sent back; quit with Enter or S to send a table"
+            help: (if $send == null { "nothing was sent back; quit with Enter or S to send a table" } else { $"nothing was sent back; Ctrl+Q sends the ($send)" })
         }
     }
     $r.stdout | from nuon

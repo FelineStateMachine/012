@@ -13,8 +13,8 @@ import (
 // bars growing right, and the value axis along the bottom. Draw adds the
 // legend.
 //
-//	Jan │██████████▌
-//	Feb │███████▎
+//	Jan ▐██████████▌
+//	Feb ▐███████▎
 //	    └─────┬─────┬
 //	    0   1,000 2,000
 type barPlan struct {

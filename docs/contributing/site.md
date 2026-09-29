@@ -43,6 +43,24 @@ heading makes, a missing image or two pages at one address. It checks
 the same links `scripts/doccheck` does, as the site resolves them, so a
 page that passes `make lint` but breaks on the site shows up here.
 
+## Old addresses keep working
+
+A page's address is its path under `docs/`, so moving or deleting a
+page would break links to it from elsewhere. A page that moves or goes
+leaves a redirect in `website/redirects.json`, from its old address to
+the page its reader wants now:
+
+```json
+{"from": "/docs/terminal/nushell/", "to": "/docs/nushell/notebooks/"}
+```
+
+`@docusaurus/plugin-client-redirects` writes a page at each old address
+that sends the browser on, since a static host can't redirect by
+itself, and the build fails on a redirect to a page that doesn't exist.
+`scripts/doccheck` (in `make lint`) fails when a page the site has
+published is gone without a redirect: it reads git's history back to
+the site's first commit for every page there has been.
+
 ## How the docs become pages
 
 - Pages are Markdown as GitHub reads it (`markdown.format: 'detect'`):

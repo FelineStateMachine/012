@@ -105,6 +105,45 @@ func TestPipeSendSelectionAsCSV(t *testing.T) {
 	}
 }
 
+// TestPipeSendSelectionWithoutAsking: --send selection makes Ctrl+Q
+// send the selection at once.
+func TestPipeSendSelectionWithoutAsking(t *testing.T) {
+	s := startWith(t, options{piped: true, stdin: lsNUON}, "--pipe", "--send", "selection", "--to", "csv")
+	s.waitFor("Ctrl+Q  send the sheet as CSV")
+	s.keys("<shift+down>", "<shift+right>")
+	s.waitFor("Ctrl+Q  send A1:B2 as CSV")
+	s.keys("<ctrl+q>")
+	out, code := s.finish()
+	if code != 0 || out != "name,size\nCLAUDE.md,1.6 kB\n" {
+		t.Errorf("exit %d, stdout %q", code, out)
+	}
+}
+
+// TestPipeSendSheetWithoutAsking: --send sheet makes Ctrl+Q send the
+// whole sheet, whatever is selected; File > Quit without sending still
+// sends nothing.
+func TestPipeSendSheetWithoutAsking(t *testing.T) {
+	s := startWith(t, options{piped: true, stdin: "a,b\n1,2\n3,4\n"}, "--pipe", "--send", "sheet")
+	s.waitFor("Read 3 rows of CSV from standard input")
+	s.keys("<shift+down>")
+	s.waitFor("Ctrl+Q  send the sheet as CSV")
+	s.keys("<ctrl+q>")
+	out, code := s.finish()
+	if code != 0 || out != "a,b\n1,2\n3,4\n" {
+		t.Errorf("exit %d, stdout %q", code, out)
+	}
+
+	s = startWith(t, options{piped: true, stdin: "a,b\n1,2\n"}, "--pipe", "--send", "sheet")
+	s.waitFor("Read 2 rows of CSV from standard input")
+	s.keys("<ctrl+k>", "without sending")
+	s.waitFor("Quit without sending")
+	s.keys("<enter>")
+	out, code = s.finish()
+	if code != 1 || out != "" {
+		t.Errorf("quit without sending: exit %d, stdout %q", code, out)
+	}
+}
+
 // TestPipeQuitWithoutSending exits with status 1 and writes nothing.
 func TestPipeQuitWithoutSending(t *testing.T) {
 	s := startWith(t, options{piped: true, stdin: "a,b\n1,2\n"}, "--pipe")
