@@ -31,6 +31,10 @@ type Settings struct {
 	// Connect makes a JEV client for the configured service with key.
 	Connect func(key string) (jev.Client, error)
 	Notes   []string // said on the context line at startup, e.g. config warnings
+	// RecoveryDir is where a local session keeps its unsaved work when
+	// it stops on an internal error, and finds it again: recovery.go.
+	// "" keeps none; 012 serve keeps them in the served directory.
+	RecoveryDir string
 }
 
 // prefs is the settings in effect: the component behind File >

@@ -84,6 +84,7 @@ type Model struct {
 	root          confine.Root // where file names resolve; confined when served over SSH
 	start         *string      // the file a served session opens first (OpenOnStart); nil once opened
 	recovered     string       // the recovery file restored into this book, removed once it's saved: recovery.go
+	offerKept     bool         // offer the recovery file kept for the file once started (OfferKept)
 
 	mode      mode
 	protectOK bool   // an edit to a protected range was agreed to: protect.go

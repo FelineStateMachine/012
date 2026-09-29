@@ -39,7 +39,8 @@ func TestRecoveryKey(t *testing.T) {
 	}
 }
 
-// Only changed books that hold something are kept, only when served,
+// Only changed books that hold something are kept, only when served (or
+// given a recovery directory, recovery tests in crash_test.go),
 // and at most recoveryKeep per name, newest kept.
 func TestRecoverKeepsFew(t *testing.T) {
 	local := newModel()
@@ -123,7 +124,7 @@ func TestRecoveryOfferUntitled(t *testing.T) {
 
 // Opening a file with kept changes offers them; restoring makes them
 // unsaved changes to that file, and saving them removes the recovery
-// file. A local model never offers.
+// file. A local model without a recovery directory never offers.
 func TestRecoveryRestore(t *testing.T) {
 	m, dir := servedModel(t)
 	writeSheet(t, filepath.Join(dir, "book.012"), "on disk")
