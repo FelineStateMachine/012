@@ -85,7 +85,7 @@ func TestArrayFunctions(t *testing.T) {
 		{"=SEQUENCE(3)", []string{"1", "2", "3"}},
 		{"=SEQUENCE(2, 3)", []string{"1|2|3", "4|5|6"}},
 		{"=SEQUENCE(2, 2, 10, -5)", []string{"10|5", "0|-5"}},
-		{"=SEQUENCE(0)", []string{"#VALUE!"}},
+		{"=SEQUENCE(0)", []string{"#NUM!"}}, // as Sheets
 		{"=FILTER(D1:D5, C1:C5>3)", []string{"date", "Apple"}},
 		{`=FILTER(C1:D5, B1:B5="north", C1:C5>1)`, []string{"3|Cherry", "5|Apple"}},
 		{"=FILTER(C1:E1, {TRUE,FALSE,TRUE})", []string{"1|1.5"}},

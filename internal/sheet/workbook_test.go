@@ -383,7 +383,7 @@ func TestSingleSheetFileStaysCompatible(t *testing.T) {
 func TestDecimalIsWorkbookWide(t *testing.T) {
 	w := bookOf(t,
 		page{"Sheet1", map[string]string{"A1": "=0.1+0.2"}},
-		page{"Data", map[string]string{"A1": "=Sheet1!A1=0.3"}},
+		page{"Data", map[string]string{"A1": "=Sheet1!A1-0.3=0"}},
 	)
 	w.SetDecimal(true)
 	expect(t, w, map[string]string{"Sheet1!A1": "0.3", "Data!A1": "TRUE"})

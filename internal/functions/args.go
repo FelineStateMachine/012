@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"cmp"
 	"strings"
 	"unicode/utf8"
 
@@ -345,18 +346,26 @@ func (c criterion) test(v Value) bool {
 		}
 		return cmpResult(c.op, strings.Compare(strings.ToLower(v.Str), strings.ToLower(c.text)))
 	}
-	// Numbers and booleans only match their own kind.
+	// Numbers and booleans only match their own kind, except that a
+	// number equals text that reads as it, as in Sheets: 3 matches "3".
 	if v.Kind != c.kind {
+		if v.Kind == value.Text && c.kind == value.Number && (c.op == "=" || c.op == "<>") {
+			if n, ok := value.ParseNumber(v.Str); ok {
+				return cmpResult(c.op, numCmp(n, c.num))
+			}
+		}
 		return c.op == "<>"
 	}
-	d := 0
-	switch {
-	case v.Num < c.num:
-		d = -1
-	case v.Num > c.num:
-		d = 1
+	return cmpResult(c.op, numCmp(v.Num, c.num))
+}
+
+// numCmp orders two numbers as the comparison operators do, equal when
+// they agree to the 15 digits a cell shows.
+func numCmp(a, b float64) int {
+	if value.SameShown(a, b) {
+		return 0
 	}
-	return cmpResult(c.op, d)
+	return cmp.Compare(a, b)
 }
 
 func cmpResult(op string, d int) bool {

@@ -281,8 +281,8 @@ func sumProductTerms(args []Node, get lookup, term func(fs []float64)) *Value {
 			switch v := m.cell(pc.r, pc.c); v.Kind {
 			case value.Error:
 				return &v
-			case value.Number:
-				fs[i] = v.Num
+			case value.Number, value.Bool:
+				fs[i] = v.Num // TRUE is 1, as in Sheets
 			default:
 				fs[i] = 0
 			}
