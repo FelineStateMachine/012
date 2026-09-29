@@ -173,6 +173,33 @@ func TestEncodeFiltered(t *testing.T) {
 	}
 }
 
+// A notebook's regions download as their values, labels included.
+func TestExportRegion(t *testing.T) {
+	s := sheet.New()
+	s.MakeNotebook()
+	if err := s.AddRegion(sheet.Region{Name: "r1", Command: "ls"}); err != nil {
+		t.Fatal(err)
+	}
+	d := &sheet.RegionData{Rows: 2, Cols: 2, Values: []sheet.Value{{Kind: sheet.Text, Str: "name"}, {Kind: sheet.Text, Str: "n"}, {Kind: sheet.Text, Str: "a"}, {Kind: sheet.Number, Num: 1}}}
+	if err := s.ShowRegion("r1", d); err != nil {
+		t.Fatal(err)
+	}
+	if got := encode(t, s, CSV); got != "r1  ls,\nname,n\na,1\n" {
+		t.Errorf("CSV %q", got)
+	}
+	path := filepath.Join(t.TempDir(), "nb.xlsx")
+	if _, err := Export(context.Background(), path, XLSX, SnapBook(s), ExportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	res, err := Import(context.Background(), path, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := res.Sheet.Cell(addr(t, "B3")); c == nil || c.IsFormula() || c.Value.Num != 1 {
+		t.Errorf("B3 read back as %+v", c)
+	}
+}
+
 // TestNUONRoundTrip reads a table and writes it back as the same NUON.
 func TestNUONRoundTrip(t *testing.T) {
 	inZone(t, mountain)

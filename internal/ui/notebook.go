@@ -250,6 +250,25 @@ func (m *Model) trustShell(run func(*Model) tea.Cmd) tea.Cmd {
 	return nil
 }
 
+// sortRegion sorts the table of a region a sort's range r reaches, by
+// its columns in keys: the rows below its header, whatever else r
+// holds. The order is the region's, kept when it runs again.
+func (m *Model) sortRegion(reg sheet.Region, r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
+	t, ok := m.sheet.RegionTable(reg.Name)
+	inTable := func(k sheet.SortKey) bool { return k.Col >= t.From.Col && k.Col <= t.To.Col }
+	if !ok || len(keys) == 0 || !slices.ContainsFunc(keys, inTable) || r.To.Row <= t.From.Row {
+		m.note = "Sort a region by a column of its table"
+		return nil
+	}
+	keys = slices.DeleteFunc(slices.Clone(keys), func(k sheet.SortKey) bool { return !inTable(k) })
+	if err := m.sheet.SortRegion(reg.Name, keys); err != nil {
+		m.fail(err.Error())
+		return nil
+	}
+	m.note = "Sorted " + reg.Name + "; it stays sorted when it runs again"
+	return nil
+}
+
 // freezeRegion turns a region's table into plain values.
 func (m *Model) freezeRegion(r sheet.Region) tea.Cmd {
 	if m.shell.running != nil && m.shell.running.name == r.Name {

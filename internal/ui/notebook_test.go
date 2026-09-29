@@ -211,6 +211,22 @@ func TestShellGuardsAndFreeze(t *testing.T) {
 	}
 }
 
+// Sorting a region's table keeps the order through the next run.
+func TestShellSortsRegion(t *testing.T) {
+	m, _ := notebookModel(t, map[string]string{"ls": lsOut})
+	press(t, m, "!", "ls", "<enter>", "<esc>")
+	m.cur = addr("B3")
+	run(m, m.runCommand("data.sort_range_za"))
+	if got := input(m, "A3"); got != "c.txt" {
+		t.Fatalf("sorted A3 %q, note %q", got, m.note)
+	}
+	m.cur = addr("A1")
+	press(t, m, "<enter>")
+	if got := input(m, "A3"); got != "c.txt" {
+		t.Errorf("after refresh A3 %q", got)
+	}
+}
+
 // Opening a saved notebook shows its regions not run, and F9 runs them.
 func TestShellReopened(t *testing.T) {
 	m, _ := notebookModel(t, map[string]string{"ls": lsOut, "$r1 | first": "{name: a.txt, size: 2kb}"})
