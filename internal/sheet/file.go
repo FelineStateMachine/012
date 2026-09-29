@@ -58,8 +58,11 @@ type fileFormat struct {
 	// earlier builds ignore them, and the sheets read the same.
 	MacroOrigin string      `json:"macroOrigin,omitempty"`
 	Macros      []fileMacro `json:"macros,omitempty"`
-	fileSheet               // versions 1 to 3: the only sheet
-	Sheets      []fileSheet `json:"sheets,omitempty"` // version 4
+	// LinkOrigin, like MacroOrigin, is where the linked regions were
+	// made or trusted (linkfile.go).
+	LinkOrigin string      `json:"linkOrigin,omitempty"`
+	fileSheet              // versions 1 to 3: the only sheet
+	Sheets     []fileSheet `json:"sheets,omitempty"` // version 4
 }
 
 // fileSheet is one sheet of a file.
@@ -78,6 +81,8 @@ type fileSheet struct {
 	// Rules need no version: see rulefile.go.
 	CondFormats []fileCondFormat `json:"conditionalFormats,omitempty"`
 	Validations []fileValidation `json:"validations,omitempty"`
+	// Links need no version: see linkfile.go.
+	Links []fileLink `json:"links,omitempty"`
 }
 
 // Write saves the workbook the sheet belongs to; see Workbook.Write.
@@ -164,6 +169,9 @@ func (w *Workbook) headLines() string {
 			lines = append(lines, `"macroOrigin": `+jsonString(w.macroOrigin))
 		}
 		lines = append(lines, w.macrosLines())
+	}
+	if w.linkOrigin != "" && len(w.LinkedRegions()) > 0 {
+		lines = append(lines, `"linkOrigin": `+jsonString(w.linkOrigin))
 	}
 	return strings.Join(lines, ",\n  ")
 }
@@ -266,7 +274,7 @@ func (s *Sheet) writeObjects(b *bufio.Writer, indent string) error {
 		fmt.Fprintf(b, ",\n%s\"pivot\": %s", indent, raw)
 	}
 	s.writeRules(b, indent)
-	return nil
+	return s.writeLinks(b, indent)
 }
 
 // Read loads a file written by Write, of this or an earlier version, and
@@ -352,6 +360,9 @@ func (s *Sheet) read(f fileSheet) error {
 		s.pivot = pivotState{def: p, stale: true}
 	}
 	if err := s.readRules(f.CondFormats, f.Validations); err != nil {
+		return err
+	}
+	if err := s.readLinks(f.Links); err != nil {
 		return err
 	}
 	return s.readView(f.fileView)

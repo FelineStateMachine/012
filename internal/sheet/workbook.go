@@ -56,6 +56,7 @@ type Workbook struct {
 
 	macros      []Macro // see macros.go
 	macroOrigin string
+	linkOrigin  string // see linkfile.go
 
 	// structural is set when sheets were added, deleted or renamed during
 	// the open change, which then recalculates everything: references by
@@ -72,6 +73,8 @@ type Workbook struct {
 	// spillWork is the arrays an evaluation pass computed, to spill once
 	// it's done; see spill.go.
 	spillWork spillWork
+	// linkSeq is the last linked region's ID; see linked.go.
+	linkSeq int
 }
 
 // loc is a cell on a particular sheet.
@@ -234,6 +237,7 @@ func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
 	cp.charts = slices.Clone(s.charts)
 	cp.rules = s.rules // never changed in place
 	cp.pivot = pivotState{def: s.pivot.def.clone(), stale: s.pivot.def != nil, out: s.pivot.out, fit: s.pivot.fit}
+	s.copyLinks(cp)
 	w.change(cp, "duplicate "+s.name, Rect{}, func() {
 		w.recordSheets()
 		w.insert(cp, w.Index(s)+1)

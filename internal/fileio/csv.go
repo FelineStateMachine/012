@@ -103,25 +103,38 @@ func fieldCounts(sample []byte, d byte, truncated bool) []int {
 	return counts
 }
 
-// decode returns a reader of f's text as UTF-8 and the encoding found: a
-// UTF-8 or UTF-16 byte order mark decides, and text that isn't valid
-// UTF-8 is read as Windows-1252, what Excel writes on Windows.
+// decode returns a reader of f's text as UTF-8 and the encoding found
+// (see encodingOf).
 func decode(r *bufio.Reader) (io.Reader, string, error) {
 	head, err := r.Peek(sniffSize)
 	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrBufferFull) {
 		return nil, "", err
 	}
+	enc, bom := encodingOf(head)
+	r.Discard(bom)
+	return decodeAs(r, enc), enc, nil
+}
+
+// Encodings of text files, as notes name them.
+const (
+	encUTF8    = "UTF-8"
+	encUTF16LE = "UTF-16"
+	encUTF16BE = "UTF-16 big-endian"
+	encWin1252 = "Windows-1252"
+)
+
+// encodingOf tells the encoding of text starting with head, and the
+// length of its byte order mark: a UTF-8 or UTF-16 mark decides, and
+// text that isn't valid UTF-8 is read as Windows-1252, what Excel
+// writes on Windows.
+func encodingOf(head []byte) (enc string, bom int) {
 	switch {
 	case bytes.HasPrefix(head, []byte{0xEF, 0xBB, 0xBF}):
-		r.Discard(3)
-		return r, "UTF-8", nil
-	case bytes.HasPrefix(head, []byte{0xFF, 0xFE}), bytes.HasPrefix(head, []byte{0xFE, 0xFF}):
-		order := unicode.LittleEndian
-		if head[0] == 0xFE {
-			order = unicode.BigEndian
-		}
-		r.Discard(2)
-		return unicode.UTF16(order, unicode.IgnoreBOM).NewDecoder().Reader(r), "UTF-16", nil
+		return encUTF8, 3
+	case bytes.HasPrefix(head, []byte{0xFF, 0xFE}):
+		return encUTF16LE, 2
+	case bytes.HasPrefix(head, []byte{0xFE, 0xFF}):
+		return encUTF16BE, 2
 	}
 	// A sample cut mid-character is still UTF-8.
 	check := head
@@ -129,9 +142,22 @@ func decode(r *bufio.Reader) (io.Reader, string, error) {
 		check = check[:len(check)-1]
 	}
 	if len(head) > 0 && !utf8.Valid(check) {
-		return charmap.Windows1252.NewDecoder().Reader(r), "Windows-1252", nil
+		return encWin1252, 0
 	}
-	return r, "UTF-8", nil
+	return encUTF8, 0
+}
+
+// decodeAs reads r, text in enc past its byte order mark, as UTF-8.
+func decodeAs(r io.Reader, enc string) io.Reader {
+	switch enc {
+	case encUTF16LE:
+		return unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewDecoder().Reader(r)
+	case encUTF16BE:
+		return unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM).NewDecoder().Reader(r)
+	case encWin1252:
+		return charmap.Windows1252.NewDecoder().Reader(r)
+	}
+	return r
 }
 
 // countingReader counts the bytes read through it.

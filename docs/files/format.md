@@ -37,7 +37,8 @@ a line in a [color](../sheets/formatting.md#border-colors):
 Only what's typed is saved. What 012 computes is computed again when the
 file opens: formula results, [pivot tables](#pivot-tables)' results, and
 the arrays formulas [spill](../formulas/arrays.md), whose cells are kept
-only for their formatting and notes.
+only for their formatting and notes, and the rows of
+[linked files](following.md), read from their files again.
 
 ## Reading and writing
 
@@ -84,8 +85,10 @@ save), so they raise no version:
 | `charts` | a sheet | One chart per line: `type` (`column`, `bar`, `line`, `pie`, `area`, `scatter`), `data`, `at`, `width`, `height`, `byRow`, `header`, `labels`, `title`, and options left out at their defaults: `stack` (`stacked`, `percent`), `trend`, `min`, `max`, `log`, `gridlines` (only when off), `legend` (`right`, `none`). A build that charts but lacks a chart's type refuses the file |
 | `protected` | a sheet | [Protected ranges](../sheets/notes-protection.md#protected-sheets-and-ranges): `{"range":"B2:C9","description":"Totals"}`, or `{"sheet":true}` |
 | `conditionalFormats`, `validations` | a sheet | [Rules](#conditional-formats-and-data-validation), one per line |
+| `links` | a sheet | [Linked files](#linked-files), one per line; older builds show their cells empty |
 | `arithmetic` | the workbook | `decimal` for [decimal arithmetic](../formulas/decimal.md) |
 | `locale` | the workbook | The [locale](../sheets/locale.md) it's typed and shown in (`"de-DE"`), when File > Settings > Locale chose one; without it, the file follows the reader's `locale` setting. Cells are stored the same way in every locale: `input` is always as typed in en-US (`1,234.5`, `9/26/2026`, `=ROUND(A1,2)`) |
+| `linkOrigin` | the workbook | The computer its linked files were linked or trusted on: see [Following files](following.md#files-from-elsewhere) |
 | `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on: see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
 
 ## Column and row formats
@@ -156,6 +159,27 @@ with its data.
 - `filters` take a filter column's criteria: `hidden` values and a
   `condition` with its `value`.
 - `rowTotals` and `columnTotals` are the grand total row and column.
+
+## Linked files
+
+A sheet's [linked files](following.md) are a list after its cells,
+charts and rules, one per line, holding where each region starts and
+what it reads, never its rows:
+
+```json
+  "links": [
+    {"at":"A1","path":"logs/app.csv","window":500},
+    {"at":"F1","path":"../shop.db","format":"SQLite","query":"SELECT * FROM orders"}
+  ]
+```
+
+- `at` is the region's top-left cell.
+- `path` is the file, relative to the workbook's folder when it's saved
+  there or below, and otherwise as it was linked.
+- `format` names the file's format (`CSV`, `TSV`, `JSON`, `NUON`,
+  `XLSX`, `SQLite`, `Parquet`) when it isn't told by the extension.
+- `table` or `query` say what to read from a SQLite database.
+- `window` keeps the last rows under the header, when set.
 
 ## Conditional formats and data validation
 

@@ -11,6 +11,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/numfmt"
 	"github.com/FelineStateMachine/012/internal/nuon"
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/value"
 )
 
 // NUON and JSON tables become cells with their types (see
@@ -137,35 +138,50 @@ const nsPerDay = 86400e9
 // value stores one value as a cell.
 func (t *tableCells) value(a sheet.Addr, v nuon.Value) {
 	b, none := t.b, sheet.Style{}
+	c := nuonCell(v, t.zone)
+	switch c.V.Kind {
+	case sheet.Empty:
+	case sheet.Bool:
+		b.boolean(a, c.V.Num != 0, none)
+	case sheet.Number:
+		b.number(a, c.V.Num, c.F, none)
+	default:
+		b.text(a, c.V.Str, c.F, none)
+	}
+	if v.Kind == nuon.Date && !t.dated[a.Col] && a.Valid() {
+		t.dated[a.Col] = true
+		b.s.LoadColWidth(a.Col, dateTimeWidth)
+	}
+}
+
+// nuonCell is what a cell shows for a NUON value: its value, text as
+// the value's own, and its format.
+func nuonCell(v nuon.Value, zone *time.Location) sheet.LiveCell {
+	num := func(n float64, f sheet.Format) sheet.LiveCell { return sheet.LiveCell{V: value.Num(n), F: f} }
 	switch v.Kind {
 	case nuon.Null:
+		return sheet.LiveCell{}
 	case nuon.Bool:
-		b.boolean(a, v.Bool, none)
+		return sheet.LiveCell{V: value.Boolean(v.Bool)}
 	case nuon.Int:
-		b.number(a, float64(v.Int), sheet.Format{}, none)
+		return num(float64(v.Int), sheet.Format{})
 	case nuon.Float:
 		if math.IsNaN(v.Float) || math.IsInf(v.Float, 0) {
-			b.text(a, v.String(), sheet.Format{}, none)
-			return
+			return sheet.LiveCell{V: value.Str(v.String())}
 		}
-		b.number(a, v.Float, sheet.Format{}, none)
+		return num(v.Float, sheet.Format{})
 	case nuon.String:
-		b.text(a, v.Str, sheet.Format{}, none)
+		return sheet.LiveCell{V: value.Str(v.Str)}
 	case nuon.Filesize:
-		b.number(a, float64(v.Int), sheet.Preset(sheet.FmtSize), none)
+		return num(float64(v.Int), sheet.Preset(sheet.FmtSize))
 	case nuon.Duration:
 		f := durationFormat
 		if v.Int%1e9 != 0 {
 			f = durationFormatFrac
 		}
-		b.number(a, float64(v.Int)/nsPerDay, f, none)
+		return num(float64(v.Int)/nsPerDay, f)
 	case nuon.Date:
-		b.number(a, numfmt.SerialOf(v.Time.In(t.zone)), sheet.Preset(sheet.FmtDateTime), none)
-		if !t.dated[a.Col] && a.Valid() {
-			t.dated[a.Col] = true
-			b.s.LoadColWidth(a.Col, dateTimeWidth)
-		}
-	default: // binary, lists and records
-		b.text(a, v.String(), sheet.Format{}, none)
+		return num(numfmt.SerialOf(v.Time.In(zone)), sheet.Preset(sheet.FmtDateTime))
 	}
+	return sheet.LiveCell{V: value.Str(v.String())} // binary, lists and records
 }

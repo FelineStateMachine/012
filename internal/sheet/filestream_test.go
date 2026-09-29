@@ -63,7 +63,7 @@ func readWhole(data []byte) (w *Workbook, ambiguous bool, err error) {
 	if err := w.readMacros(f.Macros); err != nil {
 		return nil, false, err
 	}
-	w.macroOrigin = f.MacroOrigin
+	w.macroOrigin, w.linkOrigin = f.MacroOrigin, f.LinkOrigin
 	w.RecalcAll()
 	return w, ambiguous, nil
 }
@@ -233,6 +233,9 @@ func streamSeeds(t testing.TB) [][]byte {
 		[]byte(`{"version": 2, "conditionalFormats": [{"ranges":"A1","iconSet":{"icons":"symbols","points":[{"type":"percent","value":"50"}]}}]}`),
 		[]byte(`{"version": 2, "validations": [{"ranges":"A1","criteria":"list","items":["a"],"display":"bubbles"}]}`),
 		[]byte(`{"version": 2, "heights": {"0": 2}, "merges": ["A1:"], "cells": {}}`),
+		[]byte(`{"version": 2, "linkOrigin": "m", "cells": {"C1": "x"}, "links": [{"at": "A1", "path": "logs/app.csv", "window": 3}, {"at": "E5", "path": "/tmp/t.db", "format": "SQLite", "query": "select 1"}]}`),
+		[]byte(`{"version": 4, "sheets": [{"name": "Log", "cells": {}, "links": [{"at": "B2", "path": "a.nuon"}]}, {"name": "S", "cells": {"A1": "=SUM(Log!B:B)"}}]}`),
+		[]byte(`{"version": 2, "cells": {}, "links": [{"at": "A1", "path": "a"}, {"at": "A1", "path": "b"}, {"at": "", "window": -2}]}`),
 		[]byte(`null`), []byte(`[]`), []byte(`{"version": 2, "cells": {"A1": "1",}}`), []byte(`{"version": 2, "cells": {"A1"`),
 	}
 }

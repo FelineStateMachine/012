@@ -105,6 +105,9 @@ type Sheet struct {
 	// spillAt the anchors by the cells they cover; see spill.go.
 	spills  map[Addr]*spill
 	spillAt rangeIndex
+	// links are the linked regions, in the order they were made; see
+	// linked.go. The list is replaced whole on every change.
+	links []*linked
 
 	view     viewState   // frozen panes, the filter and merges, see view.go
 	mergeIdx mergeIndex  // the merges by the cells they cover, see merge.go
@@ -234,6 +237,9 @@ func (s *Sheet) Set(a Addr, input string) error {
 	if _, ok := s.SpillAnchor(a); ok {
 		return ErrSpillEdit
 	}
+	if s.linkedAt(a) != nil {
+		return ErrLinkedEdit
+	}
 	var err error
 	s.change("edit "+a.String(), Rect{From: a, To: a}, func() { err = s.put(a, input) })
 	return err
@@ -353,6 +359,16 @@ func (s *Sheet) place(a Addr, c *Cell) {
 	}
 	if c.Spilled() {
 		c = c.leftover()
+	}
+	if len(s.links) > 0 {
+		if v, lk, kind := s.cells.derivedOf(a); kind == slotSpill && s.linkedAt(a) != nil {
+			// A linked region's cell keeps its value: only its
+			// formatting and note are placed.
+			defer s.writeSpilled(a, v, lk.auto)
+			if c != nil {
+				c = c.leftover()
+			}
+		}
 	}
 	s.trackShape(a, c)
 	s.spillTouched(a, c)

@@ -40,6 +40,10 @@ func (w *Workbook) restore(st *step) (inv *step, changed []loc) {
 		changed = append(changed, w.putName(k, n)...)
 	}
 	w.restoreSheetParts(st, inv)
+	for s, links := range st.links {
+		inv.links[s] = s.links
+		changed = append(changed, s.restoreLinks(links)...)
+	}
 	return inv, changed
 }
 
@@ -147,6 +151,7 @@ func (st *step) join(child *step) {
 	joinMap(st.charts, child.charts)
 	joinMap(st.pivots, child.pivots)
 	joinMap(st.rules, child.rules)
+	joinMap(st.links, child.links)
 	st.sheets = cmpOrPtr(st.sheets, child.sheets)
 	st.settings = cmpOrPtr(st.settings, child.settings)
 	st.macros = cmpOrPtr(st.macros, child.macros)

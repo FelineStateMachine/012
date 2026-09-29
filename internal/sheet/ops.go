@@ -138,6 +138,7 @@ func (s *Sheet) restructure(rows bool, sp formula.Span) {
 		label += "s"
 	}
 	s.change(label, focus, func() {
+		s.shiftLinked(rows, sp, cell) // first, so remap doesn't take cells moving into regions for theirs
 		s.remap(label, focus, cell, rng)
 		s.remapNames(rng)
 		s.shiftCharts(cell, rng)
