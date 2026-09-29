@@ -29,6 +29,8 @@ right and below, as in Sheets:
   The arguments of functions that take ranges are computed the same way,
   so `=SUM(LEN(A2:A9))` counts every character and
   `=SUMPRODUCT((B2:B99="north")*C2:C99)` sums a column by a condition.
+  This follows Excel 365 on purpose: Sheets computes `=SUM(C2:C4*2)` only
+  inside `ARRAYFORMULA`, and is `#VALUE!` without it.
 - Elsewhere an array reads as its first value, as Sheets does:
   `=LEN(SEQUENCE(3)*100)` is 3. `IF`, `IFERROR`, `IFNA`, `IFS`, `SWITCH`,
   `CHOOSE` and `INDEX` pass an array through, so

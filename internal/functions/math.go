@@ -14,7 +14,7 @@ func init() {
 			eval: sumIf, format: inheritFrom(2)},
 		&FuncDef{Name: "SUMIFS", Args: "sum_range, criteria_range1, criterion1, [criteria_range2, criterion2, ...]", Desc: "Sum of the cells that meet every condition", Min: 3, Max: -1, step: 2,
 			eval: sumIfs, format: inheritFrom(0)},
-		&FuncDef{Name: "SUMPRODUCT", Args: "array1, [array2, ...]", Desc: "Sum of the products of matching entries", Min: 1, Max: -1,
+		&FuncDef{Name: "SUMPRODUCT", Args: "array1, [array2, ...]", Desc: "Sum of the products of matching entries, TRUE counting as 1", Min: 1, Max: -1,
 			eval: sumProduct},
 		&FuncDef{Name: "PRODUCT", Args: "factor1, [factor2, ...]", Desc: "Product of numbers", Min: 1, Max: -1,
 			eval: aggregate(func(s Agg) Value {
@@ -23,7 +23,7 @@ func init() {
 				}
 				return num(s.prod)
 			})},
-		&FuncDef{Name: "POWER", Args: "base, exponent", Desc: "A number raised to a power", Min: 2, Max: 2,
+		&FuncDef{Name: "POWER", Args: "base, exponent", Desc: "A number raised to a power, odd roots of negatives included", Min: 2, Max: 2,
 			eval: numeric(func(x []float64) Value { return powerOf(x[0], x[1]) })},
 		&FuncDef{Name: "ROUNDUP", Args: "value, [places]", Desc: "Round away from zero", Min: 1, Max: 2,
 			eval: rounder(numfmt.Up), format: inheritFrom(0)},
@@ -102,7 +102,21 @@ func powerOf(b, e float64) Value {
 	if b == 0 && e < 0 {
 		return value.ErrDiv0
 	}
-	return num(math.Pow(b, e))
+	return num(power(b, e))
+}
+
+// power is b raised to e, as POWER and ^ compute it. A negative base
+// has a real odd root, as in Sheets: (-8)^(1/3) is -2, where math.Pow
+// gives NaN (#NUM!). Other fractional powers of a negative stay NaN.
+func power(b, e float64) float64 {
+	if b >= 0 || e == math.Trunc(e) {
+		return math.Pow(b, e)
+	}
+	n := math.Round(1 / e) // e is 1/n, or near it: 1/3 isn't exact
+	if math.Abs(1/e-n) > 1e-9*math.Abs(n) || math.Mod(n, 2) == 0 {
+		return math.NaN()
+	}
+	return -math.Pow(-b, e)
 }
 
 // toMultiple builds CEILING and FLOOR with Sheets semantics: the factor

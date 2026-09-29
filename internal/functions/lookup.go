@@ -14,16 +14,16 @@ func init() {
 			eval: func(args []Node, get lookup) Value { return tableLookup(args, get, false) }},
 		&FuncDef{Name: "MATCH", Args: "search_key, range, [search_type]", Desc: "Position of a key in a row or column", Min: 2, Max: 3,
 			eval: match},
-		&FuncDef{Name: "INDEX", Args: "reference, [row], [column]", Desc: "The value at a row and column of a range", Min: 1, Max: 3,
+		&FuncDef{Name: "INDEX", Args: "reference, [row], [column]", Desc: "The value at a row and column of a range; row or column 0 for a whole column or row", Min: 1, Max: 3, arrays: liftPass,
 			eval: index, format: inheritFrom(0)},
 		&FuncDef{Name: "XLOOKUP", Args: "search_key, lookup_range, result_range, [missing_value], [match_mode], [search_mode]", Desc: "Find a key and return the matching entry of another range", Min: 3, Max: 6,
 			eval: xlookup, format: inheritFrom(2)},
 		&FuncDef{Name: "CHOOSE", Args: "index, choice1, [choice2, ...]", Desc: "The choice at a position", Min: 2, Max: -1, arrays: liftPass,
 			eval: choose},
 		&FuncDef{Name: "ROWS", Args: "range", Desc: "Number of rows in a range", Min: 1, Max: 1,
-			eval: func(args []Node, get lookup) Value { return num(float64(matrixArg(args[0], get).rows)) }},
+			eval: func(args []Node, get lookup) Value { return measure(args[0], get, true) }},
 		&FuncDef{Name: "COLUMNS", Args: "range", Desc: "Number of columns in a range", Min: 1, Max: 1,
-			eval: func(args []Node, get lookup) Value { return num(float64(matrixArg(args[0], get).cols)) }},
+			eval: func(args []Node, get lookup) Value { return measure(args[0], get, false) }},
 	)
 }
 
@@ -83,7 +83,7 @@ func index(args []Node, get lookup) Value {
 	}
 	switch {
 	case row > m.rows || col > m.cols:
-		return value.ErrRef
+		return value.ErrNum // as Sheets; Excel says #REF!
 	case row == 0 || col == 0: // a whole column, row or both: an array
 		return get.arrayValue(m.slice(row, col))
 	}
@@ -113,13 +113,26 @@ func (m matrix) slice(row, col int) *Array {
 	return a
 }
 
+// measure is ROWS, or COLUMNS when rows is false. An error in place of
+// a range or array is the answer: ROWS(SEQUENCE(0)) is #NUM!.
+func measure(n Node, get lookup, rows bool) Value {
+	m := matrixArg(n, get)
+	switch {
+	case !m.ref && m.rows == 1 && m.cols == 1 && m.blank.Kind == value.Error:
+		return m.blank
+	case rows:
+		return num(float64(m.rows))
+	}
+	return num(float64(m.cols))
+}
+
 func choose(args []Node, get lookup) Value {
 	i, err := intArg(args, 0, 0, get)
 	if err != nil {
 		return *err
 	}
 	if i < 1 || i >= len(args) {
-		return value.ErrValue
+		return value.ErrNum // as Sheets; Excel says #VALUE!
 	}
 	return eval(args[i], get)
 }

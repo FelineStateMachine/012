@@ -6,7 +6,9 @@ sidebar_position: 5
 # Decimal arithmetic
 
 Like Sheets and Excel, 012 computes in binary floating point, so
-`=0.1+0.2=0.3` is FALSE and `=INT($4.35*100)` is 434. File > Settings >
+`=0.1+0.2-0.3` is 5.551E-17 rather than 0 and `=INT($4.35*100)` is 434.
+Comparisons look only at the 15 significant digits a cell shows, as in
+Sheets, so `=0.1+0.2=0.3` is TRUE, but `=0.1+0.2-0.3=0` is FALSE. File > Settings >
 Decimal arithmetic (or search the palette for "decimal") switches the whole
 file, every sheet of it, to decimal math for money. The status line then says
 `decimal`, the menu shows a check mark, and the setting is saved with the

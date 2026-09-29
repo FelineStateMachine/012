@@ -20,20 +20,20 @@ Aliases: `AVG` for `AVERAGE`.
 | `ABS(value)` | Absolute value |
 | `AND(logical1, [logical2, ...])` | TRUE if all arguments are true |
 | `AVERAGE(value1, [value2, ...])` | Average of numbers, ignoring text |
-| `COUNT(value1, [value2, ...])` | Count of numeric values |
-| `COUNTA(value1, [value2, ...])` | Count of non-empty values |
+| `COUNT(value1, [value2, ...])` | Count of numeric values, skipping errors |
+| `COUNTA(value1, [value2, ...])` | Count of non-empty values, errors included |
 | `FALSE()` | The logical value FALSE |
 | `IF(condition, value_if_true, [value_if_false])` | Choose a value by a condition |
-| `IFERROR(value, [value_if_error])` | A fallback when a value is an error |
+| `IFERROR(value, [value_if_error])` | A fallback when a value is an error; blank without one |
 | `INT(value)` | Round down to the nearest integer |
 | `MAX(value1, [value2, ...])` | Largest number |
 | `MIN(value1, [value2, ...])` | Smallest number |
-| `MOD(dividend, divisor)` | Remainder, with the sign of the divisor |
+| `MOD(dividend, divisor)` | Remainder, with the sign of the divisor: MOD(0.3, 0.1) is 0.1 as in Excel, where Sheets gives -5.55E-17 |
 | `NA()` | The #N/A error |
 | `NOT(logical)` | The opposite of a logical value |
 | `OR(logical1, [logical2, ...])` | TRUE if any argument is true |
 | `PI()` | The number pi |
-| `ROUND(value, [places])` | Round to a number of decimal places, halves away from zero |
+| `ROUND(value, [places])` | Round to a number of decimal places, halves away from zero, on the digits a cell shows: ROUND(1.5, 14) is 1.5 |
 | `SQRT(value)` | Square root |
 | `SUM(value1, [value2, ...])` | Sum of numbers |
 | `TRUE()` | The logical value TRUE |
@@ -48,7 +48,7 @@ Aliases: `AVG` for `AVERAGE`.
 | `LN(value)` | Natural logarithm |
 | `LOG(value, [base])` | Logarithm, base 10 by default |
 | `LOG10(value)` | Base-10 logarithm |
-| `POWER(base, exponent)` | A number raised to a power |
+| `POWER(base, exponent)` | A number raised to a power, odd roots of negatives included |
 | `PRODUCT(factor1, [factor2, ...])` | Product of numbers |
 | `QUOTIENT(dividend, divisor)` | Integer part of a division |
 | `RAND()` | A random number from 0 up to 1, new on every change (recalculates on every change) |
@@ -58,7 +58,7 @@ Aliases: `AVG` for `AVERAGE`.
 | `SIGN(value)` | 1, 0 or -1 by the sign of a number |
 | `SUMIF(range, criterion, [sum_range])` | Sum of the cells that meet a condition |
 | `SUMIFS(sum_range, criteria_range1, criterion1, [criteria_range2, criterion2, ...])` | Sum of the cells that meet every condition |
-| `SUMPRODUCT(array1, [array2, ...])` | Sum of the products of matching entries |
+| `SUMPRODUCT(array1, [array2, ...])` | Sum of the products of matching entries, TRUE counting as 1 |
 | `TRUNC(value, [places])` | Drop decimals past a number of places |
 
 ## Statistics
@@ -105,7 +105,7 @@ Aliases: `AVG` for `AVERAGE`.
 | `EXACT(string1, string2)` | TRUE if two texts are identical, case included |
 | `FIND(search_for, text_to_search, [starting_at])` | Position of text, case-sensitive |
 | `LEFT(string, [number_of_characters])` | The first characters of text |
-| `LEN(text)` | Number of characters in text |
+| `LEN(text)` | Number of characters in text: an emoji is one, where Sheets counts two |
 | `LOWER(text)` | Text in lower case |
 | `MID(string, starting_at, extract_length)` | Characters from the middle of text |
 | `PROPER(text)` | Text with each word capitalized |
@@ -117,7 +117,7 @@ Aliases: `AVG` for `AVERAGE`.
 | `TEXT(number, format)` | A number as text in a format, e.g. "$#,##0.00" or "yyyy-mm-dd" |
 | `TEXTJOIN(delimiter, ignore_empty, text1, [text2, ...])` | Join text with a delimiter |
 | `TRIM(text)` | Text without leading, trailing and repeated spaces |
-| `UPPER(text)` | Text in upper case |
+| `UPPER(text)` | Text in upper case: ß is SS |
 | `VALUE(text)` | Text as a number; dates and times too |
 
 ## Split and regular expressions
@@ -136,7 +136,7 @@ Aliases: `AVG` for `AVERAGE`.
 | `CHOOSE(index, choice1, [choice2, ...])` | The choice at a position |
 | `COLUMNS(range)` | Number of columns in a range |
 | `HLOOKUP(search_key, range, index, [is_sorted])` | Find a key in the first row and return a value from its column |
-| `INDEX(reference, [row], [column])` | The value at a row and column of a range |
+| `INDEX(reference, [row], [column])` | The value at a row and column of a range; row or column 0 for a whole column or row |
 | `MATCH(search_key, range, [search_type])` | Position of a key in a row or column |
 | `ROWS(range)` | Number of rows in a range |
 | `VLOOKUP(search_key, range, index, [is_sorted])` | Find a key in the first column and return a value from its row |
@@ -164,7 +164,7 @@ Aliases: `AVG` for `AVERAGE`.
 | `BYCOL(array_or_range, LAMBDA)` | Each column of an array passed to a LAMBDA, one value per column |
 | `BYROW(array_or_range, LAMBDA)` | Each row of an array passed to a LAMBDA, one value per row |
 | `LAMBDA([name, ...], formula_expression)` | A function of names, called with values: LAMBDA(x, x*2)(3) |
-| `LET(name1, value_expression1, [name2, value_expression2, ...], formula_expression)` | Name values for use in a formula |
+| `LET(name1, value_expression1, [name2, value_expression2, ...], formula_expression)` | Name values for use in a formula; an error counts only where its name is used |
 | `MAKEARRAY(rows, columns, LAMBDA)` | An array of a size, each entry a LAMBDA of its row and column |
 | `MAP(array1, [array2, ...], LAMBDA)` | Each entry of arrays passed to a LAMBDA |
 | `REDUCE(initial_value, array_or_range, LAMBDA)` | An array folded into one value by a LAMBDA of the total so far and each entry |

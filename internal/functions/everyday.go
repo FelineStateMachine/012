@@ -119,10 +119,10 @@ func init() {
 				}
 				return num(s.sum / float64(s.nums))
 			}), format: inherit},
-		&FuncDef{Name: "COUNT", Args: "value1, [value2, ...]", Desc: "Count of numeric values", Min: 1, Max: -1,
-			eval: aggregate(func(s Agg) Value { return num(float64(s.nums)) })},
-		&FuncDef{Name: "COUNTA", Args: "value1, [value2, ...]", Desc: "Count of non-empty values", Min: 1, Max: -1,
-			eval: aggregate(func(s Agg) Value { return num(float64(s.count)) })},
+		&FuncDef{Name: "COUNT", Args: "value1, [value2, ...]", Desc: "Count of numeric values, skipping errors", Min: 1, Max: -1,
+			eval: counter(func(s Agg) Value { return num(float64(s.nums)) })},
+		&FuncDef{Name: "COUNTA", Args: "value1, [value2, ...]", Desc: "Count of non-empty values, errors included", Min: 1, Max: -1,
+			eval: counter(func(s Agg) Value { return num(float64(s.count + s.errs)) })},
 		&FuncDef{Name: "MIN", Args: "value1, [value2, ...]", Desc: "Smallest number", Min: 1, Max: -1,
 			eval: aggregate(func(s Agg) Value {
 				if s.nums == 0 {
@@ -140,9 +140,9 @@ func init() {
 		&FuncDef{Name: "ABS", Args: "value", Desc: "Absolute value", Min: 1, Max: 1, eval: math1(math.Abs), format: inherit},
 		&FuncDef{Name: "INT", Args: "value", Desc: "Round down to the nearest integer", Min: 1, Max: 1, eval: math1(math.Floor), format: inherit},
 		&FuncDef{Name: "SQRT", Args: "value", Desc: "Square root", Min: 1, Max: 1, eval: math1(math.Sqrt)},
-		&FuncDef{Name: "ROUND", Args: "value, [places]", Desc: "Round to a number of decimal places, halves away from zero", Min: 1, Max: 2,
+		&FuncDef{Name: "ROUND", Args: "value, [places]", Desc: "Round to a number of decimal places, halves away from zero, on the digits a cell shows: ROUND(1.5, 14) is 1.5", Min: 1, Max: 2,
 			eval: rounder(numfmt.HalfUp), format: inheritFrom(0)},
-		&FuncDef{Name: "MOD", Args: "dividend, divisor", Desc: "Remainder, with the sign of the divisor", Min: 2, Max: 2,
+		&FuncDef{Name: "MOD", Args: "dividend, divisor", Desc: "Remainder, with the sign of the divisor: MOD(0.3, 0.1) is 0.1 as in Excel, where Sheets gives -5.55E-17", Min: 2, Max: 2,
 			eval: numeric(func(x []float64) Value {
 				if x[1] == 0 {
 					return value.ErrDiv0
@@ -155,15 +155,11 @@ func init() {
 		&FuncDef{Name: "NA", Desc: "The #N/A error", Max: 0, eval: constant(value.ErrNA)},
 		&FuncDef{Name: "IF", Args: "condition, value_if_true, [value_if_false]", Desc: "Choose a value by a condition", Min: 2, Max: 3, arrays: liftPass,
 			eval: func(args []Node, get lookup) Value {
-				c := eval1(args[0], get)
-				if c.Kind == value.Error {
-					return c
-				}
-				f, err := toNum(c)
+				t, err := truth(eval1(args[0], get))
 				if err != nil {
 					return *err
 				}
-				if f != 0 {
+				if t {
 					return eval(args[1], get)
 				}
 				if len(args) < 3 {
@@ -171,14 +167,14 @@ func init() {
 				}
 				return eval(args[2], get)
 			}, format: func(args []Node, infer func(Node) Format) Format { return inherit(args[1:], infer) }},
-		&FuncDef{Name: "IFERROR", Args: "value, [value_if_error]", Desc: "A fallback when a value is an error", Min: 1, Max: 2, arrays: liftPass,
+		&FuncDef{Name: "IFERROR", Args: "value, [value_if_error]", Desc: "A fallback when a value is an error; blank without one", Min: 1, Max: 2, arrays: liftPass,
 			eval: func(args []Node, get lookup) Value {
 				v := eval(args[0], get)
 				if v.Kind != value.Error {
 					return v
 				}
 				if len(args) < 2 {
-					return Value{Kind: value.Text}
+					return Value{} // blank, as in Sheets
 				}
 				return eval(args[1], get)
 			}},
@@ -187,7 +183,13 @@ func init() {
 		&FuncDef{Name: "OR", Args: "logical1, [logical2, ...]", Desc: "TRUE if any argument is true", Min: 1, Max: -1,
 			eval: logical(func(t, _ int) bool { return t > 0 })},
 		&FuncDef{Name: "NOT", Args: "logical", Desc: "The opposite of a logical value", Min: 1, Max: 1,
-			eval: numeric(func(x []float64) Value { return boolean(x[0] == 0) })},
+			eval: func(args []Node, get lookup) Value {
+				t, err := truth(eval(args[0], get))
+				if err != nil {
+					return *err
+				}
+				return boolean(!t)
+			}},
 	)
 }
 
@@ -198,9 +200,13 @@ func init() {
 type Agg struct {
 	sum      float64
 	prod     float64
-	count    int // non-empty values
+	count    int // non-empty values other than errors
 	nums     int
 	min, max float64
+	// counting is set for COUNT and COUNTA, which count errors (errs)
+	// where the others stop at the first.
+	counting bool
+	errs     int
 }
 
 // each calls fn for every value in args: every cell of a range that
@@ -264,10 +270,15 @@ func eachEntry(a *Array, fn func(v Value, direct bool) *Value) *Value {
 }
 
 // Add counts v into the aggregate, with SUM's rules: blanks are skipped,
-// errors returned, and text counts only when given directly.
+// errors returned (counted, when counting), and text counts only when
+// given directly.
 func (s *Agg) Add(v Value, direct bool) *Value {
 	switch v.Kind {
 	case value.Error:
+		if s.counting {
+			s.errs++
+			return nil
+		}
 		return errOf(v)
 	case value.Empty:
 		return nil
@@ -298,8 +309,21 @@ func NewAgg() Agg { return Agg{prod: 1, min: math.Inf(1), max: math.Inf(-1)} }
 // read each cell once; other ranges the engine adds up itself
 // (Book.Fold), as it reads them.
 func aggregate(done func(Agg) Value) func([]Node, lookup) Value {
+	return aggregateFrom(NewAgg(), done)
+}
+
+// counter builds COUNT and COUNTA, which read past errors, as Sheets
+// does: COUNT skips them and COUNTA counts them. Their ranges are read
+// directly, as the shared aggregates stop at an error.
+func counter(done func(Agg) Value) func([]Node, lookup) Value {
+	s := NewAgg()
+	s.counting = true
+	return aggregateFrom(s, done)
+}
+
+func aggregateFrom(start Agg, done func(Agg) Value) func([]Node, lookup) Value {
 	return func(args []Node, get lookup) Value {
-		s := NewAgg()
+		s := start
 		for _, arg := range args {
 			if rn, ok := get.refOf(arg).(formula.Range); ok {
 				var e *Value
@@ -319,7 +343,7 @@ func aggregate(done func(Agg) Value) func([]Node, lookup) Value {
 // rangeAgg adds the range rn to s: from the running aggregates when s is
 // empty and the range is shared, and otherwise as the engine reads it.
 func rangeAgg(rn formula.Range, s Agg, get lookup) (Agg, *Value) {
-	if s.count == 0 {
+	if s.count == 0 && !s.counting {
 		if a, e, ok := get.book.RangeAgg(rn.Sheet, rn.Rect); ok {
 			return a, e
 		}
@@ -337,12 +361,12 @@ func logical(test func(trues, n int) bool) func([]Node, lookup) Value {
 			case v.Kind == value.Empty, v.Kind == value.Text && !direct:
 				return nil
 			}
-			f, err := toNum(v)
+			t, err := truth(v)
 			if err != nil {
 				return err
 			}
 			n++
-			if f != 0 {
+			if t {
 				trues++
 			}
 			return nil

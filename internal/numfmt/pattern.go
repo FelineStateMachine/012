@@ -65,6 +65,9 @@ func FormatIn(v float64, pat string, loc *locale.Locale) string {
 	if isDatePattern(toks) {
 		return formatDate(v, toks, patternNames(sec, loc))
 	}
+	if l, ok := layoutFraction(toks); ok {
+		return formatFraction(math.Abs(v), neg, l, loc)
+	}
 	return formatNumber(math.Abs(v), neg, toks, loc)
 }
 

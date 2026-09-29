@@ -24,7 +24,12 @@ func TestMathFunctions(t *testing.T) {
 		{"=PRODUCT(2, \"3\")", num(6)},
 		{"=POWER(2, 10)", num(1024)},
 		{"=POWER(0, -1)", ErrDiv0},
-		{"=POWER(-8, 1/3)", ErrNum},
+		{"=POWER(-8, 1/3)", num(-2)}, // an odd root, as Sheets
+		{"=(-8)^(1/3)", num(-2)},
+		{"=POWER(-32, 0.2)", num(-2)},
+		{"=POWER(-8, 0.5)", ErrNum},
+		{"=POWER(-8, 2/3)", ErrNum},
+		{"=POWER(-8, 2)", num(64)},
 		{"=ROUND(1.005, 2)", num(1.01)},
 		{"=ROUND(-2.5)", num(-3)},
 		{"=ROUND(1234.5, -2)", num(1200)},

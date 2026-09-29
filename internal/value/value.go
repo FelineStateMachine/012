@@ -9,6 +9,7 @@ package value
 import (
 	"cmp"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/numfmt"
@@ -168,4 +169,30 @@ func Compare(l, r Value) int {
 		return 1
 	}
 	return 0
+}
+
+// CompareShown is Compare as the comparison operators and criteria see
+// numbers: at the 15 significant digits a cell shows, as Sheets and
+// Excel do, so =0.1+0.2=0.3 is TRUE though the sum is
+// 0.30000000000000004. Sorting and lookups use Compare, which is exact
+// and so orders values consistently.
+func CompareShown(l, r Value) int {
+	d := Compare(l, r)
+	if d != 0 && l.Kind == Number && r.Kind == Number && SameShown(l.Num, r.Num) {
+		return 0
+	}
+	return d
+}
+
+// SameShown reports whether a and b agree to 15 significant digits.
+func SameShown(a, b float64) bool {
+	switch {
+	case a == b:
+		return true
+	case a == 0 || b == 0 || (a < 0) != (b < 0):
+		return false
+	case math.Abs(a-b) > 1e-14*math.Max(math.Abs(a), math.Abs(b)):
+		return false // differ before the 15th digit: the common case, at once
+	}
+	return strconv.FormatFloat(a, 'e', 14, 64) == strconv.FormatFloat(b, 'e', 14, 64)
 }

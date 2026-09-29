@@ -1,6 +1,10 @@
 package functions
 
-import "github.com/FelineStateMachine/012/internal/value"
+import (
+	"strings"
+
+	"github.com/FelineStateMachine/012/internal/value"
+)
 
 func init() {
 	define(
@@ -33,11 +37,11 @@ func init() {
 
 func ifs(args []Node, get lookup) Value {
 	for i := 0; i+1 < len(args); i += 2 {
-		c, err := numArg(args[i], get)
+		c, err := truth(eval1(args[i], get))
 		if err != nil {
 			return *err
 		}
-		if c != 0 {
+		if c {
 			return eval(args[i+1], get)
 		}
 	}
@@ -96,4 +100,23 @@ func sameKind(a, b Value) bool {
 		return true
 	}
 	return ka == kb
+}
+
+// truth reads v as a condition, as Sheets does: a number is true unless
+// 0, a blank or "" is false, and text reads as TRUE, FALSE or a number,
+// so IF("TRUE", 1, 2) is 1; other text is #VALUE!.
+func truth(v Value) (bool, *Value) {
+	switch v.Kind {
+	case value.Error:
+		return false, errOf(v)
+	case value.Text:
+		switch {
+		case v.Str == "", strings.EqualFold(v.Str, "FALSE"):
+			return false, nil
+		case strings.EqualFold(v.Str, "TRUE"):
+			return true, nil
+		}
+	}
+	f, err := toNum(v)
+	return f != 0, err
 }

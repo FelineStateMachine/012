@@ -41,6 +41,24 @@ func TestFormat(t *testing.T) {
 		{12.5, "General", "12.5"},
 		{5551234, "000-0000", "555-1234"},
 		{1.5, "General.00", "1.5.00"}, // placeholders after General get zeros
+		// Fractions, as Sheets shows them.
+		{0.75, "# ?/?", "3/4"},
+		{1.75, "# ?/?", "1 3/4"},
+		{-1.75, "# ?/?", "-1 3/4"},
+		{0.75, "0 ?/?", "0 3/4"},
+		{2, "# ?/?", "2"},
+		{0, "# ?/?", "0"},
+		{1.99, "# ?/?", "2"},
+		{0.3333, "# ?/?", "1/3"},
+		{3.14159, "# ??/??", "3 14/99"},
+		{1.5, "# ??/??", "1  1/2 "},
+		{0.1234, "# ??/??", "10/81"},
+		{1.3, "# ?/4", "1 1/4"},
+		{0.5, "# ?/8", "4/8"},
+		{0.37, "# ??/100", "37/100"},
+		{1.75, "?/?", "7/4"},
+		{1.5, `# ?/? "cups"`, "1 1/2 cups"},
+		{1234.5, "#,##0 ?/?", "1,234 1/2"},
 		// Dates and times: 46291 is 2026-09-26, a Saturday.
 		{46291, "m/d/yyyy", "9/26/2026"},
 		{46291, "yyyy-mm-dd", "2026-09-26"},
@@ -119,6 +137,46 @@ func TestFormatLCID(t *testing.T) {
 	} {
 		if got := Format(46291, tt.pat); got != tt.want {
 			t.Errorf("Format(%q) = %q, want %q", tt.pat, got, tt.want)
+		}
+	}
+}
+
+func TestRound(t *testing.T) {
+	tests := []struct {
+		x      float64
+		places int
+		mode   Rounding
+		want   float64
+	}{
+		{1.005, 2, HalfUp, 1.01},
+		{2.675, 2, HalfUp, 2.68},
+		{-2.5, 0, HalfUp, -3},
+		{1234.5, -2, HalfUp, 1200},
+		{-1.005, 2, HalfUp, -1.01},
+		{1.5, 14, HalfUp, 1.5}, // exact inputs stay exact
+		{0.1 + 0.2, 15, HalfUp, 0.3},
+		{1.23456789012345, 14, HalfUp, 1.23456789012345}, // Sheets says ...346
+		{1.23456789012345, 15, HalfUp, 1.23456789012345},
+		{2.301, 1, Up, 2.4},
+		{-2.39, 1, Down, -2.3},
+	}
+	for _, tt := range tests {
+		if got := Round(tt.x, tt.places, tt.mode); got != tt.want {
+			t.Errorf("Round(%v, %d, %v) = %v, want %v", tt.x, tt.places, tt.mode, got, tt.want)
+		}
+	}
+}
+
+func TestEntered(t *testing.T) {
+	for in, want := range map[string]string{
+		"123456789012345678":     "123456789012345000",
+		"123456789012345":        "123456789012345",
+		"0.00012345678901234567": "0.00012345678901234500",
+		"1.2345678901234567e10":  "1.2345678901234500e10",
+		"12.5":                   "12.5",
+	} {
+		if got := Entered(in); got != want {
+			t.Errorf("Entered(%s) = %s, want %s", in, got, want)
 		}
 	}
 }
