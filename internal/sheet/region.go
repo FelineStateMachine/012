@@ -374,11 +374,11 @@ func (s *Sheet) FreezeRegion(name string) error {
 // frozen is a region's cell as a plain one: its value typed in, in the
 // format it shows.
 func frozen(c *Cell) *Cell {
-	p := &Cell{Input: c.Input, Value: c.Value, Format: c.Format, Style: c.Style, Note: c.Note, auto: c.auto}
+	p := &Cell{Value: c.Value, Format: c.Format, Style: c.Style, spilled: true}
 	if p.Format.IsZero() {
 		p.Format = c.auto
 	}
-	return p.plain()
+	return p.plain().withNote(c.Note)
 }
 
 // SortRegion sorts a region's table below its header by keys, columns of

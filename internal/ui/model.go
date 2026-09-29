@@ -43,13 +43,13 @@ func (m mode) String() string {
 // line), the column header, the grid, and a status line.
 const (
 	menuLine    = overlay.MenuLine    // menu bar on the left, mode indicator on the right
-	formulaLine = 1                   // name box, then the cell's contents or the entry
+	formulaLine = overlay.FormulaLine // name box, then the cell's contents or the entry
 	contextLine = overlay.ContextLine // prompts, key hints and formula errors
 	panelLines  = 3
 	headerLine  = panelLines
 	gridTop     = overlay.GridTop
-	minRowHdrW  = 6  // the row numbers up to 9999; see grid.hdrW
-	nameBoxW    = 11 // fits most ranges, e.g. "AA100:AB200", without jumping
+	minRowHdrW  = 6                       // the row numbers up to 9999; see grid.hdrW
+	nameBoxW    = overlay.FormulaBarX - 1 // fits most ranges, e.g. "AA100:AB200", without jumping
 )
 
 // doubleClick is the longest gap between two clicks that edits a cell.
@@ -130,6 +130,7 @@ type Model struct {
 	vim    vimState   // a vim key sequence in progress: vim.go
 	rec    *recorder  // a macro being recorded: macrorec.go
 	macros macroState // a macro running, and trust in the file's macros: macrorun.go
+	shell  shellState // a notebook's commands running, and what they said: nurun.go
 
 	keyAt time.Time        // when the key the next frame answers was pressed, for telemetry
 	spans *telemetry.Trace // the spans open, which what the model starts nests in: trace.go
@@ -156,7 +157,7 @@ func (m *Model) TraceUnder(p telemetry.Parent) { m.spans.Enter(p) }
 // so the theme can adapt to light terminals.
 func (m *Model) Init() tea.Cmd {
 	// jev.send starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd())
+	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd(), m.startShell())
 }
 
 // Update implements tea.Model.
@@ -229,6 +230,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.finishMacro(msg.r, msg.done)
 	case macroEditedMsg:
 		m.macroEdited(msg)
+	case nuDoneMsg:
+		cmd = m.finishRegion(msg)
+	case nuWordsMsg:
+		m.shell.words = msg.words
 	case tea.KeyReleaseMsg:
 		cmd = m.keyReleased(msg)
 	case tea.KeyboardEnhancementsMsg:
@@ -325,6 +330,9 @@ func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 		}
 	}
 	key := k.String()
+	if cmd, ok := m.notebookKey(key); ok {
+		return cmd
+	}
 	if m.recordMove(key) {
 		m.entry.tabbing = false
 		return nil

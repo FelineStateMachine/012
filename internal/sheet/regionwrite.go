@@ -369,6 +369,19 @@ func (s *Sheet) shiftRegions(rows bool, sp formula.Span) {
 	s.regionsStale = true
 }
 
+// RegionLabels returns the label lines of the regions on row, each as
+// wide as its table, for drawing them.
+func (s *Sheet) RegionLabels(row int) []Rect {
+	var out []Rect
+	for _, r := range s.regions.list {
+		if r.At.Row == row {
+			c := s.covered(r)
+			out = append(out, Rect{From: r.At, To: Addr{Col: c.To.Col, Row: row}})
+		}
+	}
+	return out
+}
+
 // spanOf is n rows inserted at row at, or deleted when n is negative.
 func spanOf(at, n int) formula.Span { return formula.Span{At: at, N: n, Size: MaxRows} }
 

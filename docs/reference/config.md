@@ -74,6 +74,9 @@ start.
 | [`keymap`](#keymap) | `default` | `O12_KEYMAP` |
 | [`locale`](#locale) | `en-US` | `O12_LOCALE` |
 | [`max-cells`](#max-cells) | `10000000` | `O12_MAX_CELLS` |
+| [`shell`](#shell) | `ask` | `O12_SHELL` |
+| [`nu-timeout`](#nu-timeout) | `30s` | `O12_NU_TIMEOUT` |
+| [`nu-config`](#nu-config) | `false` | `O12_NU_CONFIG` |
 | [`jev-api-key-command`](#jev-api-key-command) |  |  |
 | [`jev-credential-store`](#jev-credential-store) | `true` | `O12_JEV_CREDENTIAL_STORE` |
 | [`jev-base-url`](#jev-base-url) |  | `TYPESAFE_BASE_URL` |
@@ -86,6 +89,7 @@ start.
 | [`serve-host-key`](#serve-host-key) |  |  |
 | [`serve-idle-timeout`](#serve-idle-timeout) | `30m` |  |
 | [`serve-max-sessions`](#serve-max-sessions) | `8` |  |
+| [`serve-shell`](#serve-shell) | `false` |  |
 | [`config-file`](#config-file) |  |  |
 
 ### Appearance
@@ -158,6 +162,41 @@ The most cells an import keeps, and a paste or fill writes at once. Numbers and 
 | Type | number |
 | Default | `10000000` |
 | Environment | `O12_MAX_CELLS` |
+| Applies | File > Settings > Reload config |
+
+### Nushell notebooks
+
+#### `shell`
+
+Whether notebook sheets run nushell commands (docs/terminal/nushell.md). `ask` runs what you type and asks once before running the commands of a file made on another computer; `on` never asks; `off` runs none. Opening a file never runs its commands.
+
+| | |
+|---|---|
+| Type | one of `off`, `ask`, `on` |
+| Default | `ask` |
+| Environment | `O12_SHELL` |
+| Applies | File > Settings > Reload config |
+
+#### `nu-timeout`
+
+Stop a notebook's command that runs longer than this; 0 lets it run until Esc stops it.
+
+| | |
+|---|---|
+| Type | duration |
+| Default | `30s` |
+| Environment | `O12_NU_TIMEOUT` |
+| Applies | File > Settings > Reload config |
+
+#### `nu-config`
+
+Run notebook commands with your nushell config files (config.nu, env.nu) rather than `nu --no-config-file`, for your own commands and aliases.
+
+| | |
+|---|---|
+| Type | true or false |
+| Default | `false` |
+| Environment | `O12_NU_CONFIG` |
 | Applies | File > Settings > Reload config |
 
 ### JEV functions
@@ -292,6 +331,16 @@ How many 012 serve sessions may run at once; more are turned away.
 |---|---|
 | Type | number |
 | Default | `8` |
+| Applies | restart 012 |
+
+#### `serve-shell`
+
+Let 012 serve sessions run notebooks' nushell commands, as the user 012 serve runs as, following the shell option. Off, served notebooks show their regions but run nothing.
+
+| | |
+|---|---|
+| Type | true or false |
+| Default | `false` |
 | Applies | restart 012 |
 
 ### Config files

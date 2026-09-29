@@ -57,6 +57,8 @@ type Workbook struct {
 	macros      []Macro // see macros.go
 	macroOrigin string
 
+	shellHistory []string // lines typed at a notebook's prompt: shellhistory.go
+
 	// structural is set when sheets were added, deleted or renamed during
 	// the open change, which then recalculates everything: references by
 	// sheet name may now resolve differently.

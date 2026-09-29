@@ -56,10 +56,12 @@ type fileFormat struct {
 	Locale string `json:"locale,omitempty"`
 	// Macros and where they were made need no version bump either:
 	// earlier builds ignore them, and the sheets read the same.
-	MacroOrigin string      `json:"macroOrigin,omitempty"`
-	Macros      []fileMacro `json:"macros,omitempty"`
-	fileSheet               // versions 1 to 3: the only sheet
-	Sheets      []fileSheet `json:"sheets,omitempty"` // version 4
+	MacroOrigin string `json:"macroOrigin,omitempty"`
+	// ShellHistory needs no version either: see shellhistory.go.
+	ShellHistory []string    `json:"shellHistory,omitempty"`
+	Macros       []fileMacro `json:"macros,omitempty"`
+	fileSheet                // versions 1 to 3: the only sheet
+	Sheets       []fileSheet `json:"sheets,omitempty"` // version 4
 }
 
 // fileSheet is one sheet of a file.
@@ -167,6 +169,10 @@ func (w *Workbook) headLines() string {
 	}
 	if len(w.macros) > 0 {
 		lines = append(lines, w.macrosLines())
+	}
+	if len(w.shellHistory) > 0 {
+		raw, _ := json.Marshal(w.shellHistory)
+		lines = append(lines, `"shellHistory": `+string(raw))
 	}
 	return strings.Join(lines, ",\n  ")
 }

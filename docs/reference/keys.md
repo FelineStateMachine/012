@@ -124,6 +124,16 @@ range, F2 renames or repoints it and Ctrl+D deletes it.
 | Ctrl+Alt+Shift+0 to 9 | Run the macro with that shortcut ([Macros](../sheets/macros.md#running)) |
 | Esc | Stop a macro while it runs (the mode indicator says CMD) |
 
+## Notebooks
+
+| Key | Action |
+|---|---|
+| ! | Open the nushell prompt on the formula bar (the mode indicator says NU); in any workbook, it writes to the notebook sheet ([Nushell notebooks](../terminal/nushell.md#notebooks)) |
+| Enter, Tab, Up, Down, Esc | At the prompt: run the line; complete a region or command; the workbook's earlier lines; stop a command running, or else go back to the grid |
+| Enter, F2 | On a region's label line: run it again (and what reads it); edit its command at the prompt |
+| F9 | Run all regions, each after those it reads |
+| Esc | Stop a region's command while it runs |
+
 ## Keys the terminal has to tell apart
 
 Terminals send some keys as they send others: Shift+Enter as Enter,

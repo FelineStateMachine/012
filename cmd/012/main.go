@@ -67,6 +67,7 @@ func usage() error {
 		" sheet, or a .csv, .tsv, .json, .nuon, .xlsx, .sqlite, .parquet or .wk1 file to import\n" +
 		"       012 [flags] -: a table from standard input (NUON, JSON, CSV or TSV)\n" +
 		"       012 [flags] --pipe [--to nuon|json|csv|tsv] [file]: on quitting, send the table to standard output\n" +
+		"       012 nu [flags] [file]: a nushell notebook, at its prompt (see docs/terminal/nushell.md)\n" +
 		"       012 serve [flags] [dir]: serve sheets in dir over SSH (see docs/terminal/ssh.md)\n" +
 		"       012 config [path|edit|default|themes|set-key|delete-key]\n" +
 		"       012 version")
@@ -82,6 +83,11 @@ func run(args []string, e env) error {
 	if len(args) > 0 && args[0] == "serve" {
 		// A file called serve opens as ./serve.
 		return runServe(args[1:], e)
+	}
+	// A file called nu opens as ./nu.
+	notebook := len(args) > 0 && args[0] == "nu"
+	if notebook {
+		args = args[1:]
 	}
 	flags, args, err := config.ParseFlags(args)
 	if err != nil {
@@ -125,6 +131,9 @@ func run(args []string, e env) error {
 		m.EnableJEV(client, jev.NewCache())
 	}
 	m.Configure(settings)
+	if notebook {
+		m.OpenShell()
+	}
 	setPipe(m, pipe, e.stdin)
 	opts, closeTTY, err := tuiOptions(pipe, e)
 	if err != nil {

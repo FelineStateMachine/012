@@ -88,6 +88,7 @@ save), so they raise no version:
 | `locale` | the workbook | The [locale](../sheets/locale.md) it's typed and shown in (`"de-DE"`), when File > Settings > Locale chose one; without it, the file follows the reader's `locale` setting. Cells are stored the same way in every locale: `input` is always as typed in en-US (`1,234.5`, `9/26/2026`, `=ROUND(A1,2)`) |
 | `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on (macros' and shell regions' both): see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
 | `notebook`, `regions` | a sheet | A [notebook sheet](../terminal/nushell.md#notebooks) and its shell regions: see [Regions](#regions). Older builds open the sheet without them |
+| `shellHistory` | the workbook | The lines typed at its [notebook prompt](../terminal/nushell.md#the-prompt), oldest first, for Up and Down |
 
 ## Column and row formats
 
