@@ -43,6 +43,7 @@ lint:
 fuzz:
 	go test ./internal/sheet -run '^$$' -fuzz FuzzParse -fuzztime 60s
 	go test ./internal/sheet -run '^$$' -fuzz FuzzRead -fuzztime 60s
+	go test ./internal/sheet -run '^$$' -fuzz FuzzRandomEdits -fuzztime 60s
 	go test ./internal/fileio -run '^$$' -fuzz FuzzReadDelimited -fuzztime 60s
 	go test ./internal/fileio -run '^$$' -fuzz FuzzReadWK1 -fuzztime 60s
 	go test ./internal/fileio -run '^$$' -fuzz 'FuzzReadXLSX$$' -fuzztime 60s

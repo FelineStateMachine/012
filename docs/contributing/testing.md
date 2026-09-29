@@ -9,7 +9,7 @@ sidebar_position: 5
 make check    # all of the below that must pass before a push: gofmt, vet, lint, test, oracle, e2e
 make lint     # go vet, staticcheck, cognitive complexity at most 25, Go files at most 500 lines, doclint and doccheck (see Docs below)
 make test     # engine, file formats and UI unit tests
-make fuzz     # fuzz the formula parser and the .012, CSV, .wk1, XLSX and NUON readers
+make fuzz     # fuzz the formula parser, random edits, and the .012, CSV, .wk1, XLSX and NUON readers
 make oracle   # compare formulas and number formats with excelize
 make e2e      # run the real binary in a terminal emulator (needs Zig and pkg-config)
 make screens  # rewrite the golden screens and build the review gallery
@@ -25,7 +25,23 @@ streaming `.012` reader to encoding/json decoding the whole file: both
 refuse a file or both read it into workbooks that save the same bytes.
 `TestFixturesOpenAndSaveUnchanged` opens the workbooks every release
 saved and saves them again, byte for byte
-([File fixtures](releasing.md#file-fixtures)). The UI is tested by sending
+([File fixtures](releasing.md#file-fixtures)).
+
+`TestRandomEdits` (`internal/sheet/randedit_test.go`) checks what holds
+between features: from each of a thousand seeds it builds a workbook
+of two sheets and a notebook, makes up to 40 edits drawn from the seed
+(entries, pastes, fills, series, sorts, inserted and deleted rows and
+columns, formats, borders, merges, moves, notes, rules, names, sheets,
+frozen panes, filters, and region runs and sorts, with tables standing
+in for nushell's output), and checks that undoing every step gives back
+the file and the values it started with, redoing gives back the end,
+saving and reopening gives the same file and values (a recalculation
+from scratch), and recalculating everything in place changes no value.
+A failure names the fewest of the seed's edits that still fail. It takes
+about a second; `-randedit.seeds=20000` runs more, and `FuzzRandomEdits`
+(in `make fuzz`) lets the fuzzer choose the edits.
+
+The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and
 reading what `View` renders, without a terminal.
 
