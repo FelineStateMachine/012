@@ -247,8 +247,9 @@ func feedAll(wb *Workbook, feeds map[string]LiveOp) {
 
 // sendRows sends a region its rows. A table widens its columns to its
 // text the first time it shows, outside the undo history as its rows
-// are, so undoing the region leaves them wide; the edits change widths
-// themselves instead.
+// are, so undoing the region leaves them wide, as intended
+// (docs/files/following.md); the edits change widths themselves
+// instead.
 func sendRows(wb *Workbook, op LiveOp) {
 	if s, r, ok := wb.Region(op.Region); ok {
 		s.meta(nameKey(r.Name)).fitted = true

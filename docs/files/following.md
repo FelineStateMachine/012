@@ -91,7 +91,11 @@ a file that doesn't change costs one check.
 
 Rows arrive outside the undo history, as an array's spilled values do:
 undo takes back edits, not the file's rows, and rows arriving don't mark
-the spreadsheet modified.
+the spreadsheet modified. The first rows a region shows widen its
+columns to their text, up to 30 characters, where no width was set, as
+a [pivot table](../sheets/pivots.md)'s results do. The widening comes
+with the rows rather than an edit, so it stays when undo takes the
+region back; set the width to change it.
 
 ## Pause, read again, unlink
 
