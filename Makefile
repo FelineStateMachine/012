@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e speed speed-update dist site site-serve site-deps
+.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e speed speed-update dist site site-release site-serve site-deps
 
 build:
 	CGO_ENABLED=0 go build -o bin/012 ./cmd/012
@@ -146,6 +146,14 @@ SITE_NODE := NODE_OPTIONS=--disable-warning=ExperimentalWarning
 
 site: site-deps
 	cd website && $(SITE_NODE) npm run build
+
+# The site as published: the build above plus a release's archives and
+# SHA256SUMS under /releases/<version>/ and /releases/latest/, and
+# install.sh and install.ps1 at the root. VERSION is the newest version
+# tag unless set; the archives are dist/'s when it holds that version,
+# else built from the tag. See docs/contributing/releasing.md.
+site-release: site
+	VERSION=$(VERSION) scripts/site-release.sh
 
 site-serve: site-deps
 	cd website && $(SITE_NODE) npm run start
