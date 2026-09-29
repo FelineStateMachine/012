@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e dist site site-serve site-deps
+.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e speed speed-update dist site site-serve site-deps
 
 build:
 	CGO_ENABLED=0 go build -o bin/012 ./cmd/012
@@ -25,13 +25,14 @@ test:
 	STRESS_DIR=$(DEPS)/stress go test ./...
 
 # Everything that must pass before a push: formatting, vet (also with the
-# stress benchmarks), shape limits, unit tests, the excelize oracle and the
-# end-to-end tests in libghostty.
+# stress benchmarks), shape limits, unit tests, the speed gate, the
+# excelize oracle and the end-to-end tests in libghostty.
 check:
 	@test -z "$$(gofmt -l cmd internal demos e2e oracle)" || { gofmt -l cmd internal demos e2e oracle; echo "gofmt: files above need formatting"; exit 1; }
 	go vet -tags stress ./...
 	$(MAKE) lint
 	STRESS_DIR=$(DEPS)/stress go test ./...
+	$(MAKE) speed
 	$(MAKE) oracle
 	$(MAKE) e2e
 
@@ -39,6 +40,16 @@ check:
 lint:
 	go vet ./...
 	scripts/lint.sh
+
+# The speed gate: frames and recalculation on mid-sized sheets against
+# internal/ui/testdata/speed.json, in about two seconds, alone so that
+# no other package's tests share the CPU. speed-update rewrites the
+# baseline. See docs/contributing/limits.md#the-speed-gate.
+speed:
+	go test ./internal/ui -run '^TestSpeed$$' -count=1 -speed
+
+speed-update:
+	go test ./internal/ui -run '^TestSpeed$$' -count=1 -speed-update -v
 
 fuzz:
 	go test ./internal/sheet -run '^$$' -fuzz FuzzParse -fuzztime 60s

@@ -6,10 +6,11 @@ sidebar_position: 5
 # Testing
 
 ```sh
-make check    # all of the below that must pass before a push: gofmt, vet, lint, test, oracle, e2e
+make check    # all of the below that must pass before a push: gofmt, vet, lint, test, speed, oracle, e2e
 make lint     # go vet, staticcheck, cognitive complexity at most 25, Go files at most 500 lines, doclint and doccheck (see Docs below)
 make test     # engine, file formats and UI unit tests
 make fuzz     # fuzz the formula parser, random edits, and the .012, CSV, .wk1, XLSX and NUON readers
+make speed    # frames and recalculation against a checked-in baseline (see limits.md)
 make oracle   # compare formulas and number formats with excelize
 make e2e      # run the real binary in a terminal emulator (needs Zig and pkg-config)
 make screens  # rewrite the golden screens and build the review gallery
