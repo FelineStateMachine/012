@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "names": {"Units": "Sales!C2:C9", "Lost": "#REF!", "Rate": "Lists!B1"},
   "macroOrigin": "fixture-machine",
   "macros": [
@@ -117,12 +117,22 @@
       "name": "Lists",
       "hidden": true,
       "protected": [{"sheet": true}],
+      "tables": [{"name":"Targets","range":"D1:E3","columns":["Region","Target"],"banded":true,"header":true}],
       "cells": {
         "A1": "North",
         "A2": "South",
         "A3": "East",
         "A4": "West",
-        "B1": {"input": "1.5", "note": "Rate used by Sales!I2"}
+        "B1": {"input": "1.5", "note": "Rate used by Sales!I2"},
+        "D1": "Region",
+        "E1": "Target",
+        "D2": "North",
+        "E2": "20",
+        "D3": "South",
+        "E3": "=E2/2",
+        "F1": "=SUM(Targets[Target])+ROWS(Targets[#All])",
+        "F2": "=Targets[@Target]*2",
+        "F3": "=COUNTA(Targets[[#Headers],[Region]:[Target]])"
       }
     },
     {
