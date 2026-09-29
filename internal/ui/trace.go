@@ -1,32 +1,39 @@
 package ui
 
 import (
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
-// Tracing precedents and dependents, after Excel's Ctrl+[ and Ctrl+]: the
-// cells a formula reads, or the formulas that read a cell, light up and
-// the active cell jumps to the first; pressing the key again steps
-// through the rest. Ctrl+[ is Esc to most terminals, so the keys are
-// Alt+, and Alt+. (the < and > keys: back to the inputs, on to the
-// results). The highlight is transient, as a search's is: any other key
-// or click ends it, and Esc returns to the traced cell.
+// Stepping through precedents and dependents, after Excel's Ctrl+[ and
+// Ctrl+]: the cells a formula reads, or the formulas that read a cell,
+// light up and the active cell jumps to the first; pressing the key
+// again steps through the rest. Ctrl+[ is Esc to most terminals, so the
+// keys are Alt+, and Alt+. (the < and > keys: back to the inputs, on to
+// the results). The highlight is transient, as a search's is: any other
+// key or click ends it, and Esc returns to the traced cell. Tracing that
+// stays on as the pointer moves is traceview.go.
 
 type trace struct {
 	dependents bool
 	home       *sheet.Sheet // the traced cell's sheet
 	origin     sheet.Addr
-	targets    []sheet.Target // on any sheet: stepping to one shows its sheet
-	at         int            // the target the active cell is on
+	targets    []sheet.Link // on any sheet: stepping to one shows its sheet
+	at         int          // the target the active cell is on
 }
+
+// maxListed caps the dependents found for a cell, so one read by a
+// million formulas lists a thousand and says there are more.
+const maxListed = 1000
 
 func init() {
 	register(
@@ -50,13 +57,14 @@ func (m *Model) stepTrace(dependents bool) {
 	if t == nil || t.dependents != dependents {
 		t = &trace{dependents: dependents, home: m.sheet, origin: m.cur, at: -1}
 		if dependents {
-			t.targets = m.sheet.Dependents(m.cur)
+			t.targets, _ = m.sheet.DependentLinks(m.cur, maxListed)
 		} else {
-			t.targets = m.sheet.Precedents(m.cur)
+			t.targets = m.sheet.PrecedentLinks(m.cur)
 		}
-		// Cells on hidden sheets can't be shown, so the trace skips them.
+		// Cells on hidden sheets can't be shown, nor a notebook's cell
+		// among the grid's, so the trace skips them.
 		hidden := hiddenSheets(t.targets)
-		t.targets = slices.DeleteFunc(t.targets, func(tg sheet.Target) bool { return tg.Sheet.Hidden() })
+		t.targets = slices.DeleteFunc(t.targets, func(l sheet.Link) bool { return l.Sheet.Hidden() || !l.OnGrid() })
 		if len(t.targets) == 0 {
 			m.trace = nil
 			m.note = noTrace(dependents, m.cur, hidden)
@@ -70,12 +78,12 @@ func (m *Model) stepTrace(dependents bool) {
 	m.cur = t.targets[t.at].Range.From
 }
 
-// hiddenSheets names the hidden sheets targets are on, in order.
-func hiddenSheets(targets []sheet.Target) []string {
+// hiddenSheets names the hidden sheets links are on, in order.
+func hiddenSheets(links []sheet.Link) []string {
 	var out []string
-	for _, tg := range targets {
-		if tg.Sheet.Hidden() && !slices.Contains(out, tg.Sheet.Name()) {
-			out = append(out, tg.Sheet.Name())
+	for _, l := range links {
+		if l.Sheet.Hidden() && !slices.Contains(out, l.Sheet.Name()) {
+			out = append(out, l.Sheet.Name())
 		}
 	}
 	return out
@@ -121,18 +129,21 @@ func (m *Model) traceKey(k tea.KeyPressMsg) bool {
 	return false
 }
 
-// covers reports whether a, on the sheet shown, is in a range being
-// traced.
-func (t *trace) covers(shown *sheet.Sheet, a sheet.Addr) bool {
+// role is the role a, on the sheet shown, is drawn in while it's being
+// traced, or nil.
+func (t *trace) role(th *theme.Theme, shown *sheet.Sheet, a sheet.Addr) *lipgloss.Style {
 	if t == nil {
-		return false
+		return nil
 	}
 	for _, tg := range t.targets {
 		if tg.Sheet == shown && tg.Range.Contains(a) {
-			return true
+			if t.dependents {
+				return &th.Dependent
+			}
+			return &th.Precedent
 		}
 	}
-	return false
+	return nil
 }
 
 // line is the context line during a trace, e.g. "2 precedents of
@@ -155,36 +166,63 @@ func (t *trace) line(th *theme.Theme, width int, shown *sheet.Sheet) (left, righ
 	if room < ansi.StringWidth(left)+12 {
 		right, room = "", width
 	}
-	var b strings.Builder
-	b.WriteString(left)
+	labels := make([]string, len(t.targets))
 	for i, tg := range t.targets {
-		part := targetLabel(shown, tg, t.home)
+		labels[i] = linkLabel(shown, tg, t.home)
 		if i == t.at {
-			part = th.Key.Render(part)
+			labels[i] = th.Key.Render(labels[i])
 		}
+	}
+	return left + listFit(th, labels, len(labels), room-ansi.StringWidth(left), false), right
+}
+
+// listFit joins labels, the first of total, with commas in room
+// columns, ending in "+3 more" when they don't all fit, or "and more"
+// when there are more than total (more).
+func listFit(th *theme.Theme, labels []string, total, room int, more bool) string {
+	var b strings.Builder
+	for i, part := range labels {
 		if i > 0 {
 			part = ", " + part
 		}
-		more := " +" + strconv.Itoa(len(t.targets)-i) + " more"
-		if ansi.StringWidth(b.String()+part)+len(more) > room && i < len(t.targets)-1 {
-			b.WriteString(th.Muted.Render(more))
-			break
+		rest := " +" + strconv.Itoa(total-i) + " more"
+		if more {
+			rest = " and more"
+		}
+		if ansi.StringWidth(b.String()+part)+len(rest) > room && (i < total-1 || more) {
+			b.WriteString(th.Muted.Render(rest))
+			return b.String()
 		}
 		b.WriteString(part)
 	}
-	return b.String(), right
+	switch {
+	case more:
+		b.WriteString(th.Muted.Render(" and more"))
+	case len(labels) < total:
+		b.WriteString(th.Muted.Render(" +" + strconv.Itoa(total-len(labels)) + " more"))
+	}
+	return b.String()
 }
 
-// targetLabel names a range the way a formula on from refers to it: by
-// its name if it has one, with its sheet if it's on another.
-func targetLabel(shown *sheet.Sheet, t sheet.Target, from *sheet.Sheet) string {
+// linkLabel names a link the way a formula on from refers to it: by the
+// name of its named range or region, with its sheet when it's on
+// another, or by what a region's cells come from.
+func linkLabel(shown *sheet.Sheet, l sheet.Link, from *sheet.Sheet) string {
+	switch l.Kind {
+	case sheet.LinkName, sheet.LinkRegion, sheet.LinkTable:
+		return l.Name
+	case sheet.LinkFile:
+		return filepath.Base(l.Name)
+	case sheet.LinkOutput:
+		return "notebook cell " + l.Name
+	}
 	for _, n := range shown.Names() {
-		if !n.Gone() && n.Sheet == t.Sheet && n.Range == t.Range && t.Range.From != t.Range.To {
+		if !n.Gone() && n.Sheet == l.Sheet && n.Range == l.Range && l.Range.From != l.Range.To {
 			return n.Name
 		}
 	}
-	if t.Sheet != from {
-		return sheet.Qualified(t.Sheet.Name(), t.Range)
+	if l.Sheet != from {
+		return sheet.Qualified(l.Sheet.Name(), l.Range)
 	}
-	return t.Range.String()
+	return l.Range.String()
 }

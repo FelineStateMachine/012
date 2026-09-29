@@ -22,7 +22,7 @@ func TestRuleColorsReadOnReferencePalettes(t *testing.T) {
 				bg := reference(dark, s.GetBackground().(ansi.BasicColor))
 				// The reference palettes' own colors fall a little short
 				// of 4.5 in places: black on the light green is 4.29, as
-				// for Traced.
+				// for Precedent.
 				if r := contrast(fg, bg); r < 4.25 {
 					t.Errorf("dark %v: %s text on %s fill: %.2f", dark, text.Title(), c.Title(), r)
 				}

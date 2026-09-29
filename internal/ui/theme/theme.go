@@ -41,12 +41,21 @@ type Theme struct {
 	// ErrorMark is layered on an error's text, so errors show beyond
 	// color: a curly underline, in the error color where the terminal
 	// supports colored underlines.
-	ErrorMark    lipgloss.Style
-	Link         lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
-	Spilled      lipgloss.Style // values an array formula spilled into the cells below and right of it
-	Found        lipgloss.Style // cells matching an open search
-	Traced       lipgloss.Style // precedents or dependents being traced
-	Argument     lipgloss.Style // the argument at the caret in a function's signature
+	ErrorMark lipgloss.Style
+	Link      lipgloss.Style // a cell's URL or HYPERLINK label, layered on the cell's role
+	Spilled   lipgloss.Style // values an array formula spilled into the cells below and right of it
+	Found     lipgloss.Style // cells matching an open search
+	// Precedent and Dependent mark what a formula reads and the formulas
+	// reading a cell, while traced: in reverse video, dependents bold too,
+	// so the two read apart without color.
+	Precedent lipgloss.Style
+	Dependent lipgloss.Style
+	Argument  lipgloss.Style // the argument at the caret in a function's signature
+	// EvalNext is the part of a formula Evaluate formula computes next,
+	// underlined; Evaluated the values it has put in place of the parts
+	// it computed, italic.
+	EvalNext     lipgloss.Style
+	Evaluated    lipgloss.Style
 	Progress     lipgloss.Style // the done part of an import's progress bar
 	ProgressTodo lipgloss.Style // the rest of the progress bar
 	// Copied marks the range on the clipboard, like Sheets' dashed border:
@@ -206,7 +215,7 @@ func New(dark bool) Theme {
 // without it. Call it last: the roles' colors read reversed afterwards.
 func (t *Theme) standouts() {
 	for _, s := range []*lipgloss.Style{&t.Pointer, &t.Selection, &t.HeaderActive, &t.HeaderSel,
-		&t.Found, &t.Traced, &t.MenuSelected, &t.MenuAccelSelected, &t.DropdownChip} {
+		&t.Found, &t.Precedent, &t.Dependent, &t.MenuSelected, &t.MenuAccelSelected, &t.DropdownChip} {
 		fg, bg := s.GetForeground(), s.GetBackground()
 		*s = s.Foreground(bg).Background(fg).Reverse(true)
 	}
@@ -278,8 +287,11 @@ func roles(dark bool) Theme {
 		Link:         lipgloss.NewStyle().Foreground(link).Underline(true),
 		Spilled:      lipgloss.NewStyle().Foreground(bar).Italic(true),
 		Found:        lipgloss.NewStyle().Background(lipgloss.Yellow).Foreground(lipgloss.Black),
-		Traced:       lipgloss.NewStyle().Background(lipgloss.Green).Foreground(lipgloss.Black),
+		Precedent:    lipgloss.NewStyle().Background(lipgloss.Green).Foreground(lipgloss.Black),
+		Dependent:    lipgloss.NewStyle().Background(lipgloss.Magenta).Foreground(lipgloss.Black).Bold(true),
 		Argument:     lipgloss.NewStyle().Bold(true).Underline(true),
+		EvalNext:     lipgloss.NewStyle().Bold(true).Underline(true),
+		Evaluated:    lipgloss.NewStyle().Foreground(bar).Italic(true),
 		Progress:     lipgloss.NewStyle().Foreground(bar),
 		ProgressTodo: lipgloss.NewStyle().Foreground(lipgloss.BrightBlack),
 		Copied: lipgloss.NewStyle().Foreground(lipgloss.Magenta).

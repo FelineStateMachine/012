@@ -97,7 +97,10 @@ The rest of the formats are in the Format menu.
 | Ctrl+F, Ctrl+H | Find; find and replace | [Find and replace](../sheets/find-replace.md) |
 | Alt+Down | Open the active cell's dropdown (type to search, Enter picks); elsewhere, with a filter on (Data > Create a filter), the column's filter (Space checks values, type to search, or pick a condition) | [validation](../sheets/rules.md#data-validation), [filter](../sheets/sort-filter.md#filter) |
 | Space | Check or uncheck the selected checkboxes (Insert > Checkbox); elsewhere Space starts an entry | [Conditional formatting and data validation](../sheets/rules.md#data-validation) |
-| Alt+, Alt+. | Trace precedents, dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) | [Building formulas](../formulas/building.md) |
+| Alt+, Alt+. | Trace precedents, dependents: highlight the cells a formula reads, or the formulas that read the cell, and jump to the first; again for the next, Esc to go back (Excel's Ctrl+[ and Ctrl+], which terminals send as Esc) | [Tracing formulas](../formulas/tracing.md#stepping-through-them) |
+| Alt+; | Show precedents and dependents: mark them as the pointer moves and list them on the context line; again to stop | [Tracing formulas](../formulas/tracing.md) |
+| Alt+' | Go to a precedent or dependent, picked from a list | [Tracing formulas](../formulas/tracing.md#going-to-one) |
+| Alt+= | Evaluate formula: step through the active cell's formula one part at a time; Enter evaluates, → steps into a reference, ← steps out | [Tracing formulas](../formulas/tracing.md#evaluating-a-formula-step-by-step) |
 | Alt+Shift+F | Frequency table of the active column on a new sheet, as VisiData's Shift+F | [Pivot tables](../sheets/pivots.md#frequency-tables) |
 | Ctrl+Alt+T | Make the selection, or the data around the active cell, a table whose first row names its columns (Format > Convert to table) | [Tables](../sheets/tables.md) |
 | Shift+F2 | Add or edit the active cell's note; Alt+Enter or Shift+Enter starts a new line | [Notes and protection](../sheets/notes-protection.md#notes) |

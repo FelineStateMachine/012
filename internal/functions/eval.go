@@ -170,10 +170,13 @@ func eval(n Node, get lookup) Value {
 }
 
 // evalOther evaluates what formulas rarely hold: array literals, names
-// LET and LAMBDA bind, LAMBDA calls, and arguments standing in for
-// arrays being mapped over.
+// LET and LAMBDA bind, LAMBDA calls, arguments standing in for arrays
+// being mapped over, and parts of a formula being stepped through
+// (probe.go).
 func evalOther(n Node, get lookup) Value {
 	switch n := n.(type) {
+	case probe:
+		return n.eval(get)
 	case formula.Array:
 		return get.literal(n)
 	case formula.Local:

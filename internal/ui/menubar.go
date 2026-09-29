@@ -118,7 +118,10 @@ var menuBar = []menuDef{
 		{cmd: "data.pivot"}, {cmd: "data.pivot_edit"}, {cmd: "data.frequency"}, sep,
 		{cmd: "data.named_ranges"}, {cmd: "data.define_name"}, {title: "Table", items: tableItems}, {cmd: "data.protect"},
 		{cmd: "data.validation"}, {cmd: "data.validation_clear"}, sep,
-		{cmd: "data.precedents"}, {cmd: "data.dependents"}, sep,
+		{title: "Formula tracing", items: []menuItem{
+			{cmd: "data.precedents"}, {cmd: "data.dependents"}, {cmd: "data.trace_list"}, sep,
+			{cmd: "view.trace"}, {cmd: "data.evaluate"},
+		}}, sep,
 		{title: "Macros", items: macroItems}, {title: "Shell", items: notebookItems}, {title: "Linked file", items: linkedItems}, sep,
 		{cmd: "jev.refresh"},
 	}},

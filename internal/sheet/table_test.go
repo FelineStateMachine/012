@@ -269,3 +269,25 @@ func TestRegionIsTable(t *testing.T) {
 		t.Error("a table took a region's name")
 	}
 }
+
+// Tracing follows structured references: a formula's precedents name
+// the table's cells as written, and a table's cells list the formulas
+// reading them.
+func TestTableTracing(t *testing.T) {
+	s := salesSheet(t)
+	s.Set(at("E1"), "=SUM(Sales[Amount])+ROWS(Sales)")
+	s.Set(at("D3"), "=Sales[@Units]*2")
+	links := s.PrecedentLinks(at("E1"))
+	if len(links) != 2 || links[0].Kind != LinkTable || links[0].Name != "Sales[Amount]" || links[0].Range != rect("C2:C4") ||
+		links[1].Name != "Sales" || links[1].Range != rect("A2:C4") {
+		t.Errorf("precedents %+v", links)
+	}
+	deps, _ := s.DependentLinks(at("B3"), 0)
+	if len(deps) != 2 {
+		t.Errorf("dependents of B3 %+v", deps)
+	}
+	st := s.EvaluateSteps(at("D3"))
+	if expr, value, ok := st.Next(); !ok || expr != "Sales[@Units]" || value != "3" || st.Result() != "6" {
+		t.Errorf("first step %q = %q, result %q", expr, value, st.Result())
+	}
+}
