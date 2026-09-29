@@ -29,7 +29,9 @@ rest: building from a clone, importing files, `012 serve` and settings.
   suggestions and argument hints, pointing at cells with the arrows or the
   mouse, named ranges, references between sheets, arrays that spill
   (FILTER, SORT, UNIQUE, LAMBDA), optional decimal
-  arithmetic for money, and undo for everything
+  arithmetic for money, undo for everything, and
+  [tracing](docs/formulas/tracing.md) that marks what a formula reads
+  and what reads it and steps through it part by part
   ([formulas](docs/formulas/README.md)); numbers, dates and formulas
   typed and shown in a [locale](docs/sheets/locale.md) per file.
 - **Data tools**: freeze, sort, filter, find and replace, conditional

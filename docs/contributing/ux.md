@@ -105,7 +105,8 @@ there.
 | Notes | A `▝` in the cell's top-right corner |
 | Macro recording | `REC` beside the mode indicator |
 | Mode | The mode indicator's word (`READY`, `ENTER`, `POINT`, `MENU`, and on a notebook `NOTEBOOK`, `EDIT` or `OUTPUT`) |
-| Search matches, traced cells | Reverse video, with a count or the list on the context line |
+| Search matches, traced cells | Reverse video, with a count or the list on the context line; dependents also bold |
+| Evaluate formula | The part computed next underlined and bold, values in its place italic, and `Next` and `Value` in words |
 | The copied range | A dashed underline |
 | Dropdowns, checkboxes, active filters | `▾`, or a chip in reverse video between `▐` and `▌`; `[ ]` and `[✓]`; `▼` instead of `▾` |
 | Data bars, icon sets | Eighth blocks as long as the number, and reverse video under the text they run beneath; the icon's glyph (`↑`, `◑`, `✓`, `▆`) |
