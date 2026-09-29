@@ -75,6 +75,7 @@ func TestFormatCommandsCoverSheetsMenu(t *testing.T) {
 		{"format.financial", " (1,450.00) "},
 		{"format.currency_rounded", "    -$1,450 "},
 		{"format.duration", "-34800:00:00"}, // uses the padding: nothing to its right
+		{"format.size", "    -1.5 kB "},
 		{"format.plain_text", " -1450      "},
 		{"format.automatic", "      -1450 "},
 	}

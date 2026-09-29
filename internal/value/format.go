@@ -24,10 +24,11 @@ const (
 	FmtDateTime                     // 9/26/2026 15:59:00
 	FmtDuration                     // 24:01:00
 	FmtCustom                       // Pattern, e.g. from Increase decimal places on Automatic
+	FmtSize                         // 1.6 kB: a count of bytes, as nushell shows file sizes
 )
 
 var kindNames = [...]string{"auto", "text", "number", "percent", "scientific", "accounting",
-	"financial", "currency", "date", "time", "datetime", "duration", "custom"}
+	"financial", "currency", "date", "time", "datetime", "duration", "custom", "size"}
 
 // String returns the kind's name as stored in files.
 func (k FormatKind) String() string {
@@ -50,7 +51,7 @@ func ParseFormatKind(s string) (FormatKind, bool) {
 // HasDecimals reports whether the kind takes a number of decimal places.
 func (k FormatKind) HasDecimals() bool {
 	switch k {
-	case FmtNumber, FmtPercent, FmtScientific, FmtAccounting, FmtFinancial, FmtCurrency:
+	case FmtNumber, FmtPercent, FmtScientific, FmtAccounting, FmtFinancial, FmtCurrency, FmtSize:
 		return true
 	}
 	return false
@@ -76,8 +77,11 @@ type Format struct {
 const MaxDecimals = 15
 
 // Preset returns kind with Sheets' default decimals: two for the number
-// kinds.
+// kinds, and one for sizes, as nushell shows them.
 func Preset(k FormatKind) Format {
+	if k == FmtSize {
+		return Format{Kind: k, Decimals: 1}
+	}
 	if k.HasDecimals() {
 		return Format{Kind: k, Decimals: 2}
 	}
@@ -118,8 +122,23 @@ func (f Format) Code() string {
 		return "m/d/yyyy h:mm:ss"
 	case FmtDuration:
 		return "[h]:mm:ss"
+	case FmtSize:
+		return SizeCode(f.Decimals)
 	}
 	return ""
+}
+
+// SizeCode is the custom number format closest to the Size format with
+// dec decimals, written with conditions as Sheets and Excel take them:
+// bytes below 1000, then kB and MB, e.g.
+// [<1000]0" B";[<1000000]0.0," kB";0.0,," MB". Size itself goes on to
+// GB, TB, PB and EB; files keep this code for other programs.
+func SizeCode(dec int) string {
+	d := ""
+	if dec > 0 {
+		d = "." + strings.Repeat("0", min(dec, MaxDecimals))
+	}
+	return `[<1000]0" B";[<1000000]0` + d + `," kB";0` + d + `,," MB"`
 }
 
 // WithDecimals returns f showing delta more (or fewer) decimal places, as

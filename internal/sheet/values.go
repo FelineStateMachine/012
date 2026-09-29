@@ -57,6 +57,7 @@ const (
 	FmtDateTime   = value.FmtDateTime
 	FmtDuration   = value.FmtDuration
 	FmtCustom     = value.FmtCustom
+	FmtSize       = value.FmtSize
 
 	// MaxDecimals caps Increase decimal places.
 	MaxDecimals = value.MaxDecimals

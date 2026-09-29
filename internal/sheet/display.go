@@ -41,7 +41,7 @@ func DisplayIn(v Value, f Format, width int, loc *locale.Locale) (string, Align)
 		}
 		return strings.Repeat("#", inner), AlignRight
 	}
-	s := numfmt.FormatIn(v.Num, f.CodeIn(loc), loc)
+	s := formatNumberIn(v.Num, f, loc)
 	if utf8.RuneCountInString(s) > inner {
 		s = strings.Repeat("#", inner)
 	}
@@ -65,7 +65,16 @@ func FormatTextIn(v Value, f Format, loc *locale.Locale) string {
 	case FmtAuto, FmtText:
 		return numfmt.GeneralIn(v.Num, loc)
 	}
-	return numfmt.FormatIn(v.Num, f.CodeIn(loc), loc)
+	return formatNumberIn(v.Num, f, loc)
+}
+
+// formatNumberIn renders a number under a format with a pattern, or
+// the Size format, which picks its unit by the number.
+func formatNumberIn(v float64, f Format, loc *locale.Locale) string {
+	if f.Kind == FmtSize {
+		return numfmt.SizeIn(v, f.Decimals, loc)
+	}
+	return numfmt.FormatIn(v, f.CodeIn(loc), loc)
 }
 
 // FormatValue renders v in width columns with one column of padding, the

@@ -45,7 +45,7 @@ for a blank cell, and error values as their code (`"#DIV/0!"`).
 | `set(ref, value)` | Enter a value as if typed: numbers, `True`/`False`, `None` (clears), or text, which is read as typed (`"=A1*2"` is a formula, `"$5"` currency, `"'=x"` text). A range gets `value` in every cell, or a list of rows (`[[1, 2], [3, 4]]`) from its first cell |
 | `set_formula(ref, formula)` | Enter a formula (the `=` is optional) in the first cell and fill it over the range, relative references adjusting as in a copy |
 | `clear(ref=None)` | Clear contents, keeping formatting; the selection by default |
-| `number_format(ref, kind, decimals=None, pattern="")` | Format numbers: kind is `auto`, `text`, `number`, `percent`, `scientific`, `accounting`, `financial`, `currency`, `date`, `time`, `datetime`, `duration`, or `custom` with a `pattern` such as `"0.0%"` |
+| `number_format(ref, kind, decimals=None, pattern="")` | Format numbers: kind is `auto`, `text`, `number`, `percent`, `scientific`, `accounting`, `financial`, `currency`, `date`, `time`, `datetime`, `duration`, `size`, or `custom` with a `pattern` such as `"0.0%"` |
 | `get_number_format(ref)` | The kind of a cell's number format |
 | `offset(ref, cols=0, rows=0)` | `ref` moved, keeping its size and sheet: `offset("A1", 2, 3)` is `"C4"` |
 

@@ -45,6 +45,8 @@ func excelCode(f sheet.Format) string {
 		return orDefault(f.Pattern, "[h]:mm:ss")
 	case sheet.FmtCustom:
 		return f.Pattern
+	case sheet.FmtSize:
+		return f.Code()
 	}
 	return ""
 }
@@ -189,7 +191,7 @@ func formatOf(id int, code string) sheet.Format {
 	knownOnce.Do(func() {
 		knownCodes = map[string]sheet.Format{}
 		for _, k := range []sheet.FormatKind{sheet.FmtAccounting, sheet.FmtFinancial, sheet.FmtScientific,
-			sheet.FmtPercent, sheet.FmtCurrency, sheet.FmtNumber} {
+			sheet.FmtPercent, sheet.FmtCurrency, sheet.FmtNumber, sheet.FmtSize} {
 			for d := sheet.MaxDecimals; d >= 0; d-- {
 				f := sheet.Format{Kind: k, Decimals: d}
 				knownCodes[normCode(excelCode(f))] = f

@@ -32,6 +32,7 @@ var numberFormats = []struct {
 	{"format.time", "Time", "Time: 3:59:00 PM", sheet.Preset(sheet.FmtTime)},
 	{"format.datetime", "Date time", "Date and time: 9/26/2026 15:59:00", sheet.Preset(sheet.FmtDateTime)},
 	{"format.duration", "Duration", "Elapsed hours, minutes and seconds: 24:01:00", sheet.Preset(sheet.FmtDuration)},
+	{"format.size", "Size", "A count of bytes, as nushell shows file sizes: 1.6 kB", sheet.Preset(sheet.FmtSize)},
 }
 
 // textStyles toggle like Sheets: on for the whole selection unless the

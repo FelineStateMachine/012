@@ -204,7 +204,11 @@ func TestFormatCodes(t *testing.T) {
 		}
 	}
 	// Every format 012 writes reads back as itself.
+	kinds := []sheet.FormatKind{sheet.FmtSize}
 	for k := sheet.FmtText; k <= sheet.FmtDuration; k++ {
+		kinds = append(kinds, k)
+	}
+	for _, k := range kinds {
 		for d := range 4 {
 			f := sheet.Format{Kind: k}
 			if sheet.Preset(k).Decimals > 0 {

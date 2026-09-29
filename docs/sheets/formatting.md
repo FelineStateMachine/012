@@ -32,9 +32,20 @@ Format > Number, as Sheets names them:
 | Time | 3:59:00 PM |
 | Date time | 9/26/2026 15:59:00 |
 | Duration | Elapsed hours, minutes and seconds: 24:01:00 |
+| Size | A count of bytes, as nushell shows file sizes: 1.6 kB |
 
 Format > Increase decimal places and Format > Decrease decimal places
 show one more or one less.
+
+Size isn't one of Sheets' formats; it's what a
+[nushell](../terminal/nushell.md) table's sizes come in as. It shows
+whole bytes below 1000 (`512 B`), and above that the number in the
+largest unit that keeps it under 1000 once rounded, units a thousand
+apart: kB, MB, GB, TB, PB and EB, with one decimal place until you
+change it (`1.6 kB`, `999,999` as `1.0 MB`). Sheets would write the
+first three units as the custom format
+`[<1000]0" B";[<1000000]0.0," kB";0.0,," MB"`, which is what an Excel
+download keeps, and what reads back as Size.
 A formula left Automatic shows the format of what it reads
 ([building formulas](../formulas/building.md)).
 
