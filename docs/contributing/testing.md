@@ -30,17 +30,22 @@ saved and saves them again, byte for byte
 
 `TestRandomEdits` (`internal/sheet/randedit_test.go`) checks what holds
 between features: from each of a thousand seeds it builds a workbook
-of two sheets and a notebook, makes up to 40 edits drawn from the seed
-(entries, pastes, fills, series, sorts, inserted and deleted rows and
-columns, formats, borders, merges, moves, notes, rules, names, sheets,
-frozen panes, filters, and region runs and sorts, with tables standing
-in for nushell's output), and checks that undoing every step gives back
-the file and the values it started with, redoing gives back the end,
-saving and reopening gives the same file and values (a recalculation
-from scratch), and recalculating everything in place changes no value.
-A failure names the fewest of the seed's edits that still fail. It takes
-about a second; `-randedit.seeds=20000` runs more, and `FuzzRandomEdits`
-(in `make fuzz`) lets the fuzzer choose the edits.
+of two sheets and a notebook tab, makes up to 40 edits drawn from the
+seed (entries, pastes, fills, series, sorts, inserted and deleted rows
+and columns, formats, borders, merges, moves, notes, rules, names,
+sheets, frozen panes, filters, notebook cells, and outputs sent to
+sheets, frozen, deleted and sent rows, with tables standing in for
+nushell's), and checks that undoing every step gives back the file and
+the values it started with, redoing gives back the end, saving and
+reopening gives the same file and values (a recalculation from
+scratch), and recalculating everything in place changes no value.
+Outputs' rows come from outside the undo history, so the test sends
+them again after each edit, undo and reopening, as the UI does. A
+failure names the fewest of the seed's edits that still fail. It takes
+about a second; `-randedit.seeds=20000` runs more, and
+`FuzzRandomEdits` (in `make fuzz`) lets the fuzzer choose the edits.
+Seeds that fail for a reason on the roadmap are listed in `randKnown`,
+with it.
 
 The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and

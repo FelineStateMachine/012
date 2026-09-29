@@ -68,12 +68,13 @@ open a release's file, or saves it differently, fails `make check`
 promises).
 
 The workbooks a release saves are the ones in `fixtures/new`, written by
-hand to use everything the format stores: formats, entries that read against their format, column and row
-formats, widths, heights, merges, borders, freeze, filters, names,
-notes, protection, rules and validation, charts, pivot tables, notebook
-sheets with shell regions and linked files, macros, the locale and
-decimal arithmetic. A release that adds to the format adds what it
-adds there. Then, on the commit to be tagged:
+hand to use everything the format stores: formats, entries that read
+against their format, column and row formats, widths, heights, merges,
+borders, freeze, filters, names, notes, protection, rules and
+validation, charts, pivot tables, a notebook tab's cells and outputs,
+outputs sent to a sheet, linked files, macros, the locale and decimal
+arithmetic. A release that adds to the format adds what it adds there.
+Then, on the commit to be tagged:
 
 ```sh
 go test ./internal/sheet -run TestFixtures -fixtures v1.2.3

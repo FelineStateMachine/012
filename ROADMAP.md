@@ -58,7 +58,7 @@ shared editing in section 3.
 | Item | Result | Size |
 |---|---|---|
 | A workbook of formulas where 012 matches Sheets on purpose (dates, text, rounding, errors, spills), results checked once in Sheets and asserted after; differences chosen on purpose listed in the docs | Formula results people rely on stay put | S |
-| Cycles through several arrays settled the same whatever order they're computed in: the rare cycles the random edits still find with `-randedit.seeds=40000` (an array blocked or not depending on which of two was checked first) | Every cycle reads the same when reopened | S |
+| Cycles found from the formulas as written rather than as evaluation walks them: a cycle behind an error that ends a range read or an IF branch not taken, and arrays and notebook outputs in each other's way, settle the same whatever order they're computed in (`-randedit.seeds=20000` still finds about one sequence in 2,500 that reopens differently, and `randKnown` skips one of the default seeds) | Every workbook reads the same when reopened | M |
 | A week of real use by the owner, problems triaged into this page | Rough edges found by use | S |
 
 ### 5. Around the grid

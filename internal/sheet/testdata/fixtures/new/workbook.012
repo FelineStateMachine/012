@@ -131,16 +131,30 @@
       "pivot": {"source":"Sales!A1:E9","rows":[{"column":"B"},{"column":"A","order":"desc","sortBy":1}],"columns":[{"column":"C"}],"values":[{"column":"E","summarize":"sum"},{"column":"C","summarize":"counta","showAs":"percent_of_total","name":"Share"}],"filters":[{"column":"B","hidden":["West"]}],"rowTotals":true,"columnTotals":false}
     },
     {
-      "name": "Notebook 1",
+      "name": "Data",
       "widths": {"A": 20},
-      "cells": {},
-      "notebook": true,
+      "cells": {
+        "A20": "=SUM(nu.files)"
+      },
       "regions": [
-        {"name":"r1","command":"ls","at":"A1","rows":4,"cols":3},
-        {"name":"big","command":"$r1 | where size > 1kb","at":"A8","rows":3,"cols":3,"reads":["r1"],"input":"Sales!A1:E9","sort":[{"column":3,"desc":true}]},
+        {"name":"files","at":"A1","output":true},
+        {"name":"big","at":"A8","output":true},
         {"name":"app","at":"F2","path":"logs/app.csv","window":500},
         {"name":"db","at":"F20","path":"data.sqlite","format":"SQLite","table":"orders"},
         {"name":"q","at":"M20","path":"data.sqlite","format":"SQLite","query":"select * from orders limit 5"}
+      ]
+    },
+    {
+      "name": "Notebook",
+      "cells": {},
+      "tab": "notebook",
+      "reactive": true,
+      "notebookCells": [
+        {"kind":"note","source":"# Files\nWhat the folder holds."},
+        {"source":"files = ls","output":"[[name, size]; [go.mod, 812b], [README.md, 4kb]]"},
+        {"source":"big = $files | where size > 1kb","output":"[[name, size]; [README.md, 4kb]]","note":"2 rows left out"},
+        {"source":"$files | nope","error":"Command `nope` not found","detail":"help: check the spelling"},
+        {"source":"ls **/*","unsaved":true}
       ]
     }
   ]
