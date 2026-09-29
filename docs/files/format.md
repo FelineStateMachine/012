@@ -212,7 +212,7 @@ and its cells in `notebookCells`, one per line:
 ```
 
 - `kind` is `note` for Markdown, left out for code; `source` is what the
-  cell holds, a code cell's name and all (`files = ls`).
+  cell holds, a code cell's name and all, as `files` above.
 - `output` is what the cell's last run printed, as NUON text, kept when
   it fits the `nu-save-cell-kb` and `nu-save-notebook-kb` caps
   ([Configuration](../reference/config.md#nushell-notebooks)); `unsaved`

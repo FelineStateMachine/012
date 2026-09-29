@@ -201,15 +201,6 @@ func TestKeysDocCoversKeymap(t *testing.T) {
 			t.Errorf("docs/reference/keys.md doesn't list %s (%s, %s)", label, id, commands[id].title)
 		}
 	}
-	for _, keys := range []map[string]string{nbKeys, nbEditKeys} {
-		for k, id := range keys {
-			label := nbview.KeyLabel(k)
-			re := regexp.MustCompile("(^|[\\s,|(/`])" + regexp.QuoteMeta(label) + "($|[\\s,|)/.;:`])")
-			if commands[id] == nil || !re.MatchString(doc) {
-				t.Errorf("docs/reference/keys.md doesn't list the notebook's %s (%s)", label, id)
-			}
-		}
-	}
 	var vimKeys []string
 	for _, table := range []map[string]vimBinding{vimNormal, vimVisual} {
 		for k := range table {
@@ -228,6 +219,24 @@ func TestKeysDocCoversKeymap(t *testing.T) {
 			}
 		} else if !strings.Contains(doc, "`"+k+"`") {
 			t.Errorf("docs/reference/keys.md doesn't list the vim key `%s`", k)
+		}
+	}
+}
+
+// TestKeysDocCoversNotebookKeys checks docs/reference/keys.md lists the
+// notebook's keys, as the notebook shows them.
+func TestKeysDocCoversNotebookKeys(t *testing.T) {
+	data, err := os.ReadFile("../../docs/reference/keys.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, keys := range []map[string]string{nbKeys, nbEditKeys} {
+		for k, id := range keys {
+			label := nbview.KeyLabel(k)
+			re := regexp.MustCompile("(^|[\\s,|(/`])" + regexp.QuoteMeta(label) + "($|[\\s,|)/.;:`])")
+			if commands[id] == nil || !re.MatchString(string(data)) {
+				t.Errorf("docs/reference/keys.md doesn't list the notebook's %s (%s)", label, id)
+			}
 		}
 	}
 }

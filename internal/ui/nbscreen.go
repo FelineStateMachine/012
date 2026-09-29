@@ -135,7 +135,7 @@ func (m *Model) notebookBar(v *nbview.View) string {
 func (m *Model) notebookFormulaBar(v *nbview.View) string {
 	name, text := v.Head()
 	box := m.th.Header.Render(theme.PadRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
-	return box + m.th.Muted.Render(text)
+	return box + m.th.Muted.Render(ansi.Truncate(text, max(m.width-nameBoxW-1, 1), "…"))
 }
 
 // pasteMsg takes pasted text: into a notebook's cell being edited, and

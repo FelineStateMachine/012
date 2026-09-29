@@ -285,6 +285,7 @@ func (v *View) headLine(i int, c notebook.Cell) string {
 	th := v.h.Theme()
 	left, right := v.headText(c)
 	w := max(v.width-1, 1)
+	left = ansi.Truncate(left, w, "…") // a long name on a narrow screen
 	right = ansi.Truncate(right, max(w-ansi.StringWidth(left)-2, 0), "…")
 	text := left + strings.Repeat(" ", max(w-ansi.StringWidth(left)-ansi.StringWidth(right), 1)) + right
 	switch {

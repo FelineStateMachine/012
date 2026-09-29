@@ -34,19 +34,6 @@ type lineCtx struct {
 	merges    []sheet.Rect // merges crossing the row
 }
 
-// labelSpans are the label lines of regions on a row.
-type labelSpans []sheet.Rect
-
-// Contains reports whether a is on one of them.
-func (l labelSpans) Contains(a sheet.Addr) bool {
-	for _, r := range l {
-		if r.Contains(a) {
-			return true
-		}
-	}
-	return false
-}
-
 func (m *Model) lineContext(row int, ln rowtext.Line) lineCtx {
 	lc := lineCtx{row: row, ln: ln, focus: m.active(), shaped: m.sheet.Shaped()}
 	lc.sel, lc.selecting = m.highlight()

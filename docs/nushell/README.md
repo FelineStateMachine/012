@@ -19,7 +19,7 @@ in a notebook, its cells' outputs live parts of the sheets.
 | Way | Looks like | For |
 |---|---|---|
 | [A stage in a pipeline](pipelines.md) | `ls \| sheet \| where size > 1kb` | Looking at a table on the terminal, editing it, and sending it on to the next command |
-| [A notebook](notebooks.md) | `sheet nu`, then `files = ls \| select name size` in a code cell | Pipelines you keep, as in Jupyter: cells run when you ask, each output under its cell, read by later cells as `$files` and, sent to a sheet, by formulas and charts |
+| [A notebook](notebooks.md) | `sheet nu`, then `ls \| select name size` in a code cell named `files` | Pipelines you keep, as in Jupyter: cells run when you ask, each output under its cell, read by later cells as `$files` and, sent to a sheet, by formulas and charts |
 | [A followed file](../files/following.md) | Data > Linked file, then `$app \| where status >= 500` | A log or export that keeps growing: its rows come in as they're written, and pipelines read the rows it has now |
 
 ```mermaid
