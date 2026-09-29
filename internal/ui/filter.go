@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/filterpick"
@@ -49,9 +50,12 @@ func init() {
 // createFilter filters the selection, or the data around the active cell.
 func (m *Model) createFilter() tea.Cmd {
 	r := m.dataRange()
+	if m.out != nil {
+		r = m.out.table() // an output's grid filters the whole table, under its header
+	}
 	m.sheet.CreateFilter(r)
 	m.changed = true
-	m.note = "Created a filter on " + r.String() + "   " + m.th.KeyHints(m.shortcut("data.filter_column"), "filter the active column")
+	m.note = "Created a filter on " + m.rangeLabel(r) + "   " + m.th.KeyHints(m.shortcut("data.filter_column"), "filter the active column")
 	return nil
 }
 
@@ -100,12 +104,13 @@ func (g *grid) filterMark(c int) (string, bool) {
 
 // filterButtonX is the screen x of column c's filter button, or -1.
 func (g *grid) filterButtonX(c int) int {
-	name := sheet.ColName(c)
 	w := g.sheet.ColWidth(c)
-	if mark, _ := g.filterMark(c); mark == "" || w < len(name)+3 {
+	mark, _ := g.filterMark(c)
+	name := g.colLabel(c, w, 2)
+	if mark == "" || w < ansi.StringWidth(name)+3 {
 		return -1
 	}
-	lw := len(name) + 2
+	lw := ansi.StringWidth(name) + 2
 	return g.colStart(c) + (w-lw)/2 + lw - 1
 }
 
@@ -115,8 +120,8 @@ func (m *Model) openFilterPicker(col int) *filterpick.Picker {
 	if !on || col < r.From.Col || col > r.To.Col {
 		return nil
 	}
-	title := "Filter " + sheet.ColName(col)
-	if h := m.sheet.LocalText(sheet.Addr{Col: col, Row: r.From.Row}); h != "" {
+	title := "Filter " + m.colName(col)
+	if h := m.sheet.LocalText(sheet.Addr{Col: col, Row: r.From.Row}); h != "" && !m.named {
 		title += "  " + h
 	}
 	return m.openValuesPicker(title, m.colStart(col), m.sheet.FilterValues(col), m.sheet.Filter().Cols[col].Cond,
@@ -181,7 +186,7 @@ func (m *Model) filterColumn(col int, cr sheet.Criteria) {
 	span.End(slog.Int("hidden", m.sheet.HiddenRows()))
 	m.changed = true
 	if n := m.sheet.HiddenRows(); n > 0 {
-		m.note = "Filtered column " + sheet.ColName(col) + ": " + rowCount(n) + " hidden"
+		m.note = "Filtered column " + m.colName(col) + ": " + rowCount(n) + " hidden"
 	} else {
 		m.note = "The filter shows every row"
 	}

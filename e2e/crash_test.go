@@ -33,7 +33,10 @@ func TestPanicKeepsWork(t *testing.T) {
 			if !visible {
 				t.Error("the cursor is hidden after the crash")
 			}
-			text := strings.ReplaceAll(s.screen(), "\n", "")
+			// The lines wrap at the terminal's width, dropping the space a
+			// line ends on, so compare without whitespace.
+			flat := func(s string) string { return strings.Join(strings.Fields(s), "") }
+			text := flat(s.screen())
 			recovery, _ := filepath.Glob(filepath.Join(dir, ".config", "012", "recovery", "*budget-*.012"))
 			reports, _ := filepath.Glob(filepath.Join(dir, ".config", "012", "crashes", "crash-*.txt"))
 			if len(recovery) != 1 || len(reports) != 1 {
@@ -41,7 +44,7 @@ func TestPanicKeepsWork(t *testing.T) {
 			}
 			for _, want := range []string{"012: stopped on an internal error (a panic in " + strings.Replace(where, "command", "a command", 1), "unsaved changes kept in " + recovery[0] + "; open budget.012 again to restore them",
 				"a report is in " + reports[0]} {
-				if !strings.Contains(text, want) {
+				if !strings.Contains(text, flat(want)) {
 					t.Errorf("the screen lacks %q:\n%s", want, s.screen())
 				}
 			}

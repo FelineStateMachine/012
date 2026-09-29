@@ -634,9 +634,10 @@ push rather than at the next stress run. `TestSpeed`
 `internal/stress` and draws frames through the stress benchmarks' fake
 terminal, so it measures what `BenchmarkKeystroke` and `BenchmarkEdit`
 do, on fewer cases and briefly: an arrow key through to its frame at
-200 x 60 (dense, laid out, color scale and chart sheets of 8192 rows),
-single edits (fan-in, a chain, criteria functions, lookups) and full
-recalculations (running totals, arrays). It takes about two seconds.
+200 x 60 (dense, laid out, color scale and chart sheets of 8192 rows,
+and a notebook output's grid of 100,000 rows, entered), single edits
+(fan-in, a chain, criteria functions, lookups) and full recalculations
+(running totals, arrays). It takes about two seconds.
 
 Each case is held to `internal/ui/testdata/speed.json` two ways:
 

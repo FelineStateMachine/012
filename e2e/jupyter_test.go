@@ -49,6 +49,39 @@ func (s *session) codes() []string {
 	return out
 }
 
+// An output is 012's grid: Enter works in it, Shift+arrows select,
+// Ctrl+C copies, the palette's sort sorts it, a click moves the active
+// cell, Enter shows it full-screen and Esc goes back a level at a time.
+func TestNotebookOutputGrid(t *testing.T) {
+	s := startWith(t, options{cols: 100, rows: 40, startsOn: "EDIT", env: fakeNu}, "nu")
+	clip := s.watchClipboard()
+	s.keys("files = ls", "<ctrl+enter>")
+	s.waitFor("Out[1]:")
+	s.keys("<esc>", "<down>", "<enter>")
+	s.waitFor("OUTPUT")
+	s.keys("<shift+down>", "<shift+right>", "<ctrl+c>")
+	s.eventually("the rows copied", func() bool { return clip.get() == "012\tfile\nCLAUDE.md\tfile" })
+	s.waitFor("name to type, rows 1 to 2")
+	s.keys("<esc>", "<right>", "<right>", "<ctrl+k>", "Sort sheet Z to A", "<enter>")
+	s.eventually("sorted by size", func() bool {
+		_, first := s.rowOf("README.md")
+		_, last := s.rowOf("go.mod")
+		return first < last && strings.Contains(s.line(first), "  1  README.md")
+	})
+	col, row := s.rowOf("demos")
+	s.leftClick(col+1, row, 0)
+	s.keys("<ctrl+c>")
+	s.eventually("the cell clicked copied", func() bool { return clip.get() == "demos" })
+	s.keys("<enter>")
+	s.waitFor("files [1], full-screen")
+	s.keys("<esc>")
+	s.eventually("back in the window", func() bool {
+		return !strings.Contains(s.screen(), "full-screen") || strings.Contains(s.screen(), "[1]:")
+	})
+	s.keys("<esc>")
+	s.waitFor("NOTEBOOK")
+}
+
 func TestNotebookMouseAndKeys(t *testing.T) {
 	s := startWith(t, options{cols: 100, rows: 40, startsOn: "EDIT", env: fakeNu}, "nu")
 	s.keys("files = ls", "<esc>")

@@ -34,7 +34,6 @@ completed by nu as they're written.
 
 | Item | Result | Size |
 |---|---|---|
-| Outputs drawn as 012's own grid rather than text: column widths and number formats by type, the active cell and selection, sort, filter and find in place, copy a range, freeze the header, a chart or pivot from the output, and formulas beside it when sent to a sheet | An output works like the data it is | M |
 | A command's signature and description for the word at the caret, on the context line, through `nu --ide-hover` or `nu --lsp` | Writing a cell without leaving for `help` | S |
 
 ### 3. Toward multiplayer
@@ -131,6 +130,7 @@ stream above rather than a design of their own.
 - The `sheet` command: a nushell module shipped in the binary (`012 nu --install-module`), so nu calls 012 without `^012` or NUON on either side: [Pipelines](docs/nushell/pipelines.md#the-sheet-command)
 - Notebook tabs, a TUI Jupyter for nushell: code and note cells with Jupyter's keys, outputs drawn in place and opened full-screen, `$name` between cells, stale marks and a reactive mode, outputs sent to sheets as live regions (`nu.name`), saved up to a cap, and earlier notebook sheets converted on open: [Notebooks](docs/nushell/notebooks.md)
 - Code cells highlighted, checked and completed as they're written by nu itself (`--ide-ast`, `--ide-check`, `--ide-complete`), in the background, falling back to 012's own when nu is missing, old, slow or not trusted: [Notebooks](docs/nushell/notebooks.md#writing-a-cell)
+- Table and record outputs drawn and worked as 012's own grid: formats by type, fitted and resizable columns, select, copy, sort, filter and find in place, full-screen, charts and pivots on the sheet the output is sent to: [Notebooks](docs/nushell/notebooks.md#outputs-as-grids)
 
 **Files**
 

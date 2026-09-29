@@ -20,15 +20,16 @@ Money written as text (`"$2,252.50"`) becomes numbers in nushell, and a
 second cell totals it by region, sent to a sheet with a chart that
 follows it.
 
-![Nushell turns a CSV's money text into numbers, a second cell totals it by region, and its output, sent to a sheet, feeds a column chart](../media/nu-recipe.gif)
+![Nushell turns a CSV's money text into numbers, a second cell totals it by region, and Insert > Chart on its output's grid sends it to a sheet and charts it there](../media/nu-recipe.gif)
 
 ```nu
 sales = open sales.csv | update Revenue { str replace -ar '[$,]' '' | into float }
 totals = $sales | group-by Region --to-table | update items { get Revenue | math sum } | rename Region Revenue
 ```
 
-To chart it, `G` on `totals` sends its output to a new sheet; there,
-**Insert > Chart** charts the table around the pointer. Edit `sales` to
+To chart it, Enter on `totals`'s output, then **Insert > Chart**: the
+output goes to a new sheet named `totals` and the chart goes beside it
+([Outputs as grids](notebooks.md#outputs-as-grids)). Edit `sales` to
 read another file and run it: `totals` shows `stale` until it runs too
 (at once in a [reactive notebook](notebooks.md#stale-outputs-and-reactive-notebooks)),
 and then the sheet and the chart follow.
@@ -89,7 +90,7 @@ http get https://api.github.com/repos/nushell/nushell/issues | select number tit
 Sort by comments, filter by author, or make a pivot table of issues by
 author, in the sheet. In a notebook, the same pipeline without
 `| sheet view` is a cell that fetches the list again each time it runs;
-Enter on its output opens it full-screen to sort and filter, and
+Enter on its output works in it as a grid, to sort, filter and chart, and
 `nu-timeout` stops a request that hangs.
 
 Nushell: [`http get`](https://www.nushell.sh/commands/docs/http_get.html),

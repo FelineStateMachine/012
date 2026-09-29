@@ -64,6 +64,10 @@ type nbState struct {
 	// follow scrolls the view to each cell as it starts, while a run of
 	// several cells goes on and the user hasn't scrolled away.
 	follow bool
+	// out is the outputs' grids (nbgrid.go), and frame counts the frames
+	// drawn, which the grids clear what they keep for a frame by.
+	out   outGrids
+	frame int
 }
 
 // nbQueued is a cell waiting to run.

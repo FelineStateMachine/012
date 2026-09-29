@@ -199,10 +199,16 @@ func (m *Model) nbCell() (notebook.Cell, bool) {
 	return notebook.Cell{}, false
 }
 
-// nbEnter is Enter in command mode: edit the cell, or open its output.
+// nbEnter is Enter in command mode: edit the cell, or work in its
+// output's grid, or open an output that isn't one.
 func (m *Model) nbEnter() tea.Cmd {
 	v := m.nbView()
 	if _, out := v.Selected(); out {
+		if g, ok := v.SelectedGrid().(*outGrid); ok {
+			m.sizeNotebook(v)
+			m.enterGrid(g)
+			return nil
+		}
 		v.OpenFull()
 		return nil
 	}
