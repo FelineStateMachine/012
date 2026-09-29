@@ -624,3 +624,48 @@ overhead), `internal/fileio/stress_test.go` (imports and exports),
 `internal/stress`, up to `dense-1Mx10`, ten million numbers, the
 default `max-cells`. Results accumulate in `.deps/stress/results` and, with
 the observability stack up, in ClickHouse.
+
+### The speed gate
+
+`make speed`, part of `make check`, catches a clear slowdown before a
+push rather than at the next stress run. `TestSpeed`
+(`internal/ui/speed_test.go`) builds mid-sized sheets with
+`internal/stress` and draws frames through the stress benchmarks' fake
+terminal, so it measures what `BenchmarkKeystroke` and `BenchmarkEdit`
+do, on fewer cases and briefly: an arrow key through to its frame at
+200 x 60 (dense, laid out, color scale and chart sheets of 8192 rows),
+single edits (fan-in, a chain, criteria functions, lookups) and full
+recalculations (running totals, arrays). It takes about two seconds.
+
+Each case is held to `internal/ui/testdata/speed.json` two ways:
+
+- **Allocations** an operation, counted with `testing.AllocsPerRun`,
+  so the same code gives the same count on any machine and under any
+  load. A case fails past 1.25 times its baseline plus 16.
+- **Time** relative to a calibration workload (formatting numbers,
+  string map lookups, sorting) timed beside it in the same process,
+  the fastest of seven timings of each, so a slower or busier machine
+  slows both. A case fails past twice its baseline's ratio. Ratios
+  still differ between CPUs, so they are compared only on the
+  baseline's OS and architecture (the file records them); elsewhere
+  only allocations are.
+
+A case over its margin is measured once more before it fails. Runs on
+one machine vary by up to about a third, under load from other tests
+too, well inside the margin; the margins are for regressions of a
+multiple, and finer ones are what `make stress-report` is for.
+
+The gate runs alone (`go test ./...` skips `TestSpeed` without
+`-speed`), and while it times it holds `/tmp/012-bench.lock`, the lock
+other timed runs on the machine take: with flock(2) when the path is a
+file (`flock /tmp/012-bench.lock make stress` where the `flock` command
+exists), and otherwise as a directory it makes and removes, which needs
+no `flock` command. It waits up to ten minutes for a directory someone
+else holds.
+
+When it fails, run `make speed` again on a quiet machine, then look at
+the case with the stress benchmarks (`BENCH='Keystroke|Edit' make
+stress`). A slowdown that is intended, or a new case, is taken into the
+baseline with `make speed-update`, which measures every case and
+rewrites `speed.json` for the machine it runs on; commit it with the
+change that explains it.
