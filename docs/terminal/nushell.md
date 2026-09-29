@@ -102,7 +102,7 @@ $in | group-by region | transpose region rows
 ```
 
 A region reading another depends on it. Refreshing a region (Enter on
-its label, **Data > Refresh region**) runs it again and then every region
+its label, **Data > Shell regions > Refresh region**) runs it again and then every region
 that reads it, directly or through others, each after what it reads.
 F9 (**Data > Shell regions > Run all regions**) runs them all. A command
 reading itself, directly or through others, is refused.
