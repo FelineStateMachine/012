@@ -271,7 +271,11 @@ func (m *Model) linkedLine() string {
 	}
 	name := filepath.Base(r.Source.Path)
 	if r.Err != "" {
-		return m.th.Warning.Render("! "+name+": "+r.Err) + m.th.Muted.Render(linkedCounts(r))
+		line := m.th.Warning.Render("! " + name + ": " + r.Err)
+		if r.Rows > 0 {
+			line += m.th.Muted.Render(linkedCounts(r))
+		}
+		return line
 	}
 	state := liveMark(r) + " Following "
 	if r.Paused {

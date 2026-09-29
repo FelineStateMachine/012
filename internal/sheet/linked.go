@@ -54,7 +54,7 @@ type LinkedRegion struct {
 	// Rows counts the data rows it shows, under the header; Dropped the
 	// older rows the window let go.
 	Rows, Dropped int
-	// Updated is when the last rows arrived, zero until they do.
+	// Updated is when the source was last read, zero until it is.
 	Updated time.Time
 	// Err says why the source can't be read, or the rows can't be
 	// written, "" when all is well; Note says what was left out.
@@ -220,13 +220,13 @@ func (w *Workbook) SetLinkSource(id int, src LinkSource) error {
 	return nil
 }
 
-// ErrNoLinked is returned for a region that no longer exists: unlinked,
-// or on a sheet deleted.
+// ErrNoLinked is returned for a region the workbook doesn't hold:
+// unlinked, undone, or on a sheet deleted.
 var ErrNoLinked = errors.New("That linked file is no longer linked")
 
 // Unlink turns a region into the values it shows, as one undo step:
 // they stay as ordinary cells, keeping their formatting and notes, and
-// the source is no longer read.
+// nothing reads the source for them.
 func (w *Workbook) Unlink(id int) error {
 	s, l := w.findLinked(id)
 	if l == nil {

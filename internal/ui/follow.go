@@ -40,8 +40,9 @@ type follower struct {
 	src live.Source
 	// busy is set while a poll runs, waiting while one is scheduled;
 	// gone once the region is gone, closing the source when its poll
-	// returns; reload asks the next poll to read the source whole.
-	busy, waiting, gone, reload bool
+	// returns. reload is set from asking the source to read whole until
+	// it has, and pending when that was asked while a poll ran.
+	busy, waiting, gone, reload, pending bool
 }
 
 // followInterval is how often a region's source is polled; tests lower
@@ -108,7 +109,9 @@ func (m *Model) syncFollower(r sheet.LinkedRegion) tea.Cmd {
 	}
 	if r.Stale && !f.reload {
 		f.reload = true
-		if !f.busy {
+		if f.busy {
+			f.pending = true
+		} else {
 			f.src.Reload()
 		}
 	}
@@ -188,7 +191,8 @@ func (m *Model) handleFollow(msg tea.Msg) tea.Cmd {
 		case f.gone || m.follow.by[f.id] != f:
 			f.src.Close()
 			return nil
-		case f.reload && !msg.u.Reset:
+		case f.pending:
+			f.pending = false
 			f.src.Reload() // asked while it polled: read it whole now
 			return pollFollower(f)
 		}

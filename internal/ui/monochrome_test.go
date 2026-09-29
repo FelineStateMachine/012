@@ -233,6 +233,33 @@ func TestMonochromeSpill(t *testing.T) {
 	}
 }
 
+func TestMonochromeLinked(t *testing.T) {
+	m := newModel()
+	id, _ := m.sheet.AddLinked(addr("B1"), sheet.LinkSource{Path: "log.csv"})
+	m.book().ApplyLive(sheet.LiveOp{Link: id, Reset: true, Header: sheet.LiveRow{{V: sheet.Value{Kind: sheet.Text, Str: "n"}}},
+		Rows: []sheet.LiveRow{{{V: sheet.Value{Kind: sheet.Number, Num: 2}}}}})
+	m.cur = addr("D1")
+	c := cellAt(m, addr("B2"))
+	if strings.TrimSpace(cellText(c)) != "2" || !every(c, true, func(c monoCell) bool { return c.italic }) {
+		t.Errorf("a linked value isn't italic: %+v", c)
+	}
+	if l := cellText(monoLine(m, m.height-1)); !strings.Contains(l, "Sheet1 ●") {
+		t.Errorf("status line: %q", l)
+	}
+	m.cur = addr("B2")
+	if l := cellText(monoLine(m, contextLine)); !strings.Contains(l, "● Following log.csv") {
+		t.Errorf("context line: %q", l)
+	}
+	m.book().PauseLinked(id, true)
+	if l := cellText(monoLine(m, contextLine)); !strings.Contains(l, "‖ Paused log.csv") {
+		t.Errorf("context line: %q", l)
+	}
+	m.book().ApplyLive(sheet.LiveOp{Link: id, Err: "the file isn't there"})
+	if l := cellText(monoLine(m, contextLine)); !strings.Contains(l, "! log.csv: the file isn't there") {
+		t.Errorf("context line: %q", l)
+	}
+}
+
 func TestMonochromeNote(t *testing.T) {
 	m := newModel()
 	m.sheet.Set(addr("B1"), "x")

@@ -63,7 +63,8 @@ var OnLive func(trace any, i LiveInfo)
 
 // ApplyLive applies op to its region: its rows are written, the window
 // drops the oldest, and what reads the cells that changed recalculates.
-// It returns the region as it now is; ErrNoLinked when it's gone.
+// It returns the region as the op leaves it, or ErrNoLinked for a
+// region the workbook doesn't hold.
 func (w *Workbook) ApplyLive(op LiveOp) (LinkedRegion, error) {
 	s, l := w.findLinked(op.Link)
 	if l == nil {
@@ -92,7 +93,7 @@ func (w *Workbook) ApplyLive(op LiveOp) (LinkedRegion, error) {
 
 // applyLive writes op's rows into l and returns the cells that changed.
 func (s *Sheet) applyLive(l *linked, op LiveOp) []loc {
-	if !op.At.IsZero() {
+	if !op.At.IsZero() && op.Err == "" {
 		l.updated = op.At
 	}
 	if op.Reset {
@@ -183,17 +184,7 @@ func (s *Sheet) readLinkedRow(l *linked, r int) LiveRow {
 // that changed. When a cell it needs holds something of its own, it
 // writes nothing and says so.
 func (s *Sheet) writeLinkedRows(l *linked, header LiveRow, rows []LiveRow, reset bool) []loc {
-	cols := len(header)
-	for _, r := range rows {
-		cols = max(cols, len(r))
-	}
-	if !reset {
-		cols = max(cols, l.cols)
-	}
-	nrows := 0
-	if cols > 0 {
-		nrows = 1 + len(rows)
-	}
+	cols, nrows := linkedSize(l, header, rows, reset)
 	area := Rect{From: l.anchor, To: Addr{Col: l.anchor.Col + max(cols, 1) - 1, Row: l.anchor.Row + max(nrows, 1) - 1}}
 	if at, ok := s.linkedBlocked(l, area); ok {
 		l.err = "The linked rows would overwrite data in " + at.String()
@@ -207,29 +198,14 @@ func (s *Sheet) writeLinkedRows(l *linked, header LiveRow, rows []LiveRow, reset
 		keep = noRect
 	}
 	changed := s.clearSpilled(l.area(), keep)
-	write := func(r int, row LiveRow, all bool) {
-		for c := range cols {
-			var lc LiveCell
-			if c < len(row) {
-				lc = row[c]
-			}
-			if lc.V.Kind == Empty && !all {
-				continue
-			}
-			a := Addr{Col: l.anchor.Col + c, Row: l.anchor.Row + r}
-			if s.writeSpilled(a, lc.V, lc.F) {
-				changed = append(changed, loc{s, a})
-			}
-		}
-	}
 	if cols > 0 {
-		write(0, header, true)
+		changed = s.writeLinkedRow(l, 0, header, cols, true, changed)
 	}
 	for i, row := range rows {
 		// A row written over one that showed clears what it doesn't
 		// fill; one below the old region has nothing to clear.
 		if row != nil {
-			write(i+1, row, i+1 < l.rows || reset)
+			changed = s.writeLinkedRow(l, i+1, row, cols, i+1 < l.rows || reset, changed)
 		}
 	}
 	l.cols, l.rows = cols, nrows
@@ -239,6 +215,43 @@ func (s *Sheet) writeLinkedRows(l *linked, header LiveRow, rows []LiveRow, reset
 	}
 	for _, c := range changed {
 		s.freedFor(c.a)
+	}
+	return changed
+}
+
+// linkedSize is how many columns and rows the region takes to show
+// header and rows: none when there's nothing to show.
+func linkedSize(l *linked, header LiveRow, rows []LiveRow, reset bool) (cols, nrows int) {
+	cols = len(header)
+	for _, r := range rows {
+		cols = max(cols, len(r))
+	}
+	if !reset {
+		cols = max(cols, l.cols)
+	}
+	if cols > 0 {
+		nrows = 1 + len(rows)
+	}
+	return cols, nrows
+}
+
+// writeLinkedRow writes row r of the region (0 for the header), cols
+// cells wide, adding the cells that changed to changed. With all, the
+// cells the row leaves blank are cleared; otherwise they're blank
+// already.
+func (s *Sheet) writeLinkedRow(l *linked, r int, row LiveRow, cols int, all bool, changed []loc) []loc {
+	for c := range cols {
+		var lc LiveCell
+		if c < len(row) {
+			lc = row[c]
+		}
+		if lc.V.Kind == Empty && !all {
+			continue
+		}
+		a := Addr{Col: l.anchor.Col + c, Row: l.anchor.Row + r}
+		if s.writeSpilled(a, lc.V, lc.F) {
+			changed = append(changed, loc{s, a})
+		}
 	}
 	return changed
 }
