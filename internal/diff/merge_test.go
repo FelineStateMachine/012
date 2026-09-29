@@ -153,3 +153,28 @@ func TestMergeBroken(t *testing.T) {
 		t.Error("a merge naming a sheet removed")
 	}
 }
+
+func TestMergeOneSheetFiles(t *testing.T) {
+	base := []byte(`{"version": 3, "names": {"Sales": "A1:A2"}, "cells": {"A1": "1", "A2": "2"}}`)
+	ours := []byte(`{"version": 3, "names": {"Sales": "A1:A3"}, "cells": {"A1": "1", "A2": "2", "A3": "3"}}`)
+	theirs := []byte(`{"version": 3, "names": {"Sales": "A1:A2", "Cost": "B1"}, "widths": {"B": 14}, "cells": {"A1": "1", "A2": "2", "B1": "=SUM(Sales)"}}`)
+	out, conflicts, err := Merge(base, ours, theirs)
+	if err != nil || len(conflicts) > 0 {
+		t.Fatal(err, conflicts)
+	}
+	want := `{
+  "version": 3,
+  "widths": {"B": 14},
+  "names": {"Cost": "B1", "Sales": "A1:A3"},
+  "cells": {
+    "A1": "1",
+    "B1": "=SUM(Sales)",
+    "A2": "2",
+    "A3": "3"
+  }
+}
+`
+	if string(out) != want {
+		t.Errorf("got\n%s\nwant\n%s", out, want)
+	}
+}
