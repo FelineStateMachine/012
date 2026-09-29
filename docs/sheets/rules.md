@@ -61,7 +61,7 @@ in it may be a formula (`=B2`).
 | Above average, below average | It's above or below their average |
 | Duplicate values, unique values | Another of them holds the same (text ignoring case), or none does |
 
-The last four are Excel's and compare a cell with the rest of the
+The last four rows are Excel's, and compare a cell with the rest of the
 rule's cells; the others are Sheets'. A custom formula (`=$C2>100`) is
 written for the first cell of the first range: its relative references
 move with each cell, as a copied formula's would.
