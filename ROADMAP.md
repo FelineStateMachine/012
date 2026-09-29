@@ -36,7 +36,8 @@ formulas, charts and pivots use. It replaces the grid-based notebook sheet.
 | Item | Result | Size |
 |---|---|---|
 | Notebook tabs: code and note cells, outputs rendered in place (tables that scroll and open full-screen as a grid, text, records, errors), Jupyter keys inside the notebook (Shift+Enter run and next, Ctrl+Enter run, a/b add above/below, dd delete, m/y note/code, Esc/Enter command/edit mode) plus menus and palette; run cell, run all, run above, run below, stop, clear outputs; run counts and timings; cells named for their output (`$files`), stale marks when a cell they read has changed, an opt-in reactive mode that re-runs dependents; send an output to a sheet as a live region (`nu.files`); outputs saved in the workbook up to a size cap; existing notebook sheets converted, one code cell per region; `012 nu` opens a notebook | A TUI Jupyter with nushell and 012 | L |
-| Nushell's own completions in code cells; a way to call 012 from nu without `^012` (a shipped `012.nu` module, or `nu_plugin_012`) | | S to M |
+| Code cells highlighted, completed and checked as you type by nushell itself: `nu --ide-ast` token shapes mapped to theme roles, `nu --ide-complete` plus 012's cell, region and sheet names on Tab, `nu --ide-check` errors underlined; debounced in the background, plain text when nu is missing or slow; hover docs through `nu --lsp` later | Writing pipelines in 012 feels like nushell's own prompt | S to M |
+| A way to call 012 from nu without `^012`: the shipped `012.nu` module and its `sheet` command | | S |
 
 ### 3. Toward multiplayer
 
