@@ -1,0 +1,169 @@
+{
+  "version": 6,
+  "names": {"Lost": "#REF!", "Rate": "Lists!B1", "Units": "Sales!C2:C9"},
+  "macroOrigin": "fixture-machine",
+  "macros": [
+    {"name": "Bold header", "key": "1", "api": 1, "source": "select(\"A1:E1\")\nrun(\"format.bold\")\n"},
+    {"name": "Fill totals", "api": 1, "source": "set(\"F2\", \"=SUM(C2:C9)\")\n"}
+  ],
+  "sheets": [
+    {
+      "name": "Sales",
+      "widths": {"A": 12, "E": 14},
+      "heights": {"1": 2, "12": 3},
+      "lines": {"A:XFD": {"italic":true}, "D:D": {"format":"currency","decimals":2}, "1:1": {"bold":true,"align":"center","borders":{"bottom":"double"}}},
+      "freeze": {"rows":1,"cols":1},
+      "filter": {"range":"A1:E9","columns":{"B":{"hidden":["West"]},"C":{"condition":"gt","value":"2"}}},
+      "protected": [{"range":"E2:E9","description":"Totals"}],
+      "merges": ["A11:C11","A12:A13"],
+      "cells": {
+        "A1": "Date",
+        "B1": "Region",
+        "C1": "Units",
+        "D1": "Price",
+        "E1": "Total",
+        "G1": "Share",
+        "H1": "Regions",
+        "I1": "Scaled",
+        "J1": {"input":"007","text":true},
+        "A2": {"input":"2026-01-05","format":"date"},
+        "B2": "North",
+        "C2": "3",
+        "D2": "12.5",
+        "E2": {"input":"=C2*D2","format":"currency","decimals":2,"own":true},
+        "G2": {"input":"=C2/SUM(Units)","format":"percent","decimals":1},
+        "H2": "=SORT(UNIQUE(B2:B9))",
+        "I2": "=LET(r, Rate, MAP(C2:C4, LAMBDA(x, x*r)))",
+        "J2": {"input":"=1+1","text":false,"format":"text"},
+        "A3": {"input":"2026-01-12","format":"date"},
+        "B3": {"input":"South","note":"Includes returns"},
+        "C3": "5",
+        "D3": "9.75",
+        "E3": "=C3*D3",
+        "G3": {"input":"=C3/SUM(Units)","format":"custom","pattern":"0.00%;[Red]-0.00%"},
+        "A4": {"input":"2026-02-02","format":"date"},
+        "B4": "West",
+        "C4": "1",
+        "D4": "40",
+        "E4": "=C4*D4",
+        "A5": {"input":"2026-02-16","format":"date"},
+        "B5": "North",
+        "C5": "7",
+        "D5": "12.5",
+        "E5": "=C5*D5",
+        "A6": {"input":"2026-03-01","format":"date"},
+        "B6": "East",
+        "C6": {"input":"2","bold":true,"italic":true,"underline":true,"strikethrough":true},
+        "D6": "22",
+        "E6": "=C6*D6",
+        "A7": {"input":"2026-03-09","format":"date"},
+        "B7": "South",
+        "C7": {"input":"4","align":"left","valign":"top"},
+        "D7": "9.75",
+        "E7": "=C7*D7",
+        "A8": {"input":"2026-03-20","format":"date"},
+        "B8": "East",
+        "C8": {"input":"6","borders":{"top":"thin","bottom":"double","left":"thick","right":"thin","bottomColor":"red","leftColor":"blue"}},
+        "D8": "22",
+        "E8": "=C8*D8",
+        "A9": {"input":"2026-03-31","format":"date"},
+        "B9": "West",
+        "C9": "8",
+        "D9": "40",
+        "E9": "=C9*D9",
+        "A11": {"input":"A long title merged across three columns","align":"center","wrap":"wrap"},
+        "A12": {"input":"Tall","valign":"middle"},
+        "B12": {"input":"clipped text that does not spill over","wrap":"clip"},
+        "C12": "TRUE",
+        "D12": "=IFERROR(1/0, \"none\")",
+        "E12": {"input":"=Lists!B1*2","format":"number","decimals":3},
+        "F12": "'00123",
+        "F13": "=HYPERLINK(\"https://example.com\", \"site\")"
+      },
+      "charts": [
+        {"type":"column","data":"A1:C9","at":"K2","width":40,"height":12,"header":true,"labels":true,"title":"Units by date"},
+        {"type":"line","data":"C1:E9","at":"K16","width":36,"height":10,"header":true,"stack":"stacked","trend":true,"min":0,"max":400,"gridlines":false,"legend":"none"},
+        {"type":"pie","data":"B1:C5","at":"K28","width":30,"height":10,"header":true,"labels":true,"legend":"right"},
+        {"type":"scatter","data":"C1:D9","at":"K40","width":30,"height":10,"header":true,"trend":true,"log":true},
+        {"type":"bar","data":"B1:C9","at":"K52","width":30,"height":10,"header":true,"stack":"percent"},
+        {"type":"area","data":"C1:D9","at":"K64","width":30,"height":10,"byRow":true,"header":true}
+      ],
+      "conditionalFormats": [
+        {"ranges":"C2:C9","condition":"gt","values":["5"],"text":"red","bold":true},
+        {"ranges":"B2:B9","condition":"contains","values":["th"],"fill":"yellow","italic":true},
+        {"ranges":"A2:A9","condition":"date_is","values":["this week"],"underline":true},
+        {"ranges":"E2:E9","condition":"formula","values":["=$C2\u003e4"],"text":"green","strikethrough":true},
+        {"ranges":"C2:C9","condition":"between","values":["2","4"],"fill":"cyan"},
+        {"ranges":"C2:C9","condition":"top","values":["3"],"fill":"magenta"},
+        {"ranges":"D2:D9","condition":"duplicate","text":"blue"},
+        {"ranges":"C2:C9","condition":"above_average","bold":true},
+        {"ranges":"D2:D9","scale":[{"type":"min","color":"green"},{"type":"percentile","value":"50","color":"yellow"},{"type":"max","color":"red"}]},
+        {"ranges":"E2:E9","dataBar":{"color":"blue","min":{"type":"min"},"max":{"type":"num","value":"400"},"barOnly":true}},
+        {"ranges":"C2:C9,D2:D9","iconSet":{"icons":"arrows","points":[{"type":"percent","value":"33"},{"type":"percent","value":"67"}],"reverse":true}}
+      ],
+      "validations": [
+        {"ranges":"B2:B9","criteria":"list","items":["North","South","East","West"],"help":"Pick a region","display":"chip"},
+        {"ranges":"C2:C9","criteria":"number","condition":"between","values":["0","80"],"reject":true},
+        {"ranges":"A2:A9","criteria":"date","condition":"gt","values":["2025-12-31"]},
+        {"ranges":"C12","criteria":"checkbox","items":["TRUE","FALSE"]},
+        {"ranges":"F2:F9","criteria":"range","source":"Lists!A1:A4","display":"plain"},
+        {"ranges":"G5:G9","criteria":"length","condition":"le","values":["10"]},
+        {"ranges":"H12","criteria":"formula","values":["=H12\u003c\u003e\"\""]}
+      ]
+    },
+    {
+      "name": "Lists",
+      "hidden": true,
+      "protected": [{"sheet":true}],
+      "tables": [{"name":"Targets","range":"D1:E3","columns":["Region","Target"],"banded":true,"header":true}],
+      "cells": {
+        "A1": "North",
+        "B1": {"input":"1.5","note":"Rate used by Sales!I2"},
+        "D1": "Region",
+        "E1": "Target",
+        "F1": "=SUM(Targets[Target])+ROWS(Targets[#All])",
+        "A2": "South",
+        "D2": "North",
+        "E2": "20",
+        "F2": "=Targets[@Target]*2",
+        "A3": "East",
+        "D3": "South",
+        "E3": "=E2/2",
+        "F3": "=COUNTA(Targets[[#Headers],[Region]:[Target]])",
+        "A4": "West"
+      }
+    },
+    {
+      "name": "Pivot Table 1",
+      "cells": {},
+      "pivot": {"source":"Sales!A1:E9","rows":[{"column":"B"},{"column":"A","order":"desc","sortBy":1}],"columns":[{"column":"C"}],"values":[{"column":"E","summarize":"sum"},{"column":"C","summarize":"counta","showAs":"percent_of_total","name":"Share"}],"filters":[{"column":"B","hidden":["West"]}],"rowTotals":true,"columnTotals":false}
+    },
+    {
+      "name": "Data",
+      "widths": {"A": 20},
+      "cells": {
+        "A20": "=SUM(nu.files)"
+      },
+      "regions": [
+        {"name":"files","at":"A1","output":true},
+        {"name":"big","at":"A8","output":true},
+        {"name":"app","at":"F2","path":"logs/app.csv","window":500},
+        {"name":"db","at":"F20","path":"data.sqlite","format":"SQLite","table":"orders"},
+        {"name":"q","at":"M20","path":"data.sqlite","format":"SQLite","query":"select * from orders limit 5"}
+      ]
+    },
+    {
+      "name": "Notebook",
+      "cells": {},
+      "tab": "notebook",
+      "reactive": true,
+      "notebookCells": [
+        {"kind":"note","source":"# Files\nWhat the folder holds."},
+        {"source":"files = ls","output":"[[name, size]; [go.mod, 812b], [README.md, 4kb]]"},
+        {"source":"big = $files | where size \u003e 1kb","output":"[[name, size]; [README.md, 4kb]]","note":"2 rows left out"},
+        {"source":"$files | nope","error":"Command `nope` not found","detail":"help: check the spelling"},
+        {"source":"ls **/*","unsaved":true}
+      ]
+    }
+  ]
+}
