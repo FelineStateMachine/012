@@ -145,6 +145,10 @@ func (m *Model) notebookContext(v *nbview.View) (string, string) {
 		left, right = m.th.Warning.Render(m.warn), ""
 	case m.note != "":
 		left, right = m.th.Hint.Render(m.note), ""
+	default:
+		if g := m.gridIn(); g != nil {
+			return m.gridContext(g, v), ""
+		}
 	}
 	if v.FullOpen() {
 		return left, right
@@ -153,8 +157,10 @@ func (m *Model) notebookContext(v *nbview.View) (string, string) {
 }
 
 // notebookIndicator is the mode on a notebook tab.
-func notebookIndicator(v *nbview.View) string {
-	switch {
+func (m *Model) notebookIndicator(v *nbview.View) string {
+	switch g := m.gridIn(); {
+	case g != nil:
+		return m.gridIndicator(g)
 	case v.FullOpen():
 		return "OUTPUT"
 	case v.Editing():
@@ -165,10 +171,7 @@ func notebookIndicator(v *nbview.View) string {
 
 // notebookCursor is where the terminal's caret goes on a notebook tab.
 func (m *Model) notebookCursor(v *nbview.View) (int, int, bool) {
-	if f := v.Full(); f != nil {
-		if x, ok := f.Cursor(); ok {
-			return x, contextLine, true
-		}
+	if v.FullOpen() {
 		return 0, 0, false
 	}
 	x, y, ok := v.Cursor()
@@ -178,6 +181,9 @@ func (m *Model) notebookCursor(v *nbview.View) (int, int, bool) {
 // notebookBoxes are the notebook's floating boxes: its completions.
 func (m *Model) notebookBoxes() []overlay.Box {
 	if v := m.nbView(); v != nil && m.overlay == nil && m.mode == modeReady {
+		if m.gridIn() != nil {
+			return m.gridBoxes()
+		}
 		return v.Boxes(nbBody)
 	}
 	return nil
@@ -190,6 +196,10 @@ func (m *Model) notebookMouse(msg tea.MouseMsg) (tea.Cmd, bool) {
 	mouse := msg.Mouse()
 	if v == nil || m.mode != modeReady || m.overlay != nil {
 		return nil, false
+	}
+	m.sizeNotebook(v)
+	if cmd, ok := m.gridMouse(v, msg); ok {
+		return cmd, true
 	}
 	if click, ok := msg.(tea.MouseClickMsg); ok && mouse.Y == formulaLine && click.Button == tea.MouseLeft {
 		return m.toolbarClick(v, mouse.X), true

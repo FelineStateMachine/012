@@ -61,7 +61,7 @@ func (m *Model) applicable(items []menuItem) []menuItem {
 		if it.items != nil {
 			it.items = m.applicable(it.items)
 		}
-		if c := commands[it.cmd]; c == nil || c.hidden == nil || !c.hidden(m) {
+		if c := commands[it.cmd]; c == nil || (c.hidden == nil || !c.hidden(m)) && m.out.offers(c.id) {
 			out = append(out, it)
 		}
 	}
@@ -70,7 +70,7 @@ func (m *Model) applicable(items []menuItem) []menuItem {
 
 // showContextMenu opens a menu of items with its corner at x, y.
 func (m *Model) showContextMenu(items []menuItem, x, y int) {
-	if items = visibleItems(items); len(items) > 0 {
+	if items = visibleItems(m.applicable(items)); len(items) > 0 {
 		m.openOverlay(&menuOverlay{m: m, bar: -1, x: x, y: y, levels: []*menuLevel{newLevel(m, items, true)}})
 	}
 }

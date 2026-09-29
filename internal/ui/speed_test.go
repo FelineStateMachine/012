@@ -44,6 +44,27 @@ func frameCase(name string, build func() *sheet.Sheet) speedCase {
 	}}
 }
 
+// outputCase is an arrow key through to its frame at 200 x 60 in a
+// notebook output's grid of rows rows, entered, down and up in turn,
+// halfway down the output.
+func outputCase(rows int) speedCase {
+	return speedCase{fmt.Sprintf("frame/output-%dx4", rows), func() func() {
+		m := outputModel(bigTable(rows), 200, 60)
+		m.runCommand("nb.edit")
+		g := m.gridIn()
+		g.child.cur.Row = rows / 2
+		g.child.scrollTo(g.child.cur)
+		t := newFakeTerm(200, 60)
+		keys := [2]tea.KeyPressMsg{{Code: tea.KeyDown}, {Code: tea.KeyUp}}
+		i := 0
+		return func() {
+			m.Update(keys[i%2])
+			t.frame(m)
+			i++
+		}
+	}}
+}
+
 // editCase is typing into one cell of a stress shape and the
 // incremental recalculation that follows, two entries in turn.
 func editCase(sh stress.Shape) speedCase {
@@ -86,6 +107,7 @@ func speedCases() []speedCase {
 		frameCase("laidout-8192x26", laidout),
 		frameCase("scale-8192x26", scaled),
 		frameCase("charts-8", charts),
+		outputCase(100000),
 		editCase(fanin),
 		editCase(shape("chain-8192", func() *sheet.Sheet { return stress.Chain(stress.Rows) }, "A1", "2")),
 		editCase(shape("criteria-10xSUMIF8192", func() *sheet.Sheet { return stress.Criteria(stress.Rows, 10) }, "A4001", "7")),

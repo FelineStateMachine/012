@@ -133,6 +133,10 @@ func (v *View) RightClick(y int) {
 // under it while it has more that way, or the body.
 func (v *View) Wheel(y, d int) {
 	if v.full != nil {
+		if g := v.full.Grid(); g != nil {
+			g.Scroll(d)
+			return
+		}
 		v.full.row += d
 		v.full.settle()
 		return

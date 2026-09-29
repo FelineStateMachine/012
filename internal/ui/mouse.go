@@ -119,7 +119,7 @@ func (m *Model) gridHit(x, y int) hit {
 	}
 	if x < m.hdrW() {
 		kind := hitRowHeader
-		if b, _ := m.bandOf(row); x == m.hdrW()-1 && y == b.end()-1 && b.shown == b.lines {
+		if b, _ := m.bandOf(row); m.out == nil && x == m.hdrW()-1 && y == b.end()-1 && b.shown == b.lines {
 			kind = hitRowBorder
 		}
 		return hit{kind: kind, addr: sheet.Addr{Col: m.left, Row: row}}
@@ -129,7 +129,7 @@ func (m *Model) gridHit(x, y int) hit {
 		return hit{}
 	}
 	a := sheet.Addr{Col: col, Row: row}
-	if m.mode == modeReady && a == m.fillCorner() && x == start+m.sheet.ColWidth(col)-1 {
+	if m.mode == modeReady && m.out == nil && a == m.fillCorner() && x == start+m.sheet.ColWidth(col)-1 {
 		return hit{kind: hitFillHandle, addr: a}
 	}
 	return hit{kind: m.ruleHit(a, x, start), addr: a}

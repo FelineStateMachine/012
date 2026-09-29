@@ -28,6 +28,11 @@ type grid struct {
 	// off the merge sideways goes on along its row, and up or down along
 	// its column, as in Sheets.
 	entered sheet.Addr
+
+	// named is set on an output's grid (nbgrid.go): its columns are
+	// headed by the names in its first row rather than letters, and its
+	// rows counted from the row under it.
+	named bool
 }
 
 func (g *grid) book() *sheet.Workbook { return g.sheet.Book() }

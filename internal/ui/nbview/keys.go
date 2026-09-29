@@ -152,8 +152,12 @@ func (v *View) scrollOut(d int) bool {
 // reporting whether it moved.
 func (v *View) scrollBy(c notebook.Cell, d int) bool {
 	f := v.foldOf(c.ID)
-	if f.hidden || f.whole {
+	sh := v.shown(c)
+	switch {
+	case f.hidden || f.whole && !sh.entered():
 		return false
+	case sh.isGrid():
+		return sh.grid.Scroll(d)
 	}
 	limit := v.shown(c).maxScroll(false, v.outWidth())
 	to := min(max(f.scroll+d, 0), limit)
@@ -342,7 +346,7 @@ func (v *View) outputSummary(c notebook.Cell) string {
 	sh := v.shown(c)
 	switch sh.kind {
 	case outTable:
-		return "a table: " + more(sh.total, "row") + ", " + more(len(sh.cols), "column")
+		return "a table: " + more(sh.total, "row") + ", " + more(sh.cols, "column")
 	case outRecord:
 		return "a record: " + more(sh.total, "field")
 	case outList:

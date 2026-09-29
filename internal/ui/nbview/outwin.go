@@ -1,17 +1,14 @@
 package nbview
 
 import (
-	"strings"
-
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
-// An output's window: a table's header, then at most window of its rows
-// (a list's items, a record's fields, text's lines) from the row it's
+// An output's window: at most window of its rows (a grid's rows under
+// its column header, a list's items, text's lines) from the row it's
 // scrolled to, then a line saying what's left out. Whole shows every row
 // instead, and hidden folds the output to one line, as Jupyter's
 // collapsed outputs. The window's height doesn't change as it scrolls,
@@ -21,21 +18,13 @@ import (
 type fold struct {
 	hidden bool // o: folded to one line
 	whole  bool // O: every row, no window
-	scroll int  // the window's first row
-}
-
-// head is how many lines stay above the rows: a table's header.
-func (sh *shown) head() int {
-	if sh.kind == outTable {
-		return 1
-	}
-	return 0
+	scroll int  // the window's first row, but a grid's, which the grid keeps
 }
 
 // items is how many rows the output scrolls through at width.
 func (sh *shown) items(width int) int {
 	switch sh.kind {
-	case outTable, outRecord, outList:
+	case outList:
 		return sh.total
 	case outText, outError:
 		return len(sh.wrapped(width))
@@ -52,22 +41,27 @@ func (sh *shown) rowsShown(whole bool, width int) (n int, footer bool) {
 	if !whole && n > window {
 		n, footer = window, true
 	}
-	if sh.kind == outTable && sh.hiddenCols(width) > 0 {
-		footer = true
-	}
 	return n, footer
 }
 
 // height is how many lines the output takes at width.
 func (sh *shown) height(whole bool, width int) int {
-	if sh.kind == outNone {
+	switch {
+	case sh.kind == outNone:
 		return 0
+	case sh.isGrid():
+		_, n := sh.gridRows(whole)
+		lines := 1 + max(n, 1)
+		if n < sh.grid.Rows() || sh.grid.Hidden(width) > 0 {
+			lines++
+		}
+		return lines
 	}
 	n, footer := sh.rowsShown(whole, width)
 	if footer {
 		n++
 	}
-	return sh.head() + n
+	return n
 }
 
 // maxScroll is how far the window scrolls: 0 when it shows every row.
@@ -78,10 +72,9 @@ func (sh *shown) maxScroll(whole bool, width int) int {
 
 // line draws line i of the output as f shows it, at width.
 func (sh *shown) line(th *theme.Theme, loc *locale.Locale, i int, f fold, width int) string {
-	if i < sh.head() {
-		return sh.tableHead(th, width)
+	if sh.isGrid() {
+		return sh.gridLine(th, i, f, width)
 	}
-	i -= sh.head()
 	n, _ := sh.rowsShown(f.whole, width)
 	scroll := min(max(f.scroll, 0), sh.maxScroll(f.whole, width))
 	if i < n {
@@ -90,13 +83,10 @@ func (sh *shown) line(th *theme.Theme, loc *locale.Locale, i int, f fold, width 
 	return sh.footer(th, scroll, n, width)
 }
 
-// item draws row i: a table's row, a field or an item, a line of text,
-// or the one value.
+// item draws row i: a list's item, a line of text, or the one value.
 func (sh *shown) item(th *theme.Theme, loc *locale.Locale, i, width int) string {
 	switch sh.kind {
-	case outTable:
-		return sh.tableRow(loc, i, width)
-	case outRecord, outList:
+	case outList:
 		return sh.fieldLine(th, loc, i, width)
 	case outText, outError:
 		return sh.textLine(th, i, width)
@@ -110,68 +100,19 @@ func (sh *shown) item(th *theme.Theme, loc *locale.Locale, i, width int) string 
 	return ""
 }
 
-// footer says what the window leaves out: the rows under it (or where
-// it's scrolled to) and a table's columns past the width.
+// footer says what the window leaves out: the rows under it, or where
+// it's scrolled to.
 func (sh *shown) footer(th *theme.Theme, scroll, n, width int) string {
-	unit := map[outKind]string{outTable: "row", outRecord: "field", outList: "item"}[sh.kind]
-	if unit == "" {
-		unit = "line"
+	unit := "line"
+	if sh.kind == outList {
+		unit = "item"
 	}
 	total := sh.items(width)
-	var parts []string
-	switch {
-	case n >= total:
-	case scroll == 0:
-		parts = append(parts, more(total-n, "more "+unit))
-	default:
-		parts = append(parts, unit+"s "+grouped(scroll+1)+" to "+grouped(scroll+n)+" of "+grouped(total))
+	part := more(total-n, "more "+unit)
+	if scroll > 0 {
+		part = unit + "s " + grouped(scroll+1) + " to " + grouped(scroll+n) + " of " + grouped(total)
 	}
-	if sh.kind == outTable {
-		if c := sh.hiddenCols(width); c > 0 {
-			parts = append(parts, more(c, "more column"))
-		}
-	}
-	hint := "O shows all"
-	if n >= total {
-		hint = ""
-	}
-	if sh.kind == outTable {
-		hint = strings.TrimPrefix(hint+", Enter opens it", ", ")
-	}
-	return ansi.Truncate(th.Muted.Render("… "+strings.Join(parts, ", ")+"  ("+hint+")"), width, "…")
-}
-
-// tableHead is a table's header row.
-func (sh *shown) tableHead(th *theme.Theme, width int) string {
-	var b strings.Builder
-	for c := range sh.shownCols(width) {
-		if c > 0 {
-			b.WriteString("  ")
-		}
-		name := ansi.Truncate(sh.cols[c], sh.fit[c], "…")
-		b.WriteString(th.OutputHead.Render(name) + strings.Repeat(" ", sh.fit[c]-ansi.StringWidth(name)))
-	}
-	return b.String()
-}
-
-// tableRow is a table's row i.
-func (sh *shown) tableRow(loc *locale.Locale, i, width int) string {
-	if i >= len(sh.rows) {
-		return ""
-	}
-	row := sh.rows[i]
-	var b strings.Builder
-	for c := range sh.shownCols(width) {
-		if c > 0 {
-			b.WriteString("  ")
-		}
-		var lc sheet.LiveCell
-		if c < len(row) {
-			lc = row[c]
-		}
-		b.WriteString(pad(ansi.Truncate(cellText(lc, loc), sh.fit[c], "…"), sh.fit[c], align(lc)))
-	}
-	return b.String()
+	return ansi.Truncate(th.Muted.Render("… "+part+"  (O shows all)"), width, "…")
 }
 
 // textLine is line i of text or an error, wrapped at width.

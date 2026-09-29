@@ -86,8 +86,13 @@ const (
 
 // available reports whether the command can run in m's current state.
 func (c *command) available(m *Model) bool {
-	if m.sheet.IsNotebook() && !notebookSafe(c.id) {
-		return false
+	if m.sheet.IsNotebook() && (!notebookSafe(c.id) || gridTakes(c.id)) {
+		if g := m.gridIn(); g != nil {
+			return g.allows(c.id) && c.available(g.child) // an output's grid entered: nbgridcmd.go
+		}
+		if !notebookSafe(c.id) {
+			return false
+		}
 	}
 	return c.enabled == nil || c.enabled(m)
 }
@@ -198,9 +203,19 @@ func (m *Model) runCommand(id string) tea.Cmd {
 	// recalculation, a pivot refresh, a sort.
 	span := m.spans.Start("command", slog.String("id", id))
 	defer span.End()
-	if m.sheet.IsNotebook() && !notebookSafe(id) {
-		m.note = c.title + " works on a sheet's cells: this tab is a notebook"
-		return nil
+	if m.out != nil {
+		if cmd, done := m.out.command(id); done {
+			return cmd // an output's grid refuses edits: nbgridcmd.go
+		}
+	}
+	if m.sheet.IsNotebook() && (!notebookSafe(id) || gridTakes(id)) {
+		if g := m.gridIn(); g != nil {
+			return g.run(id)
+		}
+		if !notebookSafe(id) {
+			m.note = c.title + " works on a sheet's cells: this tab is a notebook"
+			return nil
+		}
 	}
 	if c.edits != nil && m.refuseEdit(c.edits(m), c.keepsSpills) {
 		return nil
