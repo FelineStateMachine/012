@@ -126,6 +126,42 @@ See [Diff and merge in git](../files/git.md#012-diff).
 `what` for a conflict about a whole sheet. The merge and exit status
 are as without it.
 
+## MCP tools
+
+The [MCP server](../agents/mcp.md)'s tools return these, as structured
+content with the same JSON as text beside it. `describe` returns
+[describe's](#describe) schema, `list_errors` recalc's `errors` and
+`circular`.
+
+`read_range`, and the range resources:
+
+```json
+{
+  "range": "Sales!A1:C3", "rows": 3, "cols": 3,
+  "values": [["Region", "Units", "Price"], ["North", 3, 12.5], ["South", 5, null]],
+  "text": [["Region", "Units", "Price"], ["North", "3", "$12.50"], ["South", "5", ""]],
+  "formulas": {"C3": "=IF(B3>4, \"\", 9.75)"},
+  "truncated": false
+}
+```
+
+`values` are typed as [`get`](#get) types one cell (blank is `null`, an
+error its text); `text` comes only when asked for; `truncated` is set
+when the range held more cells than `max_cells`, and `rows` says how
+many came back.
+
+Writes (`write_cells`, `apply_operations`, `sort`, `filter`) return
+`{"saved", "changes", "warnings"}` as [`set`](#set) does, `saved` false
+for a dry run or a change that changed nothing; `create_chart` adds
+`"chart": {"sheet", "number", "title"}` and `create_pivot` `"sheet"`,
+the pivot's.
+
+| Tool | Returns |
+|---|---|
+| `evaluate` | `cell` where it was computed, `value`, `text` as shown, `error` explaining an error value, and `spill`, a `read_range` result, when the formula spilled |
+| `find` | `matches`, each `cell`, `text` and `input`, the first `limit` of them, and `total` |
+| `run_notebook_cell` | `notebook`, `cell`, `name`, `state` (`ran` or `failed`), `error`, `output` as NUON and `cut` when the output was longer than 64 KB |
+
 ## version
 
 ```json

@@ -76,7 +76,6 @@ section 3's shared editing with an agent as one participant.
 
 | Step | Result | Size |
 |---|---|---|
-| `012 mcp` over stdio on a workbook file: tools (describe, read, write, apply operations, evaluate without writing, find, sort, filter, chart, pivot, run a notebook cell), resources (`012://book/Sheet1!A1:D40`, tables, notebook cells), prompts | Any MCP host works with workbooks | M |
 | MCP Apps views: a sheet or chart rendered as an interactive view inside the host, from the HTML export | Workbooks shown in the chat | S to M |
 | Live mode: `012 --listen` and `012 mcp --attach`; the agent's cursor and name in the grid, its changes arriving as a suggestion (marked cells, accepted or rejected whole or by cell) unless direct edits are allowed, its own undo, a scope (sheet, range, read-only), elicitation to ask the person | Coworking with an agent in the grid | M to L |
 
@@ -163,6 +162,7 @@ stream above rather than a design of their own.
 **Agents**
 
 - `012 describe`, results as JSON with stable schemas, `012 set --dry-run` as a diff, and a Claude Code skill installed by `012 agent --install-skill`: [Agents](docs/agents/README.md)
+- `012 mcp`, an MCP server on a workbook file: tools that read, evaluate, write, sort, filter, chart, pivot and run notebook cells through the same checks as `012 set`, resources and prompts: [MCP server](docs/agents/mcp.md)
 
 **Upkeep**
 

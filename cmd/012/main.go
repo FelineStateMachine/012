@@ -82,6 +82,7 @@ func usage() error {
 		"       012 serve [flags] [dir]: serve sheets in dir over SSH (see docs/terminal/ssh.md)\n" +
 		"       012 get|set|recalc|export|describe file.012 ...: read and change a workbook without the screen (see docs/files/scripts.md)\n" +
 		"       012 diff a.012 b.012, 012 merge-driver base ours theirs: compare and merge workbooks (see docs/files/git.md)\n" +
+		"       012 mcp file.012 [--read-only] [--force] [--notebooks [--trust]] [--jev]: an MCP server on the workbook (see docs/agents/mcp.md)\n" +
 		"       012 agent --skill | --install-skill [--force] [dir]: the Claude Code skill (see docs/agents/README.md)\n" +
 		"       012 config [path|edit|default|themes|set-key|delete-key]\n" +
 		"       012 version")
@@ -92,7 +93,7 @@ func usage() error {
 var subcommands = map[string]func([]string, env) error{
 	"config": runConfig, "serve": runServe,
 	"get": runGet, "set": runSet, "recalc": runRecalc, "export": runExport, "describe": runDescribe,
-	"diff": runDiff, "merge-driver": runMergeDriver, "agent": runAgent,
+	"diff": runDiff, "merge-driver": runMergeDriver, "agent": runAgent, "mcp": runMCP,
 }
 
 func run(args []string, e env) error {

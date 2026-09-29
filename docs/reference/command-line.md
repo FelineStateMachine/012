@@ -29,6 +29,7 @@ The flags are the options' flags, listed in [Configuration](config.md#options).
 | `012 recalc file.012` | Recalculates, saves and lists the cells showing errors: [Scripts](../files/scripts.md#recalc) |
 | `012 export file.012 out [ref]` | Writes the workbook, a sheet or a range in another format: [Scripts](../files/scripts.md#export) |
 | `012 describe file.012` | Lists the sheets and what's on them: [Agents](../agents/README.md#with-a-shell) |
+| `012 mcp file.012` | Serves the workbook to MCP hosts over standard input and output: [MCP server](../agents/mcp.md) |
 | `012 diff a.012 b.012` | Lists what changed, cell by cell: [Diff and merge in git](../files/git.md#012-diff) |
 | `012 diff --textconv file.012` | Writes a workbook as lines, for git's textconv: [Diff and merge in git](../files/git.md#git) |
 | `012 merge-driver base ours theirs [path]` | Merges theirs into ours, for git: [Diff and merge in git](../files/git.md#merging) |
@@ -37,8 +38,8 @@ The flags are the options' flags, listed in [Configuration](config.md#options).
 | `012 config [path\|edit\|default\|themes\|set-key\|delete-key]` | The settings: [Configuration](config.md#commands) |
 | `012 version [--format text\|json\|nuon]` | Prints the version |
 
-`get`, `set`, `recalc`, `export`, `describe`, `diff`, `merge-driver`
-and `agent` take their flags anywhere after the command's name, and `--help` prints their
+`get`, `set`, `recalc`, `export`, `describe`, `mcp`, `diff`,
+`merge-driver` and `agent` take their flags anywhere after the command's name, and `--help` prints their
 usage. `--` ends the flags, so what follows is taken as it is
 (`012 set book.012 -- A1 --`), and an argument such as `-5` is never a
 flag.
@@ -56,6 +57,7 @@ flag.
 | `--chart n\|title` | `export` | One chart of the sheet as a web page, by its number or title |
 | `--notebooks` | `get`, `recalc`, `export`, `describe` | Runs the notebooks' cells first, when the file is trusted here |
 | `--trust` | with `--notebooks` | Runs the cells of a file saved on another computer |
+| `--read-only`, `--force`, `--notebooks`, `--jev` | `mcp` | The tools offered and what they may do: [MCP server](../agents/mcp.md#flags) |
 | `--jev` | `get`, `recalc`, `export`, `describe` | Asks JEV for the JEV functions' answers first |
 | `--format text\|json\|nuon` | `diff` | The form of the changes; text by default |
 | `--color auto\|always\|never` | `diff` | Colors the text; auto colors on a terminal or git's pager unless `NO_COLOR` is set |

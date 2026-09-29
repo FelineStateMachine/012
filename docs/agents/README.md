@@ -15,7 +15,8 @@ started with the flags that allow it, as for scripts.
 | Page | For |
 |---|---|
 | This page | Agents with a shell: the commands, their JSON, and the Claude Code skill |
-| [JSON output](../reference/json.md) | The schemas of what commands write with `--format json` |
+| [MCP server](mcp.md) | `012 mcp`, for any MCP host: tools, resources, prompts, and adding it to Claude Code and Claude Desktop |
+| [JSON output](../reference/json.md) | The schemas of what commands write with `--format json`, and what the MCP tools return |
 
 ## With a shell
 

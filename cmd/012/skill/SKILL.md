@@ -88,4 +88,8 @@ model service. Don't add them unless the user wants that.
 errors; for `diff`, the workbooks differ); 2 the command was used
 wrongly, with its usage. Every command's `--help` prints its usage.
 
+When the 012 MCP server (`012 mcp book.012`) is connected, its tools
+(describe, read_range, write_cells with dry_run, evaluate, list_errors)
+do the same with the same checks.
+
 The full reference: https://github.com/FelineStateMachine/012/blob/main/docs/agents/README.md
