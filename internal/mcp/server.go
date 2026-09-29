@@ -74,7 +74,7 @@ const instructions = `This server works on one 012 spreadsheet workbook (.012 fi
 Call describe first: it lists the sheets, their used ranges, guessed header rows and column names, tables, named ranges, charts and notebooks.
 References are written as in formulas: B7, A1:C9, Q3!B7, 'Q3 plan'!A1:C9, a named range, a table (Sales, Sales[Amount]) or a sheet name for the whole sheet; without a sheet name, the sheet shown when the file was saved.
 Inputs are what a person types, in en-US form: 1.5, =SUM(A1:A6), $1,200, 12%, 2026-09-29. Formulas are Google Sheets'.
-Writes are checked as typing is (formulas must parse, validation rules, protected ranges) and each call is one undoable change, saved at once; pass dry_run to see the change without making it. Call evaluate to try a formula without writing it.`
+Writes are checked as typing is (formulas must parse, validation rules, protected ranges) and each call is one change, saved at once; pass dry_run to see the change without making it. Call evaluate to try a formula without writing it.`
 
 // rawSchemas infer json.RawMessage, a value already in JSON, as any
 // value.

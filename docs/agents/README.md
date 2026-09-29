@@ -7,7 +7,7 @@ sidebar_position: 1
 
 Coding agents and assistants work on `.012` workbooks through the same
 operations people use: every change is typed into cells as the screen
-types it, checked by the same rules, made as one undoable step and
+types it, checked by the same rules, made as one change and
 shown by [`012 diff`](../files/git.md#012-diff) like anyone's. Nothing
 agents do runs a program or reaches the network unless they were
 started with the flags that allow it, as for scripts.

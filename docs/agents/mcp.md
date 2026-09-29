@@ -10,7 +10,7 @@ server on one workbook, over standard input and output, so any MCP host
 (Claude Code, Claude Desktop, editors) can read and change it. It is the
 same code as [the commands](README.md#with-a-shell): reads are
 `012 describe` and `012 get`, and every write is typed through the
-checks `012 set` makes, as one undoable change, saved atomically at
+checks `012 set` makes, as one change, saved atomically at
 once.
 
 ```mermaid

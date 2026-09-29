@@ -9,7 +9,7 @@ description: Read, change, check and share 012 spreadsheet workbooks (.012 files
 formulas, tables, charts and nushell notebooks. Work on them with the
 `012` command, never by editing the file's JSON: `012 set` checks every
 entry as the screen does and saves atomically, and its changes show in
-`012 diff` and undo like a person's.
+`012 diff` like a person's.
 
 ## Look before you read
 
