@@ -7,6 +7,7 @@ Inside the grid it works the way Sheets does: typing replaces a cell, `=`
 starts a formula, Enter and Tab move you on, Shift+arrows and the mouse
 select, and Sheets' shortcuts do what you expect. Around the grid, the
 control panel, the mode indicator and the character grid keep 1-2-3's look.
+Sheets and 1-2-3 are where it starts, not specs it follows to the letter.
 It is one pure-Go binary.
 
 ![Typing a small budget, pointing at cells in a formula, and watching totals recalculate](docs/media/first-steps.gif)
