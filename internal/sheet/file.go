@@ -78,6 +78,9 @@ type fileSheet struct {
 	// Rules need no version: see rulefile.go.
 	CondFormats []fileCondFormat `json:"conditionalFormats,omitempty"`
 	Validations []fileValidation `json:"validations,omitempty"`
+	// A notebook and its regions need no version: see regionfile.go.
+	Notebook bool         `json:"notebook,omitempty"`
+	Regions  []fileRegion `json:"regions,omitempty"`
 }
 
 // Write saves the workbook the sheet belongs to; see Workbook.Write.
@@ -159,10 +162,10 @@ func (w *Workbook) headLines() string {
 	if w.locale != nil {
 		lines = append(lines, `"locale": `+jsonString(w.locale.Tag))
 	}
+	if w.macroOrigin != "" && (len(w.macros) > 0 || len(w.allRegions()) > 0) {
+		lines = append(lines, `"macroOrigin": `+jsonString(w.macroOrigin))
+	}
 	if len(w.macros) > 0 {
-		if w.macroOrigin != "" {
-			lines = append(lines, `"macroOrigin": `+jsonString(w.macroOrigin))
-		}
 		lines = append(lines, w.macrosLines())
 	}
 	return strings.Join(lines, ",\n  ")
@@ -266,7 +269,7 @@ func (s *Sheet) writeObjects(b *bufio.Writer, indent string) error {
 		fmt.Fprintf(b, ",\n%s\"pivot\": %s", indent, raw)
 	}
 	s.writeRules(b, indent)
-	return nil
+	return s.writeRegionDefs(b, indent)
 }
 
 // Read loads a file written by Write, of this or an earlier version, and
@@ -352,6 +355,9 @@ func (s *Sheet) read(f fileSheet) error {
 		s.pivot = pivotState{def: p, stale: true}
 	}
 	if err := s.readRules(f.CondFormats, f.Validations); err != nil {
+		return err
+	}
+	if err := s.readRegions(f.Notebook, f.Regions); err != nil {
 		return err
 	}
 	return s.readView(f.fileView)

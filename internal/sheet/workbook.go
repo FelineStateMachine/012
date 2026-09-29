@@ -72,6 +72,8 @@ type Workbook struct {
 	// spillWork is the arrays an evaluation pass computed, to spill once
 	// it's done; see spill.go.
 	spillWork spillWork
+	// settling is set while regions write their cells; see regionwrite.go.
+	settling bool
 }
 
 // loc is a cell on a particular sheet.
@@ -220,6 +222,9 @@ func (w *Workbook) DuplicateSheet(s *Sheet) (*Sheet, error) {
 	}
 	cp := w.newSheet(w.freeName("Copy of " + s.name))
 	for a, c := range s.cells.all() {
+		if _, _, ok := s.RegionAt(a); ok && c.spilled {
+			c = frozen(c) // a region's table, as values: the copy has no regions
+		}
 		c := c.clone()
 		c.setExpr(c.expr) // fresh reference slices, shared with nothing
 		cp.place(a, c)

@@ -40,6 +40,7 @@ func (w *Workbook) recalcAll() {
 	w.evaluate()
 	w.settleSpills(nil)
 	w.refreshPivots(w.allPivots())
+	w.settleRegions()
 	w.observe(true, start, n)
 }
 
@@ -65,6 +66,7 @@ func (w *Workbook) recalcFrom(changed []loc, volatiles bool) {
 	stale := w.stalePivots()
 	w.evaluate()
 	w.refreshPivots(w.settleSpills(stale))
+	w.settleRegions()
 	w.observe(false, start, n)
 }
 
@@ -131,7 +133,7 @@ func (w *Workbook) namedInUse() []namedUsers {
 			named = append(named, namedUsers{nm.Sheet, nm.Range, users})
 		}
 	}
-	return named
+	return append(named, w.regionsInUse()...)
 }
 
 // push queues the formula at u unless it's already marked, so each is

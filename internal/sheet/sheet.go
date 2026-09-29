@@ -112,6 +112,13 @@ type Sheet struct {
 
 	rules rulesState // conditional formats and data validation, see rules.go
 	looks looksCache // how the rules draw cells, see looks.go
+
+	// regions are the sheet's regions and the data they show, and
+	// regionMeta what isn't undone of them; regionsStale has their cells
+	// written again once the change ends. See region.go.
+	regions      regionState
+	regionMeta   map[string]*regionMeta
+	regionsStale bool
 }
 
 // New returns an empty worksheet, the only sheet of a new workbook.
@@ -233,6 +240,9 @@ func (s *Sheet) Set(a Addr, input string) error {
 	}
 	if _, ok := s.SpillAnchor(a); ok {
 		return ErrSpillEdit
+	}
+	if _, _, ok := s.RegionAt(a); ok {
+		return ErrRegionEdit
 	}
 	var err error
 	s.change("edit "+a.String(), Rect{From: a, To: a}, func() { err = s.put(a, input) })
@@ -356,6 +366,9 @@ func (s *Sheet) place(a Addr, c *Cell) {
 	}
 	s.trackShape(a, c)
 	s.spillTouched(a, c)
+	if len(s.regions.list) > 0 {
+		s.regionTouched(a)
+	}
 	if c == nil {
 		s.unlink(a)
 		return

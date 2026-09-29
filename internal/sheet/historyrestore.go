@@ -54,6 +54,10 @@ func (w *Workbook) restoreSheetParts(st, inv *step) {
 		inv.pivots[s] = s.pivot.def
 		s.pivot.def, s.pivot.stale = p, true
 	}
+	for s, r := range st.regions {
+		inv.regions[s] = s.regions
+		s.regions, s.regionsStale = r, true
+	}
 	for s, r := range st.rules {
 		inv.rules[s] = s.rules
 		s.rules = r
@@ -147,6 +151,7 @@ func (st *step) join(child *step) {
 	joinMap(st.charts, child.charts)
 	joinMap(st.pivots, child.pivots)
 	joinMap(st.rules, child.rules)
+	joinMap(st.regions, child.regions)
 	st.sheets = cmpOrPtr(st.sheets, child.sheets)
 	st.settings = cmpOrPtr(st.settings, child.settings)
 	st.macros = cmpOrPtr(st.macros, child.macros)

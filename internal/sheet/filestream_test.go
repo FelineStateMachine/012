@@ -233,6 +233,12 @@ func streamSeeds(t testing.TB) [][]byte {
 		[]byte(`{"version": 2, "conditionalFormats": [{"ranges":"A1","iconSet":{"icons":"symbols","points":[{"type":"percent","value":"50"}]}}]}`),
 		[]byte(`{"version": 2, "validations": [{"ranges":"A1","criteria":"list","items":["a"],"display":"bubbles"}]}`),
 		[]byte(`{"version": 2, "heights": {"0": 2}, "merges": ["A1:"], "cells": {}}`),
+		[]byte(`{"version": 2, "macroOrigin": "m1", "notebook": true, "cells": {"A3": {"bold": true}}, "regions": [
+			{"name": "r1", "command": "ls", "at": "A1", "rows": 3, "cols": 2},
+			{"name": "big", "command": "$r1 | where size > 1kb", "at": "A6", "rows": 2, "cols": 2, "reads": ["r1"], "input": "Sheet1!D1:E4", "sort": [{"column": 2, "desc": true}]}]}`),
+		[]byte(`{"version": 2, "regions": [{"name": "r1", "command": "ls", "at": "A1"}, {"name": "R1", "command": "x", "at": "A5"}]}`),
+		[]byte(`{"version": 2, "regions": [{"name": "in", "command": "ls", "at": "A1"}, {"name": "r2", "at": "ZZZZ1", "rows": -1}]}`),
+		[]byte(`{"version": 2, "regions": [{"name": "a", "command": "$b", "at": "A1", "reads": ["b"]}, {"name": "b", "command": "$a", "at": "A3", "reads": ["a"], "sort": [{"column": 0}]}]}`),
 		[]byte(`null`), []byte(`[]`), []byte(`{"version": 2, "cells": {"A1": "1",}}`), []byte(`{"version": 2, "cells": {"A1"`),
 	}
 }
