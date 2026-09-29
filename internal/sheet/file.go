@@ -56,12 +56,10 @@ type fileFormat struct {
 	Locale string `json:"locale,omitempty"`
 	// Macros and where they were made need no version bump either:
 	// earlier builds ignore them, and the sheets read the same.
-	MacroOrigin string `json:"macroOrigin,omitempty"`
-	// ShellHistory needs no version either: see shellhistory.go.
-	ShellHistory []string    `json:"shellHistory,omitempty"`
-	Macros       []fileMacro `json:"macros,omitempty"`
-	fileSheet                // versions 1 to 3: the only sheet
-	Sheets       []fileSheet `json:"sheets,omitempty"` // version 4
+	MacroOrigin string      `json:"macroOrigin,omitempty"`
+	Macros      []fileMacro `json:"macros,omitempty"`
+	fileSheet               // versions 1 to 3: the only sheet
+	Sheets      []fileSheet `json:"sheets,omitempty"` // version 4
 }
 
 // fileSheet is one sheet of a file.
@@ -80,9 +78,12 @@ type fileSheet struct {
 	// Rules need no version: see rulefile.go.
 	CondFormats []fileCondFormat `json:"conditionalFormats,omitempty"`
 	Validations []fileValidation `json:"validations,omitempty"`
-	// A notebook and its regions need no version: see regionfile.go.
-	Notebook bool         `json:"notebook,omitempty"`
-	Regions  []fileRegion `json:"regions,omitempty"`
+	// Regions need no version: see regionfile.go.
+	Regions []fileRegion `json:"regions,omitempty"`
+	// Nor do notebook tabs: see notebookfile.go.
+	Tab           string             `json:"tab,omitempty"`
+	Reactive      bool               `json:"reactive,omitempty"`
+	NotebookCells []fileNotebookCell `json:"notebookCells,omitempty"`
 }
 
 // Write saves the workbook the sheet belongs to; see Workbook.Write.
@@ -141,9 +142,10 @@ func (w *Workbook) Write(out io.Writer) error {
 }
 
 // single reports whether the workbook fits the single-sheet format of
-// versions 2 and 3: one sheet, and no formula naming a sheet.
+// versions 2 and 3: one sheet, not a notebook, and no formula naming a
+// sheet.
 func (w *Workbook) single() bool {
-	return len(w.sheets) == 1 && len(w.crossUsers) == 0 && !w.hasPivots()
+	return len(w.sheets) == 1 && len(w.crossUsers) == 0 && !w.hasPivots() && !w.hasNotebook()
 }
 
 func jsonString(s string) string {
@@ -164,15 +166,11 @@ func (w *Workbook) headLines() string {
 	if w.locale != nil {
 		lines = append(lines, `"locale": `+jsonString(w.locale.Tag))
 	}
-	if w.macroOrigin != "" && (len(w.macros) > 0 || len(w.allRegions()) > 0) {
+	if w.macroOrigin != "" && (len(w.macros) > 0 || len(w.allRegions()) > 0 || w.hasNotebook()) {
 		lines = append(lines, `"macroOrigin": `+jsonString(w.macroOrigin))
 	}
 	if len(w.macros) > 0 {
 		lines = append(lines, w.macrosLines())
-	}
-	if len(w.shellHistory) > 0 {
-		raw, _ := json.Marshal(w.shellHistory)
-		lines = append(lines, `"shellHistory": `+string(raw))
 	}
 	return strings.Join(lines, ",\n  ")
 }
@@ -275,7 +273,10 @@ func (s *Sheet) writeObjects(b *bufio.Writer, indent string) error {
 		fmt.Fprintf(b, ",\n%s\"pivot\": %s", indent, raw)
 	}
 	s.writeRules(b, indent)
-	return s.writeRegionDefs(b, indent)
+	if err := s.writeRegionDefs(b, indent); err != nil {
+		return err
+	}
+	return s.writeNotebook(b, indent)
 }
 
 // Read loads a file written by Write, of this or an earlier version, and
@@ -326,8 +327,8 @@ func (w *Workbook) readNames(names map[string]string) error {
 }
 
 // read fills a sheet, its cells read (fileread.go), from the rest of
-// its part of a file.
-func (s *Sheet) read(f fileSheet) error {
+// its part of a file, adding to old the command regions to convert.
+func (s *Sheet) read(f fileSheet, old *[]oldRegion) error {
 	s.tabHidden = f.Hidden
 	for name, width := range f.Widths {
 		c, ok := ParseCol(name)
@@ -363,7 +364,10 @@ func (s *Sheet) read(f fileSheet) error {
 	if err := s.readRules(f.CondFormats, f.Validations); err != nil {
 		return err
 	}
-	if err := s.readRegions(f.Notebook, f.Regions); err != nil {
+	if err := s.readRegions(f.Regions, old); err != nil {
+		return err
+	}
+	if err := s.readNotebook(f); err != nil {
 		return err
 	}
 	return s.readView(f.fileView)
