@@ -164,7 +164,7 @@ func TestNotebooksNeedTrust(t *testing.T) {
 	path := notebookFile(t, "another computer")
 
 	status(e, "get", path, "A2")
-	if nu.ran != 0 || out.String() != "\n" || !strings.Contains(errOut.String(), "Sheet1 shows notebook outputs as the file kept them; --notebooks runs the cells again") {
+	if nu.ran != 0 || out.String() != "\n" || !strings.Contains(errOut.String(), "012: note: Sheet1 shows no rows for files, whose output the file doesn't hold; --notebooks runs the notebook\n") {
 		t.Errorf("without --notebooks: ran %d, %q %q", nu.ran, out, errOut)
 	}
 	if code, err := status(e, "get", path, "A2", "--notebooks"); code != 1 || nu.ran != 0 || !strings.Contains(err.Error(), "saved on another computer") {
@@ -183,8 +183,9 @@ func TestNotebooksNeedTrust(t *testing.T) {
 		t.Fatal(err)
 	}
 	out.Reset()
-	if code, err := status(e, "get", path, "A2"); code != 0 || nu.ran != 2 || out.String() != "a.txt\n" {
-		t.Errorf("the output saved: %d %v, ran %d, %q", code, err, nu.ran, out)
+	errOut.Reset()
+	if code, err := status(e, "get", path, "A2"); code != 0 || nu.ran != 2 || out.String() != "a.txt\n" || errOut.Len() > 0 {
+		t.Errorf("the output saved: %d %v, ran %d, %q %q", code, err, nu.ran, out, errOut)
 	}
 	if code, err := status(e, "get", path, "A2", "--notebooks"); code != 0 || nu.ran != 3 {
 		t.Errorf("trusted by recalc: %d %v, ran %d", code, err, nu.ran)

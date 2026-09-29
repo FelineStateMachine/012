@@ -9,7 +9,6 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/headless"
 	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // 012 get, set and recalc: workbook files read and changed without the
@@ -57,20 +56,11 @@ func runGet(args []string, e env) error {
 	if err := headless.Get(e.stdout, t, o); err != nil {
 		return err
 	}
-	if !a.has("notebooks") && hasOutputs(t.Sheet) {
-		fmt.Fprintln(e.stderr, "012: note: "+t.Sheet.Name()+" shows notebook outputs as the file kept them; --notebooks runs the cells again")
+	if missing := headless.MissingOutputs(t.Sheet); !a.has("notebooks") && len(missing) > 0 {
+		fmt.Fprintf(e.stderr, "012: note: %s shows no rows for %s, whose output the file doesn't hold; --notebooks runs the notebook\n",
+			t.Sheet.Name(), strings.Join(missing, ", "))
 	}
 	return failed.err()
-}
-
-// hasOutputs reports whether notebook cells' outputs were sent to s.
-func hasOutputs(s *sheet.Sheet) bool {
-	for _, r := range s.Regions() {
-		if r.Output {
-			return true
-		}
-	}
-	return false
 }
 
 // runSet is 012 set: type entries into cells and save.

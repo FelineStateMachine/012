@@ -129,7 +129,8 @@ things need more than the file:
 - **[Notebook](../nushell/notebooks.md) outputs** are kept in the file
   as their cells last left them, and these commands read them as saved,
   sent to sheets as on the screen; `get` notes on standard error when
-  the sheet it reads shows outputs. `--notebooks` runs every notebook's
+  the sheet it reads has an output the file doesn't hold (never run, or
+  too large to save). `--notebooks` runs every notebook's
   code cells first, each after the cells it reads, as F9 does; a cell
   that fails stops the rest of its notebook, and is reported. A cell
   reading `$selection` fails, having no selection to read.

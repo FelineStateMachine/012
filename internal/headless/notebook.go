@@ -208,6 +208,23 @@ func feedOutput(w *sheet.Workbook, name string) {
 	w.ApplyLive(op)
 }
 
+// MissingOutputs names the notebook outputs sent to s that show no rows
+// because the file holds no output for their cells: never run, too
+// large to save, or their cells gone.
+func MissingOutputs(s *sheet.Sheet) []string {
+	var out []string
+	for _, r := range s.Regions() {
+		if !r.Output {
+			continue
+		}
+		c, ok := cellNamed(s.Book(), r.Name)
+		if o := s.Book().Output(c.ID); !ok || o == nil || o.Unsaved {
+			out = append(out, r.Name)
+		}
+	}
+	return out
+}
+
 // cellNamed is the notebook cell that gives its output name.
 func cellNamed(w *sheet.Workbook, name string) (notebook.Cell, bool) {
 	for _, s := range w.Sheets() {
