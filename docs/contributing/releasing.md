@@ -68,7 +68,7 @@ open a release's file, or saves it differently, fails `make check`
 promises).
 
 The workbooks a release saves are the ones in `fixtures/new`, written by
-hand to use everything the format stores: formats, column and row
+hand to use everything the format stores: formats, entries that read against their format, column and row
 formats, widths, heights, merges, borders, freeze, filters, names,
 notes, protection, rules and validation, charts, pivot tables, notebook
 sheets with shell regions and linked files, macros, the locale and

@@ -71,6 +71,8 @@
         "H2": "=SORT(UNIQUE(B2:B9))",
         "I1": "Scaled",
         "I2": "=LET(r, Rate, MAP(C2:C4, LAMBDA(x, x*r)))",
+        "J1": {"input": "007", "text": true},
+        "J2": {"input": "=1+1", "text": false, "format": "text"},
         "A11": {"input": "A long title merged across three columns", "wrap": "wrap", "align": "center"},
         "A12": {"input": "Tall", "valign": "middle"},
         "B12": {"input": "clipped text that does not spill over", "wrap": "clip"},
