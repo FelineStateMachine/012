@@ -17,7 +17,7 @@ shell scripts, cron jobs, Makefiles and nushell pipelines:
 ```
 
 None of them runs a program or reaches the network unless a flag asks:
-see [Regions and JEV functions](#regions-and-jev-functions). The flags
+see [Notebooks and JEV functions](#notebooks-and-jev-functions). The flags
 and exit statuses of every command are in
 [Command line](../reference/command-line.md).
 
@@ -88,7 +88,7 @@ can't take, naming the cell:
 |---|---|
 | A formula that doesn't parse | `Sheet1!B7: Expected , or ) in SUM, at character 11 of =SUM(A1:A6` |
 | An entry a validation rule rejects | the rule's help, as the context line would |
-| A cell of an array's result, a pivot table or a region | the same message as on the screen |
+| A cell of an array's result, a pivot table, a linked file or a notebook's output | the same message as on the screen |
 | A cell in a [protected range](../sheets/notes-protection.md) | `Sheet1!B7 is protected (B1:B9): --force sets it anyway` |
 | A reference to a range, not one cell | `A1:B2 is the range A1:B2: name one cell` |
 
@@ -121,22 +121,27 @@ written as their values where the format has no formulas, and a note on
 standard error says how many. CSV, TSV, JSON and NUON leave out the rows
 a filter hides, as a download does.
 
-## Regions and JEV functions
+## Notebooks and JEV functions
 
 A `.012` file stores what was typed and computes the rest, so a few
 things need more than the file:
 
-- **Notebook regions' tables** come from their nushell commands, which
-  these commands don't run: a region's table is empty, and `get` says so
-  on standard error. `--regions` runs every region's command, each after
-  those it reads, as Run all regions (F9) does. As on the screen, a
-  [file saved on another computer](../nushell/notebooks.md#saving-and-trust)
-  asks first: `--regions` refuses it unless `--trust` gives the answer
-  Run would, and `recalc --regions --trust` saves that trust in the file
-  as the screen does, so later runs don't need it. `shell = off` in the
-  [configuration](../reference/config.md#shell) turns `--regions` off,
-  `shell = on` runs every file's commands, and each command times out
-  after `nu-timeout`.
+- **[Notebook](../nushell/notebooks.md) outputs** are kept in the file
+  as their cells last left them, and these commands read them as saved,
+  sent to sheets as on the screen; `get` notes on standard error when
+  the sheet it reads shows outputs. `--notebooks` runs every notebook's
+  code cells first, each after the cells it reads, as F9 does; a cell
+  that fails stops the rest of its notebook, and is reported. A cell
+  reading `$selection` fails, having no selection to read.
+- As on the screen, a notebook
+  [saved on another computer](../nushell/notebooks.md#saving-and-trust)
+  asks first: `--notebooks` refuses it unless `--trust` gives the answer
+  Run would, and `recalc --notebooks --trust` saves that trust in the
+  file as the screen does, so later runs don't need it. `shell = off` in
+  the [configuration](../reference/config.md#shell) turns `--notebooks`
+  off, `shell = on` runs every file's cells, each cell stops after
+  `nu-timeout`, and saving keeps as much of the outputs as
+  `nu-save-cell-kb` and `nu-save-notebook-kb` allow.
 - **[Linked files](following.md)** are followed only on the screen; their
   regions are empty here.
 - **[JEV functions](../formulas/jev.md)** ask a hosted model over the

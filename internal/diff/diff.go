@@ -1,14 +1,15 @@
 // Package diff compares and merges .012 workbooks cell by cell, for
 // 012 diff and 012 merge-driver (see docs/files/git.md). Compare lists
 // what changed between two workbooks: sheets added, removed, renamed or
-// moved, each cell's input, value, format and note, regions, named
-// ranges, macros and the other fields of sheets and workbooks. Merge
+// moved, each cell's input, value, format and note, notebook cells,
+// regions, named ranges, macros and the other fields of sheets and
+// workbooks. Merge
 // combines two workbooks changed from a common one, and conflicts only
 // where both changed the same part of the same cell or field.
 //
 // Both read files as their JSON fields (raw.go), so nothing a file holds
 // goes unseen, and use the engine only to compute formulas' values,
-// which the file doesn't store. Nothing here runs a region's command or
+// which the file doesn't store. Nothing here runs a notebook cell or
 // asks JEV: values come from what the formulas compute alone.
 package diff
 
@@ -83,15 +84,15 @@ func (c Change) Where() string {
 		return "sheet " + c.Sheet
 	case KindRegion:
 		return c.Sheet + " region " + c.Item
-	case KindLayout:
+	case KindLayout, KindNotebook:
 		return c.Sheet + " " + c.Item
 	}
 	return c.Kind + " " + c.Item
 }
 
 // Compare lists what changed from a to b: sheets first, then each
-// sheet's cells in row order, its regions and other fields, then the
-// workbook's names, macros and settings.
+// sheet's cells in row order, a notebook tab's cells, its regions and
+// other fields, then the workbook's names, macros and settings.
 func Compare(a, b *Book) []Change {
 	var out []Change
 	p := matchSheets(a.raw, b.raw)

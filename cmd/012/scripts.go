@@ -8,22 +8,23 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/headless"
+	"github.com/FelineStateMachine/012/internal/notebook"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
 // 012 get, set and recalc: workbook files read and changed without the
 // screen, for scripts (see docs/files/scripts.md). 012 export is in
-// export.go, and what --regions, --jev and --trust run in evaluate.go.
+// export.go, and what --notebooks, --jev and --trust run in evaluate.go.
 
 const (
-	getUsage    = "usage: 012 get file.012 [ref] [--format text|csv|tsv|json|nuon] [--input] [--no-header] [--regions] [--jev] [--trust]"
+	getUsage    = "usage: 012 get file.012 [ref] [--format text|csv|tsv|json|nuon] [--input] [--no-header] [--notebooks] [--jev] [--trust]"
 	setUsage    = "usage: 012 set file.012 ref input [ref input ...] [--force]"
-	recalcUsage = "usage: 012 recalc file.012 [--regions] [--jev] [--trust]"
+	recalcUsage = "usage: 012 recalc file.012 [--notebooks] [--jev] [--trust]"
 )
 
-// evalFlags are the flags that let a command run a workbook's commands
-// or ask JEV; nothing runs without them.
-var evalFlags = []string{"regions", "jev", "trust"}
+// evalFlags are the flags that let a command run a workbook's notebook
+// cells or ask JEV; nothing runs without them.
+var evalFlags = []string{"notebooks", "jev", "trust"}
 
 // runGet is 012 get: a cell's value or input, or a range's as a table.
 func runGet(args []string, e env) error {
@@ -56,16 +57,16 @@ func runGet(args []string, e env) error {
 	if err := headless.Get(e.stdout, t, o); err != nil {
 		return err
 	}
-	if !a.has("regions") && hasCommands(t.Sheet) {
-		fmt.Fprintln(e.stderr, "012: note: "+t.Sheet.Name()+"'s notebook regions are empty unless --regions runs them")
+	if !a.has("notebooks") && hasOutputs(t.Sheet) {
+		fmt.Fprintln(e.stderr, "012: note: "+t.Sheet.Name()+" shows notebook outputs as the file kept them; --notebooks runs the cells again")
 	}
 	return failed.err()
 }
 
-// hasCommands reports whether s has regions filled by commands.
-func hasCommands(s *sheet.Sheet) bool {
+// hasOutputs reports whether notebook cells' outputs were sent to s.
+func hasOutputs(s *sheet.Sheet) bool {
 	for _, r := range s.Regions() {
-		if !r.Linked() {
+		if r.Output {
 			return true
 		}
 	}
@@ -99,7 +100,7 @@ func runSet(args []string, e env) error {
 	for _, w := range warnings {
 		fmt.Fprintln(e.stderr, "012: warning: "+w)
 	}
-	return f.Save()
+	return save(f, e)
 }
 
 // runRecalc is 012 recalc: recalculate, save, and list the cells whose
@@ -124,10 +125,22 @@ func runRecalc(args []string, e env) error {
 		return err
 	}
 	problems, circular := headless.Recalc(f.Book)
-	if err := f.Save(); err != nil {
+	if err := save(f, e); err != nil {
 		return err
 	}
 	return reportProblems(e.stdout, problems, circular, failed)
+}
+
+// save saves a workbook, keeping as much of its notebook outputs as the
+// config's nu-save-cell-kb and nu-save-notebook-kb allow, as the screen
+// saves it.
+func save(f *headless.File, e env) error {
+	cfg, err := loadConfig(e, nil)
+	if err != nil {
+		return err
+	}
+	f.Book.SetOutputCaps(notebook.Caps{Cell: cfg.Int("nu-save-cell-kb") << 10, Total: cfg.Int("nu-save-notebook-kb") << 10})
+	return f.Save()
 }
 
 // reportProblems lists the cells showing errors, one a line, and says
@@ -159,20 +172,20 @@ func plural(n int, one, many string) string {
 	return many
 }
 
-// evalFailures are what --regions and --jev couldn't do: a reason
-// nothing ran at all (fatal), or regions whose commands failed.
+// evalFailures are what --notebooks and --jev couldn't do: a reason
+// nothing ran at all (fatal), or notebook cells that failed.
 type evalFailures struct {
-	stop    error
-	regions []string
+	stop  error
+	cells []string
 }
 
 func (f evalFailures) fatal() error { return f.stop }
 
 // err is the status once the command's output is written: 1 when a
-// region failed, each already reported.
+// notebook cell failed, each already reported.
 func (f evalFailures) err() error {
-	if len(f.regions) == 0 {
+	if len(f.cells) == 0 {
 		return nil
 	}
-	return &exitError{code: 1, err: errors.New(fmt.Sprint(len(f.regions)) + " " + plural(len(f.regions), "region", "regions") + " failed")}
+	return &exitError{code: 1, err: errors.New(fmt.Sprint(len(f.cells)) + " notebook " + plural(len(f.cells), "cell", "cells") + " failed")}
 }

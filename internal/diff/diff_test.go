@@ -130,16 +130,38 @@ func TestCompareShapes(t *testing.T) {
 }
 
 func TestCompareRegionsAndBook(t *testing.T) {
-	a := []byte(`{"version": 4, "locale": "en-US", "macros": [{"name": "m1", "api": 1, "source": "x"}], "sheets": [{"name": "S", "notebook": true, "regions": [{"name": "r1", "command": "ls", "at": "A1"}, {"name": "r2", "command": "ps", "at": "A9"}], "cells": {}}]}`)
-	b := []byte(`{"version": 4, "locale": "de-DE", "active": 0, "sheets": [{"name": "S", "notebook": true, "regions": [{"name": "r1", "command": "ls -a", "at": "A1"}, {"name": "r3", "command": "date", "at": "A20"}], "cells": {}}]}`)
-	want := `S region r1  command  ls → ls -a
-S region r2  removed  - ps
-S region r3  added  + date
-macro m1  removed  - (no command)
+	a := []byte(`{"version": 4, "locale": "en-US", "macros": [{"name": "m1", "api": 1, "source": "x"}], "sheets": [{"name": "S", "regions": [{"name": "app", "at": "A1", "path": "app.csv"}, {"name": "old", "at": "D1", "path": "old.csv"}], "cells": {}}]}`)
+	b := []byte(`{"version": 4, "locale": "de-DE", "active": 0, "sheets": [{"name": "S", "regions": [{"name": "app", "at": "A1", "path": "app.log"}, {"name": "sales", "at": "H1", "output": true}], "cells": {}}]}`)
+	want := `S region app  path  app.csv → app.log
+S region old  removed  - old.csv
+S region sales  added  + a notebook cell's output
+macro m1  removed  - x
 workbook locale  en-US → de-DE
 `
 	if got := lines(t, a, b); got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestCompareNotebooks(t *testing.T) {
+	nb := func(cells string) []byte {
+		return []byte(`{"version": 4, "sheets": [{"name": "Sheet1", "cells": {}}, {"name": "Notebook", "tab": "notebook", "notebookCells": [` + cells + `], "cells": {}}]}`)
+	}
+	a := nb(`{"kind": "note", "source": "# Sales"}, {"source": "sales = open s.csv", "output": "[[n]; [1]]"}, {"source": "$sales | length", "output": "1"}, {"source": "gone"}`)
+	b := nb(`{"source": "new = ls"}, {"kind": "note", "source": "# Sales"}, {"source": "sales = open s.csv", "output": "[[n]; [2]]"}, {"source": "$sales | length", "error": "boom"}`)
+	want := `Notebook cell 1  added  + new = ls
+Notebook cell 3  output  [[n]; [1]] → [[n]; [2]]
+Notebook cell 4  error  + boom
+Notebook cell 4  output  - 1
+Notebook cell 4  removed  - gone
+`
+	if got := lines(t, a, b); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+	var out bytes.Buffer
+	Dump(&out, read(t, b))
+	if !strings.Contains(out.String(), "Notebook cell 3  sales = open s.csv  = [[n]; [2]]\nNotebook cell 4  $sales | length  error: boom\n") {
+		t.Errorf("dump:\n%s", out.String())
 	}
 }
 

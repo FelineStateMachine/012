@@ -20,7 +20,7 @@ internal/locale  the locales: separators, date order, currency, formula separato
 internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1, JSON, NUON; tables on streams
 internal/nuon    nushell's object notation: typed values, tables read a row at a time, written back
 internal/live    the sources of linked regions: files followed as they grow or are rewritten
-internal/headless workbook files without the screen: references, get, set, recalc, regions and JEV when asked, atomic saves
+internal/headless workbook files without the screen: references, get, set, recalc, notebooks and JEV when asked, atomic saves
 internal/diff    workbooks compared and merged cell by cell, from their files' fields
 internal/chart   chart layout, text rendering and kitty image encoding
 internal/jev     the API key's resolution, answer cache and TypeSafe client
@@ -625,9 +625,11 @@ subpackage behind the same table row.
 `set`, `recalc` and `export` ([Scripts](../files/scripts.md)): it
 resolves references, writes values through the same snapshots and
 encoders as downloads, types entries through `Sheet.Set` in one
-`Batch`, and saves with a write-then-rename. It runs regions through
-`internal/nushell` and asks `internal/jev` only when its caller says
-so; `cmd/012` decides, by the flags and the macro-origin trust.
+`Batch`, and saves with a write-then-rename. It sends the outputs a
+file kept to their sheets as the screen does on opening, runs notebook
+cells through `internal/nushell` and asks `internal/jev` only when its
+caller says so; `cmd/012` decides, by the flags and the macro-origin
+trust.
 
 `internal/diff` reads a `.012` file as its JSON fields: the workbook's,
 and each sheet's with its cells by address. Comparing and merging go

@@ -136,8 +136,8 @@ func (m *merger) books(b, o, t *rawBook) *rawBook {
 }
 
 // trust keeps the computer ours trusted its commands on only when the
-// merge's commands (macros, regions' commands and files) are ours', or
-// theirs were trusted on the same computer, so a merge never makes
+// merge's commands (macros, notebook cells and linked files) are ours',
+// or theirs were trusted on the same computer, so a merge never makes
 // someone else's commands run without asking.
 func trust(out, o, t *rawBook) {
 	if equal(o.top["macroOrigin"], t.top["macroOrigin"]) || code(out) == code(o) {
@@ -149,15 +149,16 @@ func trust(out, o, t *rawBook) {
 	delete(out.top, "macroOrigin")
 }
 
-// code is what a workbook can make 012 run or read: its macros and its
-// regions' commands and files, in one string to compare.
+// code is what a workbook can make 012 run or read: its macros, its
+// notebooks' cells and the files it links, in one string to compare.
 func code(b *rawBook) string {
 	var parts []string
 	parts = append(parts, string(b.top["macros"]))
 	for _, s := range b.sheets {
+		parts = append(parts, string(sources(s.fields["notebookCells"])))
 		for _, r := range named(s.fields["regions"]) {
 			f, _ := object(r)
-			parts = append(parts, string(f["command"])+string(f["path"])+string(f["input"])+string(f["query"]))
+			parts = append(parts, string(f["command"])+string(f["path"])+string(f["table"])+string(f["query"]))
 		}
 	}
 	slices.Sort(parts)

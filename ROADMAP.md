@@ -143,7 +143,7 @@ stream above rather than a design of their own.
 
 - Import CSV, TSV, JSON, NUON, XLSX, SQLite, Parquet and Lotus `.wk1`; export CSV, TSV, JSON, NUON, XLSX and SQLite; import locations; save-as and overwrite checks: [Files](docs/files/README.md)
 - `.012` files read and written as a stream, cells straight into and out of the store: [The .012 format](docs/files/format.md#reading-and-writing)
-- Commands for scripts without the screen: `012 get` (text, CSV, TSV, JSON or NUON), `012 set`, `012 recalc` and `012 export`, running regions and JEV only behind flags: [Scripts](docs/files/scripts.md)
+- Commands for scripts without the screen: `012 get` (text, CSV, TSV, JSON or NUON), `012 set`, `012 recalc` and `012 export`, running notebooks and JEV only behind flags: [Scripts](docs/files/scripts.md)
 - `012 diff` cell by cell, as git's diff command or textconv, and `012 merge-driver` merging cell by cell with conflicts noted on the cells: [Diff and merge in git](docs/files/git.md)
 - Following files: a linked region follows a CSV, TSV, JSON lines or NUON file as it grows and any importable file as it's rewritten, keeping every row or the last ones, its rows arriving as the change stream: [Following files](docs/files/following.md)
 

@@ -18,15 +18,15 @@ import (
 const jevTimeout = 60 * time.Second
 
 // evaluate runs what the flags ask of a workbook before it's read:
-// --regions runs its notebook regions' commands with nu, when the
-// workbook is trusted here or --trust says so, as the screen asks before
-// running them; --jev answers its JEV functions over the network. Region
-// failures are reported on standard error as they happen.
+// --notebooks runs its notebook cells with nu, when the workbook is
+// trusted here or --trust says so, as the screen asks before running
+// them; --jev answers its JEV functions over the network. Cells that
+// fail are reported on standard error.
 func evaluate(f *headless.File, a cliArgs, e env) evalFailures {
-	if a.has("trust") && !a.has("regions") {
-		return evalFailures{stop: usageError("--trust goes with --regions", "")}
+	if a.has("trust") && !a.has("notebooks") {
+		return evalFailures{stop: usageError("--trust goes with --notebooks", "")}
 	}
-	if !a.has("regions") && !a.has("jev") {
+	if !a.has("notebooks") && !a.has("jev") {
 		return evalFailures{}
 	}
 	cfg, err := loadConfig(e, nil)
@@ -36,14 +36,14 @@ func evaluate(f *headless.File, a cliArgs, e env) evalFailures {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	var out evalFailures
-	if a.has("regions") {
+	if a.has("notebooks") {
 		if err := mayRun(f, cfg, a.has("trust")); err != nil {
 			return evalFailures{stop: err}
 		}
-		out.regions = headless.RunRegions(ctx, f.Book, headless.RegionOptions{
+		out.cells = headless.RunNotebooks(ctx, f.Book, headless.NotebookOptions{
 			Runner: e.nuRunner(), Timeout: cfg.Duration("nu-timeout"), NuConfig: cfg.Bool("nu-config")})
-		for _, r := range out.regions {
-			fmt.Fprintln(e.stderr, "012: "+r)
+		for _, c := range out.cells {
+			fmt.Fprintln(e.stderr, "012: "+c)
 		}
 	}
 	if a.has("jev") {
@@ -56,14 +56,14 @@ func evaluate(f *headless.File, a cliArgs, e env) evalFailures {
 	return out
 }
 
-// mayRun reports why a workbook's commands may not run: shell = off, or
-// a workbook from another computer without --trust (or shell = on). A
-// trusted workbook is marked trusted here, which a command that saves
-// keeps, as answering Run on the screen does.
+// mayRun reports why a workbook's notebook cells may not run: shell =
+// off, or a workbook from another computer without --trust (or shell =
+// on). A trusted workbook is marked trusted here, which a command that
+// saves keeps, as answering Run on the screen does.
 func mayRun(f *headless.File, cfg *config.Config, trust bool) error {
 	switch cfg.String("shell") {
 	case "off":
-		return errors.New("shell commands are off (shell = off in your config)")
+		return errors.New("notebook cells don't run (shell = off in your config)")
 	case "on":
 		return nil
 	}
@@ -72,7 +72,7 @@ func mayRun(f *headless.File, cfg *config.Config, trust bool) error {
 		return nil
 	}
 	if !trust {
-		return fmt.Errorf("%s was saved on another computer: its commands would run as you, with your files; --trust runs them", f.Path)
+		return fmt.Errorf("%s was saved on another computer: its notebook cells would run as you, with your files; --trust runs them", f.Path)
 	}
 	if machine != "" {
 		f.Book.SetMacroOrigin(machine)
@@ -80,7 +80,7 @@ func mayRun(f *headless.File, cfg *config.Config, trust bool) error {
 	return nil
 }
 
-// nuRunner runs region commands: nu, or the test's fake.
+// nuRunner runs notebook cells: nu, or the test's fake.
 func (e env) nuRunner() nushell.Runner {
 	if e.nu != nil {
 		return e.nu

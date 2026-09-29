@@ -48,8 +48,8 @@ flag.
 | `--no-header` | `get` | JSON and NUON columns named by their letters, the first row a record |
 | `--force` | `set` | Sets cells in protected ranges |
 | `--format kind`, `--table name` | `export` | The format when the file's extension doesn't say; SQLite's table |
-| `--regions` | `get`, `recalc`, `export` | Runs the notebook regions' commands first, when the file is trusted here |
-| `--trust` | with `--regions` | Runs the commands of a file saved on another computer |
+| `--notebooks` | `get`, `recalc`, `export` | Runs the notebooks' cells first, when the file is trusted here |
+| `--trust` | with `--notebooks` | Runs the cells of a file saved on another computer |
 | `--jev` | `get`, `recalc`, `export` | Asks JEV for the JEV functions' answers first |
 | `--format text\|json\|nuon` | `diff` | The form of the changes; text by default |
 | `--color auto\|always\|never` | `diff` | Colors the text; auto colors on a terminal or git's pager unless `NO_COLOR` is set |
@@ -59,5 +59,5 @@ flag.
 | Status | Means |
 |---|---|
 | 0 | Done; for `diff`, the workbooks are the same |
-| 1 | An error, said on standard error; for `recalc`, cells show errors (after saving); for `diff`, the workbooks differ; for `merge-driver`, conflicts; for `get`, `recalc` and `export` with `--regions`, a region's command failed (after writing) |
+| 1 | An error, said on standard error; for `recalc`, cells show errors (after saving); for `diff`, the workbooks differ; for `merge-driver`, conflicts; for `get`, `recalc` and `export` with `--notebooks`, a notebook cell failed (after writing) |
 | 2 | The command was used wrongly (its usage is printed); for `diff` and `merge-driver`, trouble reading or merging the files |

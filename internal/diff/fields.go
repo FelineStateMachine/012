@@ -115,16 +115,20 @@ func named(raw json.RawMessage) map[string]json.RawMessage {
 }
 
 // summary is what the text output shows of a region or macro added or
-// removed: its command, the file it follows, or its shortcut.
+// removed: the file a region follows or that it's a notebook's output;
+// a macro's script's first line.
 func summary(raw json.RawMessage) string {
 	fields, _ := object(raw)
-	for _, k := range []string{"command", "path", "key"} {
-		var s string
-		if json.Unmarshal(fields[k], &s) == nil && s != "" {
-			return s
-		}
+	var s string
+	switch {
+	case json.Unmarshal(fields["path"], &s) == nil && s != "":
+		return s
+	case string(fields["output"]) == "true":
+		return "a notebook cell's output"
+	case json.Unmarshal(fields["source"], &s) == nil && s != "":
+		return firstLine(s)
 	}
-	return "(no command)"
+	return string(raw)
 }
 
 // rawChange is a change between two JSON values, nil for none.

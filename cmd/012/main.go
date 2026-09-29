@@ -48,8 +48,8 @@ type env struct {
 	// stdoutTTY is set when standard output is a terminal, where 012
 	// diff colors what it writes.
 	stdoutTTY bool
-	// nu runs notebook regions' commands for 012 get, recalc and export
-	// --regions; nil is the real nu.
+	// nu runs notebook cells for 012 get, recalc and export
+	// --notebooks; nil is the real nu.
 	nu nushell.Runner
 }
 

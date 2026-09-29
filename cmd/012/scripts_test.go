@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/FelineStateMachine/012/internal/notebook"
 	"github.com/FelineStateMachine/012/internal/nushell"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
@@ -60,7 +61,7 @@ func TestGetSetRecalc(t *testing.T) {
 		{[]string{"get", path, "Q3!A1"}, 1, `no sheet named "Q3"`},
 		{[]string{"get", path, "A1", "--format", "xml"}, 2, "--format xml: 012 get writes text, csv, tsv, json, nuon"},
 		{[]string{"get", path, "A1", "--bogus"}, 2, "unknown flag --bogus"},
-		{[]string{"get", path, "A1", "--trust"}, 2, "--trust goes with --regions"},
+		{[]string{"get", path, "A1", "--trust"}, 2, "--trust goes with --notebooks"},
 		{[]string{"get", filepath.Join(t.TempDir(), "none.012"), "A1"}, 1, "no such file"},
 		{[]string{"set", path, "A1"}, 2, "usage: 012 set"},
 		{[]string{"set", path, "B4", "=SUM(B1"}, 1, "Sheet1!B4: Expected , or ) in SUM, at character 8 of =SUM(B1; " + path + " is unchanged"},
@@ -137,13 +138,15 @@ func (f *fakeNu) Run(_ context.Context, _ nushell.Job, _ string, stdout io.Write
 	return err
 }
 
-// notebookFile writes a workbook with a region, made on the computer
-// origin.
+// notebookFile writes a workbook whose notebook's cell files = ls is
+// sent to Sheet1!A1, made on the computer origin.
 func notebookFile(t *testing.T, origin string) string {
 	t.Helper()
 	w := sheet.NewBook()
-	s, _ := w.AddNotebook("Shell 1", nil)
-	if err := s.AddRegion(sheet.Region{Name: "r1", Command: "ls"}); err != nil {
+	nb, _ := w.AddNotebook("Notebook", w.Sheet(0))
+	nb.SetNotebookCells("add cell", []notebook.Cell{{Kind: notebook.Code, Source: "files = ls"}})
+	a1, _ := sheet.ParseAddr("A1")
+	if err := w.Sheet(0).AddRegion(sheet.Region{Name: "files", At: a1, Output: true}); err != nil {
 		t.Fatal(err)
 	}
 	w.SetMacroOrigin(origin)
@@ -154,41 +157,46 @@ func notebookFile(t *testing.T, origin string) string {
 	return path
 }
 
-func TestRegionsNeedTrust(t *testing.T) {
+func TestNotebooksNeedTrust(t *testing.T) {
 	e, out, errOut := scriptEnv(t)
 	nu := &fakeNu{}
 	e.nu = nu
 	path := notebookFile(t, "another computer")
 
-	status(e, "get", path, "'Shell 1'!A2")
-	if nu.ran != 0 || out.String() != "\n" || !strings.Contains(errOut.String(), "notebook regions are empty unless --regions runs them") {
-		t.Errorf("without --regions: ran %d, %q %q", nu.ran, out, errOut)
+	status(e, "get", path, "A2")
+	if nu.ran != 0 || out.String() != "\n" || !strings.Contains(errOut.String(), "Sheet1 shows notebook outputs as the file kept them; --notebooks runs the cells again") {
+		t.Errorf("without --notebooks: ran %d, %q %q", nu.ran, out, errOut)
 	}
-	if code, err := status(e, "get", path, "'Shell 1'!A2", "--regions"); code != 1 || nu.ran != 0 || !strings.Contains(err.Error(), "saved on another computer") {
+	if code, err := status(e, "get", path, "A2", "--notebooks"); code != 1 || nu.ran != 0 || !strings.Contains(err.Error(), "saved on another computer") {
 		t.Errorf("untrusted: %d %v, ran %d", code, err, nu.ran)
 	}
 	out.Reset()
-	if code, err := status(e, "get", path, "'Shell 1'!A3", "--regions", "--trust"); code != 0 || nu.ran != 1 || out.String() != "a.txt\n" {
+	if code, err := status(e, "get", path, "A2", "--notebooks", "--trust"); code != 0 || nu.ran != 1 || out.String() != "a.txt\n" {
 		t.Errorf("--trust: %d %v, ran %d, %q", code, err, nu.ran, out)
 	}
-	// get saves nothing, so the file still asks; recalc saves the trust.
-	if _, err := status(e, "recalc", path, "--regions"); err == nil {
+	// get saves nothing, so the file still asks; recalc saves the trust,
+	// and the output, which get then reads without running anything.
+	if _, err := status(e, "recalc", path, "--notebooks"); err == nil {
 		t.Error("get --trust saved the trust")
 	}
-	if code, err := status(e, "recalc", path, "--regions", "--trust"); code != 0 {
+	if code, err := status(e, "recalc", path, "--notebooks", "--trust"); code != 0 {
 		t.Fatal(err)
 	}
-	if code, err := status(e, "get", path, "'Shell 1'!A2", "--regions"); code != 0 || nu.ran != 3 {
+	out.Reset()
+	if code, err := status(e, "get", path, "A2"); code != 0 || nu.ran != 2 || out.String() != "a.txt\n" {
+		t.Errorf("the output saved: %d %v, ran %d, %q", code, err, nu.ran, out)
+	}
+	if code, err := status(e, "get", path, "A2", "--notebooks"); code != 0 || nu.ran != 3 {
 		t.Errorf("trusted by recalc: %d %v, ran %d", code, err, nu.ran)
 	}
 
 	writeConfig(t, "shell = off\n")
-	if _, err := status(e, "get", path, "A1", "--regions", "--trust"); err == nil || !strings.Contains(err.Error(), "shell = off") {
+	if _, err := status(e, "get", path, "A1", "--notebooks", "--trust"); err == nil || !strings.Contains(err.Error(), "shell = off") {
 		t.Errorf("shell = off: %v", err)
 	}
 	writeConfig(t, "shell = on\n")
 	other := notebookFile(t, "elsewhere")
-	if code, err := status(e, "get", other, "A1", "--regions"); code != 0 {
+	if code, err := status(e, "get", other, "A1", "--notebooks"); code != 0 {
 		t.Errorf("shell = on: %v", err)
 	}
 }

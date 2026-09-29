@@ -114,7 +114,7 @@ func TestMergeSheets(t *testing.T) {
 
 func TestMergeTrust(t *testing.T) {
 	book := func(origin, command string) []byte {
-		return []byte(`{"version": 4, "macroOrigin": "` + origin + `", "sheets": [{"name": "S", "notebook": true, "regions": [{"name": "r1", "command": "` + command + `", "at": "A1"}], "cells": {}}]}`)
+		return []byte(`{"version": 4, "macroOrigin": "` + origin + `", "sheets": [{"name": "S", "cells": {}}, {"name": "N", "tab": "notebook", "notebookCells": [{"source": "` + command + `"}], "cells": {}}]}`)
 	}
 	base := book("here", "ls")
 	cases := []struct {

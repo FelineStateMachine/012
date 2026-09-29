@@ -96,6 +96,7 @@ func formatText(raw json.RawMessage) string {
 // what the changes call the sheet.
 func sheetDiff(a, b side, name string) []Change {
 	out := cellChanges(a, b, name)
+	out = append(out, notebookChanges(name, field(a.raw, "notebookCells"), field(b.raw, "notebookCells"))...)
 	out = append(out, listChanges(KindRegion, name, field(a.raw, "regions"), field(b.raw, "regions"))...)
 	keys := map[string]bool{}
 	for _, s := range []*rawSheet{a.raw, b.raw} {
@@ -104,7 +105,7 @@ func sheetDiff(a, b side, name string) []Change {
 		}
 	}
 	for _, k := range slices.Sorted(maps.Keys(keys)) {
-		if k != "regions" {
+		if k != "regions" && k != "notebookCells" {
 			out = append(out, fieldChanges(KindLayout, name, k, a.raw.fields[k], b.raw.fields[k])...)
 		}
 	}
@@ -191,14 +192,9 @@ func valueChange(a, b *sheet.Sheet, at sheet.Addr) (Change, bool) {
 	return Change{Kind: KindCell, Field: "value", Old: oldV, New: newV, oldText: oldT, newText: newT}, true
 }
 
-// cellValue is a cell's value typed by its format, and as it shows. A
-// region's label line shows its name and command, which the region's
-// own changes say, so it has none.
+// cellValue is a cell's value typed by its format, and as it shows.
 func cellValue(s *sheet.Sheet, at sheet.Addr) (nuon.Value, string) {
 	if s == nil || s.Value(at).Kind == sheet.Empty {
-		return nuon.NullValue(), ""
-	}
-	if _, label, ok := s.RegionAt(at); ok && label {
 		return nuon.NullValue(), ""
 	}
 	return fileio.CellValue(fileio.SnapCell{Value: s.Value(at), Format: s.DisplayFormat(at)}), s.LocalText(at)

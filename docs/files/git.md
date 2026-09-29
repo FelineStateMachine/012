@@ -25,7 +25,7 @@ Q4!A12  input  + Total
 Q4!B3  format  currency, decimals 2 → currency, bold, decimals 2
 Q4!B3  note  check → checked
 Q4 widths  C  10 → 14
-Q4 region r2  command  ls → ls -a
+Notebook cell 2  source  ls → ls -a
 name Sales  range  Q3!B2:B20 → Q4!B2:B21
 ```
 
@@ -40,15 +40,17 @@ What it compares:
 |---|---|
 | Sheets | `added`, `removed`, `renamed from`, `moved from 3 to 1`. A sheet under a new name that holds at least half the cells of one gone is that sheet renamed |
 | Cells | `input` (what was typed: a formula or an entry), `value` (what a formula computes, or an array spilled), `format` (the cell's formatting, by its fields in the file), `note` |
-| Regions | Each [notebook region](../nushell/notebooks.md) or [linked file](following.md) by name: added, removed, or which field changed |
+| Notebooks | Each [notebook](../nushell/notebooks.md) cell, lined up by its source: `added`, `removed`, or which field changed (`source`, `output`, `error`) |
+| Regions | Each [linked file](following.md) or notebook output sent to a sheet, by name: added, removed, or which field changed |
 | Layout | Every other field of a sheet, by its name in [the file](format.md): `widths`, `heights` and `lines` key by key, the rest (`charts`, `conditionalFormats`, `freeze`) whole |
 | Workbook | Named ranges, macros, the locale and decimal arithmetic |
 
 A value is shown only for formulas and cells an array filled, since a
 typed entry's value is its input. Values that change on every
 recalculation (`NOW()`, `RAND()` and what reads them, on any sheet)
-aren't compared, and neither is anything that needs a region's command
-or JEV run: `012 diff` only reads the two files. The sheet shown, the
+aren't compared, and neither is anything that needs a notebook cell or
+JEV run: `012 diff` only reads the two files, whose notebook outputs are
+compared as they were saved. The sheet shown, the
 file's version, the notebook prompt's history and which computer
 trusted its commands aren't changes either.
 
@@ -103,7 +105,7 @@ on its own:
 
 ```mermaid
 flowchart TD
-  part["A part: a cell's input, format or note; a sheet's name; a column's width; a region; a named range"]
+  part["A part: a cell's input, format or note; a sheet's name; a column's width; a region; a notebook's cells; a named range"]
   part --> same{"Did both sides change it?"}
   same -- "One side, or neither" --> take["Take the side that changed it"]
   same -- "Both, alike" --> take
@@ -117,7 +119,9 @@ them): a sheet renamed on one side and edited on the other merges both.
 A sheet removed on one side goes, unless the other side changed it,
 which is a conflict: ours stays (kept when ours changed it, gone when
 ours removed it). Sheets added on both sides under one name merge cell
-by cell.
+by cell. A notebook's cells are one part, their sources compared: the
+side that changed them brings its cells and their outputs, and a
+notebook run on both sides with the same cells keeps ours' outputs.
 
 On conflicts the merge keeps ours for each, adds to the cell's note what
 theirs had (`Merge conflict, kept ours; theirs had input 11`), so the
@@ -143,6 +147,6 @@ Two limits:
   cells. Merge such a change in 012 instead: open both versions and copy
   across.
 - Trust in a file's commands follows [macros' rule](../sheets/macros.md#macros-from-other-computers):
-  the merged file keeps ours' trust only when its macros and regions'
-  commands are ours', or theirs were trusted on the same computer.
-  Otherwise the next time the file runs a command, 012 asks first.
+  the merged file keeps ours' trust only when its macros, notebook cells
+  and linked files are ours', or theirs were trusted on the same
+  computer. Otherwise the next time the file runs one, 012 asks first.

@@ -134,6 +134,12 @@ func Dump(w io.Writer, b *Book) error {
 		q := sheet.QuoteSheet(s.name)
 		fmt.Fprintf(bw, "sheet %s\n", s.name)
 		for _, k := range slices.Sorted(maps.Keys(s.fields)) {
+			if k == "notebookCells" {
+				for _, line := range dumpNotebook(s.name, s.fields[k]) {
+					bw.WriteString(line + "\n")
+				}
+				continue
+			}
 			if k == "regions" {
 				for _, name := range slices.Sorted(maps.Keys(named(s.fields[k]))) {
 					fmt.Fprintf(bw, "%s region %s  %s\n", s.name, name, named(s.fields[k])[name])

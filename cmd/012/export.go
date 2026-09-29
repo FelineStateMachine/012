@@ -12,7 +12,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-const exportUsage = "usage: 012 export file.012 out.csv|tsv|xlsx|json|nuon|sqlite [ref] [--format kind] [--table name] [--regions] [--jev] [--trust]"
+const exportUsage = "usage: 012 export file.012 out.csv|tsv|xlsx|json|nuon|sqlite [ref] [--format kind] [--table name] [--notebooks] [--jev] [--trust]"
 
 // runExport is 012 export: a sheet, a range or (to formats holding
 // several sheets) the whole workbook written as File > Download writes

@@ -122,6 +122,20 @@ func str(s string) json.RawMessage {
 	return raw
 }
 
+// notebook merges a notebook tab's cells as one part: their sources,
+// with the outputs of the side taken.
+func (m *merger) notebook(sheetName string, b, o, t json.RawMessage) json.RawMessage {
+	sb, so, st := sources(b), sources(o), sources(t)
+	switch {
+	case equal(so, st), equal(sb, st):
+		return o
+	case equal(sb, so):
+		return t
+	}
+	m.said(sheetName+" notebook", "", "cells changed on both sides")
+	return o
+}
+
 // sheet merges one sheet: its name, each cell and each field.
 func (m *merger) sheet(b, o, t *rawSheet) *rawSheet {
 	out := &rawSheet{fields: map[string]json.RawMessage{}, cells: map[string]json.RawMessage{}}
@@ -136,6 +150,8 @@ func (m *merger) sheet(b, o, t *rawSheet) *rawSheet {
 		switch k {
 		case "regions":
 			v = m.list(b.fields[k], o.fields[k], t.fields[k], func(key string) string { return out.name + " region " + key })
+		case "notebookCells":
+			v = m.notebook(out.name, b.fields[k], o.fields[k], t.fields[k])
 		case "widths", "heights", "lines":
 			v = m.object(b.fields[k], o.fields[k], t.fields[k], func(key string) (string, string) { return out.name + " " + k, key })
 		default:

@@ -3,7 +3,7 @@
 // a .012 file, finds the cells a reference names, reads and writes
 // them, lists the errors formulas show and saves atomically. Nothing
 // here runs a program or reaches the network unless its caller asks:
-// notebook regions run through RunRegions and JEV functions through
+// notebook cells run through RunNotebooks and JEV functions through
 // AnswerJEV, which the command line calls only behind flags.
 package headless
 
@@ -27,9 +27,10 @@ type File struct {
 	mode fs.FileMode
 }
 
-// Open reads the workbook at path. With create, a path with no file
-// opens as an empty workbook that Save writes there, as opening a new
-// name in 012 does.
+// Open reads the workbook at path, with the notebook outputs it kept
+// sent on to their sheets, as the screen opens it. With create, a path
+// with no file opens as an empty workbook that Save writes there, as
+// opening a new name in 012 does.
 func Open(path string, create bool) (*File, error) {
 	f := &File{Path: path, mode: 0o644}
 	file, err := os.Open(path)
@@ -50,6 +51,7 @@ func Open(path string, create bool) (*File, error) {
 	if f.Book, err = sheet.ReadBook(file); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
+	SyncOutputs(f.Book)
 	return f, nil
 }
 

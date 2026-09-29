@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/FelineStateMachine/012/internal/notebook"
 	"github.com/FelineStateMachine/012/internal/nushell"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
@@ -255,30 +256,61 @@ func (f fakeNu) Run(_ context.Context, job nushell.Job, _ string, stdout io.Writ
 	return err
 }
 
-func TestRunRegions(t *testing.T) {
+func TestRunNotebooks(t *testing.T) {
 	w := sheet.NewBook()
-	s, err := w.AddNotebook("Shell 1", nil)
+	grid := w.Sheet(0)
+	grid.Set(addr("D1"), "7")
+	nb, err := w.AddNotebook("Notebook", grid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.AddRegion(sheet.Region{Name: "r1", Command: "ls"}); err != nil {
+	nb.SetNotebookCells("add cells", []notebook.Cell{
+		{Kind: notebook.Code, Source: "files = ls"},
+		{Kind: notebook.Note, Source: "# Files"},
+		{Kind: notebook.Code, Source: "n = $files | length"},
+		{Kind: notebook.Code, Source: "$sheet.D1:D1"},
+		{Kind: notebook.Code, Source: "boom"},
+		{Kind: notebook.Code, Source: "last = 1"},
+	})
+	if err := grid.AddRegion(sheet.Region{Name: "files", At: addr("A1"), Output: true}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.AddRegion(sheet.Region{Name: "r2", Command: "$r1 | length", Deps: []string{"r1"}, At: addr("A10")}); err != nil {
-		t.Fatal(err)
+	nu := fakeNu{"ls": "[[name, size]; [a, 1], [b, 2]]", "$files | length": "2", "$__sheet1": "[[D]; [7]]"}
+	failed := RunNotebooks(context.Background(), w, NotebookOptions{Runner: nu, Timeout: time.Second})
+	if len(failed) != 1 || failed[0] != "Notebook cell 5: Command `boom` not found" {
+		t.Errorf("failed: %q", failed)
 	}
-	if err := s.AddRegion(sheet.Region{Name: "r3", Command: "boom", At: addr("A20")}); err != nil {
-		t.Fatal(err)
-	}
-	nu := fakeNu{"ls": "[[name, size]; [a, 1], [b, 2]]", "$r1 | length": "[[n]; [2]]"}
-	failed := RunRegions(context.Background(), w, RegionOptions{Runner: nu, Timeout: time.Second})
-	if len(failed) != 1 || !strings.Contains(failed[0], "region r3 (boom): Command `boom` not found") {
-		t.Errorf("failed: %v", failed)
-	}
-	target, _ := Resolve(w, "'Shell 1'!A2:B4")
+	target, _ := Resolve(w, "A1:B3")
 	var b bytes.Buffer
 	Get(&b, target, GetOptions{Format: "csv"})
 	if b.String() != "name,size\na,1\nb,2\n" {
-		t.Errorf("r1's table:\n%s", b.String())
+		t.Errorf("the output sent to Sheet1:\n%s", b.String())
+	}
+	cells := nb.NotebookCells()
+	if o := w.Output(cells[2].ID); o == nil || string(o.NUON) != "2" || o.Reads["files"] == 0 {
+		t.Errorf("$files | length: %+v", o)
+	}
+	if o := w.Output(cells[4].ID); o == nil || o.Err != "Command `boom` not found" {
+		t.Errorf("boom: %+v", o)
+	}
+	if o := w.Output(cells[5].ID); o != nil {
+		t.Errorf("a cell after a failure ran: %+v", o)
+	}
+	if o := w.Output(cells[1].ID); o != nil {
+		t.Errorf("a note ran: %+v", o)
+	}
+}
+
+func TestOpenSendsOutputs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nb.012")
+	os.WriteFile(path, []byte(`{"version": 4, "sheets": [
+{"name": "Sheet1", "regions": [{"name": "files", "at": "B2", "output": true}], "cells": {}},
+{"name": "Notebook", "tab": "notebook", "notebookCells": [{"source": "files = ls", "output": "[[name]; [a.txt]]"}], "cells": {}}]}`), 0o644)
+	f, err := Open(path, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := f.Book.Sheet(0).LocalText(addr("B3")); got != "a.txt" {
+		t.Errorf("B3 = %q, want the output the file kept", got)
 	}
 }
