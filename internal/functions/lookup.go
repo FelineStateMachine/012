@@ -227,8 +227,14 @@ func xlookup(args []Node, get lookup) Value {
 		return value.ErrValue
 	}
 	q := lineSeq(look, get, look.cols == 1)
-	order := q.order(search < 0)
-	best := -1
+	best, streamed := -1, false
+	if get.stream && q.sparse {
+		best, streamed = q.seekStream(key, mode, search < 0)
+	}
+	var order []int
+	if !streamed {
+		best, order = -1, q.order(search < 0)
+	}
 	for _, i := range order {
 		v := look.at(i)
 		if lookupEqual(key, v, mode == 2) {

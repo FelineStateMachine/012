@@ -40,6 +40,12 @@ type Book interface {
 	// value is an error when there is none to give: Pending while it is
 	// on its way, ErrNoRemote when nothing answers them.
 	Ask(call RemoteCall) (RemoteAnswer, Value)
+	// Paged reports whether the sheet is a paged source (stream.go),
+	// whose ranges a function is given through Stream.
+	Paged(sheet string) bool
+	// Stream answers a call over paged sources, with an array when it
+	// computes several values: Pending while the answer is on its way.
+	Stream(call StreamCall) (Value, *Array)
 }
 
 // Reader is what a function is given to read the cells its arguments
@@ -49,8 +55,13 @@ type Reader struct {
 	book  Book
 	depth *int // how deeply evaluation is nested; see the engine's evaluate.go
 	dense bool // read every address of a range; see NewReader
-	bufs  []*scanBuf
-	level int // how many of bufs are in use by range reads in progress
+	// stream is set on a Reader computing a StreamCall, over a Book that
+	// streams paged sources: functions over aligned ranges read them a
+	// window of rows at a time (streamed.go) rather than gathering the
+	// positions of their cells.
+	stream bool
+	bufs   []*scanBuf
+	level  int // how many of bufs are in use by range reads in progress
 
 	evalState
 	// arena holds the arrays and LAMBDAs of the formulas being evaluated

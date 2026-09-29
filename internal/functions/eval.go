@@ -152,6 +152,8 @@ func eval(n Node, get lookup) Value {
 		var v Value
 		if get.lift > 0 && f.arrays != takesArrays {
 			v = liftCall(f, n.Args, get)
+		} else if sv, ok := get.streamed(f, n.Args); ok {
+			v = sv
 		} else {
 			want := get.wantArr
 			get.wantArr = f.arrays != liftScalar
@@ -183,6 +185,8 @@ func evalOther(n Node, get lookup) Value {
 		return get.invoke(n)
 	case liftArg:
 		return n.one(get)
+	case constArg:
+		return n.v
 	}
 	return value.ErrValue
 }
