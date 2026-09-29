@@ -156,10 +156,24 @@ File > Settings > Vim keys (also `:settings.vim` or the palette) turns
 on a vim keymap in the spirit of sc-im and VisiData. It is off by
 default and belongs to you, not the sheet: it's kept in the config file
 as `keymap = vim` ([Configuration](config.md#keymap)), never in `.012` files.
-The mode indicator says **NORMAL** where it would say READY, **VISUAL**
-while selecting with `v` or `V`, and **COMMAND** on the `:` line; typing
-into a cell is ENTER or EDIT, as always, and Enter, Tab or Esc there
-return to NORMAL. Keys vim doesn't take keep their Sheets meaning
+The mode indicator says **NORMAL** where it would say READY, and
+typing into a cell is ENTER or EDIT, as always:
+
+```mermaid
+stateDiagram-v2
+  [*] --> NORMAL
+  NORMAL --> VISUAL: v, V
+  VISUAL --> NORMAL: v, V, Esc
+  NORMAL --> COMMAND: #58;
+  VISUAL --> COMMAND: #58;, on the selection
+  COMMAND --> NORMAL: Enter, Esc
+  NORMAL --> EDIT: i, a, Enter
+  NORMAL --> ENTER: =, o, O, s, cc, S
+  EDIT --> NORMAL: Enter, Tab, Esc
+  ENTER --> NORMAL: Enter, Tab, Esc
+```
+
+Keys vim doesn't take keep their Sheets meaning
 (arrows, Del, Ctrl+S, Ctrl+C and Ctrl+V, Alt+letter menus, F-keys);
 Ctrl+D, Ctrl+U and Ctrl+R are vim's, so fill down and fill right are in
 the Edit menu. F1 lists the vim keys first, and the menus and palette

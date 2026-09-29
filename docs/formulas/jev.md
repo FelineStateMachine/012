@@ -83,11 +83,30 @@ it.
 
 ## How requests behave
 
-- Requests run in the background, eight at a time; the status line counts
-  them and terminals that support it (OSC 9;4) show progress in the tab.
-- Answers are cached by the exact question (value, question and criteria),
-  so recalculating, undo and redo never ask twice, and `JEV.TEST` and
-  `JEV.PROB` on the same question share one request.
+A JEV cell's question goes to the answer cache first, and to the service
+only when it's new:
+
+```mermaid
+sequenceDiagram
+  participant Cell as a JEV cell
+  participant Cache as the answer cache
+  participant JEV as the JEV service
+  Cell->>Cache: the question: value, question and criteria
+  alt asked before
+    Cache-->>Cell: the answer
+  else new
+    Cache-->>Cell: Loading…
+    Cache->>JEV: in the background, eight at a time
+    JEV-->>Cache: the answer, or why it failed
+    Cache-->>Cell: recalculated with it, or #35;ERROR!
+  end
+```
+
+- The status line counts requests in flight, and terminals that support
+  it (OSC 9;4) show progress in the tab.
+- Answers are cached by the exact question, so recalculating, undo and
+  redo never ask twice, and `JEV.TEST` and `JEV.PROB` on the same
+  question share one request.
 - Errors in the inputs (`#DIV/0!` in the value, an empty question, fewer
   than two labels, more than the service's 255 labels or 10 score levels)
   show as errors at once and are never sent.

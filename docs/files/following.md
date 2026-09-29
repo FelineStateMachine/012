@@ -89,6 +89,28 @@ the spreadsheet modified.
 
 ## Pause, read again, unlink
 
+A linked region follows its file, is paused, or shows why it can't read
+it, and is read again whole whenever its cells may no longer be the
+file's:
+
+```mermaid
+stateDiagram-v2
+  state "Read whole" as whole
+  state "● Following" as following
+  state "‖ Paused" as paused
+  state "! Failing" as failing
+  [*] --> whole: linked, or the spreadsheet opened
+  whole --> following
+  following --> following: rows appended
+  following --> whole: the file truncated, rotated or rewritten
+  following --> whole: Read again, Rows to keep, the region moved
+  following --> paused: Follow off
+  paused --> following: Follow on, catching up
+  following --> failing: the file gone or unreadable
+  failing --> whole: the file readable again
+  following --> [*]: Unlink, the rows kept as cells
+```
+
 Data > Linked file acts on the region under the pointer, or the sheet's
 only one:
 

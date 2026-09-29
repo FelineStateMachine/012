@@ -376,3 +376,18 @@ html:has([data-control-panel]) .navbar .mode-chip {
   background: var(--role-selection-bg);
   color: var(--role-selection-fg);
 }
+
+/* ---------- Diagrams: Mermaid, framed as a code block is ---------- */
+
+.mermaid-012 {
+  margin: 0 0 var(--ifm-leading);
+  padding: 1rem 0.75rem;
+  border-left: 3px solid var(--role-frame);
+  overflow-x: auto;
+  text-align: center;
+}
+
+.mermaid-012 > svg {
+  max-width: 100%;
+  height: auto;
+}

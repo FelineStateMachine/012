@@ -56,21 +56,31 @@ oracle/          differential tests against excelize's calculation (separate mod
 
 `internal/sheet` knows nothing about terminals. It builds on the function
 library, which knows nothing about sheets or storage, and on packages
-that know nothing about cells; dependencies point one way:
+that know nothing about cells. Dependencies point one way, down the
+graph of imports below the engine; `internal/locale`, at the bottom,
+holds the table of locales and depends on nothing:
 
+```mermaid
+flowchart TD
+  subgraph callers [the engine's callers]
+    direction LR
+    ui[internal/ui] ~~~ fileio[internal/fileio] ~~~ live[internal/live] ~~~ nushell[internal/nushell]
+    chart[internal/chart] ~~~ jev[internal/jev] ~~~ stress[internal/stress] ~~~ oracle[oracle]
+  end
+  callers --> sheet[internal/sheet]
+  sheet --> functions[internal/functions]
+  sheet --> formula[internal/formula]
+  sheet --> value[internal/value]
+  sheet --> numfmt[internal/numfmt]
+  sheet --> locale[internal/locale]
+  functions --> formula
+  functions --> value
+  functions --> numfmt
+  value --> numfmt
+  value --> locale
+  formula --> locale
+  numfmt --> locale
 ```
-internal/ui, internal/fileio, internal/chart, oracle
-        |
-internal/sheet  ------------------------------+
-        |                                     |
-internal/functions  --->  internal/formula    |
-        |                                     |
-internal/value  --->  internal/numfmt  <------+
-```
-
-(`sheet` also uses `formula`, `value` and `numfmt` directly. Below
-them all, `internal/locale` holds the table of locales and depends on
-nothing.)
 
 - `internal/locale` is the conventions of each locale: decimal and
   thousands separators, date order and patterns, currency symbol and
@@ -265,10 +275,22 @@ style.
 
 ### The change stream
 
-Rows reach a region as `sheet.LiveOp`s, each applied at once by
-`Workbook.ApplyLive` through the regions' one write path: what follows
-a linked file sends them, and a command region's table is written the
-same way from its `RegionData`.
+Rows reach a region through the regions' one write path, `writeTable`.
+A linked file's arrive as `sheet.LiveOp`s, each applied at once by
+`Workbook.ApplyLive`; a command region's table is written the same way
+from its `RegionData`, which a run puts in the undo state:
+
+```mermaid
+flowchart TD
+  file[a linked file] -->|polled| source[live.Source]
+  source -->|live.Update| op[sheet.LiveOp]
+  op --> apply[Workbook.ApplyLive]
+  run[a notebook command's run] -->|ShowRegion, an undo step| data[RegionData]
+  apply --> write[writeTable: the cells that differ, outside the undo history]
+  data --> write
+  write --> recalc[recalculation: what reads them, pivots and spills included]
+  recalc --> frame[the next frame draws the cells on screen]
+```
 
 | Field | Holds |
 |---|---|
@@ -279,11 +301,10 @@ same way from its `RegionData`.
 | `Rows` | data rows: values with the formats they arrived in (`LiveCell`) |
 | `Err`, `Note` | why the source can't be read, what it left out |
 
-An op is applied outside the undo history, as a spill is written: the
+An op is applied outside the undo history, as a spill is written. A
 window drops the oldest rows (read back from the region's cells and
-written again one row up), only the cells that changed are written, and
-what reads them recalculates, pivots and spills included; inside an open
-step (a macro run) they recalculate when it ends. An op carries whole
+written again one row up); inside an open step (a macro run) what reads
+the cells recalculates when the step ends. An op carries whole
 values and names nothing but its region, so applying the same ops in the
 same order to the same workbook makes the same cells: it is what a
 session following another's over `012 serve` would be sent, beside the
@@ -420,6 +441,26 @@ range it writes (`edits`), and `runCommand` refuses it over a pivot
 table's results, so a new editing command is guarded by saying what it
 edits.
 
+A keystroke's way from the terminal to the screen, as a command or as
+an entry typed into a cell:
+
+```mermaid
+flowchart TD
+  key[a key] --> update[Model.Update]
+  update --> mode{the mode}
+  mode -->|READY| keymap[the keymap, Sheets or vim]
+  mode -->|MENU| overlay[the open overlay]
+  mode -->|ENTER, EDIT, POINT| entry[the cell entry]
+  keymap -->|a command id| run[runCommand: its telemetry span, the pivot guard, the macro recorder]
+  overlay -->|a command id| run
+  run --> cmd[the command's run]
+  entry -->|Enter, Tab: validation, the recorder| commit[the entry stored]
+  cmd --> step[an undo step: Sheet.Batch, Set]
+  commit --> step
+  step --> recalc[the step ends: recalculate what it changed, push it on the undo stack]
+  recalc --> view[View: the control panel, the visible rows, the overlays on top]
+```
+
 **Model and components.** `Model` (`model.go`) is the root: it holds the
 file, the mode and the note on the context line, owns one component for
 each thing that takes input or draws part of the screen, routes each
@@ -526,36 +567,54 @@ is one row of the table in `formats.go` (its name, extensions, the words
 the UI shows for it, whether it holds several sheets or tables, and its
 importer and exporter) plus a file of its own; `Import`, `Export`,
 recognizing a file by its extension, the import picker and the Download
-menu all come from the table. Importers build a new workbook through the
-engine's public API with a shared `builder`, which keeps text as text,
-falls back to a formula's cached value when it can't be translated, and
-counts what didn't fit. They stream: CSV and TSV are read record by
-record, NUON and JSON a row at a time (`nuon.Reader`, which yields rows
-from a pipe as they arrive), Parquet a batch of rows at a time, SQLite a row at a time, and
+menu all come from the table. A file takes one of these ways into a
+sheet, imported or followed:
+
+```mermaid
+flowchart TD
+  file[a file, or standard input] --> row[its format's row in formats.go]
+  row --> importer[the format's importer, streaming]
+  importer --> builder[the builder]
+  builder -->|the engine's public API| wb[a new workbook]
+  followed[a followed file] --> livefile[live.File, watching os.Stat]
+  livefile -->|grown: the bytes it gained| tail[Tail: the importers' readers over a pipe]
+  livefile -->|rewritten, once it holds still| importer
+  tail -->|typed rows| op[sheet.LiveOp, the change stream]
+  wb -->|a followed file's table, as rows| op
+```
+
+The shared `builder` keeps text as text, falls back to a formula's
+cached value when it can't be translated, and counts what didn't fit.
+Importers stream: CSV and TSV are read record by record, NUON and JSON
+a row at a time (`nuon.Reader`, which yields rows from a pipe as they
+arrive), Parquet a batch of rows at a time, SQLite a row at a time, and
 Parquet files and SQLite tables stop at the sheet's last row, taking the
-number of rows left out from the file. A `Tail` reads CSV, TSV, JSON and
-NUON as they arrive in pieces, for a file followed as it grows: the
-importers' readers run on a goroutine of its own over a pipe that waits
-for the next piece, so a record cut off at the end of one waits for the
-rest, and rows come out typed as an import types them (`tail.go`).
-`internal/live` follows files with `os.Stat` alone, reading what a
-growing file gained through a `Tail`, and any other format again whole,
-through its importer, once it holds still (`live.File`); a `live.Source`
-is anything that yields a table's rows over time, which a nushell region
-following a pipeline would be too. XLSX is read by 012's own
-SpreadsheetML reader on `archive/zip` and `encoding/xml`: the workbook,
-shared strings (kept end to end in one buffer) and styles first, then
-each worksheet a token at a time, a row at a time, expanding shared
-formulas only for the cells kept. The file is untrusted, so the reader
-caps what it can be made to do (`xlsxLimits`: uncompressed bytes per
-part and in all, compression ratio, zip entries, XML nesting and token
-size, shared strings, styles, sheets, and the text shared formulas
-expand to) and refuses unsafe part names and references past Excel's
-edges; `FuzzReadXLSX` and `FuzzReadXLSXParts` fuzz it. XLSX is written
-with the same packages, a worksheet part streamed per sheet. Exporters
-write a `Snapshot` taken on the UI goroutine, in the background, through
-one atomic write-then-rename; CSV and TSV are written a row at a time. One package suits formats that share
-this much (the builder, number formats, serial dates and Excel formula
+number of rows left out from the file.
+
+A `Tail` reads CSV, TSV, JSON and NUON as they arrive in pieces, for a
+file followed as it grows: the importers' readers run on a goroutine of
+its own over a pipe that waits for the next piece, so a record cut off
+at the end of one waits for the rest, and rows come out typed as an
+import types them (`tail.go`). A `live.Source` is anything that yields a
+table's rows over time, which a nushell region following a pipeline
+would be too.
+
+XLSX is read by 012's own SpreadsheetML reader on `archive/zip` and
+`encoding/xml`: the workbook, shared strings (kept end to end in one
+buffer) and styles first, then each worksheet a token at a time, a row
+at a time, expanding shared formulas only for the cells kept. The file
+is untrusted, so the reader caps what it can be made to do
+(`xlsxLimits`: uncompressed bytes per part and in all, compression
+ratio, zip entries, XML nesting and token size, shared strings, styles,
+sheets, and the text shared formulas expand to) and refuses unsafe part
+names and references past Excel's edges; `FuzzReadXLSX` and
+`FuzzReadXLSXParts` fuzz it. XLSX is written with the same packages, a
+worksheet part streamed per sheet.
+
+Exporters write a `Snapshot` taken on the UI goroutine, in the
+background, through one atomic write-then-rename; CSV and TSV are
+written a row at a time. One package suits formats that share this much
+(the builder, number formats, serial dates and Excel formula
 translation); a format that grew its own dependencies would move to a
 subpackage behind the same table row.
 
@@ -605,7 +664,22 @@ each table from a file named by an environment variable
 (`let r1 = (open --raw $env.NU012_TABLE_0 | from nuon)`), feeds the
 selection as `$in` on standard input, and ends in `to nuon`, so no data
 is ever spliced into the command. What nu prints is read as it's
-written by the NUON importer, capped at max-cells. `Runner` is the
+written by the NUON importer, capped at max-cells:
+
+```mermaid
+sequenceDiagram
+  participant UI as internal/ui
+  participant R as nushell.Runner
+  participant Nu as nu -c
+  UI->>R: a Job: the command, the NUON of the tables it reads
+  R->>R: each table to a file, named in NU012_TABLE_0, 1, ...
+  R->>Nu: the script, with the selection on standard input
+  Nu->>Nu: let r1 = (open --raw $env.NU012_TABLE_0 | from nuon)
+  Nu-->>R: the command's table, to nuon
+  R-->>UI: rows read as they're written, up to max-cells
+  UI->>UI: ShowRegion: the table, one undo step
+```
+ `Runner` is the
 seam: tests hand the UI a fake, the e2e screens a stand-in `nu`
 script. The UI runs one command at a time as a `tea.Cmd` with a
 context Esc cancels and a timeout, and shows each table as an undo
@@ -641,13 +715,33 @@ slice edge or the rim.
 `internal/serve` wraps `charm.land/ssh` (wish's server) with only a
 session channel, public-key auth against authorized_keys, and a shell
 request or, with a PTY, a one-word exec request allowed. The exec
-request is never run: its word is a file name, resolved through the
-served directory's `confine.Root` before the session starts and handed
-to `Model.OpenOnStart`. Each session builds a `ui.Model` of its own and runs it
-in its own `tea.Program` over the session (wish's emulated PTY), with
-the client's environment and window size; `Model.Serve` gives it the
-client's environment for terminal detection and a `confine.Root` for
-file names. Everything a model knows lives in the model, so sessions
+request is never run: its word is a file name. A session from login to
+its end:
+
+```mermaid
+sequenceDiagram
+  participant C as ssh client
+  participant S as internal/serve
+  participant M as the session's ui.Model
+  C->>S: public key
+  S->>S: authorize: authorized_keys read again
+  C->>S: session channel, pty-req
+  C->>S: shell, or exec with one word
+  S->>S: allowSession, fileArg: the word resolved through confine.Root
+  S->>S: a slot under --max-sessions
+  S->>M: ui.New, Model.Serve (client's environment, confine.Root), OpenOnStart
+  S->>M: its own tea.Program over the session
+  loop until it quits, the client goes, it idles or the server stops
+    C->>M: keys, window size changes
+    M-->>C: frames
+  end
+  S->>M: Unsaved, Recover (idle or stopping)
+  S-->>C: why it ended, where unsaved work was kept
+```
+
+Each session runs its `tea.Program` over wish's emulated PTY; the
+client's environment is what the model detects the terminal from, and
+its `confine.Root` resolves every file name. Everything a model knows lives in the model, so sessions
 share nothing but read-only tables (the command and function
 registries), the process-wide telemetry and, with JEV on, the HTTP
 client; each gets its own `jev.Cache`, whose queue belongs to that
