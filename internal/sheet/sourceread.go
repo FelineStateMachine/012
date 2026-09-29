@@ -83,8 +83,8 @@ func (rd *reader) pagedRange(t *Sheet, reg Region, r Rect) (Rect, *functions.Arr
 func (rd *reader) pagedScan(t *Sheet, reg Region, r Rect, from Addr, addrs []Addr, vals []Value) int {
 	part, arr, err := rd.pagedRange(t, reg, r)
 	if err != nil {
-		if len(addrs) == 0 {
-			return 0
+		if len(addrs) == 0 || from != r.From {
+			return 0 // the error was the range's first cell
 		}
 		addrs[0] = r.From
 		if vals != nil {
