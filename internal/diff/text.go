@@ -140,9 +140,10 @@ func Dump(w io.Writer, b *Book) error {
 				}
 				continue
 			}
-			if k == "regions" {
+			if k == "regions" || k == "tables" {
+				what := strings.TrimSuffix(k, "s")
 				for _, name := range slices.Sorted(maps.Keys(named(s.fields[k]))) {
-					fmt.Fprintf(bw, "%s region %s  %s\n", s.name, name, named(s.fields[k])[name])
+					fmt.Fprintf(bw, "%s %s %s  %s\n", s.name, what, name, named(s.fields[k])[name])
 				}
 				continue
 			}

@@ -92,12 +92,13 @@ func formatText(raw json.RawMessage) string {
 	return strings.Join(parts, ", ")
 }
 
-// sheetDiff compares a sheet's cells, regions and other fields; name is
+// sheetDiff compares a sheet's cells, regions, tables and other fields; name is
 // what the changes call the sheet.
 func sheetDiff(a, b side, name string) []Change {
 	out := cellChanges(a, b, name)
 	out = append(out, notebookChanges(name, field(a.raw, "notebookCells"), field(b.raw, "notebookCells"))...)
 	out = append(out, listChanges(KindRegion, name, field(a.raw, "regions"), field(b.raw, "regions"))...)
+	out = append(out, listChanges(KindTable, name, field(a.raw, "tables"), field(b.raw, "tables"))...)
 	keys := map[string]bool{}
 	for _, s := range []*rawSheet{a.raw, b.raw} {
 		for k := range s.fields {
@@ -105,7 +106,7 @@ func sheetDiff(a, b side, name string) []Change {
 		}
 	}
 	for _, k := range slices.Sorted(maps.Keys(keys)) {
-		if k != "regions" && k != "notebookCells" {
+		if k != "regions" && k != "tables" && k != "notebookCells" {
 			out = append(out, fieldChanges(KindLayout, name, k, a.raw.fields[k], b.raw.fields[k])...)
 		}
 	}

@@ -52,6 +52,7 @@ const (
 	KindSheet    = "sheet"    // a sheet added, removed, renamed or moved
 	KindCell     = "cell"     // a cell's input, value, format or note
 	KindRegion   = "region"   // a notebook region or linked file
+	KindTable    = "table"    // a table
 	KindLayout   = "layout"   // another field of a sheet: widths, rules, charts
 	KindName     = "name"     // a named range
 	KindMacro    = "macro"    // a macro
@@ -75,7 +76,7 @@ type Change struct {
 }
 
 // Where names the change's place as the text output does: Q3!B7,
-// sheet Q3, Q3 region r1, Q3 widths, name Sales.
+// sheet Q3, Q3 region r1, Q3 table Sales, Q3 widths, name Sales.
 func (c Change) Where() string {
 	switch c.Kind {
 	case KindCell:
@@ -84,6 +85,8 @@ func (c Change) Where() string {
 		return "sheet " + c.Sheet
 	case KindRegion:
 		return c.Sheet + " region " + c.Item
+	case KindTable:
+		return c.Sheet + " table " + c.Item
 	case KindLayout, KindNotebook:
 		return c.Sheet + " " + c.Item
 	}

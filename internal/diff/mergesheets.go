@@ -150,6 +150,8 @@ func (m *merger) sheet(b, o, t *rawSheet) *rawSheet {
 		switch k {
 		case "regions":
 			v = m.list(b.fields[k], o.fields[k], t.fields[k], func(key string) string { return out.name + " region " + key })
+		case "tables":
+			v = m.list(b.fields[k], o.fields[k], t.fields[k], func(key string) string { return out.name + " table " + key })
 		case "notebookCells":
 			v = m.notebook(out.name, b.fields[k], o.fields[k], t.fields[k])
 		case "widths", "heights", "lines":
