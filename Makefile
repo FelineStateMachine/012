@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e dist
+.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e dist site site-serve site-deps
 
 build:
 	CGO_ENABLED=0 go build -o bin/012 ./cmd/012
@@ -122,6 +122,24 @@ demos: build
 		"fps=12,tpad=stop_mode=clone:stop_duration=2,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" \
 		demos/out/media/$$d.gif || exit 1; done
 	@ls -l demos/out/media
+
+# The docs site (website/): Docusaurus over docs/, built into
+# website/build. Needs Node 20.11+ and npm; nothing else in the build or
+# make check does. The build fails on a broken link or anchor. SITE_URL
+# sets the address canonical links and the sitemap use. Node's warning
+# that localStorage has no backing file is about the build's own process,
+# which never stores anything. See docs/contributing/site.md.
+SITE_NODE := NODE_OPTIONS=--disable-warning=ExperimentalWarning
+
+site: site-deps
+	cd website && $(SITE_NODE) npm run build
+
+site-serve: site-deps
+	cd website && $(SITE_NODE) npm run start
+
+site-deps:
+	@command -v npm >/dev/null || { echo "the site needs Node 20.11+ and npm"; exit 1; }
+	cd website && npm ci
 
 libghostty: $(GHOSTTY_STAMP)
 

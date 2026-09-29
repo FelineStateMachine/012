@@ -1,0 +1,438 @@
+/* The landing page as a 012 screen: the control panel on top, a sheet of
+   features, the status line at the bottom. Colors are the roles in
+   custom.css. */
+
+.page {
+  --cell-pad: 1.4rem;
+  /* A flex item of the layout: without these the control panel's
+     unwrapped lines would widen it past a phone's screen. */
+  width: 100%;
+  min-width: 0;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 1.25rem 4rem;
+  font-family: var(--font-sans);
+}
+
+/* ---------- Control panel ---------- */
+
+.panel {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  margin: 1.5rem 0 0;
+  border-bottom: 1px solid var(--role-grid);
+}
+
+.line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9ch;
+  min-height: 2rem;
+  padding: 0.25rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  animation: lineIn 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.line1 {
+  animation-delay: 60ms;
+}
+
+.line2 {
+  animation-delay: 160ms;
+}
+
+.line3 {
+  animation-delay: 260ms;
+  color: var(--role-muted);
+}
+
+@keyframes lineIn {
+  from {
+    opacity: 0;
+    transform: translateX(-0.6rem);
+  }
+}
+
+.addr {
+  font-weight: 600;
+}
+
+.entry {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mode {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0 0.6ch;
+  background: var(--role-accent-bg);
+  color: var(--role-accent-fg);
+}
+
+.menuItem {
+  color: var(--term-fg);
+  padding: 0 0.6ch;
+  margin-right: 1.4ch;
+}
+
+.menuItem:hover,
+.menuItem:focus-visible {
+  text-decoration: none;
+  background: var(--role-accent-bg);
+  color: var(--role-accent-fg);
+}
+
+.menuItem u {
+  text-underline-offset: 0.2em;
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.05em;
+  margin-left: 0.3ch;
+  vertical-align: -0.15em;
+  background: var(--term-fg);
+  animation: blink 1.1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 11fr) minmax(0, 13fr);
+  gap: 3rem;
+  align-items: center;
+  padding: 3.5rem 0 3.5rem;
+}
+
+.title {
+  font-family: var(--font-mono);
+  font-size: clamp(4.5rem, 11vw, 8.5rem);
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  margin: 0 0 1.4rem;
+}
+
+.titleCursor {
+  display: inline-block;
+  width: 0.4em;
+  height: 0.7em;
+  margin-left: 0.08em;
+  background: var(--role-accent-bg);
+  animation: blink 1.1s steps(1) infinite;
+}
+
+.lede {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.3;
+  margin: 0 0 1rem;
+}
+
+.sub {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--term-fg);
+  opacity: 0.9;
+  max-width: 34rem;
+}
+
+.install {
+  font-size: 0.78rem;
+  padding: 0.8rem 1rem;
+  overflow-x: auto;
+  margin: 1.6rem 0 1.4rem;
+  background: var(--role-panel-bg);
+  border: none;
+  border-left: 3px solid var(--role-accent-bg);
+  white-space: pre;
+}
+
+[data-theme='dark'] .install {
+  background: #151617;
+}
+
+.prompt {
+  color: var(--role-muted);
+  user-select: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem 1.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7ch;
+  color: var(--term-fg);
+  padding: 0.4rem 0.8rem 0.4rem 0.4rem;
+  border: 1px solid var(--role-frame);
+}
+
+.action:hover {
+  text-decoration: none;
+  color: var(--role-accent-fg);
+  background: var(--role-accent-bg);
+  border-color: var(--role-accent-bg);
+}
+
+.actionPrimary {
+  color: var(--role-accent-fg);
+  background: var(--role-accent-bg);
+  border-color: var(--role-accent-bg);
+}
+
+.actionPrimary:hover {
+  filter: brightness(1.08);
+}
+
+.searchHint {
+  color: var(--role-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7ch;
+}
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  font-weight: 500;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0.05em 0.5ch;
+  background: var(--role-header-bg);
+  color: var(--role-header-fg);
+}
+
+/* The recording in an overlay frame: light box-drawing lines, a title in
+   the top border and a note in the bottom one. */
+.frame {
+  position: relative;
+  margin: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--role-frame);
+  animation: frameIn 700ms 200ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes frameIn {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(-1rem);
+  }
+}
+
+.frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.frameTitle,
+.frameCount {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0 0.8ch;
+  background: var(--ifm-background-color);
+  line-height: 1;
+}
+
+.frameTitle {
+  top: -0.45rem;
+  left: 1.2rem;
+  font-weight: 600;
+}
+
+.frameCount {
+  bottom: -0.45rem;
+  right: 1.2rem;
+  color: var(--role-muted);
+}
+
+/* ---------- The sheet of features ---------- */
+
+.sheet {
+  display: grid;
+  grid-template-columns: 3.2rem repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--role-grid);
+  border-left: 1px solid var(--role-grid);
+  font-family: var(--font-mono);
+}
+
+.corner,
+.colHeader,
+.rowHeader {
+  background: var(--role-header-bg);
+  color: var(--role-header-fg);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--ifm-background-color);
+  border-bottom: 1px solid var(--ifm-background-color);
+}
+
+.colHeader {
+  height: 1.8rem;
+}
+
+.rowHeader {
+  align-items: flex-start;
+  padding-top: var(--cell-pad);
+}
+
+.headerActive {
+  background: var(--role-accent-bg);
+  color: var(--role-accent-fg);
+  font-weight: 600;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: var(--cell-pad);
+  color: var(--term-fg);
+  border-right: 1px solid var(--role-grid);
+  border-bottom: 1px solid var(--role-grid);
+  transition: background 90ms linear, color 90ms linear;
+}
+
+.cell:hover {
+  text-decoration: none;
+}
+
+.cellActive,
+.cell:focus-visible {
+  outline: none;
+  background: var(--role-accent-bg);
+  color: var(--role-accent-fg);
+}
+
+.cellEntry {
+  font-size: 0.82rem;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cellTitle {
+  font-size: 1.35rem;
+  margin: 0;
+  color: inherit;
+}
+
+.cellBody {
+  font-family: var(--font-sans);
+  font-size: 0.98rem;
+  line-height: 1.6;
+  margin: 0;
+  flex: 1;
+}
+
+.cellGo {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ---------- Status line ---------- */
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 2ch;
+  margin-top: 2.5rem;
+  padding: 0.35rem 0.8ch;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  background: var(--role-header-bg);
+  color: var(--role-header-fg);
+}
+
+.statusLabel {
+  font-weight: 600;
+  padding: 0 0.6ch;
+  background: var(--role-accent-bg);
+  color: var(--role-accent-fg);
+}
+
+.statusItem {
+  color: inherit;
+}
+
+.statusItem:hover {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* ---------- Narrow screens ---------- */
+
+@media (max-width: 996px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.2rem;
+    padding: 2.5rem 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .page {
+    --cell-pad: 1.1rem;
+  }
+
+  .sheet {
+    grid-template-columns: 2.4rem minmax(0, 1fr);
+  }
+
+  /* One column: B's header goes, and each cell keeps its address. */
+  .colHeader:nth-of-type(3) {
+    display: none;
+  }
+
+  .rowHeader {
+    grid-row: span 2;
+  }
+
+  .line2,
+  .line3 {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line,
+  .frame {
+    animation: none;
+  }
+
+  .cursor,
+  .titleCursor {
+    animation: none;
+  }
+}
