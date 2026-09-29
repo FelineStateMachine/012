@@ -61,7 +61,7 @@ var menuBar = []menuDef{
 			{cmd: "view.freeze_cols0", title: "No columns"}, {cmd: "view.freeze_cols1", title: "1 column"},
 			{cmd: "view.freeze_cols2", title: "2 columns"}, {cmd: "view.freeze_cols_cur", title: "Up to current column"},
 		}}, sep,
-		{cmd: "sheet.unhide"}, sep,
+		{cmd: "sheet.unhide"}, {cmd: "nb.toc"}, sep,
 		{cmd: "palette", title: "Command palette"}, {cmd: "help"},
 	}},
 	{title: "Insert", accel: 'i', items: []menuItem{

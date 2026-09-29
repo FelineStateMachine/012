@@ -56,27 +56,32 @@ func (v *View) hints(keys map[string]string, pairs ...string) string {
 	return v.h.Theme().KeyHints(out...)
 }
 
-// ContextLine is what the context line says in the notebook: a problem,
-// a key waiting for its pair, or the keys that apply.
+// ContextLine is what the context line says in the notebook, at its
+// left and its right: a problem, a key waiting for its pair, or what
+// the selection is, and the keys that apply that the toolbar doesn't
+// show.
 func (v *View) ContextLine() (string, string) {
 	th := v.h.Theme()
 	switch {
 	case v.full != nil:
 		return v.full.ContextLine(th)
 	case v.edit.on:
+		right := v.hints(v.EditKeys, "nb.command_mode", "done") + "  " + th.KeyHints("Tab", "complete")
 		if d := v.Diagnostic(); d != "" {
-			return th.Warning.Render(d), v.hints(v.EditKeys, "nb.run_next", "run", "nb.command_mode", "done")
+			return th.Warning.Render(d), right
 		}
-		return v.hints(v.EditKeys, "nb.run_next", "run", "nb.run", "run here") + "   " + th.KeyHints("Tab", "complete"),
-			v.hints(v.EditKeys, "nb.command_mode", "done")
+		return "", right
 	case v.pending == "d":
-		return th.Hint.Render("d again deletes the cell"), th.KeyHints("Esc", "cancel")
+		return th.Hint.Render("d again deletes " + v.selectedWords()), th.KeyHints("Esc", "cancel")
 	case v.pending == "0":
 		return th.Hint.Render("0 again restarts: every output is cleared"), th.KeyHints("Esc", "cancel")
 	}
 	c, ok := v.Cell()
 	if !ok {
-		return v.hints(v.Keys, "nb.insert_below", "add a cell"), ""
+		return "", v.hints(v.Keys, "nb.insert_below", "add a cell")
+	}
+	if from, to := v.Range(); to > from {
+		return th.Hint.Render(v.selectedWords() + " selected"), v.hints(v.Keys, "nb.delete", "delete", "nb.move_up", "move up", "nb.move_down", "down")
 	}
 	st := v.h.State(c.ID)
 	if st.Problem != "" {
@@ -86,13 +91,40 @@ func (v *View) ContextLine() (string, string) {
 		return th.Warning.Render("Failed: " + o.Err), v.hints(v.Keys, "nb.edit", "edit")
 	}
 	if v.onOut {
-		return v.hints(v.Keys, "nb.open_output", "open", "nb.toggle_output", "all or less", "nb.send", "send to a sheet"), ""
+		return th.Muted.Render(v.outputSummary(c)), v.hints(v.Keys, "nb.open_output", "full-screen", "nb.toggle_output", "hide",
+			"nb.toggle_whole", "whole", "nb.send", "to a sheet")
 	}
-	return v.hints(v.Keys, "nb.edit", "edit", "nb.run_next", "run", "nb.insert_above", "add above", "nb.insert_below", "below",
-		"nb.delete", "delete", "nb.send", "send to a sheet"), ""
+	name, text := v.Head()
+	return th.Muted.Render(name + ": " + text), v.hints(v.Keys, "nb.edit", "edit") + "  " + th.KeyHints("Shift+↑↓", "select")
 }
 
-// Boxes are the completions' box, under the caret, for a body whose
+// selectedWords names the selected cells: "the cell", "3 cells".
+func (v *View) selectedWords() string {
+	if from, to := v.Range(); to > from {
+		return itoa(to-from+1) + " cells"
+	}
+	return "the cell"
+}
+
+// Rule is the context line drawn at width: left, then a rule, then
+// right, the rule closing off the toolbar above the cells.
+func (v *View) Rule(left, right string, width int) string {
+	th := v.h.Theme()
+	lw, rw := ansi.StringWidth(left), ansi.StringWidth(right)
+	if lw+rw+4 > width {
+		right, rw = "", 0
+	}
+	if left != "" {
+		left = " " + ansi.Truncate(left, width-2, "…") + " "
+		lw = ansi.StringWidth(left)
+	}
+	if right != "" {
+		right = " " + right + " "
+		rw += 2
+	}
+	return left + th.Border.Render(strings.Repeat("─", max(width-lw-rw, 0))) + right
+}
+
 // first line is at screen row top.
 func (v *View) Boxes(top int) []overlay.Box {
 	if !v.edit.on || len(v.edit.comp) == 0 {

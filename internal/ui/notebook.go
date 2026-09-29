@@ -24,27 +24,34 @@ import (
 
 // nbKeys are command mode's keys, as Jupyter's; "d d" is d twice.
 var nbKeys = map[string]string{
-	"enter":       "nb.edit",
-	"shift+enter": "nb.run_next",
-	"ctrl+enter":  "nb.run",
-	"r":           "nb.run", // runs where Ctrl+Enter arrives as Enter
-	"alt+enter":   "nb.run_insert",
-	"a":           "nb.insert_above",
-	"b":           "nb.insert_below",
-	"!":           "nb.add_code",
-	"d d":         "nb.delete",
-	"m":           "nb.to_note",
-	"y":           "nb.to_code",
-	"z":           "edit.undo",
-	"c":           "nb.copy",
-	"x":           "nb.cut",
-	"v":           "nb.paste",
-	"o":           "nb.toggle_output",
-	"n":           "nb.name",
-	"G":           "nb.send",
-	"i i":         "nb.stop",
-	"0 0":         "nb.restart",
-	"f9":          "nb.run_all",
+	"enter":           "nb.edit",
+	"shift+enter":     "nb.run_next",
+	"ctrl+enter":      "nb.run",
+	"r":               "nb.run", // runs where Ctrl+Enter arrives as Enter
+	"alt+enter":       "nb.run_insert",
+	"a":               "nb.insert_above",
+	"b":               "nb.insert_below",
+	"!":               "nb.add_code",
+	"d d":             "nb.delete",
+	"m":               "nb.to_note",
+	"y":               "nb.to_code",
+	"z":               "edit.undo",
+	"c":               "nb.copy",
+	"x":               "nb.cut",
+	"v":               "nb.paste",
+	"o":               "nb.toggle_output",
+	"n":               "nb.name",
+	"G":               "nb.send",
+	"i i":             "nb.stop",
+	"0 0":             "nb.restart",
+	"f9":              "nb.run_all",
+	"V":               "nb.paste_above",
+	"O":               "nb.toggle_whole",
+	"alt+up":          "nb.move_up", // as an editor moves lines; JupyterLab's Ctrl+Shift+Up too
+	"alt+down":        "nb.move_down",
+	"ctrl+shift+up":   "nb.move_up",
+	"ctrl+shift+down": "nb.move_down",
+	"ctrl+g":          "nb.goto",
 }
 
 // nbEditKeys are edit mode's.
@@ -87,7 +94,8 @@ func nbKeyLabels(id string) []string {
 
 // nbHelpRows are the notebook's keys for help, in the order of its menu.
 func nbHelpRows(listed map[string]bool) []helpRow {
-	rows := []helpRow{{keys: []string{"Up", "Down", "j", "k"}, action: "Move between cells and outputs"}}
+	rows := []helpRow{{keys: []string{"Up", "Down", "j", "k"}, action: "Move between cells and outputs"},
+		{keys: []string{"Shift+Up", "Shift+Down", "K", "J"}, action: "Select several cells"}}
 	for _, it := range append([]menuItem{{cmd: "nb.edit"}, {cmd: "nb.command_mode"}, {cmd: "nb.add_code"}}, notebookItems...) {
 		keys := nbKeyLabels(it.cmd)
 		if it.sep || keys[0] == "" || listed[it.cmd] || commands[it.cmd] == nil {
@@ -103,11 +111,21 @@ func nbHelpRows(listed map[string]bool) []helpRow {
 var notebookItems = []menuItem{
 	{cmd: "nb.open"}, sep,
 	{cmd: "nb.run"}, {cmd: "nb.run_next"}, {cmd: "nb.run_all"}, {cmd: "nb.run_above"}, {cmd: "nb.run_below"}, {cmd: "nb.stop"}, sep,
-	{cmd: "nb.insert_above"}, {cmd: "nb.insert_below"}, {cmd: "nb.delete"}, {cmd: "nb.to_note"}, {cmd: "nb.to_code"}, {cmd: "nb.name"}, sep,
-	{cmd: "nb.copy"}, {cmd: "nb.cut"}, {cmd: "nb.paste"}, sep,
-	{cmd: "nb.toggle_output"}, {cmd: "nb.open_output"}, {cmd: "nb.send"}, sep,
+	{cmd: "nb.insert_above"}, {cmd: "nb.insert_below"}, {cmd: "nb.delete"}, {cmd: "nb.move_up"}, {cmd: "nb.move_down"}, sep,
+	{cmd: "nb.to_code"}, {cmd: "nb.to_note"}, {cmd: "nb.name"}, sep,
+	{cmd: "nb.copy"}, {cmd: "nb.cut"}, {cmd: "nb.paste"}, {cmd: "nb.paste_above"}, sep,
+	{cmd: "nb.toggle_output"}, {cmd: "nb.toggle_whole"}, {cmd: "nb.open_output"}, {cmd: "nb.clear_output"}, {cmd: "nb.send"}, sep,
+	{cmd: "nb.goto"}, {cmd: "nb.toc"}, sep,
 	{cmd: "nb.clear_outputs"}, {cmd: "nb.restart"}, {cmd: "nb.reactive"}, sep,
 	{cmd: "region.freeze"}, {cmd: "region.delete"},
+}
+
+// nbCellMenu is a cell's context menu, on a right click.
+var nbCellMenu = []menuItem{
+	{cmd: "nb.run"}, {cmd: "nb.run_below"}, sep,
+	{cmd: "nb.cut"}, {cmd: "nb.copy"}, {cmd: "nb.paste"}, {cmd: "nb.paste_above"}, {cmd: "nb.delete"}, sep,
+	{cmd: "nb.move_up"}, {cmd: "nb.move_down"}, {cmd: "nb.to_code"}, {cmd: "nb.to_note"}, {cmd: "nb.name"}, sep,
+	{cmd: "nb.toggle_output"}, {cmd: "nb.toggle_whole"}, {cmd: "nb.clear_output"}, {cmd: "nb.open_output"}, {cmd: "nb.send"},
 }
 
 func init() {
@@ -146,48 +164,7 @@ func init() {
 			run: func(m *Model) tea.Cmd { m.sheet.SetReactive(!m.sheet.Reactive()); return nil }},
 	)
 	registerCellCommands(onCell, onCode)
-}
-
-// registerCellCommands registers the commands that change cells.
-func registerCellCommands(onCell, onCode func(*Model) bool) {
-	register(
-		&command{id: "nb.insert_above", macro: macroNever, title: "Add cell above", desc: "Add a code cell above the selected one",
-			enabled: func(m *Model) bool { return m.nbView() != nil }, run: func(m *Model) tea.Cmd { return m.addCell(0, false) }},
-		&command{id: "nb.insert_below", macro: macroNever, title: "Add cell below", desc: "Add a code cell below the selected one",
-			enabled: func(m *Model) bool { return m.nbView() != nil }, run: func(m *Model) tea.Cmd { return m.addCell(1, false) }},
-		&command{id: "nb.add_code", macro: macroNever, title: "New code cell", desc: "Add a code cell below the selected one and edit it",
-			enabled: func(m *Model) bool { return m.nbView() != nil }, run: func(m *Model) tea.Cmd { return m.addCell(1, true) }},
-		&command{id: "nb.delete", macro: macroNever, title: "Delete cell", desc: "Delete the selected cell; z or Undo brings it back",
-			enabled: onCell, run: func(m *Model) tea.Cmd { m.deleteCell(); return nil }},
-		&command{id: "nb.to_note", macro: macroNever, title: "Make it a note", desc: "Turn the selected cell into a note cell, written in Markdown",
-			enabled: onCell, run: func(m *Model) tea.Cmd { m.setKind(notebook.Note); return nil }},
-		&command{id: "nb.to_code", macro: macroNever, title: "Make it code", desc: "Turn the selected cell into a code cell, a nushell pipeline",
-			enabled: onCell, run: func(m *Model) tea.Cmd { m.setKind(notebook.Code); return nil }},
-		&command{id: "nb.name", macro: macroNever, title: "Name cell", desc: "Name the cell's output, which later cells read as $name and formulas as nu.name",
-			enabled: onCode, run: (*Model).openCellName},
-		&command{id: "nb.copy", macro: macroNever, title: "Copy cell", desc: "Copy the selected cell, to paste with v",
-			enabled: onCell, run: func(m *Model) tea.Cmd { m.copyCell(false); return nil }},
-		&command{id: "nb.cut", macro: macroNever, title: "Cut cell", desc: "Cut the selected cell, to paste with v",
-			enabled: onCell, run: func(m *Model) tea.Cmd { m.copyCell(true); return nil }},
-		&command{id: "nb.paste", macro: macroNever, title: "Paste cell", desc: "Paste the cell copied below the selected one",
-			enabled: func(m *Model) bool { return m.nbView() != nil && len(m.nb.clip) > 0 }, run: func(m *Model) tea.Cmd { m.pasteCells(); return nil }},
-		&command{id: "nb.toggle_output", macro: macroNever, title: "Show all of the output", desc: "Show the selected cell's whole output, or just its first rows again",
-			enabled: onCode, checked: func(m *Model) bool { c, ok := m.nbCell(); return ok && m.nbView().Expanded(c.ID) },
-			run: func(m *Model) tea.Cmd { m.nbView().Toggle(); return nil }},
-		&command{id: "nb.open_output", macro: macroNever, title: "Open output", desc: "Show the selected cell's output full-screen, to sort and filter it",
-			enabled: onCode, run: func(m *Model) tea.Cmd {
-				if !m.nbView().OpenFull() {
-					m.note = "The cell has no output to open"
-				}
-				return nil
-			}},
-		&command{id: "nb.send", macro: macroNever, title: "Send to sheet", desc: "Put the cell's output on a sheet, kept up to date whenever the cell runs",
-			enabled: onCode, run: (*Model).sendCell},
-		&command{id: "region.freeze", title: "Freeze output", desc: "Turn the output sent here into plain values you can edit; the cell no longer updates it",
-			enabled: onOutputRegion, run: func(m *Model) tea.Cmd { return m.freezeOutput() }},
-		&command{id: "region.delete", title: "Remove output", desc: "Remove the output sent here and its values from the sheet",
-			enabled: onOutputRegion, run: func(m *Model) tea.Cmd { return m.deleteOutput() }},
-	)
+	registerOutputCommands(onCode)
 }
 
 // nbView is the view of the notebook tab shown, or nil on a sheet.
@@ -247,79 +224,6 @@ func (m *Model) madeCells() {
 	}
 }
 
-// addCell adds an empty code cell above the selected one (at 0) or below
-// it (at 1), editing it with edit.
-func (m *Model) addCell(at int, edit bool) tea.Cmd {
-	v := m.nbView()
-	cells := m.sheet.NotebookCells()
-	i, _ := v.Selected()
-	if len(cells) > 0 {
-		i += at
-	}
-	v.StopEdit()
-	cells = slices.Insert(cells, i, notebook.Cell{})
-	m.setCells("add cell", cells)
-	v.Select(i, false)
-	if edit {
-		return v.StartEdit()
-	}
-	return nil
-}
-
-// deleteCell deletes the selected cell.
-func (m *Model) deleteCell() {
-	v := m.nbView()
-	cells := m.sheet.NotebookCells()
-	i, _ := v.Selected()
-	if i >= len(cells) {
-		return
-	}
-	m.setCells("delete cell "+strconv.Itoa(i+1), slices.Delete(cells, i, i+1))
-	v.Select(i, false)
-	m.note = "Deleted cell " + strconv.Itoa(i+1) + ": z brings it back"
-}
-
-// setKind turns the selected cell into a code or note cell.
-func (m *Model) setKind(k notebook.Kind) {
-	v := m.nbView()
-	cells := m.sheet.NotebookCells()
-	i, _ := v.Selected()
-	if i >= len(cells) || cells[i].Kind == k {
-		return
-	}
-	cells[i].Kind = k
-	m.setCells("change cell "+strconv.Itoa(i+1), cells)
-	v.Select(i, false)
-}
-
-// copyCell copies the selected cell, and deletes it with cut.
-func (m *Model) copyCell(cut bool) {
-	c, _ := m.nbCell()
-	c.ID = 0
-	m.nb.clip = []notebook.Cell{c}
-	if cut {
-		i, _ := m.nbView().Selected()
-		m.setCells("cut cell "+strconv.Itoa(i+1), slices.Delete(m.sheet.NotebookCells(), i, i+1))
-		m.nbView().Select(i, false)
-		m.note = "Cut cell " + strconv.Itoa(i+1) + ": v pastes it"
-		return
-	}
-	m.note = "Copied the cell: v pastes it"
-}
-
-// pasteCells pastes the cells copied below the selected one.
-func (m *Model) pasteCells() {
-	v := m.nbView()
-	cells := m.sheet.NotebookCells()
-	i, _ := v.Selected()
-	if len(cells) > 0 {
-		i++
-	}
-	cells = slices.Insert(cells, i, m.nb.clip...)
-	m.setCells("paste cell", cells)
-	v.Select(i, false)
-}
-
 // openCellName asks for the selected cell's name.
 func (m *Model) openCellName() tea.Cmd {
 	c, _ := m.nbCell()
@@ -372,6 +276,7 @@ func (h nbHost) Locale() *locale.Locale         { return h.m.locale() }
 func (h nbHost) Cells() []notebook.Cell         { return h.s.NotebookCells() }
 func (h nbHost) Output(id int) *notebook.Output { return h.m.book().Output(id) }
 func (h nbHost) State(id int) nbview.State      { return h.m.cellState(h.s, id) }
+func (h nbHost) Kernel() nbview.Kernel          { return h.m.nbKernel(h.s) }
 func (h nbHost) Run(command string) tea.Cmd     { return h.m.runCommand(command) }
 
 // Edit keeps a cell's new source.

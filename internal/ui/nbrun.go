@@ -61,6 +61,9 @@ type nbState struct {
 	// langKey is what the words it was last given were worked out from.
 	lang    *nbview.NuSession
 	langKey nbLangKey
+	// follow scrolls the view to each cell as it starts, while a run of
+	// several cells goes on and the user hasn't scrolled away.
+	follow bool
 }
 
 // nbQueued is a cell waiting to run.
@@ -141,31 +144,36 @@ func (m *Model) staleCells(s *sheet.Sheet) map[int]bool {
 	return m.nb.stale
 }
 
-// runSelected runs the selected cell: then, with next 1, selects the
-// cell below (adding one at the end), or with 2 adds one under it.
+// runSelected runs the selected cells: then, with next 1, selects the
+// cell below them (adding one at the end), or with 2 adds one under
+// them, as Jupyter's Shift+Enter and Alt+Enter.
 func (m *Model) runSelected(next int) tea.Cmd {
 	v := m.nbView()
 	v.StopEdit()
-	i, _ := v.Selected()
+	from, to := v.Range()
 	cells := m.sheet.NotebookCells()
-	if i >= len(cells) {
+	if from >= len(cells) {
 		return nil
 	}
 	var cmd tea.Cmd
-	if cells[i].Kind == notebook.Code {
-		cmd = m.runCells(m.sheet, i, cells)
+	switch {
+	case from < to:
+		cmd = m.runRange(from, to+1)
+	case cells[from].Kind == notebook.Code:
+		cmd = m.runCells(m.sheet, from, cells)
 	}
 	switch {
-	case next == 2 || next == 1 && i == len(cells)-1:
+	case next == 2 || next == 1 && to == len(cells)-1:
 		return tea.Batch(cmd, m.addCell(1, next == 2))
 	case next == 1:
-		v.Select(i+1, false)
+		v.Select(to+1, false)
 	}
 	return cmd
 }
 
 // runRange runs the code cells from index from up to to (-1 for the
-// last), each after the cells it reads.
+// last), each after the cells it reads, the view following the cell
+// running.
 func (m *Model) runRange(from, to int) tea.Cmd {
 	v := m.nbView()
 	v.StopEdit()
@@ -177,6 +185,7 @@ func (m *Model) runRange(from, to int) tea.Cmd {
 	for i := from; i < to && i < len(cells); i++ {
 		want = append(want, i)
 	}
+	m.nb.follow = len(want) > 1
 	return m.queueCells(m.sheet, cells, want)
 }
 
@@ -269,6 +278,7 @@ func (m *Model) nextCell() tea.Cmd {
 		}
 		return m.startCell(run, job)
 	}
+	m.nb.follow = false // nothing left to follow
 	return nil
 }
 
@@ -296,6 +306,9 @@ func (m *Model) startCell(run *nbRun, job nushell.Job) tea.Cmd {
 	ctx, cancel := context.WithCancel(context.Background())
 	run.gen, run.cancel = m.nb.gen, cancel
 	m.nb.running = run
+	if m.nb.follow {
+		m.viewOf(run.s).Reveal(run.id) // Run all: the view follows the cell running
+	}
 	runner, timeout, parent := m.runner(), m.configDuration("nu-timeout", 30*time.Second), m.spans.Parent()
 	exec := func() tea.Msg {
 		defer cancel()

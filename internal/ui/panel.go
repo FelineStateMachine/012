@@ -93,6 +93,9 @@ func (m *Model) drawBars(lines []string) {
 		{headerLine, m.th.ColumnHeaderRow}, {len(lines) - 1, m.th.StatusBarRow},
 	}
 	for _, b := range bands {
+		if b.line == headerLine && m.nbView() != nil {
+			continue // a notebook's cells start under the context line
+		}
 		if b.line < len(lines) {
 			lines[b.line] = theme.Fill(lines[b.line], m.width, b.role)
 		}
@@ -185,7 +188,7 @@ func (m *Model) formulaBar() string {
 		if b, ok := m.overlay.(overlay.Bar); ok {
 			return m.th.Header.Render(theme.PadRight(" ", nameBoxW)) + " " + b.FormulaBar()
 		}
-		return m.notebookFormulaBar(v)
+		return m.notebookToolbar(v)
 	}
 	name := m.cur.String()
 	if m.away() {

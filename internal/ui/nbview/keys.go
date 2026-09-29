@@ -3,7 +3,6 @@ package nbview
 import (
 	"strconv"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -66,14 +65,24 @@ func (v *View) commandKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// move moves the selection for a movement key.
+// move moves the selection for a movement key: Up and Down (j and k)
+// scroll a selected output's window before they leave it, and with
+// Shift (or J and K) select the cells passed over, as JupyterLab does.
 func (v *View) move(key string) bool {
 	n := len(v.h.Cells())
 	switch key {
 	case "up", "k":
-		v.step(-1)
+		if !v.scrollOut(-1) {
+			v.step(-1)
+		}
 	case "down", "j":
-		v.step(1)
+		if !v.scrollOut(1) {
+			v.step(1)
+		}
+	case "shift+up", "K":
+		v.extend(-1)
+	case "shift+down", "J":
+		v.extend(1)
 	case "home", "ctrl+home":
 		v.Select(0, false)
 	case "end", "ctrl+end":
@@ -91,13 +100,14 @@ func (v *View) move(key string) bool {
 }
 
 // step moves the selection one place: from a cell to its output, if it
-// shows one, and from an output to the next cell.
+// shows one, and from an output to the next cell. It selects one cell.
 func (v *View) step(d int) {
 	cells := v.h.Cells()
 	if len(cells) == 0 {
 		return
 	}
-	hasOut := func(i int) bool { return v.shown(cells[i]).kind != outNone }
+	v.anchor = -1
+	hasOut := func(i int) bool { return v.outHeight(cells[i]) > 0 }
 	switch {
 	case d > 0 && !v.onOut && hasOut(v.sel):
 		v.onOut = true
@@ -112,16 +122,55 @@ func (v *View) step(d int) {
 	v.follow()
 }
 
-// selectAtTop selects the first cell whose head shows after a page
+// extend moves the active cell one cell, keeping the cells passed over
+// selected with it.
+func (v *View) extend(d int) {
+	n := len(v.h.Cells())
+	if n == 0 || v.sel+d < 0 || v.sel+d >= n {
+		return
+	}
+	if v.anchor < 0 {
+		v.anchor = v.sel
+	}
+	v.sel += d
+	v.onOut = false
+	v.clamp()
+	v.follow()
+}
+
+// scrollOut scrolls the selected output's window d rows, reporting
+// whether it could.
+func (v *View) scrollOut(d int) bool {
+	c, ok := v.Cell()
+	if !ok || !v.onOut {
+		return false
+	}
+	return v.scrollBy(c, d)
+}
+
+// scrollBy scrolls cell c's output window d rows, as far as it goes,
+// reporting whether it moved.
+func (v *View) scrollBy(c notebook.Cell, d int) bool {
+	f := v.foldOf(c.ID)
+	if f.hidden || f.whole {
+		return false
+	}
+	limit := v.shown(c).maxScroll(false, v.outWidth())
+	to := min(max(f.scroll+d, 0), limit)
+	if to == f.scroll {
+		return false
+	}
+	v.foldFor(c.ID).scroll = to
+	return true
+}
+
+// selectAtTop selects the first cell whose top shows after a page
 // moved the view.
 func (v *View) selectAtTop() {
 	cells := v.h.Cells()
-	total := 0
-	for i, c := range cells {
-		total += v.blockOf(i, c).lines()
-	}
-	v.top = max(min(v.top, total-v.height), 0)
+	v.top = max(min(v.top, v.total()-v.height), 0)
 	at := 0
+	v.anchor = -1
 	for i, c := range cells {
 		if at >= v.top {
 			v.sel, v.onOut = i, false
@@ -185,7 +234,7 @@ func (v *View) StartEdit() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	v.full, v.onOut = nil, false
+	v.full, v.onOut, v.anchor = nil, false, -1
 	v.edit.cancel()
 	v.edit = editor{on: true, id: c.ID}
 	v.edit.area.SetText(c.Source)
@@ -247,70 +296,6 @@ func (v *View) CloseFull() { v.full = nil }
 
 // Full is the output shown full-screen, or nil.
 func (v *View) Full() *Full { return v.full }
-
-// Cursor is where the terminal's caret goes in the body, while a cell
-// is edited.
-func (v *View) Cursor() (x, y int, ok bool) {
-	if !v.edit.on {
-		return 0, 0, false
-	}
-	cells := v.h.Cells()
-	at := 0
-	for i := range v.sel {
-		at += v.blockOf(i, cells[i]).lines()
-	}
-	row, col := v.edit.caret(v.content())
-	y = at + 1 + row - v.top
-	if y < 0 || y >= v.height {
-		return 0, 0, false
-	}
-	return gutter + col, y, true
-}
-
-// tap is a click, for telling a double click.
-type tap struct {
-	at   time.Time
-	cell int
-}
-
-// Click selects what's under line y of the body, its output or the
-// cell; clicking the cell again quickly edits it.
-func (v *View) Click(y int) tea.Cmd {
-	if v.full != nil || v.edit.on {
-		return nil
-	}
-	cells := v.h.Cells()
-	at := 0
-	for i, c := range cells {
-		b := v.blockOf(i, c)
-		if line := v.top + y - at; line >= 0 && line < b.lines() {
-			double := v.lastTap.cell == i && time.Since(v.lastTap.at) < 400*time.Millisecond
-			v.lastTap = tap{at: time.Now(), cell: i}
-			v.Select(i, line > b.head+b.src-1 && line < b.lines()-1 && b.out > 0)
-			if double && !v.onOut {
-				return v.h.Run("nb.edit")
-			}
-			return nil
-		}
-		at += b.lines()
-	}
-	return nil
-}
-
-// Wheel scrolls the body d lines.
-func (v *View) Wheel(d int) {
-	if v.full != nil {
-		v.full.row += d
-		v.full.settle()
-		return
-	}
-	cells := v.h.Cells()
-	total := 0
-	for i, c := range cells {
-		total += v.blockOf(i, c).lines()
-	}
-	v.top = max(min(v.top+d, total-v.height), 0)
-}
 
 // Head is what the formula bar says of the selection: the cell's name
 // or number, and what it reads, or what its output holds.

@@ -1,26 +1,25 @@
 package ui
 
 import (
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/notebook"
+	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/nbview"
 	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
-// A notebook tab on the screen: the control panel as for a sheet (the
-// menu bar with NOTEBOOK or EDIT as the mode, the formula bar naming the
-// selected cell and what it reads, the context line with the keys), the
-// tab's own bar where the column letters would be, and the cells where
-// the grid would be.
+// A notebook tab on the screen, as Jupyter's: the menu bar with
+// NOTEBOOK or EDIT as the mode, the notebook's toolbar where a sheet's
+// formula bar is, the context line (what the selection is and the keys
+// that apply, or prompts and messages) drawn as a rule closing off the
+// toolbar, and the cells under it where the grid would be.
 
-// nbBody is the screen row the notebook's cells start at, under its bar.
-const nbBody = gridTop
+// nbBody is the screen row the notebook's cells start at, under the
+// context line.
+const nbBody = contextLine + 1
 
 // openNotebook shows the workbook's notebook, making one after the sheet
 // shown if it has none.
@@ -104,38 +103,27 @@ func (m *Model) sizeNotebook(v *nbview.View) {
 // menu bar down to the line above the status line.
 func (m *Model) notebookLines(v *nbview.View) []string {
 	m.sizeNotebook(v)
-	lines := []string{m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.notebookBar(v)}
+	lines := []string{m.menuBarLine(), m.formulaBar(), m.contextLineText()}
 	return append(lines, v.Lines()...)
 }
 
-// notebookBar is the tab's bar: its name, its cells, what's running,
-// and whether it's reactive.
-func (m *Model) notebookBar(v *nbview.View) string {
-	cells := m.sheet.NotebookCells()
-	parts := []string{" " + m.sheet.Name(), plural(len(cells), strconv.Itoa(len(cells))+" cell", strconv.Itoa(len(cells))+" cells")}
-	if f := v.Full(); f != nil {
-		parts = []string{" " + f.Title + ", full-screen"}
-	}
-	if r := m.nb.running; r != nil {
-		waiting := len(m.nb.queue)
-		run := "running 1"
-		if waiting > 0 {
-			run += ", " + strconv.Itoa(waiting) + " waiting"
-		}
-		parts = append(parts, run)
-	}
-	if m.sheet.Reactive() {
-		parts = append(parts, "reactive")
-	}
-	return strings.Join(parts, "   ")
+// notebookToolbar is the toolbar, where a sheet's formula bar is.
+func (m *Model) notebookToolbar(v *nbview.View) string {
+	return v.Toolbar(m.width)
 }
 
-// notebookFormulaBar is the formula bar on a notebook tab: the selected
-// cell's name, then what it reads or what its output holds.
-func (m *Model) notebookFormulaBar(v *nbview.View) string {
-	name, text := v.Head()
-	box := m.th.Header.Render(theme.PadRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " "
-	return box + m.th.Muted.Render(ansi.Truncate(text, max(m.width-nameBoxW-1, 1), "…"))
+// nbKernel is how running stands in notebook s, for its toolbar.
+func (m *Model) nbKernel(s *sheet.Sheet) nbview.Kernel {
+	k := nbview.Kernel{Off: m.shellOff(), Reactive: s.Reactive(), Clip: len(m.nb.clip)}
+	if r := m.nb.running; r != nil && r.s == s {
+		k.Busy = true
+	}
+	for _, q := range m.nb.queue {
+		if q.s == s {
+			k.Waiting++
+		}
+	}
+	return k
 }
 
 // pasteMsg takes pasted text: into a notebook's cell being edited, and
@@ -151,13 +139,17 @@ func (m *Model) pasteMsg(text string) tea.Cmd {
 // notebookContext is the context line on a notebook tab: what the last
 // action said, or the notebook's own line.
 func (m *Model) notebookContext(v *nbview.View) (string, string) {
+	left, right := v.ContextLine()
 	switch {
 	case m.warn != "":
-		return m.th.Warning.Render(m.warn), ""
+		left, right = m.th.Warning.Render(m.warn), ""
 	case m.note != "":
-		return m.th.Hint.Render(m.note), ""
+		left, right = m.th.Hint.Render(m.note), ""
 	}
-	return v.ContextLine()
+	if v.FullOpen() {
+		return left, right
+	}
+	return v.Rule(left, right, m.width), ""
 }
 
 // notebookIndicator is the mode on a notebook tab.
@@ -191,29 +183,60 @@ func (m *Model) notebookBoxes() []overlay.Box {
 	return nil
 }
 
-// notebookMouse takes a click or the wheel over the cells.
+// notebookMouse takes a click on the toolbar, or a click or the wheel
+// over the cells.
 func (m *Model) notebookMouse(msg tea.MouseMsg) (tea.Cmd, bool) {
 	v := m.nbView()
 	mouse := msg.Mouse()
-	if v == nil || m.mode != modeReady || m.overlay != nil || mouse.Y < nbBody || mouse.Y >= m.height-1 {
+	if v == nil || m.mode != modeReady || m.overlay != nil {
 		return nil, false
 	}
+	if click, ok := msg.(tea.MouseClickMsg); ok && mouse.Y == formulaLine && click.Button == tea.MouseLeft {
+		return m.toolbarClick(v, mouse.X), true
+	}
+	if mouse.Y < nbBody || mouse.Y >= m.height-1 {
+		return nil, false
+	}
+	m.sizeNotebook(v)
+	y := mouse.Y - nbBody
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
-		if msg.Button == tea.MouseLeft {
-			return v.Click(mouse.Y - nbBody), true
+		switch msg.Button {
+		case tea.MouseLeft:
+			return v.Click(mouse.X, y, mouse.Mod.Contains(tea.ModShift)), true
+		case tea.MouseRight:
+			v.RightClick(y)
+			m.showContextMenu(nbCellMenu, mouse.X, mouse.Y+1)
 		}
 		return nil, true
 	case tea.MouseWheelMsg:
+		m.nb.follow = false // the user looks elsewhere while cells run
 		switch msg.Button {
 		case tea.MouseWheelUp:
-			v.Wheel(-3)
+			v.Wheel(y, -3)
 		case tea.MouseWheelDown:
-			v.Wheel(3)
+			v.Wheel(y, 3)
 		}
 		return nil, true
 	}
 	return nil, true
+}
+
+// toolbarClick runs the toolbar's button at column x: the cell's kind
+// opens a menu of the kinds under it.
+func (m *Model) toolbarClick(v *nbview.View, x int) tea.Cmd {
+	switch id := v.ToolbarAt(x, m.width); id {
+	case "":
+		return nil
+	case nbview.Back:
+		v.CloseFull()
+		return nil
+	case "nb.kind":
+		m.showContextMenu([]menuItem{{cmd: "nb.to_code"}, {cmd: "nb.to_note"}}, x, formulaLine+1)
+		return nil
+	default:
+		return m.runCommand(id)
+	}
 }
 
 // notebookMsg takes the notebooks' own messages.

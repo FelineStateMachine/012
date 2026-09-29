@@ -204,7 +204,7 @@ func (f *Full) lines(th *theme.Theme, loc *locale.Locale) []string {
 	out := make([]string, 0, f.height)
 	if !f.table() {
 		for i := f.top; i < f.top+f.height && i < f.rowsShown(); i++ {
-			line := f.sh.line(th, loc, i, true, f.width-1)
+			line := f.sh.line(th, loc, i, fold{whole: true}, f.width-1)
 			if i == f.row {
 				line = th.Selection.Render("▌") + line
 			} else {

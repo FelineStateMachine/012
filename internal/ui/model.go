@@ -190,6 +190,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	switch msg := msg.(type) {
+	case nil: // taken above, cmd holds what it does
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		beforeMode = -1 // keep the focus visible after a resize
