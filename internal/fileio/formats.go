@@ -2,6 +2,7 @@ package fileio
 
 import (
 	"context"
+	"io"
 	"path/filepath"
 	"strings"
 )
@@ -16,6 +17,8 @@ const (
 	SQLite
 	Parquet
 	WK1
+	JSON
+	NUON
 )
 
 // A fileFormat is everything about a Kind: its names, its extensions,
@@ -35,6 +38,9 @@ type fileFormat struct {
 	write exporter
 	menu  string // the Download menu's title, without the extension
 	about string // what downloading writes, for the command's description
+	// encode is set for text formats, which Encode writes to a stream
+	// (012 --pipe's standard output); it returns the rows written.
+	encode func(io.Writer, *Snapshot) (int, error)
 
 	// book is set for formats that hold named sheets of their own:
 	// every sheet is exported, and an imported file keeps its sheets'
@@ -55,11 +61,11 @@ type exporter func(ctx context.Context, name string, snap *Snapshot, opt ExportO
 // kinds are the formats, in Kind order, which is menu order.
 var kinds = []fileFormat{{
 	kind: CSV, name: "CSV", noun: "CSV", label: "Comma-separated values", exts: []string{".csv"},
-	read: importCSV, write: exportCSV, menu: "Comma-separated values",
+	read: importCSV, write: exportCSV, menu: "Comma-separated values", encode: encodeCSV,
 	about: "Save the values as shown, as comma-separated values (.csv)",
 }, {
 	kind: TSV, name: "TSV", noun: "TSV", label: "Tab-separated values", exts: []string{".tsv", ".tab"},
-	read: importTSV, write: exportTSV, menu: "Tab-separated values",
+	read: importTSV, write: exportTSV, menu: "Tab-separated values", encode: encodeTSV,
 	about: "Save the values as shown, as tab-separated values (.tsv)",
 }, {
 	kind: XLSX, name: "XLSX", noun: "Excel", label: "Excel workbook", exts: []string{".xlsx", ".xlsm"},
@@ -77,6 +83,14 @@ var kinds = []fileFormat{{
 }, {
 	kind: WK1, name: "WK1", noun: "1-2-3", label: "Lotus 1-2-3 worksheet", exts: []string{".wk1", ".wks"},
 	read: importWK1,
+}, {
+	kind: JSON, name: "JSON", noun: "JSON", label: "JSON list of records", exts: []string{".json"},
+	read: importJSON, write: exportJSON, menu: "JSON list of records", encode: encodeJSON,
+	about: "Save the sheet as a JSON list of records, named by its first row",
+}, {
+	kind: NUON, name: "NUON", noun: "NUON", label: "Nushell table (NUON)", exts: []string{".nuon"},
+	read: importNUON, write: exportNUON, menu: "Nushell table", encode: encodeNUON,
+	about: "Save the sheet as a nushell table that keeps its types, named by its first row",
 }}
 
 // unknownFormat is what an invalid Kind reports.
@@ -144,6 +158,20 @@ func (k Kind) About() string { return k.format().about }
 // HoldsSheets reports whether a file of this kind holds several named
 // sheets, so a download writes the whole workbook (see SnapBook).
 func (k Kind) HoldsSheets() bool { return k.format().book }
+
+// IsText reports whether this kind is text Encode writes to a stream:
+// CSV, TSV, JSON or NUON.
+func (k Kind) IsText() bool { return k.format().encode != nil }
+
+// KindNamed finds a kind by its short name, ignoring case: "nuon".
+func KindNamed(name string) (Kind, bool) {
+	for _, k := range kinds {
+		if strings.EqualFold(k.name, name) {
+			return k.kind, true
+		}
+	}
+	return 0, false
+}
 
 // HasTables reports whether a file of this kind is a database of tables:
 // importing picks one (see Tables), and a download writes the sheet or

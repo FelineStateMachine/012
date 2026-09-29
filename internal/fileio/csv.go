@@ -162,6 +162,10 @@ func exportTSV(_ context.Context, name string, snap *Snapshot, _ ExportOptions) 
 	return exportDelimited(name, TSV, snap)
 }
 
+func encodeCSV(w io.Writer, snap *Snapshot) (int, error) { return encodeDelimited(w, CSV, snap) }
+
+func encodeTSV(w io.Writer, snap *Snapshot) (int, error) { return encodeDelimited(w, TSV, snap) }
+
 func importDelimited(ctx context.Context, name string, k Kind, opt Options) (*Result, error) {
 	prog := opt.Progress
 	f, err := os.Open(name)
@@ -191,10 +195,16 @@ func importDelimited(ctx context.Context, name string, k Kind, opt Options) (*Re
 // writes its numbers that way (see numberLocale). progress is called
 // every few hundred rows.
 func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, loc *locale.Locale, progress func(rows int)) (*sheet.Sheet, int, []string, error) {
+	s, rows, notes, _, err := readDelimitedAs(ctx, in, k, maxCells, loc, progress)
+	return s, rows, notes, err
+}
+
+// readDelimitedAs is readDelimited, also returning the delimiter.
+func readDelimitedAs(ctx context.Context, in io.Reader, k Kind, maxCells int, loc *locale.Locale, progress func(rows int)) (*sheet.Sheet, int, []string, rune, error) {
 	br := bufio.NewReaderSize(in, sniffSize)
 	text, enc, err := decode(br)
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, 0, nil, 0, err
 	}
 	tr := bufio.NewReaderSize(text, sniffSize)
 	sample, _ := tr.Peek(sniffSize)
@@ -216,7 +226,7 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, loc 
 		// Report before reading on: a pipe may keep the next read waiting.
 		if row%256 == 0 {
 			if err := ctx.Err(); err != nil {
-				return nil, 0, nil, err
+				return nil, 0, nil, 0, err
 			}
 			progress(row)
 		}
@@ -227,9 +237,9 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, loc 
 		if err != nil {
 			var pe *csv.ParseError
 			if errors.As(err, &pe) {
-				return nil, 0, nil, fmt.Errorf("line %d: %v", pe.Line, pe.Err)
+				return nil, 0, nil, 0, fmt.Errorf("line %d: %v", pe.Line, pe.Err)
 			}
-			return nil, 0, nil, err
+			return nil, 0, nil, 0, err
 		}
 		for col, field := range rec {
 			if field != "" {
@@ -249,7 +259,7 @@ func readDelimited(ctx context.Context, in io.Reader, k Kind, maxCells int, loc 
 		notes = append(notes, "read as "+enc)
 	}
 	s, notes := b.finish(notes)
-	return s, row, notes, nil
+	return s, row, notes, comma, nil
 }
 
 func delimiterName(r rune) string {
@@ -270,37 +280,31 @@ func delimiterName(r rune) string {
 // separator is a comma.
 // Rows are written as they are formatted, never all held at once.
 func exportDelimited(name string, k Kind, snap *Snapshot) (*ExportResult, error) {
-	rows := 0
-	err := writeFile(name, func(out io.Writer) error {
-		w := csv.NewWriter(out)
-		w.Comma = csvComma(snap.Locale)
-		if k == TSV {
-			w.Comma = '\t'
-		}
-		for line := range snap.textRows() {
-			if err := w.Write(line); err != nil {
-				return err
-			}
-			rows++
-		}
-		w.Flush()
-		return w.Error()
-	})
+	res, err := exportText(name, snap, func(w io.Writer, snap *Snapshot) (int, error) { return encodeDelimited(w, k, snap) })
 	if err != nil {
 		return nil, err
 	}
-	formulas := 0
-	for _, c := range snap.Cells {
-		if c.Formula {
-			formulas++
-		}
-	}
-	res := &ExportResult{Rows: rows}
 	if k == CSV && csvComma(snap.Locale) != ',' {
-		res.Notes = append(res.Notes, "separated by semicolons")
-	}
-	if formulas > 0 {
-		res.Notes = append(res.Notes, count(formulas, "formula", "formulas")+" saved as values")
+		res.Notes = append([]string{"separated by semicolons"}, res.Notes...)
 	}
 	return res, nil
+}
+
+// encodeDelimited writes the rows of exportDelimited to out, returning
+// how many it wrote.
+func encodeDelimited(out io.Writer, k Kind, snap *Snapshot) (int, error) {
+	rows := 0
+	w := csv.NewWriter(out)
+	w.Comma = csvComma(snap.Locale)
+	if k == TSV {
+		w.Comma = '\t'
+	}
+	for line := range snap.textRows() {
+		if err := w.Write(line); err != nil {
+			return 0, err
+		}
+		rows++
+	}
+	w.Flush()
+	return rows, w.Error()
 }

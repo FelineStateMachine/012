@@ -47,6 +47,8 @@ fuzz:
 	go test ./internal/fileio -run '^$$' -fuzz FuzzReadWK1 -fuzztime 60s
 	go test ./internal/fileio -run '^$$' -fuzz 'FuzzReadXLSX$$' -fuzztime 60s
 	go test ./internal/fileio -run '^$$' -fuzz FuzzReadXLSXParts -fuzztime 60s
+	go test ./internal/nuon -run '^$$' -fuzz FuzzParse -fuzztime 60s
+	go test ./internal/fileio -run '^$$' -fuzz FuzzReadNUON -fuzztime 60s
 
 e2e: $(GHOSTTY_STAMP)
 	cd e2e && PKG_CONFIG_PATH=$(GHOSTTY_OUT)/share/pkgconfig go test -count=1 ./...

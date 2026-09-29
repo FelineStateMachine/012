@@ -25,9 +25,12 @@ it back in its format.
 | SQLite | Pick a table or view, or type a query; a header row names the columns | The sheet shown or the selection as a table, first row as column names; a table of that name is replaced |
 | Parquet | Every column, with dates and timestamps; lists joined with commas | |
 | Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
+| JSON `.json` | A list of records (or records one after another, as NDJSON): keys become the header row, numbers, booleans and text keep their types, nested lists and records are their text | The sheet shown as a list of records named by its first row, numbers as numbers |
+| Nushell `.nuon` | A nushell table with its types: file sizes, durations and dates become numbers in the Size, Duration and Date time formats; see [Nushell](../terminal/nushell.md#types) | The sheet shown as a nushell table, first row as column names, types kept by the cells' formats |
 
 Formats other than XLSX import as one sheet named after the file (or the
-SQLite table).
+SQLite table). A table can also come in on standard input, and go back
+out on standard output: see [Nushell and pipelines](../terminal/nushell.md).
 
 File > Import asks where the data goes, as Sheets' Import location does
 (a new, empty spreadsheet is simply replaced):
