@@ -42,7 +42,10 @@ that macros' trust uses are the test's own: sessions that share a
 directory are one computer. The binary is built with `-tags
 fakekeyring`, whose credential store is a file there, so tests never
 read your config or touch your keychain. Unit tests do the same with
-`ui.Settings` and `keyring.Memory`.
+`ui.Settings` and `keyring.Memory`. The binary is also built with `-tags
+crashtest`, where F12 panics where `O12_CRASH_TEST` says (`update`,
+`view`, `command`), so `e2e/crash_test.go` can check that a crash
+restores the terminal and keeps the work; release builds have no such key.
 
 `e2e/ssh_test.go` runs `012 serve` and reaches it with the system's
 `ssh` client inside the same libghostty terminal, so the server path
