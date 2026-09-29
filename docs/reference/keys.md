@@ -150,7 +150,7 @@ on a sheet, `!` starts an entry as any character does.
 |---|---|
 | Esc | Back to command mode, keeping what was typed |
 | Shift+Enter, Ctrl+Enter, Alt+Enter | Run, as in command mode |
-| Enter, Tab | A new line; complete the word at the caret |
+| Enter, Tab | A new line; complete the word at the caret, with what nu completes there ([Writing a cell](../nushell/notebooks.md#writing-a-cell)) |
 | Up, Down, Home, End, Ctrl+A, Ctrl+E | Move by the lines on screen; the start, the end of the line |
 
 | Key | On an output full-screen |

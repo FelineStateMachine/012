@@ -41,7 +41,7 @@ func NewNuSession(r nushell.Runner) *NuSession {
 
 // SetOn says whether nu may be asked: in 012 serve only as serve-shell
 // allows, and only about a notebook whose cells may run here without
-// asking (docs/nushell/notebooks.md#trust).
+// asking (docs/nushell/notebooks.md#saving-and-trust).
 func (s *NuSession) SetOn(on bool) { s.on.Store(on) }
 
 // Asking reports whether nu is asked: allowed, and not found missing,

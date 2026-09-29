@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -15,10 +16,12 @@ import (
 )
 
 // ideNu is fakeNu answering the code editor's questions too, as nu
-// 0.116 would about any pipeline, and noting them.
+// 0.116 would about any pipeline, and noting them. Its check finds
+// problem wherever the pipeline has it.
 type ideNu struct {
 	*fakeNu
-	ide []string
+	ide     []string
+	problem string
 }
 
 func (f *ideNu) Run(ctx context.Context, job nushell.Job, script string, stdout io.Writer) error {
@@ -27,6 +30,9 @@ func (f *ideNu) Run(ctx context.Context, job nushell.Job, script string, stdout 
 	}
 	f.ide = append(f.ide, job.IDE[0])
 	answer := map[string]string{"--version": "0.116.0", "--ide-ast": "[]", "--ide-complete": `{"completions": []}`}[job.IDE[0]]
+	if i := strings.Index(script, f.problem); job.IDE[0] == "--ide-check" && f.problem != "" && i >= 0 {
+		answer = fmt.Sprintf(`{"type":"diagnostic","severity":"Error","message":"Not a flag.","span":{"start":%d,"end":%d}}`, i, i+len(f.problem))
+	}
 	_, err := io.WriteString(stdout, answer)
 	return err
 }
