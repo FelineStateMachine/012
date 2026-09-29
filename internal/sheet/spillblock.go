@@ -137,6 +137,27 @@ func (w *Workbook) recheckArrays(l loc) []loc {
 	return out
 }
 
+// recheckCircular returns the anchors of the arrays blocked by a cycle,
+// to compute again, when an array stops spilling or spills over other
+// cells: the cycle may have gone through its cells, and the arrays
+// found it blocked in the same pass, before it changed, which nothing
+// they read may tell them.
+func (w *Workbook) recheckCircular() []loc {
+	if w.circArrays <= 0 {
+		return nil
+	}
+	var out []loc
+	for _, s := range w.sheets {
+		for b, sp := range s.spills {
+			if sp.circular {
+				sp.stale = true
+				out = append(out, loc{s, b})
+			}
+		}
+	}
+	return out
+}
+
 // blockCircular blocks the arrays at l, part of a cycle with another,
 // and returns the cells that changed, with the anchors, to compute
 // again, finding the cycle themselves.

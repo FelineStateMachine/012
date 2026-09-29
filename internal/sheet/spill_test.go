@@ -302,3 +302,18 @@ func TestSpillIntoItsInput(t *testing.T) {
 		}
 	}
 }
+
+// An array isn't left blocked by a cycle through the cells of an array
+// that stopped spilling in the same recalculation: deleting a row moves
+// the array at A3 to A2, and puts at A3 a formula reading B2 whose
+// array spilled over C3, which G1 reads, until it's computed again.
+func TestNoCycleThroughAnArrayGone(t *testing.T) {
+	s := sheetOf(t, map[string]string{"A3": "=D11:F11", "A4": "=B3", "G2": "=C4", "F11": "=G2"})
+	if sp := s.spills[at("A3")]; sp == nil || sp.why != "" {
+		t.Fatalf("A3's array: %+v", sp)
+	}
+	s.DeleteRows(0, 1)
+	if sp := s.spills[at("A2")]; sp == nil || sp.why != "" {
+		t.Fatalf("A2's array after deleting a row: %+v", sp)
+	}
+}

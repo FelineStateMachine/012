@@ -166,6 +166,9 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 	changed = append(changed, s.regionsGiveWay(area)...)
 	if old != nil && old.why == "" {
 		changed = append(changed, s.clearSpilled(old.area, area)...)
+		if old.area != area {
+			changed = append(changed, s.wb.recheckCircular()...)
+		}
 	}
 	s.setSpill(a, &spill{area: area, arr: p.arr, auto: c.auto})
 	c.Value = p.top
@@ -338,7 +341,7 @@ func (s *Sheet) dropSpill(a Addr) []loc {
 	if old.why != "" {
 		return nil
 	}
-	return s.clearSpilled(old.area, Rect{From: a, To: a})
+	return append(s.clearSpilled(old.area, Rect{From: a, To: a}), s.wb.recheckCircular()...)
 }
 
 // setSpill records the anchor at a's spill (nil for none), indexing
@@ -347,9 +350,15 @@ func (s *Sheet) setSpill(a Addr, sp *spill) {
 	if old := s.spills[a]; old != nil {
 		s.spillAt.remove(a, []Rect{old.area})
 		delete(s.spills, a)
+		if old.circular {
+			s.wb.circArrays--
+		}
 	}
 	if sp == nil {
 		return
+	}
+	if sp.circular {
+		s.wb.circArrays++
 	}
 	if s.spills == nil {
 		s.spills = map[Addr]*spill{}

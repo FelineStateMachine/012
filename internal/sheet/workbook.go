@@ -39,6 +39,9 @@ type Workbook struct {
 
 	// Circular is set when the last recalculation found a cycle.
 	Circular bool
+	// circArrays counts the arrays blocked by a cycle (spillblock.go),
+	// so arrays that stop spilling look for them only when there are.
+	circArrays int
 
 	remote RemoteSource // answers JEV functions, see remote.go
 	trace  any          // the owner's telemetry trace, see observe.go
