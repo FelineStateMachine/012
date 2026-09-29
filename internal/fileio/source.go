@@ -1,8 +1,12 @@
 package fileio
 
 import (
+	"cmp"
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"slices"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
@@ -98,7 +102,63 @@ type SourceView interface {
 // Parquet nor SQLite.
 var ErrNotSource = errors.New("only Parquet files and SQLite tables or queries can be linked as sources")
 
+// SourceKind is the format spec reads, Parquet or SQLite, by its Format
+// or else the file's extension.
+func SourceKind(spec SourceSpec) (Kind, error) {
+	k, ok := KindNamed(spec.Format)
+	if spec.Format == "" {
+		k, ok = KindOf(spec.Path)
+	}
+	if !ok || k != Parquet && k != SQLite {
+		return 0, ErrNotSource
+	}
+	return k, nil
+}
+
 // OpenSource opens what spec names.
 func OpenSource(ctx context.Context, spec SourceSpec) (Source, error) {
-	return nil, ErrNotSource
+	k, err := SourceKind(spec)
+	if err != nil {
+		return nil, err
+	}
+	if spec.TempDir == "" {
+		spec.TempDir = os.TempDir()
+	}
+	if k == Parquet {
+		return openParquetSource(spec)
+	}
+	return openSQLiteSource(ctx, spec)
+}
+
+// allCols is cols, or every one of n columns when cols is nil.
+func allCols(cols []int, n int) []int {
+	if cols != nil {
+		return cols
+	}
+	out := make([]int, n)
+	for i := range out {
+		out[i] = i
+	}
+	return out
+}
+
+// checkCols reports a column past the source's n.
+func checkCols(cols []int, n int) error {
+	for _, c := range cols {
+		if c < 0 || c >= n {
+			return fmt.Errorf("the source has no column %d", c+1)
+		}
+	}
+	return nil
+}
+
+// fetchOrder is the positions of rows sorted by row number, so a fetch
+// reads forward, the answers going back to the order asked.
+func fetchOrder(rows []int64) []int {
+	idx := make([]int, len(rows))
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortFunc(idx, func(a, b int) int { return cmp.Compare(rows[a], rows[b]) })
+	return idx
 }

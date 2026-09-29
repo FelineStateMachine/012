@@ -44,6 +44,9 @@ func openSQLite(ctx context.Context, name string) (*sql.DB, error) {
 // sqliteErr shortens the driver's errors, e.g. "file is not a database
 // (26)" for a file that isn't SQLite.
 func sqliteErr(err error) error {
+	if err == nil {
+		return nil
+	}
 	msg := err.Error()
 	if i := strings.Index(msg, ": "); i >= 0 && strings.HasPrefix(msg, "SQL logic error") {
 		msg = msg[i+2:]

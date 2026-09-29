@@ -76,6 +76,9 @@ func (c fileCell) typed() sheet.LiveCell {
 		return c.LiveCell
 	}
 	s := flatten(c.V.Str)
+	if s == "" {
+		return sheet.LiveCell{} // blank, as an import leaves it
+	}
 	if n, f, ok := sheet.ParseValue(s); ok {
 		switch f.Kind {
 		case sheet.FmtDate, sheet.FmtTime, sheet.FmtDateTime:

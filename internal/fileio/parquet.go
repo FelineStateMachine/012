@@ -20,6 +20,9 @@ import (
 type parquetColumn struct {
 	logical format.LogicalTypeValue
 	kind    parquet.Kind
+	// repeated is set on a list's column, whose rows hold several
+	// values; sources read it a row at a time (sourceparquet.go).
+	repeated bool
 }
 
 // importParquet reads every leaf column, named by its path, into a
