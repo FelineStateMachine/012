@@ -138,7 +138,7 @@ stateDiagram-v2
 | Enter | A new line, as indented as the one before |
 | Up, Down, Home, End | Move by the lines on screen, wrapped lines too |
 | Ctrl+A, Ctrl+E | The start, the end of the line |
-| Tab | Complete the word at the caret: a cell's `$name`, `$selection`, a linked file, or one of nu's commands |
+| Tab | Complete the word at the caret: a cell's `$name`, `$selection`, a linked file, then what nu completes there (commands, flags, paths); one completion goes in at once ([Writing a cell](#writing-a-cell)) |
 
 A terminal without the kitty keyboard protocol sends Shift+Enter and
 Ctrl+Enter as Enter ([Keys the terminal has to tell
@@ -149,6 +149,47 @@ Every action is a command, in **Data > Shell**, the palette and the
 shortcuts (Ctrl+/), and File, Edit and the sheet tabs work as anywhere;
 commands for a sheet's cells are off on a notebook's tab. Changes to
 cells are undo steps, as any edit is.
+
+## Writing a cell
+
+The cell being written is read by nu itself, as nushell's own prompt
+reads what you type: once typing pauses, 012 asks `nu --ide-ast` what
+each word is and colors it (commands, strings, variables, numbers,
+keywords, operators; flags stay plain), and `nu --ide-check` what's
+wrong. A problem is underlined with a curly line, and with the caret on
+it the context line says what nu said:
+
+```
+  [ ]                                                        not run
+│ $files | sort-by size --revrse
+                        ~~~~~~~~
+The `sort-by` command doesn't have flag `revrse`.
+```
+
+Tab asks `nu --ide-complete` too, after the notebook's own names, so it
+completes flags, subcommands and paths as well as cells and commands.
+nu doesn't know the variables a notebook binds, so it's asked about the
+cell with `$name` for each named cell and linked file, `$selection` and
+`$sheet` declared before it; a `$sheet.A1:C9` range reads as one
+variable, and `name =` isn't part of what nu reads.
+
+Questions to nu run in the background and never on each key: one
+process for each question after a pause, at most two at a time, each
+stopped once the text changes and after a second and a half. Until nu
+answers, the cell shows 012's own highlighting, and what's unchanged
+keeps nu's colors, so nothing flickers or moves. 012 falls back to its
+own highlighting and names, without saying so, when:
+
+- nu isn't installed, or is older than 0.100;
+- nu timed out three times in a row (asked again in the next session);
+- the cells couldn't run without asking: a file from another computer
+  not yet trusted ([Saving and trust](#saving-and-trust)), `shell =
+  off`, or [012 serve](../terminal/ssh.md#notebooks) without
+  `serve-shell`.
+
+nu reads the cell without your `config.nu` or its standard library, so
+your own commands aren't known to it; they still run when the cell does
+with `nu-config`.
 
 ## Running
 

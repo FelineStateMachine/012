@@ -29,12 +29,12 @@ rises in measured steps; see [Bounds of support](docs/contributing/limits.md#wha
 
 Notebook tabs are a TUI Jupyter for nushell
 ([Notebooks](docs/nushell/notebooks.md)): code and note cells, outputs in
-place, sent to sheets as live regions. What's ahead makes writing a cell
-feel like nushell's own prompt.
+place, sent to sheets as live regions, and cells highlighted, checked and
+completed by nu as they're written.
 
 | Item | Result | Size |
 |---|---|---|
-| Code cells highlighted, completed and checked as you type by nushell itself: `nu --ide-ast` token shapes mapped to theme roles, `nu --ide-complete` plus 012's cell, region and sheet names on Tab, `nu --ide-check` errors underlined; debounced in the background, plain text when nu is missing or slow; hover docs through `nu --lsp` later | Writing pipelines in 012 feels like nushell's own prompt | S to M |
+| A command's signature and description for the word at the caret, on the context line, through `nu --ide-hover` or `nu --lsp` | Writing a cell without leaving for `help` | S |
 
 ### 3. Toward multiplayer
 
@@ -68,8 +68,6 @@ shared editing in section 3.
 
 | Item | Result | Size |
 |---|---|---|
-| Commands for scripts without the screen: `012 get`, `012 set`, `012 recalc`, `012 export` on a workbook file | 012 in scripts, cron and nushell pipelines | S to M |
-| `012 diff` cell by cell (values, formulas, formats, regions) and a git diff and merge driver for `.012` | Sheets kept in git review like code | M |
 | Formula tracing: precedents and dependents shown in the grid, a formula evaluated step by step | Finding why a number is wrong | M |
 | A sheet or chart exported as a static HTML page in 012's look | Sharing a sheet with someone without 012 | S |
 | Release archives and an install script served from the owner's nzip server | Installing without Go | S |
@@ -140,11 +138,14 @@ stream above rather than a design of their own.
 - 012 as a stage in a pipeline: `012 -` reads a table from standard input, `012 --pipe` sends the sheet or selection on, with nushell's types kept through NUON: [Pipelines](docs/nushell/pipelines.md)
 - The `sheet` command: a nushell module shipped in the binary (`012 nu --install-module`), so nu calls 012 without `^012` or NUON on either side: [Pipelines](docs/nushell/pipelines.md#the-sheet-command)
 - Notebook tabs, a TUI Jupyter for nushell: code and note cells with Jupyter's keys, outputs drawn in place and opened full-screen, `$name` between cells, stale marks and a reactive mode, outputs sent to sheets as live regions (`nu.name`), saved up to a cap, and earlier notebook sheets converted on open: [Notebooks](docs/nushell/notebooks.md)
+- Code cells highlighted, checked and completed as they're written by nu itself (`--ide-ast`, `--ide-check`, `--ide-complete`), in the background, falling back to 012's own when nu is missing, old, slow or not trusted: [Notebooks](docs/nushell/notebooks.md#writing-a-cell)
 
 **Files**
 
 - Import CSV, TSV, JSON, NUON, XLSX, SQLite, Parquet and Lotus `.wk1`; export CSV, TSV, JSON, NUON, XLSX and SQLite; import locations; save-as and overwrite checks: [Files](docs/files/README.md)
 - `.012` files read and written as a stream, cells straight into and out of the store: [The .012 format](docs/files/format.md#reading-and-writing)
+- Commands for scripts without the screen: `012 get` (text, CSV, TSV, JSON or NUON), `012 set`, `012 recalc` and `012 export`, running notebooks and JEV only behind flags: [Scripts](docs/files/scripts.md)
+- `012 diff` cell by cell, as git's diff command or textconv, and `012 merge-driver` merging cell by cell with conflicts noted on the cells: [Diff and merge in git](docs/files/git.md)
 - Following files: a linked region follows a CSV, TSV, JSON lines or NUON file as it grows and any importable file as it's rewritten, keeping every row or the last ones, its rows arriving as the change stream: [Following files](docs/files/following.md)
 
 **Upkeep**

@@ -148,6 +148,10 @@ func snapRecords(snap *Snapshot, n int) func(yield func([]nuon.Value) bool) {
 	}
 }
 
+// CellValue is a cell as a NUON value, typed by its format as a table
+// written as NUON or JSON types it: what 012 get writes for one cell.
+func CellValue(c SnapCell) nuon.Value { return nuonValue(c, zone()) }
+
 // nuonValue is a cell as a NUON value, typed by its format.
 func nuonValue(c SnapCell, loc *time.Location) nuon.Value {
 	switch v := c.Value; v.Kind {

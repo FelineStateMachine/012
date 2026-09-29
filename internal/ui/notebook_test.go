@@ -22,6 +22,9 @@ type fakeNu struct {
 }
 
 func (f *fakeNu) Run(_ context.Context, job nushell.Job, _ string, stdout io.Writer) error {
+	if len(job.IDE) > 0 {
+		return nushell.ErrMissing // the code editor's questions: the built-ins answer
+	}
 	if job.Command == "help commands | get name" {
 		_, err := io.WriteString(stdout, `["ls", "where", "sort-by", "str join"]`)
 		return err
