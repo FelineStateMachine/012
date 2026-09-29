@@ -65,7 +65,6 @@ shared editing in section 3.
 
 | Item | Result | Size |
 |---|---|---|
-| A sheet or chart exported as a static HTML page in 012's look | Sharing a sheet with someone without 012 | S |
 | Release archives and an install script served from the owner's nzip server | Installing without Go | S |
 
 ### 6. Agents
@@ -159,6 +158,7 @@ stream above rather than a design of their own.
 - `012 diff` cell by cell, as git's diff command or textconv, and `012 merge-driver` merging cell by cell with conflicts noted on the cells: [Diff and merge in git](docs/files/git.md)
 - Following files: a linked region follows a CSV, TSV, JSON lines or NUON file as it grows and any importable file as it's rewritten, keeping every row or the last ones, its rows arriving as the change stream: [Following files](docs/files/following.md)
 - The `.012` format written down with a version, and each release's workbooks kept as fixtures that every later build opens and saves unchanged: [The .012 format](docs/files/format.md#versions), [Releasing](docs/contributing/releasing.md#file-fixtures)
+- Web pages in 012's look: a sheet, a range or a chart as one self-contained `.html` file, charts as SVG, from File > Download and `012 export`: [Files](docs/files/README.md#web-pages)
 - A crash keeps unsaved work for recovery, restores the terminal and writes a report, locally and in `012 serve`: [Saving](docs/files/saving.md#if-012-crashes)
 
 **Upkeep**

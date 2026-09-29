@@ -48,6 +48,7 @@ flag.
 | `--no-header` | `get` | JSON and NUON columns named by their letters, the first row a record |
 | `--force` | `set` | Sets cells in protected ranges |
 | `--format kind`, `--table name` | `export` | The format when the file's extension doesn't say; SQLite's table |
+| `--chart n\|title` | `export` | One chart of the sheet as a web page, by its number or title |
 | `--notebooks` | `get`, `recalc`, `export` | Runs the notebooks' cells first, when the file is trusted here |
 | `--trust` | with `--notebooks` | Runs the cells of a file saved on another computer |
 | `--jev` | `get`, `recalc`, `export` | Asks JEV for the JEV functions' answers first |

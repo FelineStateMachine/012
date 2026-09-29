@@ -19,6 +19,7 @@ const (
 	WK1
 	JSON
 	NUON
+	HTML
 )
 
 // A fileFormat is everything about a Kind: its names, its extensions,
@@ -95,6 +96,10 @@ var kinds = []fileFormat{{
 	kind: NUON, name: "NUON", noun: "NUON", label: "Nushell table (NUON)", exts: []string{".nuon"},
 	read: importNUON, write: exportNUON, menu: "Nushell table", encode: encodeNUON,
 	about: "Save the sheet as a nushell table that keeps its types, named by its first row",
+}, {
+	kind: HTML, name: "HTML", noun: "HTML", label: "Web page", exts: []string{".html", ".htm"},
+	write: exportHTML, menu: "Web page",
+	about: "Save the sheet as a web page in 012's look, with its charts, to share with anyone",
 }}
 
 // unknownFormat is what an invalid Kind reports.
@@ -117,8 +122,18 @@ func Kinds() []Kind {
 	return out
 }
 
-// KindOf recognizes a file's format by its extension.
+// KindOf recognizes a file 012 imports by its extension.
 func KindOf(name string) (Kind, bool) {
+	k, ok := ExportKindOf(name)
+	if !ok || !k.CanImport() {
+		return 0, false
+	}
+	return k, true
+}
+
+// ExportKindOf recognizes a file's format by its extension, including
+// formats 012 only writes (HTML).
+func ExportKindOf(name string) (Kind, bool) {
 	ext := strings.ToLower(filepath.Ext(name))
 	for _, k := range kinds {
 		for _, e := range k.exts {
@@ -129,6 +144,9 @@ func KindOf(name string) (Kind, bool) {
 	}
 	return 0, false
 }
+
+// CanImport reports whether 012 reads files of this kind.
+func (k Kind) CanImport() bool { return k.format().read != nil }
 
 // String is the format's short name, e.g. "XLSX".
 func (k Kind) String() string { return k.format().name }

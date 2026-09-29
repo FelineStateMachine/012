@@ -115,8 +115,17 @@ so `012 recalc budget.012 && deploy` stops on a broken sheet.
 
 `012 export file out [ref]` writes the workbook in another format, as
 File > Download does: the format by `out`'s extension or `--format`
-(`csv`, `tsv`, `xlsx`, `sqlite`, `json`, `nuon`). XLSX gets every sheet;
-the others get the sheet shown, or `ref`'s range or sheet. SQLite writes
+(`csv`, `tsv`, `xlsx`, `sqlite`, `json`, `nuon`, `html`). XLSX gets every
+sheet; the others get the sheet shown, or `ref`'s range or sheet. A
+[web page](README.md#web-pages) of a range draws the charts whose corner
+is in it; `--chart` writes one chart alone, found by its number on the
+sheet (1 for the first) or its title:
+
+```sh
+012 export budget.012 q3.html 'Q3 plan'!A1:F20
+012 export budget.012 spending.html Q3 --chart 'Spending by month'
+```
+ SQLite writes
 a table named by `--table`, replacing one of that name. Formulas are
 written as their values where the format has no formulas, and a note on
 standard error says how many. CSV, TSV, JSON and NUON leave out the rows

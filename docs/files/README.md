@@ -27,9 +27,10 @@ it back in its format.
 | Lotus 1-2-3 `.wk1`, `.wks` | Numbers, labels with their alignment, formats, column widths, formulas translated (references, operators, `@SUM`, `@AVG`, `@IF`, `@ROUND`, `@PMT` and 60 more) or kept as values | |
 | JSON `.json`, `.ndjson`, `.jsonl` | A list of records (or records one after another, as NDJSON): keys become the header row, numbers, booleans and text keep their types, nested lists and records are their text | The sheet shown as a list of records named by its first row, numbers as numbers |
 | Nushell `.nuon` | A nushell table with its types: file sizes, durations and dates become numbers in the Size, Duration and Date time formats; see [Nushell types](../nushell/types.md) | The sheet shown as a nushell table, first row as column names, types kept by the cells' formats |
+| Web page `.html` | | The sheet shown as a page in 012's look, for someone without 012: see [Web pages](#web-pages) |
 
-CSV, TSV, JSON and NUON downloads hold the rows a filter shows, as
-Sheets copies a filtered range; XLSX keeps every row, the hidden ones
+CSV, TSV, JSON, NUON and HTML downloads hold the rows a filter shows,
+as Sheets copies a filtered range; XLSX keeps every row, the hidden ones
 hidden.
 
 Formats other than XLSX import as one sheet named after the file (or the
@@ -65,6 +66,30 @@ the context line says how many rows were left out, e.g. `only the first
 833,333 rows fit in max-cells (10,000,000 cells); 12,000 rows left out`.
 Data past the grid's edges is left out the same way. WK1 files keep their
 own 8,192 by 256. See [Bounds of support](../contributing/limits.md#imports) for speeds.
+
+## Web pages
+
+A web page download is one `.html` file that needs nothing else: its
+fonts (IBM Plex Mono), styles, charts and a few lines of script are in
+it, so it opens offline and can be mailed or put on any web server. It
+draws the sheet as 012 does: column letters and row numbers, each cell's
+text as the grid shows it at its column's width, with its bold, italic,
+alignment, wrapping, borders, merges, row heights, notes (the `▝` mark,
+the note as its tooltip), tables' header rows and bands, and what
+conditional formats and validation show (fills, color scales, data
+bars, icons, checkboxes, dropdown marks). Charts float over the cells
+at their corner, in their frames, drawn as SVG: shapes rather than
+pixels, sharp at any zoom. The colors are the 16 ANSI colors of 012's
+reference palettes, dark or light as the reader's system prefers.
+
+Clicking a cell, or moving with the arrow keys, puts the pointer on it:
+the name box shows its address and the formula bar what was typed in
+it, a formula rather than its value. A page draws at most 200,000
+cells, blank ones included, and says on standard error or the context
+line how many rows it left out.
+
+`012 export` also writes a range as a page, or one chart alone with
+`--chart` ([Scripts](scripts.md#export)).
 
 ## More
 

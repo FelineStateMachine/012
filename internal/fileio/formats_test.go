@@ -10,14 +10,10 @@ func TestFormats(t *testing.T) {
 		if f.kind != k || k != Kind(i+1) {
 			t.Errorf("row %d is %v, want Kind order", i, f.kind)
 		}
-		if f.name == "" || f.noun == "" || f.label == "" || len(f.exts) == 0 || f.read == nil {
+		if f.name == "" || f.noun == "" || f.label == "" || len(f.exts) == 0 || f.read == nil && f.write == nil {
 			t.Errorf("%v: incomplete %+v", k, f)
 		}
-		for _, e := range f.exts {
-			if got, ok := KindOf("x" + e); !ok || got != k {
-				t.Errorf("KindOf(x%s) = %v, %v", e, got, ok)
-			}
-		}
+		checkExts(t, k)
 		if k.CanExport() != (k.MenuTitle() != "") || k.CanExport() != (k.About() != "") {
 			t.Errorf("%v: export %v, menu %q, about %q", k, k.CanExport(), k.MenuTitle(), k.About())
 		}
@@ -33,5 +29,19 @@ func TestFormats(t *testing.T) {
 	}
 	if _, ok := KindOf("notes.txt"); ok {
 		t.Errorf("KindOf(.txt) recognized")
+	}
+}
+
+// checkExts checks each of k's extensions finds k, for import only
+// when 012 imports it.
+func checkExts(t *testing.T, k Kind) {
+	t.Helper()
+	for _, e := range k.format().exts {
+		if got, ok := ExportKindOf("x" + e); !ok || got != k {
+			t.Errorf("ExportKindOf(x%s) = %v, %v", e, got, ok)
+		}
+		if got, ok := KindOf("x" + e); ok != k.CanImport() || ok && got != k {
+			t.Errorf("KindOf(x%s) = %v, %v", e, got, ok)
+		}
 	}
 }

@@ -60,6 +60,12 @@ type Snapshot struct {
 	// Tables are the tables wholly in the range, for formats that keep
 	// them (XLSX).
 	Tables []sheet.Table
+
+	// Looks are how the sheet's rules draw the range's cells, and Charts
+	// the charts whose top-left cell is in it, for formats that show
+	// what the screen shows (HTML); see snapdrawn.go.
+	Looks  map[sheet.Addr]sheet.Look
+	Charts []SnapChart
 }
 
 // SnapName is a named range: its name, and the range on the sheet
@@ -142,6 +148,7 @@ func Snap(s *sheet.Sheet, r sheet.Rect, name string) *Snapshot {
 			Tables:  s.NamedTables(a),
 		}
 	}
+	snapDrawn(snap, s, whole)
 	return snap
 }
 

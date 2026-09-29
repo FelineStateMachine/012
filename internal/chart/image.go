@@ -46,6 +46,9 @@ type canvas struct {
 	*image.RGBA
 	cw, ch float64
 	pal    Palette
+	// vec, when set, takes the shapes as SVG instead of pixels, and
+	// RGBA has no pixels, only its bounds (see SVG).
+	vec *vector
 }
 
 // blend paints c over the pixel at x, y with coverage a.
@@ -65,6 +68,10 @@ func (cv *canvas) blend(x, y int, c color.RGBA, a float64) {
 
 // rect fills x0..x1, y0..y1 in pixels, antialiasing fractional edges.
 func (cv *canvas) rect(x0, y0, x1, y1 float64, c color.RGBA) {
+	if cv.vec != nil {
+		cv.vec.rect(x0, y0, x1, y1, c)
+		return
+	}
 	for y := int(math.Floor(y0)); float64(y) < y1; y++ {
 		cy := min(y1, float64(y+1)) - max(y0, float64(y))
 		for x := int(math.Floor(x0)); float64(x) < x1; x++ {
@@ -76,6 +83,10 @@ func (cv *canvas) rect(x0, y0, x1, y1 float64, c color.RGBA) {
 
 // hline draws a one pixel horizontal line at y.
 func (cv *canvas) hline(y int, c color.RGBA) {
+	if cv.vec != nil {
+		cv.vec.line(float64(cv.Rect.Min.X), float64(y)+0.5, float64(cv.Rect.Max.X), float64(y)+0.5, c)
+		return
+	}
 	for x := cv.Rect.Min.X; x < cv.Rect.Max.X; x++ {
 		cv.blend(x, y, c, 1)
 	}
@@ -83,6 +94,10 @@ func (cv *canvas) hline(y int, c color.RGBA) {
 
 // vline draws a one pixel vertical line at x.
 func (cv *canvas) vline(x int, c color.RGBA) {
+	if cv.vec != nil {
+		cv.vec.line(float64(x)+0.5, float64(cv.Rect.Min.Y), float64(x)+0.5, float64(cv.Rect.Max.Y), c)
+		return
+	}
 	for y := cv.Rect.Min.Y; y < cv.Rect.Max.Y; y++ {
 		cv.blend(x, y, c, 1)
 	}
@@ -91,6 +106,10 @@ func (cv *canvas) vline(x int, c color.RGBA) {
 // polyline strokes the points with a round-capped line width px wide.
 // Coverage is kept per pixel, so joints aren't painted twice.
 func (cv *canvas) polyline(pts [][2]float64, width float64, c color.RGBA) {
+	if cv.vec != nil {
+		cv.vec.polyline(pts, width, c)
+		return
+	}
 	b := cv.Rect
 	cover := make([]float64, b.Dx()*b.Dy())
 	r := width / 2
@@ -213,6 +232,10 @@ func (p *barPlan) image(cv *canvas) {
 
 // image draws the pie, supersampled, with a thin gap between slices.
 func (p *piePlan) image(cv *canvas) {
+	if cv.vec != nil {
+		p.vector(cv)
+		return
+	}
 	b := cv.Rect
 	cx, cy := float64(b.Dx())/2, float64(b.Dy())/2
 	pr := newPieRaster(p, cx, cy, min(cx, cy)-1, 1)
