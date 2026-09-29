@@ -35,11 +35,23 @@ type history struct {
 	// live preview of a column width or row height and its final value
 	// (or its cancellation) are one step. Seal ends the run.
 	mergeWidths bool
+	// shared has undo and redo take back each author's own steps, seq
+	// counts the operations (steps made, undone, redone) and log keeps
+	// the latest: authors.go.
+	shared bool
+	seq    uint64
+	log    []Op
 }
 
 type step struct {
-	id    int
-	bytes int64 // estimated heap held, set when pushed on the undo stack
+	id int
+	// author made the step; seq is its operation's place in the order,
+	// or for a step on the redo stack, the order's when it was undone.
+	author int
+	seq    uint64
+	// shifts are the sheets whose lines the step inserted or deleted.
+	shifts map[*Sheet]bool
+	bytes  int64 // estimated heap held, set when pushed on the undo stack
 	// cellBytes is the estimated heap held by cells, kept as they are
 	// recorded so sizing a step doesn't walk them again.
 	cellBytes int64
@@ -143,6 +155,7 @@ func (w *Workbook) begin(s *Sheet, label string, focus Rect) {
 	h := &w.hist
 	if h.depth == 0 {
 		h.open = newStep(label, s, focus)
+		h.open.author = w.author
 		w.structural = false
 	}
 	h.depth++
@@ -188,16 +201,27 @@ func (w *Workbook) push(st *step) {
 		return
 	}
 	h := &w.hist
-	h.redo = nil
+	h.dropRedo(st.author)
 	h.lastID++
+	st.seq = w.logOp(OpDo, st.author, st.change())
 	widthOnly := st.widthOnly()
-	if top := h.top(); widthOnly && h.mergeWidths && top != nil && top.widthOnly() {
+	if top := h.top(); widthOnly && h.mergeWidths && top != nil && top.widthOnly() && top.author == st.author {
 		h.joinWidths(top, st)
 		return
 	}
 	st.id = h.lastID
 	w.pushUndo(st)
 	h.mergeWidths = widthOnly
+}
+
+// change is what the step says of itself.
+func (st *step) change() Change {
+	return Change{Label: st.label, Focus: st.focus, Sheet: st.sheet, Tabs: st.sheets != nil, Macros: st.macrosOnly()}
+}
+
+// macrosOnly reports whether the step changed nothing but the macros.
+func (st *step) macrosOnly() bool {
+	return st.macros != nil && len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil && len(st.regions) == 0
 }
 
 // dropUnchanged removes from st what ended the step as it began.
@@ -330,15 +354,16 @@ func (w *Workbook) Redo() (Change, bool) { return w.swap(false) }
 // UndoLabel describes the step Undo would revert, e.g. "clear B3:B5",
 // or "" when there is none.
 func (w *Workbook) UndoLabel() string {
-	if top := w.hist.top(); top != nil {
-		return top.label
+	if i := w.hist.mine(w.author); i >= 0 {
+		return w.hist.undo[i].label
 	}
 	return ""
 }
 
-// CanUndo and CanRedo report whether there is a step to undo or redo.
-func (w *Workbook) CanUndo() bool { return len(w.hist.undo) > 0 }
-func (w *Workbook) CanRedo() bool { return len(w.hist.redo) > 0 }
+// CanUndo and CanRedo report whether there is a step to undo or redo:
+// with the history shared, one of the current author's.
+func (w *Workbook) CanUndo() bool { return w.hist.mine(w.author) >= 0 }
+func (w *Workbook) CanRedo() bool { return w.hist.mineRedo(w.author) >= 0 }
 
 // StateID identifies the workbook's contents in its undo history: undoing
 // back to a saved state returns the ID it had when saved, so the UI can
@@ -368,28 +393,36 @@ func (s *Sheet) ClearHistory()        { s.wb.ClearHistory() }
 // before-image, and pushes the state it replaced onto the other stack.
 func (w *Workbook) swap(undo bool) (Change, bool) {
 	h := &w.hist
-	from := &h.redo
-	if undo {
-		from = &h.undo
-	}
-	if len(*from) == 0 || h.open != nil {
+	if h.open != nil {
 		return Change{}, false
 	}
 	var st *step
-	if undo {
+	switch {
+	case undo && h.shared:
+		st = h.takeUndo(w.author)
+	case undo && len(h.undo) > 0:
 		st = h.popUndo()
-	} else {
-		st = h.redo[len(h.redo)-1]
-		h.redo = h.redo[:len(h.redo)-1]
+	case !undo:
+		st = h.takeRedo(w.author)
+	}
+	if st == nil {
+		return Change{}, false
 	}
 	inv, changed := w.restore(st)
 	w.recalcSwapped(changed)
+	inv.author = st.author
+	c := st.change()
 	if undo {
+		inv.seq = w.logOp(OpUndo, st.author, c)
 		h.redo = append(h.redo, inv)
 	} else {
+		inv.seq = w.logOp(OpRedo, st.author, c)
+		if h.shared {
+			h.lastID++
+			inv.id = h.lastID // a new state, after whatever came since
+		}
 		w.pushUndo(inv)
 	}
 	h.mergeWidths = false
-	macrosOnly := st.macros != nil && len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil && len(st.regions) == 0
-	return Change{Label: st.label, Focus: st.focus, Sheet: st.sheet, Tabs: st.sheets != nil, Macros: macrosOnly}, true
+	return c, true
 }

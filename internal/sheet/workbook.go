@@ -51,6 +51,7 @@ type Workbook struct {
 	// evaluate.go.
 	depth  int
 	hist   history // undo and redo, see history.go
+	author int     // who makes the steps that follow: authors.go
 	active int     // the sheet last shown, saved in the file
 	settings
 
