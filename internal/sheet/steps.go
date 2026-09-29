@@ -204,10 +204,14 @@ func (st *Steps) Next() (expr, value string, ok bool) {
 // Result is the formula's value, an array it spills written whole.
 func (st *Steps) Result() string { return partText(st.top) }
 
+// CanStepIn reports whether the next part is a reference to a formula's
+// cell, which Into steps into.
+func (st *Steps) CanStepIn() bool { return !st.Done() && st.parts[st.next].into.s != nil }
+
 // Into starts stepping through the formula the next part refers to,
 // when it is a reference to a formula's cell; nil otherwise.
 func (st *Steps) Into() *Steps {
-	if st.Done() || st.parts[st.next].into.s == nil {
+	if !st.CanStepIn() {
 		return nil
 	}
 	l := st.parts[st.next].into

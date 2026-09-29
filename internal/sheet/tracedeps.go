@@ -71,7 +71,9 @@ func (s *Sheet) readersOf(r Rect, f *depFinder) {
 			continue
 		}
 		for u := range users {
-			f.add(u)
+			if f.add(u); f.more {
+				break
+			}
 		}
 	}
 	for u := range w.crossUsers {
@@ -89,7 +91,9 @@ func (s *Sheet) readersOf(r Rect, f *depFinder) {
 func (s *Sheet) refReaders(r Rect, f *depFinder) {
 	add := func(users map[Addr]struct{}) {
 		for u := range users {
-			f.add(loc{s, u})
+			if f.add(loc{s, u}); f.more {
+				return
+			}
 		}
 	}
 	if n := (r.To.Row - r.From.Row + 1) * (r.To.Col - r.From.Col + 1); n <= len(s.dependents) {
