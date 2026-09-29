@@ -68,8 +68,6 @@ shared editing in section 3.
 
 | Item | Result | Size |
 |---|---|---|
-| Commands for scripts without the screen: `012 get`, `012 set`, `012 recalc`, `012 export` on a workbook file | 012 in scripts, cron and nushell pipelines | S to M |
-| `012 diff` cell by cell (values, formulas, formats, regions) and a git diff and merge driver for `.012` | Sheets kept in git review like code | M |
 | Formula tracing: precedents and dependents shown in the grid, a formula evaluated step by step | Finding why a number is wrong | M |
 | Named tables with structured references (`Sales[Amount]`); notebook regions are tables | Formulas that read by column name | M |
 | A sheet or chart exported as a static HTML page in 012's look | Sharing a sheet with someone without 012 | S |
@@ -145,6 +143,8 @@ stream above rather than a design of their own.
 
 - Import CSV, TSV, JSON, NUON, XLSX, SQLite, Parquet and Lotus `.wk1`; export CSV, TSV, JSON, NUON, XLSX and SQLite; import locations; save-as and overwrite checks: [Files](docs/files/README.md)
 - `.012` files read and written as a stream, cells straight into and out of the store: [The .012 format](docs/files/format.md#reading-and-writing)
+- Commands for scripts without the screen: `012 get` (text, CSV, TSV, JSON or NUON), `012 set`, `012 recalc` and `012 export`, running notebooks and JEV only behind flags: [Scripts](docs/files/scripts.md)
+- `012 diff` cell by cell, as git's diff command or textconv, and `012 merge-driver` merging cell by cell with conflicts noted on the cells: [Diff and merge in git](docs/files/git.md)
 - Following files: a linked region follows a CSV, TSV, JSON lines or NUON file as it grows and any importable file as it's rewritten, keeping every row or the last ones, its rows arriving as the change stream: [Following files](docs/files/following.md)
 
 **Upkeep**

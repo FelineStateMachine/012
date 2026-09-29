@@ -10,10 +10,10 @@ sidebar_position: 1
 | [Getting started](getting-started/README.md) | Installing and running 012, and the screen |
 | [Working with sheets](sheets/README.md) | Editing, formatting, sheets, sort and filter, find, rules, pivot tables, notes, charts, macros |
 | [Formulas](formulas/README.md) | Entries, references, building formulas, arrays, decimal arithmetic, JEV functions |
-| [Files](files/README.md) | Import and download, Excel files, saving, the `.012` format |
+| [Files](files/README.md) | Import and download, Excel files, saving, the `.012` format, scripts, diff and merge in git |
 | [The terminal](terminal/README.md) | Terminal features, themes, serving over SSH |
 | [Nushell](nushell/README.md) | 012 in a pipeline, nushell notebooks, types, a cookbook |
-| [Reference](reference/README.md) | Keys, functions, configuration, the macro API |
+| [Reference](reference/README.md) | Keys, functions, configuration, the macro API, the command line |
 | [Contributing](contributing/README.md) | Architecture, extending, the UX bar, testing, limits, observability |
 
 The [roadmap](../ROADMAP.md) says what's ahead. The docs are Markdown that

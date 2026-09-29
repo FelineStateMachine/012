@@ -122,3 +122,23 @@ authors = $commits | group-by author --to-table | update items { length } | rena
 works on it in the sheet. The pattern is the one nushell's cookbook
 explains in [Parsing git
 log](https://www.nushell.sh/cookbook/parsing_git_log.html).
+
+## A workbook read and written from a script
+
+[`012 get` and `012 set`](../files/scripts.md) work on a workbook file
+without the screen, so a nushell script can read a range with its types,
+compute, and write results back:
+
+```nu
+let sales = ^012 get budget.012 'Q3!A1:C40' --format nuon | from nuon
+let total = $sales | where region == West | get amount | math sum
+^012 set budget.012 'Summary!B2' ($total | into string) 'Summary!B3' (date now | format date '%Y-%m-%d')
+^012 recalc budget.012
+```
+
+`012 recalc` exits 1 when a formula shows an error, so a script stops
+there. What changed between two versions comes back as a table too:
+
+```nu
+^012 diff last-week.012 budget.012 --format nuon | from nuon | where field == value
+```
