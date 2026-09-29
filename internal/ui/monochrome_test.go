@@ -192,7 +192,7 @@ func TestMonochromeSelection(t *testing.T) {
 // its name and command as text; the table's cells are plain.
 func TestMonochromeRegion(t *testing.T) {
 	m, _ := notebookModel(t, map[string]string{"ls": lsOut})
-	press(t, m, "!", "ls", "<enter>", "<esc>")
+	shell(t, m, "ls", "<enter>", "<esc>")
 	m.cur = addr("C9")
 	for _, a := range []string{"A1", "B1"} {
 		c := cellAt(m, addr(a))

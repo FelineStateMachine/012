@@ -130,7 +130,7 @@ range, F2 renames or repoints it and Ctrl+D deletes it.
 
 | Key | Action |
 |---|---|
-| ! | Open the nushell prompt on the formula bar (the mode indicator says NU); in any workbook, it writes to the notebook sheet ([Nushell notebooks](../terminal/nushell.md#notebooks)) |
+| ! | On a notebook sheet, open the nushell prompt on the formula bar (the mode indicator says NU); on other sheets `!` starts an entry, and **Data > Shell** opens the prompt ([Nushell notebooks](../terminal/nushell.md#notebooks)) |
 | Enter, Tab, Up, Down, Esc | At the prompt: run the line; complete a region or command; the workbook's earlier lines; stop a command running, or else go back to the grid |
 | Enter, F2 | On a region's label line: run it again (and what reads it); edit its command at the prompt |
 | F9 | Run all regions, each after those it reads |

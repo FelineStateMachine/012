@@ -37,8 +37,8 @@ like a REPL, kept like a spreadsheet.
 012 nu work.012     # open one, or make it
 ```
 
-In any workbook, `!` (or **Data > Shell**, or the palette) opens the
-same prompt, writing into the workbook's notebook sheet, or a new one
+In any workbook, **Data > Shell** (or the palette, or `!` on a notebook
+sheet) opens the same prompt, writing into the workbook's notebook sheet, or a new one
 named Shell 1 at the first command. Commands run `nu` as a separate
 process, so nushell must be installed; without it, the prompt says so
 and the rest of 012 works as before.

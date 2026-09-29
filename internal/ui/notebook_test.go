@@ -48,7 +48,7 @@ func TestShellMakesRegions(t *testing.T) {
 		"ls":                     lsOut,
 		"$r1 | where size > 1kb": "[[name, size]; [a.txt, 2kb], [c.txt, 5kb]]",
 	})
-	press(t, m, "!")
+	shell(t, m)
 	if _, ok := m.overlay.(*nuprompt.Prompt); !ok || m.indicator() != "NU" {
 		t.Fatalf("no prompt: %T %q", m.overlay, m.indicator())
 	}
@@ -99,7 +99,7 @@ func TestShellMakesRegions(t *testing.T) {
 
 func TestShellFails(t *testing.T) {
 	m, _ := notebookModel(t, map[string]string{})
-	press(t, m, "!", "lss", "<enter>")
+	shell(t, m, "lss", "<enter>")
 	if got := input(m, "A1"); got != "r1  lss   failed" {
 		t.Errorf("label %q", got)
 	}
@@ -113,7 +113,7 @@ func TestShellFails(t *testing.T) {
 	}
 	// Named: name = pipeline, and redefining it.
 	m.shell.runner.(*fakeNu).out["ls"] = lsOut
-	press(t, m, "!", "files = ls", "<enter>")
+	shell(t, m, "files = ls", "<enter>")
 	if _, r, ok := m.book().Region("files"); !ok || r.Command != "ls" {
 		t.Fatalf("no region files: %+v", r)
 	}
@@ -128,7 +128,7 @@ func TestShellFails(t *testing.T) {
 
 func TestShellCompletes(t *testing.T) {
 	m, _ := notebookModel(t, map[string]string{"ls": lsOut})
-	press(t, m, "!", "ls", "<enter>", "$")
+	shell(t, m, "ls", "<enter>", "$")
 	p := m.overlay.(*nuprompt.Prompt)
 	if got := p.Shown(); len(got) != 1 || got[0].Text != "$r1" {
 		t.Fatalf("completions of $: %+v", got)
@@ -158,7 +158,7 @@ func TestShellCompletes(t *testing.T) {
 
 func TestShellTrust(t *testing.T) {
 	m, nu := notebookModel(t, map[string]string{"ls": lsOut})
-	press(t, m, "!", "ls", "<enter>", "<esc>")
+	shell(t, m, "ls", "<enter>", "<esc>")
 	if m.book().MacroOrigin() != "here" {
 		t.Errorf("origin %q", m.book().MacroOrigin())
 	}
@@ -189,7 +189,7 @@ func TestShellTrust(t *testing.T) {
 
 func TestShellGuardsAndFreeze(t *testing.T) {
 	m, _ := notebookModel(t, map[string]string{"ls": lsOut})
-	press(t, m, "!", "ls", "<enter>", "<esc>")
+	shell(t, m, "ls", "<enter>", "<esc>")
 	m.cur = addr("A3")
 	press(t, m, "x", "<enter>")
 	if got := input(m, "A3"); got != "a.txt" {
@@ -214,7 +214,7 @@ func TestShellGuardsAndFreeze(t *testing.T) {
 // Sorting a region's table keeps the order through the next run.
 func TestShellSortsRegion(t *testing.T) {
 	m, _ := notebookModel(t, map[string]string{"ls": lsOut})
-	press(t, m, "!", "ls", "<enter>", "<esc>")
+	shell(t, m, "ls", "<enter>", "<esc>")
 	m.cur = addr("B3")
 	run(m, m.runCommand("data.sort_range_za"))
 	if got := input(m, "A3"); got != "c.txt" {
@@ -230,7 +230,7 @@ func TestShellSortsRegion(t *testing.T) {
 // Opening a saved notebook shows its regions not run, and F9 runs them.
 func TestShellReopened(t *testing.T) {
 	m, _ := notebookModel(t, map[string]string{"ls": lsOut, "$r1 | first": "{name: a.txt, size: 2kb}"})
-	press(t, m, "!", "ls", "<enter>", "$r1 | first", "<enter>", "<esc>")
+	shell(t, m, "ls", "<enter>", "$r1 | first", "<enter>", "<esc>")
 	s := roundTripSheet(t, m.sheet)
 	m2, nu := notebookModel(t, map[string]string{"ls": lsOut, "$r1 | first": "{name: a.txt, size: 2kb}"})
 	m2.reset(s, "nb.012")
