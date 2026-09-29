@@ -28,8 +28,10 @@ func (t Target) String() string {
 
 // Resolve finds what ref names in w: a cell or range (B7, A1:C9, A:A),
 // on a sheet (Q3!B7, 'Q3 plan'!A1:C9) or else the sheet shown when the
-// file was saved; a named range (Sales); or a sheet by name (Q3, or
-// Q3!), meaning all of it. "" is the whole sheet shown.
+// file was saved; a named range (Sales); a table by name, all of it
+// with its header row, or by a structured reference as formulas read it
+// (Sales[Amount]); or a sheet by name (Q3, or Q3!), meaning all of it.
+// "" is the whole sheet shown.
 func Resolve(w *sheet.Workbook, ref string) (Target, error) {
 	ref = strings.TrimSpace(ref)
 	shown := w.Sheet(w.Active())
@@ -56,11 +58,14 @@ func Resolve(w *sheet.Workbook, ref string) (Target, error) {
 			}
 			return Target{Sheet: n.Sheet, Range: n.Range}, nil
 		}
+		if s, r, ok, err := w.TableRange(rest); ok {
+			return Target{Sheet: s, Range: r}, err
+		}
 		if s := w.Lookup(rest); s != nil {
 			return Target{Sheet: s, Whole: true}, nil
 		}
 	}
-	return Target{}, fmt.Errorf("%q isn't a cell, a range, a named range or a sheet (sheets: %s)", ref, sheetList(w))
+	return Target{}, fmt.Errorf("%q isn't a cell, a range, a named range, a table or a sheet (sheets: %s)", ref, sheetList(w))
 }
 
 // ResolveCell is Resolve for a reference that must be one cell.

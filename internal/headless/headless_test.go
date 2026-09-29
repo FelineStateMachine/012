@@ -63,7 +63,7 @@ func TestResolve(t *testing.T) {
 	}
 	for ref, want := range map[string]string{
 		"Q4!A1": `no sheet named "Q4" (sheets: Sheet1, Q3 plan)`,
-		"what":  `"what" isn't a cell, a range, a named range or a sheet`,
+		"what":  `"what" isn't a cell, a range, a named range, a table or a sheet`,
 	} {
 		if _, err := Resolve(w, ref); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("Resolve(%q): %v, want %q", ref, err, want)
@@ -71,6 +71,43 @@ func TestResolve(t *testing.T) {
 	}
 	if _, _, err := ResolveCell(w, "A1:B2"); err == nil || !strings.Contains(err.Error(), "name one cell") {
 		t.Errorf("ResolveCell of a range: %v", err)
+	}
+}
+
+// Tables are found by name, whole, or by structured references as
+// formulas read them; set types into a cell one names.
+func TestTables(t *testing.T) {
+	w := book(t)
+	if err := w.Sheet(0).CreateTable("Fruit", sheet.NewRect(addr("A1"), addr("B3"))); err != nil {
+		t.Fatal(err)
+	}
+	for ref, want := range map[string]string{
+		"Fruit":                     "Sheet1!A1:B3",
+		"fruit[Price]":              "Sheet1!B2:B3",
+		"Fruit[#All]":               "Sheet1!A1:B3",
+		"Fruit[[#Headers],[Price]]": "Sheet1!B1",
+	} {
+		if got, err := Resolve(w, ref); err != nil || got.String() != want {
+			t.Errorf("Resolve(%q) = %s, %v; want %s", ref, got, err, want)
+		}
+	}
+	for ref, want := range map[string]string{
+		"Fruit[Cost]":  "Fruit has no such column (columns: Item, Price)",
+		"Fruit[@Item]": "names no rows of Fruit here",
+		"Veg[Item]":    "there's no table named Veg",
+	} {
+		if _, err := Resolve(w, ref); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("Resolve(%q): %v, want %q", ref, err, want)
+		}
+	}
+	if got := get(t, w, "Fruit", GetOptions{Format: "nuon"}); got != "[[Item, Price]; [Apple, 1.5],\n[Pear, 2]]\n" {
+		t.Errorf("get Fruit %q", got)
+	}
+	if _, err := Set(w, []Entry{{"Fruit[[#Headers],[Price]]", "Cost"}}, SetOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(t, w, "Fruit[[#Headers],[Cost]]", GetOptions{}); got != "Cost\n" {
+		t.Errorf("the header set %q", got)
 	}
 }
 

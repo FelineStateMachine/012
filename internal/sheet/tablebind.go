@@ -1,6 +1,7 @@
 package sheet
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -333,4 +334,44 @@ func (s *Sheet) TableLook(a Addr) (header, band bool) {
 		return false, t.Banded && (a.Row-t.Range.From.Row)%2 == 0
 	}
 	return false, false
+}
+
+// TableRange finds the cells a structured reference written alone
+// stands for (Sales[Amount], Sales[#All]), as a formula outside the
+// table reads them, or with a table's name alone its whole table,
+// header row included. ok is false when ref is neither; err says why
+// one names no cells.
+func (w *Workbook) TableRange(ref string) (s *Sheet, r Rect, ok bool, err error) {
+	n, perr := formula.Parse(ref, parserFuncs)
+	if perr != nil {
+		return nil, Rect{}, false, nil
+	}
+	var t formula.TableRef
+	switch n := n.(type) {
+	case formula.TableRef:
+		t = n
+	case formula.Name:
+		t = formula.TableRef{Table: n.Name, Items: formula.ItemAll}
+	default:
+		return nil, Rect{}, false, nil
+	}
+	v, found := w.findTable(nameKey(t.Table))
+	switch {
+	case !found:
+		if _, isName := n.(formula.Name); isName {
+			return nil, Rect{}, false, nil
+		}
+		return nil, Rect{}, true, fmt.Errorf("there's no table named %s", t.Table)
+	case !v.ok:
+		return nil, Rect{}, true, fmt.Errorf("%s has no rows yet", t.Table)
+	}
+	lo, hi, okRows := v.rows(t.Rows(), Addr{}, false)
+	c0, c1, okCols := v.colSpan(t)
+	switch {
+	case !okCols:
+		return nil, Rect{}, true, fmt.Errorf("%s has no such column (columns: %s)", t.Table, strings.Join(v.cols, ", "))
+	case !okRows:
+		return nil, Rect{}, true, fmt.Errorf("%s names no rows of %s here: a formula's own row, or rows it hasn't", ref, t.Table)
+	}
+	return v.s, Rect{From: Addr{Col: c0, Row: lo}, To: Addr{Col: c1, Row: hi}}, true, nil
 }

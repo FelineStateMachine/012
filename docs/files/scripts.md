@@ -30,7 +30,8 @@ it isn't the one shown when the file was saved:
 |---|---|
 | `B7`, `A1:C9`, `A:A`, `$B$7` | Cells of the sheet shown when the file was saved |
 | `Q3!B7`, `'Q3 plan'!A1:C9` | Cells of the sheet named, quoted as in formulas when the name has spaces (the shell needs quotes around it too) |
-| `Sales` | A [named range](../formulas/references.md) |
+| `Sales` | A [named range](../formulas/references.md), or a [table](../sheets/tables.md) or notebook output, header row included, so JSON and NUON name its columns |
+| `Sales[Amount]`, `Sales[[#Headers],[Amount]]` | A table's cells by a [structured reference](../formulas/references.md#tables-by-column-name), as a formula outside the table reads them: `Sales[Amount]` is the column's data, without its header |
 | `Q3`, `Q3!` | The whole sheet, from A1 to its last cell with contents |
 
 A reference that names nothing says what the workbook has: `no sheet
