@@ -49,7 +49,7 @@ func (s *Server) addReadTools() {
 			err := s.b.View(ctx, func(w *sheet.Workbook) error { d = headless.Describe(w); return nil })
 			return nil, d, err
 		})
-	tool(s, &sdk.Tool{Name: "read_range", Annotations: readOnly,
+	tool(s, &sdk.Tool{Name: "read_range", Annotations: readOnly, Meta: s.viewMeta(),
 		Description: "The values of a range as rows (numbers, strings, booleans, null for blank, dates as ISO 8601, errors as #DIV/0!), with the formulas in it by cell."},
 		s.readRange)
 	tool(s, &sdk.Tool{Name: "evaluate", Annotations: readOnly,

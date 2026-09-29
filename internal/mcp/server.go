@@ -50,7 +50,7 @@ type Server struct {
 func New(b Backend, o Options) *Server {
 	s := &Server{b: b, opts: o, resources: map[string]bool{}}
 	s.Server = sdk.NewServer(&sdk.Implementation{Name: "012", Title: "012 spreadsheet", Version: orDevel(o.Version)},
-		&sdk.ServerOptions{Instructions: instructions, Capabilities: &sdk.ServerCapabilities{}})
+		&sdk.ServerOptions{Instructions: instructions, Capabilities: &sdk.ServerCapabilities{Extensions: map[string]any{uiExtension: map[string]any{}}}})
 	s.addReadTools()
 	if !o.ReadOnly {
 		s.addWriteTools()

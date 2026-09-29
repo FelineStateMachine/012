@@ -94,6 +94,22 @@ lists them) and `warnings`; a refused one is an error naming the cell,
 with nothing changed. Every result's schema is in
 [JSON output](../reference/json.md#mcp-tools).
 
+## Views in the chat
+
+Hosts that support [MCP Apps](https://github.com/modelcontextprotocol/ext-apps)
+(the `io.modelcontextprotocol/ui` extension) draw what `read_range`
+read and the chart `create_chart` made beside the result, as 012 draws
+them: the [web page](../files/README.md#web-pages) export's grid, with
+its fonts, colors, styles and charts as SVG, in the host's light or
+dark theme. Clicking a cell, or the arrow keys, puts the pointer on it
+and shows what was typed in it.
+
+Both tools name the view's resource, `ui://012/view`
+(`text/html;profile=mcp-app`), in their `_meta`; the host loads it into
+a sandboxed frame, and the result's `_meta` carries what to draw, at
+most 500 rows of a range. Hosts without the extension get the same
+results without it, and the page asks for nothing from the network.
+
 ## Resources
 
 Hosts that let people attach data to a conversation list these; the
