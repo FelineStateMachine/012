@@ -133,22 +133,7 @@ func Dump(w io.Writer, b *Book) error {
 		sd := b.side(s)
 		q := sheet.QuoteSheet(s.name)
 		fmt.Fprintf(bw, "sheet %s\n", s.name)
-		for _, k := range slices.Sorted(maps.Keys(s.fields)) {
-			if k == "notebookCells" {
-				for _, line := range dumpNotebook(s.name, s.fields[k]) {
-					bw.WriteString(line + "\n")
-				}
-				continue
-			}
-			if k == "regions" || k == "tables" {
-				what := strings.TrimSuffix(k, "s")
-				for _, name := range slices.Sorted(maps.Keys(named(s.fields[k]))) {
-					fmt.Fprintf(bw, "%s %s %s  %s\n", s.name, what, name, named(s.fields[k])[name])
-				}
-				continue
-			}
-			fmt.Fprintf(bw, "%s %s  %s\n", s.name, k, s.fields[k])
-		}
+		dumpFields(bw, s)
 		for _, at := range sortedAddrs(s.cells) {
 			bw.WriteString(q + "!" + cellLine(sd, at, s.cells[at.String()]) + "\n")
 		}
@@ -167,6 +152,26 @@ func Dump(w io.Writer, b *Book) error {
 		}
 	}
 	return bw.Flush()
+}
+
+// dumpFields writes a sheet's fields as Dump does: a notebook's cells,
+// regions and tables one line each, and each other field whole.
+func dumpFields(bw *bufio.Writer, s *rawSheet) {
+	for _, k := range slices.Sorted(maps.Keys(s.fields)) {
+		switch k {
+		case "notebookCells":
+			for _, line := range dumpNotebook(s.name, s.fields[k]) {
+				bw.WriteString(line + "\n")
+			}
+		case "regions", "tables":
+			what := strings.TrimSuffix(k, "s")
+			for _, name := range slices.Sorted(maps.Keys(named(s.fields[k]))) {
+				fmt.Fprintf(bw, "%s %s %s  %s\n", s.name, what, name, named(s.fields[k])[name])
+			}
+		default:
+			fmt.Fprintf(bw, "%s %s  %s\n", s.name, k, s.fields[k])
+		}
+	}
 }
 
 // cellLine is a cell as Dump writes it after its sheet: B7  =SUM(A1:A6)
