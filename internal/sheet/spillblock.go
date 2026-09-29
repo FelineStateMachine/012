@@ -1,5 +1,7 @@
 package sheet
 
+import "slices"
+
 // spillsIntoItself finds whether the array at a would spill over a cell
 // its formula reads, other than a itself, directly or through other
 // formulas and the arrays they spill: spilling would change what
@@ -12,11 +14,19 @@ package sheet
 // recalculation after the spill would visit anyway. An array blocked by
 // a cycle counts as spilling over the cells it needs, so the arrays of
 // a cycle stay blocked together whichever was computed first.
+//
+// A region whose table is in area gives way to the array
+// (regionsGiveWay), so what reads it by name reads #REF! once the array
+// spills, whatever the array holds: the walk doesn't follow it, or the
+// array would be blocked or not by whether the region's rows arrived
+// before it spilled.
 func (s *Sheet) spillsIntoItself(a Addr, area Rect) (string, []loc) {
 	if area.From == area.To {
 		return "", nil
 	}
-	w := &spillWalk{look: s.wb.readerLookup(), target: loc{s, a}, seen: map[loc]bool{{s, a}: true}, parent: -1}
+	look := s.wb.readerLookup()
+	look.named = slices.DeleteFunc(look.named, func(nu namedUsers) bool { return nu.region && nu.s == s && overlaps(nu.r, area) })
+	w := &spillWalk{look: look, target: loc{s, a}, seen: map[loc]bool{{s, a}: true}, parent: -1}
 	if w.cells(s, area, a, loc{}, true) {
 		return circular(w.origin), nil
 	}

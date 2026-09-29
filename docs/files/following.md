@@ -46,7 +46,10 @@ file's rows, typed as an import types them. The region is the file's:
   cell (`#REF!`) and the context line say which cell is in the way;
   clearing that cell reads the file again. An [array](../formulas/arrays.md)'s
   cells, blank ones too, are in its way, and an array that needs its
-  cells takes them, whichever came first, as when the file opens;
+  cells takes them, whichever came first, as when the file opens.
+  Another region's first cell is in its way too, and when two regions'
+  tables need the same cells, the one whose first cell comes first, row
+  by row, shows and the other shows `#REF!`, whichever grew first;
 - inserting or deleting rows or columns before it moves it, and it reads
   the file again there; deleting its first cell's row or column unlinks
   it.

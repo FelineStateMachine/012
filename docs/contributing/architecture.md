@@ -243,7 +243,9 @@ style.
   undo history, only those that differ, with the region's cells it no
   longer needs cleared; a table that would overwrite other contents
   isn't shown, its first cell saying where, and clearing that cell shows
-  it. Rows arrive only as live operations, the change stream below, and
+  it; regions in each other's way settle as arrays do, the first anchor
+  winning (`regionclash.go`), so the order rows arrive in doesn't
+  matter. Rows arrive only as live operations, the change stream below, and
   are never part of the undo state, since undo can't bring back what a
   file held or a run printed: a region undo brings back or moves is
   emptied and marked stale, and the UI sends its rows again, the file

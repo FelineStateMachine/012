@@ -398,7 +398,7 @@ func (s *Sheet) place(a Addr, c *Cell) {
 				c = c.leftover()
 			}
 		}
-		s.regionTouched(a)
+		s.regionTouched(a, c)
 	}
 	s.trackShape(a, c)
 	s.spillTouched(a, c)
