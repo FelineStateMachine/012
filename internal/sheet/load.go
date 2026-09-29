@@ -31,6 +31,17 @@ func (s *Sheet) LoadColWidth(c, w int) {
 	}
 }
 
+// LoadFitWidths widens each column of the used range whose width isn't
+// set to its widest text among the first rows (a header and a sample
+// below it), capped, as a table a region shows is fitted: what an
+// importer does for a format that keeps no widths of its own (CSV,
+// JSON). Without recording undo.
+func (s *Sheet) LoadFitWidths() {
+	if used, ok := s.UsedRange(); ok {
+		s.fitTable(used.From, used.To.Row-used.From.Row+1, used.To.Col-used.From.Col+1)
+	}
+}
+
 // Unload removes a cell a loader stored, as an importer does with a row
 // that doesn't fit whole.
 func (s *Sheet) Unload(a Addr) { s.place(a, nil) }

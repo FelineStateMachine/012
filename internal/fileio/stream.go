@@ -31,6 +31,7 @@ func ImportReader(ctx context.Context, name string, r io.Reader, opt Options) (*
 	if book := res.Sheet.Book(); book.RenameSheet(res.Sheet, sheetName(name)) == nil {
 		book.ClearHistory()
 	}
+	res.Sheet.LoadFitWidths() // a stream is CSV, TSV, JSON or NUON: no widths of its own
 	if p := opt.Progress; p != nil {
 		p.permille.Store(1000)
 	}

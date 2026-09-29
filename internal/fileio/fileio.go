@@ -141,6 +141,9 @@ func importKind(ctx context.Context, name string, k Kind, opt Options) (*Result,
 		}
 	}
 	r.Kind = k
+	if !k.format().widths {
+		r.Sheet.LoadFitWidths()
+	}
 	if p := opt.Progress; p != nil && p.permille.Load() >= 0 {
 		p.permille.Store(1000)
 	}

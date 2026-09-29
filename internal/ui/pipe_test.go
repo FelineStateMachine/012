@@ -104,8 +104,66 @@ func TestPipeQuitWithoutSending(t *testing.T) {
 	}
 }
 
-// TestPipeCommands: the send commands are in File and the palette only
-// in a pipeline, and run from there.
+// TestPipeSendSelection: with --send selection, Quit sends the
+// selection without asking, or the sheet when only one cell is
+// selected, and the status line says which.
+func TestPipeSendSelection(t *testing.T) {
+	m := stdinModel(t, filesNUON, true, 0)
+	m.SetSend(SendSelection)
+	if st := line(m, m.height-1); !strings.Contains(st, "Ctrl+Q  send the sheet as NUON") {
+		t.Errorf("status line %q", st)
+	}
+	press(t, m, "<shift+down>", "<shift+right>")
+	if st := line(m, m.height-1); !strings.Contains(st, "Ctrl+Q  send A1:B2 as NUON") {
+		t.Errorf("status line %q", st)
+	}
+	if _, quit := press(t, m, "<ctrl+q>").(tea.QuitMsg); !quit {
+		t.Fatal("asked rather than quit")
+	}
+	if snap, _, ok := m.Piped(); !ok || snap.Range.String() != "A1:B2" {
+		t.Errorf("sent %v %v", snap.Range, ok)
+	}
+
+	m = stdinModel(t, filesNUON, true, 0)
+	m.SetSend(SendSelection)
+	press(t, m, "<down>")
+	cmd, _ := m.runCmdLine("q")
+	if _, quit := run(m, cmd).(tea.QuitMsg); !quit {
+		t.Fatal(":q asked rather than quit")
+	}
+	if snap, _, ok := m.Piped(); !ok || snap.Range.String() != "A1:B3" {
+		t.Errorf("one cell selected sent %v %v", snap.Range, ok)
+	}
+}
+
+// TestPipeSendSheet: with --send sheet, Quit sends the sheet whatever
+// is selected, and Quit without sending is still in the palette.
+func TestPipeSendSheet(t *testing.T) {
+	m := stdinModel(t, filesNUON, true, fileio.CSV)
+	m.SetSend(SendSheet)
+	press(t, m, "<shift+down>")
+	if st := line(m, m.height-1); !strings.Contains(st, "Ctrl+Q  send the sheet as CSV") {
+		t.Errorf("status line %q", st)
+	}
+	if _, quit := run(m, m.runCommand("quit")).(tea.QuitMsg); !quit {
+		t.Fatal("File > Quit asked rather than quit")
+	}
+	if snap, k, ok := m.Piped(); !ok || k != fileio.CSV || snap.Range.String() != "A1:B3" {
+		t.Errorf("sent %v %v %v", snap.Range, k, ok)
+	}
+
+	m = stdinModel(t, filesNUON, true, 0)
+	m.SetSend(SendSheet)
+	if _, quit := run(m, m.runCommand("pipe.quit_unsent")).(tea.QuitMsg); !quit {
+		t.Fatal("Quit without sending didn't quit")
+	}
+	if _, _, ok := m.Piped(); ok {
+		t.Error("Quit without sending sent")
+	}
+}
+
+// TestPipeCommands: the send commands and Quit without sending are in
+// File and the palette only in a pipeline, and run from there.
 func TestPipeCommands(t *testing.T) {
 	titles := func(m *Model) []string {
 		var out []string
@@ -115,11 +173,12 @@ func TestPipeCommands(t *testing.T) {
 		return out
 	}
 	m := newModel()
-	if slices.Contains(titles(m), "Quit and send sheet") || len(m.applicable(menuBar[0].items)) != len(menuBar[0].items)-2 {
+	if slices.Contains(titles(m), "Quit and send sheet") || len(m.applicable(menuBar[0].items)) != len(menuBar[0].items)-3 {
 		t.Error("send commands outside a pipeline")
 	}
 	m = stdinModel(t, filesNUON, true, 0)
-	if !slices.Contains(titles(m), "Quit and send sheet") || !slices.Contains(titles(m), "Quit and send selection") {
+	if !slices.Contains(titles(m), "Quit and send sheet") || !slices.Contains(titles(m), "Quit and send selection") ||
+		!slices.Contains(titles(m), "Quit without sending") {
 		t.Error("send commands missing in a pipeline")
 	}
 	if commands["pipe.send_selection"].available(m) {

@@ -16,7 +16,7 @@ import (
 //	1,500 ┤ █▆
 //	1,000 ┤ ██ ▆
 //	  500 ┤ ██ █
-//	    0 ┼─────────
+//	    0 ┼─▀▀─▀────
 //	       Jan Feb
 type columnPlan struct {
 	d       sheet.ChartData
@@ -224,11 +224,13 @@ func (p *columnPlan) drawBars(g *Grid) {
 	})
 }
 
-// dotY maps a value to a braille dot row, four per cell, from the top.
+// dotY maps a value to a braille dot row, four per cell, from the top:
+// a value on a tick is on the tick's line, through the middle of its
+// row, as bars are (see inCells), and the axis's value on the lowest
+// dots above the axis row.
 func (p *columnPlan) dotY(v float64) int {
 	rows := p.axisRow * 4
-	full := p.sc.cells()*4 - 1
-	y := rows - 1 - int(math.Round(p.sc.at(v)/float64(p.sc.cells())*float64(full)))
+	y := int(math.Floor((float64(p.axisRow) + 0.5 - p.sc.at(v)) * 4))
 	return min(max(y, 0), rows-1)
 }
 

@@ -39,7 +39,7 @@ var menuBar = []menuDef{
 			{cmd: "settings.theme"}, {cmd: "settings.jev_key"}, sep,
 			{cmd: "settings.config_edit"}, {cmd: "settings.config_reload"},
 		}}, sep,
-		{cmd: "pipe.send_selection"}, {cmd: "pipe.send_sheet"}, {cmd: "quit"},
+		{cmd: "pipe.send_selection"}, {cmd: "pipe.send_sheet"}, {cmd: "pipe.quit_unsent"}, {cmd: "quit"},
 	}},
 	{title: "Edit", accel: 'e', items: []menuItem{
 		{cmd: "edit.undo"}, {cmd: "edit.redo"}, sep,

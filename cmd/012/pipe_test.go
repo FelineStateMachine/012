@@ -15,6 +15,7 @@ import (
 
 var (
 	ctrlQ = tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}
+	down  = tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift}
 	enter = tea.KeyPressMsg{Code: tea.KeyEnter}
 	keyD  = tea.KeyPressMsg{Code: 'd', Text: "d"}
 )
@@ -129,6 +130,31 @@ func TestPipeTo(t *testing.T) {
 	}
 }
 
+// TestPipeSend: with --send, Ctrl+Q sends without asking: the
+// selection, or the sheet whatever is selected.
+func TestPipeSend(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--pipe", "--send", "selection", "--to", "csv"}, "name\nCLAUDE.md\n"},
+		{[]string{"--pipe", "--send=sheet", "--to", "csv"}, "name,size\nCLAUDE.md,1.6 kB\ngo.mod,1.5 kB\n"},
+	} {
+		e, out, _ := pipeEnv(t, lsNUON, down, ctrlQ)
+		if err := run(tc.args, e); err != nil {
+			t.Fatal(err)
+		}
+		if out.String() != tc.want {
+			t.Errorf("%q: stdout %q, want %q", tc.args, out, tc.want)
+		}
+	}
+	// Only one cell selected: --send selection sends the sheet.
+	e, out, _ := pipeEnv(t, lsNUON, ctrlQ)
+	if err := run([]string{"--pipe", "--send", "selection", "--to", "tsv"}, e); err != nil || out.String() != "name\tsize\nCLAUDE.md\t1.6 kB\ngo.mod\t1.5 kB\n" {
+		t.Errorf("one cell: %v, stdout %q", err, out)
+	}
+}
+
 func TestPipeQuitWithoutSending(t *testing.T) {
 	e, out, _ := pipeEnv(t, lsNUON, ctrlQ, keyD)
 	if err := run([]string{"--pipe"}, e); !errors.Is(err, errNotSent) {
@@ -175,8 +201,12 @@ func TestPipeArguments(t *testing.T) {
 		{[]string{"--pipe"}, true, "nothing piped in"},
 		{[]string{"--to", "csv"}, false, "--to goes with --pipe"},
 		{[]string{"--pipe", "--to", "xlsx"}, false, "012 writes nuon, json, csv or tsv"},
-		{[]string{"--pipe", "--to"}, false, "--to needs a format"},
+		{[]string{"--pipe", "--to"}, false, "--to needs a value: nuon, json, csv or tsv"},
 		{[]string{"-", "a.csv"}, false, "not both"},
+		{[]string{"-", "--send", "sheet"}, false, "--send goes with --pipe: 012 --pipe --send sheet"},
+		{[]string{"--send=ask", "a.csv"}, false, "--send goes with --pipe"},
+		{[]string{"--pipe", "--send", "all"}, false, "--send all: 012 sends ask, selection or sheet"},
+		{[]string{"--pipe", "--send"}, false, "--send needs a value: ask, selection or sheet"},
 	} {
 		e, _, _ := pipeEnv(t, lsNUON)
 		e.isTTY = tc.tty

@@ -66,8 +66,9 @@ func usage() error {
 	return errors.New("usage: 012 " + config.FlagUsage() + " [file]: a " + sheet.FileExt +
 		" sheet, or a .csv, .tsv, .json, .nuon, .xlsx, .sqlite, .parquet or .wk1 file to import\n" +
 		"       012 [flags] -: a table from standard input (NUON, JSON, CSV or TSV)\n" +
-		"       012 [flags] --pipe [--to nuon|json|csv|tsv] [file]: on quitting, send the table to standard output\n" +
+		"       012 [flags] --pipe [--to nuon|json|csv|tsv] [--send ask|selection|sheet] [file]: on quitting, send the table to standard output\n" +
 		"       012 nu [flags] [file]: a nushell notebook, at its prompt (see docs/nushell/notebooks.md)\n" +
+		"       012 nu --module | --install-module [--force] [path]: the nushell module with sheet (see docs/nushell/README.md)\n" +
 		"       012 serve [flags] [dir]: serve sheets in dir over SSH (see docs/terminal/ssh.md)\n" +
 		"       012 config [path|edit|default|themes|set-key|delete-key]\n" +
 		"       012 version")
@@ -83,6 +84,9 @@ func run(args []string, e env) error {
 	if len(args) > 0 && args[0] == "serve" {
 		// A file called serve opens as ./serve.
 		return runServe(args[1:], e)
+	}
+	if len(args) > 0 && args[0] == "nu" && isModuleCommand(args[1:]) {
+		return runNuModule(args[1:], e)
 	}
 	// A file called nu opens as ./nu.
 	notebook := len(args) > 0 && args[0] == "nu"

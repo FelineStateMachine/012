@@ -24,7 +24,8 @@ import (
 // Charts become images when the terminal answers a kitty graphics query
 // (kitty, Ghostty, WezTerm and others), or else when its primary device
 // attributes (DA1) list sixel graphics (foot, xterm, mlterm, Windows
-// Terminal; see sixel.go); everywhere else they stay text. Images use
+// Terminal, xterm.js with its image addon; see sixel.go); everywhere
+// else they stay text. Images use
 // the terminal's own palette, asked for with OSC 4 at startup, so bars
 // match the text legend.
 type terminal struct {
