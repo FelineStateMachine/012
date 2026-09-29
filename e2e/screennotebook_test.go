@@ -51,9 +51,9 @@ const longPipeline = "$files | where size > 1kb | where type == file | sort-by s
 func filesNotebook(s *session) {
 	s.keys("<esc>", "m", "<enter>", "# Files", "<enter>", "What's big in the repo, from `ls`.", "<esc>")
 	s.keys("b", "<enter>", "files = ls", "<shift+enter>")
-	s.waitFor("[1] files")
+	s.waitFor("Out[1]:")
 	s.keys("<enter>", "$files | where size > 1kb", "<shift+enter>")
-	s.waitFor("[2]")
+	s.waitFor("Out[2]:")
 	s.waitFor("NOTEBOOK")
 }
 
@@ -71,7 +71,7 @@ var notebookScreens = []screen{
 	{name: "notebook-wrap-narrow", opts: options{cols: 60, rows: 24}, setup: func(s *session) {
 		filesNotebook(s)
 		s.keys("<enter>", longPipeline, "<ctrl+enter>")
-		s.waitFor("[3]")
+		s.waitFor("[3]:")
 	}},
 	{name: "notebook-error", setup: func(s *session) {
 		filesNotebook(s)
@@ -82,7 +82,7 @@ var notebookScreens = []screen{
 		filesNotebook(s)
 		s.keys("<enter>", "sleep 10min", "<esc>", "b", "<enter>", "{name: 1}", "<esc>", "<f9>")
 		// F9 queues every cell; the first two finish, then sleep runs.
-		s.waitFor("running 1, 1 waiting")
+		s.waitFor("busy, 1 waiting")
 	}},
 	{name: "notebook-stale", setup: func(s *session) {
 		filesNotebook(s)
@@ -103,6 +103,18 @@ var notebookScreens = []screen{
 		filesNotebook(s)
 		s.keys("<enter>", "$files | sort-by size --revrse")
 		s.waitFor("doesn't have flag `revrse`")
+	}},
+	{name: "notebook-select", opts: options{cols: 120, rows: 30}, setup: func(s *session) {
+		filesNotebook(s)
+		s.keys("<up>", "<up>", "<shift+up>")
+		s.waitFor("2 cells selected")
+	}},
+	{name: "notebook-scroll", setup: func(s *session) {
+		filesNotebook(s)
+		s.keys("<enter>", "1..30 | each {|i| {n: $i, square: ($i * $i)}}", "<ctrl+enter>")
+		s.waitFor("Out[3]:")
+		s.keys("<esc>", "<down>", "<down>", "<down>", "<down>")
+		s.waitFor("rows 4 to 13 of 30")
 	}},
 	{name: "notebook-sent", setup: func(s *session) {
 		filesNotebook(s)
