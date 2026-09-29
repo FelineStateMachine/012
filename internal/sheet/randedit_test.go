@@ -273,7 +273,7 @@ func saveBook(wb *Workbook) []byte {
 
 // reopenDiff reads the saved file, sends its regions their rows again,
 // and says how it differs from the workbook saved.
-func (r *randBook) reopenDiff(file []byte, vals map[string]shown) string {
+func (r *randBook) reopenDiff(file []byte, vals map[string]cellValue) string {
 	wb, err := ReadBook(bytes.NewReader(file))
 	if err != nil {
 		return "reopening: " + err.Error()
@@ -285,24 +285,24 @@ func (r *randBook) reopenDiff(file []byte, vals map[string]shown) string {
 	return diffValues(vals, bookValues(wb))
 }
 
-// shown is a cell's value, and what was typed in it to say which.
-type shown struct {
+// cellValue is a cell's value, and what was typed in it to say which.
+type cellValue struct {
 	v     Value
 	input string
 }
 
 // bookValues are every filled cell's value, by sheet and address.
-func bookValues(wb *Workbook) map[string]shown {
-	out := map[string]shown{}
+func bookValues(wb *Workbook) map[string]cellValue {
+	out := map[string]cellValue{}
 	for _, s := range wb.sheets {
 		for _, a := range s.Addrs() {
-			out[s.name+"!"+a.String()] = shown{s.Value(a), s.Cell(a).Input}
+			out[s.name+"!"+a.String()] = cellValue{s.Value(a), s.Cell(a).Input}
 		}
 	}
 	return out
 }
 
-func diffValues(want, got map[string]shown) string {
+func diffValues(want, got map[string]cellValue) string {
 	var b strings.Builder
 	for k, w := range want {
 		if g, ok := got[k]; !ok || !sameValue(w.v, g.v) {
