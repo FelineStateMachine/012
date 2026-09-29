@@ -40,10 +40,6 @@ func (w *Workbook) restore(st *step) (inv *step, changed []loc) {
 		changed = append(changed, w.putName(k, n)...)
 	}
 	w.restoreSheetParts(st, inv)
-	for s, links := range st.links {
-		inv.links[s] = s.links
-		changed = append(changed, s.restoreLinks(links)...)
-	}
 	return inv, changed
 }
 
@@ -60,7 +56,7 @@ func (w *Workbook) restoreSheetParts(st, inv *step) {
 	}
 	for s, r := range st.regions {
 		inv.regions[s] = s.regions
-		s.regions, s.regionsStale = r, true
+		s.putRegionsBack(r)
 	}
 	for s, r := range st.rules {
 		inv.rules[s] = s.rules
@@ -155,7 +151,6 @@ func (st *step) join(child *step) {
 	joinMap(st.charts, child.charts)
 	joinMap(st.pivots, child.pivots)
 	joinMap(st.rules, child.rules)
-	joinMap(st.links, child.links)
 	joinMap(st.regions, child.regions)
 	st.sheets = cmpOrPtr(st.sheets, child.sheets)
 	st.settings = cmpOrPtr(st.settings, child.settings)

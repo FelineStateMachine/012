@@ -205,8 +205,8 @@ func TestKindOf(t *testing.T) {
 
 func TestUpdateOp(t *testing.T) {
 	at := time.Now()
-	op := Update{Reset: true, Err: "e", Note: "n", At: at}.Op(7)
-	if op.Link != 7 || !op.Reset || op.Err != "e" || op.Note != "n" || !op.At.Equal(at) {
+	op := Update{Reset: true, Err: "e", Note: "n", At: at}.Op("app")
+	if op.Region != "app" || !op.Reset || op.Err != "e" || op.Note != "n" || !op.At.Equal(at) {
 		t.Fatalf("%+v", op)
 	}
 }

@@ -57,9 +57,6 @@ type fileFormat struct {
 	// Macros and where they were made need no version bump either:
 	// earlier builds ignore them, and the sheets read the same.
 	MacroOrigin string `json:"macroOrigin,omitempty"`
-	// LinkOrigin, like MacroOrigin, is where the linked regions were
-	// made or trusted (linkfile.go).
-	LinkOrigin string `json:"linkOrigin,omitempty"`
 	// ShellHistory needs no version either: see shellhistory.go.
 	ShellHistory []string    `json:"shellHistory,omitempty"`
 	Macros       []fileMacro `json:"macros,omitempty"`
@@ -83,8 +80,6 @@ type fileSheet struct {
 	// Rules need no version: see rulefile.go.
 	CondFormats []fileCondFormat `json:"conditionalFormats,omitempty"`
 	Validations []fileValidation `json:"validations,omitempty"`
-	// Links need no version: see linkfile.go.
-	Links []fileLink `json:"links,omitempty"`
 	// A notebook and its regions need no version: see regionfile.go.
 	Notebook bool         `json:"notebook,omitempty"`
 	Regions  []fileRegion `json:"regions,omitempty"`
@@ -174,9 +169,6 @@ func (w *Workbook) headLines() string {
 	}
 	if len(w.macros) > 0 {
 		lines = append(lines, w.macrosLines())
-	}
-	if w.linkOrigin != "" && len(w.LinkedRegions()) > 0 {
-		lines = append(lines, `"linkOrigin": `+jsonString(w.linkOrigin))
 	}
 	if len(w.shellHistory) > 0 {
 		raw, _ := json.Marshal(w.shellHistory)
@@ -283,10 +275,7 @@ func (s *Sheet) writeObjects(b *bufio.Writer, indent string) error {
 		fmt.Fprintf(b, ",\n%s\"pivot\": %s", indent, raw)
 	}
 	s.writeRules(b, indent)
-	if err := s.writeRegionDefs(b, indent); err != nil {
-		return err
-	}
-	return s.writeLinks(b, indent)
+	return s.writeRegionDefs(b, indent)
 }
 
 // Read loads a file written by Write, of this or an earlier version, and
@@ -372,9 +361,6 @@ func (s *Sheet) read(f fileSheet) error {
 		s.pivot = pivotState{def: p, stale: true}
 	}
 	if err := s.readRules(f.CondFormats, f.Validations); err != nil {
-		return err
-	}
-	if err := s.readLinks(f.Links); err != nil {
 		return err
 	}
 	if err := s.readRegions(f.Notebook, f.Regions); err != nil {

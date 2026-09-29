@@ -33,7 +33,7 @@ func init() {
 		enabled: hasLinked, checked: func(m *Model) bool { r, ok := m.currentLinked(); return ok && !r.Paused },
 		run: func(m *Model) tea.Cmd {
 			r, _ := m.currentLinked()
-			m.book().PauseLinked(r.ID, !r.Paused)
+			m.book().PauseLinked(r.Name, !r.Paused)
 			m.note = "Following " + filepath.Base(r.Source.Path)
 			if !r.Paused {
 				m.note = "Paused following " + filepath.Base(r.Source.Path)
@@ -44,7 +44,7 @@ func init() {
 		desc: "Read the linked file under the pointer again, whole", enabled: hasLinked,
 		run: func(m *Model) tea.Cmd {
 			r, _ := m.currentLinked()
-			m.book().ReloadLinked(r.ID)
+			m.book().ReloadLinked(r.Name)
 			return nil
 		}})
 	register(&command{id: "data.link_rows", macro: macroNever, title: "Rows to keep",
@@ -54,7 +54,7 @@ func init() {
 			m.askFollowRows(filepath.Base(r.Source.Path), func(m *Model, window int) tea.Cmd {
 				src := r.Source
 				src.Window = window
-				if err := m.book().SetLinkSource(r.ID, src); err != nil {
+				if err := m.book().SetLinkSource(r.Name, src); err != nil {
 					m.fail(err.Error())
 				}
 				return nil
@@ -65,7 +65,7 @@ func init() {
 		desc: "Keep the linked file's rows as values and stop following it", enabled: hasLinked,
 		run: func(m *Model) tea.Cmd {
 			r, _ := m.currentLinked()
-			if err := m.book().Unlink(r.ID); err != nil {
+			if err := m.book().Unlink(r.Name); err != nil {
 				m.fail(err.Error())
 				return nil
 			}
@@ -232,11 +232,12 @@ func (m *Model) followInNewSheet(src sheet.LinkSource) {
 	m.note = "Following " + filepath.Base(src.Path) + " in " + s.Name()
 }
 
-// linkedHere trusts the workbook's links on this computer once the user
-// links a file, unless others came from elsewhere untrusted.
+// linkedHere trusts the workbook on this computer once the user links a
+// file, unless regions or macros came from elsewhere untrusted.
 func (m *Model) linkedHere(before int) {
-	if before == 0 || m.follow.trusted || m.book().LinkOrigin() == m.macros.machine {
-		m.trustLinks()
+	w := m.book()
+	if m.macroTrusted() || before == 0 && len(w.Macros()) == 0 && len(w.RunOrder()) == 0 {
+		m.trustHere()
 	}
 }
 

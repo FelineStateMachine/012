@@ -26,18 +26,17 @@ import (
 
 // followState is the linked regions' part of the model.
 type followState struct {
-	by map[int]*follower // by region ID
-	// trusted is set once the user agreed to follow the files a
-	// workbook from elsewhere links outside its folder; asked once the
-	// question was put.
-	trusted, asked bool
+	by map[string]*follower // by region name
+	// asked is set once the user was asked whether to follow the files
+	// a workbook from elsewhere links outside its folder.
+	asked bool
 }
 
 // follower is a region's source and where its polling is.
 type follower struct {
-	id  int
-	key string // the source it was made for, to notice a change
-	src live.Source
+	name string
+	key  string // the source it was made for, to notice a change
+	src  live.Source
 	// busy is set while a poll runs, waiting while one is scheduled;
 	// gone once the region is gone, closing the source when its poll
 	// returns. reload is set from asking the source to read whole until
@@ -73,18 +72,18 @@ func (m *Model) syncFollowers() tea.Cmd {
 		return nil
 	}
 	if m.follow.by == nil {
-		m.follow.by = map[int]*follower{}
+		m.follow.by = map[string]*follower{}
 	}
-	seen := map[int]bool{}
+	seen := map[string]bool{}
 	var cmds []tea.Cmd
 	for _, r := range regions {
-		seen[r.ID] = true
+		seen[r.Name] = true
 		if cmd := m.syncFollower(r); cmd != nil {
 			cmds = append(cmds, cmd)
 		}
 	}
-	for id, f := range m.follow.by {
-		if !seen[id] {
+	for name, f := range m.follow.by {
+		if !seen[name] {
 			m.dropFollower(f)
 		}
 	}
@@ -93,7 +92,7 @@ func (m *Model) syncFollowers() tea.Cmd {
 
 // syncFollower keeps r's follower in step with r.
 func (m *Model) syncFollower(r sheet.LinkedRegion) tea.Cmd {
-	f := m.follow.by[r.ID]
+	f := m.follow.by[r.Name]
 	if f != nil && f.key != m.sourceKey(r.Source) {
 		m.dropFollower(f)
 		f = nil
@@ -130,31 +129,31 @@ func (m *Model) newFollower(r sheet.LinkedRegion) *follower {
 	name := m.linkName(r.Source.Path)
 	k, ok := live.KindOf(name, r.Source.Format)
 	if !ok {
-		m.linkFailed(r.ID, "012 doesn't read "+filepath.Ext(name)+" files")
+		m.linkFailed(r.Name, "012 doesn't read "+filepath.Ext(name)+" files")
 		return nil
 	}
 	path, err := m.root.Resolve(name)
 	if err != nil {
-		m.linkFailed(r.ID, m.root.Scrub(err.Error()))
+		m.linkFailed(r.Name, m.root.Scrub(err.Error()))
 		return nil
 	}
 	src := live.NewFile(filepath.Base(name), path, k, fileio.Options{Table: r.Source.Table, Query: r.Source.Query, Locale: m.locale()})
-	f := &follower{id: r.ID, key: m.sourceKey(r.Source), src: src, reload: true}
-	m.follow.by[r.ID] = f
+	f := &follower{name: r.Name, key: m.sourceKey(r.Source), src: src, reload: true}
+	m.follow.by[r.Name] = f
 	return f
 }
 
 // linkFailed shows err in the region id, which can't be followed.
-func (m *Model) linkFailed(id int, err string) {
-	if r, ok := m.book().LinkedRegion(id); ok && r.Err == err {
+func (m *Model) linkFailed(name, err string) {
+	if r, ok := m.book().LinkedRegion(name); ok && r.Err == err {
 		return
 	}
-	m.book().ApplyLive(sheet.LiveOp{Link: id, Err: err})
+	m.book().ApplyLive(sheet.LiveOp{Region: name, Err: err})
 }
 
 // dropFollower lets a follower go, now or when its poll returns.
 func (m *Model) dropFollower(f *follower) {
-	delete(m.follow.by, f.id)
+	delete(m.follow.by, f.name)
 	f.gone = true
 	if !f.busy {
 		f.src.Close()
@@ -176,11 +175,11 @@ func (m *Model) handleFollow(msg tea.Msg) tea.Cmd {
 	case followTickMsg:
 		f := msg.f
 		f.waiting = false
-		if m.follow.by[f.id] != f {
+		if m.follow.by[f.name] != f {
 			f.src.Close() // of a workbook no longer open
 			return nil
 		}
-		if r, ok := m.book().LinkedRegion(f.id); !ok || r.Paused {
+		if r, ok := m.book().LinkedRegion(f.name); !ok || r.Paused {
 			return nil
 		}
 		return pollFollower(f)
@@ -188,7 +187,7 @@ func (m *Model) handleFollow(msg tea.Msg) tea.Cmd {
 		f := msg.f
 		f.busy = false
 		switch {
-		case f.gone || m.follow.by[f.id] != f:
+		case f.gone || m.follow.by[f.name] != f:
 			f.src.Close()
 			return nil
 		case f.pending:
@@ -211,8 +210,7 @@ func (m *Model) applyUpdate(f *follower, u live.Update) {
 	if u.Reset {
 		f.reload = false
 	}
-	_, err := m.book().ApplyLive(u.Op(f.id))
-	if errors.Is(err, sheet.ErrNoLinked) {
+	if err := m.book().ApplyLive(u.Op(f.name)); errors.Is(err, sheet.ErrNoRegion) {
 		m.dropFollower(f)
 	}
 }
@@ -268,11 +266,11 @@ func outside(path string) bool {
 }
 
 // linkTrusted reports whether r may be followed without asking: its
-// file is in the workbook's folder or below, or the workbook's links
-// were made or trusted on this computer, or the user said so.
+// file is in the workbook's folder or below, or the workbook's macros
+// and regions were made or trusted on this computer (macroTrusted: one
+// trust for all a file can make 012 do), or the user said so.
 func (m *Model) linkTrusted(r sheet.LinkedRegion) bool {
-	o := m.book().LinkOrigin()
-	return !outside(r.Source.Path) || m.follow.trusted || o != "" && o == m.macros.machine
+	return !outside(r.Source.Path) || m.macroTrusted()
 }
 
 // askLinkTrust asks once whether to follow the files a workbook from
@@ -293,23 +291,15 @@ func (m *Model) askLinkTrust() {
 		warn: true,
 		desc: "Following reads those files as they change; not following leaves their regions empty",
 		choices: []choice{
-			{key: "enter", label: "Follow them", run: func(m *Model) tea.Cmd { m.trustLinks(); return nil }},
+			{key: "enter", label: "Follow them", run: func(m *Model) tea.Cmd { m.trustHere(); return nil }},
 			{key: "esc", label: "Don't follow", run: func(m *Model) tea.Cmd {
 				for _, r := range m.book().LinkedRegions() {
 					if !m.linkTrusted(r) {
-						m.linkFailed(r.ID, "Not followed: the spreadsheet was made on another computer")
+						m.linkFailed(r.Name, "Not followed: the spreadsheet was made on another computer")
 					}
 				}
 				return nil
 			}},
 		},
 	})
-}
-
-// trustLinks trusts the workbook's links from now on, on this computer.
-func (m *Model) trustLinks() {
-	m.follow.trusted = true
-	if m.macros.machine != "" {
-		m.book().SetLinkOrigin(m.macros.machine)
-	}
 }

@@ -84,7 +84,7 @@ func followRun(b *testing.B, window int) followResult {
 		u, ok := src.Poll(context.Background())
 		if ok {
 			at := time.Now()
-			if _, err := m.book().ApplyLive(u.Op(id)); err != nil {
+			if err := m.book().ApplyLive(u.Op(id)); err != nil {
 				b.Fatal(err)
 			}
 			applies = append(applies, ms(time.Since(at)))

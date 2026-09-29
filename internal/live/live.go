@@ -45,9 +45,9 @@ type Update struct {
 	At time.Time
 }
 
-// Op is u as the operation that applies it to the region id.
-func (u Update) Op(id int) sheet.LiveOp {
-	return sheet.LiveOp{Link: id, At: u.At, Reset: u.Reset, Header: u.Header, Rows: u.Rows, Err: u.Err, Note: u.Note}
+// Op is u as the operation that applies it to the region named name.
+func (u Update) Op(name string) sheet.LiveOp {
+	return sheet.LiveOp{Region: name, At: u.At, Reset: u.Reset, Header: u.Header, Rows: u.Rows, Err: u.Err, Note: u.Note}
 }
 
 // Interval is how often a followed source is polled.

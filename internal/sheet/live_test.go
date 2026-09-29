@@ -22,7 +22,7 @@ func liveRow(fields ...string) LiveRow {
 
 // linkedSheet is a sheet with a region at A1 showing a header and n rows
 // of numbers 1..n in column B.
-func linkedSheet(t *testing.T, window int) (*Sheet, int) {
+func linkedSheet(t *testing.T, window int) (*Sheet, string) {
 	t.Helper()
 	s := New()
 	id, err := s.AddLinked(Addr{}, LinkSource{Path: "log.csv", Window: window})
@@ -34,10 +34,10 @@ func linkedSheet(t *testing.T, window int) (*Sheet, int) {
 
 func apply(t *testing.T, s *Sheet, op LiveOp) LinkedRegion {
 	t.Helper()
-	r, err := s.Book().ApplyLive(op)
-	if err != nil {
+	if err := s.Book().ApplyLive(op); err != nil {
 		t.Fatal(err)
 	}
+	r, _ := s.Book().LinkedRegion(op.Region)
 	return r
 }
 
@@ -45,7 +45,7 @@ func TestLiveResetAndAppend(t *testing.T) {
 	s, id := linkedSheet(t, 0)
 	s.Set(Addr{Col: 4}, "=SUM(B:B)")
 	s.Set(Addr{Col: 5}, "=COUNTA(A2:A100)")
-	r := apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("name", "n"), Rows: []LiveRow{liveRow("a", "1"), liveRow("b", "2")}})
+	r := apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("name", "n"), Rows: []LiveRow{liveRow("a", "1"), liveRow("b", "2")}})
 	if r.Rows != 2 || r.Area != NewRect(Addr{}, Addr{Col: 1, Row: 2}) || r.Stale {
 		t.Fatalf("after reset: %+v", r)
 	}
@@ -53,7 +53,7 @@ func TestLiveResetAndAppend(t *testing.T) {
 		t.Fatalf("SUM = %v, want 3", got)
 	}
 	at := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
-	r = apply(t, s, LiveOp{Link: id, At: at, Rows: []LiveRow{liveRow("c", "3", "extra")}})
+	r = apply(t, s, LiveOp{Region: id, At: at, Rows: []LiveRow{liveRow("c", "3", "extra")}})
 	if r.Rows != 3 || r.Area.To != (Addr{Col: 2, Row: 3}) || !r.Updated.Equal(at) {
 		t.Fatalf("after append: %+v", r)
 	}
@@ -70,7 +70,7 @@ func TestLiveResetAndAppend(t *testing.T) {
 		t.Fatalf("rows arriving made an undo step: %q", s.Book().UndoLabel())
 	}
 	// A reset with fewer rows clears the rest.
-	apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("name", "n"), Rows: []LiveRow{liveRow("z", "10")}})
+	apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("name", "n"), Rows: []LiveRow{liveRow("z", "10")}})
 	if s.Filled(Addr{Row: 2}) || s.Filled(Addr{Col: 2, Row: 3}) {
 		t.Fatal("a reset left old rows")
 	}
@@ -86,11 +86,11 @@ func TestLiveWindow(t *testing.T) {
 	for _, n := range []string{"1", "2", "3", "4", "5"} {
 		rows = append(rows, liveRow("r"+n, n))
 	}
-	r := apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("name", "n"), Rows: rows[:2]})
+	r := apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("name", "n"), Rows: rows[:2]})
 	if r.Rows != 2 || r.Dropped != 0 {
 		t.Fatalf("%+v", r)
 	}
-	r = apply(t, s, LiveOp{Link: id, Rows: rows[2:]})
+	r = apply(t, s, LiveOp{Region: id, Rows: rows[2:]})
 	if r.Rows != 3 || r.Dropped != 2 {
 		t.Fatalf("after the window filled: %+v", r)
 	}
@@ -108,7 +108,7 @@ func TestLiveWindow(t *testing.T) {
 		t.Fatalf("SUM = %v, want 12", v)
 	}
 	// One more row drops one more.
-	r = apply(t, s, LiveOp{Link: id, Rows: []LiveRow{liveRow("r6", "6")}})
+	r = apply(t, s, LiveOp{Region: id, Rows: []LiveRow{liveRow("r6", "6")}})
 	if r.Dropped != 3 || s.Value(Addr{Row: 1}).Str != "r4" || s.Value(Addr{Row: 3}).Str != "r6" {
 		t.Fatalf("%+v: %v..%v", r, s.Value(Addr{Row: 1}), s.Value(Addr{Row: 3}))
 	}
@@ -122,7 +122,7 @@ func TestLiveMaxCells(t *testing.T) {
 	for range 5 {
 		rows = append(rows, liveRow("x", "1"))
 	}
-	r := apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("a", "b"), Rows: rows})
+	r := apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("a", "b"), Rows: rows})
 	if r.Rows != 3 || !strings.Contains(r.Note, "only the first 3 rows") {
 		t.Fatalf("%+v", r)
 	}
@@ -130,38 +130,44 @@ func TestLiveMaxCells(t *testing.T) {
 
 func TestLiveRefusesEditsAndBlocks(t *testing.T) {
 	s, id := linkedSheet(t, 0)
-	apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
+	apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
 	if err := s.Set(Addr{Row: 1}, "5"); !errors.Is(err, ErrLinkedEdit) {
 		t.Fatalf("Set in a region: %v", err)
 	}
-	if _, ok := s.InLinked(NewRect(Addr{Row: 1}, Addr{Col: 3, Row: 5})); !ok {
-		t.Fatal("InLinked missed the region")
-	}
-	// Rows that would overwrite a typed cell stop the region, saying so.
-	s.Set(Addr{Row: 3}, "mine")
-	r := apply(t, s, LiveOp{Link: id, Rows: []LiveRow{liveRow("2"), liveRow("3")}})
-	if !strings.Contains(r.Err, "overwrite data in A4") || r.Rows != 1 || s.Value(Addr{Row: 3}).Str != "mine" {
-		t.Fatalf("%+v", r)
+	if _, r, ok := s.InRegion(NewRect(Addr{Row: 1}, Addr{Col: 3, Row: 5})); !ok || r.Name != id {
+		t.Fatal("InRegion missed the linked file")
 	}
 	// Formatting a linked cell keeps its value.
 	s.SetStyle(NewRect(Addr{Row: 1}, Addr{Row: 1}), func(st *Style) { st.Bold = true })
 	if c := s.Cell(Addr{Row: 1}); c.Value.Num != 1 || !c.Style.Bold || !c.Spilled() {
 		t.Fatalf("formatted linked cell: %+v", c)
 	}
+	// Rows that would overwrite a typed cell aren't shown, and the first
+	// cell says why; clearing the cell has the file read again.
+	s.Set(Addr{Row: 3}, "mine")
+	r := apply(t, s, LiveOp{Region: id, Rows: []LiveRow{liveRow("2"), liveRow("3")}})
+	if !strings.Contains(r.Err, "overwrite data in A4") || r.Rows != 0 || s.Value(Addr{Row: 3}).Str != "mine" ||
+		s.Value(Addr{}) != value.ErrRef || s.Filled(Addr{Row: 1}) {
+		t.Fatalf("%+v", r)
+	}
+	s.Set(Addr{Row: 3}, "")
+	if r, _ := s.Book().LinkedRegion(id); !r.Stale {
+		t.Fatalf("clearing the cell in the way: %+v", r)
+	}
 }
 
 func TestLiveErrorShowsInAnchor(t *testing.T) {
 	s, id := linkedSheet(t, 0)
-	r := apply(t, s, LiveOp{Link: id, Err: "no such file"})
+	r := apply(t, s, LiveOp{Region: id, Err: "no such file"})
 	if r.Err != "no such file" || s.Value(Addr{}) != value.ErrRef {
 		t.Fatalf("%+v, anchor %v", r, s.Value(Addr{}))
 	}
-	r = apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
+	r = apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
 	if r.Err != "" || s.Value(Addr{}).Str != "a" {
 		t.Fatalf("%+v, anchor %v", r, s.Value(Addr{}))
 	}
 	// An error once rows show keeps them.
-	r = apply(t, s, LiveOp{Link: id, Err: "gone"})
+	r = apply(t, s, LiveOp{Region: id, Err: "gone"})
 	if r.Err != "gone" || s.Value(Addr{Row: 1}).Num != 1 {
 		t.Fatalf("%+v", r)
 	}
@@ -169,7 +175,7 @@ func TestLiveErrorShowsInAnchor(t *testing.T) {
 
 func TestUnlinkAndUndo(t *testing.T) {
 	s, id := linkedSheet(t, 0)
-	apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
+	apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
 	if err := s.Book().Unlink(id); err != nil {
 		t.Fatal(err)
 	}
@@ -185,12 +191,12 @@ func TestUnlinkAndUndo(t *testing.T) {
 	if !ok || !r.Stale || s.Filled(Addr{Row: 1}) {
 		t.Fatalf("undo of unlink: %+v %v, A2 %v", r, ok, s.Value(Addr{Row: 1}))
 	}
-	apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("2")}})
+	apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("2")}})
 	s.Undo() // making the region
 	if s.HasLinked() || s.Filled(Addr{}) || s.Filled(Addr{Row: 1}) {
 		t.Fatal("undoing the region left its cells")
 	}
-	if _, err := s.Book().ApplyLive(LiveOp{Link: id}); !errors.Is(err, ErrNoLinked) {
+	if err := s.Book().ApplyLive(LiveOp{Region: id}); !errors.Is(err, ErrNoRegion) {
 		t.Fatalf("op for a region undone: %v", err)
 	}
 	s.Redo()
@@ -206,7 +212,7 @@ func TestLinkedShiftsWithRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
+	apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
 	s.Set(Addr{Col: 3, Row: 1}, "x")
 	if err := s.InsertRows(1, 2); err != nil {
 		t.Fatal(err)
@@ -218,7 +224,7 @@ func TestLinkedShiftsWithRows(t *testing.T) {
 	if s.Value(Addr{Col: 3, Row: 3}).Str != "x" {
 		t.Fatal("a cell moving past the region was lost")
 	}
-	apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
+	apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
 	if s.Value(Addr{Row: 5}).Num != 1 {
 		t.Fatal("the region wasn't written at its new place")
 	}
@@ -235,15 +241,14 @@ func TestLinkedShiftsWithRows(t *testing.T) {
 
 func TestLinkedFileRoundTrip(t *testing.T) {
 	s, id := linkedSheet(t, 500)
-	s.Book().SetLinkOrigin("here")
-	apply(t, s, LiveOp{Link: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
+	apply(t, s, LiveOp{Region: id, Reset: true, Header: liveRow("a"), Rows: []LiveRow{liveRow("1")}})
 	var b bytes.Buffer
 	if err := s.Write(&b); err != nil {
 		t.Fatal(err)
 	}
 	text := b.String()
-	if !strings.Contains(text, `"links": [`) || !strings.Contains(text, `{"at":"A1","path":"log.csv","window":500}`) ||
-		!strings.Contains(text, `"linkOrigin": "here"`) || strings.Contains(text, `"A2"`) {
+	if !strings.Contains(text, `"regions": [`) || !strings.Contains(text, `{"name":"log","at":"A1","path":"log.csv","window":500}`) ||
+		strings.Contains(text, `"A2"`) || strings.Contains(text, `"notebook"`) {
 		t.Fatalf("written:\n%s", text)
 	}
 	got, err := Read(strings.NewReader(text))
@@ -251,12 +256,12 @@ func TestLinkedFileRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	rs := got.LinkedRegions()
-	if len(rs) != 1 || rs[0].Source != (LinkSource{Path: "log.csv", Window: 500}) || !rs[0].Stale || got.Book().LinkOrigin() != "here" {
+	if len(rs) != 1 || rs[0].Name != "log" || rs[0].Source != (LinkSource{Path: "log.csv", Window: 500}) || !rs[0].Stale {
 		t.Fatalf("read: %+v", rs)
 	}
-	for _, bad := range []string{`[{"at": "ZZZZ9", "path": "a"}]`, `[{"at": "A1"}]`, `[{"at": "A1", "path": "a", "window": -1}]`,
-		`[{"at": "A1", "path": "a"}, {"at": "A1", "path": "b"}]`} {
-		if _, err := Read(strings.NewReader(`{"version": 2, "cells": {}, "links": ` + bad + `}`)); err == nil {
+	for _, bad := range []string{`[{"name": "a", "at": "ZZZZ9", "path": "a"}]`, `[{"name": "a", "at": "A1", "path": "a", "window": -1}]`,
+		`[{"name": "a", "at": "A1", "path": "a"}, {"name": "a", "at": "A3", "path": "b"}]`, `[{"name": "a", "at": "A1", "path": "a", "command": "ls"}]`} {
+		if _, err := Read(strings.NewReader(`{"version": 2, "cells": {}, "regions": ` + bad + `}`)); err == nil {
 			t.Errorf("read links %s", bad)
 		}
 	}

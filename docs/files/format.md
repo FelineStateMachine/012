@@ -38,7 +38,8 @@ Only what's typed is saved. What 012 computes is computed again when the
 file opens: formula results, [pivot tables](#pivot-tables)' results, and
 the arrays formulas [spill](../formulas/arrays.md), whose cells are kept
 only for their formatting and notes, and the rows of
-[linked files](following.md), read from their files again.
+[regions](#regions), made again by their commands or read again from
+their files.
 
 ## Reading and writing
 
@@ -85,13 +86,10 @@ save), so they raise no version:
 | `charts` | a sheet | One chart per line: `type` (`column`, `bar`, `line`, `pie`, `area`, `scatter`), `data`, `at`, `width`, `height`, `byRow`, `header`, `labels`, `title`, and options left out at their defaults: `stack` (`stacked`, `percent`), `trend`, `min`, `max`, `log`, `gridlines` (only when off), `legend` (`right`, `none`). A build that charts but lacks a chart's type refuses the file |
 | `protected` | a sheet | [Protected ranges](../sheets/notes-protection.md#protected-sheets-and-ranges): `{"range":"B2:C9","description":"Totals"}`, or `{"sheet":true}` |
 | `conditionalFormats`, `validations` | a sheet | [Rules](#conditional-formats-and-data-validation), one per line |
-| `links` | a sheet | [Linked files](#linked-files), one per line; older builds show their cells empty |
 | `arithmetic` | the workbook | `decimal` for [decimal arithmetic](../formulas/decimal.md) |
 | `locale` | the workbook | The [locale](../sheets/locale.md) it's typed and shown in (`"de-DE"`), when File > Settings > Locale chose one; without it, the file follows the reader's `locale` setting. Cells are stored the same way in every locale: `input` is always as typed in en-US (`1,234.5`, `9/26/2026`, `=ROUND(A1,2)`) |
-| `linkOrigin` | the workbook | The computer its linked files were linked or trusted on: see [Following files](following.md#files-from-elsewhere) |
-| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on: see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
-| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on (macros' and shell regions' both): see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
-| `notebook`, `regions` | a sheet | A [notebook sheet](../terminal/nushell.md#notebooks) and its shell regions: see [Regions](#regions). Older builds open the sheet without them |
+| `macros`, `macroOrigin` | the workbook | Macros as Starlark scripts, and the computer they were made or trusted on (macros', shell regions' and [linked files'](following.md#files-from-elsewhere) alike): see [Macro scripting API](../reference/macro-api.md#in-the-file). Opening a file never runs them |
+| `notebook`, `regions` | a sheet | A [notebook sheet](../terminal/nushell.md#notebooks), and its shell regions and [linked files](following.md): see [Regions](#regions). Older builds open the sheet without them |
 | `shellHistory` | the workbook | The lines typed at its [notebook prompt](../terminal/nushell.md#the-prompt), oldest first, for Up and Down |
 
 ## Column and row formats
@@ -163,50 +161,38 @@ with its data.
   `condition` with its `value`.
 - `rowTotals` and `columnTotals` are the grand total row and column.
 
-## Linked files
-
-A sheet's [linked files](following.md) are a list after its cells,
-charts and rules, one per line, holding where each region starts and
-what it reads, never its rows:
-
-```json
-  "links": [
-    {"at":"A1","path":"logs/app.csv","window":500},
-    {"at":"F1","path":"../shop.db","format":"SQLite","query":"SELECT * FROM orders"}
-  ]
-```
-
-- `at` is the region's top-left cell.
-- `path` is the file, relative to the workbook's folder when it's saved
-  there or below, and otherwise as it was linked.
-- `format` names the file's format (`CSV`, `TSV`, `JSON`, `NUON`,
-  `XLSX`, `SQLite`, `Parquet`) when it isn't told by the extension.
-- `table` or `query` say what to read from a SQLite database.
-- `window` keeps the last rows under the header, when set.
-
 ## Regions
 
-A [notebook sheet](../terminal/nushell.md#notebooks) has `"notebook":
-true` and its regions in a `regions` list after its cells, charts and
-rules, one per line, in run order. The file keeps each region's
-command, never its table: reopening shows the regions as not run, and
-nothing runs until you run it.
+A sheet's regions, a [notebook's](../terminal/nushell.md#notebooks)
+shell regions and [linked files](following.md), are a `regions` list
+after its cells, charts and rules, one per line, in the order they were
+made; a notebook sheet also has `"notebook": true`. The file keeps what
+each region reads, never its table: reopening shows shell regions as not
+run, and nothing runs until you run it; linked files are read again.
 
 ```json
   "notebook": true,
   "regions": [
     {"name":"r1","command":"ls","at":"A1","rows":12,"cols":4},
-    {"name":"big","command":"$r1 | where size > 1kb","at":"A16","rows":3,"cols":4,"reads":["r1"],"sort":[{"column":3,"desc":true}]}
+    {"name":"big","command":"$r1 | where size > 1kb","at":"A16","rows":3,"cols":4,"reads":["r1"],"sort":[{"column":3,"desc":true}]},
+    {"name":"app","at":"F1","path":"logs/app.csv","window":500}
   ]
 ```
 
 - `name` is what commands read it as (`$r1`) and formulas name it by
-  (`nu.r1`); `command` is the nushell pipeline.
+  (`nu.r1`); `command` is a shell region's nushell pipeline.
 - `at` is its label line's cell; `rows` and `cols` the size of its table
   when saved, header row included, which it keeps until it runs.
 - `reads` are the regions its command reads, `input` the range it read
   as `$in` (`Sheet1!A1:C9`), and `sort` the columns its table is sorted
   by, counting from 1 at its first column, with `desc` for Z to A.
+- A linked file has `path` instead of a command: the file, relative to
+  the workbook's folder when it's saved there or below, and otherwise as
+  it was linked; `at` is its table's first cell. `format` names the
+  file's format (`CSV`, `TSV`, `JSON`, `NUON`, `XLSX`, `SQLite`,
+  `Parquet`) when the extension doesn't tell it, `table` or `query` say
+  what to read from a SQLite database, and `window` keeps the last rows
+  under the header.
 
 The table's cells are saved only for their formatting and notes, as a
 spill's are.

@@ -63,7 +63,7 @@ func readWhole(data []byte) (w *Workbook, ambiguous bool, err error) {
 	if err := w.readMacros(f.Macros); err != nil {
 		return nil, false, err
 	}
-	w.macroOrigin, w.linkOrigin = f.MacroOrigin, f.LinkOrigin
+	w.macroOrigin = f.MacroOrigin
 	w.readShellHistory(f.ShellHistory)
 	w.RecalcAll()
 	return w, ambiguous, nil
@@ -234,9 +234,9 @@ func streamSeeds(t testing.TB) [][]byte {
 		[]byte(`{"version": 2, "conditionalFormats": [{"ranges":"A1","iconSet":{"icons":"symbols","points":[{"type":"percent","value":"50"}]}}]}`),
 		[]byte(`{"version": 2, "validations": [{"ranges":"A1","criteria":"list","items":["a"],"display":"bubbles"}]}`),
 		[]byte(`{"version": 2, "heights": {"0": 2}, "merges": ["A1:"], "cells": {}}`),
-		[]byte(`{"version": 2, "linkOrigin": "m", "cells": {"C1": "x"}, "links": [{"at": "A1", "path": "logs/app.csv", "window": 3}, {"at": "E5", "path": "/tmp/t.db", "format": "SQLite", "query": "select 1"}]}`),
-		[]byte(`{"version": 4, "sheets": [{"name": "Log", "cells": {}, "links": [{"at": "B2", "path": "a.nuon"}]}, {"name": "S", "cells": {"A1": "=SUM(Log!B:B)"}}]}`),
-		[]byte(`{"version": 2, "cells": {}, "links": [{"at": "A1", "path": "a"}, {"at": "A1", "path": "b"}, {"at": "", "window": -2}]}`),
+		[]byte(`{"version": 2, "macroOrigin": "m", "cells": {"C1": "x"}, "regions": [{"name": "app", "at": "A1", "path": "logs/app.csv", "window": 3}, {"name": "t", "at": "E5", "path": "/tmp/t.db", "format": "SQLite", "query": "select 1"}]}`),
+		[]byte(`{"version": 4, "sheets": [{"name": "Log", "cells": {}, "regions": [{"name": "a", "at": "B2", "path": "a.nuon"}]}, {"name": "S", "cells": {"A1": "=SUM(Log!B:B)+SUM(nu.a)"}}]}`),
+		[]byte(`{"version": 2, "cells": {}, "regions": [{"name": "a", "at": "A1", "path": "a", "command": "ls"}, {"name": "b", "at": "A3", "path": "b", "window": -2}]}`),
 		[]byte(`{"version": 2, "macroOrigin": "m1", "shellHistory": ["ls", "$r1 | first"], "notebook": true, "cells": {"A3": {"bold": true}}, "regions": [
 			{"name": "r1", "command": "ls", "at": "A1", "rows": 3, "cols": 2},
 			{"name": "big", "command": "$r1 | where size > 1kb", "at": "A6", "rows": 2, "cols": 2, "reads": ["r1"], "input": "Sheet1!D1:E4", "sort": [{"column": 2, "desc": true}]}]}`),

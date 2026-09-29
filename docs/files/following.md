@@ -42,11 +42,19 @@ file's rows, typed as an import types them. The region is the file's:
 - its values show in italics, as an array's spilled values do, and
   copying them copies values;
 - it grows to the right and down as the file does. Where it would write
-  over a cell holding something, it stops and says which cell; clear the
-  cell and use Data > Linked file > Read again;
+  over a cell holding something, its rows aren't shown, and its first
+  cell (`#REF!`) and the context line say which cell is in the way;
+  clearing that cell reads the file again;
 - inserting or deleting rows or columns before it moves it, and it reads
   the file again there; deleting its first cell's row or column unlinks
   it.
+
+A linked file is a region, as a [notebook's](../terminal/nushell.md#notebooks)
+shell regions are, named after the file (`app` for `app.csv`, `app_2`
+for a second link to it): formulas read its table, header row included,
+as `nu.app` (`=SUM(nu.app)`, on any sheet), and shell commands read it as
+`$app`. Refreshing a shell region that reads it runs its command on the
+rows the file has now; the linked file itself has no command to run.
 
 The sheet's tab carries a mark, and the context line says what the
 region under the pointer is doing:
@@ -95,7 +103,7 @@ only one:
 ## Saving and opening
 
 A spreadsheet keeps what each region reads, never its rows (see
-[The .012 format](format.md#linked-files)): the file's path relative to
+[The .012 format](format.md#regions)): the file's path relative to
 the spreadsheet's folder (absolute when the file is elsewhere and was
 linked by an absolute path), its format, the SQLite table or query, and
 how many rows to keep. Saving in another folder keeps the paths naming
@@ -112,11 +120,13 @@ a spreadsheet linking a file outside it shows why in the region.
 Following reads files, so a spreadsheet made on another computer asks
 once before following files outside its own folder (an absolute path,
 or one through `..`): the context line names them, Enter follows them
-and records this computer as trusted in the spreadsheet (`linkOrigin`,
-saved with it), Esc leaves their regions empty. Files in the spreadsheet's
-folder or below, and spreadsheets linked on this computer, never ask.
-Macros are trusted the same way, separately
-([Macros](../sheets/macros.md#macros-from-other-computers)).
+and records this computer as trusted in the spreadsheet, Esc leaves
+their regions empty. Files in the spreadsheet's folder or below never
+ask. The trust is the spreadsheet's one trust (`macroOrigin`, saved with
+it), which its macros and shell commands need too
+([Macros](../sheets/macros.md#macros-from-other-computers)): a
+spreadsheet made or trusted on this computer follows its files, runs its
+macros and its commands without asking.
 
 What following costs, measured, is in
 [Bounds of support](../contributing/limits.md#following-files).

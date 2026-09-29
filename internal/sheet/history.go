@@ -59,8 +59,6 @@ type step struct {
 	// rules holds each touched sheet's conditional formats and data
 	// validation before the step.
 	rules map[*Sheet]rulesState
-	// links holds each touched sheet's linked regions before the step.
-	links map[*Sheet][]*linked
 	// regions holds each touched sheet's regions before the step.
 	regions map[*Sheet]regionState
 	// sheets is the sheet list before the step, when it changed.
@@ -81,7 +79,7 @@ type colKey struct {
 func newStep(label string, s *Sheet, focus Rect) *step {
 	return &step{label: label, sheet: s, focus: focus, cells: map[*Sheet]*image{}, widths: map[colKey]int{}, lines: map[lineKey]lineFmt{},
 		names: map[string]*Name{}, views: map[*Sheet]*viewState{}, charts: map[*Sheet][]Chart{}, pivots: map[*Sheet]*Pivot{}, rules: map[*Sheet]rulesState{},
-		regions: map[*Sheet]regionState{}, links: map[*Sheet][]*linked{}}
+		regions: map[*Sheet]regionState{}}
 }
 
 func (st *step) empty() bool {
@@ -91,7 +89,7 @@ func (st *step) empty() bool {
 // widthOnly reports whether the step changed nothing but column widths
 // and row heights.
 func (st *step) widthOnly() bool {
-	return len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && len(st.links) == 0 && st.sheets == nil && st.settings == nil &&
+	return len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.views) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil && st.settings == nil &&
 		st.macros == nil && len(st.regions) == 0
 }
 
@@ -230,11 +228,6 @@ func (w *Workbook) dropUnchanged(st *step) {
 	for s, p := range st.pivots {
 		if samePivot(p, s.pivot.def) {
 			delete(st.pivots, s)
-		}
-	}
-	for s, l := range st.links {
-		if sameLinks(l, s.links) {
-			delete(st.links, s)
 		}
 	}
 	for s, r := range st.regions {
@@ -396,6 +389,6 @@ func (w *Workbook) swap(undo bool) (Change, bool) {
 		w.pushUndo(inv)
 	}
 	h.mergeWidths = false
-	macrosOnly := st.macros != nil && len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && len(st.links) == 0 && st.sheets == nil && len(st.regions) == 0
+	macrosOnly := st.macros != nil && len(st.cells) == 0 && len(st.lines) == 0 && len(st.names) == 0 && len(st.charts) == 0 && len(st.pivots) == 0 && len(st.rules) == 0 && st.sheets == nil && len(st.regions) == 0
 	return Change{Label: st.label, Focus: st.focus, Sheet: st.sheet, Tabs: st.sheets != nil, Macros: macrosOnly}, true
 }

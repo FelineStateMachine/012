@@ -19,7 +19,7 @@ import (
 // the prompt, the commands and the trust a file's commands need.
 
 func init() {
-	onRegion := func(m *Model) bool { _, _, ok := m.sheet.RegionAt(m.cur); return ok }
+	onRegion := func(m *Model) bool { r, _, ok := m.sheet.RegionAt(m.cur); return ok && !r.Linked() }
 	register(
 		&command{id: "nu.prompt", macro: macroNever, title: "Shell",
 			desc: "Run a nushell pipeline; its table becomes a live region of the notebook sheet",
@@ -254,6 +254,10 @@ func (m *Model) trustShell(run func(*Model) tea.Cmd) tea.Cmd {
 // its columns in keys: the rows below its header, whatever else r
 // holds. The order is the region's, kept when it runs again.
 func (m *Model) sortRegion(reg sheet.Region, r sheet.Rect, keys []sheet.SortKey) tea.Cmd {
+	if reg.Linked() {
+		m.note = "A linked file's rows keep the file's order: unlink it to sort them"
+		return nil
+	}
 	t, ok := m.sheet.RegionTable(reg.Name)
 	inTable := func(k sheet.SortKey) bool { return k.Col >= t.From.Col && k.Col <= t.To.Col }
 	if !ok || len(keys) == 0 || !slices.ContainsFunc(keys, inTable) || r.To.Row <= t.From.Row {
@@ -335,6 +339,9 @@ func (m *Model) regionLine() string {
 		}
 		return ""
 	}
+	if r.Linked() {
+		return m.linkedLine() // linked.go
+	}
 	if f := m.shell.failed[strings.ToUpper(r.Name)]; f != "" && label {
 		return m.th.Warning.Render(r.Name+" failed: "+f) + "   " + m.th.KeyHints("F2", "edit")
 	}
@@ -353,7 +360,7 @@ func (m *Model) regionLine() string {
 func (m *Model) notRun() int {
 	n := 0
 	for _, r := range m.sheet.Regions() {
-		if !m.sheet.RegionShown(r.Name) {
+		if !r.Linked() && !m.sheet.RegionShown(r.Name) {
 			n++
 		}
 	}
@@ -366,7 +373,7 @@ func (m *Model) regionEntry() (string, bool) {
 		return "", false
 	}
 	r, _, ok := m.sheet.RegionAt(m.cur)
-	if !ok {
+	if !ok || r.Linked() {
 		return "", false
 	}
 	return m.th.Muted.Render(nuprompt.Mark + r.Command), true

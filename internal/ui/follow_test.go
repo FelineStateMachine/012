@@ -179,7 +179,7 @@ func TestLinksFromElsewhereAskOnce(t *testing.T) {
 	t.Chdir(dir)
 	outside := filepath.Join(t.TempDir(), "far.csv")
 	os.WriteFile(outside, []byte("a\n1\n"), 0o644)
-	book := `{"version": 2, "linkOrigin": "another", "cells": {}, "links": [{"at": "A1", "path": ` + jsonQuote(outside) + `}]}`
+	book := `{"version": 2, "macroOrigin": "another", "cells": {}, "regions": [{"name": "far", "at": "A1", "path": ` + jsonQuote(outside) + `}]}`
 	writeFile(t, "b.012", book)
 	for _, answer := range []string{"<esc>", "<enter>"} {
 		m := newModel()
@@ -194,13 +194,13 @@ func TestLinksFromElsewhereAskOnce(t *testing.T) {
 		if followed != (answer == "<enter>") {
 			t.Errorf("%s: followed %v", answer, followed)
 		}
-		if answer == "<enter>" && m.book().LinkOrigin() != "this-one" {
-			t.Errorf("trusting didn't record this computer: %q", m.book().LinkOrigin())
+		if answer == "<enter>" && m.book().MacroOrigin() != "this-one" {
+			t.Errorf("trusting didn't record this computer: %q", m.book().MacroOrigin())
 		}
 	}
 	// A file in the workbook's own folder needs no question.
 	writeFile(t, "near.csv", "a\n1\n")
-	writeFile(t, "c.012", `{"version": 2, "linkOrigin": "another", "cells": {}, "links": [{"at": "A1", "path": "near.csv"}]}`)
+	writeFile(t, "c.012", `{"version": 2, "macroOrigin": "another", "cells": {}, "regions": [{"name": "near", "at": "A1", "path": "near.csv"}]}`)
 	m := newModel()
 	m.SetMachine("this-one")
 	press(t, m, "<ctrl+o>", "c", "<enter>")
@@ -218,7 +218,7 @@ func TestLinkServedConfined(t *testing.T) {
 	m := newModel()
 	m.root, _ = confine.New(dir)
 	m.SetMachine("here")
-	m.book().SetLinkOrigin("here")
+	m.book().SetMacroOrigin("here")
 	out, _ := m.sheet.AddLinked(addr("A1"), sheet.LinkSource{Path: "../out.csv"})
 	m.sheet.AddLinked(addr("C1"), sheet.LinkSource{Path: "in.csv"})
 	pump(t, m)

@@ -215,37 +215,36 @@ style.
   format) keeps only its formatting and note. A blocked anchor shows
   `#REF!` with the reason. `Set` refuses spilled cells; files keep only
   the anchor.
-- **Linked regions.** A sheet may hold regions whose rows come from
-  outside the workbook (`linked.go`, `live.go`): an anchor, the source's
-  definition (path, format, table or query, the rows to keep), and the
-  cells it has written, spilled cells as an array's are, so they are
-  refused by `Set`, constants to formulas, values to copies and exports,
-  and never saved (the file keeps the definition, `linkfile.go`). Rows
-  arrive as live operations, the change stream below; placing a cell in
-  a region (a format, undo) keeps the region's value. The definitions
-  are replaced whole on every change, so undo steps keep them; a region
-  undo puts back, or one moved by inserted lines, is emptied and marked
-  stale, and the UI reads its source again.
 - **Regions.** A region (`region.go`) is a block of cells whose values
-  come from outside the engine: an anchor, its label line, and a
-  definition naming what fills it (a notebook's nushell command, opaque
-  to the engine), with the data it shows (`RegionData`) handed over by
-  the UI (`ShowRegion`). Definitions and data are the sheet's
-  `regionState`, replaced whole on every change so undo steps keep them;
-  what isn't undone (a label's status, the cells written) is kept
-  beside it. After a change touching regions, their cells are written
-  again (`regionwrite.go`) as spilled cells are, derived and outside the
-  undo history, only those that differ, and cells no region covers any
-  more are cleared; a table that would overwrite other contents shows
-  only its label, saying where. On a notebook sheet a table that grows
-  or shrinks inserts or deletes rows under it inside the same step, so
-  the rows below move as they would by hand. Formulas name a region's
-  table as `nu.name`, resolved when evaluated as named ranges are; the
-  regions' `$name` references make a dependency graph
-  (`regiongraph.go`) giving refresh and run orders, and cycles are
-  refused. The file keeps the definitions (`regionfile.go`). Anything
-  that fills cells from outside (a file followed as it grows) is a
-  region with another kind of command.
+  come from outside the engine, of two kinds: a command region, a
+  notebook's nushell command (opaque to the engine) with a label line
+  above its table, and a linked file (`linked.go`), a file the UI
+  follows, its table at its anchor. Both are one list per sheet, the
+  sheet's `regionState`, replaced whole on every change so undo steps
+  keep the definitions; what isn't undone (a label's status, the cells
+  written, how a linked file's reading goes) is kept beside it
+  (`regionMeta`). Their cells have one write path, `writeTable`
+  (`regionwrite.go`): a header and rows, written as spilled cells are,
+  derived and outside the undo history, only those that differ, with
+  the region's cells it no longer needs cleared; a table that would
+  overwrite other contents isn't shown, its label or first cell saying
+  where, and clearing that cell shows it. Rows arrive as live
+  operations, the change stream below. What undo keeps of the rows is a
+  policy per kind: a command region's table (`RegionData`, handed over
+  by `ShowRegion`) is in the undo state, since a run was the user's
+  action and its output can't be had again, and is written again from
+  there whenever its region moves; a linked file's rows are only in its
+  cells, since undo can't bring back what a file held, so a linked file
+  undo brings back or moves is emptied and read again. Placing a cell in
+  a region (a format, undo) keeps the region's value. On a notebook
+  sheet a command region's table that grows or shrinks inserts or
+  deletes rows under it inside the same step, so the rows below move as
+  they would by hand (`regionshape.go`). Formulas name a region's table
+  as `nu.name`, resolved when evaluated as named ranges are; commands
+  read regions as `$name`, which makes a dependency graph
+  (`regiongraph.go`) giving refresh and run orders, cycles refused, and
+  a linked file in it never runs. The file keeps the definitions
+  (`regionfile.go`).
 - **Rules.** A sheet's conditional formats and data validation
   (`rules.go`, `condfmt.go`, `validation.go`) are lists of rules on
   ranges, replaced whole on every change so undo steps keep them as they
@@ -266,12 +265,14 @@ style.
 
 ### The change stream
 
-What reads a linked region's source hands the workbook `sheet.LiveOp`s,
-each applied at once by `Workbook.ApplyLive`:
+Rows reach a region as `sheet.LiveOp`s, each applied at once by
+`Workbook.ApplyLive` through the regions' one write path: what follows
+a linked file sends them, and a command region's table is written the
+same way from its `RegionData`.
 
 | Field | Holds |
 |---|---|
-| `Link` | the region, by ID |
+| `Region` | the region, by name, as the file keeps it |
 | `At` | when the source changed |
 | `Reset` | the rows replace every row under the header; otherwise they follow the last |
 | `Header` | the first row, when it is new or changed |
@@ -286,7 +287,8 @@ step (a macro run) they recalculate when it ends. An op carries whole
 values and names nothing but its region, so applying the same ops in the
 same order to the same workbook makes the same cells: it is what a
 session following another's over `012 serve` would be sent, beside the
-steps `Batch` records. `OnLive` times each op for telemetry.
+steps `Batch` records (a command region's run is one of those, since
+its table is in the undo state). `OnLive` times each op for telemetry.
 
 ### Functions
 

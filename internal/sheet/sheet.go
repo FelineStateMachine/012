@@ -105,9 +105,6 @@ type Sheet struct {
 	// spillAt the anchors by the cells they cover; see spill.go.
 	spills  map[Addr]*spill
 	spillAt rangeIndex
-	// links are the linked regions, in the order they were made; see
-	// linked.go. The list is replaced whole on every change.
-	links []*linked
 
 	view     viewState   // frozen panes, the filter and merges, see view.go
 	mergeIdx mergeIndex  // the merges by the cells they cover, see merge.go
@@ -244,10 +241,10 @@ func (s *Sheet) Set(a Addr, input string) error {
 	if _, ok := s.SpillAnchor(a); ok {
 		return ErrSpillEdit
 	}
-	if s.linkedAt(a) != nil {
-		return ErrLinkedEdit
-	}
-	if _, _, ok := s.RegionAt(a); ok {
+	if r, _, ok := s.RegionAt(a); ok {
+		if r.Linked() {
+			return ErrLinkedEdit
+		}
 		return ErrRegionEdit
 	}
 	var err error
@@ -370,21 +367,20 @@ func (s *Sheet) place(a Addr, c *Cell) {
 	if c.Spilled() {
 		c = c.leftover()
 	}
-	if len(s.links) > 0 {
-		if v, lk, kind := s.cells.derivedOf(a); kind == slotSpill && s.linkedAt(a) != nil {
-			// A linked region's cell keeps its value: only its
-			// formatting and note are placed.
+	if len(s.regions.list) > 0 {
+		if _, _, ok := s.ownerOf(a); ok {
+			// A region's cell keeps its value: only its formatting and
+			// note are placed.
+			v, lk, _ := s.cells.derivedOf(a)
 			defer s.writeSpilled(a, v, lk.auto)
 			if c != nil {
 				c = c.leftover()
 			}
 		}
+		s.regionTouched(a)
 	}
 	s.trackShape(a, c)
 	s.spillTouched(a, c)
-	if len(s.regions.list) > 0 {
-		s.regionTouched(a)
-	}
 	if c == nil {
 		s.unlink(a)
 		return

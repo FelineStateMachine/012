@@ -83,7 +83,8 @@ func (w *Workbook) checkDeps(name string, deps []string) error {
 	return nil
 }
 
-// RefreshOrder returns the regions to run when name is refreshed: name,
+// RefreshOrder returns the regions to run when name is refreshed: name
+// (unless it's a linked file, which doesn't run),
 // then every region that reads it, directly or through others, each
 // after the regions it reads.
 func (w *Workbook) RefreshOrder(name string) []string {
@@ -98,7 +99,17 @@ func (w *Workbook) RefreshOrder(name string) []string {
 			}
 		}
 	}
+	commands(regions, want)
 	return w.ordered(regions, want)
+}
+
+// commands leaves out of want the linked files, which don't run.
+func commands(regions []Region, want map[string]bool) {
+	for _, r := range regions {
+		if r.Linked() {
+			delete(want, nameKey(r.Name))
+		}
+	}
 }
 
 // RunOrder returns every region, each after the regions it reads, in run
@@ -109,6 +120,7 @@ func (w *Workbook) RunOrder() []string {
 	for _, r := range regions {
 		want[nameKey(r.Name)] = true
 	}
+	commands(regions, want)
 	return w.ordered(regions, want)
 }
 

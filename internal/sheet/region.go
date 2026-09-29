@@ -10,15 +10,31 @@ import (
 )
 
 // Regions are blocks of cells whose values come from outside the
-// engine: a nushell command's output on a notebook sheet, and in time a
-// file followed as it grows. A region is an anchor (its label line, At)
-// and a definition saying where its table comes from (Command, opaque to
-// the engine); what fills it arrives as a RegionData the UI hands over
-// (ShowRegion). Like a spill, its cells are derived: written by the
-// engine outside the undo history, refused by Set, values to formulas,
-// copies and exports, formatting kept, never saved. The definitions and
-// the data shown are undo steps, so undoing a run shows the table it
-// replaced; the file keeps the definitions only.
+// engine, of two kinds: a command region (a nushell command's output on
+// a notebook sheet) and a linked file (a file followed as it grows or is
+// rewritten, linked.go). A region is an anchor (At: a command region's
+// label line, a linked file's first cell) and a definition saying where
+// its table comes from (Command, opaque to the engine, or File). Like a
+// spill, its cells are derived: written by the engine outside the undo
+// history, refused by Set, values to formulas, copies and exports,
+// formatting kept, never saved; the file keeps the definitions only.
+//
+// Both kinds are one indexed set, the sheet's regionState, and their
+// cells have one write path: rows arrive as live operations (LiveOp,
+// live.go), written by writeTable (regionwrite.go). What differs is what
+// undo keeps, a policy per kind:
+//
+//   - A command region's table (RegionData, handed over by ShowRegion)
+//     is part of the undo state, so undoing a run shows the table it
+//     replaced: the run was the user's action, and its output can't be
+//     had again (the command may read what has changed since). The
+//     engine writes the table again from it whenever the region moves.
+//   - A linked file's rows are not: the file is where they come from,
+//     and undo can't bring back what the file held. Its rows live only
+//     in its cells; when undo puts the region back, or it moves, it is
+//     emptied and marked stale, and the UI reads the file again.
+//
+// The definitions of both are undo steps.
 //
 // On a notebook sheet regions stack in run order, a gap row between
 // them: a new one goes below everything on the sheet, and a table that
@@ -50,7 +66,17 @@ type Region struct {
 	// Sort orders the table's rows below its header, by columns counted
 	// from the region's first.
 	Sort []SortKey
+	// File is the file a linked file follows; zero for a command region.
+	File LinkSource
 }
+
+// Linked reports whether the region is a linked file rather than a
+// command region.
+func (r Region) Linked() bool { return r.File.Path != "" }
+
+// labelled reports whether the region has a label line above its table:
+// a command region does.
+func (r Region) labelled() bool { return !r.Linked() }
 
 // regionState is what a sheet keeps of its regions in the undo history:
 // the definitions in run order and the data each shows, by name key.
@@ -62,19 +88,26 @@ type regionState struct {
 }
 
 // regionMeta is what isn't undone: what the region's label says it's
-// doing, and the cells written last.
+// doing, the cells written last and what the rows written made of it.
 type regionMeta struct {
 	status  string
 	written Rect
 	has     bool   // written holds something
 	why     string // why the table isn't shown, or ""
+	need    Rect   // the cells the table needs while it isn't shown
+	// rows and cols are the table's size as written, header included.
+	rows, cols int
+	liveMeta   // a linked file's: see linked.go
 }
 
 // Errors of regions.
 var (
 	// ErrRegionEdit is what typing into a region's cell says.
 	ErrRegionEdit = errors.New("That cell is part of a shell region: change its command, or Freeze it to edit its values")
-	errNoRegion   = errors.New("There's no region by that name")
+	// ErrNoRegion is returned for a region the workbook doesn't hold:
+	// deleted, unlinked, undone, or on a sheet deleted.
+	ErrNoRegion   = errors.New("There's no region by that name")
+	errFileRegion = errors.New("That region is a linked file, which has no command")
 )
 
 // regionPrefix starts a region's name in formulas.
@@ -256,25 +289,15 @@ func (s *Sheet) AddRegion(r Region) error {
 	return nil
 }
 
-// nextRegionRow is where a new region's label goes on a notebook: below
-// the last cell and region, a row left free, or row 1 on an empty sheet.
-func (s *Sheet) nextRegionRow() int {
-	next := 0
-	if used, ok := s.UsedRange(); ok {
-		next = used.To.Row + 2
-	}
-	for _, r := range s.regions.list {
-		next = max(next, r.At.Row+r.Rows+2)
-	}
-	return min(next, MaxRows-1)
-}
-
 // EditRegion changes a region's command, what it reads and its input,
 // as one undo step. The table stays until the command runs again.
 func (s *Sheet) EditRegion(name, command string, deps []string, input string) error {
 	i := s.regionIndex(nameKey(name))
 	if i < 0 {
-		return errNoRegion
+		return ErrNoRegion
+	}
+	if s.regions.list[i].Linked() {
+		return errFileRegion
 	}
 	if err := s.wb.checkDeps(s.regions.list[i].Name, deps); err != nil {
 		return err
@@ -292,7 +315,7 @@ func (s *Sheet) DeleteRegion(name string) error {
 	k := nameKey(name)
 	i := s.regionIndex(k)
 	if i < 0 {
-		return errNoRegion
+		return ErrNoRegion
 	}
 	r := s.regions.list[i]
 	s.change("delete "+r.Name, s.regionArea(r), func() {
@@ -310,22 +333,28 @@ func (s *Sheet) FreezeRegion(name string) error {
 	k := nameKey(name)
 	i := s.regionIndex(k)
 	if i < 0 {
-		return errNoRegion
+		return ErrNoRegion
 	}
 	r := s.regions.list[i]
 	table, ok := s.RegionTable(r.Name)
-	s.change("freeze "+r.Name, s.regionArea(r), func() {
-		if ok {
-			for a := range s.cells.anyKeysIn(table) {
-				if c := s.cells.get(a); c.Spilled() {
-					s.place(a, frozen(c))
-				}
+	var cells []*Cell
+	var at []Addr
+	if ok {
+		for a := range s.cells.anyKeysIn(table) {
+			if c := s.cells.get(a); c.Spilled() {
+				cells, at = append(cells, frozen(c)), append(at, a)
 			}
 		}
+	}
+	s.change("freeze "+r.Name, s.covered(r), func() {
+		// The region goes first, so its cells take the values placed.
 		st := s.regionsCopy()
 		st.list = slices.Delete(st.list, i, i+1)
 		delete(st.data, k)
 		s.putRegions(st)
+		for j, a := range at {
+			s.place(a, cells[j])
+		}
 	})
 	return nil
 }
@@ -340,39 +369,21 @@ func frozen(c *Cell) *Cell {
 	return p.plain().withNote(c.Note)
 }
 
-// SortRegion sorts a region's table below its header by keys, columns of
-// the sheet, as one undo step: the order is the region's, so the table
-// stays sorted when it runs again.
-func (s *Sheet) SortRegion(name string, keys []SortKey) error {
-	i := s.regionIndex(nameKey(name))
-	if i < 0 {
-		return errNoRegion
-	}
-	r := s.regions.list[i]
-	rel := make([]SortKey, len(keys))
-	for j, key := range keys {
-		rel[j] = SortKey{Col: key.Col - r.At.Col, Desc: key.Desc}
-	}
-	s.change("sort "+r.Name, s.regionArea(r), func() {
-		st := s.regionsCopy()
-		st.list[i].Sort = rel
-		s.putRegions(st)
-	})
-	return nil
-}
-
 // ShowRegion shows d in the region, as one undo step: the table grows or
 // shrinks, and on a notebook the rows under it move with it.
 func (s *Sheet) ShowRegion(name string, d *RegionData) error {
 	k := nameKey(name)
 	i := s.regionIndex(k)
 	if i < 0 {
-		return errNoRegion
+		return ErrNoRegion
 	}
 	if d == nil {
 		d = &RegionData{}
 	}
 	r := s.regions.list[i]
+	if r.Linked() {
+		return errFileRegion
+	}
 	s.change("run "+r.Name, s.regionArea(r), func() {
 		if s.regions.notebook {
 			s.fitRegion(k, d.Rows)
@@ -387,32 +398,6 @@ func (s *Sheet) ShowRegion(name string, d *RegionData) error {
 		s.putRegions(st)
 	})
 	return nil
-}
-
-// fitRegion makes room under the region with key k for a table of rows
-// rows: inserting rows below its table, or deleting those it no longer
-// needs when nothing else is on them.
-func (s *Sheet) fitRegion(k string, rows int) {
-	r := s.regions.list[s.regionIndex(k)]
-	end := r.At.Row + r.Rows // the table's last row
-	switch {
-	case rows > r.Rows:
-		below := rowRect(end+1, MaxRows-1)
-		for range s.cells.anyKeysIn(below) {
-			_ = s.insert(true, end+1, rows-r.Rows) // rows pushed past the edge: the table is cut instead
-			return
-		}
-	case rows < r.Rows:
-		from := r.At.Row + rows + 1
-		spare := rowRect(from, end)
-		area := s.regionArea(r)
-		for a := range s.cells.anyKeysIn(spare) {
-			if !area.Contains(a) {
-				return // something else is on those rows
-			}
-		}
-		s.restructure(true, spanOf(from, -(end-from+1)))
-	}
 }
 
 // regionsCopy is a copy of the sheet's regions to change and put back.
@@ -450,7 +435,7 @@ func sameRegions(a, b regionState) bool {
 	for i := range a.list {
 		x, y := a.list[i], b.list[i]
 		if x.Name != y.Name || x.Command != y.Command || x.At != y.At || x.Rows != y.Rows || x.Cols != y.Cols ||
-			x.Input != y.Input || !slices.Equal(x.Deps, y.Deps) || !slices.Equal(x.Sort, y.Sort) {
+			x.Input != y.Input || x.File != y.File || !slices.Equal(x.Deps, y.Deps) || !slices.Equal(x.Sort, y.Sort) {
 			return false
 		}
 	}

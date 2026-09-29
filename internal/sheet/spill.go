@@ -332,9 +332,9 @@ func (s *Sheet) SpillAnchor(a Addr) (Addr, bool) {
 }
 
 // HasSpills reports whether a formula on the sheet spills or would, or a
-// linked region shows rows (whose cells are spilled cells too), so what
+// region shows a table (whose cells are spilled cells too), so what
 // draws the sheet can skip looking for spilled cells.
-func (s *Sheet) HasSpills() bool { return len(s.spills) > 0 || len(s.links) > 0 }
+func (s *Sheet) HasSpills() bool { return len(s.spills) > 0 || len(s.regions.list) > 0 }
 
 // SpillArea returns the cells the formula at a spills into, the anchor
 // first, when it spills.

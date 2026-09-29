@@ -101,6 +101,9 @@ big = $r1 | where size > 1kb | sort-by size --reverse
 $in | group-by region | transpose region rows
 ```
 
+A [linked file](../files/following.md) is a region too, named after the
+file: `$app` reads the rows `app.csv` has now.
+
 A region reading another depends on it. Refreshing a region (Enter on
 its label, **Data > Shell regions > Refresh region**) runs it again and then every region
 that reads it, directly or through others, each after what it reads.

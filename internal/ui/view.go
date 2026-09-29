@@ -249,7 +249,7 @@ func (m *Model) cellRole(lc *lineCtx, a sheet.Addr, sp *rowtext.Span, spills boo
 		return &m.th.Muted, true
 	case v.Kind == sheet.Error:
 		return &m.th.ErrorCell, true
-	case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: lc.row}).Spilled():
+	case spills && sp.Text != "" && m.sheet.Cell(sheet.Addr{Col: sp.Owner, Row: lc.row}).Spilled() && !lc.tables.Contains(sheet.Addr{Col: sp.Owner, Row: lc.row}):
 		return &m.th.Spilled, true
 	}
 	return &m.th.Cell, false
