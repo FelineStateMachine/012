@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	_ "modernc.org/sqlite" // registers the "sqlite" driver
 
@@ -45,6 +44,9 @@ func openSQLite(ctx context.Context, name string) (*sql.DB, error) {
 // sqliteErr shortens the driver's errors, e.g. "file is not a database
 // (26)" for a file that isn't SQLite.
 func sqliteErr(err error) error {
+	if err == nil {
+		return nil
+	}
 	msg := err.Error()
 	if i := strings.Index(msg, ": "); i >= 0 && strings.HasPrefix(msg, "SQL logic error") {
 		msg = msg[i+2:]
@@ -194,7 +196,9 @@ func readSQLiteRows(ctx context.Context, rows *sql.Rows, b *builder, ncols, tota
 			return 0, 0, sqliteErr(err)
 		}
 		for c, v := range vals {
-			if putValue(b, sheet.Addr{Col: c, Row: row}, v) {
+			cell, blob := sqliteCell(v)
+			cell.put(b, sheet.Addr{Col: c, Row: row})
+			if blob {
 				blobs++
 			}
 		}
@@ -205,38 +209,6 @@ func readSQLiteRows(ctx context.Context, rows *sql.Rows, b *builder, ncols, tota
 	b.fits(sheet.Addr{Row: row - 1})
 	prog.setRows(row)
 	return row, blobs, nil
-}
-
-// putValue stores a database value, reporting whether it was binary data
-// that could only be described.
-func putValue(b *builder, a sheet.Addr, v any) (blob bool) {
-	switch v := v.(type) {
-	case nil:
-	case int64:
-		b.number(a, float64(v), sheet.Format{}, sheet.Style{})
-	case float64:
-		b.number(a, v, sheet.Format{}, sheet.Style{})
-	case bool:
-		b.boolean(a, v, sheet.Style{})
-	case time.Time:
-		f := sheet.Format{Kind: sheet.FmtDateTime}
-		if h, m, s := v.Clock(); h == 0 && m == 0 && s == 0 && v.Nanosecond() == 0 {
-			f = sheet.Format{Kind: sheet.FmtDate}
-		}
-		b.number(a, serialOf(v), f, sheet.Style{})
-	case string:
-		textOrDate(b, a, v)
-	case []byte:
-		if utf8.Valid(v) {
-			textOrDate(b, a, string(v))
-			return false
-		}
-		b.text(a, fmt.Sprintf("(%s)", count(len(v), "byte", "bytes")), sheet.Format{}, sheet.Style{})
-		return true
-	default:
-		b.text(a, fmt.Sprint(v), sheet.Format{}, sheet.Style{})
-	}
-	return false
 }
 
 // textOrDate stores database text as text, except dates and times such
