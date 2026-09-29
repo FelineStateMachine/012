@@ -55,9 +55,9 @@ standard output:
   without asking. They're in the menus and the palette only with
   `--pipe`.
 
-The sheet is its used range from A1: every row, including rows a filter
-hides. A selection is sent as selected, and its first row names the
-columns. Quitting without sending writes nothing and exits with status
+The sheet is its used range from A1. A selection is sent as selected,
+and its first row names the columns. Either way, rows a filter hides
+stay behind, as Sheets copies a filtered range. Quitting without sending writes nothing and exits with status
 1, so the pipeline stops rather than carrying on with nothing.
 
 The table goes out in the format it came in (NUON, JSON, CSV or TSV);

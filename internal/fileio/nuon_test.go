@@ -156,6 +156,23 @@ func TestEncodeKeepsTypes(t *testing.T) {
 	}
 }
 
+// Text formats send the rows a filter shows, as Sheets copies a filtered
+// range.
+func TestEncodeFiltered(t *testing.T) {
+	s := build(t, map[string]string{"A1": "name", "B1": "n", "A2": "a", "B2": "1", "A3": "b", "B3": "2", "A4": "c", "B4": "3"})
+	s.CreateFilter(sheet.Rect{To: addr(t, "B4")})
+	s.FilterColumn(0, sheet.Criteria{Hidden: []string{"b"}})
+	if got := encode(t, s, NUON); got != "[[name, n]; [a, 1],\n[c, 3]]\n" {
+		t.Errorf("NUON %q", got)
+	}
+	if got := encode(t, s, CSV); got != "name,n\na,1\nc,3\n" {
+		t.Errorf("CSV %q", got)
+	}
+	if got := encode(t, s, JSON); strings.Contains(got, `"b"`) {
+		t.Errorf("JSON %q", got)
+	}
+}
+
 // TestNUONRoundTrip reads a table and writes it back as the same NUON.
 func TestNUONRoundTrip(t *testing.T) {
 	inZone(t, mountain)
