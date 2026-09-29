@@ -61,7 +61,6 @@ func (t Table) Col(name string) int {
 var (
 	ErrNoTable      = errors.New("There's no table by that name")
 	ErrTableOverlap = errors.New("A table can't overlap another table, a region or a pivot table")
-	ErrTableMerged  = errors.New("A table can't hold merged cells: unmerge them first")
 )
 
 // tablePrefix is reserved for regions' names in formulas (nu.sales).
@@ -168,8 +167,7 @@ func (w *Workbook) copiedTables(ts []Table) []Table {
 }
 
 // checkTableRange reports why r can't hold the table with key self:
-// it overlaps another table, a region or a pivot table, or holds
-// merged cells.
+// it overlaps another table, a region or a pivot table.
 func (s *Sheet) checkTableRange(r Rect, self string) error {
 	for _, t := range s.view.tables {
 		if nameKey(t.Name) != self && overlaps(t.Range, r) {
@@ -178,9 +176,6 @@ func (s *Sheet) checkTableRange(r Rect, self string) error {
 	}
 	if _, _, ok := s.InRegion(r); ok || s.InPivot(r) {
 		return ErrTableOverlap
-	}
-	if len(s.MergesIn(r)) > 0 {
-		return ErrTableMerged
 	}
 	return nil
 }

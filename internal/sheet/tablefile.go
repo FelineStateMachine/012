@@ -57,16 +57,16 @@ func (s *Sheet) readTables(fts []fileTable) error {
 // LoadTable adds t to the sheet as a loader does, without recording
 // undo, its cells loaded. Columns t doesn't name, or names in a number
 // other than its range's width, are named from its header row, and the
-// names are made unique.
+// names are made unique. Its range isn't checked against what else the
+// sheet holds: edits since it was made (a region sent over it, a table
+// moved onto another) may overlap them, and the file opens as it was
+// saved.
 func (s *Sheet) LoadTable(t Table) error {
 	if err := s.wb.checkTableName(t.Name, ""); err != nil {
 		return err
 	}
-	if t.Range.To.Row == t.Range.From.Row {
+	if t.Range.To.Row == t.Range.From.Row || !t.Range.To.Valid() {
 		return fmt.Errorf("the range %s has no row below its header", t.Range)
-	}
-	if err := s.checkTableRange(t.Range, ""); err != nil {
-		return err
 	}
 	t.Cols = columnNames(t.Cols, nil)
 	if len(t.Cols) != t.Range.To.Col-t.Range.From.Col+1 {
