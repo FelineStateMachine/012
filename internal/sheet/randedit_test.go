@@ -26,10 +26,10 @@ import (
 //     recalculation agreeing with the incremental one);
 //   - recalculates in place, everything at once, to the same values.
 //
-// go test runs a fixed set of seeds in a second or two; -randedit.seeds
+// go test runs a fixed set of seeds in a few seconds; -randedit.seeds
 // runs more, and FuzzRandomEdits lets the fuzzer choose the edits.
 var (
-	randSeeds = flag.Int("randedit.seeds", 1000, "seeds TestRandomEdits runs")
+	randSeeds = flag.Int("randedit.seeds", 3000, "seeds TestRandomEdits runs")
 	randSteps = flag.Int("randedit.steps", 40, "edits per seed")
 )
 
