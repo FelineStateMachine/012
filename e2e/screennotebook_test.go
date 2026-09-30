@@ -133,6 +133,8 @@ var notebookScreens = []screen{
 	{name: "notebook-stream", setup: func(s *session) {
 		filesNotebook(s)
 		s.keys("<enter>", "log = tail -f app.log | lines | parse '{time} {level} {msg}'", "<esc>", "f")
+		// The head counts the rows the output has, so the grid is fitted
+		// to all three: only the first shows.
 		s.waitFor("● live, 3 rows")
 	}},
 	{name: "notebook-sent", setup: func(s *session) {

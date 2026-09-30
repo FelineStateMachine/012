@@ -51,6 +51,9 @@ type outGrid struct {
 	shownAt uint64
 	// frame is the parent's frame the child last drew for.
 	frame int
+	// fit are the columns' widths as the grid fitted them, and need the
+	// widths their text needs as rows arrive (nbgridstream.go).
+	fit, need []int
 }
 
 var _ nbview.Grid = (*outGrid)(nil)
@@ -70,6 +73,7 @@ func (g *outGrid) ready(width, rows int) bool {
 		return false
 	}
 	c := g.child
+	g.widen()
 	if f := g.parent.nb.frame; g.frame != f {
 		g.frame = f
 		c.th = g.parent.th
@@ -101,6 +105,10 @@ func (g *outGrid) build() {
 	s.ClearHistory()
 	used, _ := s.UsedRange()
 	g.cols, g.rows = used.To.Col+1, used.To.Row
+	for c := range g.cols {
+		g.fit = append(g.fit, s.ColWidth(c))
+	}
+	g.need = slices.Clone(g.fit)
 	c := New(s, "")
 	c.out, c.named = g, true
 	c.th = g.parent.th

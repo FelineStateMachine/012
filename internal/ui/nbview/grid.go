@@ -3,6 +3,7 @@ package nbview
 import (
 	"strings"
 
+	"github.com/FelineStateMachine/012/internal/notebook"
 	"github.com/FelineStateMachine/012/internal/nuon"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
@@ -31,6 +32,9 @@ type Grid interface {
 	// Entered reports whether the grid has the keys: its active cell
 	// and selection show, and arrows move them.
 	Entered() bool
+	// Append adds more, a NUON table of n rows, under the grid's rows,
+	// as a stream's rows arrive; data is the whole output now.
+	Append(more []byte, n int, data []byte)
 }
 
 // gridData is what the UI's grid of an output holds, as NUON: a table as
@@ -196,4 +200,37 @@ func (v *View) FollowOutput() {
 	if v.full == nil && v.onOut {
 		v.follow()
 	}
+}
+
+// maxCarried is the most rows a stream's grid holds, carried from output
+// to output: the rows a stream keeps, twice over, so a grid past them
+// is read again from the output about once for every StreamKeep rows.
+const maxCarried = 20000
+
+// Carry shows o, cell id's output, as old showed: o is old with the
+// rows a stream printed since, more (a NUON list), so they go under the
+// rows of old's grid, whose widths, pointer, selection, sort and filter
+// stay, rather than o being read whole. It reports false, and o is read
+// afresh when it shows, when old isn't showing as a table's grid, more
+// isn't a table, or the grid would hold more than maxCarried rows.
+func (v *View) Carry(id int, old, o *notebook.Output, more []byte) bool {
+	prev := v.outs[old]
+	if prev == nil || prev.kind != outTable || prev.grid == nil || v.h.Output(id) != o {
+		return false
+	}
+	val, err := nuon.Parse(more)
+	if err != nil || val.Kind != nuon.List || !isTable(val.List) || prev.total+len(val.List) > maxCarried {
+		return false
+	}
+	keys := addKeys(prev.keys, val.List)
+	sh := &shown{kind: outTable, total: prev.total + len(val.List), cols: len(keys), keys: keys, data: o.NUON, grid: prev.grid}
+	if len(val.List) > 0 {
+		prev.grid.Append(more, len(val.List), o.NUON)
+	}
+	delete(v.outs, old)
+	v.outs[o] = sh
+	if v.full != nil && v.full.sh == prev {
+		v.full.sh = sh
+	}
+	return true
 }
