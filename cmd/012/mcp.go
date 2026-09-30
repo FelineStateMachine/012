@@ -12,6 +12,7 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/FelineStateMachine/012/internal/config"
+	"github.com/FelineStateMachine/012/internal/cowork"
 	"github.com/FelineStateMachine/012/internal/headless"
 	"github.com/FelineStateMachine/012/internal/jev"
 	"github.com/FelineStateMachine/012/internal/mcp"
@@ -24,19 +25,21 @@ import (
 // working directory. A file named is the default of tools called
 // without a path.
 
-const mcpUsage = "usage: 012 mcp [file.012] [--root dir]... [--read-only] [--force] [--notebooks [--trust]] [--jev]"
+const mcpUsage = "usage: 012 mcp [file.012] [--root dir]... [--read-only] [--force] [--notebooks [--trust]] [--jev]\n       012 mcp --attach [name|socket]: join a running 012 session listening for agents (see docs/agents/live.md)"
 
 // runMCP is 012 mcp: it serves until the client closes standard input.
 // Nothing runs a program or reaches the network unless its flag says:
 // --notebooks offers run_notebook_cell, --jev answers JEV functions.
 func runMCP(args []string, e env) error {
-	a, err := parseArgs(args, []string{"root"}, []string{"read-only", "force", "notebooks", "trust", "jev", "help"})
+	a, err := parseArgs(args, []string{"root"}, []string{"read-only", "force", "notebooks", "trust", "jev", "help", "attach"})
 	switch {
 	case err != nil:
 		return usageError(err.Error(), mcpUsage)
 	case a.has("help"):
 		fmt.Fprintln(e.stdout, mcpUsage)
 		return nil
+	case a.has("attach"):
+		return attach(a, e)
 	case len(a.pos) > 1:
 		return usageError("", mcpUsage)
 	case a.has("trust") && !a.has("notebooks"):
@@ -73,6 +76,20 @@ func runMCP(args []string, e env) error {
 	}
 	t := &sdk.IOTransport{Reader: io.NopCloser(e.stdin), Writer: nopWriteCloser{e.stdout}}
 	return mcp.New(o).Run(ctx, t)
+}
+
+// attach is 012 mcp --attach [name|socket]: live mode, the agent a
+// participant of a running session, whose person decides what it may
+// do, so no other flag goes with it.
+func attach(a cliArgs, e env) error {
+	if len(a.flags) > 1 || len(a.pos) > 1 {
+		return usageError("--attach takes a session's name or socket and no other flag: the session decides what the agent may do", mcpUsage)
+	}
+	target := ""
+	if len(a.pos) == 1 {
+		target = a.pos[0]
+	}
+	return cowork.Attach(target, e.stdin, e.stdout)
 }
 
 // rootDirs are the folders --root gave, else the working directory,

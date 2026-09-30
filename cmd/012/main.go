@@ -76,6 +76,7 @@ func usage() error {
 	return errors.New("usage: 012 " + config.FlagUsage() + " [file]: a " + sheet.FileExt +
 		" sheet, or a .csv, .tsv, .json, .nuon, .xlsx, .sqlite, .parquet or .wk1 file to import\n" +
 		"       012 [flags] -: a table from standard input (NUON, JSON, CSV or TSV)\n" +
+		"       012 [flags] --listen [file]: let agents work in the session, attached with 012 mcp --attach (see docs/agents/live.md)\n" +
 		"       012 [flags] --pipe [--to nuon|json|csv|tsv] [--send ask|selection|sheet] [file]: on quitting, send the table to standard output\n" +
 		"       012 nu [flags] [file]: the workbook's nushell notebook (see docs/nushell/notebooks.md)\n" +
 		"       012 nu --module | --install-module [--force] [path]: the nushell module with sheet (see docs/nushell/README.md)\n" +
@@ -83,6 +84,7 @@ func usage() error {
 		"       012 get|set|recalc|export|describe file.012 ...: read and change a workbook without the screen (see docs/files/scripts.md)\n" +
 		"       012 diff a.012 b.012, 012 merge-driver base ours theirs: compare and merge workbooks (see docs/files/git.md)\n" +
 		"       012 mcp file.012 [--read-only] [--force] [--notebooks [--trust]] [--jev]: an MCP server on the workbook (see docs/agents/mcp.md)\n" +
+		"       012 mcp --attach [name]: an MCP server in a running session listening for agents (see docs/agents/live.md)\n" +
 		"       012 agent --skill | --install-skill [--force] [dir]: the Claude Code skill (see docs/agents/README.md)\n" +
 		"       012 config [path|edit|default|themes|set-key|delete-key]\n" +
 		"       012 version")
@@ -115,6 +117,7 @@ func run(args []string, e env) error {
 	if err != nil {
 		return usage()
 	}
+	listen, args := cutFlag(args, "--listen")
 	pipe, args, err := parsePipe(args)
 	if err != nil {
 		return err
@@ -148,6 +151,7 @@ func run(args []string, e env) error {
 		Notes:     configNotes(cfg),
 		// Where a crash keeps unsaved work: crash.go.
 		RecoveryDir: recoveryDir(),
+		Version:     buildVersion(),
 	}
 	client, notes := startJEV(cfg, e, settings.Keys)
 	settings.Notes = append(settings.Notes, notes...)
@@ -161,13 +165,19 @@ func run(args []string, e env) error {
 	if offersKept(args, pipe.stdin) {
 		m.OfferKept()
 	}
+	if listen {
+		m.Listen() // live mode: agents attach with 012 mcp --attach
+	}
 	setPipe(m, pipe, e.stdin)
 	opts, closeTTY, err := tuiOptions(pipe, e)
 	if err != nil {
 		return err
 	}
 	g := ui.Guard(m)
-	err = e.runTUI(g, opts...)
+	// In rooms, so the session can share its workbook with agents
+	// (live mode, docs/agents/live.md).
+	err = e.runTUI(ui.InRooms(g), opts...)
+	m.StopListening()
 	closeTTY()
 	if c := g.Finish(err); c != nil {
 		return crashed(g, c)
@@ -176,6 +186,20 @@ func run(args []string, e env) error {
 		return err
 	}
 	return sendPiped(m, pipe, e.stdout)
+}
+
+// cutFlag takes flag out of args, reporting whether it was there.
+func cutFlag(args []string, flag string) (bool, []string) {
+	var rest []string
+	found := false
+	for _, a := range args {
+		if a == flag {
+			found = true
+			continue
+		}
+		rest = append(rest, a)
+	}
+	return found, rest
 }
 
 // loadConfig reads the config file with the environment and flags.

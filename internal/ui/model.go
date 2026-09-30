@@ -129,6 +129,7 @@ type Model struct {
 	prefs   prefs             // the settings in effect and the theme chosen: prefs.go
 	session session           // what outlasts the file open: the : history, the keyboard: keyboard.go
 	share   shareState        // the room the workbook is shared in, in 012 serve: share.go
+	agents  agentState        // agents working here, live mode: agents.go
 
 	vim    vimState    // a vim key sequence in progress: vim.go
 	rec    *recorder   // a macro being recorded: macrorec.go
@@ -236,7 +237,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case followTickMsg, followMsg:
 		cmd = m.handleFollow(msg)
 	case roomMsg:
-		cmd = m.roomChanged()
+		cmd = m.roomKicked()
 	case shareTickMsg:
 		m.share.ticking = false
 	case macroCallMsg:
@@ -271,7 +272,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
 	// Linked regions may have come, gone or changed: follow.go.
-	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg), m.syncFollowers(), m.notebookSync(), m.shareTick())
+	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg), m.syncFollowers(), m.notebookSync(), m.shareTick(), m.agentAsks())
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state

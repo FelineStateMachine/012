@@ -281,6 +281,19 @@ func (s *Seat) Peer(id int) (Peer, bool) {
 // Others is how many others are in the room. Call it in a turn.
 func (s *Seat) Others() int { return len(s.room.seats) - 1 }
 
+// People is how many other people are in the room, agents left out:
+// those who keep the workbook open when this one leaves. Call it in a
+// turn.
+func (s *Seat) People() int {
+	n := 0
+	for _, o := range s.room.seats {
+		if o != s && !o.agent {
+			n++
+		}
+	}
+	return n
+}
+
 // Marks are the operations since seq, oldest first, whoever made them.
 // Call it in a turn.
 func (s *Seat) Marks(since uint64) []Mark {

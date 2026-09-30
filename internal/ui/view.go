@@ -287,6 +287,9 @@ func (m *Model) cellMarks(lc *lineCtx, a sheet.Addr, text string, look *sheet.Lo
 	if lc.ln.K == 0 && len(m.share.frame.fresh) > 0 {
 		text = m.changedMark(text, a, *base, colored)
 	}
+	if lc.ln.K == 0 && len(m.agents.frame.cells) > 0 {
+		text = m.suggestedMark(text, a, *base, colored)
+	}
 	if lc.shaped {
 		text = m.leftEdge(a, text)
 	}

@@ -35,6 +35,8 @@ type Settings struct {
 	// it stops on an internal error, and finds it again: recovery.go.
 	// "" keeps none; 012 serve keeps them in the served directory.
 	RecoveryDir string
+	// Version is 012's, which live mode's MCP server reports to agents.
+	Version string
 }
 
 // prefs is the settings in effect: the component behind File >

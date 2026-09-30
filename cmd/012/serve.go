@@ -121,6 +121,13 @@ func runServe(args []string, e env) error {
 	}
 	fmt.Fprintf(e.stderr, "012 serving %s on %s\nhost key %s\nconnect: ssh -p %s %s\n",
 		srv.Dir(), l.Addr(), gossh.FingerprintSHA256(srv.HostKey()), portOf(l.Addr()), hostOf(l.Addr()))
+	// Agents on this machine join files people have open: live mode.
+	if agents, err := srv.ListenForAgents(buildVersion()); err == nil {
+		defer agents.Close()
+		fmt.Fprintln(e.stderr, "agents: 012 mcp --attach <file someone has open>")
+	} else if o.Share != "off" && o.Share != "" {
+		log.Warn("agents can't join: " + err.Error())
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

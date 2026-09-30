@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -31,6 +32,28 @@ func TestMonochromePeers(t *testing.T) {
 		}
 		if !strings.Contains(cellText(monoLine(m, m.height-1)), " bob ") {
 			t.Error("bob isn't on the status line")
+		}
+	})
+}
+
+// Agents read without color too: their ◆ on the row header and before
+// their name, and a ◇ on each cell a suggestion of theirs would set.
+func TestMonochromeAgents(t *testing.T) {
+	ls := startLive(t)
+	ls.suggest("", "A1", "48")
+	ls.agent.Focus(context.Background(), "B2")
+	ls.sync()
+	ls.sh.turn(func() {
+		m := ls.m
+		m.frameShare()
+		if row := cellText(monoLine(m, gridTop)); !strings.Contains(row, "◇") {
+			t.Errorf("row 1 %q", row)
+		}
+		if row := cellText(monoLine(m, gridTop+1)); !strings.HasPrefix(row, "◆") {
+			t.Errorf("row 2's header %q", row)
+		}
+		if status := cellText(monoLine(m, m.height-1)); !strings.Contains(status, "◆ claude") || !strings.Contains(status, "◇ 1 suggestion") {
+			t.Errorf("status line %q", status)
 		}
 	})
 }

@@ -18,7 +18,7 @@ func init() {
 	unshared := func(m *Model) bool { return m.share.reg == nil }
 	register(
 		&command{id: "share.who", macro: macroNever, title: "Who's here", desc: "List who shares this workbook and where each is; pick one to go to their cell",
-			hidden: unshared, enabled: func(m *Model) bool { return m.shared() }, run: (*Model).openWho},
+			hidden: unshared, enabled: (*Model).withOthers, run: (*Model).openWho},
 		&command{id: "share.hand", macro: macroNever, title: "Hand over writing", desc: "Let someone else edit the shared workbook, and follow them",
 			hidden: unshared, enabled: func(m *Model) bool {
 				seat := m.share.seat
@@ -47,14 +47,17 @@ func (m *Model) openWho() tea.Cmd {
 	for _, p := range m.share.seat.Peers() {
 		where := m.peerWhere(p)
 		desc := "Go to " + p.Name + "'s cell"
-		detail := where
+		detail, title := where, p.Name
+		if p.Agent {
+			detail, title = "agent, "+where, peerLabel(p.Name, true)
+		}
 		switch {
 		case p.Writing && m.share.seat.Mode() == room.View:
 			detail += ", writing"
 		case p.Presence.Editing:
 			detail += ", typing"
 		}
-		items = append(items, picker.Item{Title: p.Name, Name: len(p.Name), Detail: detail, Desc: desc,
+		items = append(items, picker.Item{Title: title, Name: len(title), Detail: detail, Desc: desc,
 			Pick: func() tea.Cmd { m.closeOverlay(); m.goToPeer(p); return nil }})
 	}
 	pk := m.newPicker("Who's here", "a name", 50, items)
@@ -66,6 +69,9 @@ func (m *Model) openWho() tea.Cmd {
 // peerWhere is where p is, Sheet2!B3, or the notebook they're on.
 func (m *Model) peerWhere(p room.Peer) string {
 	s := p.Presence.Sheet
+	if s == nil && p.Agent {
+		return "reading"
+	}
 	if s == nil || !s.Live() {
 		return "arriving"
 	}
