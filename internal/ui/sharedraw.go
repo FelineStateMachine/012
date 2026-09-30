@@ -39,6 +39,7 @@ type shareTickMsg struct{}
 func (m *Model) frameShare() {
 	f := &m.share.frame
 	f.peers, f.here, f.fresh = nil, f.here[:0], f.fresh[:0]
+	m.frameAgents()
 	seat := m.share.seat
 	if seat == nil {
 		return
@@ -111,7 +112,7 @@ func (m *Model) rowTags(row int) (string, int) {
 		if p.Presence.Cursor.Row != row || n >= 2 {
 			continue
 		}
-		b.WriteString(m.th.Peer[p.Color%theme.Peers].Render(initial(p.Name)))
+		b.WriteString(m.th.Peer[p.Color%theme.Peers].Render(peerInitial(p.Name, p.Agent)))
 		n++
 	}
 	return b.String(), n
@@ -130,7 +131,7 @@ func initial(name string) string {
 func (m *Model) peersStatus() string {
 	peers := m.share.frame.peers
 	if len(peers) == 0 {
-		return ""
+		return m.agentsStatus()
 	}
 	var b strings.Builder
 	b.WriteString("  ")
@@ -142,7 +143,7 @@ func (m *Model) peersStatus() string {
 		if i > 0 {
 			b.WriteString(" ")
 		}
-		b.WriteString(m.th.Peer[p.Color%theme.Peers].Render(" " + ansi.Truncate(p.Name, 10, "…") + " "))
+		b.WriteString(m.th.Peer[p.Color%theme.Peers].Render(" " + peerLabel(p.Name, p.Agent) + " "))
 	}
 	if seat := m.share.seat; seat.Mode() == room.View {
 		if seat.Writing() {
@@ -151,7 +152,7 @@ func (m *Model) peersStatus() string {
 			b.WriteString(m.th.Muted.Render("  " + seat.Writer() + " writes"))
 		}
 	}
-	return b.String()
+	return b.String() + m.agentsStatus()
 }
 
 // shareLine is the context line's word on the active cell: who else is
@@ -159,6 +160,9 @@ func (m *Model) peersStatus() string {
 func (m *Model) shareLine() string {
 	if m.share.seat == nil {
 		return ""
+	}
+	if line := m.agentLine(); line != "" {
+		return line
 	}
 	if p, ok := m.peerAt(m.cur); ok {
 		what := " is here"

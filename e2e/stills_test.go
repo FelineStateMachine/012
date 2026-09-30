@@ -38,6 +38,9 @@ var docScreens = []docScreen{
 	{name: "notebook-nu-error", from: "notebook-nu-error", cols: 80, rows: 16},
 	{name: "notebook-grid", from: "notebook-grid", cols: 80, rows: 24},
 	{name: "share-presence", from: "share-presence", cols: 80, rows: 13},
+	{name: "live-suggestion", from: "live-suggestion", cols: 80, rows: 12},
+	{name: "live-review", from: "live-review", cols: 100, rows: 12},
+	{name: "live-ask", from: "live-ask", cols: 80, rows: 10},
 	{name: "source-tab", from: "source-tab", cols: 80, rows: 20},
 	{name: "source-formulas", from: "source-formulas", cols: 80, rows: 14},
 }

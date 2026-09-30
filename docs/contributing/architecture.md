@@ -539,7 +539,7 @@ draw. The components:
 | edit line | `lineedit.Line` | the one-line editor shared by cell entries, prompts and search fields (package `lineedit`) |
 | cell entry | `entry`, `suggest.List` | typing into a cell, pointing at references, other sheets while pointing (`entry.go`, `assistsheets.go`); formula suggestions and signatures (package `suggest`, with `assist.go`) |
 | prompt | `prompt` | a question on the context line, typed or pointed at (`prompt.go`) |
-| overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker (package `filterpick`, with `filter.go`), the sort bar (package `sortbar`, with `sort.go`), choice bars (package `choicebar`, with `dialog.go`), the chart editor and selection (`charteditor.go`, `chartsel.go`), the pivot editor (`pivoteditor.go`, `pivotactions.go`), the rules panel (package `rules`, with `rules.go`), the shortcuts (package `shortcuts`, with `help.go`), Evaluate formula (package `evalview`, with `evaluate.go`) |
+| overlays | `overlay.Overlay` | whatever has taken over input: menus (`menuoverlay.go`), the palette and pickers (package `picker`, with `palette.go`, `names.go`), the command line (package `cmdline`), the theme picker (package `themepicker`), the find bar (package `findbar`), the filter picker (package `filterpick`, with `filter.go`), the sort bar (package `sortbar`, with `sort.go`), choice bars (package `choicebar`, with `dialog.go`), the chart editor and selection (`charteditor.go`, `chartsel.go`), the pivot editor (`pivoteditor.go`, `pivotactions.go`), the rules panel (package `rules`, with `rules.go`), the shortcuts (package `shortcuts`, with `help.go`), Evaluate formula (package `evalview`, with `evaluate.go`), the agents' suggestions (package `review`, with `agents.go`) |
 | sheet tabs | `tabstrip.Strip` | where each sheet was left, the tab strip's scroll and layout (package `tabstrip`); what clicks on it do (`tabstrip.go`) |
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer.Transfer`, `pipeState` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`); standard input read as a sheet, and what a pipeline gets on quitting (`pipe.go`) |
@@ -576,6 +576,7 @@ methods off `ui.Model`'s exported API:
 | `nbview` | `nbview.Host` | theme, locale, the cells, a cell's output, how its run stands, run a command, keep a cell's new source (7); the language's highlighter, completer and checker are `nbview.Providers`, small interfaces of their own |
 | `srcview` | `srcview.Host` | theme, locale, the source's columns, how many rows the tab shows, a row, ask for rows (6); the rows come from `paged.Pages`, read a page at a time |
 | `suggest` | `suggest.Host` | theme, size, the edit line, whether an entry is being typed, the entry's sheet, the formula as parsed, where the formula bar's text starts (7) |
+| `review` | `review.Host` | theme, size, close, the agents' suggestions waiting, accept, reject, show a cell (7) |
 | `themepicker` | `themepicker.Host` | a picker's host, and the current theme, the themes directory, preview, keep, whether keys can be held (10) |
 | `rules` | `rules.Host` | theme, size, the edit line, close, the sheet and selection, save a conditional format or a validation rule, follow a rule removed or moved (each recorded as the commands that do it), the terminal's palette colors (10) |
 | `findbar` | `findbar.Host` | theme, size, the edit line, the workbook, the trace, the sheet and cell shown, show a cell, note, run a replacement (recorded as Find and replace), leave keeping the search, pass a click to the grid (11) |
@@ -621,7 +622,7 @@ hints) are what every overlay is drawn with.
 **Packages.** `theme`, `rowtext`, `formula`, `overlay` and `lineedit`
 depend on nothing in `ui`, so they can be tested and measured alone. The
 components in `picker`, `cmdline`, `nbview`, `srcview`, `themepicker`, `findbar`, `rules`,
-`sortbar`, `filterpick`, `choicebar`, `shortcuts`, `evalview`, `suggest`, `tabstrip`
+`sortbar`, `filterpick`, `choicebar`, `shortcuts`, `evalview`, `suggest`, `review`, `tabstrip`
 and `transfer` build on them and reach the model only through their
 hosts, with unit tests of their own against fake hosts. A component moves out of package
 `ui` when its host stays small (about ten methods or fewer); one that
@@ -920,8 +921,9 @@ changed; everything else it does, it does through its seat:
 
 | `room.Participant` | What it is |
 |---|---|
-| `Name()` | who they are to the others: the SSH user |
+| `Name()` | who they are to the others: the SSH user, or the agent's MCP host |
 | `Notify()` | the room changed; called with the room locked, so it only schedules a turn (a session sends its program a `roomMsg`) |
+| `Agent()`, optional (`room.Agent`) | the participant is one of the agents: marked as one, never the keeper, and the room closes when its last person leaves |
 
 | `room.Seat` | What it does |
 |---|---|
@@ -930,15 +932,6 @@ changed; everything else it does, it does through its seat:
 | `Writing`, `HandTo`, `Writer` | the one-writer mode's role |
 | `Saved`, `SetSaved`, `Value`, `Keeper`, `Post`, `Take` | what the room shares: its file's saved state, values such as the notebook runs, and messages for whoever keeps it |
 | `Leave` | the seat given up; reports whether the room closed |
-
-The interface stays this small so an MCP client attached to the
-server can be a participant beside sessions (ROADMAP.md, Agents):
-`internal/mcp`'s tools stand on a `Backend` of `View`, `Scratch` and
-`Change`, and a room's would be a seat, `View` and `Change` its turns
-(the change one `Batch`, attributed to the client's seat, so its own
-undo and the others' marks follow), `Scratch` a copy of the workbook
-taken in a turn, and `Notify` what tells the client the workbook
-changed.
 
 **Unsaved work.** `Server.Shutdown` closes a channel every session
 watches; a session quitting on it, or on its idle timeout, asks its
@@ -954,6 +947,47 @@ only to read or write, through the model's `confine.Root`: the zero
 root (the local app) uses them as they are, a served session's root
 keeps them inside its directory. Every open, save, import, download and
 file listing goes through `Model.path` or the root.
+
+### Live mode
+
+Agents take part in rooms as participants ([Live mode](../agents/live.md)),
+through `internal/cowork`. A local session invited to (`012 --listen`,
+File > Invite an agent) takes its workbook into a room of its own as it
+is (`enterLocal`: its steps adopted as its person's, `Workbook.Adopt`),
+runs under `ui.Shared` as served sessions do, waits for its room's
+changes itself (`waitRoom`), and listens on a Unix socket
+(`cowork.Listen`); `012 serve` listens beside its rooms. `012 mcp
+--attach` is a pipe between the host's standard input and output and
+that socket, after a line each way naming the agent and the workbook.
+In the session, each connection is a seat (`cowork.Agent`, which
+implements `room.Agent`) and an `mcp.Server` whose `Options.Live` is
+that agent: `internal/mcp`'s tools stand on a `Backend` of `View`,
+`Scratch` and `Change`, and the agent's are its seat's turns, `Scratch`
+a copy taken in one, and changes go through `mcp.Live.Make`:
+
+```mermaid
+flowchart TD
+  tool[a write tool] --> make[Agent.Make, a turn]
+  make --> propose[sheet.Propose: the change on a copy; its cells and what else it does]
+  propose --> scope{Scope.Check}
+  scope -->|outside| refuse[refused, with the reason]
+  scope -->|direct edits| apply[Proposal.Apply: a step in the agent's name]
+  scope -->|otherwise| board[a Suggestion on the room's Board; Seat.Touch]
+  board --> screen[the person's frame: cells marked, the review panel]
+  screen -->|accept| apply
+  screen -->|reject| told[marked rejected]
+  apply --> notify[the agent's Notify: the suggestions resource updated]
+  told --> notify
+```
+
+The board (`cowork.Board`, a room value) holds the suggestions, the
+scope, direct edits, the grants and the agent's questions, so it's read
+and changed in turns like the workbook. A proposal of cells alone is
+applied as the cells it made on the copy, cell by cell if the person
+picks; one that does more is applied whole by running the change again
+(`sheet/proposal.go`). Questions and grants wait on the board until the
+person asked is free (`agentask.go`); a notebook run the agent is
+allowed is posted to the room's keeper, as other runs are.
 
 ## Configuration and secrets
 

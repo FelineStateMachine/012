@@ -47,6 +47,10 @@ type Options struct {
 	// JEV functions); Save writes a changed one, nil being File.Save.
 	Prepare func(context.Context, *headless.File) error
 	Save    func(*headless.File) error
+	// Live, when set, is the one workbook of a server attached to a
+	// session (live mode, live.go): every tool works on it, and the
+	// live tools are added. Roots, Default and Notebooks go unused.
+	Live Live
 }
 
 // Server is the MCP server on the workbooks open to it.
@@ -74,10 +78,13 @@ func New(o Options) *Server {
 	if !o.ReadOnly {
 		s.addWriteTools()
 	}
+	if o.Live != nil {
+		s.addLiveTools(o.Live)
+	}
 	s.addResources()
 	s.addPrompts()
 	s.addViews()
-	if o.Default != "" {
+	if o.Default != "" || o.Live != nil {
 		if b, err := s.book(context.Background(), nil, ""); err == nil {
 			s.used(context.Background(), b)
 		}
@@ -115,7 +122,7 @@ func tool[In, Out any](s *Server, t *sdk.Tool, h func(context.Context, *sdk.Call
 		if err != nil {
 			panic(err)
 		}
-		if _, ok := schema.Properties["path"]; ok && s.opts.Default == "" && t.Name != "describe" && !slices.Contains(schema.Required, "path") {
+		if _, ok := schema.Properties["path"]; ok && s.opts.Default == "" && s.opts.Live == nil && t.Name != "describe" && !slices.Contains(schema.Required, "path") {
 			schema.Required = append(schema.Required, "path")
 		}
 		t.InputSchema = schema

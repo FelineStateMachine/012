@@ -123,7 +123,7 @@ func minContrast(role string, lv levels) float64 {
 	switch role {
 	case "Disabled":
 		return lv.disabled
-	case "Hint", "Muted", "ChartLabel", "Match", "Dropdown", "NoteMark", "CellHead", "Stale", "PeerMark":
+	case "Hint", "Muted", "ChartLabel", "Match", "Dropdown", "NoteMark", "CellHead", "Stale", "PeerMark", "Suggested":
 		return lv.secondary
 	case "Border", "FrozenLine", "ChartFrame", "ChartAxis", "Progress", "ProgressTodo", "Copied", "Series", "CellBorder", "CellBar", "CellBarEdit":
 		return lv.lines

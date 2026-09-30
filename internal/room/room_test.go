@@ -167,3 +167,53 @@ func TestRoomTurnsAtOnce(t *testing.T) {
 		}
 	})
 }
+
+// bot is one of the agents participant.
+type bot struct{ who }
+
+func (*bot) Agent() {}
+
+// The agent is marked as one to the others, keeps nothing the room runs
+// even when it was there first, and a touch tells the others.
+func TestRoomAgents(t *testing.T) {
+	g := NewRegistry(Edit)
+	claude := &bot{who{name: "claude"}}
+	c, _ := g.Join("k", claude, newBook)
+	ann := &who{name: "ann"}
+	a, _ := g.Join("k", ann, nil)
+	a.Do(func(*sheet.Workbook) {
+		peers := a.Peers()
+		if len(peers) != 1 || !peers[0].Agent || a.Agent() || !c.Agent() {
+			t.Errorf("peers %+v", peers)
+		}
+		if !a.Keeper() || c.Keeper() {
+			t.Error("the agent keeps the room")
+		}
+		if p, ok := a.Peer(c.ID()); !ok || p.Name != "claude" {
+			t.Errorf("peer %+v", p)
+		}
+	})
+	c.Post("ran")
+	var got []any
+	a.Do(func(*sheet.Workbook) { got = a.Take() })
+	if len(got) != 1 {
+		t.Errorf("ann took %v", got)
+	}
+	before := ann.kicks.Load()
+	c.Do(func(*sheet.Workbook) { c.Touch() })
+	if ann.kicks.Load() == before {
+		t.Error("a touch didn't tell ann")
+	}
+	// The last person out closes the room, agents or not.
+	if !a.Leave() || g.Has("k") {
+		t.Error("ann, the last person, didn't close the room")
+	}
+	c.Do(func(*sheet.Workbook) {
+		if !c.Closed() {
+			t.Error("the agent's room isn't closed")
+		}
+	})
+	if _, ok := g.JoinOpen("k", &bot{who{name: "late"}}); ok {
+		t.Error("the agent joined a closed room")
+	}
+}

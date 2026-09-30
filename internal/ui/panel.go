@@ -142,7 +142,7 @@ func (m *Model) displayName() string {
 	if m.filename == "" && m.xfer.Source != "" {
 		return filepath.Base(m.xfer.Source)
 	}
-	if m.filename == "" && m.share.seat != nil && strings.HasPrefix(m.share.seat.Key(), "@") {
+	if m.filename == "" && m.share.seat != nil && !m.share.local && strings.HasPrefix(m.share.seat.Key(), "@") {
 		return m.share.seat.Key() // a named room not saved yet
 	}
 	if m.filename == "" {

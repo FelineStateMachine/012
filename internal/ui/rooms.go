@@ -175,6 +175,7 @@ func (s *Shared) between() tea.Cmd {
 // one out stops what the room ran; otherwise it goes on without this
 // model.
 func (m *Model) leftRoom(last bool) {
+	m.leftLocal()
 	if last {
 		m.stopCells()
 		return

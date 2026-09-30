@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/FelineStateMachine/012/internal/cowork"
 	"github.com/FelineStateMachine/012/internal/room"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
@@ -44,6 +45,10 @@ type shareState struct {
 	// still stops the ticks, so tests that run commands in line don't
 	// wait on them.
 	still bool
+	// local is set for a local session sharing its workbook with agents
+	// (live mode: agents.go), which waits for its room's changes itself
+	// (waiting while it does), as no server sends them.
+	local, waiting bool
 }
 
 // joinReq is a room to join: its key, the file's name as typed, and
@@ -56,6 +61,9 @@ type joinReq struct {
 	// restored is the recovery file book was read from: the room opens
 	// again on it, as unsaved changes.
 	restored string
+	// local is a local session's own workbook, taken into a room of its
+	// own as it is (enterLocal).
+	local bool
 }
 
 // roomMsg tells the model its room changed.
@@ -68,8 +76,13 @@ func (m *Model) ShareRooms(reg *room.Registry, user string) {
 	m.share.link = &peerLink{name: user, kick: make(chan struct{}, 1)}
 }
 
-// shared reports whether the workbook is shown in a room with others.
-func (m *Model) shared() bool { return m.share.seat != nil && m.share.seat.Others() > 0 }
+// shared reports whether the workbook is shown in a room with other
+// people, who keep it open when this session leaves; agents don't.
+func (m *Model) shared() bool { return m.share.seat != nil && m.share.seat.People() > 0 }
+
+// withOthers reports whether anyone else, people or agents, is in the
+// workbook's room.
+func (m *Model) withOthers() bool { return m.share.seat != nil && m.share.seat.Others() > 0 }
 
 // roomKey is the room of the file named name: its path on disk, or the
 // name itself for a named room (@name).
@@ -122,6 +135,9 @@ func (m *Model) loadedShared(msg loadedMsg) {
 // enterRoom shows the room's workbook, as opening a file does. It runs
 // in a turn of the new seat.
 func (m *Model) enterRoom(seat *room.Seat, created bool, req *joinReq) tea.Cmd {
+	if req.local {
+		return m.enterLocal(seat, req)
+	}
 	w := seat.Book()
 	s := w.Sheets()[w.Active()]
 	if !s.Live() || s.Hidden() {
@@ -193,6 +209,10 @@ func (m *Model) roomChanged() tea.Cmd {
 	}
 	var cmds []tea.Cmd
 	for _, msg := range seat.Take() {
+		if rc, ok := msg.(cowork.RunCell); ok {
+			cmds = append(cmds, m.agentRunCell(rc))
+			continue
+		}
 		_, cmd := m.Update(msg)
 		cmds = append(cmds, cmd)
 	}

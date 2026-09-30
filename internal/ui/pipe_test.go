@@ -173,7 +173,7 @@ func TestPipeCommands(t *testing.T) {
 		return out
 	}
 	m := newModel()
-	if slices.Contains(titles(m), "Quit and send sheet") || len(m.applicable(menuBar[0].items)) != len(menuBar[0].items)-5 { // the send commands, and sharing outside 012 serve
+	if slices.Contains(titles(m), "Quit and send sheet") || len(m.applicable(menuBar[0].items)) != len(menuBar[0].items)-8 { // the send commands, sharing outside 012 serve, and agents before one is invited
 		t.Error("send commands outside a pipeline")
 	}
 	m = stdinModel(t, filesNUON, true, 0)

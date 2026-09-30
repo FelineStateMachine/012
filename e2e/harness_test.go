@@ -70,6 +70,8 @@ type session struct {
 	// peers are others' sessions of the same served file, for screens
 	// of a shared workbook (screen.peers).
 	peers []*session
+	// agent is the agent attached to a session listening (live mode).
+	agent *agent
 }
 
 // options configures a session.

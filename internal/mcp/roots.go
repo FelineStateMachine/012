@@ -57,8 +57,16 @@ func (s *Server) forgetRoots(_ context.Context, req *sdk.RootsListChangedRequest
 // serverOptions are the SDK's options for the server: its instructions,
 // its MCP Apps extension, and forgetRoots.
 func (s *Server) serverOptions() *sdk.ServerOptions {
-	return &sdk.ServerOptions{Instructions: instructions, RootsListChangedHandler: s.forgetRoots,
+	o := &sdk.ServerOptions{Instructions: instructions, RootsListChangedHandler: s.forgetRoots,
 		Capabilities: &sdk.ServerCapabilities{Extensions: map[string]any{uiExtension: map[string]any{}}}}
+	if s.opts.Live != nil {
+		// Clients subscribe to the suggestions resource to hear what
+		// became of theirs (SuggestionsChanged).
+		o.Instructions = liveInstructions
+		o.SubscribeHandler = func(context.Context, *sdk.SubscribeRequest) error { return nil }
+		o.UnsubscribeHandler = func(context.Context, *sdk.UnsubscribeRequest) error { return nil }
+	}
+	return o
 }
 
 // rootsOf are the folders of a client's file:// roots that exist.

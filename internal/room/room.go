@@ -7,9 +7,10 @@
 // its undo steps), each attributed to its author, as a stream of
 // operations (sheet.Op) the room hands every participant. A participant
 // is anything with a name that can be told the room changed
-// (Participant): a served session's model. The interface stays that
-// small so an MCP client attached to the server can take part the same
-// way (ROADMAP.md, Agents). See docs/contributing/architecture.md.
+// (Participant): a served session's model, a local session sharing its
+// workbook with the agent, or the agent itself, an MCP client attached in
+// live mode (internal/cowork, the Agent interface). See
+// docs/contributing/architecture.md.
 package room
 
 import (
@@ -31,6 +32,14 @@ type Participant interface {
 	// nor call back into the room: they look at what changed on their
 	// next turn (Seat.Do).
 	Notify()
+}
+
+// Agent is a participant that is one of the agents (live mode, an MCP client
+// attached): the others see it marked as one, and it keeps nothing the
+// room runs.
+type Agent interface {
+	Participant
+	Agent()
 }
 
 // Mode is who may change a room's workbook.
@@ -103,6 +112,7 @@ type Seat struct {
 	presence Presence
 	moved    bool // presence changed this turn
 	left     bool
+	agent    bool
 }
 
 // Peer is what a participant sees of another: who, in what color,
@@ -114,6 +124,7 @@ type Peer struct {
 	Presence Presence
 	Writing  bool
 	Joined   time.Time
+	Agent    bool
 }
 
 // Mark is an operation's place in the workbook: who changed which
@@ -243,11 +254,45 @@ func (s *Seat) Peers() []Peer {
 }
 
 func (s *Seat) peer() Peer {
-	return Peer{ID: s.id, Name: s.name, Color: s.color, Presence: s.presence, Writing: s.Writing(), Joined: s.joined}
+	return Peer{ID: s.id, Name: s.name, Color: s.color, Presence: s.presence, Writing: s.Writing(), Joined: s.joined, Agent: s.agent}
+}
+
+// Agent reports whether the participant is one of the agents.
+func (s *Seat) Agent() bool { return s.agent }
+
+// Closed reports whether the room closed: its last person left. Call
+// it in a turn.
+func (s *Seat) Closed() bool { return s.room.closed }
+
+// Touch tells the others, once the turn ends, that something they
+// share changed without the workbook changing: a value of the room's
+// (Value), such as the agent's suggestions. Call it in a turn.
+func (s *Seat) Touch() { s.moved = true }
+
+// Peer is the participant with id, and whether they're here. Call it in
+// a turn.
+func (s *Seat) Peer(id int) (Peer, bool) {
+	if o := s.room.seat(id); o != nil {
+		return o.peer(), true
+	}
+	return Peer{}, false
 }
 
 // Others is how many others are in the room. Call it in a turn.
 func (s *Seat) Others() int { return len(s.room.seats) - 1 }
+
+// People is how many other people are in the room, agents left out:
+// those who keep the workbook open when this one leaves. Call it in a
+// turn.
+func (s *Seat) People() int {
+	n := 0
+	for _, o := range s.room.seats {
+		if o != s && !o.agent {
+			n++
+		}
+	}
+	return n
+}
 
 // Marks are the operations since seq, oldest first, whoever made them.
 // Call it in a turn.
@@ -319,9 +364,20 @@ func (s *Seat) Value(key string, make func() any) any {
 }
 
 // Keeper reports whether the participant keeps what the room runs on
-// its own (linked files followed, notebook cells running): the one who
-// has been there longest. Call it in a turn.
-func (s *Seat) Keeper() bool { return len(s.room.seats) > 0 && s.room.seats[0] == s }
+// its own (linked files followed, notebook cells running): the person
+// who has been there longest, as agents run nothing of the room's. Call
+// it in a turn.
+func (s *Seat) Keeper() bool { return s.room.keeper() == s }
+
+// keeper is the person there longest, nil when only agents are.
+func (r *Room) keeper() *Seat {
+	for _, s := range r.seats {
+		if !s.agent {
+			return s
+		}
+	}
+	return nil
+}
 
 // Post leaves msg for the keeper, whoever it is when it takes it: what
 // the room runs reports back this way rather than to the participant
@@ -331,11 +387,12 @@ func (s *Seat) Post(msg any) {
 	r := s.room
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.closed || len(r.seats) == 0 {
+	k := r.keeper()
+	if r.closed || k == nil {
 		return
 	}
 	r.inbox = append(r.inbox, msg)
-	r.seats[0].p.Notify()
+	k.p.Notify()
 }
 
 // Take is what was posted for the keeper, if this is the keeper. Call
@@ -349,8 +406,10 @@ func (s *Seat) Take() []any {
 	return in
 }
 
-// Leave gives up the seat, reporting whether it was the last: the room
-// closes then, and its workbook is the participant's alone.
+// Leave gives up the seat, reporting whether it was the last person
+// there: the room closes then, and its workbook is the participant's
+// alone. Agents still there are told, and find the room closed
+// (Closed).
 func (s *Seat) Leave() (last bool) {
 	r := s.room
 	r.mu.Lock()
@@ -361,13 +420,11 @@ func (s *Seat) Leave() (last bool) {
 	s.left = true
 	i := slices.Index(r.seats, s)
 	r.seats = slices.Delete(r.seats, i, i+1)
-	empty := len(r.seats) == 0
-	if !empty {
-		if r.mode == View && r.writer == s.id {
-			r.writer = r.seats[0].id
-		}
-		r.notify(nil)
+	empty := r.keeper() == nil
+	if !empty && r.mode == View && r.writer == s.id {
+		r.writer = r.keeper().id
 	}
+	r.notify(nil)
 	r.mu.Unlock()
 	if empty {
 		return r.reg.close(r)

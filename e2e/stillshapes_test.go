@@ -137,6 +137,8 @@ var symbols = map[rune]func(y symbol){
 	'▲': func(y symbol) { y.tri(pt{.08, .8}, pt{.92, .8}, pt{.5, .16}) },
 	'▴': func(y symbol) { y.tri(pt{.22, .68}, pt{.78, .68}, pt{.5, .32}) },
 	'■': func(y symbol) { y.rect(.14, .14, .86, .86) },
+	'◆': func(y symbol) { y.poly([]pt{y.p(.5, .1), y.p(.9, .5), y.p(.5, .9), y.p(.1, .5)}, false) },
+	'◇': func(y symbol) { y.line(.1, .5, .12, .88, .5, .5, .88, .12, .5, .5, .12) },
 	'●': func(y symbol) { y.disk(y.p(.5, .5)[0], y.p(.5, .5)[1], .4*y.side) },
 	'○': func(y symbol) { circle(y, 0, 0) },
 	'◔': func(y symbol) { circle(y, -math.Pi/2, 0) },

@@ -183,6 +183,10 @@ type Theme struct {
 	// its top-left corner in their color (PeerMark).
 	Peer     [Peers]lipgloss.Style
 	PeerMark [Peers]lipgloss.Style
+	// Suggested marks a cell the agent's suggestion would set, waiting
+	// for the person to accept or reject it (live mode): a ◇ in the
+	// cell's top-left corner, so it reads without color.
+	Suggested lipgloss.Style
 
 	// levels are the contrast minimums the roles meet: WCAG AA, or AAA
 	// for a high-contrast scheme.
@@ -288,6 +292,7 @@ func roles(dark bool) Theme {
 	bar := lipgloss.Cyan
 	filterFg := lipgloss.Yellow
 	noteFg := lipgloss.Yellow
+	suggested := lipgloss.BrightMagenta
 	borderFg := lipgloss.White
 	// Bands are the header's gray, lightest on a light terminal.
 	bandBg, bandFg := lipgloss.BrightBlack, lipgloss.BrightWhite
@@ -295,6 +300,7 @@ func roles(dark bool) Theme {
 		bandBg, bandFg = lipgloss.White, lipgloss.Black
 		borderFg = lipgloss.Black
 		noteFg = lipgloss.Magenta
+		suggested = lipgloss.Magenta
 		headerBg, headerFg = lipgloss.White, lipgloss.Black
 		selFg, muted, match = lipgloss.BrightWhite, lipgloss.Black, lipgloss.Blue
 		filterFg = lipgloss.Blue
@@ -381,6 +387,7 @@ func roles(dark bool) Theme {
 	ruleRoles(&t, dark)
 	codeRoles(&t, dark)
 	peerRoles(&t, dark)
+	t.Suggested = lipgloss.NewStyle().Foreground(suggested).Bold(true)
 	for i, c := range series {
 		t.Series[i] = lipgloss.NewStyle().Foreground(c)
 		t.SeriesBg[i] = lipgloss.NewStyle().Background(c)

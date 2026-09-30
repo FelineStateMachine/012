@@ -137,6 +137,9 @@ func isWorkbook(name string) (own, readable bool) {
 // book is the workbook a tool's path names for the client of req, or
 // the default one when the path is empty.
 func (s *Server) book(ctx context.Context, ss *sdk.ServerSession, name string) (*book, error) {
+	if l := s.opts.Live; l != nil {
+		return s.liveBook(l, name)
+	}
 	roots := s.roots(ctx, ss)
 	var path string
 	switch {
@@ -160,6 +163,16 @@ func (s *Server) book(ctx context.Context, ss *sdk.ServerSession, name string) (
 		}
 	}
 	return &book{Backend: s.backend(path), path: path, name: displayName(roots, path)}, nil
+}
+
+// liveBook is the live workbook, which a path, when given, must name.
+func (s *Server) liveBook(l Live, name string) (*book, error) {
+	n := l.Name()
+	base := strings.TrimSuffix(filepath.Base(filepath.FromSlash(name)), filepath.Ext(name))
+	if name != "" && name != n && base != n {
+		return nil, fmt.Errorf("this server is attached to %s, open on a person's screen, and works on it alone: leave path out", n)
+	}
+	return &book{Backend: l, path: n, name: n}, nil
 }
 
 // backend is the one backend of the file at path, so calls on the same

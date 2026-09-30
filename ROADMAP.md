@@ -33,18 +33,6 @@ completed by nu as they're written.
 |---|---|---|
 | A command's signature and description for the word at the caret, on the context line, through `nu --ide-hover` or `nu --lsp` | Writing a cell without leaving for `help` | S |
 
-### 3. Agents
-
-Agents work on workbooks through the same operations people do (the
-`Batch`/`Change` path), so their edits are undoable, attributed and
-shown by `012 diff`, under the same trust rules as macros. Live mode is
-`012 serve`'s shared editing with an agent as one participant
-([Architecture](docs/contributing/architecture.md#shared-workbooks)).
-
-| Step | Result | Size |
-|---|---|---|
-| Live mode: `012 --listen` and `012 mcp --attach`; the agent's cursor and name in the grid, its changes arriving as a suggestion (marked cells, accepted or rejected whole or by cell) unless direct edits are allowed, its own undo, a scope (sheet, range, read-only), elicitation to ask the person | Coworking with an agent in the grid | M to L |
-
 ## Shelved
 
 Explored, not scheduled; the fit is still open.
@@ -149,6 +137,7 @@ needs cgo.
 - `012 describe`, results as JSON with stable schemas, `012 set --dry-run` as a diff, and a Claude Code skill installed by `012 agent --install-skill`: [Agents](docs/agents/README.md)
 - `012 mcp`, an MCP server on the workbooks in its folders, each tool taking a path, added to hosts by `012 agent --install-mcp`: tools that read, evaluate, write, sort, filter, chart, pivot and run notebook cells through the same checks as `012 set`, resources and prompts: [MCP server](docs/agents/mcp.md)
 - Views: ranges read and charts made drawn in the chat from the HTML export, in MCP Apps hosts and the OpenAI Apps SDK's: [MCP server](docs/agents/mcp.md#views-in-the-chat)
+- Live mode: `012 --listen` and `012 mcp --attach`, the agent a participant in the session's room, its cursor and name in the grid, its changes suggestions accepted or rejected whole or by cell unless direct edits are allowed, its own undo, a scope, and questions on the context line: [Live mode](docs/agents/live.md)
 
 **Upkeep**
 

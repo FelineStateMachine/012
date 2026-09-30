@@ -44,10 +44,18 @@ func (g *Registry) Rooms() int {
 // reports whether it opened the room. A room's history is shared: undo
 // takes back each participant's own steps.
 func (g *Registry) Join(key string, p Participant, book func() *sheet.Workbook) (*Seat, bool) {
+	return g.join(key, p, book)
+}
+
+// join is Join; with book nil, it seats p only in a room that's open.
+func (g *Registry) join(key string, p Participant, book func() *sheet.Workbook) (*Seat, bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	r := g.rooms[key]
 	created := false
+	if r == nil && book == nil {
+		return nil, false
+	}
 	if r == nil {
 		w := book()
 		w.ShareHistory()
@@ -60,12 +68,22 @@ func (g *Registry) Join(key string, p Participant, book func() *sheet.Workbook) 
 	defer r.mu.Unlock()
 	r.nextID++
 	s := &Seat{room: r, id: r.nextID, name: p.Name(), color: r.freeColor(), p: p, joined: time.Now()}
+	if _, ok := p.(Agent); ok {
+		s.agent = true
+	}
 	if len(r.seats) == 0 {
 		r.writer = s.id
 	}
 	r.seats = append(r.seats, s)
 	r.notify(s)
 	return s, created
+}
+
+// JoinOpen seats p in the room with key if it's open, reporting false
+// when it isn't: the agent joins only a workbook someone has open.
+func (g *Registry) JoinOpen(key string, p Participant) (*Seat, bool) {
+	s, _ := g.join(key, p, nil)
+	return s, s != nil
 }
 
 // freeColor is the first color no one in the room has.
@@ -92,14 +110,14 @@ func (g *Registry) alias(r *Room, key string) {
 	}
 }
 
-// close forgets the room once its last seat has left, reporting whether
+// close forgets the room once its last person has left, reporting whether
 // it did: someone may have joined since.
 func (g *Registry) close(r *Room) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if len(r.seats) > 0 || r.closed {
+	if r.keeper() != nil || r.closed {
 		return false
 	}
 	r.closed = true
