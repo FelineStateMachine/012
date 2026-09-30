@@ -23,11 +23,12 @@ func (r *randBook) edit(e *edits) string {
 	return randEdits[e.n(len(randEdits))](r, e)
 }
 
-// sheet picks one of the grid sheets (not the notebook) to edit.
+// sheet picks one of the grid sheets (not the notebook nor a source) to
+// edit.
 func (r *randBook) sheet(e *edits) *Sheet {
 	var grids []*Sheet
 	for _, s := range r.wb.sheets {
-		if !s.IsNotebook() {
+		if !s.IsNotebook() && !s.IsSource() {
 			grids = append(grids, s)
 		}
 	}
