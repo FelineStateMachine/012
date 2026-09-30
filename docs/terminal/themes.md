@@ -32,6 +32,11 @@ theme = light:Catppuccin Latte,dark:Catppuccin Mocha  # follow the terminal
   and switches when the terminal does (for example with the system's
   appearance, in terminals that report it).
 
+At startup the screen stays blank until the terminal says its
+background, so a light terminal never shows a frame in dark colors,
+even over SSH; a terminal that doesn't answer is waited for at most
+half a second.
+
 File > Settings > Theme opens a picker: type to search the names. A
 search starting with "dark" or "light" lists only the schemes of that
 kind (by `meta.isDark`, so "light" leaves out dark schemes such as Bright
