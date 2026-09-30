@@ -48,38 +48,11 @@ shown by `012 diff`, under the same trust rules as macros. Live mode is
 |---|---|---|
 | Live mode: `012 --listen` and `012 mcp --attach`; the agent's cursor and name in the grid, its changes arriving as a suggestion (marked cells, accepted or rejected whole or by cell) unless direct edits are allowed, its own undo, a scope (sheet, range, read-only), elicitation to ask the person | Coworking with an agent in the grid | M to L |
 
-### 4. SQL cells and connections
+## Shelved
 
-SQL is a second language for notebook cells, beside nu, chosen per
-cell. A cell's connection defaults to `local`, an in-process SQLite
-(pure Go) where every table the workbook has is a table: sheet tables,
-cell outputs, linked files and paged sources. A result is an output like
-a nu cell's, so its grid, `G`, `$name`, stale and reactive work as they
-do. A cell is named as a nu cell is (`sales = SELECT ...`). Real
-databases come through saved connections whose secrets stay in the
-keychain, read-only unless allowed to write, trusted before a file from
-another computer connects anywhere.
+Explored, not scheduled; the fit is still open.
 
-| Item | Result | Size |
-|---|---|---|
-| SQL cells on `local`: a language per cell, in-process SQLite over the workbook's tables, outputs and linked files, results as outputs (grid, `G`, `$name`, stale, reactive) | SQL over a workbook's own data, next to nu | L |
-| `012 query book.012 '<sql>'` and a read-only MCP `query` tool on `local` | Agents and scripts aggregate workbooks with SQL | M |
-| SQL highlighting, errors from `prepare`, completion of the tables and columns in scope | Writing SQL cells as nu cells are written | M |
-| `@name` parameters from cells and named ranges, always bound, making outputs stale | Queries driven by cells and dropdowns | M |
-| The keyring keyed by account | Several secrets in the OS keychain | S |
-| Connections: SQLite files, Postgres (pgx), MySQL, saved in `.012` without secrets, a picker, read-only sessions, the trust prompt, `--connections` and `serve-connections` | SQL cells on real databases | L |
-| A schema browser, and completion from a schema cache | Finding tables and columns without leaving 012 | M |
-| Cells on one connection that name each other inlined as CTEs | Multi-step remote queries that run in the database | S |
-| Virtual tables over sheet tables, outputs and paged sources | SQL over sources too big to load | M |
-| A preview of rows and "Open as source" for big results | Results too big for a grid, paged | M |
-| Scheduled refresh per cell, while the workbook is open, once per room | Regions that keep up with the database | M |
-| Data > Query > New query, and `012 sql` | Sheet-first and command-line ways in | S |
-| DuckDB as an optional external kernel, run as nu is | DuckDB's dialect where it's installed | M |
-| `=SQL(...)` spilling, on `local` | SQL in formulas, offline | M |
-
-## Later: other transports (shelved)
-
-Explored, not scheduled: carrying the same shared sessions over iroh
+Other transports: carrying the same shared sessions over iroh
 tickets (the Go transport in `FelineStateMachine/allons`
 `local/transport/iroh`, which needs cgo and a prebuilt iroh-ffi archive, so
 it would sit behind a build tag) and the web (`NimbleMarkets/go-booba`
@@ -87,6 +60,15 @@ serves Bubble Tea over WebSocket/WebTransport with ghostty-web; Bubble Tea
 v2 support unverified). They would reuse the rooms of `012 serve`, whose
 server orders every participant's operations, rather than a design of
 their own.
+
+SQL cells and connections: SQL as a second cell language beside nu, on
+an in-process SQLite (pure Go) over the workbook's tables, outputs and
+linked files by default, with saved connections to SQLite files,
+Postgres and MySQL whose secrets stay in the keychain. Results would be
+outputs like a nu cell's (grid, `G`, `$name`, stale), `@name`
+parameters bound from cells, and `012 query` and an MCP `query` tool
+for scripts and agents. DuckDB would only be an external kernel, as it
+needs cgo.
 
 ## Shipped
 
