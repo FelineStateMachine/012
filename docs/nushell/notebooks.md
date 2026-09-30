@@ -361,8 +361,8 @@ undo history.
 
 A cell holds one statement or several, a line each (or apart by `;`),
 as a nushell script does; a line starting with `|` goes on with the
-pipeline above it. `name = pipeline` on any line assigns `name`, as
-nushell's `let name = pipeline` does, and the cell's later lines read
+pipeline above it. `name =` before a pipeline, on any line, assigns `name` as
+nushell's `let` does, and the cell's later lines read
 it as `$name`. `#` starts a comment to the end of the line, outside a
 string, as in nushell: a commented-out line assigns and reads nothing.
 
@@ -370,7 +370,7 @@ As in nushell and Jupyter, the cell's output is its last statement's
 value, and the names work across cells by one rule:
 
 - **The cell's name is its output's.** When the last statement is
-  `name = pipeline`, the cell is named `name`; otherwise it has no
+  an assignment (`name =`), the cell is named `name`; otherwise it has no
   name until `n` names it, which puts `name =` before its last
   statement. Other cells read the output as `$name`, and formulas on
   any sheet as `nu.name`, or a column of it as `name[column]`, once
