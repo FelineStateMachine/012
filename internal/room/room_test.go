@@ -168,12 +168,12 @@ func TestRoomTurnsAtOnce(t *testing.T) {
 	})
 }
 
-// bot is an agent participant.
+// bot is one of the agents participant.
 type bot struct{ who }
 
 func (*bot) Agent() {}
 
-// An agent is marked as one to the others, keeps nothing the room runs
+// The agent is marked as one to the others, keeps nothing the room runs
 // even when it was there first, and a touch tells the others.
 func TestRoomAgents(t *testing.T) {
 	g := NewRegistry(Edit)
@@ -214,6 +214,6 @@ func TestRoomAgents(t *testing.T) {
 		}
 	})
 	if _, ok := g.JoinOpen("k", &bot{who{name: "late"}}); ok {
-		t.Error("an agent joined a closed room")
+		t.Error("the agent joined a closed room")
 	}
 }

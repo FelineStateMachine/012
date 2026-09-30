@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Questions: an agent asks the person something with the ask tool,
+// Questions: the agent asks the person something with the ask tool,
 // shaped as an MCP elicitation request (a message, and a flat object
 // schema of what to answer), and the person answers on the context line
 // of their session, one field at a time. Elicitation goes from a server

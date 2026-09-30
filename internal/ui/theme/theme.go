@@ -183,7 +183,7 @@ type Theme struct {
 	// its top-left corner in their color (PeerMark).
 	Peer     [Peers]lipgloss.Style
 	PeerMark [Peers]lipgloss.Style
-	// Suggested marks a cell an agent's suggestion would set, waiting
+	// Suggested marks a cell the agent's suggestion would set, waiting
 	// for the person to accept or reject it (live mode): a ◇ in the
 	// cell's top-left corner, so it reads without color.
 	Suggested lipgloss.Style

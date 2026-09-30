@@ -48,7 +48,7 @@ const (
 	CellRejected
 )
 
-// Suggestion is an agent's change waiting for a person: the proposal,
+// Suggestion is one of the agents's change waiting for a person: the proposal,
 // who made it and why, and what became of each of its cells.
 type Suggestion struct {
 	ID      int

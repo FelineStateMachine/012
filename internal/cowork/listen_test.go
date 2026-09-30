@@ -52,7 +52,7 @@ func listening(t *testing.T) (*room.Seat, *Listener) {
 
 // attachClient connects an MCP client to the listener as 012 mcp
 // --attach does.
-func attachClient(t *testing.T, l *Listener, name string) *sdk.ClientSession {
+func attachClient(t *testing.T, l *Listener, name string, opts ...*sdk.ClientOptions) *sdk.ClientSession {
 	t.Helper()
 	conn, err := net.Dial("unix", l.Socket())
 	if err != nil {
@@ -65,7 +65,11 @@ func attachClient(t *testing.T, l *Listener, name string) *sdk.ClientSession {
 	if err := json.Unmarshal(line, &w); err != nil || w.Error != "" || w.Workbook != "budget" || w.Scope != "the whole workbook" {
 		t.Fatalf("welcome %s: %v", line, err)
 	}
-	c := sdk.NewClient(&sdk.Implementation{Name: name, Version: "1"}, nil)
+	var o *sdk.ClientOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	c := sdk.NewClient(&sdk.Implementation{Name: name, Version: "1"}, o)
 	cs, err := c.Connect(context.Background(), &sdk.IOTransport{Reader: io.NopCloser(r), Writer: conn}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +93,7 @@ func callTool(t *testing.T, cs *sdk.ClientSession, name string, args any) map[st
 	return out
 }
 
-// An agent attached over the socket sits in the room, reads the
+// The agent attached over the socket sits in the room, reads the
 // workbook as it is, suggests, and hears what became of it.
 func TestAttachedAgentWorksInTheRoom(t *testing.T) {
 	ann, l := listening(t)
@@ -97,7 +101,13 @@ func TestAttachedAgentWorksInTheRoom(t *testing.T) {
 	if err != nil || info.Mode().Perm() != 0o600 {
 		t.Fatalf("the socket's permissions: %v %v", info.Mode(), err)
 	}
-	cs := attachClient(t, l, "claude")
+	updated := make(chan string, 4)
+	cs := attachClient(t, l, "claude", &sdk.ClientOptions{ResourceUpdatedHandler: func(_ context.Context, r *sdk.ResourceUpdatedNotificationRequest) {
+		updated <- r.Params.URI
+	}})
+	if err := cs.Subscribe(context.Background(), &sdk.SubscribeParams{URI: "o12://live/suggestions"}); err != nil {
+		t.Fatal(err)
+	}
 	var peers []room.Peer
 	ann.Do(func(*sheet.Workbook) { peers = ann.Peers() })
 	if len(peers) != 1 || peers[0].Name != "claude" || !peers[0].Agent {
@@ -127,6 +137,14 @@ func TestAttachedAgentWorksInTheRoom(t *testing.T) {
 	})
 	if v := value(ann, "Sheet1", "B1"); v.Num != 11 {
 		t.Fatalf("B1 is %v", v)
+	}
+	select {
+	case uri := <-updated:
+		if uri != "o12://live/suggestions" {
+			t.Errorf("updated %s", uri)
+		}
+	case <-time.After(5 * time.Second):
+		t.Error("the agent wasn't told its suggestion was accepted")
 	}
 	list := callTool(t, cs, "suggestions", nil)
 	if s := list["suggestions"].([]any)[0].(map[string]any); s["state"] != "accepted" {

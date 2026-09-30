@@ -21,7 +21,7 @@ func (s *Server) ListenForAgents(version string) (*cowork.Listener, error) {
 	return cowork.Listen(cowork.Options{Registry: s.rooms, Room: s.agentRoom, Kind: "serve", Workbook: s.Dir(), Version: version})
 }
 
-// agentRoom is the room of the file an agent names, which someone must
+// agentRoom is the room of the file the agent names, which someone must
 // have open.
 func (s *Server) agentRoom(name string) (string, error) {
 	if name == "" {

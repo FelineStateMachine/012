@@ -133,7 +133,7 @@ palette) lists the others and goes to one's cell, and **File > Hand over
 writing** passes writing on in a one-writer room; neither has a key of
 its own ([Sharing a workbook](../terminal/ssh.md#sharing-a-workbook)).
 
-With an agent working in the session ([Live mode](../agents/live.md)):
+With agents working in the session ([Live mode](../agents/live.md)):
 
 | Key | Action |
 |---|---|
@@ -142,8 +142,8 @@ With an agent working in the session ([Live mode](../agents/live.md)):
 | Enter, A (in the panel) | Accept the suggestion, or the cell, highlighted; click ✓ |
 | R, Del (in the panel) | Reject it; click ✗ |
 | Shift+A, Shift+R (in the panel) | Accept or reject every suggestion waiting |
-| Enter, N, Esc (an agent's question) | Yes, no, cancel; a choice's number, or a value typed and Enter |
-| Enter, A, Esc (an agent's request) | Allow once, allow for the session, deny |
+| Enter, N, Esc (the agent's question) | Yes, no, cancel; a choice's number, or a value typed and Enter |
+| Enter, A, Esc (the agent's request) | Allow once, allow for the session, deny |
 
 ## Macros
 

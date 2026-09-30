@@ -11,7 +11,7 @@ import (
 // Random edits by several participants: the edits of TestRandomEdits,
 // each made by one of three authors drawn from the seed, interleaved in
 // one workbook whose history is shared, as a room of 012 serve orders
-// them, and among them an agent's (live mode): its edits are proposals
+// them, and among them the agent's (live mode): its edits are proposals
 // (Propose), accepted whole, cell by cell or not at all, as drawn from
 // the seed. Then the authors, the agent among them, undo, in turns drawn from the seed, each only
 // their own steps, from under the others' where nothing later overlaps

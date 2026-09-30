@@ -17,14 +17,14 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// liveSession is a local session listening for agents, and an agent in
+// liveSession is a local session listening for agents, and the agent in
 // its room, as 012 --listen and 012 mcp --attach make them.
 type liveSession struct {
 	*seshion
 	agent *cowork.Agent
 }
 
-// testAgent is an agent in the room without a connection.
+// testAgent is one of the agents in the room without a connection.
 type testAgent struct{ kick chan struct{} }
 
 func (a *testAgent) Name() string { return "claude" }
@@ -37,7 +37,7 @@ func (a *testAgent) Notify() {
 }
 
 // startLive opens a session on a workbook of 40, 2 and their sum in
-// A1:A3, listening for agents, with an agent attached.
+// A1:A3, listening for agents, with the agent attached.
 func startLive(t *testing.T) *liveSession {
 	t.Helper()
 	run, err := os.MkdirTemp("", "o12")

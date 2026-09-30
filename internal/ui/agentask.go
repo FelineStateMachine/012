@@ -8,7 +8,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/cowork"
 )
 
-// An agent's questions (the ask tool) and requests (to run notebook
+// The agent's questions (the ask tool) and requests (to run notebook
 // cells, to enter JEV formulas directly) wait on the room's board until
 // the person it asks is free: in READY, nothing open. Then the question
 // takes the context line, a field at a time: a yes or no, a choice, or
@@ -130,7 +130,7 @@ func (m *Model) askField(q *cowork.Ask, i int, content map[string]any) {
 	}
 }
 
-// askGrant asks leave for what an agent wants to do beyond changing
+// askGrant asks leave for what the agent wants to do beyond changing
 // cells, once or for the session.
 func (m *Model) askGrant(q *cowork.Ask) {
 	answer := func(ans cowork.Answer) func(m *Model) tea.Cmd {

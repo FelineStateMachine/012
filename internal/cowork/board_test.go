@@ -22,13 +22,13 @@ type person struct{ name string }
 func (p *person) Name() string { return p.name }
 func (p *person) Notify()      {}
 
-// bot is an agent participant without a connection.
+// bot is one of the agents participant without a connection.
 type bot struct{ person }
 
 func (*bot) Agent() {}
 
 // liveRoom is a room with ann in it, on a workbook of 1, 2, 3 in A1:A3
-// and their sum in A4, and an agent attached.
+// and their sum in A4, and the agent attached.
 func liveRoom(t *testing.T) (ann *room.Seat, agent *Agent) {
 	t.Helper()
 	g := room.NewRegistry(room.Edit)

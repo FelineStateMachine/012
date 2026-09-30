@@ -1,4 +1,4 @@
-// Package cowork is live mode (docs/agents/live.md): an agent working in
+// Package cowork is live mode (docs/agents/live.md): the agent working in
 // a running 012 session, as one of the participants of the session's
 // room (package room). A session listens on a socket only its user can
 // reach (Listen); 012 mcp --attach connects to it (Attach) and carries
@@ -22,7 +22,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// ScopeKind is how much of the workbook an agent may change.
+// ScopeKind is how much of the workbook the agent may change.
 type ScopeKind int
 
 const (
@@ -59,7 +59,7 @@ func (s Scope) String() string {
 	return "the whole workbook"
 }
 
-// ErrReadOnly refuses any change of an agent invited read only.
+// ErrReadOnly refuses any change of the agent invited read only.
 var ErrReadOnly = errors.New("you were invited read only: you can read the workbook, point at cells and ask the person, but not change anything; ask them to invite you again with a scope that lets you")
 
 // Allows reports whether the agent may point at r of sheet s.

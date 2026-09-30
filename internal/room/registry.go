@@ -80,7 +80,7 @@ func (g *Registry) join(key string, p Participant, book func() *sheet.Workbook) 
 }
 
 // JoinOpen seats p in the room with key if it's open, reporting false
-// when it isn't: an agent joins only a workbook someone has open.
+// when it isn't: the agent joins only a workbook someone has open.
 func (g *Registry) JoinOpen(key string, p Participant) (*Seat, bool) {
 	s, _ := g.join(key, p, nil)
 	return s, s != nil

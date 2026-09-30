@@ -45,7 +45,7 @@ type welcome struct {
 // Options say what a listener serves.
 type Options struct {
 	Registry *room.Registry
-	// Room is the key of the room an agent joins, given the name its
+	// Room is the key of the room the agent joins, given the name its
 	// attach gave ("" for none): a session's own, whatever the name, or
 	// in 012 serve the file named, which someone must have open.
 	Room func(name string) (string, error)
@@ -185,11 +185,11 @@ func (l *Listener) serve(c net.Conn) {
 	if err != nil {
 		return
 	}
-	go a.watch(ctx, seat.kick, ss)
+	go a.watch(ctx, seat.kick, srv, ss)
 	ss.Wait()
 }
 
-// greeted is the seat an agent was given, and what tells it the room
+// greeted is the seat the agent was given, and what tells it the room
 // changed.
 type greeted struct {
 	seat *room.Seat
@@ -252,17 +252,19 @@ func (p *agentLink) Notify() {
 	}
 }
 
-// watch tells the agent what became of its suggestions as the person
-// settles them, as MCP log messages, until ctx ends or the room closes.
-func (a *Agent) watch(ctx context.Context, kick <-chan struct{}, ss *sdk.ServerSession) {
+// watch is the agent's Notify: when the person settles one of its
+// suggestions, the news waits for its next write and clients subscribed
+// to the suggestions resource are told; when the room closes, the agent
+// is let go. It runs until ctx ends.
+func (a *Agent) watch(ctx context.Context, kick <-chan struct{}, srv *mcp.Server, ss *sdk.ServerSession) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-kick:
 		}
-		for _, n := range a.report() {
-			ss.Log(ctx, &sdk.LoggingMessageParams{Level: "notice", Logger: "012", Data: n})
+		if len(a.report()) > 0 {
+			srv.SuggestionsChanged(ctx)
 		}
 		closed := false
 		a.seat.Do(func(*sheet.Workbook) { closed = a.seat.Closed() })

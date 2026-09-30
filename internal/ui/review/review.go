@@ -87,7 +87,7 @@ func New(h Host) *Panel {
 
 func (p *Panel) Indicator() string { return "REVIEW" }
 
-// refresh lists the suggestions as they are now.
+// refresh lists the suggestions as the host has them.
 func (p *Panel) refresh() {
 	p.items = p.h.Suggestions()
 	p.rows = p.rows[:0]
@@ -199,7 +199,7 @@ func (p *Panel) line(th *theme.Theme, r row, inner int, sel bool) string {
 	return theme.Cells(base, text, room) + chips
 }
 
-// agentMark is an agent's name with the mark agents have.
+// agentMark is one of the agents's name with the mark agents have.
 func agentMark(name string) string { return "◆ " + name }
 
 // cellName is a cell's address, with its sheet when the suggestion sets

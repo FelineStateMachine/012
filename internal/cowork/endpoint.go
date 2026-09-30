@@ -100,7 +100,7 @@ func alive(socket string) bool {
 	return true
 }
 
-// Pick is the endpoint target names among eps, and the file an agent
+// Pick is the endpoint target names among eps, and the file the agent
 // of 012 serve joins: "" when only one session listens, a workbook's
 // name, a pid, a socket's path, or with one 012 serve listening, the
 // file to join.

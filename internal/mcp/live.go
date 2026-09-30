@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -106,8 +107,30 @@ type liveRunOut struct {
 	Status string `json:"status"`
 }
 
-// addLiveTools adds the tools of a live workbook.
+// SuggestionsURI is the resource listing the agent's suggestions, as
+// the suggestions tool does; clients subscribed to it are told when the
+// person settles one (SuggestionsChanged).
+const SuggestionsURI = scheme + "live/suggestions"
+
+// SuggestionsChanged tells clients subscribed to SuggestionsURI that
+// the person settled a suggestion.
+func (s *Server) SuggestionsChanged(ctx context.Context) {
+	s.ResourceUpdated(ctx, &sdk.ResourceUpdatedNotificationParams{URI: SuggestionsURI})
+}
+
+// addLiveTools adds the tools of a live workbook, and its suggestions
+// resource.
 func (s *Server) addLiveTools(l Live) {
+	s.AddResource(&sdk.Resource{URI: SuggestionsURI, Name: "suggestions", MIMEType: "application/json",
+		Description: "Your suggestions and what became of each, as the suggestions tool lists them; subscribe to hear when the person settles one"},
+		func(ctx context.Context, _ *sdk.ReadResourceRequest) (*sdk.ReadResourceResult, error) {
+			list, err := l.Suggestions(ctx)
+			if err != nil {
+				return nil, err
+			}
+			data, _ := json.Marshal(suggestionsOut{Scope: l.Scope(), Suggestions: list})
+			return &sdk.ReadResourceResult{Contents: []*sdk.ResourceContents{{URI: SuggestionsURI, MIMEType: "application/json", Text: string(data)}}}, nil
+		})
 	tool(s, &sdk.Tool{Name: "focus", Annotations: &sdk.ToolAnnotations{IdempotentHint: true, OpenWorldHint: ptr(false)},
 		Description: "Move your pointer to a cell or range, where the person sees it with your name, to show where you're working."},
 		func(ctx context.Context, _ *sdk.CallToolRequest, in focusIn) (*sdk.CallToolResult, focusOut, error) {

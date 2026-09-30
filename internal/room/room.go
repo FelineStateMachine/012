@@ -8,8 +8,8 @@
 // operations (sheet.Op) the room hands every participant. A participant
 // is anything with a name that can be told the room changed
 // (Participant): a served session's model, a local session sharing its
-// workbook with an agent, or the agent itself, an MCP client attached in
-// live mode (internal/cowork, an Agent). See
+// workbook with the agent, or the agent itself, an MCP client attached in
+// live mode (internal/cowork, the Agent interface). See
 // docs/contributing/architecture.md.
 package room
 
@@ -34,7 +34,7 @@ type Participant interface {
 	Notify()
 }
 
-// Agent is a participant that is an agent (live mode, an MCP client
+// Agent is a participant that is one of the agents (live mode, an MCP client
 // attached): the others see it marked as one, and it keeps nothing the
 // room runs.
 type Agent interface {
@@ -257,7 +257,7 @@ func (s *Seat) peer() Peer {
 	return Peer{ID: s.id, Name: s.name, Color: s.color, Presence: s.presence, Writing: s.Writing(), Joined: s.joined, Agent: s.agent}
 }
 
-// Agent reports whether the participant is an agent.
+// Agent reports whether the participant is one of the agents.
 func (s *Seat) Agent() bool { return s.agent }
 
 // Closed reports whether the room closed: its last person left. Call
@@ -266,7 +266,7 @@ func (s *Seat) Closed() bool { return s.room.closed }
 
 // Touch tells the others, once the turn ends, that something they
 // share changed without the workbook changing: a value of the room's
-// (Value), such as an agent's suggestions. Call it in a turn.
+// (Value), such as the agent's suggestions. Call it in a turn.
 func (s *Seat) Touch() { s.moved = true }
 
 // Peer is the participant with id, and whether they're here. Call it in

@@ -15,9 +15,9 @@ import (
 	"github.com/FelineStateMachine/012/internal/ui/review"
 )
 
-// Live mode (docs/agents/live.md): an agent works in this session as a
+// Live mode (docs/agents/live.md): the agent works in this session as a
 // participant of its room. A local session invited to (012 --listen,
-// File > Invite an agent) puts its workbook in a room of its own, with
+// File > Invite the agent) puts its workbook in a room of its own, with
 // its person the first seat, and listens on a socket for 012 mcp
 // --attach (package cowork); 012 serve's rooms are joined the same way.
 // The agent's changes wait on the room's board as suggestions, marked
@@ -51,7 +51,7 @@ func init() {
 	keymap["ctrl+alt+a"] = "agent.review"
 }
 
-// noRoom hides what needs a room: live mode's commands before an agent
+// noRoom hides what needs a room: live mode's commands before the agent
 // is invited.
 func noRoom(m *Model) bool { return m.share.seat == nil }
 
@@ -288,7 +288,7 @@ func (m *Model) settle(id int, cells []int, accept bool) {
 	m.note = "Accepted " + what + " " + s.Agent + "'s suggestion: " + s.Label + " (" + s.Agent + "'s to undo)"
 }
 
-// agentRunCell runs the notebook cell an agent asked for, once allowed
+// agentRunCell runs the notebook cell the agent asked for, once allowed
 // (cowork.Agent.RunCell), as Run does.
 func (m *Model) agentRunCell(rc cowork.RunCell) tea.Cmd {
 	s := m.book().Lookup(rc.Notebook)
