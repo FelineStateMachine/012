@@ -19,7 +19,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/serve"
 )
 
-const serveUsage = "usage: 012 serve [--listen addr] [--authorized-keys file] [--host-key file] [--idle-timeout 30m] [--max-sessions 8] [dir]"
+const serveUsage = "usage: 012 serve [--listen addr] [--authorized-keys file] [--host-key file] [--idle-timeout 30m] [--max-sessions 8] [--share edit|view|off] [dir]"
 
 // serveOptions are 012 serve's settings from the config file, the
 // serve-* options, over the built-in defaults.
@@ -32,6 +32,7 @@ func serveOptions(c *config.Config) serve.Options {
 	}
 	o.IdleTimeout = c.Duration("serve-idle-timeout")
 	o.MaxSessions = c.Int("serve-max-sessions")
+	o.Share = c.String("serve-share")
 	return o
 }
 
@@ -49,6 +50,7 @@ func serveFlags(args []string, stderr io.Writer, o serve.Options) (serve.Options
 	fs.StringVar(&o.HostKey, "host-key", o.HostKey, "the server's private key, generated if missing")
 	fs.DurationVar(&o.IdleTimeout, "idle-timeout", o.IdleTimeout, "end sessions without input for this long (0: never)")
 	fs.IntVar(&o.MaxSessions, "max-sessions", o.MaxSessions, "most sessions at once")
+	fs.StringVar(&o.Share, "share", o.Share, "sessions opening the same file share it: edit, view (one writer) or off")
 	var dirs []string
 	for {
 		if err := fs.Parse(args); err != nil {

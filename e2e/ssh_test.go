@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-// serveSSH starts 012 serve on a random loopback port for served,
-// authorizing a new key, and returns the system's ssh client and the
-// arguments that reach the server with it, checking the host key.
-func serveSSH(t *testing.T, top, served string) (string, []string) {
+// serveSSH starts 012 serve on a random loopback port for served, with
+// flags, authorizing a new key, and returns the system's ssh client and
+// the arguments that reach the server with it, checking the host key.
+func serveSSH(t *testing.T, top, served string, flags ...string) (string, []string) {
 	t.Helper()
 	sshPath, err1 := exec.LookPath("ssh")
 	keygen, err2 := exec.LookPath("ssh-keygen")
@@ -34,7 +34,7 @@ func serveSSH(t *testing.T, top, served string) (string, []string) {
 		t.Fatal(err)
 	}
 	hostKey := filepath.Join(top, "config", "host_key")
-	srv := exec.Command(binPath, "serve", "--listen", "127.0.0.1:0", "--authorized-keys", ak, "--host-key", hostKey, served)
+	srv := exec.Command(binPath, append(append([]string{"serve", "--listen", "127.0.0.1:0", "--authorized-keys", ak, "--host-key", hostKey}, flags...), served)...)
 	srv.Env = append(os.Environ(), "TYPESAFE_API_KEY=", "TYPESAFE_BASE_URL=")
 	stderr, err := srv.StderrPipe()
 	if err != nil {

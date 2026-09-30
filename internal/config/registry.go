@@ -170,6 +170,9 @@ var Options = []Option{
 		Desc: "End a 012 serve session that has had no input for this long; 0 never does."},
 	{Name: "serve-max-sessions", Kind: Int, Group: GroupServe, Default: "8",
 		Desc: "How many 012 serve sessions may run at once; more are turned away."},
+	{Name: "serve-share", Kind: Enum, Group: GroupServe, Default: "edit", Values: []string{"edit", "view", "off"},
+		Desc: "Whether 012 serve sessions opening the same file share its workbook: edit, everyone edits; " +
+			"view, one writes and the others follow until writing is handed over; off, each session has its own copy."},
 	{Name: "serve-shell", Kind: Bool, Group: GroupServe, Default: "false",
 		Desc: "Let 012 serve sessions run notebooks' code cells, as the user 012 serve runs as, " +
 			"following the shell option. Off, served notebooks show their cells and saved outputs but run nothing."},

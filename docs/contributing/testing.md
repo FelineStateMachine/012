@@ -45,9 +45,22 @@ failure names the fewest of the seed's edits that still fail. It takes
 about a second; `-randedit.seeds=20000` runs more, and
 `FuzzRandomEdits` (in `make fuzz`) lets the fuzzer choose the edits.
 
+`TestRandomSharedEdits` (`randedit_shared_test.go`) makes the same
+edits as three authors taking turns in one workbook with its history
+shared, as a room of `012 serve` holds it, then has them undo their own
+steps in turns drawn from the seed, out of order wherever the rule
+allows: someone can always undo, an undo redone at once gives back the
+file it undid, and once every step is undone the workbook is back where
+it started.
+
 The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and
-reading what `View` renders, without a terminal.
+reading what `View` renders, without a terminal. Sessions sharing a
+workbook are driven the same way through `ui.Shared`, each room's
+changes handed to the others as their programs would get them
+(`share_test.go`), and in real Bubble Tea programs typing at once under
+the race detector, with the time an edit takes to reach another
+session's frame (`sharelive_test.go`).
 
 The MCP server is tested through the SDK's client over an in-memory
 transport. `TestViewInBrowser` (`internal/mcp`) draws its
@@ -88,7 +101,10 @@ restores the terminal and keeps the work; release builds have no such key.
 
 `e2e/ssh_test.go` runs `012 serve` and reaches it with the system's
 `ssh` client inside the same libghostty terminal, so the server path
-is tested as a user sees it (skipped when `ssh` isn't installed).
+is tested as a user sees it (skipped when `ssh` isn't installed). `e2e/share_test.go` has two people
+reach one `012 serve` that way, each in a terminal of their own, and
+share a file; screens of a shared workbook start the others' sessions
+first (`screen.peers`).
 
 `make e2e` builds libghostty-vt from source with Zig into `.deps/` on first
 use. It is its own Go module so cgo never reaches the main binary.

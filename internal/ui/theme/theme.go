@@ -175,9 +175,49 @@ type Theme struct {
 	SeriesBg   [chart.Colors]lipgloss.Style
 	SeriesANSI [chart.Colors]int
 
+	// Peers are the others sharing a workbook in 012 serve, each in a
+	// color of their own: their pointer's cell in it, with a double
+	// underline so it reads without color, and their initial as a chip
+	// in it on the row header and their name on the status line (Peer,
+	// text readable on the color); a cell they changed lately has a ▘ in
+	// its top-left corner in their color (PeerMark).
+	Peer     [Peers]lipgloss.Style
+	PeerMark [Peers]lipgloss.Style
+
 	// levels are the contrast minimums the roles meet: WCAG AA, or AAA
 	// for a high-contrast scheme.
 	levels levels
+}
+
+// Peers is how many colors tell the others sharing a workbook apart.
+const Peers = 6
+
+// peerRoles are the others' colors: on a dark terminal with black
+// text, on a light one with text in black or white, whichever reads on
+// the color. Blue and cyan stay the user's own (the selection, the
+// pointer) where they can.
+func peerRoles(t *Theme, dark bool) {
+	type pair struct{ bg, fg ansi.BasicColor }
+	peers := [Peers]pair{{lipgloss.Magenta, lipgloss.Black}, {lipgloss.Green, lipgloss.Black}, {lipgloss.Yellow, lipgloss.Black},
+		{lipgloss.BrightBlue, lipgloss.Black}, {lipgloss.Red, lipgloss.Black}, {lipgloss.White, lipgloss.Black}}
+	if !dark {
+		peers = [Peers]pair{{lipgloss.Magenta, lipgloss.BrightWhite}, {lipgloss.Green, lipgloss.Black}, {lipgloss.Yellow, lipgloss.Black},
+			{lipgloss.Blue, lipgloss.BrightWhite}, {lipgloss.Red, lipgloss.BrightWhite}, {lipgloss.White, lipgloss.Black}}
+	}
+	for i, p := range peers {
+		t.Peer[i] = lipgloss.NewStyle().Background(p.bg).Foreground(p.fg)
+		mark := p.bg
+		if mark == lipgloss.White && !dark {
+			mark = lipgloss.BrightBlack // white on a light screen doesn't show
+		}
+		t.PeerMark[i] = lipgloss.NewStyle().Foreground(mark)
+	}
+}
+
+// PeerCell is the role of a cell under another's pointer: their color,
+// double-underlined.
+func (t *Theme) PeerCell(i int) lipgloss.Style {
+	return t.Peer[i%Peers].UnderlineStyle(lipgloss.UnderlineDouble)
 }
 
 // ImageID is the style of an image's Unicode placeholders: the
@@ -340,6 +380,7 @@ func roles(dark bool) Theme {
 	}
 	ruleRoles(&t, dark)
 	codeRoles(&t, dark)
+	peerRoles(&t, dark)
 	for i, c := range series {
 		t.Series[i] = lipgloss.NewStyle().Foreground(c)
 		t.SeriesBg[i] = lipgloss.NewStyle().Background(c)

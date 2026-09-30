@@ -31,6 +31,7 @@ internal/nushell a notebook cell's run: nu as a process, tables in as NUON files
   module         012.nu, the nushell module with sheet, embedded for 012 nu --module and --install-module
 internal/telemetry  opt-in JSON log and OTLP export of spans, events and frame stats
 internal/serve   the SSH server: auth, host key, a Model per session (charm.land/wish/v2)
+internal/room    shared workbooks: a room per file, a seat per participant, taking turns on the one workbook
 internal/confine resolving typed file names, confined to a directory when served
 internal/stress  synthetic worst-case sheets for the -tags stress benchmarks
 internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
@@ -71,7 +72,7 @@ flowchart TD
     direction LR
     ui[internal/ui] ~~~ fileio[internal/fileio] ~~~ live[internal/live] ~~~ nushell[internal/nushell]
     chart[internal/chart] ~~~ jev[internal/jev] ~~~ stress[internal/stress] ~~~ oracle[oracle]
-    headless[internal/headless] ~~~ diff[internal/diff]
+    headless[internal/headless] ~~~ diff[internal/diff] ~~~ room[internal/room]
   end
   callers --> sheet[internal/sheet]
   sheet --> functions[internal/functions]
@@ -290,12 +291,14 @@ style.
 
 Rows reach a region as `sheet.LiveOp`s, each applied at once by
 `Workbook.ApplyLive` through the regions' one write path, `writeTable`:
-what follows a linked file sends them, and the UI sends a notebook
-cell's output to the region it was sent to whenever the cell runs.
+what follows a linked file sends them, the UI sends a notebook cell's
+output to the region it was sent to whenever the cell runs, and a cell
+run as a stream sends each batch of rows its pipeline prints.
 
 ```mermaid
 flowchart TD
   file[a linked file] -->|polled| source[live.Source]
+  stream[a cell run as a stream: nu printing a value a line] -->|live.Stream| source
   source -->|live.Update| op[sheet.LiveOp]
   cell[a notebook cell's run] -->|its output, fileio.NUONRows| op
   op --> apply[Workbook.ApplyLive]
@@ -318,9 +321,8 @@ window drops the oldest rows (read back from the region's cells and
 written again one row up); inside an open step (a macro run) what reads
 the cells recalculates when the step ends. An op carries whole
 values and names nothing but its region, so applying the same ops in the
-same order to the same workbook makes the same cells: it is what a
-session following another's over `012 serve` would be sent, beside the
-steps `Batch` records. `OnLive` times each op for telemetry.
+same order to the same workbook makes the same cells, whoever applies
+it. `OnLive` times each op for telemetry.
 
 ### Functions
 
@@ -612,8 +614,10 @@ file followed as it grows: the importers' readers run on a goroutine of
 its own over a pipe that waits for the next piece, so a record cut off
 at the end of one waits for the rest, and rows come out typed as an
 import types them (`tail.go`). A `live.Source` is anything that yields a
-table's rows over time, which a notebook cell following a pipeline
-would be too.
+table's rows over time: a followed file (`live.File`), or a notebook
+cell run as a stream (`live.Stream`), whose pipeline nu runs printing
+each value as NUON on a line of its own (`nushell.Stream`), read by the
+same `Tail` as it arrives.
 
 XLSX is read by 012's own SpreadsheetML reader on `archive/zip` and
 `encoding/xml`: the workbook, shared strings (kept end to end in one
@@ -790,11 +794,88 @@ sequenceDiagram
 
 Each session runs its `tea.Program` over wish's emulated PTY; the
 client's environment is what the model detects the terminal from, and
-its `confine.Root` resolves every file name. Everything a model knows lives in the model, so sessions
-share nothing but read-only tables (the command and function
-registries), the process-wide telemetry and, with JEV on, the HTTP
-client; each gets its own `jev.Cache`, whose queue belongs to that
-session's program. See [Serving over SSH](../terminal/ssh.md).
+its `confine.Root` resolves every file name. Everything a model knows
+lives in the model, so sessions share nothing but read-only tables (the
+command and function registries), the process-wide telemetry, with JEV
+on the HTTP client (each gets its own `jev.Cache`, whose queue belongs
+to that session's program), and the workbooks of the rooms they're in
+(below). See [Serving over SSH](../terminal/ssh.md).
+
+### Shared workbooks
+
+Sessions opening the same file (its path on disk is the key) or the
+same named room share one `*sheet.Workbook` (`internal/room`). There is
+nothing to merge: the server holds the workbook, and participants take
+turns on it. A `room.Registry` holds the rooms; `Join` seats a
+participant, opening the room on the file's workbook when nobody has
+it open, and the last `Leave` closes it. A seat's `Do` is a turn: the
+room's lock held, the workbook's author set to the seat, so every step
+made is attributed; when the turn ends, the room notes the operations
+it made and tells the others. A served session runs its model under
+`ui.Shared`, which makes every `Init`, `Update` and `View` a turn,
+publishes where the user is (`Seat.Move`), and between turns joins and
+leaves rooms, never holding two locks. An operation's way from one
+session's key to another's screen:
+
+```mermaid
+sequenceDiagram
+  participant A as session A (ui.Shared)
+  participant R as the room (room.Seat.Do)
+  participant W as the workbook
+  participant B as session B
+  A->>R: a key: Update, a turn
+  R->>W: SetAuthor(A's seat)
+  A->>W: Sheet.Set, Batch: a step, recalculated
+  W->>W: the step pushed: author, operation number (sheet.Op)
+  R->>R: turn ends: the new operations marked (who, which cells)
+  R-->>B: Participant.Notify
+  B->>R: roomMsg: Update, a turn
+  B->>R: the marks since it last looked, the others' presence
+  B->>B: View in its turn: the change, A's pointer in A's color
+```
+
+Undo in a shared history takes back the author's own latest step,
+from under others' later steps when none of them changed what it
+changed, and refuses otherwise, naming whose step is in the way
+(`sheet/authors.go`, where the rule is written down); cancelling a
+dialog undoes the user's own steps since it opened (`Checkpoint`,
+`UndoTo`). `TestRandomSharedEdits` holds it to undoing, in any order
+it allows, back to the start. A step left open across turns (a macro
+run, `Workbook.Begin`) holds the others' input until it ends, and one
+left open by a session that crashed is closed (`EndStep`).
+
+What the room runs is the room's: linked files are followed by the
+seat there longest (`Seat.Keeper`), notebook cells' runs and streams
+(`nbRuns`) are a value the room keeps (`Seat.Value`), and what their
+commands report goes to whoever keeps the room then (`Seat.Post`,
+`Take`), so a run outlasts the session that started it. The room's
+last save (`Seat.SetSaved`) is what every session counts unsaved
+changes from, and the last session out keeps them for recovery.
+
+A participant is anything with a name that can be told the room
+changed; everything else it does, it does through its seat:
+
+| `room.Participant` | What it is |
+|---|---|
+| `Name()` | who they are to the others: the SSH user |
+| `Notify()` | the room changed; called with the room locked, so it only schedules a turn (a session sends its program a `roomMsg`) |
+
+| `room.Seat` | What it does |
+|---|---|
+| `Do(fn)` | a turn: `fn` on the workbook, the lock held, steps in the seat's name |
+| `Move`, `Peers`, `Marks`, `Last` | where this participant is; the others and where they are; who changed which cells since an operation |
+| `Writing`, `HandTo`, `Writer` | the one-writer mode's role |
+| `Saved`, `SetSaved`, `Value`, `Keeper`, `Post`, `Take` | what the room shares: its file's saved state, values such as the notebook runs, and messages for whoever keeps it |
+| `Leave` | the seat given up; reports whether the room closed |
+
+The interface stays this small so an MCP client attached to the
+server can be a participant beside sessions (ROADMAP.md, Agents):
+`internal/mcp`'s tools stand on a `Backend` of `View`, `Scratch` and
+`Change`, and a room's would be a seat, `View` and `Change` its turns
+(the change one `Batch`, attributed to the client's seat, so its own
+undo and the others' marks follow), `Scratch` a copy of the workbook
+taken in a turn, and `Notify` what tells the client the workbook
+changed.
 
 **Unsaved work.** `Server.Shutdown` closes a channel every session
 watches; a session quitting on it, or on its idle timeout, asks its

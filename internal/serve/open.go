@@ -54,6 +54,7 @@ type ending struct {
 	kept          string    // the recovery file, relative to the served directory
 	keptFor       string    // the file name it was kept for, "" for a book never saved
 	err           error     // keeping it failed
+	others        string    // who still has the shared workbook open, "" when nobody
 }
 
 // keep writes the unsaved work of the program g ran to a recovery file
@@ -80,6 +81,8 @@ func (e ending) tell(w io.Writer, idle time.Duration, root confine.Root) {
 		fmt.Fprint(w, "012: stopped on an internal error; the server's log has a report\r\n")
 	}
 	switch {
+	case e.others != "" && (e.idle || e.crash != nil):
+		fmt.Fprintf(w, "012: the workbook stays open with %s\r\n", e.others)
 	case e.err != nil:
 		fmt.Fprintf(w, "012: couldn't keep the unsaved changes: %s\r\n", root.Scrub(e.err.Error()))
 	case e.kept != "" && e.keptFor == "":

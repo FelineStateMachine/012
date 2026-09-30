@@ -54,7 +54,7 @@ reads the same on a terminal without it:
 | Left of the cells | A bar at the active cell, blue in command mode and green in edit mode, and a thinner one at the others selected ([Keys](#keys)) |
 | The box | Light lines, and heavy ones around the cell being edited |
 | The prompt | How many runs came before this one: `[2]:`, `[*]:` while it runs, `[ ]:` before it has; `Out[2]:` marks the output of that run |
-| The box's top border | The cell's name at the left, and at the right how its run stands (below): `waiting`, `running`, ✓ and how long it took, `failed`, `stale`, or `saved` for an output read from the file |
+| The box's top border | The cell's name at the left, and at the right how its run stands (below): `waiting`, `running`, `● live` and the rows printed for a cell run as a [stream](#streams), ✓ and how long it took, `failed`, `stale`, or `saved` for an output read from the file |
 | Right of the box | `▶` runs the cell, `■` stops it while it runs |
 | The output | What it is ([below](#outputs)): a table or a record as a grid, its column names where a sheet has letters; `×` before an error; `output hidden`; which rows show in its window. Worked in, `OUTPUT` in the mode indicator, the bar left of it green, and its pointer and selection in reverse video, as on a sheet ([Outputs as grids](#outputs-as-grids)) |
 | The context line | What the cell reads and how others read it (`big: reads $files; read as $big, nu.big in formulas`), the keys that apply, and what nu says about the cell being written, underlined curly in the cell ([Writing a cell](#writing-a-cell)) |
@@ -229,7 +229,8 @@ delete, copy, cut, move, make notes or code, hide or clear outputs.
 | `o`, `O` | Hide the output, or show it again; show every row, or the window again |
 | `G` | Send the output to a sheet |
 | Ctrl+G | Go to a cell by its number, name, code or heading |
-| `ii` | Stop: kill the cell running, and forget those waiting |
+| `f` | Run the cell as a stream, until it's stopped ([Streams](#streams)) |
+| `ii` | Stop: kill the cell running, forget those waiting, and stop every stream |
 | `00` | Restart: stop, clear every output, count runs from 1 |
 
 | Key | In edit mode |
@@ -326,6 +327,31 @@ commands aren't there unless `nu-config` is on
 ([nushell's configuration](https://www.nushell.sh/book/configuration.html)).
 A cell stops after `nu-timeout` (30 seconds unless set); `ii` stops it
 sooner.
+
+### Streams
+
+A pipeline that never ends, such as following a log or `watch`ing a
+folder, runs as a stream: `f` (**Data > Shell > Run as stream**) runs
+the selected cell until you stop it, and every value it yields reaches
+the cell's output as soon as nu prints it, and the sheet the output was
+[sent to](#send-to-a-sheet) as rows under its header:
+
+```nu
+log = tail -f app.log | lines | parse '{time} {level} {msg}'
+changes = watch . --glob=*.csv --quiet
+```
+
+While it runs, the cell's box says `● live` with how many rows it has
+printed, and the toolbar how many cells stream; streams run beside the
+cells run once, each on its own, without `nu-timeout`. `ii` (or `■`)
+stops them all, keeping what they printed; running the cell once (`r`)
+stops its stream first. A stream that ends on its own keeps its output
+as a run does, and one that fails says why.
+
+The output keeps a stream's last 10,000 values; a sheet it was sent to
+keeps every row, up to `max-cells`. The rows arrive as the change
+stream does for a [followed file](../files/following.md), outside the
+undo history.
 
 ## Names and $name
 

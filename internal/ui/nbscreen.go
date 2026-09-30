@@ -115,12 +115,17 @@ func (m *Model) notebookToolbar(v *nbview.View) string {
 // nbKernel is how running stands in notebook s, for its toolbar.
 func (m *Model) nbKernel(s *sheet.Sheet) nbview.Kernel {
 	k := nbview.Kernel{Off: m.shellOff(), Reactive: s.Reactive(), Clip: len(m.nb.clip)}
-	if r := m.nb.running; r != nil && r.s == s {
+	if r := m.nb.runs.running; r != nil && r.s == s {
 		k.Busy = true
 	}
-	for _, q := range m.nb.queue {
+	for _, q := range m.nb.runs.queue {
 		if q.s == s {
 			k.Waiting++
+		}
+	}
+	for _, st := range m.nb.runs.streams {
+		if st.s == s {
+			k.Live++
 		}
 	}
 	return k
@@ -259,6 +264,10 @@ func (m *Model) notebookMsg(msg tea.Msg) (tea.Cmd, bool) {
 		return nil, true
 	case nbTickMsg:
 		return m.ticked(msg), true
+	case nbStreamMsg:
+		return m.streamPolled(msg), true
+	case nbStreamTickMsg:
+		return m.streamTicked(), true
 	}
 	for _, v := range m.nb.views {
 		if cmd, ok := v.Update(msg); ok {

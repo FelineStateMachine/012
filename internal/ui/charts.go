@@ -35,7 +35,7 @@ func init() {
 			answer: (*Model).answerInsertChart},
 		&command{id: "chart.edit", title: "Edit chart", desc: "Change a chart's type, data and labels",
 			enabled: hasCharts, run: func(m *Model) tea.Cmd {
-				m.openChartEditor(m.targetChart(), false, m.sheet.StateID())
+				m.openChartEditor(m.targetChart(), false, m.book().Checkpoint())
 				return nil
 			},
 			answer: (*Model).answerEditChart},
@@ -95,7 +95,7 @@ func (m *Model) insertChart() tea.Cmd {
 		m.note = "Select the data to chart first"
 		return nil
 	}
-	start := m.sheet.StateID()
+	start := m.book().Checkpoint()
 	c := m.sheet.GuessChart(r)
 	c.W = clamp(newChartW, sheet.MinChartW, max(m.width-m.hdrW()-2, sheet.MinChartW))
 	c.H = clamp(newChartH, sheet.MinChartH, max(m.visibleRows()-1, sheet.MinChartH))

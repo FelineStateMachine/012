@@ -69,7 +69,7 @@ type chartHost interface {
 type chartEditor struct {
 	m      chartHost // the model, through what the editor needs of it
 	i      int
-	start  int         // the sheet's state before editing, to undo back to
+	start  int         // the history before editing (Checkpoint), to undo back to
 	before sheet.Chart // the chart when the editor opened, for a macro
 	isNew  bool
 	axes   bool // showing the axis options
@@ -130,10 +130,7 @@ func (e *chartEditor) Key(k tea.KeyPressMsg) tea.Cmd {
 		e.keep()
 		m.selectChart(e.i)
 	case "esc":
-		s := m.sheetShown()
-		for s.StateID() != e.start && s.CanUndo() {
-			s.Undo()
-		}
+		m.sheetShown().Book().UndoTo(e.start)
 		m.syncChanged()
 		m.closeOverlay()
 		m.forgetChart()

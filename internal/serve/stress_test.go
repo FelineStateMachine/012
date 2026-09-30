@@ -27,7 +27,7 @@ import (
 
 func BenchmarkSessions(b *testing.B) {
 	for _, n := range []int{10, 50} {
-		for _, shape := range []string{"empty", "dense-1000x26"} {
+		for _, shape := range []string{"empty", "dense-1000x26", "dense-1000x26-shared"} {
 			b.Run(fmt.Sprintf("sessions=%d/%s", n, shape), func(b *testing.B) { benchSessions(b, n, shape) })
 		}
 	}
@@ -35,7 +35,13 @@ func BenchmarkSessions(b *testing.B) {
 
 func benchSessions(b *testing.B, n int, shape string) {
 	key := newKey(b)
-	srv, addr, dir := testServer(b, func(o *Options) { o.MaxSessions, o.IdleTimeout = n, 0 }, key)
+	// A copy of the sheet each, but for the shared shape: one workbook
+	// in one room, every key moving a pointer the others draw.
+	share := "off"
+	if shape == "dense-1000x26-shared" {
+		share = "edit"
+	}
+	srv, addr, dir := testServer(b, func(o *Options) { o.MaxSessions, o.IdleTimeout, o.Share = n, 0, share }, key)
 	if shape != "empty" {
 		writeDense(b, filepath.Join(dir, "dense.012"))
 	}

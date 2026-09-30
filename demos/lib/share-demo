@@ -1,0 +1,33 @@
+#!/bin/sh
+# share-demo: two people in one workbook over 012 serve, as the share
+# tape records them: a server on a budget in out/share/served, reached
+# with ssh as ann in the top tmux pane and as bob in the bottom one.
+# `share-demo stop` ends the server. Runs from demos/.
+set -e
+d=out/share
+port=2399
+if [ "$1" = stop ]; then
+	tmux -L 012demo kill-server 2>/dev/null || true
+	kill "$(cat $d/serve.pid)" 2>/dev/null || true
+	exit 0
+fi
+rm -rf $d
+mkdir -p $d/served
+ssh-keygen -q -t ed25519 -N '' -C demo -f $d/id
+cp $d/id.pub $d/authorized_keys
+chmod 600 $d/authorized_keys
+cat > $d/served/budget.012 <<'EOF'
+{"version": 2, "cells": {"A1": "Household budget", "A3": "Rent", "B3": "1200", "A4": "Food", "B4": "450",
+ "A5": "Power", "B5": "90", "A6": "Total", "B6": "=SUM(B3:B5)"}}
+EOF
+../bin/012 serve --listen 127.0.0.1:$port --authorized-keys $d/authorized_keys --host-key $d/host_key $d/served 2>$d/serve.log &
+echo $! >$d/serve.pid
+until grep -q "on 127.0.0.1:$port" $d/serve.log 2>/dev/null; do sleep 0.1; done
+echo "[127.0.0.1]:$port $(cat $d/host_key.pub)" >$d/known_hosts
+ssh="ssh -F /dev/null -i $d/id -o IdentitiesOnly=yes -o IdentityAgent=none -o UserKnownHostsFile=$d/known_hosts -o LogLevel=ERROR -p $port -t"
+tmux -L 012demo -f /dev/null new-session -d -s share -x "$(tput cols)" -y "$(tput lines)" "$ssh -l ann 127.0.0.1 budget.012"
+tmux -L 012demo set -g status off
+tmux -L 012demo set -g pane-border-style fg=brightblack
+tmux -L 012demo set -g pane-active-border-style fg=cyan
+tmux -L 012demo split-window -v "sleep 1; $ssh -l bob 127.0.0.1 budget.012"
+exec tmux -L 012demo attach -t share

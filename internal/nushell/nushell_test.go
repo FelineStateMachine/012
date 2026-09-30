@@ -100,3 +100,25 @@ func TestNu(t *testing.T) {
 		t.Error("a missing nu ran")
 	}
 }
+
+// A stream's script prints each value the pipeline yields on a line of
+// its own, and Stream has no timeout of its own: it ends with the
+// pipeline or when stopped.
+func TestStream(t *testing.T) {
+	got := StreamScript(Job{Command: "tail -f app.log | lines", Tables: map[string][]byte{"r1": nil}}, []string{"r1"})
+	want := "let r1 = (open --raw $env.NU012_TABLE_0 | from nuon)\n" +
+		"do {\ntail -f app.log | lines\n} | each {|row| $row | to nuon --raw | print } | ignore\n"
+	if got != want {
+		t.Errorf("script:\n%s\nwant:\n%s", got, want)
+	}
+	var b strings.Builder
+	f := &fake{out: "{a: 1}\n{a: 2}\n"}
+	if err := Stream(context.Background(), f, Job{Command: "x"}, &b); err != nil || b.String() != f.out || !strings.Contains(f.script, "print") {
+		t.Errorf("%q %v", b.String(), err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := Stream(ctx, f, Job{Command: "x"}, &b); !errors.Is(err, context.Canceled) {
+		t.Errorf("stopped: %v", err)
+	}
+}

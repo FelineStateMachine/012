@@ -81,6 +81,10 @@ func (m *Model) startOpenCmd() tea.Cmd {
 		m.offerRecovery("")
 		return nil
 	}
+	if m.share.reg != nil && strings.HasPrefix(name, "@") {
+		m.joinNamed(name)
+		return nil
+	}
 	if _, ok := fileio.KindOf(name); ok {
 		return m.startImport(name, fileio.Options{}, transfer.Book)
 	}
@@ -88,6 +92,9 @@ func (m *Model) startOpenCmd() tea.Cmd {
 	p, ok := m.path("open", name)
 	if !ok {
 		return nil
+	}
+	if m.share.reg != nil {
+		return m.openShared(name, p)
 	}
 	if _, err := os.Stat(p); errors.Is(err, fs.ErrNotExist) {
 		// A new sheet, saved under this name.
@@ -331,6 +338,10 @@ func restoreCmd(name, file string) tea.Cmd {
 func (m *Model) restored(msg restoredMsg) {
 	if msg.err != nil {
 		m.fail("Couldn't restore the kept changes: " + msg.err.Error())
+		return
+	}
+	if seat := m.share.seat; seat != nil {
+		m.restoreShared(seat, msg)
 		return
 	}
 	disk := m.disk

@@ -54,7 +54,7 @@ mouse and the vim keymap added.
 | Key | Action |
 |---|---|
 | Del, Backspace | Clear the selection; formatting stays |
-| Ctrl+Z; Ctrl+Y, Ctrl+Shift+Z | Undo; redo |
+| Ctrl+Z; Ctrl+Y, Ctrl+Shift+Z | Undo; redo. In a workbook shared over `012 serve`, your own changes only ([Sharing a workbook](../terminal/ssh.md#sharing-a-workbook)) |
 | Ctrl+C, Ctrl+X, Ctrl+V | Copy, cut, paste; references adjust as in Sheets, and copies also go to the system clipboard |
 | Ctrl+Shift+V | Paste values only |
 | Paste in the terminal | Tab-separated or multi-line text fills a block of cells |
@@ -128,6 +128,11 @@ keeping its cells.
 | Shift+F10, right-click | The cell, column or row menu |
 | F1, Ctrl+/ | Keyboard shortcuts |
 
+In a workbook shared over `012 serve`, **File > Who's here** (or `who` in the
+palette) lists the others and goes to one's cell, and **File > Hand over
+writing** passes writing on in a one-writer room; neither has a key of
+its own ([Sharing a workbook](../terminal/ssh.md#sharing-a-workbook)).
+
 ## Macros
 
 | Key | Action |
@@ -157,7 +162,8 @@ on a sheet, `!` starts an entry as any character does.
 | `o`, `O` | Hide the output, or show it again; show all of it rather than a window |
 | `n`, `G` | Name the cell; send the output to a sheet |
 | Ctrl+G | Go to a cell by its number, name, code or heading |
-| `ii`, `00` | Stop what's running; restart, clearing every output |
+| `f` | Run the cell as a stream, its rows arriving as the pipeline prints them |
+| `ii`, `00` | Stop what's running, streams too; restart, clearing every output |
 
 | Key | In edit mode |
 |---|---|
