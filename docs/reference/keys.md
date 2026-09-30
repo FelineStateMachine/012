@@ -189,6 +189,7 @@ on a sheet, `!` starts an entry as any character does.
 | Esc | Back to command mode, keeping what was typed |
 | Shift+Enter, Ctrl+Enter, Alt+Enter | Run, as in command mode |
 | Enter, Tab | A new line; complete the word at the caret, with what nu completes there ([Writing a cell](../nushell/notebooks.md#writing-a-cell)) |
+| F1 | The help of the nushell command at the caret, with its page in nushell's docs; the shortcuts where there's none |
 | Up, Down, Home, End, Ctrl+A, Ctrl+E | Move by the lines on screen; the start, the end of the line |
 | Word keys | As [anywhere text is edited](#entering-data); Ctrl+U deletes to the start of the line, not the cell |
 

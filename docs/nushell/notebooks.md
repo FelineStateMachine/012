@@ -241,6 +241,7 @@ delete, copy, cut, move, make notes or code, hide or clear outputs.
 | Up, Down, Home, End | Move by the lines on screen, wrapped lines too |
 | Ctrl+A, Ctrl+E | The start, the end of the line |
 | Tab | Complete the word at the caret: a cell's `$name`, `$selection`, a linked file, then what nu completes there (commands, flags, paths); one completion goes in at once ([Writing a cell](#writing-a-cell)) |
+| F1 | The help of the command at the caret, with its page in nushell's docs ([Writing a cell](#writing-a-cell)) |
 
 A terminal without the kitty keyboard protocol sends Shift+Enter and
 Ctrl+Enter as Enter ([Keys the terminal has to tell
@@ -291,6 +292,31 @@ it the context line says what nu said:
 
 Tab asks `nu --ide-complete` too, after the notebook's own names, so it
 completes flags, subcommands and paths as well as cells and commands.
+
+Once the caret rests on a word, the context line says what it is, so
+writing a cell doesn't mean leaving it for `help`. On a command, `nu
+--ide-hover` gives its signature (its parameters with their types,
+then its flags) and what it does; on a flag, what the flag does. Where
+the line is short, the flags give way first, then the types, then the
+end of the description. A problem at the caret takes the line instead.
+
+![A cell being edited with the caret on sort-by: the context line shows sort-by's signature, its parameter's types, and what it does, with F1 for help at the right](../media/notebook-nu-hover-dark.png#gh-dark-mode-only)
+![A cell being edited with the caret on sort-by: the context line shows sort-by's signature, its parameter's types, and what it does, with F1 for help at the right](../media/notebook-nu-hover-light.png#gh-light-mode-only)
+
+F1 opens the command's whole help over the notebook: what it does, a
+link to its page in nushell's docs, its usage, flags, parameters, input
+and output types and examples. Up and Down scroll it, Esc goes back to
+the cell. F1 on a word that isn't a command opens the keyboard shortcuts,
+as it does anywhere else.
+
+![The help of sort-by over the notebook: its description, a link to its page in nushell's docs, its usage, flags, parameters and input and output types, with a count of its lines in the bottom border](../media/notebook-nu-help-dark.png#gh-dark-mode-only)
+![The help of sort-by over the notebook: its description, a link to its page in nushell's docs, its usage, flags, parameters and input and output types, with a count of its lines in the bottom border](../media/notebook-nu-help-light.png#gh-light-mode-only)
+
+On a `$name` another cell binds, the line says the cell and the shape
+of its value as it last ran (`$files: table, 12 rows × 4 columns from
+cell 3`), from the notebook's own outputs without asking nu; on
+`$selection`, a linked file or `$sheet.A1:C9`, what it reads; on a
+variable the cell binds itself with `let`, the type nu gives it.
 nu doesn't know the variables a notebook binds, so it's asked about the
 cell with `$name` for each name the cells assign and each linked file,
 `$selection` and `$sheet` declared before it; a `$sheet.A1:C9` range

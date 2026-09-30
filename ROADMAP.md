@@ -22,17 +22,6 @@ The grid is Excel's, 1,048,576 x 16,384, and memory is bounded by the
 rises in measured steps; see [Bounds of support](docs/contributing/limits.md#what-would-raise-the-bounds).
 Tables past it are read in place as [linked sources](docs/files/sources.md).
 
-### 2. A TUI Jupyter for nushell
-
-Notebook tabs are a TUI Jupyter for nushell
-([Notebooks](docs/nushell/notebooks.md)): code and note cells, outputs in
-place, sent to sheets as live regions, and cells highlighted, checked and
-completed by nu as they're written.
-
-| Item | Result | Size |
-|---|---|---|
-| A command's signature and description for the word at the caret, on the context line, through `nu --ide-hover` or `nu --lsp` | Writing a cell without leaving for `help` | S |
-
 ## Shelved
 
 Explored, not scheduled; the fit is still open.
@@ -118,6 +107,7 @@ needs cgo.
 - Notebook tabs, a TUI Jupyter for nushell: code and note cells with Jupyter's keys, outputs drawn in place and opened full-screen, `$name` between cells, stale marks and a reactive mode, outputs sent to sheets as live regions (`nu.name`), saved up to a cap, and earlier notebook sheets converted on open: [Notebooks](docs/nushell/notebooks.md)
 - Cells run as streams: a pipeline that never ends (`tail -f`, `watch`) followed live, its rows reaching the output and its sheet as nu prints them: [Notebooks](docs/nushell/notebooks.md#streams)
 - Code cells highlighted, checked and completed as they're written by nu itself (`--ide-ast`, `--ide-check`, `--ide-complete`), in the background, falling back to 012's own when nu is missing, old, slow or not trusted: [Notebooks](docs/nushell/notebooks.md#writing-a-cell)
+- The word at the caret on the context line: a command's signature and summary (`--ide-hover`), F1 for its whole help and docs page, and a `$name`'s cell and shape: [Notebooks](docs/nushell/notebooks.md#writing-a-cell)
 - Table and record outputs drawn and worked as 012's own grid: formats by type, fitted and resizable columns, select, copy, sort, filter and find in place, full-screen, charts and pivots on the sheet the output is sent to: [Notebooks](docs/nushell/notebooks.md#outputs-as-grids)
 
 **Files**
