@@ -169,6 +169,16 @@ func TestFormulasReadASourceTab(t *testing.T) {
 	}
 }
 
+func TestSourceSortRecorded(t *testing.T) {
+	t.Chdir(t.TempDir())
+	m := newModel()
+	linkSales(t, m, 100)
+	src := record(t, m, false, "Top", "", "<right>", "<right>", "<ctrl+k>", "sort sheet z to a", "<enter>")
+	if !strings.Contains(src, `run("data.sort_sheet_za")`) {
+		t.Errorf("the macro:\n%s", src)
+	}
+}
+
 func TestSourceCommandsOnTheTab(t *testing.T) {
 	t.Chdir(t.TempDir())
 	m := newModel()
@@ -232,6 +242,30 @@ func TestSharedSources(t *testing.T) {
 	bob.sh.turn(func() { got = bob.m.book().Sheet(0).Value(addr("A2")).Num })
 	if got != 250 {
 		t.Errorf("bob, keeping the room now, answered COUNTIF with %v", got)
+	}
+}
+
+// In a room of one writer, whoever follows may scroll a source's tab
+// but not sort it.
+func TestSharedSourceOneWriter(t *testing.T) {
+	r := newRooms(t, room.View)
+	writeSource(t, filepath.Join(r.dir, "sales.parquet"), 100)
+	ann := r.open("ann", "@one")
+	bob := r.open("bob", "@one")
+	ann.run(ann.m.runCommand("data.link_source"))
+	ann.press("sales.parquet", "<enter>")
+	for range 3 {
+		r.sync()
+	}
+	bob.press("<ctrl+pgdown>", "<down>")
+	bob.run(bob.m.runCommand("data.sort_sheet_za"))
+	var order *sheet.SourceOrder
+	bob.sh.turn(func() {
+		info, _ := bob.m.book().LookupSource("sales")
+		order = info.Source.Order
+	})
+	if order != nil || !strings.Contains(bob.screen(), "writes here and you follow") {
+		t.Errorf("a follower sorted the source: %+v\n%s", order, bob.screen())
 	}
 }
 

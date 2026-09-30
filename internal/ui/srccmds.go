@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/fileio"
+	"github.com/FelineStateMachine/012/internal/macro"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/ui/picker"
 )
@@ -60,7 +61,7 @@ var sourceTakes = map[string]bool{
 func (m *Model) sourceCommand(c *command) (tea.Cmd, bool) {
 	info, ok := m.sheet.Source()
 	switch {
-	case !ok || notebookSafe(c.id) || c.id == "data.source_all" || c.id == "data.source_reload" || c.id == "data.link_source" || c.id == "data.link":
+	case !ok || sourceOwn(c.id) || c.id == "data.link_source" || c.id == "data.link":
 		return nil, false
 	case !sourceTakes[c.id]:
 		m.note = c.title + " works on a sheet's cells: this tab is a linked source, read-only"
@@ -68,33 +69,50 @@ func (m *Model) sourceCommand(c *command) (tea.Cmd, bool) {
 	case !info.Known:
 		m.note = "The source isn't open yet"
 		return nil, true
+	case edits(c) && !m.mayEdit():
+		return nil, true // another writes in the room
+	case m.rec != nil && c.macro == macroRecord && c.id != "data.filter" && c.id != "data.filter_column":
+		m.rec.flush(m)
+		cmd := m.sourceRun(c, info)
+		m.rec.add(m, macro.Call("run", c.id)) // replayed on the tab, as here
+		return cmd, true
 	}
+	return m.sourceRun(c, info), true
+}
+
+// sourceRun runs c on the tab of the source info, acting on the source.
+func (m *Model) sourceRun(c *command, info sheet.SourceInfo) tea.Cmd {
 	v := m.srcView()
 	_, col := v.Active()
 	switch c.id {
 	case "edit.copy":
 		_, text := m.sourceCell(v)
 		m.note = "Copied " + text
-		return tea.SetClipboard(text), true
+		return tea.SetClipboard(text)
 	case "data.sort_sheet_az", "data.sort_range_az", "data.sort_sheet_za", "data.sort_range_za":
 		desc := c.id == "data.sort_sheet_za" || c.id == "data.sort_range_za"
 		o := copyOrder(info.Source.Order)
 		o.Sort = []sheet.SourceSort{{Col: col, Desc: desc}}
-		return m.setSourceOrder(info, o), true
+		return m.setSourceOrder(info, o)
 	case "data.filter", "data.filter_column":
 		m.openSourceFilter(info, col)
-		return nil, true
 	case "data.filter_remove":
 		o := copyOrder(info.Source.Order)
 		o.Filter = nil
-		return m.setSourceOrder(info, o), true
+		return m.setSourceOrder(info, o)
 	case "data.pivot", "data.frequency":
-		return m.sourcePivot(info, col, c.id == "data.frequency"), true
+		return m.sourcePivot(info, col, c.id == "data.frequency")
 	case "goto":
 		m.openText("Go to a row, or a cell such as C5000000:", "", (*Model).sourceGoto)
-		return nil, true
 	}
-	return nil, false
+	return nil
+}
+
+// sourceOwn reports whether a command runs on a source's tab as it runs
+// anywhere: the session's (files, sheets, settings, macros, undo) and
+// the source's own commands.
+func sourceOwn(id string) bool {
+	return notebookSafe(id) || strings.HasPrefix(id, "macro.") || id == "data.source_all" || id == "data.source_reload"
 }
 
 // sourceEnabled says whether a command runs on a source's tab, when
@@ -102,7 +120,7 @@ func (m *Model) sourceCommand(c *command) (tea.Cmd, bool) {
 // acting on the source do, whatever they say of a sheet.
 func sourceEnabled(m *Model, id string) (on, decided bool) {
 	switch {
-	case notebookSafe(id), id == "data.source_all", id == "data.source_reload":
+	case sourceOwn(id):
 		return false, false
 	case !sourceTakes[id]:
 		return false, true
