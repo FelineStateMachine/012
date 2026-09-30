@@ -66,7 +66,10 @@ the race detector, with the time an edit takes to reach another
 session's frame (`sharelive_test.go`).
 
 The MCP server is tested through the SDK's client over an in-memory
-transport. `TestViewInBrowser` (`internal/mcp`) draws its
+transport. `TestTypedValuesThroughNotebook` writes values of every type
+through it, reads them in a notebook cell run by the real `nu` (skipped
+without it) and checks the output sent back to a sheet keeps their
+formats. `TestViewInBrowser` (`internal/mcp`) draws its
 [view](../agents/mcp.md#views-in-the-chat) in Chromium with Playwright
 (`internal/mcp/testdata/view.mjs`), once with `window.openai` set as the
 OpenAI Apps SDK sets it and once behind a page speaking MCP Apps'

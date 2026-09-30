@@ -11,7 +11,8 @@ import (
 // tool takes, each the same engine call a menu command makes. Op says
 // which, and the other fields are its arguments:
 //
-//	set             Ref (one cell) and Input, as 012 set types it
+//	set             Ref (one cell) and Input or Value, and Format, as Set takes an Entry
+//	write_table     Rows under a header at Ref, formatted as WriteTable formats them
 //	clear           Ref: the range's contents, keeping formats and notes
 //	insert_rows     before Ref's first row, Count rows (Ref's rows when 0)
 //	delete_rows     Ref's rows
@@ -23,13 +24,18 @@ import (
 //	define_name     Name for the range Ref
 //	sort            Ref's rows by Keys, the first row left in place with Header
 type Operation struct {
-	Op     string    `json:"op" jsonschema:"set, clear, insert_rows, delete_rows, insert_columns, delete_columns, add_sheet, rename_sheet, delete_sheet, define_name or sort"`
-	Ref    string    `json:"ref,omitempty" jsonschema:"the cell, range or sheet the operation acts on, as formulas write it: B7, Q3!A1:C9, 'Q3 plan'!A:A, Q3"`
-	Input  string    `json:"input,omitempty" jsonschema:"for set: what to type, in en-US form (1.5, =SUM(A1:A6), 2026-09-29); empty clears the cell"`
-	Count  int       `json:"count,omitempty" jsonschema:"for insert_rows and insert_columns: how many; 0 inserts as many as ref spans"`
-	Name   string    `json:"name,omitempty" jsonschema:"for add_sheet and rename_sheet the sheet's name, for define_name the range's"`
-	Keys   []SortKey `json:"keys,omitempty" jsonschema:"for sort: the columns to sort by, first first"`
-	Header bool      `json:"header,omitempty" jsonschema:"for sort: the range's first row is a header and stays in place"`
+	Op      string            `json:"op" jsonschema:"set, write_table, clear, insert_rows, delete_rows, insert_columns, delete_columns, add_sheet, rename_sheet, delete_sheet, define_name or sort"`
+	Ref     string            `json:"ref,omitempty" jsonschema:"the cell, range or sheet the operation acts on, as formulas write it: B7, Q3!A1:C9, 'Q3 plan'!A:A, Q3; for write_table its top-left cell"`
+	Input   string            `json:"input,omitempty" jsonschema:"for set: what to type, as a person types it in en-US form (=SUM(A1:A6), $3.50, 12%, 2026-09-29); empty clears the cell"`
+	Value   Value             `json:"value,omitempty" jsonschema:"for set, instead of input: the value with its type, as write_cells takes it: {\"currency\": 3.5}, {\"date\": \"2026-09-29\"}, \"00123\""`
+	Format  string            `json:"format,omitempty" jsonschema:"for set: a number format code for the cell, or alone for every cell of ref: $#,##0.00, 0.0%, yyyy-mm-dd"`
+	Columns []string          `json:"columns,omitempty" jsonschema:"for write_table: the columns' names in order"`
+	Rows    []Row             `json:"rows,omitempty" jsonschema:"for write_table: the rows, each a record of typed values or a list of them in columns' order, as write_table takes them"`
+	Formats map[string]string `json:"formats,omitempty" jsonschema:"for write_table: number format codes by column name"`
+	Count   int               `json:"count,omitempty" jsonschema:"for insert_rows and insert_columns: how many; 0 inserts as many as ref spans"`
+	Name    string            `json:"name,omitempty" jsonschema:"for add_sheet and rename_sheet the sheet's name, for define_name the range's"`
+	Keys    []SortKey         `json:"keys,omitempty" jsonschema:"for sort: the columns to sort by, first first"`
+	Header  bool              `json:"header,omitempty" jsonschema:"for sort: the range's first row is a header and stays in place"`
 }
 
 // SortKey is a column to sort by: a letter (B) or, with a header, the
@@ -61,7 +67,10 @@ func Apply(w *sheet.Workbook, ops []Operation, o SetOptions) (warnings []string,
 func applyOne(w *sheet.Workbook, op Operation, o SetOptions) (string, error) {
 	switch op.Op {
 	case "set":
-		return setOne(w, Entry{Ref: op.Ref, Input: op.Input}, o)
+		return setOne(w, Entry{Ref: op.Ref, Input: op.Input, Value: op.Value, Format: op.Format}, o)
+	case "write_table":
+		warnings, err := writeTable(w, TableSpec{At: op.Ref, Columns: op.Columns, Rows: op.Rows, Formats: op.Formats}, o)
+		return strings.Join(warnings, "; "), err
 	case "add_sheet":
 		_, err := w.AddSheet(op.Name, w.Len())
 		return "", err
@@ -116,7 +125,7 @@ func rangeOp(w *sheet.Workbook, op Operation, o SetOptions) error {
 		s.DeleteCols(r.From.Col, r.To.Col-r.From.Col+1)
 		return nil
 	}
-	return fmt.Errorf("no operation %q: set, clear, insert_rows, delete_rows, insert_columns, delete_columns, add_sheet, rename_sheet, delete_sheet, define_name or sort", op.Op)
+	return fmt.Errorf("no operation %q: set, write_table, clear, insert_rows, delete_rows, insert_columns, delete_columns, add_sheet, rename_sheet, delete_sheet, define_name or sort", op.Op)
 }
 
 // targetRect is the target's range: a whole sheet's is A1 to its last

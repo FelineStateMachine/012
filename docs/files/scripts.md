@@ -48,10 +48,11 @@ form:
 |---|---|---|
 | `text`, the default | As the cell shows it: `$1,200.00`, `9/29/2026`, `#DIV/0!` | Aligned columns, numbers to the right |
 | `csv`, `tsv` | One line | Rows as shown, in the workbook's [locale](../sheets/locale.md), as a CSV download |
-| `json` | The value: a number, a string, `true`, `null` for a blank cell | A list of records named by the range's first row |
+| `json` | The [value with its type](../reference/json.md#values): `3.5`, `"00123"`, `true`, `null` for a blank cell, `{"currency": 3.5}`, `{"date": "2026-09-29"}` | A list of records named by the range's first row |
 | `nuon` | The value with its nushell type: a date, a file size, a duration | A nushell table named by the range's first row |
 
-JSON and NUON type values by their cells' formats as a
+JSON and NUON type values by their cells' formats, JSON as the
+[values](../reference/json.md#values) agents read and NUON as a
 [NUON download](../nushell/types.md) does, and take the columns' names
 from the range's first row, as a table in 012 has its header there.
 `--no-header` names the columns by their letters instead (`A`, `B`) and
@@ -82,6 +83,18 @@ Inputs are what the file stores, not what the sheet's locale types: `1.5`
 and `=ROUND(A1, 2)` in every workbook, so a script means the same in a
 de-DE workbook as in an en-US one. Entries that imply a format (`$1,200`,
 `12%`, `2026-09-29`) set it, as typing them does.
+
+`--value` takes each input as a [value with its type](../reference/json.md#values),
+in JSON or NUON, for what typing has no entry for: sizes, durations,
+other currencies, text that looks like a number. `--table ref` writes
+the table on standard input (NUON or JSON, a list of records) with its
+header at `ref`, each column formatted as its values' type, as
+importing it would, before the entries:
+
+```sh
+012 set budget.012 --value B7 '{"currency": 12.5, "symbol": "€"}' C7 1.5kb D7 '"00123"'
+ls | select name size modified | to nuon | 012 set files.012 --table A1
+```
 
 `set` stops, and leaves the file as it was, on the first input a cell
 can't take, naming the cell:

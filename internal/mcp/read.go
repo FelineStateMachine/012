@@ -29,7 +29,7 @@ type describeOut struct {
 type readIn struct {
 	bookIn
 	Ref  string `json:"ref" jsonschema:"a cell, range, named range, table or sheet, as formulas write it: Q3!A1:D40, Sales, Sales[Amount], Q3"`
-	Text bool   `json:"text,omitempty" jsonschema:"also return each cell as the sheet shows it ($1,200.00, 9/29/2026)"`
+	Text *bool  `json:"text,omitempty" jsonschema:"false leaves out each cell as the sheet shows it ($1,200.00, 9/29/2026), which comes back beside the values otherwise"`
 	Max  int    `json:"max_cells,omitempty" jsonschema:"the most cells to return, whole rows at a time; 10000 when 0"`
 }
 
@@ -66,7 +66,7 @@ func (s *Server) addReadTools() {
 		Description: "Without a path: the workbooks (.012 files, and files 012 imports) in the folders open to the server. With one: what the workbook holds, each sheet's used range, guessed header row and column names, tables, notebook outputs and linked files, charts, pivot tables, notebook cells, and the named ranges. Call it first."},
 		s.describe)
 	tool(s, &sdk.Tool{Name: "read_range", Annotations: readOnly, Meta: viewMeta("Reading the range", "Read the range"),
-		Description: "The values of a range as rows (numbers, strings, booleans, null for blank, dates as ISO 8601, errors as #DIV/0!), with the formulas in it by cell. Hosts that draw views show it as 012's grid."},
+		Description: "The values of a range as rows, typed by their formats (numbers, strings, booleans, null for blank, {\"currency\": 3.5}, {\"percent\": 0.12}, {\"date\": \"2026-09-29\"}, {\"duration\": \"90min\"}, {\"size\": 1500}, errors as #DIV/0!), each cell as the sheet shows it ($3.50, 12%, 9/29/2026), and the formulas in it by cell. Hosts that draw views show it as 012's grid."},
 		s.readRange)
 	tool(s, &sdk.Tool{Name: "evaluate", Annotations: readOnly,
 		Description: "Compute a formula in the workbook without writing it: its value, as the cell would show it, why it's an error, and an array's spilled values."},
@@ -135,7 +135,7 @@ func (s *Server) readRange(ctx context.Context, req *sdk.CallToolRequest, in rea
 		if err != nil {
 			return err
 		}
-		out = headless.ReadRange(t, headless.ReadOptions{MaxCells: in.Max, Text: in.Text})
+		out = headless.ReadRange(t, headless.ReadOptions{MaxCells: in.Max, NoText: in.Text != nil && !*in.Text})
 		view = rangeView(b, t, out.Rows)
 		return nil
 	})

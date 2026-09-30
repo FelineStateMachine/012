@@ -440,7 +440,9 @@ A cell reads the sheets two ways, each a table:
 
 They reach nu as NUON in a file it reads, never as text spliced into
 the pipeline, so types survive ([Types](types.md)): sizes stay sizes,
-dates stay dates.
+dates stay dates, and currency and percentages, numbers in nu, take
+their columns' formats again when the output is sent to a sheet
+([Currency and percentages](types.md#currency-and-percentages)).
 
 ### Stale outputs and reactive notebooks
 

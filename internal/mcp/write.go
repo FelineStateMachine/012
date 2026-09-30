@@ -21,8 +21,15 @@ type whyIn struct {
 type writeIn struct {
 	bookIn
 	whyIn
-	Entries []headless.Entry `json:"entries" jsonschema:"the cells to set, in order: each a ref (one cell) and its input, typed as a person types it in en-US form; an empty input clears the cell"`
+	Entries []headless.Entry `json:"entries" jsonschema:"the cells to set, in order: each a ref (one cell) and its input as a person types it, or its value with its type, and a format; an empty input or a null value clears the cell"`
 	DryRun  bool             `json:"dry_run,omitempty" jsonschema:"check the entries and return the change without making it"`
+}
+
+type tableIn struct {
+	bookIn
+	whyIn
+	headless.TableSpec
+	DryRun bool `json:"dry_run,omitempty" jsonschema:"check the rows and return the change without making it"`
 }
 
 type opsIn struct {
@@ -97,7 +104,9 @@ var writes = &sdk.ToolAnnotations{DestructiveHint: ptr(false), OpenWorldHint: pt
 func (s *Server) addWriteTools() {
 	set := headless.SetOptions{Force: s.opts.Force}
 	tool(s, &sdk.Tool{Name: "write_cells", Annotations: writes,
-		Description: "Type entries into cells as one change, as 012 set does: each checked as typing it is (a formula must parse, validation rules, protected ranges), stopping at the first a cell can't take."},
+		Description: "Set cells as one change, as 012 set does: each checked as typing it is (a formula must parse, validation rules, protected ranges), stopping at the first a cell can't take. " +
+			"Write money, percentages, dates, times, durations and sizes with their types, never as bare numbers: an input as a person types it ($3.50, 12%, 2026-09-29), or a value ({\"currency\": 3.5}, {\"percent\": 0.12}, {\"date\": \"2026-09-29\"}, {\"duration\": \"90min\"}, {\"size\": \"1.5kb\"}); \"00123\" as a value stays text. " +
+			"format sets a number format code on the cell, or alone on a range. For rows of records, write_table."},
 		func(ctx context.Context, req *sdk.CallToolRequest, in writeIn) (*sdk.CallToolResult, Changed, error) {
 			var warnings []string
 			return s.change(ctx, req, in.Path, "set", in.Message, in.DryRun, &warnings, func(w *sheet.Workbook) (err error) {
@@ -105,8 +114,19 @@ func (s *Server) addWriteTools() {
 				return err
 			})
 		})
+	tool(s, &sdk.Tool{Name: "write_table", Annotations: writes,
+		Description: "Write a table as one change: a header row at `at` naming the records' fields, then a row for each record, its values typed as write_cells takes them, " +
+			"each column formatted as its first typed value is (or as formats says), as importing a NUON table does. " +
+			"Example rows: [{\"Item\": \"Tea\", \"Price\": {\"currency\": 3.5}, \"Share\": {\"percent\": 0.12}, \"Bought\": {\"date\": \"2026-09-29\"}, \"Code\": \"00123\"}]."},
+		func(ctx context.Context, req *sdk.CallToolRequest, in tableIn) (*sdk.CallToolResult, Changed, error) {
+			var warnings []string
+			return s.change(ctx, req, in.Path, "write table", in.Message, in.DryRun, &warnings, func(w *sheet.Workbook) (err error) {
+				warnings, err = headless.WriteTable(w, in.TableSpec, set)
+				return err
+			})
+		})
 	tool(s, &sdk.Tool{Name: "apply_operations", Annotations: &sdk.ToolAnnotations{DestructiveHint: ptr(true), OpenWorldHint: ptr(false)},
-		Description: "Make several operations as one change: set, clear, insert_rows, delete_rows, insert_columns, delete_columns, add_sheet, rename_sheet, delete_sheet, define_name, sort."},
+		Description: "Make several operations as one change: set (input or typed value, and format, as write_cells), write_table (rows at ref, as write_table), clear, insert_rows, delete_rows, insert_columns, delete_columns, add_sheet, rename_sheet, delete_sheet, define_name, sort."},
 		func(ctx context.Context, req *sdk.CallToolRequest, in opsIn) (*sdk.CallToolResult, Changed, error) {
 			var warnings []string
 			return s.change(ctx, req, in.Path, "apply operations", in.Message, in.DryRun, &warnings, func(w *sheet.Workbook) (err error) {

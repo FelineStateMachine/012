@@ -28,7 +28,13 @@ Read what describe points at rather than whole sheets.
 012 get book.012 'Q3 plan'!A1:F20 --format json   # records named by the first row
 012 get book.012 Sales --format json         # a table or named range by name
 012 get book.012 'Sales[Amount]' --format json    # one column of a table
+012 get book.012 A1:D9 --format nuon         # for nushell: sizes, durations, dates keep their types
 ```
+
+JSON values keep their types: `3.5`, `"00123"` (text), `{"currency": 3.5}`,
+`{"percent": 0.12}`, `{"date": "2026-09-29"}`, `{"duration": "90min"}`,
+`{"size": 1500}`, with `decimals` or `format` when the cell's format
+differs from its type's own.
 
 References are written as in formulas: `B7`, `A1:C9`, `A:A`, `Q3!B7`,
 `'Q3 plan'!A1:C9`, a named range, a table (`Sales`, `Sales[Amount]`) or a
@@ -55,6 +61,17 @@ Preview first, then write:
   range (`--force` overrides only that), or a cell of a spill, pivot
   table or notebook output. Read the message; it names the cell.
 - An input starting with `--` goes after `--`: `012 set book.012 -- A1 --`.
+
+Keep what values mean. Never write money, percentages, dates, sizes or
+durations as bare numbers (`3.5` shows as `3.5`, not `$3.50`): type them
+as a person would (`$3.50`, `12%`, `2026-09-29`), or with `--value` as
+JSON values with their types, and write tables with `--table`, which
+formats each column from its values:
+
+```sh
+012 set book.012 --value B2 '{"currency": 3.5}' C2 '{"percent": 0.12}' D2 '{"size": "1.5kb"}' E2 '"00123"'
+echo '[{"item": "Tea", "price": {"currency": 3.5}, "bought": {"date": "2026-09-29"}}]' | 012 set book.012 --table A1
+```
 
 ## Check
 
@@ -107,7 +124,12 @@ host afterwards.
 
 When the server is connected, its tools do what the commands do, with
 the same checks: describe without a path lists the workbooks, then
-describe, read_range, write_cells with dry_run, evaluate, list_errors
-and create_workbook, each given the workbook's path.
+describe, read_range, write_cells with dry_run, write_table, evaluate,
+list_errors and create_workbook, each given the workbook's path.
+Values go both ways with their types, as above: write_cells takes an
+entry's `input` or its `value` (`{"ref": "B2", "value": {"currency": 3.5}}`)
+and a `format` code; write_table takes `columns` (their order) and
+`rows` of records or lists; read_range returns typed values and each
+cell's shown text, so check what you wrote reads as intended (`$3.50`).
 
 The full reference: https://github.com/FelineStateMachine/012/blob/main/docs/agents/README.md

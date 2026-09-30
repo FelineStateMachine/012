@@ -58,7 +58,42 @@ func Get(out io.Writer, t Target, o GetOptions) error {
 	if o.NoHeader && (k == fileio.JSON || k == fileio.NUON) {
 		snap = lettered(snap)
 	}
+	if k == fileio.JSON {
+		return writeJSONTable(out, snap)
+	}
 	_, err := fileio.Encode(out, k, snap)
+	return err
+}
+
+// writeJSONTable writes snap as a JSON list of records named by its
+// first row, one to a line, each value a Value.
+func writeJSONTable(out io.Writer, snap *fileio.Snapshot) error {
+	r := snap.Range
+	cols := fileio.SnapColumns(snap)
+	b := []byte("[")
+	for row := r.From.Row + 1; row <= r.To.Row; row++ {
+		if row > r.From.Row+1 {
+			b = append(b, ',')
+		}
+		b = append(b, "\n{"...)
+		for i, name := range cols {
+			if i > 0 {
+				b = append(b, ',')
+			}
+			b = append(nuon.AppendJSON(b, nuon.StringValue(name)), ':')
+			c, ok := snap.Cells[sheet.Addr{Col: r.From.Col + i, Row: row}]
+			if !ok {
+				b = append(b, "null"...)
+				continue
+			}
+			b = append(b, valueOf(c.Value, c.Format)...)
+		}
+		b = append(b, '}')
+	}
+	if r.To.Row > r.From.Row {
+		b = append(b, '\n')
+	}
+	_, err := out.Write(append(b, "]\n"...))
 	return err
 }
 
@@ -83,7 +118,7 @@ func getCell(out io.Writer, s *sheet.Sheet, a sheet.Addr, o GetOptions) error {
 	case "csv", "tsv":
 		return getTable(out, s, a, o)
 	case "json":
-		line = nuon.AppendJSON(nil, fileio.CellValue(c))
+		line = valueOf(c.Value, c.Format)
 	case "nuon":
 		line = nuon.Append(nil, fileio.CellValue(c))
 	default:

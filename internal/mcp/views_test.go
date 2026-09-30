@@ -104,7 +104,8 @@ func TestViewsForEveryClient(t *testing.T) {
 }
 
 // TestViewLeavesTheModelSmall checks what the model reads of a 60-row
-// read stays a few kilobytes while the view gets the grid.
+// read, typed values and the text shown, stays about ten kilobytes
+// while the view gets the grid.
 func TestViewLeavesTheModelSmall(t *testing.T) {
 	w := sheet.NewBook()
 	s := w.Sheet(0)
@@ -118,7 +119,7 @@ func TestViewLeavesTheModelSmall(t *testing.T) {
 	writeBook(t, w, path)
 	got := call(t, connect(t, Options{Default: path}), "read_range", map[string]any{"ref": "A1:D60"}, nil)
 	structured, _ := json.Marshal(got.StructuredContent)
-	if len(structured) > 5000 || strings.Contains(string(structured), "<") {
+	if len(structured) > 12000 || strings.Contains(string(structured), "<") {
 		t.Errorf("structuredContent of 60 rows: %d bytes", len(structured))
 	}
 	if v := resultView(t, got); strings.Count(v.HTML, "<tr") != 61 {

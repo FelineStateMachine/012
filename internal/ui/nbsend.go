@@ -131,6 +131,7 @@ func (m *Model) feedOutput(name string) {
 			op = sheet.LiveOp{Region: r.Name, Err: err.Error()}
 			break
 		}
+		fileio.KeepFormats(&rows, fileio.OutputFormats(w, o, m.rangeRef))
 		op.Header, op.Rows, op.Note = rows.Header, rows.Rows, note
 	}
 	if err := w.ApplyLive(op); err != nil {

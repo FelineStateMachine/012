@@ -1,10 +1,6 @@
 package headless
 
 import (
-	"encoding/json"
-
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/nuon"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -17,11 +13,11 @@ type Range struct {
 	Range string `json:"range"`
 	Rows  int    `json:"rows"`
 	Cols  int    `json:"cols"`
-	// Values are the cells row by row, typed as 012 get --format json
-	// types one cell: numbers, strings, true or false, null for blank,
-	// dates as ISO 8601 strings, errors as their text (#DIV/0!).
-	Values [][]json.RawMessage `json:"values"`
-	// Text is each cell as the sheet shows it, when asked for.
+	// Values are the cells row by row, each a Value typed by its format:
+	// numbers, strings, true or false, null for blank, {"currency": 3.5},
+	// {"date": "2026-09-29"} and the rest, errors as their text (#DIV/0!).
+	Values [][]Value `json:"values"`
+	// Text is each cell as the sheet shows it, unless left out.
 	Text [][]string `json:"text,omitempty"`
 	// Formulas are the formulas in the range by cell (B7: =SUM(B1:B6)).
 	Formulas map[string]string `json:"formulas"`
@@ -33,7 +29,7 @@ type Range struct {
 // ReadOptions tune ReadRange.
 type ReadOptions struct {
 	MaxCells int  // the most cells to return, whole rows at a time; 0 is 10,000
-	Text     bool // also return each cell as shown
+	NoText   bool // leave out each cell as shown
 }
 
 // ReadRange reads t's cells as a grid.
@@ -56,30 +52,28 @@ func ReadRange(t Target, o ReadOptions) Range {
 		rows, out.Truncated = max(o.MaxCells/cols, 1), true
 	}
 	out.Rows = rows
-	null := json.RawMessage("null")
 	for row := r.From.Row; row < r.From.Row+rows; row++ {
-		vals := make([]json.RawMessage, cols)
+		vals := make([]Value, cols)
 		var text []string
-		if o.Text {
+		if !o.NoText {
 			text = make([]string, cols)
 		}
 		for i := range cols {
 			a := sheet.Addr{Col: r.From.Col + i, Row: row}
-			vals[i] = null
+			vals[i] = Value("null")
 			if c := s.Cell(a); c != nil && c.IsFormula() {
 				out.Formulas[a.String()] = c.Input
 			}
-			v := s.Value(a)
-			if v.Kind == sheet.Empty {
+			if s.Value(a).Kind == sheet.Empty {
 				continue
 			}
-			vals[i] = nuon.AppendJSON(nil, fileio.CellValue(fileio.SnapCell{Value: v, Format: s.DisplayFormat(a)}))
-			if o.Text {
+			vals[i] = CellValue(s, a)
+			if text != nil {
 				text[i] = s.LocalText(a)
 			}
 		}
 		out.Values = append(out.Values, vals)
-		if o.Text {
+		if text != nil {
 			out.Text = append(out.Text, text)
 		}
 	}

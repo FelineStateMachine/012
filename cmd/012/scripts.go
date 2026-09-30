@@ -10,6 +10,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/diff"
 	"github.com/FelineStateMachine/012/internal/headless"
 	"github.com/FelineStateMachine/012/internal/notebook"
+	"github.com/FelineStateMachine/012/internal/nuon"
 )
 
 // 012 get, set and recalc: workbook files read and changed without the
@@ -18,7 +19,7 @@ import (
 
 const (
 	getUsage    = "usage: 012 get file.012 [ref] [--format text|csv|tsv|json|nuon] [--input] [--no-header] [--notebooks] [--jev] [--trust]"
-	setUsage    = "usage: 012 set file.012 ref input [ref input ...] [--force] [--dry-run] [--format text|json|nuon]"
+	setUsage    = "usage: 012 set file.012 [ref input ...] [--value] [--table ref] [--force] [--dry-run] [--format text|json|nuon]"
 	recalcUsage = "usage: 012 recalc file.012 [--format text|json|nuon] [--notebooks] [--jev] [--trust]"
 )
 
@@ -67,14 +68,14 @@ func runGet(args []string, e env) error {
 // runSet is 012 set: type entries into cells and save, or with
 // --dry-run print what would change, as 012 diff would, and not save.
 func runSet(args []string, e env) error {
-	a, err := parseArgs(args, []string{"format"}, []string{"force", "dry-run", "help"})
+	a, err := parseArgs(args, []string{"format", "table"}, []string{"force", "dry-run", "value", "help"})
 	switch {
 	case err != nil:
 		return usageError(err.Error(), setUsage)
 	case a.has("help"):
 		fmt.Fprintln(e.stdout, setUsage)
 		return nil
-	case len(a.pos) < 3 || len(a.pos)%2 == 0:
+	case len(a.pos) < 1 || len(a.pos) < 3 && !a.has("table") || len(a.pos)%2 == 0:
 		return usageError("", setUsage)
 	}
 	format, err := resultFormat(a)
@@ -85,11 +86,7 @@ func runSet(args []string, e env) error {
 	if err != nil {
 		return err
 	}
-	var entries []headless.Entry
-	for i := 1; i < len(a.pos); i += 2 {
-		entries = append(entries, headless.Entry{Ref: a.pos[i], Input: a.pos[i+1]})
-	}
-	warnings, err := headless.Set(f.Book, entries, headless.SetOptions{Force: a.has("force")})
+	warnings, err := setEntries(f, a, e.stdin)
 	if err != nil {
 		return fmt.Errorf("%w; %s is unchanged", err, f.Path)
 	}
@@ -127,6 +124,55 @@ func runSet(args []string, e env) error {
 
 // resultFormat is --format's form for a command's result: text, json
 // or nuon.
+// setEntries makes 012 set's change: the table --table reads from in,
+// then the entries, typed or with --value each a value with its type.
+func setEntries(f *headless.File, a cliArgs, in io.Reader) ([]string, error) {
+	o := headless.SetOptions{Force: a.has("force")}
+	var warnings []string
+	if a.has("table") {
+		data, err := io.ReadAll(in)
+		if err != nil {
+			return nil, err
+		}
+		rows, err := tableRows(data)
+		if err != nil {
+			return nil, fmt.Errorf("--table: %w", err)
+		}
+		if warnings, err = headless.WriteTable(f.Book, headless.TableSpec{At: a.flags["table"], Rows: rows}, o); err != nil {
+			return nil, err
+		}
+	}
+	var entries []headless.Entry
+	for i := 1; i < len(a.pos); i += 2 {
+		e := headless.Entry{Ref: a.pos[i], Input: a.pos[i+1]}
+		if a.has("value") {
+			e.Input, e.Value = "", headless.Value(a.pos[i+1])
+		}
+		entries = append(entries, e)
+	}
+	more, err := headless.Set(f.Book, entries, o)
+	return append(warnings, more...), err
+}
+
+// tableRows are the records of a NUON or JSON table, each as NUON.
+func tableRows(data []byte) ([]headless.Row, error) {
+	v, err := nuon.Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	if v.Kind == nuon.Record {
+		v = nuon.ListValue(v)
+	}
+	if v.Kind != nuon.List {
+		return nil, errors.New("standard input isn't a table: a list of records, as NUON or JSON")
+	}
+	rows := make([]headless.Row, len(v.List))
+	for i, r := range v.List {
+		rows[i] = headless.Row(nuon.Append(nil, r))
+	}
+	return rows, nil
+}
+
 func resultFormat(a cliArgs) (string, error) {
 	switch f := strings.ToLower(a.flags["format"]); f {
 	case "", "text":

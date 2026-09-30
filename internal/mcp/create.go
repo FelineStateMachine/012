@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -13,17 +14,20 @@ import (
 )
 
 // create_workbook makes a new .012 file in a folder open to the server:
-// empty, or from a file 012 imports (which the other tools only read),
-// or a copy of another workbook. It never replaces a file.
+// empty, from a file 012 imports (which the other tools only read), a
+// copy of another workbook, or holding a table of typed values. It
+// never replaces a file.
 
 type createIn struct {
-	Path string `json:"path" jsonschema:"the new workbook's file, ending in .012; relative to the folder open to the server, or absolute inside it"`
-	From string `json:"from,omitempty" jsonschema:"a file to make it from: one 012 imports (CSV, XLSX, JSON, SQLite...) or another workbook; empty for an empty workbook"`
+	Path    string         `json:"path" jsonschema:"the new workbook's file, ending in .012; relative to the folder open to the server, or absolute inside it"`
+	From    string         `json:"from,omitempty" jsonschema:"a file to make it from: one 012 imports (CSV, XLSX, JSON, SQLite...) or another workbook; empty for an empty workbook"`
+	Data    []headless.Row `json:"data,omitempty" jsonschema:"instead of from: a table for its first sheet, rows written at A1 with their types and column formats, as write_table writes them"`
+	Columns []string       `json:"columns,omitempty" jsonschema:"with data: the columns' names in order, as write_table takes them"`
 }
 
 func (s *Server) addCreateTool() {
 	tool(s, &sdk.Tool{Name: "create_workbook", Annotations: writes,
-		Description: "Make a new .012 workbook, empty or from a file 012 imports (CSV, XLSX, JSON, SQLite...), which can then be changed; it describes the workbook made. It won't replace a file that exists."},
+		Description: "Make a new .012 workbook, empty, from a file 012 imports (CSV, XLSX, JSON, SQLite...), or with data, a table of typed values as write_table writes it; it can then be changed, and it describes the workbook made. It won't replace a file that exists."},
 		s.createWorkbook)
 }
 
@@ -43,8 +47,16 @@ func (s *Server) createWorkbook(ctx context.Context, req *sdk.CallToolRequest, i
 	if err != nil {
 		return nil, describeOut{}, err
 	}
-	if in.From != "" {
+	switch {
+	case in.From != "" && in.Data != nil:
+		return nil, describeOut{}, errors.New("give from or data, not both: write_table adds data to a workbook made from a file")
+	case in.From != "":
 		if f.Book, err = s.source(ctx, roots, in.From); err != nil {
+			return nil, describeOut{}, err
+		}
+	case in.Data != nil:
+		spec := headless.TableSpec{At: sheet.Qualified(f.Book.Sheet(0).Name(), sheet.Rect{}), Columns: in.Columns, Rows: in.Data}
+		if _, err := headless.WriteTable(f.Book, spec, headless.SetOptions{}); err != nil {
 			return nil, describeOut{}, err
 		}
 	}
