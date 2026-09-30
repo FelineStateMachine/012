@@ -18,11 +18,11 @@ the pointer moves: the cells the active cell's formula reads in green,
 the formulas that read the active cell in magenta and bold. Without
 color both are in reverse video, dependents bold as well. The context
 line lists them all, those off screen with an arrow toward them and
-those on other sheets with their sheet:
+those on other sheets with their sheet (`C7 reads B3, Rate, Data!B2:B9;
+read by D7, A40↓, Summary!B2 +3 more`):
 
-```
-C7 reads B3, Rate, Data!B2:B9; read by D7, A40↓, Summary!B2 +3 more
-```
+![Tracing on at the total in B7: B3:B5, which it reads, marked green, C7, which reads it, magenta, and the context line listing them, B30 below the screen](../media/trace-view-dark.png#gh-dark-mode-only)
+![Tracing on at the total in B7: B3:B5, which it reads, marked green, C7, which reads it, magenta, and the context line listing them, B30 below the screen](../media/trace-view-light.png#gh-light-mode-only)
 
 Alt+; again stops. What counts as a link:
 
@@ -64,13 +64,8 @@ Evaluate Formula, opens a box over the grid with the active cell's
 formula. The part computed next is underlined, and the line under it
 says what it computes:
 
-```
-┌─ Evaluate D1 ────────────────────────────────────────┐
-│ =IF(TRUE,SUM(A2:A3)*2,A3)                            │
-├──────────────────────────────────────────────────────┤
-│ Next  SUM(A2:A3) = 5                                 │
-└───────────────────────────────────────────── 2 of 5 ─┘
-```
+![Evaluate formula on B8, two steps in: the values computed so far in italic, the next part underlined, and on the line under it what that part computes](../media/evaluate-dark.png#gh-dark-mode-only)
+![Evaluate formula on B8, two steps in: the values computed so far in italic, the next part underlined, and on the line under it what that part computes](../media/evaluate-light.png#gh-light-mode-only)
 
 - Enter puts the value in its place, in italic, and underlines the next
   part, until the formula's value is all that's left; Enter then starts

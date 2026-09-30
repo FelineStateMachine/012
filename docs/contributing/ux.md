@@ -52,6 +52,14 @@ follow-up task.
 
 ## Visual rules
 
+The palette over a sheet shows most of them at once: bars that fill
+the width, an overlay framed in light lines with its title in the top
+border and a count in the bottom one, keys drawn as chips, and the
+status line saying what the highlighted item does.
+
+![The command palette open over a budget: the mode indicator saying MENU, a framed list of commands with their keys as chips and a count in the bottom border, and the status line describing the highlighted one](../media/palette-dark.png#gh-dark-mode-only)
+![The command palette open over a budget: the mode indicator saying MENU, a framed list of commands with their keys as chips and a count in the bottom border, and the status line describing the highlighted one](../media/palette-light.png#gh-light-mode-only)
+
 - Style only through `theme` roles (`internal/ui/theme`). No inline
   `lipgloss.NewStyle()` in views. Need a new role? Add it to `theme` with a
   comment saying what it's for, in both the dark and light variants.
@@ -99,7 +107,7 @@ there.
 | Entries failing validation | A dotted underline, and `Invalid:` with the rule on the context line |
 | Values an array spilled | Italic, and `Spilled from B2` on the context line |
 | Linked files' rows, following, paused or failing | Italic; `●`, `‖` or `!` beside the tab's name and on the context line, with the state in words (`Following`, `Paused`, the error) |
-| A notebook's cells and outputs | `❯` before the tab's name; `▌` left of the active cell and `▎` left of the others selected; a heavy box around the cell being edited; the prompt's and the box's words for its state (`[*]:` and `running`, `waiting`, `failed`, `stale`); `■` for `▶` while it runs; `output hidden` for a hidden output, and which rows show for one scrolled; `×` before an error; an output's grid entered by `OUTPUT` and a green bar, its pointer and selection in reverse video as on a sheet; an output sent to a sheet in italic, with `Output of files` on the context line; a problem nu finds in the cell being written curly-underlined, in words on the context line with the caret on it |
+| A notebook's cells and outputs | Marks and words, listed in [Notebooks](../nushell/notebooks.md#reading-a-cell): the bar left of the active cell, a heavy box while it's edited, the prompt's and the box's words for its state, `×` before an error, `OUTPUT` in an output's grid, an output sent to a sheet in italic |
 | A table's header row | Bold and underlined, when the table styles its header; `Table Sales, column Amount` on the context line |
 | Pivot table results | Their headings (`SUM of Units`, `Grand Total`), and a note in words when an edit is refused |
 | Protected ranges | A question in words before an edit (`A1:B2 is protected.`) |
