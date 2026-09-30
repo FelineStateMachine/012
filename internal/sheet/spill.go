@@ -154,9 +154,7 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 		changed = s.wb.recheckArrays(loc{s, a})
 	}
 	if why != "" {
-		if !circ && (old == nil || old.why == "" || old.area != area) {
-			// Blocked over other cells, it may close or open a cycle
-			// through arrays that read them (spill.walked).
+		if !circ && s.wb.blockedMoved(old, area) {
 			changed = append(changed, s.wb.recheckArrays(loc{s, a})...)
 		}
 		changed = append(changed, s.dropSpill(a)...)

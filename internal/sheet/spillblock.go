@@ -112,6 +112,25 @@ func (w *Workbook) cycleMoved(circ bool, old *spill) bool {
 	return false
 }
 
+// blockedMoved reports whether the arrays are to be checked again, an
+// array whose spill was old found blocked over area by something other
+// than a cycle: counted as spilling over the cells it needs (walked), it
+// may close or open a cycle through arrays that read them, when it's
+// blocked over other cells, or blocked still, the first time in the
+// recalculation: a formula on the way around a cycle through it may
+// have changed, which the others aren't computed again for, as in
+// cycleMoved.
+func (w *Workbook) blockedMoved(old *spill, area Rect) bool {
+	switch {
+	case old == nil || old.why == "" || old.area != area:
+		return true
+	case !w.spillRechecked:
+		w.spillRechecked = true
+		return true
+	}
+	return false
+}
+
 // noteCycle counts the array at l found blocked by a cycle, from spilling
 // or not, in the recalculation.
 func (w *Workbook) noteCycle(l loc) {

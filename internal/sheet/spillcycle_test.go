@@ -77,6 +77,13 @@ func TestCycleThroughABlockedArray(t *testing.T) {
 	}
 }
 
+// A formula typed last closing a cycle through an array blocked by a
+// value has the arrays checked again, as when the file opens.
+func TestCycleClosedThroughABlockedArray(t *testing.T) {
+	cells := map[string]string{"D9": "=SORT(G15:H19)", "E9": "=COUNTIF(A9:A12,\">2\")", "B16": "=ABS($A$9)+1", "H19": "=SORT(B13:D16)", "H16": "=COUNTIF(H20,\">2\")"}
+	wantSettled(t, "closed", []string{"D9", "E9", "B16", "H19", "H16"}, cells, map[string]string{"D9": "#REF!", "H19": "#REF!"})
+}
+
 // A blocked array that goes, its formula computing one value, frees the
 // arrays whose cycle went through the cells it needed (spill.walked):
 // once Total is defined, B7 reads its own #REF! through G9.
