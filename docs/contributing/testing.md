@@ -33,8 +33,9 @@ between features: from each of a thousand seeds it builds a workbook
 of two sheets and a notebook tab, makes up to 40 edits drawn from the
 seed (entries, pastes, fills, series, sorts, inserted and deleted rows
 and columns, formats, borders, merges, moves, notes, rules, names,
-sheets, frozen panes, filters, notebook cells, and outputs sent to
-sheets, frozen, deleted and sent rows, with tables standing in for
+sheets, frozen panes, filters, tables, linked sources and their order,
+notebook cells, and outputs sent to sheets, frozen, deleted and sent
+rows, with tables standing in for
 nushell's), and checks that undoing every step gives back the file and
 the values it started with, redoing gives back the end, saving and
 reopening gives the same file and values (a recalculation from

@@ -574,6 +574,7 @@ methods off `ui.Model`'s exported API:
 | `filterpick` | `filterpick.Host` | theme, size, the edit line, close, the locale (5); what applying and cancelling do are callbacks, as the sheet's filter and a pivot's differ |
 | `cmdline` | `cmdline.Host` | theme, size, the edit line, close, the commands to complete, run a line, fail, the session's history (8) |
 | `nbview` | `nbview.Host` | theme, locale, the cells, a cell's output, how its run stands, run a command, keep a cell's new source (7); the language's highlighter, completer and checker are `nbview.Providers`, small interfaces of their own |
+| `srcview` | `srcview.Host` | theme, locale, the source's columns, how many rows the tab shows, a row, ask for rows (6); the rows come from `paged.Pages`, read a page at a time |
 | `suggest` | `suggest.Host` | theme, size, the edit line, whether an entry is being typed, the entry's sheet, the formula as parsed, where the formula bar's text starts (7) |
 | `themepicker` | `themepicker.Host` | a picker's host, and the current theme, the themes directory, preview, keep, whether keys can be held (10) |
 | `rules` | `rules.Host` | theme, size, the edit line, close, the sheet and selection, save a conditional format or a validation rule, follow a rule removed or moved (each recorded as the commands that do it), the terminal's palette colors (10) |
@@ -619,7 +620,7 @@ hints) are what every overlay is drawn with.
 
 **Packages.** `theme`, `rowtext`, `formula`, `overlay` and `lineedit`
 depend on nothing in `ui`, so they can be tested and measured alone. The
-components in `picker`, `cmdline`, `nbview`, `themepicker`, `findbar`, `rules`,
+components in `picker`, `cmdline`, `nbview`, `srcview`, `themepicker`, `findbar`, `rules`,
 `sortbar`, `filterpick`, `choicebar`, `shortcuts`, `evalview`, `suggest`, `tabstrip`
 and `transfer` build on them and reach the model only through their
 hosts, with unit tests of their own against fake hosts. A component moves out of package
