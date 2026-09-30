@@ -32,7 +32,7 @@ func TestInstallMCPClaude(t *testing.T) {
 	e, out, _ := scriptEnv(t)
 	path := filepath.Join(home, ".claude.json")
 	os.WriteFile(path, []byte(`{"numStartups": 3, "mcpServers": {"other": {"command": "x"}}, "projects": {"/p": {"allowedTools": []}}}`), 0o600)
-	if code, err := status(e, "agent", "--install-mcp", "claude"); code != 0 {
+	if code, err := status(e, "agent", "--install-mcp", "claude-code"); code != 0 {
 		t.Fatal(err)
 	}
 	var got struct {
@@ -52,7 +52,7 @@ func TestInstallMCPClaude(t *testing.T) {
 		t.Errorf("backups %d, said %q", backups(t, path), out)
 	}
 	out.Reset()
-	if status(e, "agent", "--install-mcp", "claude"); !strings.Contains(out.String(), "is up to date") || backups(t, path) != 1 {
+	if status(e, "agent", "--install-mcp", "claude-code"); !strings.Contains(out.String(), "is up to date") || backups(t, path) != 1 {
 		t.Errorf("again: %q, %d backups", out, backups(t, path))
 	}
 }
@@ -108,13 +108,13 @@ func TestInstallMCPDesktopAndPrint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if code, err := status(e, "agent", "--install-mcp", "desktop", "--print"); code != 0 || !strings.Contains(out.String(), `"command": "/opt/012/bin/012"`) {
+	if code, err := status(e, "agent", "--install-mcp", "claude-desktop", "--print"); code != 0 || !strings.Contains(out.String(), `"command": "/opt/012/bin/012"`) {
 		t.Fatalf("--print: %v %q", err, out)
 	}
 	if _, err := os.Stat(path); err == nil {
 		t.Error("--print wrote the file")
 	}
-	if code, err := status(e, "agent", "--install-mcp", "desktop"); code != 0 {
+	if code, err := status(e, "agent", "--install-mcp", "claude-desktop"); code != 0 {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(path)
@@ -126,7 +126,7 @@ func TestInstallMCPDesktopAndPrint(t *testing.T) {
 	if status(e, "agent", "--install-mcp", "codex", "--print"); !strings.Contains(out.String(), "[mcp_servers.012]\ncommand = \"/opt/012/bin/012\"\nargs = [\"mcp\"]\n") {
 		t.Errorf("codex --print: %q", out)
 	}
-	for _, args := range [][]string{{"--install-mcp", "vscode"}, {"--install-mcp", "codex", "--skill"}, {"--print"}} {
+	for _, args := range [][]string{{"--install-mcp", "vscode"}, {"--install-mcp", "claude"}, {"--install-mcp", "desktop"}, {"--install-mcp", "codex", "--skill"}, {"--print"}} {
 		if code, _ := status(e, append([]string{"agent"}, args...)...); code != 2 {
 			t.Errorf("%v: status %d", args, code)
 		}

@@ -20,7 +20,7 @@ import (
 //go:embed skill/SKILL.md
 var skillSource string
 
-const agentUsage = "usage: 012 agent --skill | --install-skill [--force] [dir] | --install-mcp claude|codex|desktop [--root dir]... [--print]"
+const agentUsage = "usage: 012 agent --skill | --install-skill [--force] [dir] | --install-mcp claude-code|claude-desktop|codex [--root dir]... [--print]"
 
 // skillHome is where Claude Code looks for a person's own skills; tests
 // replace it.

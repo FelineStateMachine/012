@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-// 012 agent --install-mcp claude|codex|desktop: the entry that starts
-// 012 mcp, written into the host's configuration (see
-// docs/agents/mcp.md#adding-it-to-a-host). The entry runs this binary
-// by its absolute path with no workbook, so one server works on every
+// 012 agent --install-mcp claude-code|claude-desktop|codex: the entry
+// that starts 012 mcp, written into the host's configuration (see
+// docs/agents/mcp.md#adding-it-to-a-host). The entry runs this binary by
+// its absolute path with no workbook, so one server works on every
 // workbook the host's roots or --root open to it. A file edited is
 // copied beside itself first; an entry already the same is left alone.
 
@@ -34,9 +34,9 @@ type mcpHost struct {
 }
 
 var mcpHosts = []mcpHost{
-	{name: "claude", app: "Claude Code", path: claudeConfig, entry: jsonEntry(true), show: jsonShow(true)},
+	{name: "claude-code", app: "Claude Code", path: claudeConfig, entry: jsonEntry(true), show: jsonShow(true)},
 	{name: "codex", app: "Codex", path: codexConfig, entry: tomlEntry, show: tomlShow},
-	{name: "desktop", app: "Claude Desktop", path: desktopConfig, entry: jsonEntry(false), show: jsonShow(false)},
+	{name: "claude-desktop", app: "Claude Desktop", path: desktopConfig, entry: jsonEntry(false), show: jsonShow(false)},
 }
 
 // executable is this binary's path; tests replace it.
@@ -51,7 +51,7 @@ func installMCP(e env, host string, roots []string, print bool) error {
 		}
 	}
 	if h == nil {
-		return usageError(fmt.Sprintf("--install-mcp takes claude, codex or desktop, not %q", host), agentUsage)
+		return usageError(fmt.Sprintf("--install-mcp takes claude-code, claude-desktop or codex, not %q", host), agentUsage)
 	}
 	command, err := executable()
 	if err != nil {
