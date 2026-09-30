@@ -25,7 +25,7 @@ import (
 // the formula bar, and the context line. Below the grid, the status line
 // shows the file and selection statistics.
 
-// frame is the screen as the model is now (View).
+// frame draws the screen (View).
 func (m *Model) frame() tea.View {
 	if telemetry.Enabled() {
 		defer m.timeFrame(time.Now())

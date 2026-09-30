@@ -476,9 +476,8 @@ func TestMonochromeBarsIconsChips(t *testing.T) {
 	}
 }
 
-// A problem nu finds in the cell being written is underlined, curly as
-// an error cell is, and in words on the context line with the caret on
-// it.
+// A problem nu finds in the cell being written is underlined, curly
+// as an error cell is, and in words on the context line at the caret.
 func TestMonochromeNuProblem(t *testing.T) {
 	nu := &ideNu{fakeNu: &fakeNu{}, problem: "--revrse"}
 	m := newModel()
