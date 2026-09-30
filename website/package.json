@@ -4,7 +4,8 @@
   "description": "The 012 documentation site: Docusaurus over ../docs",
   "scripts": {
     "start": "docusaurus start",
-    "build": "docusaurus build",
+    "build": "npm run diagrams && docusaurus build",
+    "diagrams": "node scripts/check-mermaid.mjs",
     "serve": "docusaurus serve",
     "clear": "docusaurus clear",
     "typecheck": "tsc"
@@ -27,6 +28,7 @@
     "@docusaurus/module-type-aliases": "3.10.2",
     "@docusaurus/tsconfig": "3.10.2",
     "@docusaurus/types": "3.10.2",
+    "jsdom": "26.1.0",
     "typescript": "5.9.3"
   },
   "engines": {
