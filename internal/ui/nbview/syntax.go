@@ -194,13 +194,6 @@ func wordEnd(src string, i int) int {
 	return i
 }
 
-func lineEnd(src string, i int) int {
-	for i < len(src) && src[i] != '\n' {
-		i++
-	}
-	return i
-}
-
 // quoted is where a string starting at i ends: its closing quote, a
 // double-quoted string's escapes skipped, or the end.
 func quoted(src string, i int) int {

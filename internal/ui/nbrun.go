@@ -107,6 +107,7 @@ type (
 	nbDoneMsg struct {
 		run  *nbRun
 		nuon []byte
+		vars map[string][]byte // the variables it handed back
 		err  error
 	}
 	// nbWordsMsg brings nu's command names.
@@ -294,7 +295,7 @@ func (m *Model) nextCell() tea.Cmd {
 		}
 		m.stopStream(q.id) // run once, it no longer follows
 		run := &nbRun{nbQueued: q, source: c.Source, start: time.Now()}
-		job, err := m.jobFor(q.s, c, run)
+		job, err := m.jobFor(q.s, c, run, false)
 		if err != nil {
 			m.failCell(q, c, err.Error())
 			continue
@@ -336,13 +337,13 @@ func (m *Model) startCell(run *nbRun, job nushell.Job) tea.Cmd {
 	exec := func() tea.Msg {
 		defer cancel()
 		span := parent.Start("nu", slog.Int("tables", len(job.Tables)))
-		out, err := nushell.Exec(ctx, runner, job, timeout, maxOutput)
+		out, vars, err := nushell.ExecVars(ctx, runner, job, timeout, maxOutput)
 		if err != nil {
 			span.Fail(err)
 		} else {
 			span.End(slog.Int("bytes", len(out)))
 		}
-		return nbDoneMsg{run: run, nuon: out, err: err}
+		return nbDoneMsg{run: run, nuon: out, vars: vars, err: err}
 	}
 	return tea.Batch(m.roomOwned(exec), m.tickCell(run.gen))
 }
@@ -388,7 +389,7 @@ func (m *Model) finishCell(msg nbDoneMsg) tea.Cmd {
 		}
 		m.nb.runs.queue = nil
 	} else {
-		o.NUON = msg.nuon
+		o.NUON, o.Vars = msg.nuon, msg.vars
 		if o.NUON == nil {
 			o.NUON = []byte{}
 		}

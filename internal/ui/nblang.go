@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -63,8 +64,14 @@ func (m *Model) syncLang(s *sheet.Sheet, v *nbview.View) {
 func (m *Model) nbWords(s *sheet.Sheet) []nbview.Word {
 	var out []nbview.Word
 	for _, c := range s.NotebookCells() {
-		if n := c.Name(); n != "" {
-			out = append(out, nbview.Word{Text: "$" + n, Desc: "a cell's output"})
+		name := c.Name()
+		if name != "" {
+			out = append(out, nbview.Word{Text: "$" + name, Desc: "a cell's output"})
+		}
+		for _, n := range c.Parse().Assigned() {
+			if n != name && !slices.ContainsFunc(out, func(w nbview.Word) bool { return w.Text == "$"+n }) {
+				out = append(out, nbview.Word{Text: "$" + n, Desc: "a cell's variable"})
+			}
 		}
 	}
 	for _, t := range m.book().Sheets() {

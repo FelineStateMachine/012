@@ -77,7 +77,7 @@ func (m *Model) startStream(q nbQueued) tea.Cmd {
 		return nil
 	}
 	run := &nbRun{nbQueued: q, source: c.Source, start: time.Now()}
-	job, err := m.jobFor(q.s, c, run)
+	job, err := m.jobFor(q.s, c, run, true)
 	if err != nil {
 		m.failCell(q, c, err.Error())
 		return nil

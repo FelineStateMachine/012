@@ -26,8 +26,9 @@ type prepared struct {
 
 // prepare masks src and declares what it reads: `sales = ls` is asked
 // about as `        ls`, $sheet.A1:C9 as $__s1_______, and the prelude
-// declares $__s1, $selection, $sheet, names and the names the cell
-// assigns, each `let x: any = []` so nu takes it for whatever it holds.
+// declares $__s1, $selection, $sheet, names and the names the cell's
+// lines assign for the lines after them, each `let x: any = []` so nu
+// takes it for whatever it holds.
 func prepare(src string, names []string) prepared {
 	b := []byte(src)
 	parsed := notebook.Parse(src)
@@ -39,7 +40,12 @@ func prepare(src string, names []string) prepared {
 			}
 		}
 	}
-	names = append(parsed.Assigned(), names...)
+	names = slices.Clone(names)
+	for k, st := range parsed.Stmts {
+		if st.Name != "" && k < len(parsed.Stmts)-1 { // assigned for the lines after
+			names = append(names, st.Name)
+		}
+	}
 	var pre strings.Builder
 	declared := map[string]bool{}
 	declare := func(name, value string) {

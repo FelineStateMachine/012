@@ -21,13 +21,17 @@ import (
 // ($selection) and ranges of sheets ($sheet.A1:C9), each handed to nu as
 // NUON, never spliced into the pipeline.
 
-// jobFor is what running cell c takes: the outputs, linked files and
-// ranges it reads, as NUON.
-func (m *Model) jobFor(s *sheet.Sheet, c notebook.Cell, run *nbRun) (nushell.Job, error) {
+// jobFor is what running cell c takes: the outputs, variables, linked
+// files and ranges it reads, as NUON. As a stream, the cell hands back
+// no variables but its output (notebook.Source.StreamCommand).
+func (m *Model) jobFor(s *sheet.Sheet, c notebook.Cell, run *nbRun, stream bool) (nushell.Job, error) {
 	cells := s.NotebookCells()
 	i := slices.IndexFunc(cells, func(x notebook.Cell) bool { return x.ID == c.ID })
 	p, err := notebook.Prepare(cells, i, m.book().Output)
 	job := nushell.Job{Command: p.Command, Vars: p.Exports, Tables: p.Tables, Config: m.configBool("nu-config", false)}
+	if stream {
+		job.Command, job.Vars = p.Stream, nil
+	}
 	run.reads = p.Reads
 	if err != nil {
 		return job, err
