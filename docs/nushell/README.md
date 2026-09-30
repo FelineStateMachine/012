@@ -12,7 +12,7 @@ of their own type. 012 is a spreadsheet for those tables. A table can go
 through 012 in the middle of a pipeline, and nushell can run inside 012
 in a notebook, its cells' outputs live parts of the sheets.
 
-![In nushell, ls's table goes through 012, three of its rows are selected and sent on, and nu keeps filtering them by size](../media/pipeline.gif)
+![In nushell, ls's table goes through sheet, three of its rows are selected, and quitting sends them on for nu to keep filtering by size](../media/pipeline.gif)
 
 ## Three ways to use them together
 

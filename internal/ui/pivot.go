@@ -57,6 +57,10 @@ func init() {
 // keepsSpills says the edit moves or formats cells rather than writing
 // them), which can't be edited, saying so on the context line.
 func (m *Model) refuseEdit(r sheet.Rect, keepsSpills bool) bool {
+	if m.out != nil {
+		m.note = "An output can't be changed: G sends it to a sheet, where its copy can"
+		return true
+	}
 	if m.sheet.InPivot(r) {
 		m.note = sheet.ErrPivotEdit.Error()
 		return true

@@ -91,7 +91,11 @@ func (v *View) ContextLine() (string, string) {
 		return th.Warning.Render("Failed: " + o.Err), v.hints(v.Keys, "nb.edit", "edit")
 	}
 	if v.onOut {
-		return th.Muted.Render(v.outputSummary(c)), v.hints(v.Keys, "nb.open_output", "full-screen", "nb.toggle_output", "hide",
+		enter := "full-screen"
+		if v.shown(c).isGrid() {
+			enter = "work in it"
+		}
+		return th.Muted.Render(v.outputSummary(c)), v.hints(v.Keys, "nb.edit", enter, "nb.toggle_output", "hide",
 			"nb.toggle_whole", "whole", "nb.send", "to a sheet")
 	}
 	name, text := v.Head()

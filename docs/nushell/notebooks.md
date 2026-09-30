@@ -16,7 +16,7 @@ files = ls | where type == file
 $files | where size > 1kb | sort-by size --reverse
 ```
 
-![A notebook: a cell reads a CSV as sales, a second reads it as $sales, its output is sent to a sheet and summed there, and with the notebook reactive, editing sales runs both again and the sum follows](../media/notebook.gif)
+![A notebook: a cell reads a CSV as sales, a second reads it as $sales, its output is a grid to select in and is sent to a sheet and summed there, and with the notebook reactive, editing sales runs both again and the sum follows](../media/notebook.gif)
 
 Open one from a shell with `012 nu`, or from nushell with `sheet nu`
 (`sheet` comes from 012's nushell module: [Install the `sheet`
@@ -38,27 +38,28 @@ works as before.
 
 The tab looks and works like Jupyter's: a toolbar over the cells, a
 code cell's pipeline in a box with its prompt at the left and a `▶` that
-runs it at the right, its output under it, and note cells drawn as text:
+runs it at the right, its output under it, and note cells drawn as text.
 
-```
- ▶ Run  ■ Stop  ↻ Restart  ▶▶ Run all  │  + Add  ✂ Cut  ⧉ Copy  ⎘ Paste  │  Code ▾   nu ○ idle
- big: reads $files; read as $big, nu.big in formulas ──────────────── Enter  edit
-            Files
-            What's big in the repo, from ls.
+![A notebook of a note and two code cells: files lists the directory, and the second cell, selected, keeps its files over 1 kB; each output is a grid under its cell, and the toolbar runs, adds and moves cells](../media/notebook-cells-dark.png#gh-dark-mode-only)
+![A notebook of a note and two code cells: files lists the directory, and the second cell, selected, keeps its files over 1 kB; each output is a grid under its cell, and the toolbar runs, adds and moves cells](../media/notebook-cells-light.png#gh-light-mode-only)
 
-▌         ╭─ big ───────────────────────────────────────────── ✓ <1s ─╮
-▌    [2]: │ big = $files | where size > 1kb                            │ ▶
-▌         │   | sort-by size --reverse                                 │
-▌         ╰────────────────────────────────────────────────────────────╯
-▌ Out[2]:   name       size
-▌           README.md  9.8 kB
-▌           012        4.2 kB
-```
+### Reading a cell
 
-The prompt says how many runs came before this one (`[2]:`, `[*]:` while
-it runs, `[ ]:` before it has), and `Out[2]:` marks the output of that
-run. The box's top border names the cell and says at its right how its
-run stands, `saved` for an output read from the file:
+Every state shows in words or marks as well as in color, so a notebook
+reads the same on a terminal without it:
+
+| Where | Shows |
+|---|---|
+| The tab | `❯` before the notebook's name |
+| Left of the cells | A bar at the active cell, blue in command mode and green in edit mode, and a thinner one at the others selected ([Keys](#keys)) |
+| The box | Light lines, and heavy ones around the cell being edited |
+| The prompt | How many runs came before this one: `[2]:`, `[*]:` while it runs, `[ ]:` before it has; `Out[2]:` marks the output of that run |
+| The box's top border | The cell's name at the left, and at the right how its run stands (below): `waiting`, `running`, ✓ and how long it took, `failed`, `stale`, or `saved` for an output read from the file |
+| Right of the box | `▶` runs the cell, `■` stops it while it runs |
+| The output | What it is ([below](#outputs)): a table or a record as a grid, its column names where a sheet has letters; `×` before an error; `output hidden`; which rows show in its window. Worked in, `OUTPUT` in the mode indicator, the bar left of it green, and its pointer and selection in reverse video, as on a sheet ([Outputs as grids](#outputs-as-grids)) |
+| The context line | What the cell reads and how others read it (`big: reads $files; read as $big, nu.big in formulas`), the keys that apply, and what nu says about the cell being written, underlined curly in the cell ([Writing a cell](#writing-a-cell)) |
+
+A cell's run goes through these states:
 
 ```mermaid
 stateDiagram-v2
@@ -82,13 +83,15 @@ stateDiagram-v2
 A source is shown whole: a line too long for the screen wraps before a
 pipe where it can, its next rows indented.
 
+### Outputs
+
 Outputs are drawn by what they are, with values formatted as cells
 ([Types](types.md)):
 
 | Output | Shows |
 |---|---|
-| A table (a list of records) | Its columns fitted to their values, numbers right-aligned, under its header |
-| A record | Its fields, one a line: `key  value` |
+| A table (a list of records) | 012's grid ([Outputs as grids](#outputs-as-grids)): its columns headed by their names and fitted to their values, its rows numbered from 1 |
+| A record | The same grid of two columns, `field` and `value`, a field a row |
 | A list | Its items, numbered from 0, as nushell numbers them |
 | Text | Its lines, wrapped |
 | A value | As a cell shows it: `4.2 kB`, `9/27/2026 11:27:31` |
@@ -116,11 +119,68 @@ stateDiagram-v2
     hidden --> window: o
 ```
 
-**Enter** on an output, or a double click, opens it full-screen: arrows
-(or `h` `j` `k` `l`) move, `s` sorts by the pointer's column and `S` in
-descending order (again for the output's own order), `/` keeps the rows
-holding what's typed, and Esc (or `◀ Back`) goes back. The output itself
-doesn't change.
+**Enter** on any other output, or a double click, opens it full-screen,
+its lines scrolled with the arrows; Esc (or `◀ Back`) goes back.
+
+### Outputs as grids
+
+A table or a record is drawn as 012's own grid, the one a sheet has:
+the values are the cells [sending it to a sheet](#send-to-a-sheet)
+makes, each in the format of its type (sizes as `4.2 kB`, durations,
+dates), right-aligned numbers, fitted columns and the grid's row
+numbers, with the table's column names where a sheet has letters.
+
+**Enter** on the output, or a click in it, works in it (the mode
+indicator says `OUTPUT`, and the bar left of it turns green, as for a
+cell edited): an active cell moves with the arrows, and the grid's keys,
+menus and mouse work on it as on a sheet, in its window:
+
+![The output of files worked as a grid: OUTPUT in the mode indicator, the bar left of it green, its first two rows selected and the status line counting them](../media/notebook-grid-dark.png#gh-dark-mode-only)
+![The output of files worked as a grid: OUTPUT in the mode indicator, the bar left of it green, its first two rows selected and the status line counting them](../media/notebook-grid-light.png#gh-light-mode-only)
+
+- Shift+arrows, Ctrl+A or a drag select a range, and the status line
+  shows its Sum, Avg and Count; Ctrl+C copies it, as TSV to the system
+  clipboard and with its formats for Ctrl+V on a sheet.
+- **Data > Sort sheet** (or the column's right-click menu) sorts by the
+  active column, **Data > Create a filter** puts `▾` on each column's
+  name, and Alt+Down (or a click on `▾`) opens the column's filter;
+  Ctrl+F finds.
+- Drag the right edge of a column's name, or **Format > Column width**,
+  to resize it; Shift+wheel scrolls a wide table sideways; the names
+  stay on top as the rows scroll.
+- Ctrl+Z undoes a sort, a filter or a width; typing, Del, paste and
+  formats are refused, as they'd change the output: `G` sends it to a
+  sheet, where its copy can change.
+- **Enter** shows the grid full-screen, where it all works the same;
+  **Esc** deselects, then goes back from full-screen, then back to the
+  notebook.
+
+```mermaid
+stateDiagram-v2
+    selected: output selected (NOTEBOOK)
+    window: its grid, in its window (OUTPUT)
+    full: its grid, full-screen (OUTPUT)
+    selected --> window: Enter, a click in it
+    window --> full: Enter, a double click
+    full --> window: Esc
+    window --> selected: Esc
+```
+
+Sorting and filtering act on the grid's copy: the output, what later
+cells read as `$name`, doesn't change, and running the cell again
+draws its new output afresh.
+
+**Insert > Chart**, **Data > Pivot table** and the frequency table
+(Alt+Shift+F) on the grid make them where charts and pivot tables live,
+on a sheet: the output is [sent to a sheet](#send-to-a-sheet) first (a new
+one named after the cell, unless it's on one already), and the command
+runs there on the columns selected in the grid, every row under the
+header. A chart drawn under the output would have to squeeze into the
+notebook's column and scroll with the cells; on the sheet it has room,
+its editor, images where the terminal draws them, and it follows the
+cell's next run, as the region it charts does.
+
+### Note cells
 
 Note cells are Markdown: headings, **bold**, *italic*, `code`, links (the
 terminal opens them), lists and quotes. They're drawn as text, without a
@@ -142,11 +202,10 @@ stateDiagram-v2
     Output --> Command: Esc
 ```
 
-A bar at the left marks the active cell: `▌`, blue in command mode and
-green in edit mode, where the cell's box is drawn in heavy lines too, so
-the mode reads without color. Shift+Up and Shift+Down (or `K` and `J`,
-or Shift+click) select the cells passed over as well, marked `▎`, and
-the commands below that act on "the cells" act on all of them: run,
+The bar left of the active cell and the box's lines say which mode
+you're in ([Reading a cell](#reading-a-cell)). Shift+Up and Shift+Down
+(or `K` and `J`, or Shift+click) select the cells passed over as well,
+and the commands below that act on "the cells" act on all of them: run,
 delete, copy, cut, move, make notes or code, hide or clear outputs.
 
 | Key | In command mode |
@@ -154,7 +213,7 @@ delete, copy, cut, move, make notes or code, hide or clear outputs.
 | Up, Down, `j`, `k` | Move between cells, stopping at each output; on an output, scroll its window first |
 | Shift+Up, Shift+Down, `K`, `J` | Select the cells passed over too |
 | Home, End, PgUp, PgDn | The first cell, the last, a screen up or down |
-| Enter | Edit the cell; on an output, open it full-screen |
+| Enter | Edit the cell; on a table or record output, work in its grid; on another, open it full-screen |
 | Shift+Enter | Run the cells and select the next, adding one at the end |
 | Ctrl+Enter, `r` | Run the cells, staying on them |
 | Alt+Enter | Run the cells and add a code cell under them |
@@ -226,12 +285,8 @@ keywords, operators; flags stay plain), and `nu --ide-check` what's
 wrong. A problem is underlined with a curly line, and with the caret on
 it the context line says what nu said:
 
-```
-  [ ]                                                        not run
-│ $files | sort-by size --revrse
-                        ~~~~~~~~
-The `sort-by` command doesn't have flag `revrse`.
-```
+![A cell being edited, its box in heavy lines: the misspelled flag --revrse is underlined with a curly line, and the context line says the sort-by command doesn't have that flag](../media/notebook-nu-error-dark.png#gh-dark-mode-only)
+![A cell being edited, its box in heavy lines: the misspelled flag --revrse is underlined with a curly line, and the context line says the sort-by command doesn't have that flag](../media/notebook-nu-error-light.png#gh-light-mode-only)
 
 Tab asks `nu --ide-complete` too, after the notebook's own names, so it
 completes flags, subcommands and paths as well as cells and commands.
@@ -342,7 +397,8 @@ nu.files, 3, FALSE)`), and charts and pivot tables use. It's also a
 [table](../sheets/tables.md#notebook-outputs-and-linked-files) by the
 cell's name, read by column: `=SUM(big[size])`, `=COUNTIF(app[status],
 500)`, with `big` alone its rows under the header. A cell without a
-name is given one first.
+name is given one first. On the region's cells the context line says
+whose output they are (`Output of big`).
 
 ```mermaid
 sequenceDiagram

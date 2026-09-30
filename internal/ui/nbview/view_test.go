@@ -9,8 +9,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/notebook"
+	"github.com/FelineStateMachine/012/internal/nuon"
 	"github.com/FelineStateMachine/012/internal/ui/theme"
 )
 
@@ -24,6 +26,7 @@ type fakeHost struct {
 	edits  []string
 	onRun  func(id string)
 	kernel Kernel
+	grids  []*fakeGrid
 }
 
 func newHost(srcs ...string) *fakeHost {
@@ -54,6 +57,58 @@ func (h *fakeHost) Edit(id int, src string) {
 			h.cells[i].Source = src
 		}
 	}
+}
+
+// Grid is a fake grid: its column names, then its rows' values, spaced.
+func (h *fakeHost) Grid(id int, data []byte, rows int) Grid {
+	v, err := nuon.Parse(data)
+	if err != nil {
+		panic(err)
+	}
+	g := &fakeGrid{}
+	for _, rec := range v.List {
+		var row []string
+		for i, f := range rec.Fields {
+			if len(g.rows) == 0 && i >= len(g.cols) {
+				g.cols = append(g.cols, f.Key)
+			}
+			row = append(row, cellText(fileio.NUONCell(f.Value), locale.Canonical))
+		}
+		g.rows = append(g.rows, strings.Join(row, "  "))
+	}
+	h.grids = append(h.grids, g)
+	return g
+}
+
+type fakeGrid struct {
+	cols, rows []string
+	top, win   int
+	in         bool
+}
+
+func (g *fakeGrid) Rows() int     { return len(g.rows) }
+func (g *fakeGrid) Top() int      { return g.top }
+func (g *fakeGrid) Entered() bool { return g.in }
+func (g *fakeGrid) Hidden(int) int {
+	return 0
+}
+
+func (g *fakeGrid) Scroll(d int) bool {
+	to := min(max(g.top+d, 0), max(len(g.rows)-g.win, 0))
+	moved := to != g.top
+	g.top = to
+	return moved
+}
+
+func (g *fakeGrid) Line(i, from, rows, width int) string {
+	g.win = rows
+	if i == 0 {
+		return strings.Join(g.cols, "  ")
+	}
+	if from+i-1 < len(g.rows) {
+		return fmt.Sprintf("%d  %s", from+i, g.rows[from+i-1])
+	}
+	return ""
 }
 
 func newView(h *fakeHost, w, ht int) *View {
@@ -87,8 +142,8 @@ func TestOutputsShow(t *testing.T) {
 	v := newView(h, 80, 60)
 	got := text(v)
 	for _, want := range []string{
-		"[1]:", "─ files ─", "name    size    ok", "a.txt   2.0 kB  TRUE", "bb.txt    10 B  FALSE",
-		"a         1", "long_key  two words", "line one", "line two",
+		"[1]:", "─ files ─", "name  size  ok", "1  a.txt  2.0 kB  TRUE", "2  bb.txt  10 B  FALSE",
+		"field  value", "1  a  1", "2  long_key  two words", "line one", "line two",
 		"× Command `nope` not found", "help: try ls", "not saved; run to see", "0  1", "1  2",
 	} {
 		if !strings.Contains(got, want) {
@@ -207,34 +262,39 @@ func TestMarkdown(t *testing.T) {
 	}
 }
 
-func TestFullSortsAndFilters(t *testing.T) {
-	h := newHost("ls")
+// A table's output is the host's grid: its window, then full-screen at
+// the body's size; text full-screen scrolls its lines.
+func TestGridOutputs(t *testing.T) {
+	h := newHost("ls", "text")
 	h.outs[1] = &notebook.Output{NUON: []byte("[[name, n]; [b, 2], [a, 10], [c, 1]]"), Count: 1}
-	v := newView(h, 60, 10)
+	h.outs[2] = &notebook.Output{NUON: []byte(`"one\ntwo"`), Count: 2}
+	v := newView(h, 60, 12)
+	if len(h.grids) != 1 || !strings.Contains(text(v), "name  n\n") || !strings.Contains(text(v), "1  b  2") {
+		t.Fatalf("the grid's window:\n%s", text(v))
+	}
 	v.Select(0, true)
-	if !v.OpenFull() {
-		t.Fatal("didn't open")
+	if v.SelectedGrid() != Grid(h.grids[0]) || !v.Shows(h.grids[0]) {
+		t.Error("the output selected isn't its grid")
 	}
-	names := func() string {
-		var out []string
-		for _, i := range v.full.order {
-			out = append(out, cellText(v.full.sh.rows[i][0], locale.Canonical))
-		}
-		return strings.Join(out, "")
+	if g, gx, gy, ok := v.GridAt(textX+3, 4); !ok || g != Grid(h.grids[0]) || gx != 3 || gy != 1 {
+		t.Errorf("GridAt: %v %d %d %v", g, gx, gy, ok)
 	}
-	v.Key(key("l"))
-	v.Key(key("S"))
-	if got := names(); got != "abc" {
-		t.Errorf("sorted by n descending: %q", got)
+	if x, y, ok := v.GridOrigin(h.grids[0]); !ok || x != textX || y != 3 {
+		t.Errorf("the grid starts at %d, %d", x, y)
 	}
-	v.Key(key("/"))
-	v.Key(key("c"))
-	v.Key(key("enter"))
-	if got := names(); got != "c" {
-		t.Errorf("filtered: %q", got)
+	h.grids[0].in = true
+	if bar := v.Lines()[4]; !strings.Contains(bar, "▌") {
+		t.Errorf("the grid entered has no bar: %q", bar)
+	}
+	v.OpenFull()
+	if got := text(v); h.grids[0].win != 11 || !strings.HasPrefix(got, "name  n\n1  b  2") {
+		t.Errorf("full-screen, %d rows:\n%s", h.grids[0].win, got)
 	}
 	v.Key(key("esc"))
-	if v.FullOpen() {
-		t.Error("Esc didn't close it")
+	v.Select(1, true)
+	v.OpenFull()
+	v.Key(key("down"))
+	if got := text(v); !strings.Contains(got, " one\n▌two") {
+		t.Errorf("text full-screen:\n%s", got)
 	}
 }

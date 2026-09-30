@@ -2,7 +2,7 @@ package ui
 
 import (
 	"image/color"
-	"strconv"
+
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -65,6 +65,9 @@ func (m *Model) headerRow() string {
 	b.WriteString(m.th.Header.Render(strings.Repeat(" ", m.hdrW())))
 	focus := m.sheet.Grow(sheet.Rect{From: m.active(), To: m.active()}) // a merged cell's columns
 	sel, selecting := m.highlight()
+	if m.unfocused() {
+		focus, selecting = sheet.Rect{From: sheet.Addr{Col: -1}, To: sheet.Addr{Col: -1}}, false
+	}
 	for _, c := range m.screenCols() {
 		if c == divider {
 			b.WriteString(m.th.FrozenLine.Render("│"))
@@ -82,9 +85,10 @@ func (m *Model) headerRow() string {
 		default:
 			plain = true
 		}
-		name := sheet.ColName(c)
+		mark, on := m.filterMark(c)
+		name := m.colLabel(c, w, 2*boolInt(mark != ""))
 		label := style.Render(theme.Center(name, w))
-		if mark, on := m.filterMark(c); mark != "" && w >= len(name)+3 {
+		if mark != "" && w >= ansi.StringWidth(name)+3 {
 			// The filter's button follows the letter, e.g. "B ▾".
 			text := theme.Center(name+" "+mark, w)
 			k := strings.Index(text, mark)
@@ -141,7 +145,7 @@ func (m *Model) rowLine(row int, ln rowtext.Line) string {
 	var b strings.Builder
 	num := ""
 	if ln.K == ln.N-1 {
-		num = strconv.Itoa(row + 1)
+		num = m.rowLabel(row)
 	}
 	if m.showRowHandle(row) && ln.K == ln.N-1 {
 		b.WriteString(hdr.Render(theme.PadLeft(num, m.hdrW()-1)) + m.th.Handle.Render("▄"))

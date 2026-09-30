@@ -5,23 +5,25 @@ sidebar_position: 2
 
 # Pipelines
 
-012 can be a stage in a pipeline: a table comes in on standard input,
-you look at it or edit it in the terminal, and with `--pipe` the result
-goes out on standard output for the next command.
+012 can be a stage in a pipeline: a table comes in, you look at it or
+edit it in the terminal, and what you send back goes on to the next
+command. With the [`sheet` command](#the-sheet-command) installed
+(`012 nu --install-module`), that stage is one word:
 
 ```nu
-ls | select name size | to nuon | ^012 --pipe | from nuon | where size > 1kb
+ls | select name size | sheet --send selection | where size > 1kb
 ```
 
-![In nushell, ls's table goes through 012, three of its rows are selected and sent on, and nu keeps filtering them by size](../media/pipeline.gif)
+![In nushell, ls's table goes through sheet, three of its rows are selected, and quitting sends them on for nu to keep filtering by size](../media/pipeline.gif)
 
+`sheet` is shorthand for
+`to nuon | ^012 --pipe | from nuon`:
 [`to nuon`](https://www.nushell.sh/commands/docs/to_nuon.html) writes
 the table in NUON, nushell's own notation, so file sizes, durations and
 dates arrive as themselves, and
 [`from nuon`](https://www.nushell.sh/commands/docs/from_nuon.html) reads
-what 012 sends back with the same types ([Types](types.md)). With the
-[`sheet` command](#the-sheet-command) installed, the same stage is
-`ls | select name size | sheet | where size > 1kb`.
+what 012 sends back with the same types ([Types](types.md)). Without the
+module, write it out.
 
 The screen is the terminal's own (`/dev/tty`, or the console on
 Windows), not standard input or output, so the pipeline's data never

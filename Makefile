@@ -68,7 +68,7 @@ e2e: $(GHOSTTY_STAMP)
 # Rewrite golden screens and build e2e/testdata/screens/gallery.html for
 # visual review. Review the diff and the gallery before committing.
 screens: $(GHOSTTY_STAMP)
-	cd e2e && PKG_CONFIG_PATH=$(GHOSTTY_OUT)/share/pkgconfig go test -count=1 -run TestScreens ./... -update
+	cd e2e && PKG_CONFIG_PATH=$(GHOSTTY_OUT)/share/pkgconfig go test -count=1 -run 'TestScreens|TestStills' ./... -update
 
 # Stress: fetch real datasets into .deps/stress, run the benchmarks built
 # with -tags stress, print a summary and record the run in
