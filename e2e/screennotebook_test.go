@@ -118,6 +118,20 @@ var notebookScreens = []screen{
 		s.keys("<enter>", "$files | sort-by size --revrse")
 		s.waitFor("doesn't have flag `revrse`")
 	}},
+	{name: "notebook-nu-hover", setup: func(s *session) {
+		filesNotebook(s)
+		s.keys("<enter>", "$files | sort-by size --reverse", "<home>")
+		s.keys(strings.Split(strings.Repeat("<right>,", 9), ",")[:9]...)
+		s.waitFor("Sort by the given")
+	}},
+	{name: "notebook-nu-help", setup: func(s *session) {
+		filesNotebook(s)
+		s.keys("<enter>", "$files | sort-by size --reverse", "<home>")
+		s.keys(strings.Split(strings.Repeat("<right>,", 9), ",")[:9]...)
+		s.waitFor("Sort by the given")
+		s.keys("<f1>")
+		s.waitFor("Docs:")
+	}},
 	{name: "notebook-select", opts: options{cols: 120, rows: 30}, setup: func(s *session) {
 		filesNotebook(s)
 		s.keys("<up>", "<up>", "<shift+up>")

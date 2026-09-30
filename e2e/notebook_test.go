@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
+
+	ghostty "go.mitchellh.com/libghostty"
 )
 
 // Notebooks: cells written and run with the real nu, one reading
@@ -101,6 +104,32 @@ func TestNotebookHighlightsAndCompletesWithNu(t *testing.T) {
 	s.waitFor("sort-by size --reverse")
 }
 
+// With the real nu, the caret resting on a command says its signature
+// on the context line, and on a flag what the flag does; F1 opens the
+// command's help, with its page in nushell's docs as a link. On a
+// cell's $name, the line says the cell and its output's shape.
+func TestNotebookHoverWithNu(t *testing.T) {
+	needNu(t)
+	s := startWith(t, options{cols: 120, rows: 30, startsOn: "EDIT"}, "nu")
+	s.keys("n = [[k v]; [1 a] [2 b] [3 c]]", "<shift+enter>")
+	s.waitFor("Out[1]:")
+	s.keys("<enter>", "$n | sort-by k --reverse", "<home>")
+	s.waitFor("$n: table, 3 rows × 2 columns from cell 1")
+	s.keys("<right>", "<right>", "<right>", "<right>", "<right>", "<right>")
+	s.waitFor("sort-by <...comparator: cell-path|closure>")
+	s.waitFor("Sort by the given cell path or closure.")
+	s.keys("<end>")
+	s.waitFor("sort-by --reverse, -r")
+	s.keys("<f1>")
+	s.waitFor("Docs: https://www.nushell.sh/commands/docs/sort-by.html")
+	s.waitFor("HELP")
+	if got := s.linkAt("https://www.nushell.sh"); got != "https://www.nushell.sh/commands/docs/sort-by.html" {
+		t.Errorf("the docs link to %q", got)
+	}
+	s.keys("<esc>")
+	s.waitFor("EDIT")
+}
+
 // Data > Shell from a workbook makes a Notebook tab; $selection is
 // the range selected on the sheet shown before it.
 func TestNotebookReadsSelection(t *testing.T) {
@@ -142,4 +171,21 @@ func TestNotebookLongPipeline(t *testing.T) {
 	if !whole() {
 		t.Errorf("the pipeline isn't whole after editing:\n%s", s.screen())
 	}
+}
+
+// linkAt is the hyperlink under the first cell of text on the screen.
+func (s *session) linkAt(text string) string {
+	for y, line := range strings.Split(s.screen(), "\n") {
+		if i := strings.Index(line, text); i >= 0 {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			ref, err := s.vt.GridRef(ghostty.Point{Tag: ghostty.PointTagActive, X: uint16(utf8.RuneCountInString(line[:i])), Y: uint32(y)})
+			if err != nil {
+				return ""
+			}
+			u, _ := ref.HyperlinkURI()
+			return u
+		}
+	}
+	return ""
 }

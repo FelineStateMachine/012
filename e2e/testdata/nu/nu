@@ -8,8 +8,8 @@ for arg; do script=$arg; done
 # The code editor's questions (--ide-ast and the rest, about the file
 # named last) are answered as nu 0.116 answered them about the same
 # text, recorded in ide/: name.nu, and its name.ast.json,
-# name.check.jsonl or name.complete.json. Text not recorded fails, and
-# 012 falls back to its own highlighting.
+# name.check.jsonl, name.complete.json or name.hover-<byte>.json. Text
+# not recorded fails, and 012 falls back to its own highlighting.
 case " $* " in
 *' --version '*)
 	echo 0.116.0
@@ -17,6 +17,12 @@ case " $* " in
 *' --ide-ast '*) answer=ast.json ;;
 *' --ide-check '*) answer=check.jsonl ;;
 *' --ide-complete '*) answer=complete.json ;;
+*' --ide-hover '*)
+	prev=
+	for arg; do
+		[ "$prev" = --ide-hover ] && answer=hover-$arg.json
+		prev=$arg
+	done ;;
 esac
 if [ -n "$answer" ]; then
 	for nu in "$(dirname "$0")"/ide/*.nu; do

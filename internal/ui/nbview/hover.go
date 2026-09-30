@@ -310,7 +310,8 @@ func shapeWords(sh *shown, o *notebook.Output) string {
 	return ""
 }
 
-// hoverLine draws h in room columns: the signature, then what it does;
+// hoverLine draws h in room columns: the signature in the text's own
+// color, then what it does, muted;
 // flags are left out, then the types, then the description cut, before
 // the rest is.
 func hoverLine(th *theme.Theme, h Hover, room int) string {
@@ -333,9 +334,9 @@ func hoverLine(th *theme.Theme, h Hover, room int) string {
 		text = h.Brief
 	}
 	if desc == "" {
-		return th.Hint.Render(ansi.Truncate(text, max(room, 1), "…"))
+		return th.Cell.Render(ansi.Truncate(text, max(room, 1), "…"))
 	}
-	out := th.Hint.Render(ansi.Truncate(text, max(room, 1), "…"))
+	out := th.Cell.Render(ansi.Truncate(text, max(room, 1), "…"))
 	if left := room - ansi.StringWidth(text) - 2; left > 3 {
 		out += "  " + th.Muted.Render(ansi.Truncate(desc, left, "…"))
 	}
