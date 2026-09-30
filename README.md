@@ -49,6 +49,10 @@ rest: building from a clone, importing files, `012 serve` and settings.
   nushell's NUON, XLSX, SQLite, Parquet and Lotus 1-2-3, export to CSV,
   TSV, JSON, NUON, XLSX, SQLite and a self-contained web page with its
   charts as SVG ([files](docs/files/README.md)).
+- **Tables too big for any grid**: a Parquet file or a SQLite table of
+  tens of millions of rows links as a source on a tab of its own,
+  scrolled, sorted and filtered in place, with SUMIFS, XLOOKUP and pivot
+  tables streaming over every row ([linked sources](docs/files/sources.md)).
 - **For agents**: `012 describe`, `get`, `set --dry-run` and `recalc`
   with JSON results, a Claude Code skill, and `012 mcp`, an MCP server
   whose writes go through the same checks as yours, with views
@@ -86,6 +90,8 @@ rest: building from a clone, importing files, `012 serve` and settings.
 | Arrays that spill | Nushell notebooks |
 | ![JEV functions classifying reviews](docs/media/jev.gif) | ![Recording a macro and replaying it](docs/media/macros.gif) |
 | JEV functions in formulas | Macros |
+| ![Ten million rows of Parquet linked as a source, sorted and summed](docs/media/sources.gif) | |
+| Linked sources, too big for any grid | |
 
 Each guide shows its own recordings too. They are
 [VHS](https://github.com/charmbracelet/vhs) tapes in [`demos/`](demos),
