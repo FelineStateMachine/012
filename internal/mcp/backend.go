@@ -2,11 +2,13 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/FelineStateMachine/012/internal/diff"
+	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/headless"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
@@ -97,4 +99,49 @@ func (b *FileBackend) Change(ctx context.Context, label string, dryRun bool, fn 
 		return changes, b.Save(f)
 	}
 	return changes, f.Save()
+}
+
+// ImportBackend is a file in a format 012 imports (CSV, XLSX, SQLite
+// and the rest), read afresh for every call as the app opens it. It is
+// read only: 012 writes a workbook as a .012 file, which create_workbook
+// makes from it.
+type ImportBackend struct {
+	Path    string
+	Prepare func(context.Context, *headless.File) error
+}
+
+// Name is the file's name without its folder or extension.
+func (b *ImportBackend) Name() string {
+	return strings.TrimSuffix(filepath.Base(b.Path), filepath.Ext(b.Path))
+}
+
+func (b *ImportBackend) View(ctx context.Context, fn func(*sheet.Workbook) error) error {
+	w, err := importBook(ctx, b.Path)
+	if err != nil {
+		return err
+	}
+	if b.Prepare != nil {
+		if err := b.Prepare(ctx, &headless.File{Path: b.Path, Book: w}); err != nil {
+			return err
+		}
+	}
+	return fn(w)
+}
+
+// Scratch is View: every call imports its own copy.
+func (b *ImportBackend) Scratch(ctx context.Context, fn func(*sheet.Workbook) error) error {
+	return b.View(ctx, fn)
+}
+
+func (b *ImportBackend) Change(context.Context, string, bool, func(*sheet.Workbook) error) ([]diff.Change, error) {
+	return nil, fmt.Errorf("%s is read only: 012 saves workbooks as %s files; create_workbook with from set to it makes one to change", filepath.Base(b.Path), sheet.FileExt)
+}
+
+// importBook reads a file 012 imports as a workbook.
+func importBook(ctx context.Context, path string) (*sheet.Workbook, error) {
+	res, err := fileio.Import(ctx, path, fileio.Options{})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
+	}
+	return res.Sheet.Book(), nil
 }

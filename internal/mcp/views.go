@@ -10,110 +10,124 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
-// Views are the MCP Apps extension (io.modelcontextprotocol/ui, spec
-// 2026-01-26): read_range and create_chart name one UI resource,
-// ui://012/view, which hosts that support the extension draw in a
-// sandboxed frame beside the result. The resource is the HTML export's
-// page with nothing in it yet (its fonts, palettes and pointer script);
-// each result carries the fragment to show in its _meta, under viewKey,
-// only for clients that declared the extension. The page asks the host
-// for its theme, shows the fragment when the result arrives, and says
-// how tall it is.
+// Views are the range read_range read and the chart create_chart made,
+// drawn as 012 draws them in a sandboxed frame beside the result, by
+// hosts that implement either of the two ways of doing that:
+//
+//   - MCP Apps (the io.modelcontextprotocol/ui extension, spec
+//     2026-01-26): the tool's _meta.ui.resourceUri names ui://012/view,
+//     text/html;profile=mcp-app, and the page speaks the extension's
+//     messages over postMessage (ui/initialize, the tool's result, the
+//     host's theme and room, the page's size).
+//   - The OpenAI Apps SDK (ChatGPT, Codex): the tool's
+//     _meta["openai/outputTemplate"] names ui://012/view.skybridge, the
+//     same page as text/html+skybridge, which reads window.openai
+//     (toolResponseMetadata, theme, maxHeight, displayMode) instead.
+//
+// The page is the HTML export's with nothing in it yet (fonts,
+// palettes, the pointer's script). What it draws is in the result's
+// _meta under viewKey, for every client, since both kinds of hosts hand
+// a result's _meta to the view and neither shows it to the model: its
+// title, where it is and the grid's or chart's HTML. structuredContent
+// stays the tool's result, what the model reads.
 const (
-	uiExtension = "io.modelcontextprotocol/ui"
-	uiMIME      = "text/html;profile=mcp-app"
-	viewURI     = "ui://012/view"
-	viewKey     = "o12/view"
+	uiExtension   = "io.modelcontextprotocol/ui"
+	uiMIME        = "text/html;profile=mcp-app"
+	skybridgeMIME = "text/html+skybridge"
+	viewURI       = "ui://012/view"
+	viewKey       = "o12/view"
+	skybridgeURI  = "ui://012/view.skybridge"
 	// maxViewRows bounds the rows a range's view draws.
-	maxViewRows = 500
+	maxViewRows = 200
 )
 
+// View is what a view draws of a result, in its _meta under viewKey:
+// the workbook's name, what the name box shows before a cell is
+// pointed at (a chart's data), the range or the chart's kind, sheet and
+// data, and the grid or chart as the HTML export draws it.
+type View struct {
+	Title string `json:"title"`
+	Name  string `json:"name,omitempty"`
+	Where string `json:"where"`
+	HTML  string `json:"html"`
+}
+
+// viewResourceMeta says how hosts should frame the view, in both
+// dialects: a border, and no network (an empty content security
+// policy's lists).
+var viewResourceMeta = sdk.Meta{
+	"ui":                         map[string]any{"prefersBorder": true, "csp": map[string]any{}},
+	"openai/widgetPrefersBorder": true,
+	"openai/widgetCSP":           map[string]any{"connect_domains": []string{}, "resource_domains": []string{}},
+	"openai/widgetDescription":   "The range or chart the tool returned, drawn as 012's grid: the model need not repeat it.",
+}
+
 func (s *Server) addViews() {
-	meta := sdk.Meta{"ui": map[string]any{"prefersBorder": true, "csp": map[string]any{}}}
-	s.AddResource(&sdk.Resource{URI: viewURI, Name: "012 view", Title: s.b.Name() + " in 012", MIMEType: uiMIME, Meta: meta,
-		Description: "The range or chart a tool returned, drawn as 012 draws it"},
-		func(context.Context, *sdk.ReadResourceRequest) (*sdk.ReadResourceResult, error) {
-			page := fileio.HTMLDocument(s.b.Name(), fileio.HTMLPanel(s.b.Name(), "", "")+`<div id="o12-view"></div>`, viewScript)
-			return &sdk.ReadResourceResult{Contents: []*sdk.ResourceContents{{URI: viewURI, MIMEType: uiMIME, Text: page, Meta: meta}}}, nil
-		})
-}
-
-// viewMeta is what a tool drawn in the view says of it: the resource,
-// under the key the spec names and the one its first drafts named.
-func (s *Server) viewMeta() sdk.Meta {
-	return sdk.Meta{"ui": map[string]any{"resourceUri": viewURI}, "ui/resourceUri": viewURI}
-}
-
-// wantsViews reports whether the client declared the extension.
-func wantsViews(req *sdk.CallToolRequest) bool {
-	if req == nil || req.Session == nil {
-		return false
+	for _, r := range []struct{ uri, mime string }{{viewURI, uiMIME}, {skybridgeURI, skybridgeMIME}} {
+		s.AddResource(&sdk.Resource{URI: r.uri, Name: "012 view", Title: "012", MIMEType: r.mime, Meta: viewResourceMeta,
+			Description: "The range or chart a tool returned, drawn as 012 draws it"},
+			func(context.Context, *sdk.ReadResourceRequest) (*sdk.ReadResourceResult, error) {
+				return &sdk.ReadResourceResult{Contents: []*sdk.ResourceContents{{URI: r.uri, MIMEType: r.mime, Text: viewPage(), Meta: viewResourceMeta}}}, nil
+			})
 	}
-	p := req.Session.InitializeParams()
-	if p == nil || p.Capabilities == nil {
-		return false
-	}
-	_, ok := p.Capabilities.Extensions[uiExtension]
-	return ok
 }
 
-// viewResult is a result carrying a fragment of the view.
-func viewResult(title, where, html string) *sdk.CallToolResult {
-	return &sdk.CallToolResult{Meta: sdk.Meta{viewKey: map[string]any{"title": title, "where": where, "html": html}}}
+// viewPage is the view's page: the panel, an empty place for the view
+// and the scripts.
+func viewPage() string {
+	return fileio.HTMLDocument("012", "<style>"+viewCSS+"</style>"+fileio.HTMLPanel("012", "", "")+`<div id="o12-view"></div>`, viewScript)
 }
 
-// rangeView draws what read_range read, at most maxViewRows rows.
-func (s *Server) rangeView(req *sdk.CallToolRequest, t headless.Target) *sdk.CallToolResult {
-	if !wantsViews(req) {
+// viewMeta is what a tool drawn in the view says of it: the resource
+// under MCP Apps' key and its first drafts' flat one, and the Apps
+// SDK's template and the status lines it shows while the tool runs.
+// The view calls no tools, so openai/widgetAccessible stays false.
+func viewMeta(invoking, invoked string) sdk.Meta {
+	return sdk.Meta{"ui": map[string]any{"resourceUri": viewURI}, "ui/resourceUri": viewURI,
+		"openai/outputTemplate": skybridgeURI, "openai/toolInvocation/invoking": invoking, "openai/toolInvocation/invoked": invoked}
+}
+
+// viewResult is a result carrying v in its _meta, nil without one.
+func viewResult(v *View) *sdk.CallToolResult {
+	if v == nil {
 		return nil
 	}
+	return &sdk.CallToolResult{Meta: sdk.Meta{viewKey: v}}
+}
+
+// rangeView draws the rows read_range returned of t, at most
+// maxViewRows.
+func rangeView(b *book, t headless.Target, rows int) *View {
 	r := t.Range
 	if t.Whole {
-		r, _ = t.Sheet.UsedRange()
+		var ok bool
+		if r, ok = t.Sheet.UsedRange(); !ok {
+			r = sheet.Rect{}
+		}
 	}
-	r.To.Row = min(r.To.Row, r.From.Row+maxViewRows-1)
+	r.To.Row = min(r.To.Row, r.From.Row+max(rows, 1)-1, r.From.Row+maxViewRows-1)
 	snap := fileio.Snap(t.Sheet, r, t.Sheet.Name())
 	grid, _ := fileio.HTMLGrid(snap)
-	return viewResult(s.b.Name(), sheet.Qualified(t.Sheet.Name(), snap.Range), grid)
+	return &View{Title: b.Name(), Where: sheet.Qualified(t.Sheet.Name(), snap.Range), HTML: grid}
 }
 
-// chartView draws the chart create_chart made.
-func (s *Server) chartView(req *sdk.CallToolRequest, w *sheet.Workbook, made headless.ChartMade) *sdk.CallToolResult {
-	if !wantsViews(req) {
-		return nil
-	}
+// chartView draws the chart create_chart made in b.
+func chartView(b *book, w *sheet.Workbook, made headless.ChartMade) *View {
 	c, ok := fileio.ChartSnap(w.Lookup(made.Sheet), made.Number-1)
 	if !ok {
 		return nil
 	}
-	return viewResult(made.Title, made.Sheet+" "+c.Data.String(), fileio.HTMLChart(c))
+	data := sheet.Qualified(made.Sheet, c.Data)
+	return &View{Title: b.Name(), Name: c.Data.String(), Where: c.Type.Title() + " chart of " + data, HTML: fileio.HTMLChart(c)}
 }
 
-// viewScript is the view's side of the extension's messages, over
-// postMessage with the host: ui/initialize, then the host's theme, the
-// tool's result and teardown, and the page's height as it changes.
-const viewScript = `(function(){
-var next=1,host=window.parent;
-function send(m){host.postMessage(Object.assign({jsonrpc:"2.0"},m),"*")}
-function theme(t){var r=document.documentElement;r.classList.remove("dark","light");if(t==="dark"||t==="light")r.classList.add(t)}
-function size(){send({method:"ui/notifications/size-changed",params:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight}})}
-function show(res){
-  var v=res&&res._meta&&res._meta["o12/view"];if(!v)return;
-  document.getElementById("o12-view").innerHTML=v.html;
-  var c=document.getElementById("o12-context");if(c)c.textContent=v.where;
-  var first=document.querySelector("#o12-view td[data-a]");if(first&&window.o12point)window.o12point(first);
-  size();
-}
-window.addEventListener("message",function(e){
-  var m=e.data;if(!m||m.jsonrpc!=="2.0")return;
-  if(m.id===1&&m.result){var hc=m.result.hostContext||{};theme(hc.theme);send({method:"ui/notifications/initialized",params:{}});return}
-  switch(m.method){
-  case "ui/notifications/tool-result":show(m.params);break;
-  case "ui/notifications/host-context-changed":if(m.params)theme(m.params.theme);break;
-  case "ui/resource-teardown":send({id:m.id,result:{}});break;
-  }
-});
-send({id:next++,method:"ui/initialize",params:{protocolVersion:"2026-01-26",capabilities:{},clientInfo:{name:"012",version:"1"},appCapabilities:{availableDisplayModes:["inline","fullscreen"]}}});
-new ResizeObserver(size).observe(document.body);
-})();
+// viewCSS fits the export's page to a frame: the panel on top, the
+// grid scrolling in what room the host gives, its headers sticking to
+// the grid's edges.
+const viewCSS = `html,body{overflow:hidden}
+.o12{width:auto;min-width:0}
+#o12-view{overflow-x:auto}
+#o12-view .sheet{overflow:auto;max-height:480px;overscroll-behavior:contain}
+#o12-view .grid thead th{top:0}
+#o12-view:empty::before{content:"Waiting for the tool's result";display:block;color:var(--muted);padding:0 9px;height:21px}
 `

@@ -138,8 +138,8 @@ their own.
 **Agents**
 
 - `012 describe`, results as JSON with stable schemas, `012 set --dry-run` as a diff, and a Claude Code skill installed by `012 agent --install-skill`: [Agents](docs/agents/README.md)
-- `012 mcp`, an MCP server on a workbook file: tools that read, evaluate, write, sort, filter, chart, pivot and run notebook cells through the same checks as `012 set`, resources and prompts: [MCP server](docs/agents/mcp.md)
-- MCP Apps views: ranges read and charts made drawn in the chat from the HTML export, where the host supports the extension: [MCP server](docs/agents/mcp.md#views-in-the-chat)
+- `012 mcp`, an MCP server on the workbooks in its folders, each tool taking a path, added to hosts by `012 agent --install-mcp`: tools that read, evaluate, write, sort, filter, chart, pivot and run notebook cells through the same checks as `012 set`, resources and prompts: [MCP server](docs/agents/mcp.md)
+- Views: ranges read and charts made drawn in the chat from the HTML export, in MCP Apps hosts and the OpenAI Apps SDK's: [MCP server](docs/agents/mcp.md#views-in-the-chat)
 
 **Upkeep**
 

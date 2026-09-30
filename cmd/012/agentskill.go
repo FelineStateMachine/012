@@ -14,12 +14,13 @@ import (
 // 012 agent --skill and 012 agent --install-skill: the Claude Code
 // skill that teaches agents with a shell to use 012 (see
 // docs/agents/README.md), installed as 012 nu --install-module installs
-// the nushell module.
+// the nushell module. 012 agent --install-mcp adds 012 mcp to a host
+// (installmcp.go).
 
 //go:embed skill/SKILL.md
 var skillSource string
 
-const agentUsage = "usage: 012 agent --skill | --install-skill [--force] [dir]"
+const agentUsage = "usage: 012 agent --skill | --install-skill [--force] [dir] | --install-mcp claude-code|claude-desktop|codex [--root dir]... [--print]"
 
 // skillHome is where Claude Code looks for a person's own skills; tests
 // replace it.
@@ -31,16 +32,23 @@ var skillHome = func() (string, error) {
 	return filepath.Join(home, ".claude", "skills", "012"), nil
 }
 
-// runAgent is 012 agent --skill (print the skill) or --install-skill
-// [--force] [dir].
+// runAgent is 012 agent --skill (print the skill), --install-skill
+// [--force] [dir], or --install-mcp host [--root dir]... [--print].
 func runAgent(args []string, e env) error {
-	a, err := parseArgs(args, nil, []string{"skill", "install-skill", "force", "help"})
+	a, err := parseArgs(args, []string{"install-mcp", "root"}, []string{"skill", "install-skill", "force", "print", "help"})
 	switch {
 	case err != nil:
 		return usageError(err.Error(), agentUsage)
 	case a.has("help"):
 		fmt.Fprintln(e.stdout, agentUsage)
 		return nil
+	case a.has("install-mcp"):
+		if a.has("skill") || a.has("install-skill") || a.has("force") || len(a.pos) > 0 {
+			return usageError("", agentUsage)
+		}
+		return installMCP(e, a.flags["install-mcp"], a.all["root"], a.has("print"))
+	case a.has("root") || a.has("print"):
+		return usageError("--root and --print go with --install-mcp", agentUsage)
 	case a.has("skill") && !a.has("install-skill") && len(a.pos) == 0:
 		_, err := fmt.Fprint(e.stdout, skillSource)
 		return err

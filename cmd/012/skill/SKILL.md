@@ -88,8 +88,26 @@ model service. Don't add them unless the user wants that.
 errors; for `diff`, the workbooks differ); 2 the command was used
 wrongly, with its usage. Every command's `--help` prints its usage.
 
-When the 012 MCP server (`012 mcp book.012`) is connected, its tools
-(describe, read_range, write_cells with dry_run, evaluate, list_errors)
-do the same with the same checks.
+## The MCP server
+
+To give Claude Code, Codex or Claude Desktop 012's tools, install
+the server once, for every workbook:
+
+```sh
+012 agent --install-mcp codex      # or claude-code, or claude-desktop
+012 agent --install-mcp codex --print   # show the entry without writing it
+```
+
+It writes the host's entry to run this 012's `mcp` by its full path,
+with no workbook: each tool takes a workbook's `path`, inside the
+host's project folders or the folders `--root dir` adds. Don't name a
+file in the entry (`012 mcp demo.012`), which ties the server to that
+workbook, and don't edit the host's configuration by hand. Restart the
+host afterwards.
+
+When the server is connected, its tools do what the commands do, with
+the same checks: describe without a path lists the workbooks, then
+describe, read_range, write_cells with dry_run, evaluate, list_errors
+and create_workbook, each given the workbook's path.
 
 The full reference: https://github.com/FelineStateMachine/012/blob/main/docs/agents/README.md
