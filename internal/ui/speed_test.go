@@ -98,7 +98,7 @@ func sourceSumCase() speedCase {
 		m.sheet.Set(sheet.Addr{}, "=SUM("+info.Name+"[amount])")
 		settleSources(m)
 		return func() {
-			m.src.host.Reload(info.Name)
+			m.sources().host.Reload(info.Name)
 			if !settleSources(m) || m.sheet.Value(sheet.Addr{}).Kind != sheet.Number {
 				panic("the SUM over the source never settled")
 			}

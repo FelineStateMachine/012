@@ -66,6 +66,10 @@ func (p *Pages) Same(h fileio.Source, gen int, o *sheet.SourceOrder) bool {
 	return p.h == h && p.gen == gen && sameOrder(p.order, ord)
 }
 
+// Of reports whether the pages are of h's gen'th opening, however
+// ordered.
+func (p *Pages) Of(h fileio.Source, gen int) bool { return p.h == h && p.gen == gen }
+
 func sameOrder(a, b sheet.SourceOrder) bool {
 	return slices.Equal(a.Sort, b.Sort) && slices.Equal(a.Filter, b.Filter)
 }

@@ -14,8 +14,8 @@ func TestServeFlags(t *testing.T) {
 		t.Errorf("no flags: %+v, %v; want the defaults", o, err)
 	}
 	o, err = serveFlags([]string{"--listen", "127.0.0.1:9000", "sheets", "-idle-timeout=5m", "--max-sessions", "3",
-		"--authorized-keys", "/k", "--host-key=/h"}, io.Discard, serve.Defaults())
-	want := serve.Options{Dir: "sheets", Listen: "127.0.0.1:9000", AuthorizedKeys: "/k", HostKey: "/h", IdleTimeout: 5 * time.Minute, MaxSessions: 3}
+		"--authorized-keys", "/k", "--host-key=/h", "--share", "view"}, io.Discard, serve.Defaults())
+	want := serve.Options{Dir: "sheets", Listen: "127.0.0.1:9000", AuthorizedKeys: "/k", HostKey: "/h", IdleTimeout: 5 * time.Minute, MaxSessions: 3, Share: "view"}
 	if err != nil || o != want {
 		t.Errorf("got %+v, %v; want %+v", o, err, want)
 	}

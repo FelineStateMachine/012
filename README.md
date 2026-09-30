@@ -69,6 +69,10 @@ rest: building from a clone, importing files, `012 serve` and settings.
   SSH, your terminal's colors or any of hundreds of schemes, optional vim
   keys, and `012 serve` to reach your sheets over SSH
   ([keys](docs/reference/keys.md), [themes](docs/terminal/themes.md), [SSH](docs/terminal/ssh.md)).
+- **Together over SSH**: sessions of `012 serve` opening the same file
+  share it live, each with its own cursor, the others' in their colors,
+  and undo that takes back only your own changes
+  ([sharing a workbook](docs/terminal/ssh.md#sharing-a-workbook)).
 - **JEV functions** ask TypeSafe's hosted model about your data from a
   formula ([JEV](docs/formulas/jev.md)).
 

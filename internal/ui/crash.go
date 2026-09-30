@@ -115,6 +115,22 @@ func (g *Guarded) View() tea.View {
 	return g.last
 }
 
+// do runs fn on the model as Update would, a panic in it stopping the
+// program the same way: for what Shared does to the model between
+// turns.
+func (g *Guarded) do(fn func() tea.Cmd) (cmd tea.Cmd) {
+	if g.crash != nil {
+		return nil
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			g.crash = caught("update", r)
+			cmd = tea.Quit
+		}
+	}()
+	return g.guard(fn())
+}
+
 // guard wraps cmd so a panic in it comes to Update as a crashMsg, and
 // so do the commands of a batch it returns. A sequence's (tea.Sequence)
 // are run by Bubble Tea itself, which catches their panics: see Finish.
@@ -145,6 +161,9 @@ func (g *Guarded) guard(cmd tea.Cmd) tea.Cmd {
 // caught, or one only Bubble Tea caught (a panic in a sequence's
 // command), whose stack it printed on the terminal.
 func (g *Guarded) Finish(runErr error) *Crash {
+	if g.m.share.seat == nil {
+		g.m.closeStreams() // a stream runs until it's stopped; a room's, until the last one leaves (LeaveRoom)
+	}
 	if g.crash == nil && errors.Is(runErr, tea.ErrProgramPanic) {
 		g.crash = &Crash{Where: "a command", Value: "a panic Bubble Tea caught, its stack printed on the terminal"}
 	}

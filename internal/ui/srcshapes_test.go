@@ -27,7 +27,7 @@ func sourceModel(path string, w, h int) *Model {
 func settleSources(m *Model) bool {
 	for range 100 {
 		run(m, m.syncSources())
-		if m.src.host == nil || !m.src.host.Pending() && m.src.running == 0 && !m.pagesPending() {
+		if r := m.sources(); r.host == nil || !r.host.Pending() && r.running == 0 && !m.pagesPending() {
 			return true
 		}
 	}

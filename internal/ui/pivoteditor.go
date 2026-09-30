@@ -24,7 +24,7 @@ import (
 // created.
 type pivotEditor struct {
 	m      pivotHost    // the model, through what the editor needs of it
-	start  int          // the workbook's state before editing, to undo back to
+	start  int          // the history before editing (Checkpoint), to undo back to
 	back   *sheet.Sheet // for a new pivot, the sheet it summarizes, shown again on Esc
 	before string       // the pivot when the editor opened, as a macro answers it
 	msg    string       // why the last change was refused, for the status line
@@ -223,9 +223,7 @@ func (e *pivotEditor) Key(k tea.KeyPressMsg) tea.Cmd {
 // cancel undoes the editor's changes and closes it; a pivot just created
 // goes with its sheet.
 func (e *pivotEditor) cancel(m pivotHost) {
-	for m.sheetShown().StateID() != e.start && m.sheetShown().CanUndo() {
-		m.sheetShown().Undo()
-	}
+	m.book().UndoTo(e.start)
 	m.closeOverlay()
 	m.afterSheetsChange(e.back, m.book().Active())
 	m.syncChanged()

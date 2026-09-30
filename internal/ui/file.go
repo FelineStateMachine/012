@@ -116,6 +116,9 @@ func (m *Model) openFile(text string) tea.Cmd {
 	if !ok {
 		return nil
 	}
+	if m.share.reg != nil {
+		return m.openShared(name, p)
+	}
 	return loadCmd(name, p, m.spans.Parent())
 }
 
@@ -123,11 +126,13 @@ func (m *Model) openFile(text string) tea.Cmd {
 // session rather than the sheet carries over: the window, theme, terminal
 // state, served directory and the JEV connection.
 func (m *Model) reset(s *sheet.Sheet, filename string) {
-	m.stopCells() // the old workbook's cells
+	if !m.shared() {
+		m.stopCells() // the old workbook's cells, unless others share them
+	}
 	m.closeSources()
-	nb := nbState{runner: m.nb.runner, served: m.nb.served, words: m.nb.words, asked: m.nb.asked, lang: m.nb.lang}
+	nb := nbState{runner: m.nb.runner, runs: &nbRuns{}, served: m.nb.served, words: m.nb.words, asked: m.nb.asked, lang: m.nb.lang}
 	defer func() { m.nb = nb; m.bookOpened() }()
-	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}, prefs: m.prefs, session: m.session, pipe: m.pipe,
+	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}, prefs: m.prefs, session: m.session, pipe: m.pipe, share: m.share,
 		macros: macroState{machine: m.macros.machine, editor: m.macros.editor}, spans: m.spans}
 	s.Book().SetTrace(m.spans)
 	if m.jev != nil {
@@ -349,6 +354,11 @@ func (m *Model) handleSaved(msg savedMsg) tea.Cmd {
 	m.filename, m.disk = msg.name, msg.stamp
 	m.changed = false
 	m.nb.saved = m.nb.saving
+	if seat := m.share.seat; seat != nil {
+		v := m.savedState()
+		v.Outputs = m.nb.saved
+		seat.SetSaved(v)
+	}
 	m.savedRecovered()
 	if left := m.book().UnsavedOutputs(); len(left) > 0 {
 		m.note = "Saved without the outputs of " + strings.Join(left, ", ") + " (over nu-save-cell-kb or nu-save-notebook-kb): run them to see them again"
@@ -362,6 +372,10 @@ func (m *Model) handleSaved(msg savedMsg) tea.Cmd {
 func (m *Model) handleLoaded(msg loadedMsg) {
 	if msg.err != nil {
 		m.fail(fmt.Sprintf("Couldn't open %s: %v", msg.name, msg.err))
+		return
+	}
+	if m.share.reg != nil {
+		m.loadedShared(msg)
 		return
 	}
 	m.reset(msg.sheet, msg.name)

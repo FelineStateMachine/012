@@ -36,25 +36,13 @@ completed by nu as they're written.
 |---|---|---|
 | A command's signature and description for the word at the caret, on the context line, through `nu --ide-hover` or `nu --lsp` | Writing a cell without leaving for `help` | S |
 
-### 3. Toward multiplayer
-
-Sessions share one workbook through the server that already hosts them
-(`012 serve`), so every change is ordered in one place: the workbook's one
-mutation path (`Batch`/`Change`) becomes a stream of operations, the same
-log macros record. Each step is useful on its own.
-
-| Step | Result | Size |
-|---|---|---|
-| A notebook cell's output follows a streaming pipeline through the linked regions' live sources (`live.Source`), rows arriving on its sheet as the pipeline writes them | Pipelines as live sheets | S |
-| Shared viewing over SSH: several `012 serve` sessions open the same workbook; one edits, the others follow live with their own cursor, scroll and theme; presence shows who is where | Watch-along and review, one writer | M |
-| Shared editing over SSH: every session edits, the server orders operations (no CRDT needed while one server holds the workbook), per-user undo, presence and edit ownership shown in the grid, saves by the server | Multiplayer 012 over SSH | L |
-
-### 4. Agents
+### 3. Agents
 
 Agents work on workbooks through the same operations people do (the
 `Batch`/`Change` path), so their edits are undoable, attributed and
 shown by `012 diff`, under the same trust rules as macros. Live mode is
-section 3's shared editing with an agent as one participant.
+`012 serve`'s shared editing with an agent as one participant
+([Architecture](docs/contributing/architecture.md#shared-workbooks)).
 
 | Step | Result | Size |
 |---|---|---|
@@ -67,8 +55,9 @@ tickets (the Go transport in `FelineStateMachine/allons`
 `local/transport/iroh`, which needs cgo and a prebuilt iroh-ffi archive, so
 it would sit behind a build tag) and the web (`NimbleMarkets/go-booba`
 serves Bubble Tea over WebSocket/WebTransport with ghostty-web; Bubble Tea
-v2 support unverified). They would reuse the server-ordered operation
-stream above rather than a design of their own.
+v2 support unverified). They would reuse the rooms of `012 serve`, whose
+server orders every participant's operations, rather than a design of
+their own.
 
 ## Shipped
 
@@ -121,6 +110,8 @@ stream above rather than a design of their own.
 - Color schemes and a config file: [Themes](docs/terminal/themes.md), [Configuration](docs/reference/config.md)
 - A high-contrast theme at WCAG AAA, and every state readable without color: [Themes](docs/terminal/themes.md#high-contrast), [UX](docs/contributing/ux.md#reading-without-color)
 - `012 serve` over SSH, with files on the ssh command line and recovery of unsaved work: [Serving over SSH](docs/terminal/ssh.md)
+- Shared viewing over SSH: sessions opening one file share it live, each with its own cursor, the others' pointers and names shown, one writer handing writing over: [Serving over SSH](docs/terminal/ssh.md#sharing-a-workbook)
+- Shared editing over SSH: everyone edits, the server orders every step, undo takes back only your own, changes by others marked, saves and notebook runs by the room: [Serving over SSH](docs/terminal/ssh.md#sharing-a-workbook)
 - Shift+Enter, Ctrl+I and keys held to preview, with the kitty keyboard protocol: [Keys and mouse](docs/reference/keys.md#keys-the-terminal-has-to-tell-apart)
 - Sixel chart images on terminals without kitty graphics, drawn after the frame and redrawn as the screen moves: [Charts](docs/sheets/charts.md)
 
@@ -129,6 +120,7 @@ stream above rather than a design of their own.
 - 012 as a stage in a pipeline: `012 -` reads a table from standard input, `012 --pipe` sends the sheet or selection on, with nushell's types kept through NUON: [Pipelines](docs/nushell/pipelines.md)
 - The `sheet` command: a nushell module shipped in the binary (`012 nu --install-module`), so nu calls 012 without `^012` or NUON on either side: [Pipelines](docs/nushell/pipelines.md#the-sheet-command)
 - Notebook tabs, a TUI Jupyter for nushell: code and note cells with Jupyter's keys, outputs drawn in place and opened full-screen, `$name` between cells, stale marks and a reactive mode, outputs sent to sheets as live regions (`nu.name`), saved up to a cap, and earlier notebook sheets converted on open: [Notebooks](docs/nushell/notebooks.md)
+- Cells run as streams: a pipeline that never ends (`tail -f`, `watch`) followed live, its rows reaching the output and its sheet as nu prints them: [Notebooks](docs/nushell/notebooks.md#streams)
 - Code cells highlighted, checked and completed as they're written by nu itself (`--ide-ast`, `--ide-check`, `--ide-complete`), in the background, falling back to 012's own when nu is missing, old, slow or not trusted: [Notebooks](docs/nushell/notebooks.md#writing-a-cell)
 - Table and record outputs drawn and worked as 012's own grid: formats by type, fitted and resizable columns, select, copy, sort, filter and find in place, full-screen, charts and pivots on the sheet the output is sent to: [Notebooks](docs/nushell/notebooks.md#outputs-as-grids)
 

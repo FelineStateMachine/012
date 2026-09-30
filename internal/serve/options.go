@@ -38,6 +38,10 @@ type Options struct {
 	// MaxSessions is how many sessions may run at once; more are turned
 	// away.
 	MaxSessions int
+	// Share is whether sessions opening the same file share its
+	// workbook: "edit" (everyone edits), "view" (one writes, the others
+	// follow) or "off" (a copy each); "" is off.
+	Share string
 }
 
 // Default values.
@@ -51,7 +55,7 @@ const (
 // the loopback address, keys from ~/.ssh/authorized_keys and the host key
 // in 012's config directory.
 func Defaults() Options {
-	o := Options{Dir: ".", Listen: DefaultListen, IdleTimeout: DefaultIdleTimeout, MaxSessions: DefaultMaxSessions}
+	o := Options{Dir: ".", Listen: DefaultListen, IdleTimeout: DefaultIdleTimeout, MaxSessions: DefaultMaxSessions, Share: "edit"}
 	if home, err := os.UserHomeDir(); err == nil {
 		o.AuthorizedKeys = filepath.Join(home, ".ssh", "authorized_keys")
 	}
@@ -73,6 +77,8 @@ func (o Options) validate() error {
 		return fmt.Errorf("max sessions is %d, it must be at least 1", o.MaxSessions)
 	case o.IdleTimeout < 0:
 		return errors.New("the idle timeout can't be negative")
+	case o.Share != "" && o.Share != "edit" && o.Share != "view" && o.Share != "off":
+		return fmt.Errorf("share is %q: edit, view or off", o.Share)
 	}
 	return nil
 }

@@ -234,7 +234,7 @@ func TestNotebookRestartAndToggle(t *testing.T) {
 		t.Errorf("o didn't show all of it:\n%s", s)
 	}
 	press(t, m, "0", "0")
-	if m.book().Output(m.sheet.NotebookCells()[0].ID) != nil || m.nb.count != 0 {
+	if m.book().Output(m.sheet.NotebookCells()[0].ID) != nil || m.nb.runs.count != 0 {
 		t.Error("0 0 left outputs")
 	}
 }
