@@ -113,7 +113,7 @@ func describeSchema() *jsonschema.Schema {
 }
 
 func (s *Server) describe(ctx context.Context, req *sdk.CallToolRequest, in describeIn) (*sdk.CallToolResult, describeOut, error) {
-	if in.Path == "" && s.opts.Default == "" {
+	if in.Path == "" && s.opts.Default == "" && s.opts.Live == nil {
 		roots := s.roots(ctx, req.Session)
 		files, more := s.listFiles(roots)
 		return nil, describeOut{Roots: rootDirs(roots), Workbooks: files, More: more}, nil

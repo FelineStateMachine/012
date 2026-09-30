@@ -13,20 +13,28 @@ import (
 // Change, so one undo step and one save, and returns what changed as
 // 012 diff lists it; dry_run returns it without keeping it.
 
+// whyIn is a change's message, in live mode.
+type whyIn struct {
+	Message string `json:"message,omitempty" jsonschema:"live mode: why, shown to the person with your suggestion"`
+}
+
 type writeIn struct {
 	bookIn
+	whyIn
 	Entries []headless.Entry `json:"entries" jsonschema:"the cells to set, in order: each a ref (one cell) and its input, typed as a person types it in en-US form; an empty input clears the cell"`
 	DryRun  bool             `json:"dry_run,omitempty" jsonschema:"check the entries and return the change without making it"`
 }
 
 type opsIn struct {
 	bookIn
+	whyIn
 	Operations []headless.Operation `json:"operations" jsonschema:"the operations, made in order as one change"`
 	DryRun     bool                 `json:"dry_run,omitempty" jsonschema:"return the change without making it"`
 }
 
 type sortIn struct {
 	bookIn
+	whyIn
 	Ref    string             `json:"ref" jsonschema:"the range to sort"`
 	Keys   []headless.SortKey `json:"keys" jsonschema:"the columns to sort by, first first"`
 	Header bool               `json:"header,omitempty" jsonschema:"the first row is a header and stays in place"`
@@ -35,6 +43,7 @@ type sortIn struct {
 
 type filterIn struct {
 	bookIn
+	whyIn
 	Ref     string                  `json:"ref" jsonschema:"the range to filter, its first row the header"`
 	Columns []headless.FilterColumn `json:"columns,omitempty" jsonschema:"each filtered column's criteria"`
 	Remove  bool                    `json:"remove,omitempty" jsonschema:"take the sheet's filter off instead"`
@@ -43,12 +52,14 @@ type filterIn struct {
 
 type chartIn struct {
 	bookIn
+	whyIn
 	headless.ChartSpec
 	DryRun bool `json:"dry_run,omitempty"`
 }
 
 type pivotIn struct {
 	bookIn
+	whyIn
 	headless.PivotSpec
 	DryRun bool `json:"dry_run,omitempty"`
 }
@@ -65,6 +76,10 @@ type Changed struct {
 	Saved    bool              `json:"saved"`
 	Changes  []headless.Change `json:"changes"`
 	Warnings []string          `json:"warnings"`
+	// Suggestion and Notices are live mode's: the change waiting for
+	// the person, and what became of earlier ones.
+	Suggestion int      `json:"suggestion,omitempty" jsonschema:"live mode: the suggestion's number, waiting for the person to accept or reject it"`
+	Notices    []string `json:"notices,omitempty" jsonschema:"live mode: what became of your earlier suggestions"`
 }
 
 type chartOut struct {
@@ -85,7 +100,7 @@ func (s *Server) addWriteTools() {
 		Description: "Type entries into cells as one change, as 012 set does: each checked as typing it is (a formula must parse, validation rules, protected ranges), stopping at the first a cell can't take."},
 		func(ctx context.Context, req *sdk.CallToolRequest, in writeIn) (*sdk.CallToolResult, Changed, error) {
 			var warnings []string
-			return s.change(ctx, req, in.Path, "set", in.DryRun, &warnings, func(w *sheet.Workbook) (err error) {
+			return s.change(ctx, req, in.Path, "set", in.Message, in.DryRun, &warnings, func(w *sheet.Workbook) (err error) {
 				warnings, err = headless.Set(w, in.Entries, set)
 				return err
 			})
@@ -94,19 +109,19 @@ func (s *Server) addWriteTools() {
 		Description: "Make several operations as one change: set, clear, insert_rows, delete_rows, insert_columns, delete_columns, add_sheet, rename_sheet, delete_sheet, define_name, sort."},
 		func(ctx context.Context, req *sdk.CallToolRequest, in opsIn) (*sdk.CallToolResult, Changed, error) {
 			var warnings []string
-			return s.change(ctx, req, in.Path, "apply operations", in.DryRun, &warnings, func(w *sheet.Workbook) (err error) {
+			return s.change(ctx, req, in.Path, "apply operations", in.Message, in.DryRun, &warnings, func(w *sheet.Workbook) (err error) {
 				warnings, err = headless.Apply(w, in.Operations, set)
 				return err
 			})
 		})
 	tool(s, &sdk.Tool{Name: "sort", Annotations: writes, Description: "Sort a range's rows by columns, as Data > Sort range does."},
 		func(ctx context.Context, req *sdk.CallToolRequest, in sortIn) (*sdk.CallToolResult, Changed, error) {
-			return s.change(ctx, req, in.Path, "sort", in.DryRun, nil, func(w *sheet.Workbook) error { return headless.Sort(w, in.Ref, in.Keys, in.Header) })
+			return s.change(ctx, req, in.Path, "sort", in.Message, in.DryRun, nil, func(w *sheet.Workbook) error { return headless.Sort(w, in.Ref, in.Keys, in.Header) })
 		})
 	tool(s, &sdk.Tool{Name: "filter", Annotations: writes,
 		Description: "Put a filter on a range, hiding the rows its columns' conditions or values leave out, as Data > Create a filter does; or remove the sheet's filter."},
 		func(ctx context.Context, req *sdk.CallToolRequest, in filterIn) (*sdk.CallToolResult, Changed, error) {
-			return s.change(ctx, req, in.Path, "filter", in.DryRun, nil, func(w *sheet.Workbook) error { return headless.Filter(w, in.Ref, in.Columns, in.Remove) })
+			return s.change(ctx, req, in.Path, "filter", in.Message, in.DryRun, nil, func(w *sheet.Workbook) error { return headless.Filter(w, in.Ref, in.Columns, in.Remove) })
 		})
 	tool(s, &sdk.Tool{Name: "create_chart", Annotations: writes, Meta: viewMeta("Adding the chart", "Added the chart"),
 		Description: "Add a chart of a range, as Insert > Chart does, with the header row, labels and title guessed unless given."},
@@ -115,13 +130,16 @@ func (s *Server) addWriteTools() {
 		Description: "Add a pivot table on a new sheet, summarizing a range whose first row names its columns."},
 		func(ctx context.Context, req *sdk.CallToolRequest, in pivotIn) (*sdk.CallToolResult, pivotOut, error) {
 			var out pivotOut
-			_, changed, err := s.change(ctx, req, in.Path, "create pivot table", in.DryRun, nil, func(w *sheet.Workbook) (err error) {
+			_, changed, err := s.change(ctx, req, in.Path, "create pivot table", in.Message, in.DryRun, nil, func(w *sheet.Workbook) (err error) {
 				out.Sheet, err = headless.AddPivot(w, in.PivotSpec)
 				return err
 			})
 			out.Changed = changed
 			return nil, out, err
 		})
+	if s.opts.Live != nil {
+		return // the live tools run notebook cells; there are no files to create
+	}
 	s.addCreateTool()
 	if s.opts.Notebooks != nil {
 		tool(s, &sdk.Tool{Name: "run_notebook_cell", Annotations: &sdk.ToolAnnotations{DestructiveHint: ptr(false), OpenWorldHint: ptr(true)},
@@ -137,7 +155,7 @@ func (s *Server) createChart(ctx context.Context, req *sdk.CallToolRequest, in c
 	if err != nil {
 		return nil, out, err
 	}
-	_, changed, err := s.change(ctx, req, in.Path, "insert chart", in.DryRun, nil, func(w *sheet.Workbook) (err error) {
+	_, changed, err := s.change(ctx, req, in.Path, "insert chart", in.Message, in.DryRun, nil, func(w *sheet.Workbook) (err error) {
 		if out.Chart, err = headless.AddChart(w, in.ChartSpec); err != nil {
 			return err
 		}
@@ -157,7 +175,7 @@ func (s *Server) runCell(ctx context.Context, req *sdk.CallToolRequest, in runCe
 	if err != nil {
 		return nil, out, err
 	}
-	_, _, err = s.change(ctx, req, in.Path, "run notebook cell", false, nil, func(w *sheet.Workbook) error {
+	_, _, err = s.change(ctx, req, in.Path, "run notebook cell", "", false, nil, func(w *sheet.Workbook) error {
 		if s.opts.MayRun != nil {
 			if err := s.opts.MayRun(b.path, w); err != nil {
 				return err
@@ -172,16 +190,23 @@ func (s *Server) runCell(ctx context.Context, req *sdk.CallToolRequest, in runCe
 
 // change makes fn a change of the workbook path names and says what it
 // changed; warnings, when set, are fn's.
-func (s *Server) change(ctx context.Context, req *sdk.CallToolRequest, path, label string, dryRun bool, warnings *[]string, fn func(*sheet.Workbook) error) (*sdk.CallToolResult, Changed, error) {
+func (s *Server) change(ctx context.Context, req *sdk.CallToolRequest, path, label, message string, dryRun bool, warnings *[]string, fn func(*sheet.Workbook) error) (*sdk.CallToolResult, Changed, error) {
 	b, err := s.open(ctx, req, path)
 	if err != nil {
 		return nil, Changed{}, err
 	}
-	changes, err := b.Change(ctx, label, dryRun, fn)
+	var made Made
+	if l, ok := b.Backend.(Live); ok {
+		made, err = l.Make(ctx, Making{Label: label, Message: message, DryRun: dryRun, Fn: fn})
+	} else {
+		made.Changes, err = b.Change(ctx, label, dryRun, fn)
+		made.Applied = !dryRun
+	}
 	if err != nil {
 		return nil, Changed{}, err
 	}
-	out := Changed{Saved: !dryRun && len(changes) > 0, Changes: headless.Changes(changes), Warnings: []string{}}
+	out := Changed{Saved: made.Applied && len(made.Changes) > 0, Changes: headless.Changes(made.Changes), Warnings: []string{},
+		Suggestion: made.Suggestion, Notices: made.Notices}
 	if warnings != nil && *warnings != nil {
 		out.Warnings = *warnings
 	}
