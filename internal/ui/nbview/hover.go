@@ -4,7 +4,6 @@ import (
 	"context"
 	"slices"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -68,8 +67,7 @@ func (v *View) rest() tea.Cmd {
 	e := &v.edit
 	e.moves++
 	e.stopHover()
-	moves := e.moves
-	return tea.Tick(pause, func(time.Time) tea.Msg { return restedMsg{view: v, moves: moves} })
+	return v.afterPause(restedMsg{view: v, moves: e.moves})
 }
 
 func (e *editor) stopHover() {

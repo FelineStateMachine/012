@@ -57,10 +57,14 @@ func TestCommandStart(t *testing.T) {
 	}
 }
 
-// settle runs cmd and hands the view the messages it makes, and theirs.
+// settle runs cmd and hands the view the messages it makes, and theirs,
+// with typing's pauses over at once.
 func settle(v *View, cmd tea.Cmd) []tea.Msg {
 	var out []tea.Msg
 	for _, msg := range drain(cmd) {
+		if p, ok := msg.(paused); ok {
+			msg = p.msg
+		}
 		out = append(out, msg)
 		if next, ok := v.Update(msg); ok {
 			out = append(out, settle(v, next)...)

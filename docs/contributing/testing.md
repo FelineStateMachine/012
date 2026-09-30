@@ -58,7 +58,11 @@ the seed draws, and its accepted steps are undone with the rest.
 
 The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and
-reading what `View` renders, without a terminal. Sessions sharing a
+reading what `View` renders, without a terminal. No unit test waits
+on a debounce: a notebook times typing's pauses on a clock the tests
+give it (`nbview.View.After`), which hands them the message the pause
+would, and a test that wants the pause over delivers it (`endPauses`).
+Sessions sharing a
 workbook are driven the same way through `ui.Shared`, each room's
 changes handed to the others as their programs would get them
 (`share_test.go`), and in real Bubble Tea programs typing at once under

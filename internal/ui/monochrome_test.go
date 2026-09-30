@@ -487,6 +487,7 @@ func TestMonochromeNuProblem(t *testing.T) {
 	run(m, m.runCommand("nb.open"))
 	press(t, m, "b", "<enter>")
 	send(m, pasteMsg("ls | sort-by name --revrse"))
+	endPauses(m)
 	l := findLine(t, m, "sort-by")
 	if c := cellsOf(l, "--revrse"); !every(c, true, func(c monoCell) bool { return c.underline == "3" }) {
 		t.Errorf("the problem isn't underlined: %+v", c)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -121,9 +122,14 @@ func newView(h *fakeHost, w, ht int) *View {
 	v.Keys = map[string]string{"enter": "nb.edit", "d d": "nb.delete", "o": "nb.toggle_output", "shift+enter": "nb.run_next"}
 	v.EditKeys = map[string]string{"esc": "nb.command_mode", "shift+enter": "nb.run_next"}
 	v.Providers = Providers{Highlighter: Tokens{}}
+	v.After = func(_ time.Duration, msg tea.Msg) tea.Cmd { return func() tea.Msg { return paused{msg} } }
 	v.Resize(w, ht)
 	return v
 }
+
+// paused is a message the view asked for once typing pauses: no test
+// waits for the pause; settle ends it at once, and the others never.
+type paused struct{ msg tea.Msg }
 
 func text(v *View) string { return ansi.Strip(strings.Join(v.Lines(), "\n")) }
 

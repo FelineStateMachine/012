@@ -65,6 +65,7 @@ func TestNotebookAsksNuAsTrusted(t *testing.T) {
 	m.nb.still = true
 	run(m, m.runCommand("nb.open"))
 	press(t, m, "b", "<enter>", "l")
+	endPauses(m)
 	if got := nu.asked(); !slices.Contains(got, "--ide-ast") || !slices.Contains(got, "--ide-check") {
 		t.Fatalf("a notebook made here: asked %v", got)
 	}
@@ -85,6 +86,7 @@ func TestNotebookAsksNuAsTrusted(t *testing.T) {
 	m2.nb.still = true
 	run(m2, m2.runCommand("nb.open"))
 	press(t, m2, "<enter>", "s")
+	endPauses(m2)
 	if got := nu.asked(); len(got) != 0 {
 		t.Errorf("a file from elsewhere, not trusted: asked %v", got)
 	}
@@ -92,12 +94,14 @@ func TestNotebookAsksNuAsTrusted(t *testing.T) {
 	run(m2, m2.runCommand("nb.run_all"))
 	press(t, m2, "<enter>") // Run this file's notebook cells? Run
 	press(t, m2, "<enter>", "s")
+	endPauses(m2)
 	if got := nu.asked(); !slices.Contains(got, "--ide-ast") {
 		t.Errorf("trusted: asked %v", got)
 	}
 	press(t, m2, "<esc>")
 	m2.nb.served = true
 	press(t, m2, "<enter>", "s")
+	endPauses(m2)
 	if got := nu.asked(); len(got) != 0 {
 		t.Errorf("served without serve-shell: asked %v", got)
 	}
@@ -147,11 +151,13 @@ func TestNotebookWordHelp(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
 	run(m, m.runCommand("nb.open"))
 	press(t, m, "b", "<enter>", "ls | sort-by name -r", "<home>", "<right>", "<right>", "<right>", "<right>", "<right>", "<right>")
+	endPauses(m)
 	if got := line(m, contextLine); !strings.Contains(got, "sort-by <...comparator: cell-path|closure> --reverse") ||
 		!strings.Contains(got, "Sort by the given cell path or closure.") || !strings.Contains(got, "F1") {
 		t.Fatalf("context line %q", got)
 	}
 	press(t, m, "<end>")
+	endPauses(m)
 	if got := line(m, contextLine); !strings.Contains(got, "sort-by --reverse, -r") || !strings.Contains(got, "Sort in reverse order.") {
 		t.Errorf("on the flag: %q", got)
 	}

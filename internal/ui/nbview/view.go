@@ -73,6 +73,10 @@ type View struct {
 	// "d d" is d pressed twice.
 	Keys, EditKeys map[string]string
 	Providers      Providers
+	// After is the clock typing's pauses are timed on: a command that
+	// gives msg once d has passed, tea.Tick's when nil. Tests give one
+	// that hands them msg, to deliver when they want the pause over.
+	After func(d time.Duration, msg tea.Msg) tea.Cmd
 
 	sel    int  // the active cell
 	anchor int  // the other end of the cells selected with it, or -1

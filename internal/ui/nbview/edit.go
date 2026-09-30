@@ -21,6 +21,14 @@ import (
 // pause is how long typing pauses before the language is asked.
 const pause = 80 * time.Millisecond
 
+// afterPause gives msg once typing has paused, on the view's clock.
+func (v *View) afterPause(msg tea.Msg) tea.Cmd {
+	if v.After != nil {
+		return v.After(pause, msg)
+	}
+	return tea.Tick(pause, func(time.Time) tea.Msg { return msg })
+}
+
 // editor is the cell being edited.
 type editor struct {
 	on      bool
@@ -208,7 +216,7 @@ func (v *View) changed() tea.Cmd {
 		return rest
 	}
 	version := v.edit.version
-	return tea.Batch(rest, tea.Tick(pause, func(time.Time) tea.Msg { return pausedMsg{view: v, version: version} }))
+	return tea.Batch(rest, v.afterPause(pausedMsg{view: v, version: version}))
 }
 
 // cancel stops the questions about the text being edited that are

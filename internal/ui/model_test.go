@@ -102,6 +102,10 @@ func runVia(update func(tea.Msg) tea.Cmd, cmd tea.Cmd) tea.Msg {
 	if _, ok := out.(autoscrollMsg); ok {
 		return nil
 	}
+	if msg, ok := out.(pausedMsg); ok {
+		pauses = append(pauses, msg.msg) // tests end them with endPauses
+		return nil
+	}
 	if msg, ok := out.(nbStreamMsg); ok {
 		streamPolls = append(streamPolls, msg) // tests take them with pumpStreams
 		return nil
