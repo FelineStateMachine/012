@@ -18,11 +18,9 @@ func (v *View) Key(k tea.KeyPressMsg) bool {
 	case "right", "tab":
 		v.Move(0, 1)
 	case "pgup":
-		v.Scroll(-page)
-		v.Move(-page, 0)
+		v.page(-page)
 	case "pgdown":
-		v.Scroll(page)
-		v.Move(page, 0)
+		v.page(page)
 	case "home", "ctrl+left":
 		v.MoveTo(v.cur, 0)
 	case "end", "ctrl+right":
@@ -39,4 +37,13 @@ func (v *View) Key(k tea.KeyPressMsg) bool {
 		return false
 	}
 	return true
+}
+
+// page moves the window and the active cell d rows, as a sheet's Page
+// Up and Down do.
+func (v *View) page(d int64) {
+	v.top += d
+	v.cur += d
+	v.clamp()
+	v.follow()
 }

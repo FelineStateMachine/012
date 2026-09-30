@@ -91,8 +91,21 @@ func (m *Model) sourceCommand(c *command) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// sourceAvailable reports whether a command runs on a source's tab.
-func sourceAvailable(id string) bool { return notebookSafe(id) || sourceTakes[id] }
+// sourceEnabled says whether a command runs on a source's tab, when
+// the tab decides it: those that would change cells don't, and those
+// acting on the source do, whatever they say of a sheet.
+func sourceEnabled(m *Model, id string) (on, decided bool) {
+	switch {
+	case notebookSafe(id), id == "data.source_all", id == "data.source_reload":
+		return false, false
+	case !sourceTakes[id]:
+		return false, true
+	case id == "data.filter_remove":
+		info, _ := m.sheet.Source()
+		return info.Source.Order != nil && len(info.Source.Order.Filter) > 0, true
+	}
+	return true, true
+}
 
 // copyOrder is a copy of o to change, never nil.
 func copyOrder(o *sheet.SourceOrder) *sheet.SourceOrder {
@@ -124,7 +137,7 @@ func (m *Model) openSourceFilter(info sheet.SourceInfo, col int) {
 		}
 	}
 	title := "Filter " + sheet.ColName(col) + "  " + m.sourceCol(info, col)
-	m.openValuesPicker(title, 0, nil, cond, func(cr sheet.Criteria) {
+	p := m.openValuesPicker(title, m.srcView().ColX(col), nil, cond, func(cr sheet.Criteria) {
 		o := copyOrder(info.Source.Order)
 		o.Filter = slices.DeleteFunc(o.Filter, func(f sheet.SourceFilter) bool { return f.Col == col })
 		if cr.Cond.Op != sheet.CondNone {
@@ -132,6 +145,7 @@ func (m *Model) openSourceFilter(info sheet.SourceInfo, col int) {
 		}
 		m.setSourceOrder(info, o)
 	})
+	p.OnlyCondition()
 }
 
 // sourcePivot makes a pivot table over the whole source on a new sheet,

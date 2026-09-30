@@ -48,6 +48,7 @@ type Picker struct {
 	field        int       // 0 is the search, 1 the condition's value
 	fields       [2]string // the text of each field
 	shown        []int     // values matching the search, best first
+	condOnly     bool      // no values to tick, only the condition: OnlyCondition
 	overlay.List           // over the rows: "Select all", then shown
 }
 
@@ -74,6 +75,14 @@ func New(h Host, title string, x int, values []sheet.FilterValue, cond sheet.Con
 func (p *Picker) Start() {
 	p.h.Line().Clear()
 	p.search()
+}
+
+// OnlyCondition has the picker ask for the condition alone, with no
+// values to tick, for a column whose values are too many to list (a
+// linked source's). Call it after Start.
+func (p *Picker) OnlyCondition() {
+	p.condOnly = true
+	p.focus(1)
 }
 
 // close closes the picker without applying it.
@@ -211,7 +220,9 @@ func (p *Picker) Key(k tea.KeyPressMsg) tea.Cmd {
 	case key == "enter":
 		p.apply()
 	case key == "tab" || key == "shift+tab":
-		p.focus(1 - p.field)
+		if !p.condOnly {
+			p.focus(1 - p.field)
+		}
 	case p.field == 1 && (key == "up" || key == "down"):
 		if key == "up" {
 			p.cycle(-1)
@@ -264,7 +275,7 @@ func (p *Picker) Mouse(e overlay.MouseEvent) tea.Cmd {
 		case x == ansi.StringWidth(p.condChip())-1:
 			p.cycle(1)
 		}
-	case e.Row == 3 && e.Kind == overlay.MousePress:
+	case e.Row == 3 && e.Kind == overlay.MousePress && !p.condOnly:
 		p.focus(0)
 	case e.Row < firstRow || i >= n || i >= p.Top+p.rows():
 	case e.Kind == overlay.MouseMotion:
@@ -278,6 +289,9 @@ func (p *Picker) Mouse(e overlay.MouseEvent) tea.Cmd {
 
 func (p *Picker) Status() (string, string) {
 	th := p.h.Theme()
+	if p.condOnly {
+		return "Rows must meet the condition", th.KeyHints("Up/Down", "condition", "Enter", "apply", "Esc", "cancel")
+	}
 	if p.field == 1 {
 		return "Rows must also meet the condition", th.KeyHints("Up/Down", "condition", "Tab", "values", "Enter", "apply", "Esc", "cancel")
 	}
@@ -361,6 +375,9 @@ func (p *Picker) Layout() []overlay.Box {
 	input := th.Title.Render(overlay.SearchPrompt) + search
 	if search == "" {
 		input += th.Muted.Render("Search values")
+	}
+	if p.condOnly {
+		return []overlay.Box{{ID: ID, X: x, Y: y, Lines: th.Frame(inner, p.title, "", []string{theme.Cells(th.MenuBar, cond, inner)})}}
 	}
 	lines := []string{theme.Cells(th.MenuBar, cond, inner), theme.SepRow, theme.Cells(th.MenuBar, input, inner), theme.SepRow}
 	for r := range rows {

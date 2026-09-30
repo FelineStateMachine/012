@@ -145,6 +145,13 @@ var symbols = map[rune]func(y symbol){
 	'✓': func(y symbol) { y.line(.12, .14, .54, .4, .8, .88, .2) },
 	'✗': func(y symbol) { y.line(.12, .2, .2, .8, .8); y.line(.12, .8, .2, .2, .8) },
 	'❯': func(y symbol) { y.line(.16, .3, .16, .72, .5, .3, .84) },
+	'▦': func(y symbol) {
+		y.box(.1, .1, .9, .9, .08)
+		y.line(.06, .1, .37, .9, .37)
+		y.line(.06, .1, .63, .9, .63)
+		y.line(.06, .37, .1, .37, .9)
+		y.line(.06, .63, .1, .63, .9)
+	},
 	'⧉': func(y symbol) { y.box(.08, .08, .64, .64, .08); y.box(.36, .36, .92, .92, .08) },
 	'⎘': func(y symbol) { y.box(.16, .16, .84, .94, .08); y.rect(.34, .04, .66, .26) },
 	'↻': reload,

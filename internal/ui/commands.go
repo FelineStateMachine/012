@@ -86,8 +86,10 @@ const (
 
 // available reports whether the command can run in m's current state.
 func (c *command) available(m *Model) bool {
-	if m.sheet.IsSource() && !sourceAvailable(c.id) {
-		return false
+	if m.sheet.IsSource() {
+		if on, decided := sourceEnabled(m, c.id); decided {
+			return on
+		}
 	}
 	if m.sheet.IsNotebook() && (!notebookSafe(c.id) || gridTakes(c.id)) {
 		if g := m.gridIn(); g != nil {

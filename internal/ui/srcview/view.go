@@ -206,7 +206,7 @@ func (v *View) fit() {
 	for c, col := range cols {
 		widths[c] = max(len(sheet.ColName(c)), len([]rune(col.Name)))
 	}
-	fitted := true
+	_, fitted := v.h.Rows() // fitted again once the rows are counted
 	for i := v.top; i < v.top+int64(v.Lines()) && i < v.rows(); i++ {
 		_, row, ok := v.h.Row(i)
 		if !ok {

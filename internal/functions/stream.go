@@ -191,7 +191,7 @@ func overBudget(c StreamCall, book Book, budget int) string {
 	if cells <= budget {
 		return ""
 	}
-	return fmt.Sprintf("%s holds what it reads: %s cells of %s, more than max-cells (%s). SUM, COUNTIFS, XLOOKUP and the like read a source of any size",
+	return fmt.Sprintf("%s would hold %s cells of %s, past max-cells (%s): SUMIFS, XLOOKUP and the like stream them instead",
 		c.Fn, grouped(cells), biggest, grouped(budget))
 }
 

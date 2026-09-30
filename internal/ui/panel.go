@@ -205,8 +205,7 @@ func (m *Model) formulaBar() string {
 		return m.notebookToolbar(v)
 	}
 	if v := m.srcView(); v != nil && m.mode != modePrompt {
-		name, text := m.sourceCell(v)
-		return m.th.Header.Render(theme.PadRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " " + text
+		return m.sourceBar(v)
 	}
 	name := m.cur.String()
 	if m.away() {

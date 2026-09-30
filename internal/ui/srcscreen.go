@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FelineStateMachine/012/internal/locale"
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -106,8 +107,11 @@ func (m *Model) sourceLines(v *srcview.View) []string {
 func (m *Model) sourceCell(v *srcview.View) (string, string) {
 	num, cell, ok := v.Cell()
 	_, col := v.Active()
-	if !ok {
-		return sheet.ColName(col) + "…", ""
+	switch rows, known := (srcHost{m, m.sheet}).Rows(); {
+	case !ok && known && rows > 0:
+		return sheet.ColName(col) + "…", "" // its row is on its way
+	case !ok:
+		return "A1", ""
 	}
 	a := sheet.Addr{Col: col, Row: int(num) + 1}
 	name := a.String()
@@ -124,6 +128,13 @@ func (m *Model) sourceCell(v *srcview.View) (string, string) {
 		}
 	}
 	return name, sheet.FormatTextIn(cell.V, f, m.locale())
+}
+
+// sourceBar is the formula bar on a source's tab: the active cell's
+// name and value.
+func (m *Model) sourceBar(v *srcview.View) string {
+	name, text := m.sourceCell(v)
+	return m.th.Header.Render(theme.PadRight(" "+ansi.Truncate(name, nameBoxW-1, "…"), nameBoxW)) + " " + text
 }
 
 // sourceContext is the context line on a source tab: what it is, how

@@ -221,3 +221,16 @@ func (v *View) DragBar(y int) {
 	lines := v.Lines()
 	v.ScrollBar(min(max(y-firstRow, 0), lines-1), lines)
 }
+
+// ColX is the screen column column col starts at, from the view's
+// left edge: the row numbers' width when it isn't shown.
+func (v *View) ColX(col int) int {
+	x := v.gutter()
+	for _, c := range v.shown() {
+		if c == col {
+			return x
+		}
+		x += v.colWidth(c)
+	}
+	return v.gutter()
+}

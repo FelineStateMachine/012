@@ -112,6 +112,9 @@ ASCII are compared by case.
 
 ## Formulas over a source
 
+![Formulas on Sheet1 over two million trips, and a MEDIAN past max-cells saying why on the context line](../media/source-formulas-dark.png#gh-dark-mode-only)
+![Formulas on Sheet1 over two million trips, and a MEDIAN past max-cells saying why on the context line](../media/source-formulas-light.png#gh-light-mode-only)
+
 A function given a source's range is worked out in the background, by
 reading the source; its cell shows `Loading…` until then. The answer
 is kept until the file changes, so another formula asking the same, or
