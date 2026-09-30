@@ -17,6 +17,8 @@ source of ten million rows opens at once and takes a few MB.
 
 ## Linking a source
 
+![Ten million rows of Parquet linked as a source, sorted by amount in the background, then read whole by a SUMIFS](../media/sources.gif)
+
 **Data > Linked file > Link a source** lists the Parquet files and
 SQLite databases in the folder, or takes a path. For a database a
 second list asks which table or view to read, or **A query…** to read
