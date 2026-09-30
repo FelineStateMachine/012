@@ -149,7 +149,8 @@ selection, sheet shown, theme and modes. A session on a new sheet or an
 imported file has a workbook of its own until it's saved and opened
 again.
 
-![Two others in a shared budget: their pointers in their colors, their initials on the row headers, their names on the status line](../media/share-presence.png)
+![Ann's screen with bob and cy in the budget: bob's pointer on D4 in his color, cy's on A8 in hers, their initials on those rows' headers, the cells they just changed marked, and their names on the status line](../media/share-presence-dark.png#gh-dark-mode-only)
+![Ann's screen with bob and cy in the budget: bob's pointer on D4 in his color, cy's on A8 in hers, their initials on those rows' headers, the cells they just changed marked, and their names on the status line](../media/share-presence-light.png#gh-light-mode-only)
 
 **Who is where.** Each other person in the room has a color: their
 pointer's cell is drawn in it, double-underlined, their initial is on
@@ -165,6 +166,8 @@ whole, in one order, through the one path every change takes in 012:
 two entries in one cell leave the later one, and the one who typed
 over the other's change is told, as is the one typing while someone
 else changed the cell.
+
+![Ann above and bob below, in tmux panes, in one budget: each change arrives in the other's pane, ann lists who's here, and bob's undo takes back only his own change](../media/share.gif)
 
 **Undo is yours.** Ctrl+Z takes back your own latest change, even when
 others changed other cells since: theirs stay. When someone changed the
