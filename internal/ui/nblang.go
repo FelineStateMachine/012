@@ -4,12 +4,16 @@ import (
 	"slices"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/cmdhelp"
 	"github.com/FelineStateMachine/012/internal/ui/nbview"
 )
 
 // What the code editor knows of nushell: nu itself, asked about the
-// cell being written (nbview.Nu), with the notebook's own words. nu is
+// cell being written (nbview.Nu), with the notebook's own words, and
+// F1's help on the command at the caret. nu is
 // asked only where a cell could run without asking: not in 012 serve
 // unless serve-shell allows it, not with shell = off, and not about a
 // file from another computer until its cells are trusted. Otherwise,
@@ -88,3 +92,23 @@ func (m *Model) nbWords(s *sheet.Sheet) []nbview.Word {
 	}
 	return out
 }
+
+func init() {
+	register(&command{id: "nb.word_help", macro: macroNever, title: "Help on the command",
+		desc:    "Show the whole help of the nushell command or flag at the caret, with its page in nushell's docs",
+		enabled: func(m *Model) bool { v := m.nbView(); return v != nil && v.Editing() },
+		run:     func(m *Model) tea.Cmd { return m.nbView().WordHelp() }})
+}
+
+// showWordHelp opens the help of the command at the caret, or the
+// keyboard shortcuts, as F1 anywhere else, when nu has none for it.
+func (m *Model) showWordHelp(msg nbview.HelpMsg) tea.Cmd {
+	if msg.Help == nil {
+		return m.runCommand("help")
+	}
+	m.openOverlay(cmdhelp.New(m.host(), *msg.Help))
+	return nil
+}
+
+// Code draws a line of nushell as a notebook's cells do.
+func (h host) Code(src string) string { return nbview.Highlighted(&h.m.th, src) }

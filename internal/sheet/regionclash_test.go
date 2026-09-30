@@ -101,3 +101,47 @@ func TestPasteIntoARegionsBlankCell(t *testing.T) {
 	apply(t, s, op)
 	wantShown(t, s, map[string]string{"A1": "#REF!", "A2": "", "B2": "9"})
 }
+
+// An array that would spill over a region's table whose cells it reads
+// is a circular dependency: spilling, it would block the region and
+// read its #REF!, come out smaller and free it. It shows #REF! and the
+// region its table, whichever came first, and opened again.
+func TestArrayOverRegionItReadsTheCellsOf(t *testing.T) {
+	op := LiveOp{Region: "a", Reset: true, Header: liveRow("x", "y"), Rows: []LiveRow{liveRow("1", "2")}}
+	feeds := map[string]LiveOp{"a": op}
+	want := map[string]string{"I9": "#REF!", "H10": "x", "I11": "2"}
+	for _, arrayFirst := range []bool{false, true} {
+		s := New()
+		sent(t, s, "a", "H10")
+		if !arrayFirst {
+			apply(t, s, op)
+		}
+		s.Set(at("I9"), "=SORT(H9:H11)")
+		if arrayFirst {
+			apply(t, s, op)
+		}
+		feedStale(s.Book(), feeds)
+		if stale := s.Book().StaleOutputs(); len(stale) > 0 {
+			t.Errorf("array first %v: still stale %v", arrayFirst, stale)
+		}
+		wantShown(t, s, want)
+		opened := roundTrip(t, s)
+		feedAll(opened.Book(), feeds)
+		feedStale(opened.Book(), feeds)
+		wantShown(t, opened, want)
+	}
+}
+
+// A region blocked by a formula and an array reading its cells, the formula
+// cleared, is blocked by the array alone, which then finds the cycle.
+func TestRegionFreedButForAnArrayReadingIt(t *testing.T) {
+	op := LiveOp{Region: "a", Reset: true, Header: liveRow("x", "y", "z"), Rows: []LiveRow{liveRow("1", "2", "3")}}
+	s := New()
+	sent(t, s, "a", "F10")
+	s.Set(at("F11"), "=SEQUENCE(1)")
+	s.Set(at("H9"), "=SORT(F6:F10)")
+	apply(t, s, op)
+	s.Set(at("F11"), "")
+	feedStale(s.Book(), map[string]LiveOp{"a": op})
+	wantShown(t, s, map[string]string{"H9": "#REF!", "F10": "x", "H11": "3"})
+}

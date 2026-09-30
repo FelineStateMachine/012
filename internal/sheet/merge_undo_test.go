@@ -69,3 +69,21 @@ func TestUnmergeFreesArrayPastTheRange(t *testing.T) {
 		t.Errorf("H12 once the merge went = %v", v)
 	}
 }
+
+// A paste carrying merges replaces those it lands over, whole: an array
+// that one blocked past the paste spills again.
+func TestPastedMergeFreesAnArrayPastIt(t *testing.T) {
+	s := New()
+	if err := s.Merge(NewRect(at("A1"), at("A2")), MergeAll); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Merge(NewRect(at("B14"), at("C14")), MergeAll); err != nil {
+		t.Fatal(err)
+	}
+	s.Set(at("B14"), "=SEQUENCE(2)")
+	wantShown(t, s, map[string]string{"B14": "#REF!"})
+	if _, err := s.Paste(s.Copy(NewRect(at("A1"), at("A2"))), NewRect(at("C13"), at("C14")), false); err != nil {
+		t.Fatal(err)
+	}
+	wantShown(t, s, map[string]string{"B14": "1", "B15": "2"})
+}

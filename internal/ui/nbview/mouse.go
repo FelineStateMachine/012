@@ -68,7 +68,7 @@ func (v *View) Click(x, y int, shift bool) tea.Cmd {
 	if v.edit.on && h.cell == v.sel && h.kind == rowSrc && boxed && v.inBox(x) {
 		v.edit.area.Place(v.content(), h.r, x-textX)
 		v.follow()
-		return nil
+		return v.rest()
 	}
 	double := !shift && v.lastTap.cell == h.cell && v.lastTap.kind == h.kind && time.Since(v.lastTap.at) < 400*time.Millisecond
 	v.lastTap = tap{at: time.Now(), cell: h.cell, kind: h.kind}

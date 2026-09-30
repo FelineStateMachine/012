@@ -29,7 +29,7 @@ saved and saves them again, byte for byte
 ([File fixtures](releasing.md#file-fixtures)).
 
 `TestRandomEdits` (`internal/sheet/randedit_test.go`) checks what holds
-between features: from each of a thousand seeds it builds a workbook
+between features: from each of 3,000 seeds it builds a workbook
 of two sheets and a notebook tab, makes up to 40 edits drawn from the
 seed (entries, pastes, fills, series, sorts, inserted and deleted rows
 and columns, formats, borders, merges, moves, notes, rules, names,
@@ -43,7 +43,7 @@ scratch), and recalculating everything in place changes no value.
 Outputs' rows come from outside the undo history, so the test sends
 them again after each edit, undo and reopening, as the UI does. A
 failure names the fewest of the seed's edits that still fail. It takes
-about a second; `-randedit.seeds=20000` runs more, and
+a few seconds; `-randedit.seeds=20000` runs more, and
 `FuzzRandomEdits` (in `make fuzz`) lets the fuzzer choose the edits.
 
 `TestRandomSharedEdits` (`randedit_shared_test.go`) makes the same

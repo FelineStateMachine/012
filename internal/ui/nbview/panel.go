@@ -70,6 +70,12 @@ func (v *View) ContextLine() (string, string) {
 		if d := v.Diagnostic(); d != "" {
 			return th.Warning.Render(d), right
 		}
+		if h, ok := v.hovered(); ok {
+			if h.Help != nil {
+				right = v.hints(v.EditKeys, "nb.word_help", "help")
+			}
+			return hoverLine(th, h, v.width-ansi.StringWidth(right)-6), right
+		}
 		return "", right
 	case v.pending == "d":
 		return th.Hint.Render("d again deletes " + v.selectedWords()), th.KeyHints("Esc", "cancel")

@@ -132,3 +132,59 @@ func (s *Sheet) wakeAllRegions() {
 		}
 	}
 }
+
+// table is the cells the region with meta me takes: its table shown or,
+// blocked, the one it needs; none before its rows first arrive.
+func (me *regionMeta) table() (Rect, bool) {
+	switch {
+	case me == nil || !me.has:
+		return Rect{}, false
+	case me.why != "":
+		return me.need, true
+	}
+	return me.written, true
+}
+
+// regionMoved returns the anchors of the arrays over the region's
+// table, before and after it changed, spilling or blocked by a cycle,
+// to compute again: an array reading the table's cells is blocked by
+// it (spillsIntoItself) wherever the table goes, which the cells it
+// reads may not tell it.
+func (s *Sheet) regionMoved(before, after Rect, had bool) []loc {
+	var out []loc
+	for b, sp := range s.spills {
+		if (sp.why == "" || sp.circular) && (had && overlaps(sp.area, before) || overlaps(sp.area, after)) {
+			sp.stale = true
+			out = append(out, loc{s, b})
+		}
+	}
+	return out
+}
+
+// heldByArrays is the region r's table, when an array spilling over it
+// decides whether it shows: shown, or blocked by arrays alone, which it
+// would show without.
+func (s *Sheet) heldByArrays(r Region) (Rect, bool) {
+	me := s.regionMeta[nameKey(r.Name)]
+	t, ok := me.table()
+	if !ok || me.why == "" {
+		return t, ok
+	}
+	if t.To.Row >= MaxRows || t.To.Col >= MaxCols {
+		return Rect{}, false
+	}
+	for a := range s.cells.anyKeysIn(t) {
+		if a == r.At || !s.cells.filledAt(a) {
+			continue
+		}
+		if _, spilled := s.SpillAnchor(a); !spilled || s.cells.derivedAt(a) != slotSpill {
+			return Rect{}, false
+		}
+	}
+	for _, q := range s.regions.list {
+		if q.Name != r.Name && t.Contains(q.At) {
+			return Rect{}, false
+		}
+	}
+	return t, true
+}

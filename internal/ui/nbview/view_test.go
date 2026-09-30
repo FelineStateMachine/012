@@ -129,7 +129,8 @@ func text(v *View) string { return ansi.Strip(strings.Join(v.Lines(), "\n")) }
 
 func key(s string) tea.KeyPressMsg {
 	named := map[string]tea.Key{"enter": {Code: tea.KeyEnter}, "esc": {Code: tea.KeyEscape}, "up": {Code: tea.KeyUp},
-		"down": {Code: tea.KeyDown}, "tab": {Code: tea.KeyTab}, "home": {Code: tea.KeyHome}, "end": {Code: tea.KeyEnd}}
+		"down": {Code: tea.KeyDown}, "tab": {Code: tea.KeyTab}, "home": {Code: tea.KeyHome}, "end": {Code: tea.KeyEnd},
+		"left": {Code: tea.KeyLeft}, "right": {Code: tea.KeyRight}}
 	if k, ok := named[s]; ok {
 		return tea.KeyPressMsg(k)
 	}

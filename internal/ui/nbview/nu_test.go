@@ -29,7 +29,7 @@ import (
 type fakeRunner struct {
 	mu      sync.Mutex
 	version string
-	answers map[string]string // flag + text asked about → answer
+	answers map[string]string // flags, a line, the text asked about → answer
 	err     error             // every question fails so
 	block   bool              // questions wait until they're stopped
 	asked   []string
@@ -49,13 +49,16 @@ func (f *fakeRunner) Run(ctx context.Context, job nushell.Job, script string, st
 		<-ctx.Done()
 		return context.Cause(ctx)
 	}
-	out, ok := f.answers[job.IDE[0]+script]
+	out, ok := f.answers[asked(job.IDE, script)]
 	if !ok {
 		return &nushell.Error{Msg: "not recorded: " + script}
 	}
 	_, err := io.WriteString(stdout, out)
 	return err
 }
+
+// asked is how fakeRunner files a question.
+func asked(flags []string, script string) string { return strings.Join(flags, " ") + "\n" + script }
 
 func (f *fakeRunner) questions() []string {
 	f.mu.Lock()
@@ -97,15 +100,26 @@ func recordings(t *testing.T) []recording {
 		}
 		out = append(out, recording{flags: flags, script: script, answer: read(r.answer)})
 	}
+	script := read("hover.nu")
+	for _, at := range hoverAsked {
+		out = append(out, recording{flags: []string{"--ide-hover", fmt.Sprint(at)}, script: script, answer: read(fmt.Sprintf("hover-%d.json", at))})
+	}
 	return out
 }
+
+// hoverAsked are the bytes of hover.nu nu's hover is recorded at: the
+// sort-by, -r, into string, --decimals and $n of hoverSrc.
+var hoverAsked = []int{83, 96, 101, 113, 135}
+
+// hoverSrc is the cell hover.nu asks about.
+const hoverSrc = "let n = 4\n$files | sort-by size -r | into string --decimals 2 | append $n"
 
 // recordedNu is a fake nu answering what testdata/nu records.
 func recordedNu(t *testing.T) *fakeRunner {
 	t.Helper()
 	f := &fakeRunner{version: "0.116.0\n", answers: map[string]string{}}
 	for _, r := range recordings(t) {
-		f.answers[r.flags[0]+r.script] = r.answer
+		f.answers[asked(r.flags, r.script)] = r.answer
 	}
 	return f
 }
@@ -224,6 +238,9 @@ func TestNuFallsBack(t *testing.T) {
 		}
 		asked := len(f.questions())
 		n.Highlight(context.Background(), src)
+		if _, ok := n.Hover(context.Background(), src, 6); ok {
+			t.Errorf("%s: a hover", name)
+		}
 		if got := n.Complete(context.Background(), "$fi", 3); len(got) != 1 || got[0].Text != "$files" || len(f.questions()) != asked {
 			t.Errorf("%s: completions %v, asked %v", name, got, f.questions())
 		}
@@ -234,6 +251,7 @@ func TestNuFallsBack(t *testing.T) {
 	n.Highlight(context.Background(), src)
 	n.Check(context.Background(), src)
 	n.Complete(context.Background(), src, 2)
+	n.Hover(context.Background(), src, 6)
 	if q := f.questions(); len(q) != 0 {
 		t.Errorf("asked nu while it isn't allowed: %v", q)
 	}
