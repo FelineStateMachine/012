@@ -83,7 +83,7 @@ func linked(t *testing.T, name string, budget int) (*sheet.Workbook, *Host) {
 		t.Fatal(err)
 	}
 	h := NewHost(budget)
-	h.Settle(context.Background(), w, func(p string) string { return p })
+	h.Settle(context.Background(), w, Links(w, same, ""))
 	return w, h
 }
 
@@ -119,7 +119,7 @@ func TestFormulasOverASource(t *testing.T) {
 			t.Fatalf("%s: %v", f, err)
 		}
 	}
-	h.Settle(context.Background(), w, func(p string) string { return p })
+	h.Settle(context.Background(), w, Links(w, same, ""))
 	for i, f := range sameFormulas {
 		got, want := s.Value(sheet.Addr{Col: 10, Row: i}), s.Value(sheet.Addr{Col: 11, Row: i})
 		if testing.Verbose() {
@@ -174,7 +174,7 @@ func TestPastTheBudget(t *testing.T) {
 	med, sum := sheet.Addr{Col: 10}, sheet.Addr{Col: 10, Row: 1}
 	s.Set(med, "=MEDIAN(sales[amount])")
 	s.Set(sum, "=SUM(sales[amount])")
-	h.Settle(context.Background(), w, func(p string) string { return p })
+	h.Settle(context.Background(), w, Links(w, same, ""))
 	if v := s.Value(med); v != sheet.ErrValue {
 		t.Errorf("MEDIAN past the budget: %v, want #VALUE!", v)
 	}
@@ -208,7 +208,7 @@ func TestPivotOverASource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h.Settle(context.Background(), w, func(p string) string { return p })
+	h.Settle(context.Background(), w, Links(w, same, ""))
 	wb, _ := want.UsedRange()
 	gb, _ := got.UsedRange()
 	if wb != gb {
@@ -232,7 +232,7 @@ func TestSourceChanges(t *testing.T) {
 	s := w.Sheet(0)
 	a := sheet.Addr{Col: 10}
 	s.Set(a, "=SUM(sales[amount])")
-	h.Settle(context.Background(), w, func(p string) string { return p })
+	h.Settle(context.Background(), w, Links(w, same, ""))
 	before := s.Value(a)
 	now := time.Now()
 	h.Now = func() time.Time { return now }
@@ -244,7 +244,7 @@ func TestSourceChanges(t *testing.T) {
 	if !h.Poll() {
 		t.Fatal("a changed file isn't read again")
 	}
-	h.Settle(context.Background(), w, func(p string) string { return p })
+	h.Settle(context.Background(), w, Links(w, same, ""))
 	after := s.Value(a)
 	if after.Kind != sheet.Number || after.Num-before.Num < 80 {
 		t.Errorf("SUM %v before the file changed, %v after", before, after)
@@ -259,7 +259,7 @@ func TestMissingSource(t *testing.T) {
 	}
 	a := sheet.Addr{}
 	s.Set(a, "=SUM(gone[x])")
-	NewHost(1000).Settle(context.Background(), w, func(p string) string { return p })
+	NewHost(1000).Settle(context.Background(), w, Links(w, same, ""))
 	if v := s.Value(a); v != sheet.ErrRef {
 		t.Errorf("a missing source: %v, want #REF!", v)
 	}
@@ -267,3 +267,6 @@ func TestMissingSource(t *testing.T) {
 		t.Errorf("explained as %q", why)
 	}
 }
+
+// same is a path as it is: the tests' files are named whole.
+func same(p string) string { return p }

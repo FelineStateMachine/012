@@ -81,9 +81,12 @@ func describeParts(b *strings.Builder, s SheetDescription) {
 		fmt.Fprintf(b, "  table %s  %s  %s\n", t.Name, t.Range, strings.Join(t.Columns, ", "))
 	}
 	for _, r := range s.Regions {
-		if r.Kind == "linked" {
+		switch r.Kind {
+		case "linked":
 			fmt.Fprintf(b, "  linked %s  %s  following %s\n", r.Name, r.Range, r.File)
-		} else {
+		case "source":
+			fmt.Fprintf(b, "  source %s  %s  reading %s in place\n", r.Name, r.Range, r.File)
+		default:
 			fmt.Fprintf(b, "  output %s  %s\n", r.Name, r.Range)
 		}
 	}
