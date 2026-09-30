@@ -13,13 +13,42 @@ may add fields, but never renames or removes one, or changes its type.
 Errors are not JSON: they go to standard error as text, with the exit
 statuses in [Command line](command-line.md#exit-status).
 
+## Values
+
+A cell's value in JSON keeps what its format means: money stays money
+and a date a date, so what reads it can write it back as it was. The
+same form is what [`012 get`](#get) and the MCP server's reads return
+and what `012 set --value`, `write_cells`, `write_table` and
+`create_workbook` take:
+
+| Value | Is | Shown |
+|---|---|---|
+| `3.5`, `"00123"`, `true`, `null` | A number in the Automatic format, text (always text, however it looks), a boolean, a blank cell | `3.5`, `00123`, `TRUE` |
+| `{"currency": 3.5}` | An amount; `"symbol": "€"` for another currency than dollars | `$3.50`, `€3.50` |
+| `{"percent": 0.12}` | A fraction shown as a percentage | `12%` |
+| `{"date": "2026-09-29"}` | A date, or with a time `"2026-09-29T14:30:00"` on the sheet's clock (an offset, `Z` or `-06:00`, converts it to the local time zone) | `9/29/2026` |
+| `{"time": "14:30:00"}` | A time of day | `2:30:00 PM` |
+| `{"duration": "90min"}` | Elapsed time, in [nushell's units](https://www.nushell.sh/book/types_of_data.html#durations) (`ns` to `wk`), or written as a number of seconds | `1:30:00` |
+| `{"size": 1500}` | A number of bytes, or written as nushell's `"1.5kb"` | `1.5 kB` |
+| `{"number": 1234.5, "decimals": 2}` | A number in another format than Automatic | `1,234.50` |
+| `{"text": "00123"}` | Text, written this way or as a string | `00123` |
+
+Any of the objects may add `"decimals"` (0 to 15) or `"format"`, a
+[number format](../sheets/formatting.md#number-formats) code shown in
+the type's place (`{"date": "2026-09-29", "format": "yyyy-mm-dd"}`).
+A value read back carries them when its cell's format isn't the one its
+type gives by itself, so writing it again gives the same value and
+format. An error reads as its text (`"#DIV/0!"`). NUON has its own
+[types](../nushell/types.md) for sizes, durations and dates, and none
+for currency or percentages.
+
 ## get
 
-`012 get file ref --format json` writes a cell's value alone (a number,
-a string, `true`, `null` for a blank cell), or a range as a list of
-records named by its first row (`--no-header`: by column letters), as
-[Scripts](../files/scripts.md#get) describes. Dates are strings in ISO
-8601, and in NUON dates, file sizes and durations keep their types.
+`012 get file ref --format json` writes a cell's [value](#values) alone,
+or a range as a list of records named by its first row
+(`--no-header`: by column letters), each field a value, as
+[Scripts](../files/scripts.md#get) describes. In NUON dates, file sizes
+and durations are nushell's, and currency and percentages numbers.
 
 ## set
 
@@ -152,21 +181,48 @@ more than it lists:
 ```json
 {
   "range": "Sales!A1:C3", "rows": 3, "cols": 3,
-  "values": [["Region", "Units", "Price"], ["North", 3, 12.5], ["South", 5, null]],
+  "values": [["Region", "Units", "Price"], ["North", 3, {"currency": 12.5}], ["South", 5, null]],
   "text": [["Region", "Units", "Price"], ["North", "3", "$12.50"], ["South", "5", ""]],
   "formulas": {"C3": "=IF(B3>4, \"\", 9.75)"},
   "truncated": false
 }
 ```
 
-`values` are typed as [`get`](#get) types one cell (blank is `null`, an
-error its text); `text` comes only when asked for; `truncated` is set
-when the range held more cells than `max_cells`, and `rows` says how
-many came back. The result's `_meta["o12/view"]` holds what
+`values` are [values](#values) (blank is `null`, an error its text);
+`text` is each cell as shown, left out with `"text": false`;
+`truncated` is set when the range held more cells than `max_cells`, and
+`rows` says how many came back. The result's `_meta["o12/view"]` holds what
 [the view](../agents/mcp.md#views-in-the-chat) draws: `title` (the
 workbook's name), `where` and `html`.
 
-Writes (`write_cells`, `apply_operations`, `sort`, `filter`) return
+`write_cells` takes each entry's `input` as a person types it, or its
+`value` as a [value](#values), and `format`, a number format code for
+the cell or, alone, for every cell of a range:
+
+```json
+{"entries": [
+  {"ref": "B2", "value": {"currency": 3.5}},
+  {"ref": "C2", "input": "12%"},
+  {"ref": "D2", "value": {"date": "2026-09-29"}, "format": "yyyy-mm-dd"},
+  {"ref": "E2:E9", "format": "#,##0.00"}
+]}
+```
+
+`write_table` (and `apply_operations`' `write_table`, and
+`create_workbook`'s `data`) writes rows under a header naming their
+columns, in `columns`' order (a JSON object's keys can reach the tool
+in any order), each row a record of values or a list of them in that
+order, and formats each column as its first typed value, or as
+`formats` says:
+
+```json
+{"at": "A1", "columns": ["Item", "Price", "Bought"],
+ "rows": [{"Item": "Tea", "Price": {"currency": 3.5}, "Bought": {"date": "2026-09-29"}},
+          ["Cake", 2, {"date": "2026-09-28"}]],
+ "formats": {"Price": "$#,##0.00"}}
+```
+
+Writes (`write_cells`, `write_table`, `apply_operations`, `sort`, `filter`) return
 `{"saved", "changes", "warnings"}` as [`set`](#set) does, `saved` false
 for a dry run or a change that changed nothing; `create_chart` adds
 `"chart": {"sheet", "number", "title"}`, its view in `_meta` as

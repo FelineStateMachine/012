@@ -103,7 +103,7 @@ func TestTables(t *testing.T) {
 	if got := get(t, w, "Fruit", GetOptions{Format: "nuon"}); got != "[[Item, Price]; [Apple, 1.5],\n[Pear, 2]]\n" {
 		t.Errorf("get Fruit %q", got)
 	}
-	if _, err := Set(w, []Entry{{"Fruit[[#Headers],[Price]]", "Cost"}}, SetOptions{}); err != nil {
+	if _, err := Set(w, []Entry{{Ref: "Fruit[[#Headers],[Price]]", Input: "Cost"}}, SetOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	if got := get(t, w, "Fruit[[#Headers],[Cost]]", GetOptions{}); got != "Cost\n" {
@@ -134,7 +134,7 @@ func TestGet(t *testing.T) {
 		{"B4", GetOptions{}, "3.5\n"},
 		{"B3", GetOptions{}, "$2\n"},
 		{"B3", GetOptions{Format: "nuon"}, "2\n"},
-		{"B3", GetOptions{Format: "json"}, "2\n"},
+		{"B3", GetOptions{Format: "json"}, "{\"currency\":2,\"decimals\":0}\n"},
 		{"B4", GetOptions{Input: true}, "=SUM(B2:B3)\n"},
 		{"B4", GetOptions{Input: true, Format: "json"}, "\"=SUM(B2:B3)\"\n"},
 		{"A1", GetOptions{Format: "nuon"}, "Item\n"},
@@ -145,7 +145,7 @@ func TestGet(t *testing.T) {
 		{"A1:B3", GetOptions{}, "Item   Price\nApple    1.5\nPear      $2\n"},
 		{"A1:B3", GetOptions{Format: "csv"}, "Item,Price\nApple,1.5\nPear,$2\n"},
 		{"A1:B3", GetOptions{Format: "nuon"}, "[[Item, Price]; [Apple, 1.5],\n[Pear, 2]]\n"},
-		{"A2:B3", GetOptions{Format: "json", NoHeader: true}, "[\n{\"A\":\"Apple\",\"B\":1.5},\n{\"A\":\"Pear\",\"B\":2}\n]\n"},
+		{"A2:B3", GetOptions{Format: "json", NoHeader: true}, "[\n{\"A\":\"Apple\",\"B\":1.5},\n{\"A\":\"Pear\",\"B\":{\"currency\":2,\"decimals\":0}}\n]\n"},
 		{"B1:B4", GetOptions{Format: "json", Input: true}, "[\n{\"Price\":\"1.5\"},\n{\"Price\":\"$2\"},\n{\"Price\":\"=SUM(B2:B3)\"}\n]\n"},
 	} {
 		if got := get(t, w, c.ref, c.o); got != c.want {
@@ -163,7 +163,7 @@ func TestGet(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	w := book(t)
-	warn, err := Set(w, []Entry{{"B2", "10"}, {"'Q3 plan'!C1", "=B2+1"}, {"A2", ""}}, SetOptions{})
+	warn, err := Set(w, []Entry{{Ref: "B2", Input: "10"}, {Ref: "'Q3 plan'!C1", Input: "=B2+1"}, {Ref: "A2", Input: ""}}, SetOptions{})
 	if err != nil || len(warn) > 0 {
 		t.Fatal(warn, err)
 	}
@@ -181,9 +181,9 @@ func TestSet(t *testing.T) {
 		e    Entry
 		want string
 	}{
-		{Entry{"B5", "=SUM(B2:B3"}, "Sheet1!B5: Expected , or ) in SUM, at character 11 of =SUM(B2:B3"},
-		{Entry{"A1:A2", "x"}, "A1:A2 is the range A1:A2: name one cell"},
-		{Entry{"Q9!A1", "x"}, `no sheet named "Q9"`},
+		{Entry{Ref: "B5", Input: "=SUM(B2:B3"}, "Sheet1!B5: Expected , or ) in SUM, at character 11 of =SUM(B2:B3"},
+		{Entry{Ref: "A1:A2", Input: "x"}, "A1:A2 is the range A1:A2: name one cell"},
+		{Entry{Ref: "Q9!A1", Input: "x"}, `no sheet named "Q9"`},
 	} {
 		if _, err := Set(w, []Entry{c.e}, SetOptions{}); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("set %v: %v, want %q", c.e, err, c.want)
@@ -195,18 +195,18 @@ func TestSetRules(t *testing.T) {
 	w := book(t)
 	s := w.Sheet(0)
 	s.Protect(sheet.Protection{Range: sheet.NewRect(addr("D1"), addr("D9"))})
-	if _, err := Set(w, []Entry{{"D2", "1"}}, SetOptions{}); err == nil || !strings.Contains(err.Error(), "Sheet1!D2 is protected (D1:D9): --force") {
+	if _, err := Set(w, []Entry{{Ref: "D2", Input: "1"}}, SetOptions{}); err == nil || !strings.Contains(err.Error(), "Sheet1!D2 is protected (D1:D9): --force") {
 		t.Errorf("a protected cell: %v", err)
 	}
-	if _, err := Set(w, []Entry{{"D2", "1"}}, SetOptions{Force: true}); err != nil {
+	if _, err := Set(w, []Entry{{Ref: "D2", Input: "1"}}, SetOptions{Force: true}); err != nil {
 		t.Errorf("--force: %v", err)
 	}
 	s.AddValidation(sheet.Validation{Ranges: []sheet.Rect{sheet.NewRect(addr("E1"), addr("E9"))}, Kind: sheet.ValidNumber, Op: sheet.RuleBetween, Args: [2]string{"1", "9"}, Reject: true})
 	s.AddValidation(sheet.Validation{Ranges: []sheet.Rect{sheet.NewRect(addr("F1"), addr("F9"))}, Kind: sheet.ValidNumber, Op: sheet.RuleBetween, Args: [2]string{"1", "9"}})
-	if _, err := Set(w, []Entry{{"E1", "5"}, {"E2", "50"}}, SetOptions{}); err == nil || !strings.HasPrefix(err.Error(), "Sheet1!E2: ") {
+	if _, err := Set(w, []Entry{{Ref: "E1", Input: "5"}, {Ref: "E2", Input: "50"}}, SetOptions{}); err == nil || !strings.HasPrefix(err.Error(), "Sheet1!E2: ") {
 		t.Errorf("a rejected entry: %v", err)
 	}
-	warn, err := Set(w, []Entry{{"F1", "50"}}, SetOptions{})
+	warn, err := Set(w, []Entry{{Ref: "F1", Input: "50"}}, SetOptions{})
 	if err != nil || len(warn) != 1 || !strings.HasPrefix(warn[0], "Sheet1!F1: ") {
 		t.Errorf("an entry marked invalid: %v %v", warn, err)
 	}
@@ -222,7 +222,7 @@ func TestOpenSave(t *testing.T) {
 	if err != nil || !f.New {
 		t.Fatal(f, err)
 	}
-	if _, err := Set(f.Book, []Entry{{"A1", "5"}, {"A2", "=A1*2"}}, SetOptions{}); err != nil {
+	if _, err := Set(f.Book, []Entry{{Ref: "A1", Input: "5"}, {Ref: "A2", Input: "=A1*2"}}, SetOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.Save(); err != nil {
@@ -244,7 +244,7 @@ func TestOpenSave(t *testing.T) {
 	if st, _ := os.Stat(path); !st.ModTime().Equal(old) {
 		t.Error("saving an unchanged workbook rewrote it")
 	}
-	Set(f.Book, []Entry{{"A1", "6"}}, SetOptions{})
+	Set(f.Book, []Entry{{Ref: "A1", Input: "6"}}, SetOptions{})
 	if err := f.Save(); err != nil {
 		t.Fatal(err)
 	}

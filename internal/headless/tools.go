@@ -1,7 +1,6 @@
 package headless
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -122,11 +121,11 @@ func Find(w *sheet.Workbook, query string, o FindOptions) (Found, error) {
 
 // Evaluated is a formula's result, computed without keeping it.
 type Evaluated struct {
-	Cell  string          `json:"cell"`  // where it was computed
-	Value json.RawMessage `json:"value"` // typed as ReadRange types values
-	Text  string          `json:"text"`  // as the cell would show it
-	Error string          `json:"error"` // why, when Value is an error
-	Spill *Range          `json:"spill,omitempty"`
+	Cell  string `json:"cell"`  // where it was computed
+	Value Value  `json:"value"` // typed as ReadRange types values
+	Text  string `json:"text"`  // as the cell would show it
+	Error string `json:"error"` // why, when Value is an error
+	Spill *Range `json:"spill,omitempty"`
 }
 
 // Evaluate computes formula as if typed in the cell at names (a cell

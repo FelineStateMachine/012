@@ -9,8 +9,6 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
-	"reflect"
 	"slices"
 	"sync"
 
@@ -101,24 +99,19 @@ func orDevel(v string) string {
 
 // instructions tell the model how to use the server.
 const instructions = `This server works on 012 spreadsheet workbooks (.012 files) in the folders open to it, and reads the files 012 imports (CSV, XLSX, JSON, SQLite and more).
-Every tool takes the workbook's path. Call describe without one to list the workbooks; describe with a path lists its sheets, their used ranges, guessed header rows and column names, tables, named ranges, charts and notebooks. create_workbook makes a new workbook, empty or from a file 012 imports.
+Every tool takes the workbook's path. Call describe without one to list the workbooks; describe with a path lists its sheets, their used ranges, guessed header rows and column names, tables, named ranges, charts and notebooks. create_workbook makes a new workbook, empty, from a file 012 imports, or holding a table of data.
 References are written as in formulas: B7, A1:C9, Q3!B7, 'Q3 plan'!A1:C9, a named range, a table (Sales, Sales[Amount]) or a sheet name for the whole sheet; without a sheet name, the sheet shown when the file was saved.
 Inputs are what a person types, in en-US form: 1.5, =SUM(A1:A6), $1,200, 12%, 2026-09-29. Formulas are Google Sheets'.
+Keep values' meaning: write money, percentages, dates, times, durations and sizes with their types, never as bare numbers, either typed as a person types them ($3.50, 12%) or as values with their types ({"currency": 3.5}, {"percent": 0.12}, {"date": "2026-09-29"}, {"duration": "90min"}, {"size": "1.5kb"}); write rows of records with write_table, which formats each column from its values. Reads return values the same way, with each cell as shown.
 Writes are checked as typing is (formulas must parse, validation rules, protected ranges) and each call is one change, saved at once; pass dry_run to see the change without making it. Call evaluate to try a formula without writing it.`
 
-// rawSchemas infer json.RawMessage, a value already in JSON, as any
-// value.
-var rawSchemas = &jsonschema.ForOptions{TypeSchemas: map[reflect.Type]*jsonschema.Schema{
-	reflect.TypeFor[json.RawMessage](): {},
-}}
-
 // tool adds a tool whose handler takes In and returns Out, with the
-// output schema inferred as rawSchemas says. Its path is required
+// schemas inferred as rawSchemas says. Its path is required
 // unless the server has a default workbook, or the tool is describe,
 // which lists the workbooks without one.
 func tool[In, Out any](s *Server, t *sdk.Tool, h func(context.Context, *sdk.CallToolRequest, In) (*sdk.CallToolResult, Out, error)) {
 	if t.InputSchema == nil {
-		schema, err := jsonschema.For[In](nil)
+		schema, err := jsonschema.For[In](rawSchemas)
 		if err != nil {
 			panic(err)
 		}

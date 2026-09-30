@@ -95,19 +95,25 @@ Every tool but `describe` takes `path`, the workbook, required unless
 the server was started with a file. References are written as in
 formulas (`B7`, `Q3!A1:C9`, `'Q3 plan'!A:A`, a named range, a table,
 `Sales[Amount]`, a sheet's name), and inputs as a person types them, in
-en-US form. Every write takes `dry_run`, which returns the change
-without making it.
+en-US form. Values keep their types both ways: writes take money,
+percentages, dates, times, durations and sizes as
+[values with their types](../reference/json.md#values)
+(`{"currency": 3.5}`, `{"date": "2026-09-29"}`) as well as typed
+entries (`$3.50`), and reads return them the same way beside the text
+each cell shows, so a model can check what it wrote. Every write takes
+`dry_run`, which returns the change without making it.
 
 | Tool | Does |
 |---|---|
 | `describe` | Without a path, the workbooks open to the server; with one, its sheets, used ranges, guessed header rows and column names, tables, outputs, charts, pivots, notebook cells and names, as [`012 describe`](../reference/json.md#describe) |
-| `read_range` | A range's values as rows, its formulas by cell, and with `text` each cell as shown |
+| `read_range` | A range's values as rows, typed, each cell as shown, and its formulas by cell |
 | `evaluate` | A formula's value, computed in the workbook (at `at`, or below the data) without writing it: its text, why it's an error, an array's spill |
 | `find` | Cells by what they show or, with `in_formulas`, their formulas' text, as Edit > Find |
 | `list_errors` | The formulas showing errors after recalculating, as `012 recalc` lists them, without saving |
-| `create_workbook` | A new `.012` workbook at `path`, empty or made `from` a file 012 imports or another workbook; it never replaces a file |
-| `write_cells` | Entries typed into cells as one change, as `012 set` |
-| `apply_operations` | Several operations as one change: `set`, `clear`, `insert_rows`, `delete_rows`, `insert_columns`, `delete_columns`, `add_sheet`, `rename_sheet`, `delete_sheet`, `define_name`, `sort` |
+| `create_workbook` | A new `.012` workbook at `path`, empty, made `from` a file 012 imports or another workbook, or holding `data`, a table as `write_table` writes it; it never replaces a file |
+| `write_cells` | Entries typed into cells, or values with their types, and number formats, as one change, as `012 set` |
+| `write_table` | Rows of records under a header, each column formatted as its values' type, as one change, as importing a NUON table |
+| `apply_operations` | Several operations as one change: `set`, `write_table`, `clear`, `insert_rows`, `delete_rows`, `insert_columns`, `delete_columns`, `add_sheet`, `rename_sheet`, `delete_sheet`, `define_name`, `sort` |
 | `sort` | A range's rows sorted by columns, named by letter or header |
 | `filter` | A filter on a range by conditions (`gt`, `contains` and the rest) or values to hide, or the sheet's filter removed |
 | `create_chart` | A chart of a range, its type, title and place given or guessed as Insert > Chart guesses them |
@@ -144,8 +150,8 @@ where the range or chart is, and its HTML, at most 200 rows of what
 `read_range` returned. Both kinds of hosts hand a result's `_meta` to
 the page (the Apps SDK as `window.openai.toolResponseMetadata`) and
 keep it from the model, which reads the result itself,
-`structuredContent` and the same JSON as text, with no HTML: a few
-kilobytes for 60 rows. The page asks for nothing from the network and
+`structuredContent` and the same JSON as text, with no HTML: about ten
+kilobytes for 60 rows of currency, typed values and text shown. The page asks for nothing from the network and
 calls no tools.
 
 ## Resources

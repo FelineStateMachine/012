@@ -202,6 +202,8 @@ func feedOutput(w *sheet.Workbook, name string) {
 			op = sheet.LiveOp{Region: r.Name, Err: err.Error()}
 			break
 		}
+		resolve := func(ref string) (*sheet.Sheet, sheet.Rect, error) { return rangeRef(w, ref) }
+		fileio.KeepFormats(&rows, fileio.OutputFormats(w, o, resolve))
 		op.Header, op.Rows, op.Note = rows.Header, rows.Rows, note
 	}
 	w.ApplyLive(op)

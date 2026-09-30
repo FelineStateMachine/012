@@ -38,6 +38,27 @@ decides what goes back: numbers given the Size format go back as file
 sizes, and a date column formatted as plain numbers goes back as
 numbers.
 
+## Currency and percentages
+
+Nushell has no type for money or percentages, so `$3.50` goes to
+nushell as the number `3.5` and `12%` as `0.12`, which `math sum` and
+`where price > 3` work on. The format comes back with the column: when
+a [notebook cell](notebooks.md)'s output is sent to a sheet, each of
+its columns named as a column of the ranges the cell read
+(`$sheet.A1:C9`, `$selection`) takes that column's format again, when
+its values are still of the type the format shows. A price column read
+as currency and sent back is currency, a date column shows its dates
+in its own pattern (`2026-09-29` rather than the Date time format), and
+a size column keeps its decimals:
+
+```nu
+$sheet.A1:D9 | where price > 3 | sort-by bought   # price is currency again on the sheet
+```
+
+A column named anew (`insert total {|r| $r.price * $r.qty}`) has no
+format to take, and shows plain numbers. Outside notebooks, [`012 get --format json`](../reference/json.md#values)
+keeps currency and percentages as typed values.
+
 ## Tables, records and single values
 
 A value that isn't in a table comes in as a table too: a
