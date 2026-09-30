@@ -292,9 +292,11 @@ it the context line says what nu said:
 Tab asks `nu --ide-complete` too, after the notebook's own names, so it
 completes flags, subcommands and paths as well as cells and commands.
 nu doesn't know the variables a notebook binds, so it's asked about the
-cell with `$name` for each named cell and linked file, `$selection` and
-`$sheet` declared before it; a `$sheet.A1:C9` range reads as one
-variable, and `name =` isn't part of what nu reads.
+cell with `$name` for each name the cells assign and each linked file,
+`$selection` and `$sheet` declared before it; a `$sheet.A1:C9` range
+reads as one variable, and the cell's `name =`s ([Names and
+$name](#names-and-name)) aren't part of what nu reads, so what nu says
+is where it points in the cell.
 
 Questions to nu run in the background and never on each key: one
 process for each question after a pause, at most two at a time, each
@@ -346,7 +348,9 @@ printed, and the toolbar how many cells stream; streams run beside the
 cells run once, each on its own, without `nu-timeout`. `ii` (or `■`)
 stops them all, keeping what they printed; running the cell once (`r`)
 stops its stream first. A stream that ends on its own keeps its output
-as a run does, and one that fails says why.
+as a run does, and one that fails says why. A cell of several statements
+streams its last one's values; the names its earlier lines assign stay
+its own, as a stream hands later cells only its output.
 
 The output keeps a stream's last 10,000 values; a sheet it was sent to
 keeps every row, up to `max-cells`. The rows arrive as the change
@@ -355,16 +359,51 @@ undo history.
 
 ## Names and $name
 
-A cell that starts `name =` gives its output that name; `n` names a
-cell for you. Later cells read the output as `$name`, a nushell
-variable holding the value, and formulas on any sheet as `nu.name`, or
-a column of it as `name[column]`, once it's [sent to a sheet](#send-to-a-sheet):
+A cell holds one statement or several, a line each (or apart by `;`),
+as a nushell script does; a line starting with `|` goes on with the
+pipeline above it. `name = pipeline` on any line assigns `name`, as
+nushell's `let name = pipeline` does, and the cell's later lines read
+it as `$name`. `#` starts a comment to the end of the line, outside a
+string, as in nushell: a commented-out line assigns and reads nothing.
+
+As in nushell and Jupyter, the cell's output is its last statement's
+value, and the names work across cells by one rule:
+
+- **The cell's name is its output's.** When the last statement is
+  `name = pipeline`, the cell is named `name`; otherwise it has no
+  name until `n` names it, which puts `name =` before its last
+  statement. Other cells read the output as `$name`, and formulas on
+  any sheet as `nu.name`, or a column of it as `name[column]`, once
+  it's [sent to a sheet](#send-to-a-sheet).
+- **Every name assigned goes to later cells.** `$files` in another
+  cell reads the `files` a cell's earlier line assigned, as it was at
+  the end of that cell's run. A cell's name comes first: `$sales` reads
+  the cell named `sales`, and only when no cell is named so, the first
+  cell assigning `sales`.
+- **A cell's own names come first in it.** `$files` after the line
+  assigning `files` reads the cell's own, not another cell's, and isn't
+  a cell it reads.
+
+```nu
+files = ls | where type == file
+$files | where size > 1kb | sort-by size --reverse
+```
+
+This cell has no name (its last line assigns none) and reads no cell;
+its output is the big files, and later cells read `$files` too. Split
+over cells, each named after its output:
 
 ```nu
 files = ls
 big = $files | where size > 1kb
 $big | get name | str join ", "
 ```
+
+The context line says what a cell reads, the names it sets for later
+cells and its own name (`reads $files; sets $big`). A file keeps each
+cell's output, not the other names it assigned: after opening one, a
+cell reading such a name runs the cell assigning it first, as it does
+a cell that hasn't run.
 
 A name is letters, digits and `_`, not starting with a digit or `__`;
 `in`, `env`, `nu`, `it`, `selection` and `sheet` are taken. Two cells
