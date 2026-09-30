@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "names": {"Lost": "#REF!", "Rate": "Lists!B1", "Units": "Sales!C2:C9"},
   "macroOrigin": "fixture-machine",
   "macros": [
@@ -142,7 +142,9 @@
       "name": "Data",
       "widths": {"A": 20},
       "cells": {
-        "A20": "=SUM(nu.files)"
+        "A20": "=SUM(nu.files)",
+        "A21": "=SUM(trips[fare])",
+        "A22": "=COUNTIFS(events[kind],\"click\",events[ms],\"\u003e100\")"
       },
       "regions": [
         {"name":"files","at":"A1","output":true},
@@ -150,6 +152,20 @@
         {"name":"app","at":"F2","path":"logs/app.csv","window":500},
         {"name":"db","at":"F20","path":"data.sqlite","format":"SQLite","table":"orders"},
         {"name":"q","at":"M20","path":"data.sqlite","format":"SQLite","query":"select * from orders limit 5"}
+      ]
+    },
+    {
+      "name": "trips",
+      "cells": {},
+      "regions": [
+        {"name":"trips","at":"A1","path":"trips.parquet","paged":true,"order":{"sort":[{"column":"C","desc":true}],"filter":[{"column":"B","condition":"eq","value":"card"},{"column":"D","condition":"gt","value":"10"}]}}
+      ]
+    },
+    {
+      "name": "events",
+      "cells": {},
+      "regions": [
+        {"name":"events","at":"A1","path":"events.sqlite","format":"SQLite","query":"select * from events where day \u003e 0","paged":true}
       ]
     },
     {
