@@ -37,7 +37,7 @@ Let agents in when you start, or from a session already running:
 012 --listen budget.012
 ```
 
-**File > Invite an agent** asks what the agent may change (its <!-- doclint:allow: the menu item's title -->
+**File > Invite an agent** asks what the agent may change (its
 [scope](#scope)), and starts listening if the session wasn't;
 `--listen` lets it suggest changes to the whole workbook. **File > Stop
 inviting agents** closes the socket: agents attached leave, and their

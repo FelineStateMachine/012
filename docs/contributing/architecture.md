@@ -952,7 +952,7 @@ file listing goes through `Model.path` or the root.
 
 Agents take part in rooms as participants ([Live mode](../agents/live.md)),
 through `internal/cowork`. A local session invited to (`012 --listen`,
-File > Invite an agent) takes its workbook into a room of its own as it <!-- doclint:allow: the menu item's title -->
+File > Invite an agent) takes its workbook into a room of its own as it
 is (`enterLocal`: its steps adopted as its person's, `Workbook.Adopt`),
 runs under `ui.Shared` as served sessions do, waits for its room's
 changes itself (`waitRoom`), and listens on a Unix socket

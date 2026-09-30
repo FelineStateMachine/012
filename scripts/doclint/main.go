@@ -43,7 +43,9 @@ var rules = []struct {
 	{re: regexp.MustCompile(`\b(TODO|FIXME|XXX|HACK)\b`), why: "a work note; put it in ROADMAP.md instead"},
 	{re: regexp.MustCompile(`\(new\)|\bnew in v?\d|\bas of v\d|\bsince v\d`), why: "dates the text"},
 	{re: re(`\bbefore (and|->|→|/) after\b|\bthis (commit|change|PR)\b|\bin the commit that\b`), why: "narrates a change", markdown: true},
-	{re: re(`\b(the lead|an? agent|merged with main|merge of main)\b`), why: "narrates who changed it"},
+	// Agents are a feature of 012, so the phrase alone is fine; an agent
+	// that added or fixed something is the code's history.
+	{re: re(`\b(the lead|merged with main|merge of main)\b|\ban? agent (added|wrote|changed|fixed|built|removed|moved|renamed|rewrote|made)\b`), why: "narrates who changed it"},
 }
 
 func re(s string) *regexp.Regexp { return regexp.MustCompile(`(?i)` + s) }
