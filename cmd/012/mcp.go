@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -18,29 +19,41 @@ import (
 )
 
 // 012 mcp: a Model Context Protocol server over standard input and
-// output on one workbook file (see docs/agents/mcp.md).
+// output on the workbooks in the folders open to it (see
+// docs/agents/mcp.md): the client's roots, else --root's, else the
+// working directory. A file named is the default of tools called
+// without a path.
 
-const mcpUsage = "usage: 012 mcp file.012 [--read-only] [--force] [--notebooks [--trust]] [--jev]"
+const mcpUsage = "usage: 012 mcp [file.012] [--root dir]... [--read-only] [--force] [--notebooks [--trust]] [--jev]"
 
 // runMCP is 012 mcp: it serves until the client closes standard input.
 // Nothing runs a program or reaches the network unless its flag says:
 // --notebooks offers run_notebook_cell, --jev answers JEV functions.
 func runMCP(args []string, e env) error {
-	a, err := parseArgs(args, nil, []string{"read-only", "force", "notebooks", "trust", "jev", "help"})
+	a, err := parseArgs(args, []string{"root"}, []string{"read-only", "force", "notebooks", "trust", "jev", "help"})
 	switch {
 	case err != nil:
 		return usageError(err.Error(), mcpUsage)
 	case a.has("help"):
 		fmt.Fprintln(e.stdout, mcpUsage)
 		return nil
-	case len(a.pos) != 1:
+	case len(a.pos) > 1:
 		return usageError("", mcpUsage)
 	case a.has("trust") && !a.has("notebooks"):
 		return usageError("--trust goes with --notebooks", mcpUsage)
 	}
-	path := a.pos[0]
-	if _, err := headless.Open(path, true); err != nil {
+	roots, err := mcp.NewRoots(rootDirs(a.all["root"]))
+	if err != nil {
 		return err
+	}
+	o := mcp.Options{Version: buildVersion(), ReadOnly: a.has("read-only"), Force: a.has("force"), Roots: roots}
+	if len(a.pos) == 1 {
+		if o.Default, err = filepath.Abs(a.pos[0]); err != nil {
+			return err
+		}
+		if _, err := headless.Open(o.Default, true); err != nil {
+			return err
+		}
 	}
 	cfg, err := loadConfig(e, nil)
 	if err != nil {
@@ -48,19 +61,35 @@ func runMCP(args []string, e env) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	b := &mcp.FileBackend{Path: path, Save: func(f *headless.File) error { return save(f, e) }}
+	o.Save = func(f *headless.File) error { return save(f, e) }
 	if a.has("jev") {
-		b.Prepare = jevPreparer(cfg, e)
+		o.Prepare = jevPreparer(cfg, e)
 	}
-	o := mcp.Options{Version: buildVersion(), ReadOnly: a.has("read-only"), Force: a.has("force")}
 	if a.has("notebooks") && !a.has("read-only") {
 		o.Notebooks = &headless.NotebookOptions{Runner: e.nuRunner(), Timeout: cfg.Duration("nu-timeout"), NuConfig: cfg.Bool("nu-config")}
-		o.MayRun = func(w *sheet.Workbook) error {
+		o.MayRun = func(path string, w *sheet.Workbook) error {
 			return mayRun(&headless.File{Path: path, Book: w}, cfg, a.has("trust"))
 		}
 	}
 	t := &sdk.IOTransport{Reader: io.NopCloser(e.stdin), Writer: nopWriteCloser{e.stdout}}
-	return mcp.New(b, o).Run(ctx, t)
+	return mcp.New(o).Run(ctx, t)
+}
+
+// rootDirs are the folders --root gave, else the working directory,
+// else, when that's the file system's root (where some hosts start
+// servers), the home folder.
+func rootDirs(given []string) []string {
+	if len(given) > 0 {
+		return given
+	}
+	wd, err := os.Getwd()
+	if err != nil || filepath.Dir(wd) != wd {
+		return []string{"."}
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return []string{home}
+	}
+	return []string{"."}
 }
 
 // jevPreparer answers a workbook's JEV functions each time it's opened,

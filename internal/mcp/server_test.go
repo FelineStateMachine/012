@@ -50,19 +50,31 @@ func writeBook(t *testing.T, w *sheet.Workbook, path string) {
 	}
 }
 
-// connect serves backend b with options o to a client over the SDK's
-// in-memory transport.
-func connect(t *testing.T, b Backend, o Options) *sdk.ClientSession {
+// connect serves o to a client over the SDK's in-memory transport. A
+// server with a default workbook and no roots is open to its folder.
+func connect(t *testing.T, o Options) *sdk.ClientSession {
 	t.Helper()
+	return connectClient(t, o, sdk.NewClient(&sdk.Implementation{Name: "test", Version: "1"}, nil), nil)
+}
+
+// connectClient serves o to client c, connecting with co.
+func connectClient(t *testing.T, o Options, c *sdk.Client, co *sdk.ClientSessionOptions) *sdk.ClientSession {
+	t.Helper()
+	if o.Roots == nil && o.Default != "" {
+		roots, err := NewRoots([]string{filepath.Dir(o.Default)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		o.Roots = roots
+	}
 	ctx := context.Background()
-	srv := New(b, o)
 	st, ct := sdk.NewInMemoryTransports()
-	ss, err := srv.Connect(ctx, st, nil)
+	ss, err := New(o).Connect(ctx, st, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ss.Close() })
-	cs, err := sdk.NewClient(&sdk.Implementation{Name: "test", Version: "1"}, nil).Connect(ctx, ct, nil)
+	cs, err := c.Connect(ctx, ct, co)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +107,7 @@ func errorText(res *sdk.CallToolResult) string {
 }
 
 func TestTools(t *testing.T) {
-	cs := connect(t, &FileBackend{Path: bookFile(t)}, Options{})
+	cs := connect(t, Options{Default: bookFile(t)})
 	var names []string
 	for tl, err := range cs.Tools(context.Background(), nil) {
 		if err != nil {
@@ -112,7 +124,7 @@ func TestTools(t *testing.T) {
 	if slices.Contains(names, "run_notebook_cell") {
 		t.Error("run_notebook_cell offered without Notebooks")
 	}
-	ro := connect(t, &FileBackend{Path: bookFile(t)}, Options{ReadOnly: true})
+	ro := connect(t, Options{Default: bookFile(t), ReadOnly: true})
 	for tl := range ro.Tools(context.Background(), nil) {
 		if !tl.Annotations.ReadOnlyHint {
 			t.Errorf("read-only server offers %s", tl.Name)
@@ -121,7 +133,7 @@ func TestTools(t *testing.T) {
 }
 
 func TestDescribeAndRead(t *testing.T) {
-	cs := connect(t, &FileBackend{Path: bookFile(t)}, Options{})
+	cs := connect(t, Options{Default: bookFile(t)})
 	var d headless.Description
 	call(t, cs, "describe", map[string]any{}, &d)
 	if len(d.Sheets) != 2 || d.Sheets[0].Header != 1 || !slices.Equal(d.Sheets[0].Columns, []string{"Region", "Units", "Price"}) {
@@ -150,7 +162,7 @@ func TestDescribeAndRead(t *testing.T) {
 func TestEvaluateLeavesTheFile(t *testing.T) {
 	path := bookFile(t)
 	before, _ := os.ReadFile(path)
-	cs := connect(t, &FileBackend{Path: path}, Options{})
+	cs := connect(t, Options{Default: path})
 	var ev headless.Evaluated
 	call(t, cs, "evaluate", map[string]any{"formula": `SUMIF(A2:A4, "North", B2:B4)`}, &ev)
 	if string(ev.Value) != "10" || ev.Cell != "Sheet1!A6" {
@@ -179,7 +191,7 @@ func TestEvaluateLeavesTheFile(t *testing.T) {
 
 func TestWrites(t *testing.T) {
 	path := bookFile(t)
-	cs := connect(t, &FileBackend{Path: path}, Options{})
+	cs := connect(t, Options{Default: path})
 	before, _ := os.ReadFile(path)
 	var ch Changed
 	call(t, cs, "write_cells", map[string]any{"entries": []map[string]string{{"ref": "D1", "input": "Total"}, {"ref": "D2", "input": "=B2*C2"}},
@@ -224,7 +236,7 @@ func TestWrites(t *testing.T) {
 
 func TestChartAndPivot(t *testing.T) {
 	path := bookFile(t)
-	cs := connect(t, &FileBackend{Path: path}, Options{})
+	cs := connect(t, Options{Default: path})
 	var c chartOut
 	call(t, cs, "create_chart", map[string]any{"data": "A1:B4", "type": "bar", "title": "Units"}, &c)
 	if c.Chart.Number != 1 || c.Chart.Sheet != "Sheet1" || !c.Saved {
@@ -247,7 +259,7 @@ func TestChartAndPivot(t *testing.T) {
 }
 
 func TestResourcesAndPrompts(t *testing.T) {
-	cs := connect(t, &FileBackend{Path: bookFile(t)}, Options{})
+	cs := connect(t, Options{Default: bookFile(t)})
 	ctx := context.Background()
 	var uris []string
 	for r, err := range cs.Resources(ctx, nil) {
@@ -256,14 +268,14 @@ func TestResourcesAndPrompts(t *testing.T) {
 		}
 		uris = append(uris, r.URI)
 	}
-	if !slices.Contains(uris, "o12://book/Sheet1!A1:C4") || !slices.Contains(uris, "o12://book/Q3%20plan!A1") {
+	if !slices.Contains(uris, "o12://book.012/Sheet1!A1:C4") || !slices.Contains(uris, "o12://book.012/Q3%20plan!A1") {
 		t.Errorf("resources: %v", uris)
 	}
 	for uri, want := range map[string]string{
-		"o12://book/Sheet1!A1:C4":  `"range":"Sheet1!A1:C4"`,
-		"o12://book/Q3%20plan!A1":  `"formulas":{"A1":"=Sheet1!B2*2"}`,
-		"o12://book/Sheet1!B2:B3":  `"values":[[3],[5]]`,
-		"o12://book/table/Missing": "isn't a cell",
+		"o12://book.012/Sheet1!A1:C4":  `"range":"Sheet1!A1:C4"`,
+		"o12://book.012/Q3%20plan!A1":  `"formulas":{"A1":"=Sheet1!B2*2"}`,
+		"o12://book.012/Sheet1!B2:B3":  `"values":[[3],[5]]`,
+		"o12://book.012/table/Missing": "isn't a cell",
 	} {
 		res, err := cs.ReadResource(ctx, &sdk.ReadResourceParams{URI: uri})
 		got := ""
@@ -314,8 +326,8 @@ func TestRunNotebookCell(t *testing.T) {
 	writeBook(t, w, path)
 	nu := &fakeNu{}
 	refuse := true
-	cs := connect(t, &FileBackend{Path: path}, Options{Notebooks: &headless.NotebookOptions{Runner: nu},
-		MayRun: func(*sheet.Workbook) error {
+	cs := connect(t, Options{Default: path, Notebooks: &headless.NotebookOptions{Runner: nu},
+		MayRun: func(string, *sheet.Workbook) error {
 			if refuse {
 				return errNotTrusted
 			}
@@ -330,7 +342,7 @@ func TestRunNotebookCell(t *testing.T) {
 	if run.State != "ran" || run.Name != "files" || !strings.Contains(run.Output, "a.txt") {
 		t.Errorf("run: %+v", run)
 	}
-	res, err := cs.ReadResource(context.Background(), &sdk.ReadResourceParams{URI: "o12://book/notebook/Notes/2"})
+	res, err := cs.ReadResource(context.Background(), &sdk.ReadResourceParams{URI: "o12://nb.012/notebook/Notes/2"})
 	if err != nil || !strings.Contains(res.Contents[0].Text, "a.txt") {
 		t.Errorf("cell resource after the run: %v %+v", err, res)
 	}
