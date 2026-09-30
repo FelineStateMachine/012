@@ -19,7 +19,13 @@ import "slices"
 // (regionsGiveWay), so what reads it by name reads #REF! once the array
 // spills, whatever the array holds: the walk doesn't follow it, or the
 // array would be blocked or not by whether the region's rows arrived
-// before it spilled.
+// before it spilled. A formula reading the table's cells, though, leads
+// the walk from each of them, those outside area too: spilling empties
+// them, the anchor showing #REF!, which may make the array smaller and
+// free the region, spilling again once it's sent its rows, without
+// end. The table is the one shown or, blocked by arrays alone, the one
+// it needs, so the array is blocked either way (regionMoved has it
+// checked again).
 func (s *Sheet) spillsIntoItself(a Addr, area Rect) (string, []loc) {
 	if area.From == area.To {
 		return "", nil
@@ -29,6 +35,11 @@ func (s *Sheet) spillsIntoItself(a Addr, area Rect) (string, []loc) {
 	w := &spillWalk{look: look, target: loc{s, a}, seen: map[loc]bool{{s, a}: true}, parent: -1}
 	if w.cells(s, area, a, loc{}, true) {
 		return circular(w.origin), nil
+	}
+	for _, r := range s.regions.list {
+		if t, ok := s.heldByArrays(r); ok && overlaps(t, area) && w.cells(s, t, a, loc{}, true) {
+			return "Circular dependency: the array would spill over " + r.Name + "'s table, whose cells its formula reads", nil
+		}
 	}
 	for i := 0; i < len(w.queue); i++ {
 		u := w.queue[i]
