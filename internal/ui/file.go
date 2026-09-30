@@ -129,6 +129,7 @@ func (m *Model) reset(s *sheet.Sheet, filename string) {
 	if !m.shared() {
 		m.stopCells() // the old workbook's cells, unless others share them
 	}
+	m.closeSources()
 	nb := nbState{runner: m.nb.runner, runs: &nbRuns{}, served: m.nb.served, words: m.nb.words, asked: m.nb.asked, lang: m.nb.lang}
 	defer func() { m.nb = nb; m.bookOpened() }()
 	*m = Model{grid: grid{sheet: s, width: m.width, height: m.height}, filename: filename, th: m.th, term: m.term, jev: m.jev, root: m.root, charts: chartState{last: -1}, prefs: m.prefs, session: m.session, pipe: m.pipe, share: m.share, agents: m.agents,

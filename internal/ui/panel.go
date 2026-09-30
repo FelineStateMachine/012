@@ -38,6 +38,8 @@ func (m *Model) View() tea.View {
 	var lines []string
 	if v := m.nbView(); v != nil {
 		lines = m.notebookLines(v)
+	} else if v := m.srcView(); v != nil {
+		lines = m.sourceLines(v)
 	} else {
 		lines = []string{m.menuBarLine(), m.formulaBar(), m.contextLineText(), m.headerRow()}
 		for _, b := range m.bands() {
@@ -162,6 +164,8 @@ func (m *Model) indicator() string {
 		return m.prompt.indicator
 	case m.nbView() != nil && m.mode == modeReady:
 		return m.notebookIndicator(m.nbView())
+	case m.srcView() != nil && m.mode == modeReady:
+		return "SOURCE"
 	case m.vimActive() && m.visual() != visualNone:
 		return "VISUAL"
 	case m.vimActive():
@@ -199,6 +203,9 @@ func (m *Model) formulaBar() string {
 			}
 		}
 		return m.notebookToolbar(v)
+	}
+	if v := m.srcView(); v != nil && m.mode != modePrompt {
+		return m.sourceBar(v)
 	}
 	name := m.cur.String()
 	if m.away() {
@@ -287,6 +294,8 @@ func (m *Model) readyContext() (left, right string) {
 	switch {
 	case m.nbView() != nil:
 		return m.notebookContext(m.nbView())
+	case m.srcView() != nil && m.note == "" && m.warn == "":
+		return m.sourceContext()
 	case m.trace != nil:
 		return m.trace.line(&m.th, m.width, m.sheet)
 	}

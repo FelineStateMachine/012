@@ -183,8 +183,9 @@ fails it.
 
 The `.012` format only gains optional fields, and the version rises only when
 a file uses a feature older builds can't read (names, freeze and filters in
-v3, several sheets in v4, pivot tables in v5). Old files always load. Settings that older
-builds can safely ignore (decimal arithmetic) don't raise the version.
+v3, several sheets in v4, pivot tables in v5, tables in v6, linked
+sources in v7). Old files always load. Settings that older builds can
+safely ignore (decimal arithmetic) don't raise the version.
 
 ## Keeping it honest
 

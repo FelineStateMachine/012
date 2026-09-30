@@ -18,7 +18,7 @@ type Description struct {
 // SheetDescription is one tab: a sheet or a notebook.
 type SheetDescription struct {
 	Name   string `json:"name"`
-	Kind   string `json:"kind"` // "sheet", "notebook" or "pivot"
+	Kind   string `json:"kind"` // "sheet", "notebook", "pivot" or "source"
 	Shown  bool   `json:"shown"`
 	Hidden bool   `json:"hidden"`
 	// Used is the range from A1 to the last cell with contents, "" when
@@ -59,7 +59,7 @@ type TableDescription struct {
 // the sheet.
 type RegionDescription struct {
 	Name  string `json:"name"`
-	Kind  string `json:"kind"` // "output" or "linked"
+	Kind  string `json:"kind"` // "output", "linked" or "source"
 	Range string `json:"range"`
 	File  string `json:"file,omitempty"` // a linked region's file
 }
@@ -137,6 +137,10 @@ func describeSheet(s *sheet.Sheet, shown bool) SheetDescription {
 	if s.IsNotebook() {
 		d.Kind, d.Notebook = "notebook", describeNotebook(s)
 	}
+	if info, ok := s.Source(); ok {
+		d.Kind, d.Rows, d.Cols = "source", info.Shape.Rows+1, len(info.Shape.Cols)
+		d.Header, d.Columns = 1, append([]string{}, info.Shape.Cols...)
+	}
 	return d
 }
 
@@ -164,6 +168,9 @@ func describeRegion(s *sheet.Sheet, r sheet.Region) RegionDescription {
 	}
 	if r.Linked() {
 		d.Kind, d.File = "linked", r.File.Path
+	}
+	if r.File.Paged {
+		d.Kind, d.File = "source", r.File.Path
 	}
 	return d
 }

@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "widths": {"A": 14},
+  "cells": {
+    "A1": "Rent",
+    "B1": {"input":"1450","format":"currency","decimals":2},
+    "B2": {"input":"95","note":"Due on the 1st"},
+    "B3": "=SUM(B1:B2)"
+  }
+}

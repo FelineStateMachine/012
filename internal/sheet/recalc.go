@@ -257,6 +257,9 @@ func (rd *reader) Cell(sheet string, a Addr) Value {
 	if t == nil {
 		return ErrRef
 	}
+	if reg, ok := t.pagedRegion(); ok {
+		return rd.pagedCell(t, reg, a)
+	}
 	return rd.read(t, a)
 }
 
@@ -269,6 +272,9 @@ func (rd *reader) Scan(sheet string, r Rect, from Addr, addrs []Addr, vals []Val
 	t := rd.sheet(sheet)
 	if t == nil {
 		return -1
+	}
+	if reg, ok := t.pagedRegion(); ok {
+		return rd.pagedScan(t, reg, r, from, addrs, vals)
 	}
 	n := fill(t, r, from, addrs)
 	if vals == nil {
@@ -314,6 +320,10 @@ func (rd *reader) Bounds(sheet string, r Rect) (b Rect, any, exists bool) {
 	t := rd.sheet(sheet)
 	if t == nil {
 		return Rect{}, false, false
+	}
+	if reg, ok := t.pagedRegion(); ok {
+		b, any = t.pagedBounds(reg, r)
+		return b, any, true
 	}
 	b, any = t.cells.bounds(r)
 	return b, any, true

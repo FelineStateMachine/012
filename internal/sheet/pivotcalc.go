@@ -158,7 +158,7 @@ type pivotNode struct {
 type pivotCalc struct {
 	w       *Workbook
 	p       *Pivot
-	src     *Sheet
+	d       pivotData // where the source's rows are read: pivotdata.go
 	root    *pivotNode
 	cols    []*colGroup // the column groups, sorted once gathered
 	colRoot colNode
@@ -169,8 +169,8 @@ type pivotCalc struct {
 	records int      // source rows summarized
 }
 
-func newPivotCalc(w *Workbook, p *Pivot, src *Sheet) *pivotCalc {
-	c := &pivotCalc{w: w, p: p, src: src, root: &pivotNode{}}
+func newPivotCalc(w *Workbook, p *Pivot, d pivotData) *pivotCalc {
+	c := &pivotCalc{w: w, p: p, d: d, root: &pivotNode{}}
 	for _, v := range p.Values {
 		c.unique = append(c.unique, v.Summarize == CountUniqueBy)
 		c.formats = append(c.formats, c.valueFormat(v))
@@ -187,40 +187,7 @@ func (c *pivotCalc) valueFormat(v PivotValue) Format {
 	if !summaries[v.Summarize].keepsFormat {
 		return Format{}
 	}
-	return c.columnFormat(v.Col)
-}
-
-// columnFormat is the number format of column col's data in the source
-// range: the column's own when it has one, else the one most of its
-// numbers show in, ties going to the one met first. So one cell typed
-// differently ("$9,000" among "$2.50"s) doesn't restyle every result,
-// as in Sheets.
-func (c *pivotCalc) columnFormat(col int) Format {
-	if f := c.src.lines.cols[col].Format; !f.IsZero() {
-		return f
-	}
-	counts := map[Format]int{}
-	var seen []Format // in the order first met
-	r := c.p.Range
-	for row, ok := c.src.cells.filled.nextRow(col, r.From.Row+1, 1); ok && row <= r.To.Row; row, ok = c.src.cells.filled.nextRow(col, row+1, 1) {
-		a := Addr{Col: col, Row: row}
-		if c.src.Value(a).Kind != Number {
-			continue
-		}
-		f := c.src.DisplayFormat(a)
-		if counts[f] == 0 {
-			seen = append(seen, f)
-		}
-		counts[f]++
-	}
-	var best Format
-	most := 0
-	for _, f := range seen {
-		if counts[f] > most {
-			best, most = f, counts[f]
-		}
-	}
-	return best
+	return c.d.colFormat(v.Col, c.p.Range)
 }
 
 // gather reads the source rows the filters let through, skipping rows
@@ -228,22 +195,28 @@ func (c *pivotCalc) columnFormat(col int) Format {
 func (c *pivotCalc) gather() {
 	tests := pivotTests(c.p.Filters)
 	r := c.p.Range
-	last := c.src.filterData(r).To.Row
+	last := c.d.lastRow(r)
 	for row := r.From.Row + 1; row <= last; row++ {
-		if c.src.rowBlank(row, r) || !c.src.rowPasses(row, tests) {
-			continue
-		}
-		c.records++
-		ids := c.colGroupsOf(row)
-		n := c.root
-		c.add(n, ids, row)
-		for _, g := range c.p.Rows {
-			n = n.child(c.src, Addr{Col: g.Col, Row: row})
-			c.add(n, ids, row)
-		}
+		c.gatherRow(row, tests)
 	}
 	c.sortRows(c.root, 0)
 	c.sortCols()
+}
+
+// gatherRow reads row into its groups, unless it is blank across the
+// range or the filters leave it out.
+func (c *pivotCalc) gatherRow(row int, tests []colTest) {
+	if c.d.blankRow(row, c.p.Range) || !c.d.passes(row, tests) {
+		return
+	}
+	c.records++
+	ids := c.colGroupsOf(row)
+	n := c.root
+	c.add(n, ids, row)
+	for _, g := range c.p.Rows {
+		n = n.child(c.d, Addr{Col: g.Col, Row: row})
+		c.add(n, ids, row)
+	}
 }
 
 // rowBlank reports whether row is blank across r's columns, looking at
@@ -277,8 +250,8 @@ func pivotTests(fs []PivotFilter) []colTest {
 }
 
 // child returns the group of n for the value at a, adding it if new.
-func (n *pivotNode) child(src *Sheet, a Addr) *pivotNode {
-	v := src.Value(a)
+func (n *pivotNode) child(d pivotData, a Addr) *pivotNode {
+	v := d.value(a)
 	k := keyOf(v, true)
 	if kid, ok := n.byKey[k]; ok {
 		return kid
@@ -286,7 +259,7 @@ func (n *pivotNode) child(src *Sheet, a Addr) *pivotNode {
 	if n.byKey == nil {
 		n.byKey = map[groupKey]*pivotNode{}
 	}
-	kid := &pivotNode{label: v, format: src.DisplayFormat(a)}
+	kid := &pivotNode{label: v, format: d.format(a)}
 	n.byKey[k] = kid
 	n.kids = append(n.kids, kid)
 	return kid
@@ -315,7 +288,7 @@ func (c *pivotCalc) addTo(n *pivotNode, id, row int) {
 		n.acc[id] = accs
 	}
 	for i, v := range c.p.Values {
-		accs[i].add(c.src.Value(Addr{Col: v.Col, Row: row}), c.unique[i])
+		accs[i].add(c.d.value(Addr{Col: v.Col, Row: row}), c.unique[i])
 	}
 }
 

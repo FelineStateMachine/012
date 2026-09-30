@@ -146,6 +146,7 @@ func (m *Model) enterRoom(seat *room.Seat, created bool, req *joinReq) tea.Cmd {
 	m.reset(s, req.name)
 	m.share.seat, m.share.seen = seat, seat.Last()
 	m.nb.runs = seat.Value("nb", func() any { return &nbRuns{} }).(*nbRuns)
+	m.src.run = seat.Value("sources", func() any { return &sourceHost{} }).(*sourceHost)
 	switch {
 	case created && req.restored != "":
 		m.disk, m.saved, m.changed, m.recovered = req.stamp, -1, true, req.restored

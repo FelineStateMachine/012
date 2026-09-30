@@ -61,6 +61,9 @@ func (b *fakeBook) Bounds(string, Rect) (Rect, bool, bool)     { return Rect{}, 
 func (b *fakeBook) RangeAgg(string, Rect) (Agg, *Value, bool)  { return Agg{}, nil, false }
 func (b *fakeBook) Fold(_ string, _ Rect, s Agg) (Agg, *Value) { return s, nil }
 func (b *fakeBook) Ask(RemoteCall) (RemoteAnswer, Value)       { return RemoteAnswer{}, ErrNoRemote }
+func (b *fakeBook) Paged(string) bool                          { return false }
+func (b *fakeBook) Stream(StreamCall) (Value, *Array)          { return value.ErrValue, nil }
+
 func newFakeReader(cells map[Addr]Value) (*Reader, *fakeBook) {
 	b := &fakeBook{cells: cells}
 	depth := 0

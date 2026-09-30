@@ -135,6 +135,7 @@ type Model struct {
 	rec    *recorder   // a macro being recorded: macrorec.go
 	macros macroState  // a macro running, and trust in the file's macros: macrorun.go
 	follow followState // the linked regions followed, and trust in them: follow.go
+	src    sourceState // the linked sources read, and their tabs: sources.go, srcscreen.go
 	nb     nbState     // notebooks' views and the cells running: notebook.go, nbrun.go
 	// out is the output whose grid this model is, nil for the
 	// program's own model: nbgrid.go.
@@ -236,6 +237,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.handleTransfer(msg)
 	case followTickMsg, followMsg:
 		cmd = m.handleFollow(msg)
+	case sourceJobMsg, sourcePageMsg, sourceTickMsg:
+		cmd = m.handleSource(msg)
 	case roomMsg:
 		cmd = m.roomKicked()
 	case shareTickMsg:
@@ -272,7 +275,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
 	// Linked regions may have come, gone or changed: follow.go.
-	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg), m.syncFollowers(), m.notebookSync(), m.shareTick(), m.agentAsks())
+	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg), m.syncFollowers(), m.syncSources(), m.notebookSync(), m.shareTick(), m.agentAsks())
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state
@@ -341,6 +344,9 @@ func (m *Model) handleKey(k tea.KeyPressMsg) tea.Cmd {
 func (m *Model) readyKey(k tea.KeyPressMsg) tea.Cmd {
 	if m.sheet.IsNotebook() {
 		return m.notebookReadyKey(k)
+	}
+	if v := m.srcView(); v != nil {
+		return m.sourceReadyKey(v, k)
 	}
 	if m.prefs.vim {
 		if cmd, ok := m.vimKeyPress(k); ok {

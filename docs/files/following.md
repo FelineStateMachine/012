@@ -22,6 +22,10 @@ region recalculate as rows arrive.
   file. On a new, empty spreadsheet File > Import opens the file instead,
   as it always does; link it with Data > Linked file there.
 
+A linked file's rows are cells, up to `max-cells`. A Parquet file or a
+SQLite table too big for that links as a [source](sources.md) instead,
+read in place a page at a time.
+
 For a SQLite database with several tables, a picker asks which one. Then
 a question on the context line asks how many rows to keep:
 

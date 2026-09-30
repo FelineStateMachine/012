@@ -38,7 +38,8 @@ SQLite table). Formats that keep no column widths (all but XLSX and
 1-2-3) have their columns fitted to the header and the first 200 rows,
 at most 30 characters wide, as are tables read from standard input. A file can also be followed instead, its table in a
 linked region that takes in new rows as the file grows or is rewritten:
-see [Following files](following.md). A table can also come in on standard input, and go back
+see [Following files](following.md). A Parquet file or SQLite table too big to import links as a
+[source](sources.md), read in place. A table can also come in on standard input, and go back
 out on standard output: see [Pipelines](../nushell/pipelines.md).
 
 File > Import asks where the data goes, as Sheets' Import location does
@@ -98,6 +99,7 @@ line how many rows it left out.
 | [Excel files](excel.md) | What comes in from and goes out to `.xlsx` |
 | [Saving](saving.md) | Atomic saves, overwrite checks, unsaved work under `012 serve` |
 | [Following files](following.md) | Linked regions that follow a file as it grows or is rewritten, like `tail -f` |
+| [Linked sources](sources.md) | Parquet files and SQLite tables too big for any grid, read in place on a tab of their own, with formulas and pivot tables streaming over them |
 | [The .012 format](format.md) | The JSON format, its versions and fields |
 | [Scripts](scripts.md) | `012 get`, `set`, `recalc` and `export`: workbooks read and changed without the screen |
 | [Diff and merge in git](git.md) | `012 diff` cell by cell, and git's diff and merge drivers for `.012` files |

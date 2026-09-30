@@ -30,6 +30,12 @@ type LinkSource struct {
 	// Window keeps the last Window rows under the header, dropping older
 	// ones, as tail -f does; 0 keeps every row, up to max-cells.
 	Window int
+	// Paged links the file as a source (source.go): read in place, a
+	// window of rows at a time, on a tab of its own, rather than into
+	// cells. Order is how its tab sorts and filters the rows, nil for
+	// the source's own order; it is replaced whole, never changed.
+	Paged bool
+	Order *SourceOrder
 }
 
 // liveMeta is what the rows arriving have made of a linked file, kept
@@ -227,7 +233,7 @@ func (w *Workbook) RebaseLinks(fn func(string) string) {
 		}
 		seen[&list[0]] = true
 		for i, r := range list {
-			if r.Linked() {
+			if r.File.Path != "" {
 				list[i].File.Path = fn(r.File.Path)
 			}
 		}

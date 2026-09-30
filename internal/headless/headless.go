@@ -8,6 +8,7 @@
 package headless
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -52,6 +53,7 @@ func Open(path string, create bool) (*File, error) {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	SyncOutputs(f.Book)
+	f.ReadSources(context.Background())
 	return f, nil
 }
 

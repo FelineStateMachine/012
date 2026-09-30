@@ -84,7 +84,7 @@ func (s *Sheet) writeRegions() []loc {
 		}
 	}
 	for _, r := range s.regions.list {
-		if me := s.meta(nameKey(r.Name)); me.reread {
+		if me := s.meta(nameKey(r.Name)); me.reread && !r.File.Paged {
 			me.reread = false
 			changed = append(changed, s.emptyRegion(r, me)...)
 		}

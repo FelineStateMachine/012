@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/formula"
+	"github.com/FelineStateMachine/012/internal/functions"
 )
 
 // How formulas read tables (table.go): a structured reference,
@@ -27,6 +28,9 @@ type tableView struct {
 	r    Rect     // header row included
 	cols []string // the columns' names
 	ok   bool     // false for a region with no table shown: #REF!
+	// opening is set on a source whose host hasn't opened it yet: its
+	// references read Loading… until it has.
+	opening bool
 }
 
 // findTable finds the table or region formulas name with the key k.
@@ -39,6 +43,10 @@ func (w *Workbook) findTable(k string) (tableView, bool) {
 	}
 	for _, s := range w.sheets {
 		if i := s.regionIndex(k); i >= 0 {
+			if reg := s.regions.list[i]; reg.File.Paged {
+				r, shape, ok := s.sourceTable(reg)
+				return tableView{s: s, r: r, cols: shape.Cols, ok: ok, opening: !ok && s.sourceErr(reg) == ""}, true
+			}
 			r, ok := s.RegionTable(s.regions.list[i].Name)
 			if !ok {
 				return tableView{s: s}, true
@@ -110,6 +118,9 @@ func (v tableView) colSpan(t formula.TableRef) (int, int, bool) {
 // reference to the formula's own row takes; every other is absolute.
 func (s *Sheet) bindTable(a Addr, t formula.TableRef, thisRow formula.Abs) Node {
 	v, found := s.wb.findTable(nameKey(t.Table))
+	if found && v.opening {
+		return functions.Const(Pending)
+	}
 	if !found || !v.ok {
 		return formula.RefErr{}
 	}

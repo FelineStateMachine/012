@@ -334,6 +334,9 @@ func shiftCols[T any](items []T, at func(*T) *int, col func(int) (int, bool)) []
 // "Column B" when the header is blank.
 func (w *Workbook) FieldName(p Pivot, col int) string {
 	if src := w.Lookup(p.Source); src != nil && !p.Lost {
+		if info, ok := src.Source(); ok && col < len(info.Shape.Cols) {
+			return info.Shape.Cols[col]
+		}
 		if h := src.displayText(Addr{Col: col, Row: p.Range.From.Row}); h != "" {
 			return h
 		}
@@ -354,6 +357,12 @@ func (w *Workbook) ValueTitle(p Pivot, v PivotValue) string {
 // Sheets: SUM when the column holds a number, COUNTA otherwise.
 func (w *Workbook) DefaultSummarize(p Pivot, col int) Summarize {
 	if src := w.Lookup(p.Source); src != nil {
+		if info, ok := src.Source(); ok {
+			if col < len(info.Shape.Numeric) && info.Shape.Numeric[col] {
+				return SumBy
+			}
+			return CountABy
+		}
 		last := src.filterData(p.Range).To.Row
 		for row := p.Range.From.Row + 1; row <= last; row++ {
 			if src.Value(Addr{Col: col, Row: row}).Kind == Number {
@@ -369,8 +378,8 @@ func (w *Workbook) DefaultSummarize(p Pivot, col int) Summarize {
 // filter's values list does.
 func (w *Workbook) PivotFilterValues(p Pivot, col int) []FilterValue {
 	src := w.Lookup(p.Source)
-	if src == nil || p.Lost {
-		return nil
+	if src == nil || p.Lost || src.IsSource() {
+		return nil // a source's values are too many to list
 	}
 	var others []PivotFilter
 	var hidden []string

@@ -210,13 +210,17 @@ func (s *Sheet) fitTable(o Addr, rows, cols int) {
 		}
 		widest := 0
 		for r := range min(rows, sample) {
-			widest = max(widest, len([]rune(s.ShownText(Addr{Col: col, Row: o.Row + r}))))
+			widest = max(widest, FitWidth(s.ShownText(Addr{Col: col, Row: o.Row + r})))
 		}
-		if widest+2 > DefaultWidth {
-			s.setWidth(col, min(widest+2, maxFitWidth))
+		if widest > DefaultWidth {
+			s.setWidth(col, widest)
 		}
 	}
 }
+
+// FitWidth is how wide fitting a table (LoadFitWidths) makes a column
+// for text: its characters and a space either side, capped.
+func FitWidth(text string) int { return min(len([]rune(text))+2, maxFitWidth) }
 
 // EntryValue is the value and the format an entry implies ("$5", a
 // date), as typing it into a cell would store them, for a source whose

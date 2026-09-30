@@ -46,8 +46,8 @@ type Region struct {
 	Output bool
 }
 
-// Linked reports whether the region is a linked file.
-func (r Region) Linked() bool { return r.File.Path != "" }
+// Linked reports whether the region is a linked file, not a source.
+func (r Region) Linked() bool { return r.File.Path != "" && !r.File.Paged }
 
 // regionState is what a sheet keeps of its regions in the undo history:
 // the definitions in the order they were made and, on a notebook tab,
@@ -70,6 +70,8 @@ type regionMeta struct {
 	// rows and cols are the table's size as written, header included.
 	rows, cols int
 	liveMeta   // how its rows arrive: see linked.go
+	// src is what a source's host found of it: see source.go.
+	src *sourceMeta
 }
 
 // Errors of regions.

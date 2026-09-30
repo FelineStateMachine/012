@@ -152,6 +152,13 @@ With agents working in the session ([Live mode](../agents/live.md)):
 | Ctrl+Alt+Shift+0 to 9 | Run the macro with that shortcut ([Macros](../sheets/macros.md#running)) |
 | Esc | Stop a macro while it runs (the mode indicator says CMD) |
 
+## Linked sources
+
+On a [linked source's](../files/sources.md#the-tab) tab (`SOURCE`) the
+keys move and scroll as on a sheet, over every row of the source; Ctrl+G
+and F5 go to a row, the sort and filter keys order the rows the tab
+shows, and keys that would change cells say the tab is read-only.
+
 ## Notebooks
 
 On a [notebook's](../nushell/notebooks.md#keys) tab, as in Jupyter:

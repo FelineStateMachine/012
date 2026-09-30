@@ -86,6 +86,11 @@ const (
 
 // available reports whether the command can run in m's current state.
 func (c *command) available(m *Model) bool {
+	if m.sheet.IsSource() {
+		if on, decided := sourceEnabled(m, c.id); decided {
+			return on
+		}
+	}
 	if m.sheet.IsNotebook() && (!notebookSafe(c.id) || gridTakes(c.id)) {
 		if g := m.gridIn(); g != nil {
 			return g.allows(c.id) && c.available(g.child) // an output's grid entered: nbgridcmd.go
@@ -207,6 +212,9 @@ func (m *Model) runCommand(id string) tea.Cmd {
 		if cmd, done := m.out.command(id); done {
 			return cmd // an output's grid refuses edits: nbgridcmd.go
 		}
+	}
+	if cmd, done := m.sourceCommand(c); done {
+		return cmd // a source's tab: srccmds.go
 	}
 	if m.sheet.IsNotebook() && (!notebookSafe(id) || gridTakes(id)) {
 		if g := m.gridIn(); g != nil {

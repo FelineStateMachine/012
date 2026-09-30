@@ -152,6 +152,11 @@ func (m *Model) enterLocal(seat *room.Seat, req *joinReq) tea.Cmd {
 	seat.Book().Adopt(seat.ID())
 	runs := m.nb.runs
 	m.nb.runs = seat.Value("nb", func() any { return runs }).(*nbRuns)
+	src := m.src.run
+	if src == nil {
+		src = &sourceHost{}
+	}
+	m.src.run = seat.Value("sources", func() any { return src }).(*sourceHost)
 	saved := room.Saved{State: m.saved, Outputs: m.nb.saved, Name: m.filename, Stamp: m.disk}
 	if m.filename != "" {
 		saved.Key = req.key

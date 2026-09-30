@@ -247,6 +247,9 @@ func (s *Sheet) Set(a Addr, input string) error {
 	if _, ok := s.SpillAnchor(a); ok {
 		return ErrSpillEdit
 	}
+	if s.IsSource() {
+		return ErrSourceEdit
+	}
 	if r, ok := s.RegionAt(a); ok {
 		if r.Linked() {
 			return ErrLinkedEdit

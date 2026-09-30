@@ -39,7 +39,9 @@ it lags, and past a second it stalls.
 | Find, filter, sort, fill | Filter or sort 8191 rows: 1 to 32 ms; find over 213 k cells: 38 ms; fill 8192 rows: 4 ms | Replace all over 213 k cells: 280 ms | | Per-cell string conversion and regexp |
 | SSH sessions (`012 serve`) | 50 sessions typing at once: frames within one frame interval (p95 8.7 ms), 1.3 MiB per session plus its sheets (upper bound) | | More than `--max-sessions` (8 by default): turned away | Bubble Tea's 120 fps pacing; per session, the terminal's cell buffers |
 | Pivot tables | A pivot over 8191 rows recomputes after an edit to its source in 0.8 to 2.5 ms | | Results past the grid (the pivot shows #REF!) | Grouping the source rows |
+| Linked sources | Ten million rows of Parquet or SQLite: opened in 0.4 ms or 0.65 s, a frame scrolling them 0.9 ms at 200 x 60, a page anywhere 0.2 to 12 ms; SUM of a column 0.42 s (Parquet) or 1.4 s (SQLite), COUNTIFS 1.2 or 2.3 s, a pivot table 2.5 or 3.9 s, each in a few MB | Sorting ten million rows: 3.5 s (Parquet) or 19 s (SQLite), in the background | Functions that hold what they read, over more than `max-cells` cells: `#VALUE!`, saying why | Reading the column from the file; sorting |
 | Following files | A log growing by 10,000 rows a second, formulas over it: each update (about 2,500 rows, four times a second) applied in 7 ms keeping every row, 1.7 to 2 ms keeping the last 1000, 14 ms the last 10,000; frames 2.5 to 3.6 ms at 200 x 60 | | Rows past `max-cells`: left out, with a note | Writing the rows and recalculating what reads them; a window rewrites its rows on every update |
+| Notebook streams (`TestStreamGridAtFrameSpeed`) | 10,000 rows arriving in batches of 250, the output's grid on screen: 2.3 ms a batch through to its frame at 200 x 60 (3.6 ms at worst) | Past 20,000 rows in one run: the grid is read again from the 10,000 the output keeps, about 60 ms once every 10,000 rows | | Reading the batch's rows into the grid and measuring their text; the output's NUON copied once a batch |
 | Arrays and spills | FILTER, SORT or UNIQUE over 8192 rows: about 0.1 ms each per edit; 1000 of them spilling 516 k cells, an edit recomputing 500: 52 ms | Full recalculation of those 1000: 106 ms | An array past `maxArray` values (2,097,152) stored: `#VALUE!`; a spill past the sheet's edge or `max-cells` cells: `#REF!` | Computing each array's values; writing only the spilled cells that changed |
 
 ## Sheet size
@@ -372,6 +374,54 @@ followed file costs one `os.Stat` four times a second while it doesn't
 change; a growing file is read a megabyte a poll at most, so a large
 file loads over several frames. Rows are held once, in the region's
 cells; a window reads the rows it keeps back from them.
+
+## Linked sources
+
+A [linked source](../files/sources.md) is read in place: its tab keeps
+at most 48 pages of 128 rows, and what formulas and pivot tables ask
+of it is worked out by streaming the file in the background, a few
+questions at a time, each answer kept until the file changes. None of
+it costs what the source's size does in memory. Measured on ten million
+rows of sales (an id, one of eight categories, an amount and a date;
+`stress.SalesParquet` and `stress.SalesSQLite`, 204 MB and 385 MB), one
+run each, the peak heap above what was live before:
+
+| Reading the file (`BenchmarkSource`, `internal/fileio`) | Parquet | SQLite |
+|---|---|---|
+| Open | 0.39 ms, 0.2 MB | 0.65 s (counting the rows) |
+| Scan one column | 0.35 s (28.5 M rows/s), 4.5 MB | 1.36 s (7.4 M rows/s), 3.4 MB |
+| A page of 60 rows deep in, in the source's order | 0.28 ms | 0.19 ms |
+| Sorting by a column, Z to A | 3.5 s, 113 MB | 19.1 s, in SQLite's own memory and files |
+| A page deep in, sorted | 12 ms (the rows are scattered) | 0.41 ms |
+| Filtering to one category (1,248,497 rows) | 1.26 s, 6.7 MB | 1.19 s |
+| A page deep in, filtered | 0.23 ms | 0.23 ms |
+
+| Answering a question (`BenchmarkSourceFormulas`, `internal/paged`) | Parquet | SQLite |
+|---|---|---|
+| `SUM`, `AVERAGE` of a column | 0.42 s, 3.8 MB | 1.42 s, 2.6 MB |
+| `COUNTIFS`, `SUMIFS` over two columns | 1.2 s, 8.3 MB | 2.3 s, 7.5 MB |
+| `SUMPRODUCT` of two columns | 0.44 s, 9 MB | 1.56 s, 7.7 MB |
+| `XLOOKUP` of the last id | 0.62 s, 5.9 MB | 1.28 s, 4.3 MB |
+| `MATCH` of the middle id | 0.31 s, 5.9 MB | 0.63 s, 3.8 MB |
+| `MEDIAN`, which holds every value: ten million cells are within `max-cells` | 1.15 s, 248 MB | 2.15 s, 247 MB |
+| A pivot table: SUM and COUNT of the amounts by category | 2.45 s, 5.9 MB | 3.9 s, 2.7 MB |
+
+SQLite's own memory, through modernc's libc, isn't in the Go heap.
+Functions over aligned ranges (the criteria functions, `SUMPRODUCT`)
+read their ranges a window of 2048 rows at a time, each column
+streamed by a goroutine of its own in batches of 4096 rows. A function
+that holds what it reads is refused past `max-cells` cells before it
+reads any, so `MEDIAN` of a hundred million values says so at once
+rather than holding them.
+
+Scrolling (`BenchmarkSourceScroll`, `internal/ui`) draws a frame in
+0.26 ms at 80 x 24 and 0.9 ms at 200 x 60 within the pages read, as a
+sheet's frame costs. A jump anywhere, as dragging the scrollbar makes,
+reads the pages it shows and a window either side, in the background
+while the frames go on showing `…`: 0.64 ms at 80 x 24 and 1.5 ms at
+200 x 60, the pages read and the frame drawn.
+The speed gate holds a frame on a 200,000-row source and a SUM over it
+to their baselines (`frame/source-200000x4`, `source/sum-200000`).
 
 ## Undo
 

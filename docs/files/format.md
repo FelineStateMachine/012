@@ -7,7 +7,7 @@ sidebar_position: 4
 
 `.012` files are JSON with one line per cell, keyed by address, so diffs
 read naturally and files merge reasonably in version control. This page
-is the format at version 5, the newest; [Versions](#versions) says what
+is the format at version 7, the newest; [Versions](#versions) says what
 each version adds and what 012 promises about old files. A cell
 without formatting is just what was typed; a formatted cell is a small
 object:
@@ -77,6 +77,7 @@ still load.
 | 4 | Several sheets, or a formula naming a sheet | `sheets`, a list; see [Several sheets](#several-sheets) |
 | 5 | A pivot table | a sheet's `pivot`; see [Pivot tables](#pivot-tables) |
 | 6 | A table | a sheet's `tables`; see [Tables](#tables) |
+| 7 | A linked source | a sheet whose region is `paged`; see [Linked sources](#linked-sources) |
 
 What stays the same from release to release:
 
@@ -240,6 +241,37 @@ earlier versions wrote (with `input`, the range it read as `$in`, and
 `rows`, `cols`, `reads` and `sort`, which opening it doesn't need),
 opens as a code cell of the workbook's notebook, its table sent where it
 was ([Notebook sheets](../nushell/notebooks.md#notebook-sheets)).
+
+## Linked sources
+
+A [linked source](sources.md)'s tab is a sheet with no cells whose one
+region, at `A1`, is `paged`: the file keeps what the source reads and
+how its tab orders the rows, never the rows.
+
+```json
+    {
+      "name": "trips",
+      "cells": {},
+      "regions": [
+        {"name":"trips","at":"A1","path":"trips.parquet","paged":true,"order":{"sort":[{"column":"C","desc":true}],"filter":[{"column":"B","condition":"eq","value":"card"}]}}
+      ]
+    }
+```
+
+- `name` is the table formulas read (`trips[fare]`, `nu.trips`); the
+  tab is named the same when linked, and keeps its own name when
+  renamed.
+- `path`, `format`, `table` and `query` are what a linked file's are
+  ([Regions](#regions)).
+- `paged` marks the region as a source, read in place.
+- `order` is how the tab sorts and filters the rows: `sort`, the columns
+  by letter, `desc` for Z to A, and `filter`, each a column by letter
+  with a `condition` and its `value`, as a filter's column has
+  ([Filter](../sheets/sort-filter.md#filter)). Formulas read the
+  source in its own order whatever the tab shows.
+
+Sources need version 7: a build without them would read the region as
+a linked file and load the whole source into cells.
 
 ## Notebooks
 

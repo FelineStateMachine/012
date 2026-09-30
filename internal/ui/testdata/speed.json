@@ -47,6 +47,11 @@
       "ratio": 2.076,
       "allocs": 10142
     },
+    "frame/source-200000x4": {
+      "ns": 879000,
+      "ratio": 1.52,
+      "allocs": 3722
+    },
     "recalc/arrays-50xFILTER8192": {
       "ns": 7554927,
       "ratio": 12.613,
@@ -56,6 +61,11 @@
       "ns": 1884083,
       "ratio": 3.023,
       "allocs": 8270
+    },
+    "source/sum-200000": {
+      "ns": 8033000,
+      "ratio": 11.63,
+      "allocs": 360
     }
   }
 }

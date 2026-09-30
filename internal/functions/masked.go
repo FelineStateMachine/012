@@ -191,6 +191,9 @@ func sumIfTerms(args []Node, get lookup, add func(float64)) *Value {
 			return &value.ErrValue
 		}
 	}
+	if streamable(get, rng, sum) {
+		return sumStream(get, sum, []matrix{rng}, []criterion{newCriterion(cv)}, add)
+	}
 	return sumMasked(sum, applyCriteria(get, []matrix{rng}, []criterion{newCriterion(cv)}, sum), add)
 }
 
@@ -204,6 +207,8 @@ func sumIfsTerms(args []Node, get lookup, add func(float64)) *Value {
 		return err
 	case len(ms) == 0 || ms[0].rows != sum.rows || ms[0].cols != sum.cols:
 		return &value.ErrValue
+	case streamable(get, append(ms, sum)...):
+		return sumStream(get, sum, ms, cs, add)
 	}
 	return sumMasked(sum, applyCriteria(get, ms, cs, sum), add)
 }
@@ -218,6 +223,9 @@ func averageIf(args []Node, get lookup) Value {
 	if len(args) > 2 {
 		avg = matrixArg(args[2], get).resized(rng.rows, rng.cols, get)
 	}
+	if streamable(get, rng, avg) && avg.rows == rng.rows && avg.cols == rng.cols {
+		return averageStream(get, avg, []matrix{rng}, []criterion{newCriterion(cv)})
+	}
 	return averageMasked(avg, applyCriteria(get, []matrix{rng}, []criterion{newCriterion(cv)}, avg))
 }
 
@@ -229,6 +237,8 @@ func averageIfs(args []Node, get lookup) Value {
 		return *err
 	case len(ms) == 0 || ms[0].rows != avg.rows || ms[0].cols != avg.cols:
 		return value.ErrValue
+	case streamable(get, append(ms, avg)...):
+		return averageStream(get, avg, ms, cs)
 	}
 	return averageMasked(avg, applyCriteria(get, ms, cs, avg))
 }
@@ -237,6 +247,9 @@ func countIfs(args []Node, get lookup) Value {
 	ms, cs, err := criteriaArgs(args, 0, get)
 	if err != nil {
 		return *err
+	}
+	if streamable(get, ms...) {
+		return countStream(get, ms, cs)
 	}
 	k := applyCriteria(get, ms, cs)
 	n := len(k.pass)
@@ -248,6 +261,9 @@ func countIfs(args []Node, get lookup) Value {
 
 func countBlank(args []Node, get lookup) Value {
 	m := matrixArg(args[0], get)
+	if streamable(get, m) {
+		return blankStream(get, m)
+	}
 	isBlank := func(v Value) bool { return v.Kind == value.Empty || v.Kind == value.Text && v.Str == "" }
 	cells := cellsOf(get, m)
 	n := 0
@@ -273,6 +289,9 @@ func sumProductTerms(args []Node, get lookup, term func(fs []float64)) *Value {
 		if ms[i].rows != ms[0].rows || ms[i].cols != ms[0].cols {
 			return &value.ErrValue
 		}
+	}
+	if streamable(get, ms...) {
+		return productStream(get, ms, term)
 	}
 	cells := cellsOf(get, ms...)
 	fs := make([]float64, len(ms))

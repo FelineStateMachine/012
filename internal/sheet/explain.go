@@ -48,6 +48,9 @@ func (s *Sheet) explain(a Addr, path []loc) string {
 	if c == nil || v.Kind != Error || !c.IsFormula() {
 		return ""
 	}
+	if why := s.sourceFailure(here, c); why != "" {
+		return why
+	}
 	// Cells are named relative to the sheet the explanation starts on.
 	home := s
 	if len(path) > 0 {

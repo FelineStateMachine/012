@@ -76,7 +76,8 @@ func init() {
 
 // linkedItems are Data > Linked file's items.
 var linkedItems = []menuItem{
-	{cmd: "data.link"}, sep, {cmd: "data.link_follow"}, {cmd: "data.link_reload"}, {cmd: "data.link_rows"}, sep, {cmd: "data.unlink"},
+	{cmd: "data.link"}, {cmd: "data.link_source"}, sep, {cmd: "data.link_follow"}, {cmd: "data.link_reload"}, {cmd: "data.link_rows"}, sep, {cmd: "data.unlink"},
+	sep, {cmd: "data.source_all"}, {cmd: "data.source_reload"},
 }
 
 func hasLinked(m *Model) bool { _, ok := m.currentLinked(); return ok }
@@ -140,9 +141,17 @@ func (m *Model) linkFile(name string, place func(*Model, sheet.LinkSource)) tea.
 		rows(src)
 		return nil
 	}
+	m.chooseTable(name, src, nil, rows)
+	return nil
+}
+
+// chooseTable asks which table of the database name to link, then has
+// done link it: the only one at once, else a picker of them, with more
+// items (a query) after them.
+func (m *Model) chooseTable(name string, src sheet.LinkSource, more []picker.Item, done func(sheet.LinkSource)) {
 	path, ok := m.path("link", name)
 	if !ok {
-		return nil
+		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -150,9 +159,9 @@ func (m *Model) linkFile(name string, place func(*Model, sheet.LinkSource)) tea.
 	switch {
 	case err != nil:
 		m.fail(fmt.Sprintf("Couldn't read %s: %v", filepath.Base(name), m.root.Scrub(err.Error())))
-	case len(tables) == 1:
+	case len(tables) == 1 && len(more) == 0:
 		src.Table = tables[0].Name
-		rows(src)
+		done(src)
 	default:
 		var items []picker.Item
 		for _, t := range tables {
@@ -160,13 +169,12 @@ func (m *Model) linkFile(name string, place func(*Model, sheet.LinkSource)) tea.
 				Pick: func() tea.Cmd {
 					m.closeOverlay()
 					src.Table = t.Name
-					rows(src)
+					done(src)
 					return nil
 				}})
 		}
-		m.openOverlay(m.newPicker("Link from "+filepath.Base(name), "Type to filter tables", 60, items))
+		m.openOverlay(m.newPicker("Link from "+filepath.Base(name), "Type to filter tables", 60, append(items, more...)))
 	}
-	return nil
 }
 
 // askFollowRows asks how many rows a linked file keeps: all of them, up

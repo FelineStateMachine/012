@@ -357,6 +357,14 @@ keeps every row, up to `max-cells`. The rows arrive as the change
 stream does for a [followed file](../files/following.md), outside the
 undo history.
 
+A table's grid takes the rows as they arrive, under those it shows, so
+what you've done in it stays: the pointer, the selection, a filter
+(which covers the new rows) and the rows as sorted, the new ones under
+them. Its columns widen to fit longer rows, never narrowing, and wait
+while you're in the grid so nothing shifts under the pointer; a column
+you resized keeps its width. Past 20,000 rows the grid starts again
+from the rows the output keeps.
+
 ## Names and $name
 
 A cell holds one statement or several, a line each (or apart by `;`),

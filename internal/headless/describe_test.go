@@ -46,7 +46,7 @@ func TestDescribeFixture(t *testing.T) {
 	if err := json.Unmarshal(js.Bytes(), &back); err != nil {
 		t.Fatal(err)
 	}
-	if len(back.Sheets) != len(d.Sheets) || back.Sheets[0].Charts[2].Type != "pie" || back.Sheets[4].Notebook[1].Name != "files" {
+	if len(back.Sheets) != len(d.Sheets) || back.Sheets[0].Charts[2].Type != "pie" || back.Sheets[6].Notebook[1].Name != "files" {
 		t.Errorf("JSON round trip lost something: %+v", back.Sheets[0])
 	}
 	var nu bytes.Buffer

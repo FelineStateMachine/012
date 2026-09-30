@@ -65,6 +65,56 @@ func outputCase(rows int) speedCase {
 	}}
 }
 
+// sourceFrameCase is Page Down and Page Up in turn through to their
+// frames at 200 x 60, halfway down a linked source's tab, the pages
+// they show already read, as scrolling within what's read is.
+func sourceFrameCase() speedCase {
+	return speedCase{fmt.Sprintf("frame/source-%dx4", speedSourceRows), func() func() {
+		m := speedSourceModel()
+		m.srcView().MoveTo(speedSourceRows/2, 2)
+		keys := [2]tea.KeyPressMsg{{Code: tea.KeyPgDown}, {Code: tea.KeyPgUp}}
+		for _, k := range keys { // both windows read
+			m.Update(k)
+			settleSources(m)
+		}
+		t := newFakeTerm(200, 60)
+		i := 0
+		return func() {
+			m.Update(keys[i%2])
+			t.frame(m)
+			i++
+		}
+	}}
+}
+
+// sourceSumCase is a linked source read again and a SUM over one of its
+// columns worked out again, as the file changing makes it, run to the
+// end rather than in the background.
+func sourceSumCase() speedCase {
+	return speedCase{fmt.Sprintf("source/sum-%d", speedSourceRows), func() func() {
+		m := speedSourceModel()
+		info, _ := m.sheet.Source()
+		m.showSheet(m.book().Sheet(0))
+		m.sheet.Set(sheet.Addr{}, "=SUM("+info.Name+"[amount])")
+		settleSources(m)
+		return func() {
+			m.sources().host.Reload(info.Name)
+			if !settleSources(m) || m.sheet.Value(sheet.Addr{}).Kind != sheet.Number {
+				panic("the SUM over the source never settled")
+			}
+		}
+	}}
+}
+
+// speedSourceModel is a model showing the speed gate's source.
+func speedSourceModel() *Model {
+	path, err := speedSources()
+	if err != nil {
+		panic(err)
+	}
+	return sourceModel(path, 200, 60)
+}
+
 // editCase is typing into one cell of a stress shape and the
 // incremental recalculation that follows, two entries in turn.
 func editCase(sh stress.Shape) speedCase {
@@ -108,6 +158,8 @@ func speedCases() []speedCase {
 		frameCase("scale-8192x26", scaled),
 		frameCase("charts-8", charts),
 		outputCase(100000),
+		sourceFrameCase(),
+		sourceSumCase(),
 		editCase(fanin),
 		editCase(shape("chain-8192", func() *sheet.Sheet { return stress.Chain(stress.Rows) }, "A1", "2")),
 		editCase(shape("criteria-10xSUMIF8192", func() *sheet.Sheet { return stress.Criteria(stress.Rows, 10) }, "A4001", "7")),

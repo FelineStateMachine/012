@@ -184,6 +184,7 @@ func (m *Model) leftRoom(last bool) {
 	for _, f := range m.follow.by {
 		m.dropFollower(f)
 	}
+	m.src.run = &sourceHost{} // the room's goes on with the others
 }
 
 // Model is the model run.

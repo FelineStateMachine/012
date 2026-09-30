@@ -129,3 +129,29 @@ func TestAnswerInTheLocale(t *testing.T) {
 		t.Fatalf("a bad condition: %v", err)
 	}
 }
+
+// A picker of the condition alone draws no values, keeps Tab on the
+// condition, and applies the condition typed.
+func TestOnlyCondition(t *testing.T) {
+	h := newHost()
+	var got sheet.Criteria
+	p := New(h, "Filter B  payment", 3, nil, sheet.Condition{}, func(cr sheet.Criteria) { got = cr })
+	p.Start()
+	p.OnlyCondition()
+	boxes := p.Layout()
+	if n := len(boxes[0].Lines); n != 3 {
+		t.Fatalf("%d lines: %q", n, boxes[0].Lines)
+	}
+	if strings.Contains(ansi.Strip(strings.Join(boxes[0].Lines, "\n")), "Search") {
+		t.Error("a search for values with none to search")
+	}
+	keys(p, tea.KeyPressMsg{Code: tea.KeyTab})
+	for range 7 { // None, Is empty, ... Text is exactly
+		keys(p, down)
+	}
+	text(p, "card")
+	keys(p, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got.Cond != (sheet.Condition{Op: sheet.CondExactly, Arg: "card"}) || len(got.Hidden) > 0 {
+		t.Errorf("applied %+v", got)
+	}
+}
