@@ -55,6 +55,7 @@ and as far down as they are.
 | Ctrl+Up, Ctrl+Down | The first or last row |
 | Ctrl+Home, Ctrl+End | The first cell, the last |
 | A click on the scrollbar, or dragging its thumb | Jumps there |
+| Ctrl+G, F5 | Goes to a row, or a cell such as `C5000000` |
 | Ctrl+C | Copies the active cell |
 
 The rows come from the file a page (128 rows) at a time, in the

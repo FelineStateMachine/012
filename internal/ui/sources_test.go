@@ -100,6 +100,12 @@ func TestSourceTab(t *testing.T) {
 	if bar(m) != "2999" {
 		t.Errorf("formula bar %q", bar(m))
 	}
+	// Go to, a row or a cell as the tab numbers them.
+	press(t, m, "<ctrl+g>", "b2500", "<enter>")
+	pumpSources(t, m)
+	if name := strings.Fields(line(m, formulaLine))[0]; name != "B2500" || bar(m) != "East" { // row 2500 is the source's 2498th, counting from 0
+		t.Errorf("go to B2500: %q %q", name, bar(m))
+	}
 	// Typing doesn't edit.
 	press(t, m, "7", "<enter>")
 	if !m.sheet.IsSource() {

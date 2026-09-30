@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -48,7 +51,7 @@ var sourceTakes = map[string]bool{
 	"edit.copy": true, "data.sort_sheet_az": true, "data.sort_sheet_za": true, "data.sort_range_az": true,
 	"data.sort_range_za": true, "data.filter": true, "data.filter_column": true, "data.filter_remove": true,
 	"data.pivot": true, "data.frequency": true, "data.source_all": true, "data.source_reload": true,
-	"data.link_source": true, "data.link": true,
+	"data.link_source": true, "data.link": true, "goto": true,
 }
 
 // sourceCommand runs id on a source's tab, reporting whether it did:
@@ -87,6 +90,9 @@ func (m *Model) sourceCommand(c *command) (tea.Cmd, bool) {
 		return m.setSourceOrder(info, o), true
 	case "data.pivot", "data.frequency":
 		return m.sourcePivot(info, col, c.id == "data.frequency"), true
+	case "goto":
+		m.openText("Go to a row, or a cell such as C5000000:", "", (*Model).sourceGoto)
+		return nil, true
 	}
 	return nil, false
 }
@@ -237,4 +243,31 @@ func (m *Model) addSource(src sheet.LinkSource) {
 	m.afterSheetsChange(s, m.book().Index(s))
 	m.linkedHere(before)
 	m.note = "Linked " + filepath.Base(src.Path) + " as " + s.Name() + ": formulas read it as " + s.Name() + "[column]"
+}
+
+// sourceGoto moves the active cell on a source's tab to where text
+// says: a row number, or a column's letters and a row number, as the
+// tab numbers its rows (the source's first row is 2).
+func (m *Model) sourceGoto(text string) tea.Cmd {
+	v := m.srcView()
+	if v == nil {
+		return nil
+	}
+	text = strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(text), ",", ""))
+	letters := strings.TrimRightFunc(text, unicode.IsDigit)
+	row, err := strconv.ParseInt(text[len(letters):], 10, 64)
+	_, col := v.Active()
+	if letters != "" {
+		c, ok := sheet.ParseCol(letters)
+		if !ok {
+			err = strconv.ErrSyntax
+		}
+		col = c
+	}
+	if err != nil || row < 1 {
+		m.fail("Type a row, such as 5000000, or a cell, such as C5000000")
+		return nil
+	}
+	v.MoveTo(max(row-2, 0), col)
+	return nil
 }
