@@ -298,10 +298,9 @@ func (s *Sheet) pasteMerges(carried []Rect, p pasteLayout) {
 	if len(carried) == 0 {
 		return
 	}
-	next := slices.DeleteFunc(slices.Clone(s.view.merges), func(m Rect) bool {
-		_, overlaps := intersectRect(m, p.dst)
-		return overlaps
-	})
+	// The merges it replaces may reach past it: arrays they blocked
+	// there spill again too.
+	next, span := s.mergesOutside(p.dst)
 	for tr := range p.down {
 		for tc := range p.across {
 			at := Addr{Col: p.dst.From.Col + tc*p.tw, Row: p.dst.From.Row + tr*p.th}
@@ -312,7 +311,7 @@ func (s *Sheet) pasteMerges(carried []Rect, p pasteLayout) {
 			}
 		}
 	}
-	s.setMerges(next, p.dst)
+	s.setMerges(next, span)
 }
 
 // moveMerges moves the merges wholly inside src on from to dst on s, as
