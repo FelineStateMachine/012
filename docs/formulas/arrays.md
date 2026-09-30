@@ -70,7 +70,10 @@ was typed first, so a sheet looks the same when opened again. An array that woul
 spill into cells its formula reads, `=SORT(B8:D9)` in A9, is a circular
 dependency and shows `#REF!` too, as are arrays that would spill into
 each other's inputs, even when one of them, blocked and read as
-`#REF!`, would come out smaller and free the other.
+`#REF!`, would come out smaller and free the other, or is blocked by a
+value only at the size the other's spill gives it. So is an array that
+would spill over a notebook output or linked file whose cells it reads:
+the output would give way, and its `#REF!` free the array again.
 
 ## Names in a formula: LET and LAMBDA
 

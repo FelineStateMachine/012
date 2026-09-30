@@ -154,6 +154,11 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 		changed = s.wb.recheckArrays(loc{s, a})
 	}
 	if why != "" {
+		if !circ && (old == nil || old.why == "" || old.area != area) {
+			// Blocked over other cells, it may close or open a cycle
+			// through arrays that read them (spill.walked).
+			changed = append(changed, s.wb.recheckArrays(loc{s, a})...)
+		}
 		changed = append(changed, s.dropSpill(a)...)
 		s.setSpill(a, &spill{area: area, why: why, circular: circ})
 		c.Value = ErrRef
@@ -167,9 +172,9 @@ func (s *Sheet) applySpill(a Addr, p pendingSpill) ([]loc, bool) {
 	changed = append(changed, s.regionsGiveWay(area)...)
 	if old != nil && old.why == "" {
 		changed = append(changed, s.clearSpilled(old.area, area)...)
-		if old.area != area {
-			changed = append(changed, s.wb.recheckCircular()...)
-		}
+	}
+	if old != nil && old.area != area {
+		changed = append(changed, s.wb.recheckCircular()...)
 	}
 	s.setSpill(a, &spill{area: area, arr: p.arr, auto: c.auto})
 	c.Value = p.top

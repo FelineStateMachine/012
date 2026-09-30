@@ -47,7 +47,7 @@ func (s *Sheet) spillsIntoItself(a Addr, area Rect) (string, []loc) {
 		// An array's cells first, so a cycle through them is found as
 		// one, and the array blocked with it, rather than through the
 		// anchor alone.
-		if sp := u.s.spills[u.a]; sp != nil && (sp.why == "" || sp.circular) {
+		if sp := u.s.spills[u.a]; sp != nil && sp.walked() {
 			w.cells(u.s, sp.area, u.a, u, false)
 		}
 		if !w.found {
@@ -241,13 +241,13 @@ func (w *Workbook) recheckCircular() []loc {
 }
 
 // forgetSpill drops the anchor at a's spill for good, its formula
-// computing one value or none, returning the cells that changed. When a
-// cycle blocked it, it counted as spilling over the cells it needed, so
+// computing one value or none, returning the cells that changed. When
+// blocked, it counted as spilling over the cells it needed (walked), so
 // the arrays blocked by a cycle are checked again.
 func (s *Sheet) forgetSpill(a Addr) []loc {
 	old := s.spills[a]
 	changed := s.dropSpill(a)
-	if old != nil && old.circular {
+	if old != nil && old.why != "" {
 		changed = append(changed, s.wb.recheckCircular()...)
 	}
 	return changed
@@ -270,4 +270,19 @@ func blockCircular(arrays []loc) []loc {
 		changed = append(changed, l)
 	}
 	return changed
+}
+
+// walked reports whether spillsIntoItself follows the cells of the
+// array: spilled, or blocked, over the cells it needs, what it would
+// spill over given room. A blocked array whose size follows what it
+// reads may be blocked or free by whether another spills into its
+// inputs, and that other by whether it spills: counted as spilling,
+// the two are blocked together, as when the cycle is found in one go,
+// rather than by the order they were computed in. The cells of an array
+// too big for max-cells aren't walked.
+func (sp *spill) walked() bool {
+	if sp.why == "" || sp.circular {
+		return true
+	}
+	return (sp.area.To.Row-sp.area.From.Row+1)*(sp.area.To.Col-sp.area.From.Col+1) <= MaxCells()
 }
