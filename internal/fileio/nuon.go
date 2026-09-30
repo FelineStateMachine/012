@@ -94,6 +94,7 @@ type tableCells struct {
 	cols  map[string]int
 	zone  *time.Location
 	dated map[int]bool // columns widened for dates
+	fixed bool         // widths are the sheet's own: dates widen nothing
 }
 
 // dateTimeWidth fits a date and time in the Date time format, in any
@@ -148,7 +149,7 @@ func (t *tableCells) value(a sheet.Addr, v nuon.Value) {
 	default:
 		b.text(a, c.V.Str, c.F, none)
 	}
-	if v.Kind == nuon.Date && !t.dated[a.Col] && a.Valid() {
+	if v.Kind == nuon.Date && !t.fixed && !t.dated[a.Col] && a.Valid() {
 		t.dated[a.Col] = true
 		b.s.LoadColWidth(a.Col, dateTimeWidth)
 	}

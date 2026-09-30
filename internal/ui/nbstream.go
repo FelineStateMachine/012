@@ -30,7 +30,9 @@ type nbStream struct {
 	*nbRun
 	src   *live.Stream
 	count int // the run's number, [n]
-	rows  int // rows printed so far
+	// rows and values are how many rows and values the output has had
+	// so far, as it last showed them.
+	rows, values int
 	// shown is when the output was last updated, so a fast stream
 	// updates it a few times a second rather than on every poll, and
 	// behind is set when rows came since.
@@ -124,7 +126,6 @@ func (m *Model) streamPolled(msg nbStreamMsg) tea.Cmd {
 		m.stopStream(st.id)
 		return nil
 	}
-	st.rows = st.src.Rows()
 	st.behind = st.behind || msg.ok
 	if msg.ok {
 		if _, r, ok := m.book().Region(c.Name()); ok && r.Output {
@@ -145,11 +146,19 @@ func (m *Model) streamPolled(msg nbStreamMsg) tea.Cmd {
 }
 
 // showStream keeps what the stream has printed so far as the cell's
-// output.
+// output, the rows it says it has printed with it, so the two agree. The
+// grid showing the output takes the rows printed since it last showed
+// (nbgridstream.go).
 func (m *Model) showStream(st *nbStream) {
+	snap := st.src.Snapshot(st.values)
 	st.shown, st.behind = time.Now(), false
-	m.book().SetOutput(st.id, &notebook.Output{NUON: st.src.NUON(), Count: st.count, Took: time.Since(st.start),
+	st.rows, st.values = snap.Rows, snap.Values
+	old := m.book().Output(st.id)
+	m.book().SetOutput(st.id, &notebook.Output{NUON: snap.NUON, Count: st.count, Took: time.Since(st.start),
 		Source: st.source, Reads: st.reads, Selection: st.selection})
+	if v := m.nb.views[st.s]; v != nil && old != nil && old.Count == st.count && snap.More != nil {
+		v.Carry(st.id, old, m.book().Output(st.id), snap.More)
+	}
 }
 
 // endStream keeps a stream's output as it ended: its rows, and why it

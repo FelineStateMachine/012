@@ -54,6 +54,7 @@ type shown struct {
 	// UI makes the grid from.
 	data []byte
 	grid Grid
+	keys map[string]bool // a table's column names
 }
 
 // parse reads an output for showing.
@@ -101,7 +102,8 @@ func shownOf(v nuon.Value) *shown {
 			return &shown{}
 		}
 		if isTable(v.List) {
-			return &shown{kind: outTable, total: len(v.List), cols: countCols(v.List)}
+			keys := addKeys(nil, v.List)
+			return &shown{kind: outTable, total: len(v.List), cols: len(keys), keys: keys}
 		}
 		sh := &shown{kind: outList, total: len(v.List)}
 		for _, it := range v.List {
@@ -122,15 +124,17 @@ func isTable(list []nuon.Value) bool {
 	return true
 }
 
-// countCols is how many columns a list of records names.
-func countCols(list []nuon.Value) int {
-	seen := map[string]bool{}
+// addKeys adds the columns a list of records names to keys.
+func addKeys(keys map[string]bool, list []nuon.Value) map[string]bool {
+	if keys == nil {
+		keys = map[string]bool{}
+	}
 	for _, rec := range list {
 		for _, f := range rec.Fields {
-			seen[f.Key] = true
+			keys[f.Key] = true
 		}
 	}
-	return len(seen)
+	return keys
 }
 
 // isGrid reports whether the output is drawn as the UI's grid.

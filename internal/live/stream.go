@@ -35,6 +35,7 @@ type Stream struct {
 	partial []byte // a line not yet ended
 	tail    *fileio.Tail
 	values  [][]byte
+	printed int // values printed in all; guarded by mu
 	header  sheet.LiveRow
 	rows    []sheet.LiveRow
 	total   int // rows printed in all; guarded by mu
@@ -145,9 +146,6 @@ func (s *Stream) read(got []byte, ended bool, u *Update) {
 	if len(lines) == 0 {
 		return
 	}
-	s.mu.Lock()
-	s.values = keepLast(append(s.values, lines...), s.Keep)
-	s.mu.Unlock()
 	res, err := s.tail.Feed(append(bytes.Join(lines, []byte("\n")), '\n'))
 	if err != nil {
 		u.Err = err.Error()
@@ -156,7 +154,9 @@ func (s *Stream) read(got []byte, ended bool, u *Update) {
 		s.header = res.Header
 		u.Header = res.Header
 	}
-	s.mu.Lock()
+	s.mu.Lock() // the values and the counts change together (Snapshot)
+	s.values = keepLast(append(s.values, lines...), s.Keep)
+	s.printed += len(lines)
 	s.total += len(res.Rows)
 	s.mu.Unlock()
 	s.rows = keepLast(append(s.rows, res.Rows...), s.Keep)
@@ -210,5 +210,34 @@ func (s *Stream) Rows() int {
 func (s *Stream) NUON() []byte {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return append(append([]byte("["), bytes.Join(s.values, []byte(", "))...), ']')
+	return list(s.values)
+}
+
+// list is values as a NUON list.
+func list(values [][]byte) []byte {
+	return append(append([]byte("["), bytes.Join(values, []byte(", "))...), ']')
+}
+
+// Snapshot is what a stream has printed, read at one moment.
+type Snapshot struct {
+	NUON []byte // the values kept, as NUON gives them
+	// More are the values printed after the first seen (Snapshot's
+	// argument), as a NUON list, so what shows the output can add them
+	// to what it shows rather than read it all again; nil when some of
+	// them are kept no more.
+	More []byte
+	// Values and Rows are how many values and rows have been printed.
+	Values, Rows int
+}
+
+// Snapshot is what the stream has printed so far, and what of it came
+// after the first seen values.
+func (s *Stream) Snapshot(seen int) Snapshot {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snap := Snapshot{NUON: list(s.values), Values: s.printed, Rows: s.total}
+	if n := s.printed - seen; n >= 0 && n <= len(s.values) {
+		snap.More = list(s.values[len(s.values)-n:])
+	}
+	return snap
 }

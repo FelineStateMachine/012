@@ -61,11 +61,18 @@ func (h *fakeHost) Edit(id int, src string) {
 
 // Grid is a fake grid: its column names, then its rows' values, spaced.
 func (h *fakeHost) Grid(id int, data []byte, rows int) Grid {
-	v, err := nuon.Parse(data)
+	g := &fakeGrid{}
+	g.Append(data, rows, data)
+	h.grids = append(h.grids, g)
+	return g
+}
+
+// Append adds the table's rows.
+func (g *fakeGrid) Append(more []byte, _ int, _ []byte) {
+	v, err := nuon.Parse(more)
 	if err != nil {
 		panic(err)
 	}
-	g := &fakeGrid{}
 	for _, rec := range v.List {
 		var row []string
 		for i, f := range rec.Fields {
@@ -76,8 +83,6 @@ func (h *fakeHost) Grid(id int, data []byte, rows int) Grid {
 		}
 		g.rows = append(g.rows, strings.Join(row, "  "))
 	}
-	h.grids = append(h.grids, g)
-	return g
 }
 
 type fakeGrid struct {
