@@ -57,7 +57,7 @@ rest: building from a clone, importing files, `012 serve` and settings.
   with JSON results, a Claude Code skill, and `012 mcp`, an MCP server
   whose writes go through the same checks as yours, with views
   of ranges and charts in the chat ([agents](docs/agents/README.md)).
-- **Coworking with an agent**: `012 --listen` lets the agent into your
+- **Coworking with agents**: `012 --listen` lets the agent into your
   running 012, its pointer and name in the grid, its changes suggestions
   you accept or reject cell by cell, within the scope you give it
   ([live mode](docs/agents/live.md)).
