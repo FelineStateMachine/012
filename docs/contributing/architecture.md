@@ -781,7 +781,7 @@ sequenceDiagram
   Nu->>Nu: let files = (open --raw $env.NU012_TABLE_0 | from nuon)
   Nu-->>R: the pipeline's value, to nuon
   R-->>UI: the NUON, up to 512 MB
-  UI->>UI: the cell's output, not an undo step; sent on to its region
+  UI->>UI: the cell's output, not an undo step, sent on to its region
 ```
 
 `Runner` is the seam: tests hand the UI a fake, the e2e
