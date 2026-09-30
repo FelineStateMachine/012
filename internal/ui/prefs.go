@@ -225,7 +225,8 @@ func (m *Model) handlePrefs(msg tea.Msg) bool {
 	switch msg := msg.(type) {
 	case tea.BackgroundColorMsg:
 		m.prefs.light = !msg.IsDark()
-		m.term.bg, m.term.waitBG = msg.Color, false
+		m.term.bg = msg.Color
+		m.term.backgroundKnown()
 		if p := m.applyTheme(); p != "" && m.note == "" {
 			m.note = m.th.Warning.Render(p)
 		}

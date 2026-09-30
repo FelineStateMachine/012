@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -15,6 +16,7 @@ func TestNuOpensNotebook(t *testing.T) {
 	var screen string
 	e.runTUI = func(m tea.Model, _ ...tea.ProgramOption) error {
 		m.Init()
+		m.Update(uv.PrimaryDeviceAttributesEvent{62, 22}) // the terminal answers
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
 		screen = ansi.Strip(m.View().Content)
 		return nil

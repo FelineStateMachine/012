@@ -42,6 +42,7 @@ type terminal struct {
 	six          sixelState     // the sixel images drawn and to draw
 	blurred      bool           // the terminal window doesn't have focus
 	waitBG       bool           // the screen waits for the background (termbg.go)
+	bgKnown      chan struct{}  // closed when it's over
 }
 
 // newTerminal starts with what getenv, the terminal's environment, says:
@@ -100,7 +101,7 @@ func (t *terminal) handle(msg tea.Msg) tea.Cmd {
 			return tea.Raw(ansi.WindowOp(16)) // 16: report the cell size in pixels
 		}
 	case uv.PrimaryDeviceAttributesEvent:
-		t.waitBG = false // the background's answer, if any, came first
+		t.backgroundKnown() // its answer, if any, came first
 		if slices.Contains(msg, 4) && !t.kitty && !t.tmux && !t.sixel {
 			t.sixel = true
 			return tea.Raw(ansi.WindowOp(16)) // sixel images are drawn at the cell size
@@ -122,7 +123,7 @@ func (t *terminal) handle(msg tea.Msg) tea.Cmd {
 		// background decides the theme, so ask for it again.
 		return tea.RequestBackgroundColor
 	case bgWaitedMsg:
-		t.waitBG = false
+		t.backgroundKnown()
 	case tea.FocusMsg:
 		t.blurred = false
 	case tea.BlurMsg:

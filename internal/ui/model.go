@@ -168,7 +168,7 @@ func (m *Model) TraceUnder(p telemetry.Parent) { m.spans.Enter(p) }
 // screen until it knows (termbg.go).
 func (m *Model) Init() tea.Cmd {
 	// jev.send starts any questions queued while loading the file.
-	return tea.Batch(m.term.awaitBackground(), tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd(), m.startNotebook(), m.syncFollowers())
+	return tea.Batch(tea.Raw(shiftEscapeOn), m.term.probes(), m.term.awaitBackground(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd(), m.startNotebook(), m.syncFollowers())
 }
 
 // Update implements tea.Model.

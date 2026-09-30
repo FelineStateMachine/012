@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 )
 
 var (
@@ -23,7 +26,8 @@ var (
 // fakeTerminal stands in for the terminal and Bubble Tea: it checks the
 // UI was given a terminal of its own (when tty is set), carries out the
 // model's commands as the program would, feeding their messages back,
-// then presses keys until the model quits.
+// answers the device attributes as a terminal does, which the UI waits
+// for before it draws, then presses keys until the model quits.
 type fakeTerminal struct {
 	t      *testing.T
 	keys   []tea.KeyPressMsg
@@ -84,6 +88,10 @@ func (f *fakeTerminal) drive(m tea.Model, cmd tea.Cmd) bool {
 		return false
 	}
 	_, next := m.Update(msg)
+	if raw, ok := msg.(tea.RawMsg); ok && strings.Contains(fmt.Sprint(raw.Msg), ansi.RequestPrimaryDeviceAttributes) {
+		_, answer := m.Update(uv.PrimaryDeviceAttributesEvent{62, 22})
+		next = tea.Batch(next, answer)
+	}
 	return f.drive(m, next)
 }
 

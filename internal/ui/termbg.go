@@ -27,19 +27,33 @@ type bgWaitedMsg struct{}
 // that holds notebooks' pauses for them to end (pauses_test.go).
 var after func(d time.Duration, msg tea.Msg) tea.Cmd
 
-// wait gives msg once d has passed, on the model's clock.
-func wait(d time.Duration, msg tea.Msg) tea.Cmd {
+// awaitBackground holds the screen until the terminal says its
+// background; probes asks. Its command gives bgWaitedMsg after
+// bgPatience, or nothing once the wait is over.
+func (t *terminal) awaitBackground() tea.Cmd {
+	t.waitBG, t.bgKnown = true, make(chan struct{})
 	if after != nil {
-		return after(d, msg)
+		return after(bgPatience, bgWaitedMsg{})
 	}
-	return tea.Tick(d, func(time.Time) tea.Msg { return msg })
+	known := t.bgKnown
+	return func() tea.Msg {
+		timer := time.NewTimer(bgPatience)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			return bgWaitedMsg{}
+		case <-known:
+			return nil
+		}
+	}
 }
 
-// awaitBackground holds the screen until the terminal says its
-// background; probes asks.
-func (t *terminal) awaitBackground() tea.Cmd {
-	t.waitBG = true
-	return wait(bgPatience, bgWaitedMsg{})
+// backgroundKnown ends the wait for the background.
+func (t *terminal) backgroundKnown() {
+	if t.waitBG {
+		t.waitBG = false
+		close(t.bgKnown)
+	}
 }
 
 // View implements tea.Model: the screen, once the theme is known.
