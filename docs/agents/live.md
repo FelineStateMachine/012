@@ -70,7 +70,7 @@ sequenceDiagram
   S-->>A: welcome: the workbook, the scope
   H->>S: tools/call write_cells (through A)
   S->>R: a turn: the change made on a copy, checked against the scope
-  R-->>S: a suggestion on the board; your screen marks its cells
+  R-->>S: a suggestion on the board, its cells marked on your screen
   S-->>H: the suggestion's number
   Note over S: you accept (Ctrl+Alt+A, Enter)
   S->>R: your turn: the cells set, one step in the agent's name

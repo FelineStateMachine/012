@@ -59,7 +59,8 @@ this site's.
 ## The build is a docs check
 
 `make site` fails on a link to a page that doesn't exist, an anchor no
-heading makes, a missing image or two pages at one address. It checks
+heading makes, a missing image, two pages at one address or a
+[diagram](#diagrams) Mermaid can't parse. It checks
 the same links `scripts/doccheck` does, as the site resolves them, so a
 page that passes `make lint` but breaks on the site shows up here.
 
@@ -138,6 +139,12 @@ picture ([Pictures of 012](#pictures-of-012)).
   (Docusaurus's component, swizzled) draws with Mermaid's `base` theme
   and variables read from the palette in `custom.css` for the color
   mode shown, so diagrams don't set their own styles.
+- `make site` fails on a diagram Mermaid can't parse, which the site
+  would draw as an error: `website/scripts/check-mermaid.mjs` (`npm run
+  diagrams` in `website/`) parses every `mermaid` block in `docs/` with
+  the Mermaid the site draws with, and names the page, the line and
+  Mermaid's error. A `;` in a sequence diagram's message ends the
+  statement, so write a comma, or `#59;` where the semicolon matters.
 
 ## Pictures of 012
 
