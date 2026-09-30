@@ -61,6 +61,7 @@ var nbEditKeys = map[string]string{
 	"shift+enter": "nb.run_next",
 	"ctrl+enter":  "nb.run",
 	"alt+enter":   "nb.run_insert",
+	"f1":          "nb.word_help",
 }
 
 // nbShortcut is the notebook's key for command id, as shown: its
@@ -97,7 +98,7 @@ func nbKeyLabels(id string) []string {
 func nbHelpRows(listed map[string]bool) []helpRow {
 	rows := []helpRow{{keys: []string{"Up", "Down", "j", "k"}, action: "Move between cells and outputs"},
 		{keys: []string{"Shift+Up", "Shift+Down", "K", "J"}, action: "Select several cells"}}
-	for _, it := range append([]menuItem{{cmd: "nb.edit"}, {cmd: "nb.command_mode"}, {cmd: "nb.add_code"}}, notebookItems...) {
+	for _, it := range append([]menuItem{{cmd: "nb.edit"}, {cmd: "nb.command_mode"}, {cmd: "nb.add_code"}, {cmd: "nb.word_help"}}, notebookItems...) {
 		keys := nbKeyLabels(it.cmd)
 		if it.sep || keys[0] == "" || listed[it.cmd] || commands[it.cmd] == nil {
 			continue
@@ -190,7 +191,7 @@ func (m *Model) viewOf(s *sheet.Sheet) *nbview.View {
 		v = nbview.New(nbHost{m, s})
 		v.Keys, v.EditKeys = nbKeys, nbEditKeys
 		lang := m.nbLang().For()
-		v.Providers = nbview.Providers{Highlighter: lang, Completer: lang, Checker: lang}
+		v.Providers = nbview.Providers{Highlighter: lang, Completer: lang, Checker: lang, Hoverer: lang}
 		m.nb.views[s] = v
 	}
 	return v

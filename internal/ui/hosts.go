@@ -7,6 +7,7 @@ import (
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui/choicebar"
+	"github.com/FelineStateMachine/012/internal/ui/cmdhelp"
 	"github.com/FelineStateMachine/012/internal/ui/cmdline"
 	"github.com/FelineStateMachine/012/internal/ui/filterpick"
 	"github.com/FelineStateMachine/012/internal/ui/findbar"
@@ -39,6 +40,7 @@ var (
 	_ sortbar.Host     = host{}
 	_ filterpick.Host  = host{}
 	_ shortcuts.Host   = host{}
+	_ cmdhelp.Host     = host{}
 	_ suggest.Host     = host{}
 	_ review.Host      = host{}
 )

@@ -56,6 +56,7 @@ type Providers struct {
 	Highlighter Highlighter
 	Completer   Completer
 	Checker     Checker
+	Hoverer     Hoverer
 }
 
 // Tokens is the built-in highlighter: a small tokenizer of nushell's

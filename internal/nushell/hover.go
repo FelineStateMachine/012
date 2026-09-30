@@ -239,6 +239,16 @@ func (h Help) Signature() string {
 	return strings.Join(sig, " ")
 }
 
+// Brief is the signature where there's no room for it: the usage
+// without types, and … for its flags: sort-by <...comparator> ….
+func (h Help) Brief() string {
+	brief := strings.Join(strings.Fields(strings.Replace(h.Usage, "{flags}", "", 1)), " ")
+	if len(h.Flags) > 0 {
+		brief += " …"
+	}
+	return brief
+}
+
 // param is the parameter usage's word w names: <...comparator>,
 // <rows?>.
 func (h Help) param(w string) (Param, bool) {

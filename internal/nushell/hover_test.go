@@ -41,6 +41,9 @@ func TestParseHelp(t *testing.T) {
 	if got := help.Signature(); got != "sort-by <...comparator: cell-path|closure> --reverse --ignore-case --natural --custom" {
 		t.Errorf("signature %q", got)
 	}
+	if got := help.Brief(); got != "sort-by <...comparator> …" {
+		t.Errorf("brief %q", got)
+	}
 	if f, ok := help.Flag("-r"); !ok || f.Long != "--reverse" || f.Desc != "Sort in reverse order." {
 		t.Errorf("-r: %+v", f)
 	}

@@ -268,6 +268,8 @@ func (m *Model) notebookMsg(msg tea.Msg) (tea.Cmd, bool) {
 		return m.streamPolled(msg), true
 	case nbStreamTickMsg:
 		return m.streamTicked(), true
+	case nbview.HelpMsg:
+		return m.showWordHelp(msg), true
 	}
 	for _, v := range m.nb.views {
 		if cmd, ok := v.Update(msg); ok {

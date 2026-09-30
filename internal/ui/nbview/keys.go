@@ -219,7 +219,7 @@ func (v *View) editKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	if e.text() != before {
 		return v.changed(), true
 	}
-	return nil, true
+	return v.rest(), true
 }
 
 // Paste types text into the cell being edited.

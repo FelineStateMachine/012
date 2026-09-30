@@ -32,6 +32,12 @@ type editor struct {
 	comp    []Completion
 	compSel int
 	stop    context.CancelFunc // stops the questions about the text still out
+	// moves counts the caret's moves and the text's changes, so an
+	// answer about a word the caret has left is dropped.
+	moves     int
+	hover     Hover  // what's said of the word at the caret
+	hoverFor  string // the text it was said of
+	hoverStop context.CancelFunc
 }
 
 func (e *editor) text() string { return e.area.Text() }
@@ -185,7 +191,7 @@ func (v *View) Update(msg tea.Msg) (tea.Cmd, bool) {
 			}
 		}
 	default:
-		return nil, false
+		return v.updateHover(msg)
 	}
 	return nil, true
 }
@@ -197,11 +203,12 @@ func (v *View) changed() tea.Cmd {
 	v.edit.version++
 	v.edit.comp = nil
 	v.edit.cancel()
+	rest := v.rest()
 	if !v.asksLater() {
-		return nil
+		return rest
 	}
 	version := v.edit.version
-	return tea.Tick(pause, func(time.Time) tea.Msg { return pausedMsg{view: v, version: version} })
+	return tea.Batch(rest, tea.Tick(pause, func(time.Time) tea.Msg { return pausedMsg{view: v, version: version} }))
 }
 
 // cancel stops the questions about the text being edited that are
@@ -211,6 +218,7 @@ func (e *editor) cancel() {
 		e.stop()
 		e.stop = nil
 	}
+	e.stopHover()
 }
 
 // check asks the highlighter and checker about the text being edited,
