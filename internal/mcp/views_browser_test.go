@@ -19,9 +19,9 @@ import (
 // MCP Apps hosts do, in Chromium through Playwright (testdata/view.mjs),
 // and checks the grid, the pointer and formula bar, scrolling, the
 // theme and the frame's height. It needs Node and the playwright
-// package, found through O12_PLAYWRIGHT (a folder whose node_modules
+// package, found through PLAYWRIGHT_DIR (a folder whose node_modules
 // holds it) or NODE_PATH, and is skipped without them.
-// O12_VIEW_SHOTS names a folder for screenshots of each case.
+// VIEW_SHOTS names a folder for screenshots of each case.
 func TestViewInBrowser(t *testing.T) {
 	if testing.Short() {
 		t.Skip("-short")
@@ -63,7 +63,7 @@ func TestViewInBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := []string{filepath.Join("testdata", "view.mjs"), file}
-	if shots := os.Getenv("O12_VIEW_SHOTS"); shots != "" {
+	if shots := os.Getenv("VIEW_SHOTS"); shots != "" {
 		args = append(args, shots)
 	}
 	cmd := exec.Command("node", args...)
@@ -86,7 +86,7 @@ func playwrightPath(t *testing.T) string {
 		t.Skip("no node")
 	}
 	var dirs []string
-	if d := os.Getenv("O12_PLAYWRIGHT"); d != "" {
+	if d := os.Getenv("PLAYWRIGHT_DIR"); d != "" {
 		dirs = append(dirs, filepath.Join(d, "node_modules"), d)
 	}
 	if d := os.Getenv("NODE_PATH"); d != "" {
@@ -96,7 +96,7 @@ func playwrightPath(t *testing.T) string {
 	cmd := exec.Command("node", "-e", "require('playwright')")
 	cmd.Env = append(os.Environ(), "NODE_PATH="+nodePath)
 	if err := cmd.Run(); err != nil {
-		t.Skip("no playwright package: set O12_PLAYWRIGHT to a folder whose node_modules holds it")
+		t.Skip("no playwright package: set PLAYWRIGHT_DIR to a folder whose node_modules holds it")
 	}
 	return nodePath
 }

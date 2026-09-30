@@ -61,8 +61,8 @@ without them:
 
 ```sh
 npm install --prefix ~/.cache/o12-playwright playwright && npx --prefix ~/.cache/o12-playwright playwright install chromium-headless-shell
-O12_PLAYWRIGHT=~/.cache/o12-playwright go test ./internal/mcp -run TestViewInBrowser
-O12_VIEW_SHOTS=/tmp/shots O12_PLAYWRIGHT=~/.cache/o12-playwright go test ./internal/mcp -run TestViewInBrowser   # and screenshots
+PLAYWRIGHT_DIR=~/.cache/o12-playwright go test ./internal/mcp -run TestViewInBrowser
+VIEW_SHOTS=/tmp/shots PLAYWRIGHT_DIR=~/.cache/o12-playwright go test ./internal/mcp -run TestViewInBrowser   # and screenshots
 ```
 
 ## End to end, through libghostty
