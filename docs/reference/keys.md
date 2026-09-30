@@ -54,7 +54,7 @@ mouse and the vim keymap added.
 | Key | Action |
 |---|---|
 | Del, Backspace | Clear the selection; formatting stays |
-| Ctrl+Z; Ctrl+Y, Ctrl+Shift+Z | Undo; redo |
+| Ctrl+Z; Ctrl+Y, Ctrl+Shift+Z | Undo; redo. In a workbook shared over `012 serve`, your own changes only ([Sharing a workbook](../terminal/ssh.md#sharing-a-workbook)) |
 | Ctrl+C, Ctrl+X, Ctrl+V | Copy, cut, paste; references adjust as in Sheets, and copies also go to the system clipboard |
 | Ctrl+Shift+V | Paste values only |
 | Paste in the terminal | Tab-separated or multi-line text fills a block of cells |
@@ -127,6 +127,11 @@ keeping its cells.
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
 | Shift+F10, right-click | The cell, column or row menu |
 | F1, Ctrl+/ | Keyboard shortcuts |
+
+In a workbook shared over `012 serve`, **File > Who's here** (or `who` in the
+palette) lists the others and goes to one's cell, and **File > Hand over
+writing** passes writing on in a one-writer room; neither has a key of
+its own ([Sharing a workbook](../terminal/ssh.md#sharing-a-workbook)).
 
 ## Macros
 
