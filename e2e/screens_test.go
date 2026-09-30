@@ -59,7 +59,7 @@ func TestScreens(t *testing.T) {
 			if got != string(want) {
 				actual := filepath.Join(t.TempDir(), sc.name+".html")
 				os.WriteFile(actual, []byte(got), 0o644)
-				t.Errorf("screen %s changed; if intended, run make screens and review the gallery.\nplain text now:\n%s", sc.name, s.screen())
+				t.Errorf("screen %s changed; if intended, run make screens and review the gallery.\n%s\nplain text now:\n%s", sc.name, firstDiff(string(want), got), s.screen())
 			}
 		})
 	}
@@ -193,4 +193,24 @@ h2{font:500 13px ui-monospace,monospace;color:#aaa;margin:0 0 8px}
 	}
 	b.WriteString("</div>\n")
 	return os.WriteFile(filepath.Join(dir, "gallery.html"), []byte(b.String()), 0o644)
+}
+
+// firstDiff shows the first line where a golden screen's HTML and the
+// screen now part, which the plain text can't show when only a color or
+// style changed.
+func firstDiff(want, got string) string {
+	w, g := strings.Split(want, "\n"), strings.Split(got, "\n")
+	for i := 0; i < len(w) || i < len(g); i++ {
+		var a, b string
+		if i < len(w) {
+			a = w[i]
+		}
+		if i < len(g) {
+			b = g[i]
+		}
+		if a != b {
+			return fmt.Sprintf("first difference, line %d:\n want %s\n  got %s", i+1, a, b)
+		}
+	}
+	return "no line differs"
 }
