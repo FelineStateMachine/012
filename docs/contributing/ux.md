@@ -107,6 +107,7 @@ there.
 | Entries failing validation | A dotted underline, and `Invalid:` with the rule on the context line |
 | Values an array spilled | Italic, and `Spilled from B2` on the context line |
 | Linked files' rows, following, paused or failing | Italic; `●`, `‖` or `!` beside the tab's name and on the context line, with the state in words (`Following`, `Paused`, the error) |
+| A linked source's tab, its scrollbar, rows on their way | `▦` before the tab's name and on the context line, `!` after it when the file can't be read; the scrollbar's thumb `┃` on a track of `│`; `…` in place of a row being read |
 | A notebook's cells and outputs | Marks and words, listed in [Notebooks](../nushell/notebooks.md#reading-a-cell): the bar left of the active cell, a heavy box while it's edited, the prompt's and the box's words for its state, `×` before an error, `OUTPUT` in an output's grid, an output sent to a sheet in italic |
 | A table's header row | Bold and underlined, when the table styles its header; `Table Sales, column Amount` on the context line |
 | Pivot table results | Their headings (`SUM of Units`, `Grand Total`), and a note in words when an edit is refused |
@@ -114,7 +115,7 @@ there.
 | Notes | A `▝` in the cell's top-right corner |
 | Others in a shared workbook (012 serve) | Their pointer's cell double-underlined, their initial on its row's header, their name on the status line, `▘` in a cell they changed in the last 30 seconds, and `Changed by`, `is here` or their warnings in words on the context line |
 | Macro recording | `REC` beside the mode indicator |
-| Mode | The mode indicator's word (`READY`, `ENTER`, `POINT`, `MENU`, and on a notebook `NOTEBOOK`, `EDIT` or `OUTPUT`) |
+| Mode | The mode indicator's word (`READY`, `ENTER`, `POINT`, `MENU`, on a notebook `NOTEBOOK`, `EDIT` or `OUTPUT`, and on a linked source's tab `SOURCE`) |
 | Search matches, traced cells | Reverse video, with a count or the list on the context line; dependents also bold |
 | Evaluate formula | The part computed next underlined and bold, values in its place italic, and `Next` and `Value` in words |
 | The copied range | A dashed underline |

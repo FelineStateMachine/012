@@ -144,11 +144,20 @@ func (p *Pages) Store(j *PageJob) bool {
 		}
 		return true
 	}
-	delete(p.want, j.n)
-	if j.err != nil || j.view != p.view {
+	if j.view != p.view {
+		delete(p.want, j.n)
 		return false
 	}
-	p.pages[j.n] = &page{nums: j.nums, rows: j.rows}
+	if j.err != nil {
+		// Still wanted, so not asked for again until the view is
+		// made again: a page that can't be read would be read over
+		// and over.
+		p.err = describe(j.err)
+		return true
+	}
+	delete(p.want, j.n)
+	p.used++ // as the page most lately used, so it isn't the one let go
+	p.pages[j.n] = &page{nums: j.nums, rows: j.rows, used: p.used}
 	p.drop()
 	return true
 }

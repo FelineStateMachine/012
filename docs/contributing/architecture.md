@@ -20,6 +20,7 @@ internal/locale  the locales: separators, date order, currency, formula separato
 internal/fileio  import and export: CSV, TSV, XLSX, SQLite, Parquet, Lotus .wk1, JSON, NUON; tables on streams
 internal/nuon    nushell's object notation: typed values, tables read a row at a time, written back
 internal/live    the sources of linked regions: files followed as they grow or are rewritten
+internal/paged   linked sources read in place: the host answering formulas and pivots by streaming them, the pages a tab shows
 internal/headless workbook files without the screen: references, get, set, recalc, notebooks and JEV when asked, atomic saves
 internal/diff    workbooks compared and merged cell by cell, from their files' fields
 internal/chart   chart layout, text rendering and kitty image encoding
@@ -43,6 +44,7 @@ internal/ui      the Bubble Tea model: modes, menus, overlays, rendering
   picker         the searchable list behind the palette and every picker
   cmdline        the : command line and its completions
   nbview         a notebook tab as Jupyter's: its toolbar, cells, outputs, command and edit modes, mouse, the code editor and its language providers
+  srcview        a linked source's tab: its rows a page at a time, the row numbers and scrollbar over every row
   findbar        find and replace, a bar on the context line
   evalview       Data > Evaluate formula: a formula stepped through part by part
   themepicker    File > Settings > Theme, previewing as it moves
@@ -72,7 +74,7 @@ flowchart TD
     direction LR
     ui[internal/ui] ~~~ fileio[internal/fileio] ~~~ live[internal/live] ~~~ nushell[internal/nushell]
     chart[internal/chart] ~~~ jev[internal/jev] ~~~ stress[internal/stress] ~~~ oracle[oracle]
-    headless[internal/headless] ~~~ diff[internal/diff] ~~~ room[internal/room]
+    headless[internal/headless] ~~~ diff[internal/diff] ~~~ room[internal/room] ~~~ paged[internal/paged]
   end
   callers --> sheet[internal/sheet]
   sheet --> functions[internal/functions]
@@ -260,6 +262,21 @@ style.
   table as `nu.name`, resolved when evaluated as named ranges are. The
   file keeps the definitions (`regionfile.go`), and converts the command
   regions of earlier files into notebook cells (`notebookfile.go`).
+- **Linked sources.** A [linked source](../files/sources.md) is a tab
+  whose one region is `Paged` (`source.go`): a Parquet file or a SQLite
+  table named as a table is (`sales[amount]`, `nu.sales`), holding no
+  cells, whose table may run past the grid's last row. The engine never
+  reads it. What its host found on opening it (the columns, their
+  formats, the rows) is kept outside the undo history
+  (`SetSourceShape`), and everything that reads it asks the workbook's
+  `SourceHost` (`sourceask.go`): a function given one of its ranges is
+  asked whole as a `functions.StreamCall`, a cell or a range read some
+  other way as its values, and a pivot table over it as its groups
+  (`pivotdata.go`, where a pivot reads a sheet's cells or a source's
+  rows streaming past through one interface). An answer not known yet
+  is `Pending`, the formula or pivot waiting for it, and
+  `RecalcSourced` recomputes what waited once it's known;
+  `SourceChanged` recomputes what read a source whose file changed.
 - **Notebooks.** A notebook tab is a sheet whose `regionState` holds
   cells (`notebook.go`), so adding, editing, moving and deleting cells
   are undo steps as any change is, and the tab is named, moved, hidden
@@ -324,6 +341,36 @@ values and names nothing but its region, so applying the same ops in the
 same order to the same workbook makes the same cells, whoever applies
 it. `OnLive` times each op for telemetry.
 
+### Questions to linked sources
+
+A formula reading a linked source asks, and the answer comes back in
+the background, as a JEV question's does:
+
+```mermaid
+sequenceDiagram
+  participant E as the engine (a recalculation)
+  participant H as paged.Host
+  participant J as a job, on a goroutine
+  participant F as fileio.Source
+  E->>H: SUM(sales[amount]) as a StreamCall
+  H-->>E: not known: queued, the cell Loading…
+  H->>J: the call, and the source as it was opened
+  J->>F: the column, streamed in batches
+  J->>J: functions.EvalStream over a Book that reads the source
+  J-->>H: the answer, kept until the file changes
+  H->>E: RecalcSourced: the cells that waited
+```
+
+The job runs the function library's own function (`EvalStream`) over
+a `Book` that reads the source (`paged/book.go`): an aggregate folds
+the column as it streams, a lookup walks it, and the functions over
+aligned ranges read them a window of rows at a time when the `Reader`
+says it is streaming (`functions/streamed.go`), so every function
+means what it means on a sheet. A function that holds what it reads is
+given a source's range only up to `max-cells` cells. Pivot tables
+gather their groups the same way (`sheet.GatherPivot`), and the engine
+lays them out when the answer arrives.
+
 ### Functions
 
 `internal/functions` holds the function library: the `FuncDef` table
@@ -351,6 +398,8 @@ the engine implements once per sheet (`reader` in `recalc.go`):
 | `RangeAgg(sheet, r)` | the running aggregate SUM-like functions share within a recalculation |
 | `Fold(sheet, r, agg)` | a range added to a SUM-like function's aggregate, as the engine reads it |
 | `Ask(call)` | a JEV question's answer, `Pending` or `ErrNoRemote` |
+| `Paged(sheet)` | whether a sheet is a linked source's tab, whose ranges a function is given whole |
+| `Stream(call)` | the answer to a call over linked sources (`StreamCall`), `Pending` while it's worked out |
 
 Sheets are named as references write them, so resolving names, missing
 sheets (`#REF!`), cycles and the depth limit stay the engine's. The
@@ -495,6 +544,7 @@ draw. The components:
 | mouse | `mouseState` | drags, hover, double clicks, the fill handle (`mouse.go`, `fill.go`) |
 | import | `transfer.Transfer`, `pipeState` | the import in progress, its progress display and cancelling (package `transfer`); choosing and placing imports (`transfer.go`, `importplace.go`); standard input read as a sheet, and what a pipeline gets on quitting (`pipe.go`) |
 | linked files | `followState` | a source (`live.Source`) for each linked region, polled one poll at a time on a command every `live.Interval` and reconciled with the workbook after every update, so undo, opening a file and unlinking need nothing of their own; trust in files outside a workbook's folder (`follow.go`); Data > Linked file and Import's Follow the file (`linked.go`) |
+| linked sources | `sourceState` | the workbook's `paged.Host` (a room's in `012 serve`, run by whoever keeps the room) and its jobs, run a few at a time on commands, their answers applied as they come; each file looked at every `live.Interval` (`sources.go`); the tab shown, package `srcview`, its pages read as it scrolls, and the commands that act on a source (`srcscreen.go`, `srccmds.go`) |
 | notebooks | `nbview.View`, `nbState` | a view of each notebook tab, its selection, mode, scroll and editor (package `nbview`); the tab on the screen (`nbscreen.go`); the notebook's commands and keys (`notebook.go`); cells running one at a time in the background, their queue, stale outputs, trust (`nbrun.go`); what a run reads (`nbjob.go`); outputs sent to sheets (`nbsend.go`) |
 | macros | `recorder`, `macroState` | a recording in progress (`macrorec.go`); a macro running, trust in the file's macros (`macrorun.go`); what scripts act on (`macrohost.go`, `macrohostnav.go`); Data > Macros and the manager (`macro.go`, `macromanage.go`) |
 | others | `clipboard`, `trace`, `traceView`, `chartState`, `jevRunner`, `terminal`, `session` | what Ctrl+V pastes, a trace being stepped through and tracing that stays on (`traceview.go`), chart commands' target, JEV questions in flight, what the terminal supports and the chart images sent to it, what outlasts the file open (the `:` history, whether keys can be held: `keyboard.go`) |
@@ -618,6 +668,18 @@ table's rows over time: a followed file (`live.File`), or a notebook
 cell run as a stream (`live.Stream`), whose pipeline nu runs printing
 each value as NUON on a line of its own (`nushell.Stream`), read by the
 same `Tail` as it arrives.
+
+A `Source` (`source.go`) is a Parquet file or a SQLite table or query
+read in place, for [linked sources](../files/sources.md): it streams
+the columns asked for (Parquet reads only their column chunks, from the
+row group holding the first row), fetches rows by number, and orders
+them as a `SourceView`, pushed down to SQL for SQLite (the rowids in
+order in a work database of its own, the source opened read-only) and
+streamed for Parquet (a filter's matches found in one pass, a sort
+merged from sorted runs in temporary files, either kept as a file of
+row numbers a page reads). Values come out typed as an import types
+them (`sourcecell.go`), and every method is safe from several
+goroutines at once.
 
 XLSX is read by 012's own SpreadsheetML reader on `archive/zip` and
 `encoding/xml`: the workbook, shared strings (kept end to end in one

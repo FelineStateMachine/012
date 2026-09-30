@@ -2,11 +2,13 @@ package ui
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/parquet-go/parquet-go"
 
+	"github.com/FelineStateMachine/012/internal/room"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
 
@@ -175,5 +177,82 @@ func TestSourceCommandsOnTheTab(t *testing.T) {
 	}
 	if v := m.sheet.Value(addr("B2")); v.Num != 1 {
 		t.Errorf("each id is there once: %v", v)
+	}
+}
+
+// The files' ticks come at once in tests, whose ticks are dropped.
+func init() { sourceInterval = 0 }
+
+// A source linked in a room is the room's: the one who keeps the room
+// reads it and answers what anyone's formulas ask of it, each
+// participant scrolls a tab of their own, and whoever keeps the room
+// next goes on reading it.
+func TestSharedSources(t *testing.T) {
+	r := newRooms(t, room.Edit)
+	sum := writeSource(t, filepath.Join(r.dir, "sales.parquet"), 1000)
+	ann := r.open("ann", "@src")
+	bob := r.open("bob", "@src")
+	bob.run(bob.m.runCommand("data.link_source"))
+	bob.press("sales.parquet", "<enter>")
+	for range 5 {
+		r.sync()
+	}
+	if !strings.Contains(bob.screen(), "North") {
+		t.Fatalf("bob's tab:\n%s", bob.screen())
+	}
+	bob.press("<ctrl+down>")
+	r.sync()
+	if !strings.Contains(bob.screen(), "1001 ") || strings.Contains(ann.screen(), "1001 ") {
+		t.Errorf("bob's scroll isn't his own:\n%s\n%s", bob.screen(), ann.screen())
+	}
+	bob.press("<ctrl+pgup>", "=SUM(sales[amount])", "<enter>")
+	for range 5 {
+		r.sync()
+	}
+	var got float64
+	ann.sh.turn(func() { got = ann.m.book().Sheet(0).Value(addr("A1")).Num })
+	if got != sum {
+		t.Fatalf("SUM %v, want %v", got, sum)
+	}
+	if ann.m.LeaveRoom() {
+		t.Fatal("ann was the last")
+	}
+	r.all = r.all[1:]
+	r.sync()
+	bob.press(`=COUNTIF(sales[region],"east")`, "<enter>")
+	for range 5 {
+		r.sync()
+	}
+	bob.sh.turn(func() { got = bob.m.book().Sheet(0).Value(addr("A2")).Num })
+	if got != 250 {
+		t.Errorf("bob, keeping the room now, answered COUNTIF with %v", got)
+	}
+}
+
+func TestMonochromeSource(t *testing.T) {
+	t.Chdir(t.TempDir())
+	m := newModel()
+	linkSales(t, m, 3000)
+	m.note = ""
+	row := monoLine(m, headerLine+3) // the first row, its first cell active
+	if !every(row[6:12], false, isReverse) {
+		t.Errorf("the active cell isn't in reverse video: %+v", row[6:12])
+	}
+	if last := row[len(row)-1]; last.text != "┃" {
+		t.Errorf("the scrollbar's thumb at the top is %q", last.text)
+	}
+	if last := monoLine(m, headerLine+6); last[len(last)-1].text != "│" {
+		t.Errorf("the scrollbar's track is %q", last[len(last)-1].text)
+	}
+	if l := cellText(monoLine(m, contextLine)); !strings.Contains(l, "▦ sales.parquet") {
+		t.Errorf("context line: %q", l)
+	}
+	if err := os.Remove("sales.parquet"); err != nil {
+		t.Fatal(err)
+	}
+	m.sources().host.Reload("sales")
+	pumpSources(t, m)
+	if l := cellText(monoLine(m, m.height-1)); !strings.Contains(l, "▦ sales ! ") {
+		t.Errorf("status line of a source whose file is gone: %q", l)
 	}
 }

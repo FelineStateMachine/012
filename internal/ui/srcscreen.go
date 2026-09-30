@@ -154,16 +154,14 @@ func (m *Model) sourceCounts(info sheet.SourceInfo) string {
 	total := int64(info.Shape.Rows)
 	out := transfer.Thousands(int(total)) + plural(int(min(total, 2)), " row", " rows") + ", " +
 		transfer.Thousands(len(info.Shape.Cols)) + plural(len(info.Shape.Cols), " column", " columns")
-	o := info.Source.Order
-	if o.IsZero() {
-		return out
-	}
-	p := m.src.pages[info.Name]
+	o, p := info.Source.Order, m.src.pages[info.Name]
 	switch {
+	case p != nil && p.Err() != "":
+		return out + "; " + p.Err()
+	case o.IsZero():
+		return out
 	case p == nil || p.Building():
 		return out + "; sorting and filtering…"
-	case p.Err() != "":
-		return out + "; " + p.Err()
 	}
 	var parts []string
 	for _, s := range o.Sort {
