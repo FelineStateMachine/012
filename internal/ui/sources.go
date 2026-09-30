@@ -108,6 +108,7 @@ func (m *Model) syncSources() tea.Cmd {
 		r.host = paged.NewHost(sheet.MaxCells())
 		w.SetSources(r.host)
 	}
+	r.host.Budget = sheet.MaxCells() // the setting applies at once
 	keeper := m.keepsSources()
 	if keeper {
 		m.linkSources(infos)
