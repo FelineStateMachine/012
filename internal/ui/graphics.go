@@ -41,6 +41,7 @@ type terminal struct {
 	sent         map[int]string // image id -> what was sent, to send only changes
 	six          sixelState     // the sixel images drawn and to draw
 	blurred      bool           // the terminal window doesn't have focus
+	waitBG       bool           // the screen waits for the background (termbg.go)
 }
 
 // newTerminal starts with what getenv, the terminal's environment, says:
@@ -58,13 +59,16 @@ func (t *terminal) wrap(seq string) string {
 }
 
 // probes are the startup queries: kitty graphics support, live light
-// and dark changes (mode 2031), the 16 palette colors (OSC 4), which
-// chart images and color scales draw with, the sixel color registers
-// (XTSMGRAPHICS) and, last, the primary device attributes. Terminals
-// answer in order, so the kitty and XTSMGRAPHICS replies, if any, come
-// before DA1's, which then decides between kitty images, sixel and text.
+// and dark changes (mode 2031), the background color (OSC 11), which
+// picks the theme, the 16 palette colors (OSC 4), which chart images
+// and color scales draw with, the sixel color registers (XTSMGRAPHICS)
+// and, last, the primary device attributes. Terminals answer in order,
+// so the other replies, if any, come before DA1's, which then decides
+// between kitty images, sixel and text, and ends the wait for the
+// background of a terminal that doesn't say it.
 func (t *terminal) probes() tea.Cmd {
-	return tea.Raw(t.wrap(chart.Query()) + ansi.SetModeLightDark + paletteQuery() + sixelRegistersQuery + ansi.RequestPrimaryDeviceAttributes)
+	return tea.Raw(t.wrap(chart.Query()) + ansi.SetModeLightDark + ansi.RequestBackgroundColor + paletteQuery() + sixelRegistersQuery +
+		ansi.RequestPrimaryDeviceAttributes)
 }
 
 // paletteQuery asks for the 16 ANSI colors; terminals that don't answer
@@ -96,6 +100,7 @@ func (t *terminal) handle(msg tea.Msg) tea.Cmd {
 			return tea.Raw(ansi.WindowOp(16)) // 16: report the cell size in pixels
 		}
 	case uv.PrimaryDeviceAttributesEvent:
+		t.waitBG = false // the background's answer, if any, came first
 		if slices.Contains(msg, 4) && !t.kitty && !t.tmux && !t.sixel {
 			t.sixel = true
 			return tea.Raw(ansi.WindowOp(16)) // sixel images are drawn at the cell size
@@ -116,6 +121,8 @@ func (t *terminal) handle(msg tea.Msg) tea.Cmd {
 		// The system switched between light and dark. The terminal's
 		// background decides the theme, so ask for it again.
 		return tea.RequestBackgroundColor
+	case bgWaitedMsg:
+		t.waitBG = false
 	case tea.FocusMsg:
 		t.blurred = false
 	case tea.BlurMsg:

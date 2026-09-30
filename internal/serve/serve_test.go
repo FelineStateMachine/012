@@ -18,6 +18,7 @@ import (
 	"time"
 
 	typesafe "github.com/FelineStateMachine/typesafe-go"
+	"github.com/charmbracelet/x/ansi"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -87,6 +88,9 @@ func dial(addr string, key gossh.Signer, host gossh.PublicKey) (*gossh.Client, e
 }
 
 // term is a client session with a terminal, collecting what it's sent.
+// term is a client's terminal: it keeps what the session writes, and
+// answers the device attributes as a terminal would, which 012 waits for
+// before it draws (ui/termbg.go).
 type term struct {
 	sess  *gossh.Session
 	stdin io.WriteCloser
@@ -116,6 +120,9 @@ func openTerm(t testing.TB, c *gossh.Client, w, h int) *term {
 }
 
 func (tm *term) Write(p []byte) (int, error) {
+	if bytes.Contains(p, []byte(ansi.RequestPrimaryDeviceAttributes)) {
+		go io.WriteString(tm.stdin, "\x1b[?62;22c")
+	}
 	tm.mu.Lock()
 	n, err := tm.out.Write(p)
 	tm.mu.Unlock()

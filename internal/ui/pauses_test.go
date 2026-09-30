@@ -6,12 +6,17 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Notebooks ask about the text being edited, and the word at the caret,
-// once typing pauses. No test waits for a pause: the notebook's clock
-// hands the message the pause would give to run, which keeps it in
-// pauses, and a test that wants a pause over ends it with endPauses.
+// No unit test waits on the clock (after). There's no terminal to say
+// its background, so the model's wait for it is over at once; notebooks
+// ask about the text being edited, and the word at the caret, once
+// typing pauses, and the clock hands the message the pause would give
+// to run, which keeps it in pauses: a test that wants a pause over ends
+// it with endPauses.
 func init() {
-	nbAfter = func(_ time.Duration, msg tea.Msg) tea.Cmd {
+	after = func(_ time.Duration, msg tea.Msg) tea.Cmd {
+		if _, ok := msg.(bgWaitedMsg); ok {
+			return func() tea.Msg { return msg }
+		}
 		return func() tea.Msg { return pausedMsg{msg} }
 	}
 }

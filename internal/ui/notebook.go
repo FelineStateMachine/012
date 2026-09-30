@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"slices"
 	"strconv"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -22,11 +21,6 @@ import (
 // nbKeys and nbEditKeys. The cells are the workbook's (sheet/notebook.go),
 // running them is nbrun.go's, sending an output to a sheet nbsend.go's,
 // and drawing the tab nbscreen.go's.
-
-// nbAfter is the clock notebooks time typing's pauses on
-// (nbview.View.After); nil is the real one. The tests' hands them the
-// pauses to end when they choose (pauses_test.go).
-var nbAfter func(time.Duration, tea.Msg) tea.Cmd
 
 // nbKeys are command mode's keys, as Jupyter's; "d d" is d twice.
 var nbKeys = map[string]string{
@@ -195,7 +189,7 @@ func (m *Model) viewOf(s *sheet.Sheet) *nbview.View {
 	v := m.nb.views[s]
 	if v == nil {
 		v = nbview.New(nbHost{m, s})
-		v.Keys, v.EditKeys, v.After = nbKeys, nbEditKeys, nbAfter
+		v.Keys, v.EditKeys, v.After = nbKeys, nbEditKeys, after
 		lang := m.nbLang().For()
 		v.Providers = nbview.Providers{Highlighter: lang, Completer: lang, Checker: lang, Hoverer: lang}
 		m.nb.views[s] = v

@@ -219,3 +219,33 @@ func TestChartImagesOff(t *testing.T) {
 		t.Error("images drawn although chart-images = false")
 	}
 }
+
+// The screen stays blank until the terminal says its background, so a
+// light terminal never shows a frame in the dark theme; a terminal that
+// doesn't say it answers the device attributes asked after it, and one
+// that answers nothing is waited for only so long.
+func TestScreenWaitsForTheBackground(t *testing.T) {
+	blank := func(m *Model) bool { return strings.TrimSpace(screen(m)) == "" }
+	m, _, _ := configured(t, "theme = light:Builtin Solarized Light,dark:Dracula\n")
+	m.term.awaitBackground()
+	if !blank(m) {
+		t.Fatalf("drawn before the background is known:\n%s", screen(m))
+	}
+	send(m, tea.BackgroundColorMsg{Color: ansi.White})
+	if blank(m) || m.th.Name != "Builtin Solarized Light" {
+		t.Errorf("after a light background: theme %q, screen\n%s", m.th.Name, screen(m))
+	}
+
+	m = newModel()
+	m.term.awaitBackground()
+	send(m, uv.PrimaryDeviceAttributesEvent{62, 22})
+	if blank(m) {
+		t.Error("still blank after the device attributes")
+	}
+	m = newModel()
+	m.term.awaitBackground()
+	send(m, bgWaitedMsg{})
+	if blank(m) {
+		t.Error("still blank after waiting")
+	}
+}

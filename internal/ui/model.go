@@ -163,11 +163,12 @@ func New(s *sheet.Sheet, filename string) *Model {
 // serve's session span holds each session's commands.
 func (m *Model) TraceUnder(p telemetry.Parent) { m.spans.Enter(p) }
 
-// Init implements tea.Model. It asks the terminal for its background color
-// so the theme can adapt to light terminals.
+// Init implements tea.Model. It asks the terminal for its background
+// color, so the theme can adapt to light terminals, and holds the
+// screen until it knows (termbg.go).
 func (m *Model) Init() tea.Cmd {
 	// jev.send starts any questions queued while loading the file.
-	return tea.Batch(tea.RequestBackgroundColor, tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd(), m.startNotebook(), m.syncFollowers())
+	return tea.Batch(m.term.awaitBackground(), tea.Raw(shiftEscapeOn), m.term.probes(), m.jev.send(m.spans.Parent()), m.startupCmd(), m.startStdin(), m.startOpenCmd(), m.startNotebook(), m.syncFollowers())
 }
 
 // Update implements tea.Model.
