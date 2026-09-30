@@ -29,12 +29,13 @@ The flags are the options' flags, listed in [Configuration](config.md#options).
 | `012 recalc file.012` | Recalculates, saves and lists the cells showing errors: [Scripts](../files/scripts.md#recalc) |
 | `012 export file.012 out [ref]` | Writes the workbook, a sheet or a range in another format: [Scripts](../files/scripts.md#export) |
 | `012 describe file.012` | Lists the sheets and what's on them: [Agents](../agents/README.md#with-a-shell) |
-| `012 mcp file.012` | Serves the workbook to MCP hosts over standard input and output: [MCP server](../agents/mcp.md) |
+| `012 mcp [file.012]` | Serves the workbooks in the folders open to it to MCP hosts over standard input and output: [MCP server](../agents/mcp.md) |
 | `012 diff a.012 b.012` | Lists what changed, cell by cell: [Diff and merge in git](../files/git.md#012-diff) |
 | `012 diff --textconv file.012` | Writes a workbook as lines, for git's textconv: [Diff and merge in git](../files/git.md#git) |
 | `012 merge-driver base ours theirs [path]` | Merges theirs into ours, for git: [Diff and merge in git](../files/git.md#merging) |
 | `012 nu --module`, `012 nu --install-module [--force] [path]` | Prints or installs the nushell module: [Nushell](../nushell/README.md#install-the-sheet-command) |
 | `012 agent --skill`, `012 agent --install-skill [--force] [dir]` | Prints or installs the Claude Code skill: [Agents](../agents/README.md#the-claude-code-skill) |
+| `012 agent --install-mcp claude-code\|claude-desktop\|codex [--root dir]... [--print]` | Adds `012 mcp` to a host's configuration, or prints the entry: [MCP server](../agents/mcp.md#adding-it-to-a-host) |
 | `012 config [path\|edit\|default\|themes\|set-key\|delete-key]` | The settings: [Configuration](config.md#commands) |
 | `012 version [--format text\|json\|nuon]` | Prints the version |
 
@@ -57,7 +58,7 @@ flag.
 | `--chart n\|title` | `export` | One chart of the sheet as a web page, by its number or title |
 | `--notebooks` | `get`, `recalc`, `export`, `describe` | Runs the notebooks' cells first, when the file is trusted here |
 | `--trust` | with `--notebooks` | Runs the cells of a file saved on another computer |
-| `--read-only`, `--force`, `--notebooks`, `--jev` | `mcp` | The tools offered and what they may do: [MCP server](../agents/mcp.md#flags) |
+| `--root dir`, `--read-only`, `--force`, `--notebooks`, `--jev` | `mcp` | The folders open to it, the tools offered and what they may do: [MCP server](../agents/mcp.md#flags) |
 | `--jev` | `get`, `recalc`, `export`, `describe` | Asks JEV for the JEV functions' answers first |
 | `--format text\|json\|nuon` | `diff` | The form of the changes; text by default |
 | `--color auto\|always\|never` | `diff` | Colors the text; auto colors on a terminal or git's pager unless `NO_COLOR` is set |

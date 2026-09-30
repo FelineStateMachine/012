@@ -41,7 +41,7 @@ func RunCell(ctx context.Context, w *sheet.Workbook, name string, n int, o Noteb
 		return CellRun{}, fmt.Errorf("%s cell %d is a note, which doesn't run", name, n)
 	}
 	out := CellRun{Notebook: s.Name(), Cell: n, Name: c.Name(), State: "ran"}
-	if err := runCell(ctx, w, s, cells, n-1, 1, o); err != nil {
+	if err := runCell(ctx, w, cells, n-1, 1, o); err != nil {
 		out.State, out.Error = "failed", err.Error()
 		return out, nil
 	}

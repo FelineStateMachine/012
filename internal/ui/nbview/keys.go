@@ -319,21 +319,30 @@ func (v *View) Head() (name, text string) {
 	if v.onOut {
 		return name, v.outputSummary(c)
 	}
+	src := c.Parse()
 	var reads []string
-	for _, r := range notebook.Refs(c.Pipeline()) {
+	for _, r := range src.Refs() {
 		reads = append(reads, "$"+r)
 	}
-	if notebook.ReadsSelection(c.Pipeline()) {
+	if src.ReadsSelection() {
 		reads = append(reads, "$selection")
 	}
-	if _, refs := notebook.Bind(c.Pipeline()); len(refs) > 0 {
-		for _, r := range refs {
-			reads = append(reads, "$sheet."+r.Ref)
-		}
+	_, _, ranges := src.Command()
+	for _, r := range ranges {
+		reads = append(reads, "$sheet."+r.Ref)
 	}
 	text = "a nushell pipeline"
 	if len(reads) > 0 {
 		text = "reads " + strings.Join(reads, ", ")
+	}
+	var sets []string
+	for _, a := range src.Assigned() {
+		if a != c.Name() {
+			sets = append(sets, "$"+a)
+		}
+	}
+	if len(sets) > 0 {
+		text += "; sets " + strings.Join(sets, ", ")
 	}
 	if n := c.Name(); n != "" {
 		text += "; read as $" + n + ", nu." + n + " in formulas"

@@ -46,9 +46,11 @@ func usageError(why, usage string) error {
 }
 
 // cliArgs are a subcommand's arguments: its flags, by name without the
-// dashes, and the rest in order.
+// dashes (a flag given more than once keeps its last value in flags and
+// every value in all), and the rest in order.
 type cliArgs struct {
 	flags map[string]string
+	all   map[string][]string
 	pos   []string
 }
 
@@ -59,7 +61,7 @@ func (a cliArgs) has(name string) bool { _, ok := a.flags[name]; return ok }
 // Only flags the command knows are flags, so an argument such as -5 or
 // -A1 is a value; after --, everything is.
 func parseArgs(args []string, valued, bools []string) (cliArgs, error) {
-	out := cliArgs{flags: map[string]string{}}
+	out := cliArgs{flags: map[string]string{}, all: map[string][]string{}}
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {
@@ -86,6 +88,7 @@ func parseArgs(args []string, valued, bools []string) (cliArgs, error) {
 				value = args[i]
 			}
 			out.flags[name] = value
+			out.all[name] = append(out.all[name], value)
 		default:
 			return out, fmt.Errorf("unknown flag --%s", name)
 		}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -20,26 +21,22 @@ import (
 // ($selection) and ranges of sheets ($sheet.A1:C9), each handed to nu as
 // NUON, never spliced into the pipeline.
 
-// jobFor is what running cell c takes: the outputs, linked files and
-// ranges it reads, as NUON.
-func (m *Model) jobFor(s *sheet.Sheet, c notebook.Cell, run *nbRun) (nushell.Job, error) {
-	pipeline, ranges := notebook.Bind(c.Pipeline())
-	job := nushell.Job{Command: pipeline, Tables: map[string][]byte{}, Config: m.configBool("nu-config", false)}
-	run.reads = map[string]int{}
+// jobFor is what running cell c takes: the outputs, variables, linked
+// files and ranges it reads, as NUON. As a stream, the cell hands back
+// no variables but its output (notebook.Source.StreamCommand).
+func (m *Model) jobFor(s *sheet.Sheet, c notebook.Cell, run *nbRun, stream bool) (nushell.Job, error) {
 	cells := s.NotebookCells()
-	names := notebook.Names(cells)
-	for _, name := range notebook.Refs(pipeline) {
-		if j, ok := names[name]; ok {
-			o := m.book().Output(cells[j].ID)
-			switch {
-			case o == nil || o.Unsaved:
-				return job, fmt.Errorf("it reads $%s, which hasn't run", name)
-			case o.Failed():
-				return job, fmt.Errorf("it reads $%s, which failed", name)
-			}
-			job.Tables[name], run.reads[name] = o.NUON, o.Seq
-			continue
-		}
+	i := slices.IndexFunc(cells, func(x notebook.Cell) bool { return x.ID == c.ID })
+	p, err := notebook.Prepare(cells, i, m.book().Output)
+	job := nushell.Job{Command: p.Command, Vars: p.Exports, Tables: p.Tables, Config: m.configBool("nu-config", false)}
+	if stream {
+		job.Command, job.Vars = p.Stream, nil
+	}
+	run.reads = p.Reads
+	if err != nil {
+		return job, err
+	}
+	for _, name := range p.Others {
 		if t, r, ok := m.book().Region(name); ok && r.Linked() && r.Name == name {
 			data, err := regionNUON(t, r)
 			if err != nil {
@@ -48,12 +45,12 @@ func (m *Model) jobFor(s *sheet.Sheet, c notebook.Cell, run *nbRun) (nushell.Job
 			job.Tables[name] = data
 		}
 	}
-	if notebook.ReadsSelection(pipeline) {
+	if p.Selection {
 		if err := m.bindSelection(&job, run); err != nil {
 			return job, err
 		}
 	}
-	for _, ref := range ranges {
+	for _, ref := range p.Ranges {
 		t, rng, err := m.rangeRef(ref.Ref)
 		if err != nil {
 			return job, err

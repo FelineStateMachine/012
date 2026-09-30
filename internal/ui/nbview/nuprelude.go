@@ -16,26 +16,34 @@ import (
 
 // prepared is the text nu is asked about: a prelude declaring the
 // notebook's variables, then the source masked, starting at byte at.
+// Masking keeps every byte of the source in its place, so what nu says
+// of the text is where it says it in the source.
 type prepared struct {
-	text string
-	at   int
-	head int // the bytes of the source that are its `name =`
+	text  string
+	at    int
+	heads [][2]int // the bytes of the source that are its `name =`s
 }
 
 // prepare masks src and declares what it reads: `sales = ls` is asked
 // about as `        ls`, $sheet.A1:C9 as $__s1_______, and the prelude
-// declares $__s1, $selection, $sheet and names, each `let x: any = []`
-// so nu takes it for whatever it holds.
+// declares $__s1, $selection, $sheet, names and the names the cell's
+// lines assign for the lines after them, each `let x: any = []` so nu
+// takes it for whatever it holds.
 func prepare(src string, names []string) prepared {
 	b := []byte(src)
-	name, pipeline := notebook.SplitName(src)
-	head := 0
-	if name != "" {
-		head = len(src) - len(pipeline)
-		for i := range head {
+	parsed := notebook.Parse(src)
+	heads := parsed.Heads()
+	for _, h := range heads {
+		for i := h[0]; i < h[1]; i++ {
 			if b[i] != '\n' {
 				b[i] = ' '
 			}
+		}
+	}
+	names = slices.Clone(names)
+	for k, st := range parsed.Stmts {
+		if st.Name != "" && k < len(parsed.Stmts)-1 { // assigned for the lines after
+			names = append(names, st.Name)
 		}
 	}
 	var pre strings.Builder
@@ -46,9 +54,9 @@ func prepare(src string, names []string) prepared {
 			pre.WriteString("let " + name + ": any = " + value + "\n")
 		}
 	}
-	for i, s := range notebook.RangeSpans(src) {
+	for i, s := range parsed.Ranges {
 		v := "__s" + strconv.Itoa(i+1)
-		if s[0] < head || len(v)+1 > s[1]-s[0] {
+		if len(v)+1 > s[1]-s[0] {
 			continue
 		}
 		v += strings.Repeat("_", s[1]-s[0]-len(v)-1)
@@ -62,22 +70,28 @@ func prepare(src string, names []string) prepared {
 			declare(nm, "[]")
 		}
 	}
-	return prepared{text: pre.String() + string(b), at: pre.Len(), head: head}
+	return prepared{text: pre.String() + string(b), at: pre.Len(), heads: heads}
+}
+
+// inHead reports whether src[from:to] is part of an assignment's head.
+func (p prepared) inHead(from, to int) bool {
+	return slices.ContainsFunc(p.heads, func(h [2]int) bool { return from < h[1] && to > h[0] })
 }
 
 // spans are src's syntax roles from nu's shapes of p's text: the
-// tokenizer's for the cell's name and comments, which nu doesn't
-// report, and a number's unit (the kb of 1kb) as part of the number.
+// tokenizer's for the names the cell assigns and its comments, which nu
+// doesn't report, and a number's unit (the kb of 1kb) as part of the
+// number.
 func (p prepared) spans(src string, shapes []nushell.Shape) []Span {
 	var out []Span
 	for _, s := range (Tokens{}).Highlight(context.Background(), src) {
-		if s.To <= p.head || s.Kind == theme.SyntaxComment {
+		if p.inHead(s.From, s.To) || s.Kind == theme.SyntaxComment {
 			out = append(out, s)
 		}
 	}
 	for i, s := range shapes {
 		from, to := s.From-p.at, s.To-p.at
-		if from < p.head || to > len(src) || from >= to {
+		if from < 0 || to > len(src) || from >= to || p.inHead(from, to) {
 			continue
 		}
 		kind, ok := shapeKind(s.Shape, src[from:to])

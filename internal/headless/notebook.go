@@ -50,7 +50,7 @@ func runNotebook(ctx context.Context, w *sheet.Workbook, s *sheet.Sheet, o Noteb
 		failed = append(failed, fmt.Sprintf("%s cell %d reads itself, through the cells it reads: it doesn't run", s.Name(), i+1))
 	}
 	for n, i := range order {
-		if err := runCell(ctx, w, s, cells, i, n+1, o); err != nil {
+		if err := runCell(ctx, w, cells, i, n+1, o); err != nil {
 			return append(failed, fmt.Sprintf("%s cell %d: %s", s.Name(), i+1, err))
 		}
 	}
@@ -59,7 +59,7 @@ func runNotebook(ctx context.Context, w *sheet.Workbook, s *sheet.Sheet, o Noteb
 
 // runCell runs cell i, the count-th run, keeping its output or why it
 // failed.
-func runCell(ctx context.Context, w *sheet.Workbook, s *sheet.Sheet, cells []notebook.Cell, i, count int, o NotebookOptions) error {
+func runCell(ctx context.Context, w *sheet.Workbook, cells []notebook.Cell, i, count int, o NotebookOptions) error {
 	c := cells[i]
 	out := &notebook.Output{Count: count, Source: c.Source}
 	defer func() {
@@ -70,14 +70,14 @@ func runCell(ctx context.Context, w *sheet.Workbook, s *sheet.Sheet, cells []not
 		out.Err = why
 		return errors.New(why)
 	}
-	job, reads, err := jobFor(w, s, cells, c, o.NuConfig)
+	job, reads, err := jobFor(w, cells, i, o.NuConfig)
 	if err != nil {
 		out.Err = err.Error()
 		return err
 	}
 	out.Reads = reads
 	start := time.Now()
-	data, err := nushell.Exec(ctx, o.Runner, job, o.Timeout, maxOutput)
+	data, vars, err := nushell.ExecVars(ctx, o.Runner, job, o.Timeout, maxOutput)
 	out.Took = time.Since(start)
 	if err != nil {
 		out.Err = err.Error()
@@ -87,47 +87,31 @@ func runCell(ctx context.Context, w *sheet.Workbook, s *sheet.Sheet, cells []not
 		}
 		return errors.New(out.Err)
 	}
-	out.NUON = append([]byte{}, data...)
+	out.NUON, out.Vars = append([]byte{}, data...), vars
 	return nil
 }
 
-// jobFor is what running cell c takes: the outputs, linked files and
-// ranges it reads, as NUON, and the outputs it read by name.
-func jobFor(w *sheet.Workbook, s *sheet.Sheet, cells []notebook.Cell, c notebook.Cell, config bool) (nushell.Job, map[string]int, error) {
-	pipeline, ranges := notebook.Bind(c.Pipeline())
-	job := nushell.Job{Command: pipeline, Tables: map[string][]byte{}, Config: config}
-	reads := map[string]int{}
-	names := notebook.Names(cells)
-	for _, name := range notebook.Refs(pipeline) {
-		if j, ok := names[name]; ok {
-			o := w.Output(cells[j].ID)
-			switch {
-			case o == nil || o.Unsaved:
-				return job, nil, fmt.Errorf("it reads $%s, which hasn't run", name)
-			case o.Failed():
-				return job, nil, fmt.Errorf("it reads $%s, which failed", name)
-			}
-			job.Tables[name], reads[name] = o.NUON, o.Seq
-			continue
-		}
+// jobFor is what running cell i takes: the outputs, variables, linked
+// files and ranges it reads, as NUON, and the outputs it read by name.
+func jobFor(w *sheet.Workbook, cells []notebook.Cell, i int, config bool) (nushell.Job, map[string]int, error) {
+	p, err := notebook.Prepare(cells, i, w.Output)
+	job := nushell.Job{Command: p.Command, Vars: p.Exports, Tables: p.Tables, Config: config}
+	if err != nil {
+		return job, nil, err
+	}
+	for _, name := range p.Others {
 		if t, r, ok := w.Region(name); ok && r.Linked() && r.Name == name {
-			rng, shown := t.RegionTable(r.Name)
-			snap := fileio.Snap(t, rng, r.Name)
-			if !shown {
-				snap = fileio.Snap(t, sheet.Rect{From: r.At, To: r.At}, r.Name)
-				snap.Cells = nil
-			}
-			data, err := encodeNUON(snap)
+			data, err := regionNUON(t, r)
 			if err != nil {
 				return job, nil, err
 			}
 			job.Tables[name] = data
 		}
 	}
-	if notebook.ReadsSelection(pipeline) {
+	if p.Selection {
 		return job, nil, errors.New("it reads $selection, which only the screen has")
 	}
-	for _, ref := range ranges {
+	for _, ref := range p.Ranges {
 		t, rng, err := rangeRef(w, ref.Ref)
 		if err != nil {
 			return job, nil, err
@@ -138,7 +122,22 @@ func jobFor(w *sheet.Workbook, s *sheet.Sheet, cells []notebook.Cell, c notebook
 		}
 		job.Tables[ref.Var] = data
 	}
-	return job, reads, nil
+	return job, p.Reads, nil
+}
+
+// regionNUON is a linked file's table as NUON, read whole whatever its
+// filter shows, as on the screen.
+func regionNUON(t *sheet.Sheet, r sheet.Region) ([]byte, error) {
+	rng, ok := t.RegionTable(r.Name)
+	if !ok {
+		rng = sheet.Rect{From: r.At, To: r.At}
+	}
+	snap := fileio.Snap(t, rng, r.Name)
+	snap.HiddenRows = nil
+	if !ok {
+		snap.Cells = nil
+	}
+	return encodeNUON(snap)
 }
 
 // rangeRef is the sheet and range $sheet.ref reads: of the sheet it
