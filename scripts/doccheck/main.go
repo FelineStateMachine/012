@@ -8,8 +8,10 @@
 //     page front matter with a title and a sidebar_position (tree.go);
 //   - every docs/...md path Go code names exists;
 //   - every file in docs/media is shown by some doc, comes from a VHS tape
-//     in demos/ (its Output or a Screenshot), and no GIF is over maxGIF;
-//   - every tape in demos/ records something a doc shows;
+//     in demos/ (its Output or a Screenshot) or is a still of a golden
+//     screen (e2e/stills_test.go), and no GIF is over maxGIF;
+//   - every tape in demos/ records something a doc shows, and every
+//     still is shown, its dark and light pictures together;
 //   - every docs page the site has published is still a page, or has a
 //     redirect from its address in website/redirects.json (redirects.go).
 //
@@ -180,8 +182,8 @@ func checkLinks(docs map[string]*doc) []string {
 				out = append(out, where+": no such file")
 				continue
 			}
-			if anchor == "" {
-				continue
+			if anchor == "" || modeOnly[anchor] {
+				continue // the color mode a still shows in, checked in checkMedia
 			}
 			td, ok := docs[target]
 			if !ok {
@@ -197,22 +199,60 @@ func checkLinks(docs map[string]*doc) []string {
 var (
 	tapeOutput     = regexp.MustCompile(`(?m)^Output\s+"?out/([^"\s]+)"?`)
 	tapeScreenshot = regexp.MustCompile(`(?m)^Screenshot\s+"?out/stills/([^"\s]+)"?`)
+	// docScreen is an entry of e2e's docScreens, a still drawn from a
+	// golden screen as <name>-dark.png and <name>-light.png.
+	docScreen = regexp.MustCompile(`(?m)^\s*\{name: "([^"]+)", from:`)
 )
 
-// checkMedia reports media no doc shows, media no tape makes, GIFs over
-// maxGIF and tapes whose recordings no doc shows.
+// stillsSource lists the stills of golden screens.
+const stillsSource = "e2e/stills_test.go"
+
+// modeOnly are the fragments GitHub and the site show an image by: only
+// in dark mode, or only in light.
+var modeOnly = map[string]bool{"gh-dark-mode-only": true, "gh-light-mode-only": true}
+
+// checkMedia reports media no doc shows, media nothing makes, GIFs over
+// maxGIF, tapes and stills no doc shows, and stills shown without their
+// other color mode.
 func checkMedia(docs map[string]*doc) []string {
-	shown := map[string]bool{}
+	// shown maps a media path to the fragment each doc shows it with.
+	shown := map[string]map[string]string{}
 	for _, dc := range docs {
 		for _, l := range dc.links {
-			file, _, _ := strings.Cut(l.target, "#")
+			file, frag, _ := strings.Cut(l.target, "#")
 			if file != "" && !strings.Contains(file, "://") {
-				shown[path.Clean(path.Join(path.Dir(dc.path), file))] = true
+				p := path.Clean(path.Join(path.Dir(dc.path), file))
+				if shown[p] == nil {
+					shown[p] = map[string]string{}
+				}
+				shown[p][dc.path] = frag
 			}
 		}
 	}
+	madeBy := map[string]string{} // media file name -> the tape or stills list
+	out := tapeMedia(shown, madeBy)
+	out = append(out, stillMedia(shown, madeBy)...)
+	media, _ := filepath.Glob("docs/media/*")
+	for _, m := range media {
+		m = filepath.ToSlash(m)
+		name := path.Base(m)
+		if shown[m] == nil {
+			out = append(out, m+": no doc shows it")
+		}
+		if madeBy[name] == "" {
+			out = append(out, m+": nothing makes it: no tape in demos/ (Output or Screenshot), nor docScreens in "+stillsSource)
+		}
+		if fi, err := os.Stat(m); err == nil && path.Ext(m) == ".gif" && fi.Size() > maxGIF {
+			out = append(out, fmt.Sprintf("%s: %d KB, over %d KB", m, fi.Size()>>10, maxGIF>>10))
+		}
+	}
+	return out
+}
+
+// tapeMedia records what each tape makes in madeBy and reports tapes
+// whose recordings no doc shows.
+func tapeMedia(shown map[string]map[string]string, madeBy map[string]string) []string {
 	tapes, _ := filepath.Glob("demos/*.tape")
-	madeBy := map[string]string{} // media file name -> tape
 	var out []string
 	for _, t := range tapes {
 		src, err := os.ReadFile(t)
@@ -227,23 +267,45 @@ func checkMedia(docs map[string]*doc) []string {
 				madeBy[m[1]] = t
 			}
 		}
-		if !slices.ContainsFunc(made, func(name string) bool { return shown["docs/media/"+name] }) {
+		if !slices.ContainsFunc(made, func(name string) bool { return shown["docs/media/"+name] != nil }) {
 			out = append(out, t+": no doc shows its recording or stills (docs/media/"+strings.Join(made, ", docs/media/")+")")
 		}
 	}
-	media, _ := filepath.Glob("docs/media/*")
-	for _, m := range media {
-		m = filepath.ToSlash(m)
-		name := path.Base(m)
-		if !shown[m] {
-			out = append(out, m+": no doc shows it")
+	return out
+}
+
+// stillMedia records the stills of golden screens in madeBy, and reports
+// one no doc shows, or one shown without its other color mode: a doc
+// shows <name>-dark.png#gh-dark-mode-only and
+// <name>-light.png#gh-light-mode-only together.
+func stillMedia(shown map[string]map[string]string, madeBy map[string]string) []string {
+	src, err := os.ReadFile(stillsSource)
+	if err != nil {
+		return []string{stillsSource + ": " + err.Error()}
+	}
+	var out []string
+	for _, m := range docScreen.FindAllStringSubmatch(string(src), -1) {
+		dark, light := "docs/media/"+m[1]+"-dark.png", "docs/media/"+m[1]+"-light.png"
+		madeBy[path.Base(dark)], madeBy[path.Base(light)] = stillsSource, stillsSource
+		if shown[dark] == nil && shown[light] == nil {
+			out = append(out, stillsSource+": no doc shows the still "+m[1])
 		}
-		if madeBy[name] == "" {
-			out = append(out, m+": no tape in demos/ makes it (Output or Screenshot)")
+		for _, d := range sortedKeys(mergeKeys(shown[dark], shown[light])) {
+			if shown[dark][d] != "gh-dark-mode-only" || shown[light][d] != "gh-light-mode-only" {
+				out = append(out, d+": shows the still "+m[1]+" without both "+path.Base(dark)+"#gh-dark-mode-only and "+path.Base(light)+"#gh-light-mode-only")
+			}
 		}
-		if fi, err := os.Stat(m); err == nil && path.Ext(m) == ".gif" && fi.Size() > maxGIF {
-			out = append(out, fmt.Sprintf("%s: %d KB, over %d KB", m, fi.Size()>>10, maxGIF>>10))
-		}
+	}
+	return out
+}
+
+func mergeKeys(a, b map[string]string) map[string]bool {
+	out := map[string]bool{}
+	for k := range a {
+		out[k] = true
+	}
+	for k := range b {
+		out[k] = true
 	}
 	return out
 }

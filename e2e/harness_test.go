@@ -37,6 +37,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "building 012: %v\n%s", err, out)
 		os.Exit(1)
 	}
+	addDocScreens()
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)

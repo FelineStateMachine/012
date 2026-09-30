@@ -97,31 +97,36 @@ copied, cut or moved.
 
 ## Borders
 
-Format > Borders draws lines along the edges of the selected cells: all
-of them, the outline (outer), the lines between the cells (inner), or
-one side; None removes them. Lines are thin, thick or double, whichever
-of Thin lines, Thick lines and Double lines was picked last (thin at
-first), as Sheets' border style keeps its choice. Alt+Shift+1 to 4 draw
-the top, right, bottom and left border, Alt+Shift+7 the outline and
-Alt+Shift+6 clears them ([keys](../reference/keys.md#formatting)).
+![A trip plan with thin lines between its cells, a thick outline and a double line under the headers, under a title merged across it; the notes wrap, and their rows grow to fit](../media/layout-dark.png#gh-dark-mode-only)
+![A trip plan with thin lines between its cells, a thick outline and a double line under the headers, under a title merged across it; the notes wrap, and their rows grow to fit](../media/layout-light.png#gh-light-mode-only)
+
+Select the cells, then Format > Borders:
+
+- **All**, **Outer** (the outline) or **Inner** (the lines between the
+  cells) draws those edges; **Top**, **Bottom**, **Left** and **Right**
+  one side; **None** removes them.
+- **Thin lines**, **Thick lines** and **Double lines** pick the line the
+  next border is drawn with, thin until you pick, as Sheets' border
+  style keeps its choice.
+- Alt+Shift+1 to 4 draw the top, right, bottom and left border,
+  Alt+Shift+7 the outline and Alt+Shift+6 clears them
+  ([keys](../reference/keys.md#formatting)).
+
+Where two cells share an edge, the heavier line shows, and drawing an
+edge again from one side replaces the other side's line. Borders are
+part of a cell's formatting: they fall back on rows and columns, travel
+with copies and go with Clear formatting. The outline of whole columns
+or rows runs along the sheet's own edges too: over row 1 and under the
+last row, or down column A and the last column.
 
 The grid draws borders with box-drawing characters, which terminals
-join where lines meet (`┌─┬─┐`, `╔═╤═╗`). A line down the side of a cell
-takes the first column of the cell to its right, which is padding
-anyway. A terminal has no thinner line between two rows of characters,
-so a line along the top of a row takes a line of the screen above it,
-as tables printed in a terminal do: a bordered table is taller than a
-plain one. Where two cells share an edge, the heavier line shows, and
-drawing an edge again from one side replaces the other side's line.
-Borders are part of a cell's formatting: they fall back on rows and
-columns, travel with copies and go with Clear formatting. The outline
-of whole columns or rows runs along the sheet's own edges too: over
-row 1 and under the last row, or down column A and the last column.
-
-Unicode has no joint where a double line meets a thick one, so there
-the joint is drawn thick, the heavier look, and the double line starts
-beside it with a thick stub: a double line under the headers of a
-table with a thick outline reads `┣━═══════╪═══════━┫`.
+join where lines meet. A line down the side of a cell takes the first
+column of the cell to its right, which is padding anyway. A terminal
+has no thinner line between two rows of characters, so a line along
+the top of a row takes a line of the screen above it, as tables printed
+in a terminal do: a bordered table is taller than a plain one. Unicode
+has no joint where a double line meets a thick one, so there the joint
+is drawn thick, and the double line starts beside it.
 
 ### Border colors
 
