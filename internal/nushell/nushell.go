@@ -9,6 +9,7 @@ package nushell
 
 import (
 	"bytes"
+	"encoding/base64"
 	"context"
 	"errors"
 	"fmt"
@@ -33,6 +34,10 @@ type Job struct {
 	Tables map[string][]byte
 	// Config runs nu with the user's config files rather than without.
 	Config bool
+	// Vars are the variables the run hands back beside its output: the
+	// command ends in a record of its output, as __out, and each of
+	// them, and the run prints each as a line of its own (ExecVars).
+	Vars []string
 	// IDE asks nu about the script rather than running it: the flags
 	// that ask (--ide-ast, or --ide-complete 14), nu reading the script
 	// from a file named after them, without config files or the
@@ -77,8 +82,41 @@ func Script(job Job, names []string) string {
 	for i, name := range names {
 		fmt.Fprintf(&b, "let %s = (open --raw $env.NU012_TABLE_%d | from nuon)\n", name, i)
 	}
-	b.WriteString("do {\n" + job.Command + "\n} | to nuon\n")
+	b.WriteString("do {\n" + job.Command + "\n} | ")
+	if len(job.Vars) > 0 {
+		b.WriteString(`items {|k, v| $"($k) ($v | to nuon | encode base64)" } | str join "\n"` + "\n")
+	} else {
+		b.WriteString("to nuon\n")
+	}
 	return b.String()
+}
+
+// outVar names the output among a run's variables.
+const outVar = "__out"
+
+// ExecVars runs job as Exec does, returning its output and, when it
+// hands back variables (Job.Vars), their values, each as NUON. They're
+// the last lines it printed, each a name and its NUON as base64, so
+// what the pipeline printed itself before them doesn't mix in.
+func ExecVars(ctx context.Context, r Runner, job Job, timeout time.Duration, maxBytes int) ([]byte, map[string][]byte, error) {
+	out, err := Exec(ctx, r, job, timeout, maxBytes)
+	if err != nil || len(job.Vars) == 0 {
+		return out, nil, err
+	}
+	lines := strings.Split(string(out), "\n")
+	vars := map[string][]byte{}
+	for _, line := range lines[max(len(lines)-len(job.Vars)-1, 0):] {
+		name, enc, _ := strings.Cut(strings.TrimSpace(line), " ")
+		if data, err := base64.StdEncoding.DecodeString(enc); err == nil && (name == outVar || slices.Contains(job.Vars, name)) {
+			vars[name] = data
+		}
+	}
+	nuon, ok := vars[outVar]
+	if !ok || len(vars) != len(job.Vars)+1 {
+		return nil, nil, errors.New("the run didn't hand back its variables")
+	}
+	delete(vars, outVar)
+	return nuon, vars, nil
 }
 
 // ErrTooLarge is a run that printed more than it may keep.

@@ -71,12 +71,30 @@ var operators = []string{"and", "or", "not", "xor", "in", "not-in", "like", "not
 
 // Highlight implements Highlighter.
 func (Tokens) Highlight(_ context.Context, src string) []Span {
-	t := tokenizer{src: src, command: true}
-	if name, _ := notebook.SplitName(src); name != "" {
-		t.i = strings.Index(src, name) + len(name)
-		t.add(t.i-len(name), theme.SyntaxVariable) // the cell's name, as $name reads it
+	t := tokenizer{src: src, command: true, whole: map[int]Span{}}
+	p := notebook.Parse(src)
+	for _, st := range p.Stmts {
+		if st.Name != "" { // a name assigned, as $name reads it
+			t.whole[st.From] = Span{st.From, st.From + len(st.Name), theme.SyntaxVariable}
+		}
+	}
+	for _, c := range p.Comments {
+		t.whole[c[0]] = Span{c[0], c[1], theme.SyntaxComment}
+	}
+	for _, s := range p.Strings {
+		if src[s[0]] == 'r' { // a raw string, r#'...'#
+			t.whole[s[0]] = Span{s[0], s[1], theme.SyntaxString}
+		}
 	}
 	for t.i < len(t.src) {
+		if s, ok := t.whole[t.i]; ok {
+			t.out = append(t.out, s)
+			t.i = s.To
+			if s.Kind != theme.SyntaxComment {
+				t.command = false
+			}
+			continue
+		}
 		if !t.punct() {
 			t.word()
 		}
@@ -91,6 +109,9 @@ type tokenizer struct {
 	i       int
 	command bool
 	out     []Span
+	// whole are the tokens the source's reading knows (notebook.Parse),
+	// by where they start: names assigned, comments, raw strings.
+	whole map[int]Span
 }
 
 func (t *tokenizer) add(from int, k theme.Syntax) { t.out = append(t.out, Span{from, t.i, k}) }
@@ -109,9 +130,6 @@ func (t *tokenizer) punct() bool {
 		t.command = true
 	case c == ' ' || c == '\t' || c == '\r' || c == ')' || c == '}' || c == '[' || c == ']' || c == ',':
 		t.i++
-	case c == '#' && (i == 0 || isSpace(src[i-1])):
-		t.i = lineEnd(src, i)
-		t.add(start, theme.SyntaxComment)
 	case c == '"' || c == '\'' || c == '`':
 		t.i = quoted(src, i)
 		t.add(start, theme.SyntaxString)
