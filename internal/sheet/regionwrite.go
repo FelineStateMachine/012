@@ -167,7 +167,9 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 	for _, c := range changed {
 		s.freedFor(c.a)
 	}
-	if after, _ := me.table(); !had || after != before {
+	// Blocked, what's in its way may have gone but for arrays, which then
+	// find it (heldByArrays).
+	if after, _ := me.table(); !had || after != before || me.why != "" {
 		changed = append(changed, s.regionMoved(before, after, had)...)
 	}
 	if !had || was != me.written || shape != [2]int{me.rows, me.cols} { // moved, or its table changed shape

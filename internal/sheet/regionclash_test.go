@@ -131,3 +131,17 @@ func TestArrayOverRegionItReadsTheCellsOf(t *testing.T) {
 		wantShown(t, opened, want)
 	}
 }
+
+// A region blocked by a formula and an array reading its cells, the formula
+// cleared, is blocked by the array alone, which then finds the cycle.
+func TestRegionFreedButForAnArrayReadingIt(t *testing.T) {
+	op := LiveOp{Region: "a", Reset: true, Header: liveRow("x", "y", "z"), Rows: []LiveRow{liveRow("1", "2", "3")}}
+	s := New()
+	sent(t, s, "a", "F10")
+	s.Set(at("F11"), "=SEQUENCE(1)")
+	s.Set(at("H9"), "=SORT(F6:F10)")
+	apply(t, s, op)
+	s.Set(at("F11"), "")
+	feedStale(s.Book(), map[string]LiveOp{"a": op})
+	wantShown(t, s, map[string]string{"H9": "#REF!", "F10": "x", "H11": "3"})
+}
