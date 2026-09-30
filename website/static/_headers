@@ -1,0 +1,7 @@
+# Cloudflare's headers for files whose extension names no type
+# (website/wrangler.jsonc): PowerShell's irm reads install.ps1 as
+# text, and a browser shows the checksums.
+/install.ps1
+  Content-Type: text/plain; charset=utf-8
+/releases/*/SHA256SUMS
+  Content-Type: text/plain; charset=utf-8

@@ -1,0 +1,21 @@
+// The docs site on Cloudflare: a Worker with static assets only, serving
+// website/build at https://012.dev.site. `make site-publish` builds the
+// site with the release and runs `wrangler deploy` here. See
+// docs/contributing/site.md.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "012-site",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./build",
+    // Docusaurus writes every page as a directory with an index.html
+    // (trailingSlash: true), so /docs/x redirects to /docs/x/.
+    "html_handling": "auto-trailing-slash",
+    // An address with no file gets the site's own 404 page, with a 404.
+    "not_found_handling": "404-page"
+  },
+  // wrangler creates the DNS record and the certificate for the domain.
+  "routes": [{ "pattern": "012.dev.site", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false
+}

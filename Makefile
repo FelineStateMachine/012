@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e speed speed-update dist site site-release site-serve site-deps
+.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e speed speed-update dist site site-release site-publish site-serve site-deps
 
 build:
 	CGO_ENABLED=0 go build -o bin/012 ./cmd/012
@@ -139,9 +139,10 @@ demos: build
 # The docs site (website/): Docusaurus over docs/, built into
 # website/build. Needs Node 20.11+ and npm; nothing else in the build or
 # make check does. The build fails on a broken link or anchor. SITE_URL
-# sets the address canonical links and the sitemap use. Node's warning
-# that localStorage has no backing file is about the build's own process,
-# which never stores anything. See docs/contributing/site.md.
+# sets the address canonical links and the sitemap use
+# (https://012.dev.site unless set). Node's warning that localStorage has
+# no backing file is about the build's own process, which never stores
+# anything. See docs/contributing/site.md.
 SITE_NODE := NODE_OPTIONS=--disable-warning=ExperimentalWarning
 
 site: site-deps
@@ -154,6 +155,13 @@ site: site-deps
 # else built from the tag. See docs/contributing/releasing.md.
 site-release: site
 	VERSION=$(VERSION) scripts/site-release.sh
+
+# The site with the release, deployed to https://012.dev.site: Cloudflare
+# Workers static assets, configured in website/wrangler.jsonc, with the
+# wrangler website/package.json pins. Needs Node 22+ and wrangler logged
+# in (npx wrangler login). See docs/contributing/site.md.
+site-publish: site-release
+	cd website && npx --no-install wrangler deploy
 
 site-serve: site-deps
 	cd website && $(SITE_NODE) npm run start
