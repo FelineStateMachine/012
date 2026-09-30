@@ -23,7 +23,9 @@ flowchart LR
 ```
 
 A file is opened afresh for every call, so what the screen, a script
-or git saved meanwhile is what the next call sees.
+or git saved meanwhile is what the next call sees. To work in a running
+012 instead, on the workbook on your screen with its changes as
+suggestions, attach with `012 mcp --attach`: [Live mode](live.md).
 
 ## Adding it to a host
 

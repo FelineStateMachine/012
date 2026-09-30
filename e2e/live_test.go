@@ -131,7 +131,7 @@ func (a *agent) tool(name string, args map[string]any) map[string]any {
 }
 
 // startLive starts 012 --listen on a new budget.012 with 40, 2 and
-// their sum in A1:A3, and attaches an agent called claude.
+// their sum in A1:A3, and attaches the agent, claude.
 func startLive(t *testing.T, o options) (*session, *agent) {
 	t.Helper()
 	run := runDir(t)

@@ -113,6 +113,7 @@ there.
 | Protected ranges | A question in words before an edit (`A1:B2 is protected.`) |
 | Notes | A `▝` in the cell's top-right corner |
 | Others in a shared workbook (012 serve) | Their pointer's cell double-underlined, their initial on its row's header, their name on the status line, `▘` in a cell they changed in the last 30 seconds, and `Changed by`, `is here` or their warnings in words on the context line |
+| Agents in the workbook (live mode) | A `◆` for their initial on the row header and before their name on the status line, `agent` in Who's here; a `◇` in a cell their suggestion would set, what they suggest in words on the context line, and the count on the status line |
 | Macro recording | `REC` beside the mode indicator |
 | Mode | The mode indicator's word (`READY`, `ENTER`, `POINT`, `MENU`, and on a notebook `NOTEBOOK`, `EDIT` or `OUTPUT`) |
 | Search matches, traced cells | Reverse video, with a count or the list on the context line; dependents also bold |

@@ -32,7 +32,7 @@ type screen struct {
 	user  string
 	peers []peer
 	args  []string // 012's command line, e.g. --pipe
-	// live starts 012 --listen on budget.012 and attaches an agent
+	// live starts 012 --listen on budget.012 and attaches the agent
 	// called claude (s.agent) before setup: live mode's screens.
 	live  bool
 	setup func(s *session)

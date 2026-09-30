@@ -14,6 +14,7 @@ like a command (`get`, `diff`) opens as `./get`.
 |---|---|
 | `012 [flags] [file]` | Opens a `.012` workbook (created on saving when it doesn't exist), or imports another format: [Files](../files/README.md) |
 | `012 [flags] -` | A table from standard input: [Pipelines](../nushell/pipelines.md) |
+| `012 [flags] --listen [file]` | Lets agents work in the session with you, attached with `012 mcp --attach`: [Live mode](../agents/live.md) |
 | `012 [flags] --pipe [--to nuon\|json\|csv\|tsv] [--send ask\|selection\|sheet] [file]` | On quitting, sends a table to standard output: [Pipelines](../nushell/pipelines.md) |
 | `012 nu [flags] [file]` | A nushell notebook, at its prompt: [Notebooks](../nushell/notebooks.md) |
 | `012 serve [flags] [dir]` | Serves the sheets in a directory over SSH: [Serving over SSH](../terminal/ssh.md) |
@@ -30,6 +31,7 @@ The flags are the options' flags, listed in [Configuration](config.md#options).
 | `012 export file.012 out [ref]` | Writes the workbook, a sheet or a range in another format: [Scripts](../files/scripts.md#export) |
 | `012 describe file.012` | Lists the sheets and what's on them: [Agents](../agents/README.md#with-a-shell) |
 | `012 mcp [file.012]` | Serves the workbooks in the folders open to it to MCP hosts over standard input and output: [MCP server](../agents/mcp.md) |
+| `012 mcp --attach [name\|socket]` | Joins a running 012 listening for agents, as the agent's MCP server: [Live mode](../agents/live.md#starting) |
 | `012 diff a.012 b.012` | Lists what changed, cell by cell: [Diff and merge in git](../files/git.md#012-diff) |
 | `012 diff --textconv file.012` | Writes a workbook as lines, for git's textconv: [Diff and merge in git](../files/git.md#git) |
 | `012 merge-driver base ours theirs [path]` | Merges theirs into ours, for git: [Diff and merge in git](../files/git.md#merging) |

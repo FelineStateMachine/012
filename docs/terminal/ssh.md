@@ -195,6 +195,13 @@ once for everyone, and notebook cells run once: any session may run or
 stop them, everyone sees them running and their outputs, and they go on
 when the one who started them leaves, until the last one does.
 
+**Agents.** With sharing on, the server also listens for agents run by
+its own user on its machine: `012 mcp --attach budget.012` joins the
+room of a file someone has open, where the agent shows with a ◆ and its
+changes wait as suggestions for anyone in the room to accept
+([Live mode](../agents/live.md#012-serve)). The room closes when its
+last person leaves, whatever agents are still in it.
+
 ## Each session
 
 Besides the shared workbook, every session is a separate 012 with

@@ -16,6 +16,7 @@ started with the flags that allow it, as for scripts.
 |---|---|
 | This page | Agents with a shell: the commands, their JSON, and the Claude Code skill |
 | [MCP server](mcp.md) | `012 mcp`, for any MCP host: tools, resources, prompts, views in the chat, and adding it to Claude Code, Codex and Claude Desktop with `012 agent --install-mcp` |
+| [Live mode](live.md) | The agent working in your running 012 with you: its pointer in the grid, its changes as suggestions you accept or reject, a scope, questions on the context line |
 | [JSON output](../reference/json.md) | The schemas of what commands write with `--format json`, and what the MCP tools return |
 
 ## With a shell

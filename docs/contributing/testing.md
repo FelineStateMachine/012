@@ -51,7 +51,9 @@ shared, as a room of `012 serve` holds it, then has them undo their own
 steps in turns drawn from the seed, out of order wherever the rule
 allows: someone can always undo, an undo redone at once gives back the
 file it undid, and once every step is undone the workbook is back where
-it started.
+it started. A fourth author stands for the agent of live mode: its edits are
+proposals made on a copy, accepted whole, cell by cell or not at all as
+the seed draws, and its accepted steps are undone with the rest.
 
 The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and
@@ -104,7 +106,11 @@ restores the terminal and keeps the work; release builds have no such key.
 is tested as a user sees it (skipped when `ssh` isn't installed). `e2e/share_test.go` has two people
 reach one `012 serve` that way, each in a terminal of their own, and
 share a file; screens of a shared workbook start the others' sessions
-first (`screen.peers`).
+first (`screen.peers`). `e2e/live_test.go` runs `012 --listen` and a real
+`012 mcp --attach`, spoken to in MCP's JSON-RPC as a host would: the
+agent reads, suggests and asks, and the person accepts in the grid;
+live mode's screens attach it first (`screen.live`). Live mode's unit
+tests (`internal/cowork`) attach the SDK's client over the socket.
 
 `make e2e` builds libghostty-vt from source with Zig into `.deps/` on first
 use. It is its own Go module so cgo never reaches the main binary.
