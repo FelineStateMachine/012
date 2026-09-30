@@ -10,131 +10,29 @@ package fileio
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 	"math/rand/v2"
-	"os"
-	"path/filepath"
 	"testing"
-	"time"
-
-	"github.com/parquet-go/parquet-go"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/stress"
 )
 
-// bigRows is the rows of the generated sources.
+// bigRows is the rows of the generated sources (stress.SalesParquet).
 const bigRows = 10_000_000
-
-// bigRow is a row of them: an id, one of eight categories, an amount
-// and a date.
-type bigRow struct {
-	ID     int64   `parquet:"id"`
-	Cat    string  `parquet:"cat,dict"`
-	Amount float64 `parquet:"amount"`
-	Day    int32   `parquet:"day,date"`
-}
-
-var bigCats = []string{"north", "south", "east", "west", "central", "coast", "hills", "islands"}
-
-func bigRowAt(i int) bigRow {
-	r := rand.New(rand.NewPCG(uint64(i), 12))
-	return bigRow{ID: int64(i), Cat: bigCats[r.IntN(len(bigCats))], Amount: float64(r.IntN(1_000_000)) / 100,
-		Day: int32(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).Unix()/86400) + int32(r.IntN(2000))}
-}
-
-// generated is the directory the sources are kept in between runs.
-func generated(b *testing.B) string {
-	if d := os.Getenv("STRESS_DIR"); d != "" {
-		dir := filepath.Join(d, "generated")
-		if err := os.MkdirAll(dir, 0o755); err == nil {
-			return dir
-		}
-	}
-	return b.TempDir()
-}
-
-// bigParquet writes the Parquet source unless it's there.
-func bigParquet(b *testing.B, dir string) string {
-	name := filepath.Join(dir, fmt.Sprintf("sales-%d.parquet", bigRows))
-	if _, err := os.Stat(name); err == nil {
-		return name
-	}
-	tmp := name + ".part"
-	f, err := os.Create(tmp)
-	if err != nil {
-		b.Fatal(err)
-	}
-	w := parquet.NewGenericWriter[bigRow](f, parquet.MaxRowsPerRowGroup(1<<20))
-	batch := make([]bigRow, 1<<16)
-	for i := 0; i < bigRows; i += len(batch) {
-		n := min(len(batch), bigRows-i)
-		for j := range n {
-			batch[j] = bigRowAt(i + j)
-		}
-		if _, err := w.Write(batch[:n]); err != nil {
-			b.Fatal(err)
-		}
-	}
-	if err := w.Close(); err != nil {
-		b.Fatal(err)
-	}
-	f.Close()
-	if err := os.Rename(tmp, name); err != nil {
-		b.Fatal(err)
-	}
-	return name
-}
-
-// bigSQLite writes the SQLite source unless it's there.
-func bigSQLite(b *testing.B, dir string) string {
-	name := filepath.Join(dir, fmt.Sprintf("sales-%d.sqlite", bigRows))
-	if _, err := os.Stat(name); err == nil {
-		return name
-	}
-	tmp := name + ".part"
-	os.Remove(tmp)
-	db, err := sql.Open("sqlite", tmp+"?_pragma=journal_mode(OFF)&_pragma=synchronous(OFF)")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer db.Close()
-	tx, err := db.Begin()
-	if err != nil {
-		b.Fatal(err)
-	}
-	if _, err := tx.Exec("CREATE TABLE sales (id INTEGER, cat TEXT, amount REAL, day DATE)"); err != nil {
-		b.Fatal(err)
-	}
-	ins, err := tx.Prepare("INSERT INTO sales VALUES (?, ?, ?, ?)")
-	if err != nil {
-		b.Fatal(err)
-	}
-	for i := range bigRows {
-		r := bigRowAt(i)
-		day := time.Unix(int64(r.Day)*86400, 0).UTC().Format(time.DateOnly)
-		if _, err := ins.Exec(r.ID, r.Cat, r.Amount, day); err != nil {
-			b.Fatal(err)
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		b.Fatal(err)
-	}
-	db.Close()
-	if err := os.Rename(tmp, name); err != nil {
-		b.Fatal(err)
-	}
-	return name
-}
 
 // BenchmarkSource reads ten million rows of each kind of source.
 func BenchmarkSource(b *testing.B) {
-	dir := generated(b)
-	files := map[string]SourceSpec{
-		"parquet": {Path: bigParquet(b, dir)},
-		"sqlite":  {Path: bigSQLite(b, dir)},
+	dir := stress.GeneratedDir(b.TempDir())
+	pq, err := stress.SalesParquet(dir, bigRows)
+	if err != nil {
+		b.Fatal(err)
 	}
-	defer benchLock(b)()
+	db, err := stress.SalesSQLite(dir, bigRows)
+	if err != nil {
+		b.Fatal(err)
+	}
+	files := map[string]SourceSpec{"parquet": {Path: pq}, "sqlite": {Path: db}}
+	defer stress.BenchLock(b)()
 	for _, kind := range []string{"parquet", "sqlite"} {
 		spec := files[kind]
 		spec.TempDir = b.TempDir()

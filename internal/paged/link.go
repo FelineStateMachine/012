@@ -32,11 +32,14 @@ func Apply(w *sheet.Workbook, d Done) {
 	}
 }
 
-// Settle links the sources links names (Links) and runs every job the
-// host queues, one after another, applying each, until none is left: for
-// what has no screen to keep live while they run (012 get, tests).
+// Settle links the sources links names (Links), unless links is nil,
+// and runs every job the host queues, one after another, applying each,
+// until none is left: for what has no screen to keep live while they
+// run (012 get, tests).
 func (h *Host) Settle(ctx context.Context, w *sheet.Workbook, links []Linked) {
-	h.Link(links)
+	if links != nil {
+		h.Link(links)
+	}
 	w.SetSources(h)
 	for jobs := h.Jobs(); len(jobs) > 0; jobs = h.Jobs() {
 		for _, j := range jobs {

@@ -3,7 +3,6 @@ package paged
 import (
 	"cmp"
 	"context"
-	"iter"
 	"slices"
 
 	"github.com/FelineStateMachine/012/internal/functions"
@@ -44,7 +43,7 @@ const maxRows = 256
 
 func (b *book) close() {
 	for _, c := range b.cursors {
-		c.stop()
+		b.stopCursor(c)
 	}
 }
 
@@ -170,70 +169,12 @@ func (b *book) Scan(name string, r sheet.Rect, from sheet.Addr, addrs []sheet.Ad
 	if from.Row > part.To.Row {
 		return n
 	}
-	b.cursor(s, part, from).read(part, emit)
+	c := b.cursor(s, part, from)
+	c.read(part, emit)
+	if c.cur == nil && c.err != nil {
+		b.fail(c.err) // the scan ended failing
+	}
 	return n
-}
-
-// cursor is the cursor over the columns of part from from on: the one
-// the last chunk left there, or a new one.
-func (b *book) cursor(s snapshot, part sheet.Rect, from sheet.Addr) *cursor {
-	k := cursorKey{key(s.name), part.From.Col, part.To.Col}
-	if c := b.cursors[k]; c != nil {
-		if c.at == from {
-			return c
-		}
-		c.stop()
-	}
-	cols := make([]int, 0, part.To.Col-part.From.Col+1)
-	for c := part.From.Col; c <= part.To.Col; c++ {
-		cols = append(cols, c)
-	}
-	c := &cursor{b: b, at: from}
-	seq := func(yield func(int64, []sheet.LiveCell) bool) {
-		if err := s.h.Scan(b.ctx, int64(from.Row-1), cols, yield); err != nil {
-			b.fail(err)
-		}
-	}
-	c.next, c.stop = iter.Pull2(seq)
-	if b.cursors == nil {
-		b.cursors = map[cursorKey]*cursor{}
-	}
-	b.cursors[k] = c
-	return c
-}
-
-// cursor streams a range's rows for Scan, a chunk at a time.
-type cursor struct {
-	b    *book
-	at   sheet.Addr // where the next chunk starts
-	next func() (int64, []sheet.LiveCell, bool)
-	stop func()
-	row  []sheet.LiveCell // the row being read, from the range's first column
-	have bool
-}
-
-// read gives emit the cells of part from the cursor on, until emit
-// returns false or the part ends.
-func (c *cursor) read(part sheet.Rect, emit func(sheet.Addr, sheet.Value) bool) {
-	for c.at.Row <= part.To.Row {
-		if !c.have {
-			_, row, ok := c.next()
-			if !ok {
-				c.at.Row = part.To.Row + 1
-				return
-			}
-			c.row, c.have = append(c.row[:0], row...), true
-		}
-		for c.at.Col <= part.To.Col {
-			v := c.row[c.at.Col-part.From.Col].V
-			a := c.at
-			c.at.Col++
-			if !emit(a, v) {
-				return
-			}
-		}
-		c.at, c.have = sheet.Addr{Col: part.From.Col, Row: c.at.Row + 1}, false
-	}
 }
 
 // Bounds is the part of r the source's table holds.
