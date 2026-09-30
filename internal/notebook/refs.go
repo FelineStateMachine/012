@@ -1,17 +1,14 @@
 package notebook
 
-import (
-	"slices"
-	"strconv"
-	"strings"
-)
+import "strings"
 
 // What a pipeline reads. A code cell reads another's output as $name,
 // the selection on a sheet as $selection, and a range of a sheet as
 // $sheet.A1:C9 (or $sheet.Sales!A1:C9, $sheet.'Q1 data'!A1:B5). Each
 // reaches nu as a variable holding a table, read from a NUON file, never
 // as text spliced into the pipeline: a $sheet range is renamed to a
-// variable of its own ($__sheet1) before the pipeline runs.
+// variable of its own ($__sheet1) before the pipeline runs
+// (Source.Command).
 
 // Selection is the variable that holds the selection.
 const Selection = "selection"
@@ -19,106 +16,12 @@ const Selection = "selection"
 // sheetVar starts a range of a sheet.
 const sheetVar = "$sheet."
 
-// Refs returns the names a pipeline reads as $name, in the order it
-// first names them, leaving out nushell's variables and the notebook's
-// own ($selection, $sheet).
-func Refs(pipeline string) []string {
-	var out []string
-	for i := 0; i < len(pipeline); i++ {
-		if pipeline[i] != '$' {
-			continue
-		}
-		j := i + 1
-		for j < len(pipeline) && isWord(pipeline[j]) {
-			j++
-		}
-		name := pipeline[i+1 : j]
-		if name != "" && ValidName(name) == nil && !slices.Contains(out, name) {
-			out = append(out, name)
-		}
-		i = j - 1
-	}
-	return out
-}
-
-// ReadsSelection reports whether a pipeline reads $selection.
-func ReadsSelection(pipeline string) bool {
-	for i := 0; ; {
-		k := strings.Index(pipeline[i:], "$"+Selection)
-		if k < 0 {
-			return false
-		}
-		end := i + k + 1 + len(Selection)
-		if end == len(pipeline) || !isWord(pipeline[end]) {
-			return true
-		}
-		i = end
-	}
-}
-
 // SheetRef is a range of a sheet a pipeline reads, $sheet.A1:C9.
 type SheetRef struct {
 	// Ref is the range as written after $sheet.: "A1:C9", "Sales!A1:C9".
 	Ref string
 	// Var is the variable it's read as once renamed: __sheet1.
 	Var string
-}
-
-// Bind renames each range of a sheet the pipeline reads ($sheet.A1:C9)
-// to a variable of its own, returning the pipeline to run and the ranges
-// in the order they appear, the same range read twice once.
-func Bind(pipeline string) (string, []SheetRef) {
-	var b strings.Builder
-	var refs []SheetRef
-	rest := pipeline
-	for {
-		k := strings.Index(rest, sheetVar)
-		if k < 0 || k > 0 && isWord(rest[k-1]) {
-			if k < 0 {
-				b.WriteString(rest)
-				return b.String(), refs
-			}
-			b.WriteString(rest[:k+len(sheetVar)])
-			rest = rest[k+len(sheetVar):]
-			continue
-		}
-		b.WriteString(rest[:k])
-		rest = rest[k+len(sheetVar):]
-		n := refLen(rest)
-		if n == 0 {
-			b.WriteString(sheetVar)
-			continue
-		}
-		ref := rest[:n]
-		rest = rest[n:]
-		i := slices.IndexFunc(refs, func(r SheetRef) bool { return r.Ref == ref })
-		if i < 0 {
-			refs = append(refs, SheetRef{Ref: ref, Var: "__sheet" + strconv.Itoa(len(refs)+1)})
-			i = len(refs) - 1
-		}
-		b.WriteString("$" + refs[i].Var)
-	}
-}
-
-// RangeSpans are where a pipeline reads ranges of sheets, by byte
-// offsets: each $sheet.A1:C9 whole, as Bind renames them.
-func RangeSpans(pipeline string) [][2]int {
-	var out [][2]int
-	for i := 0; ; {
-		k := strings.Index(pipeline[i:], sheetVar)
-		if k < 0 {
-			return out
-		}
-		k += i
-		i = k + len(sheetVar)
-		if k > 0 && isWord(pipeline[k-1]) {
-			continue
-		}
-		if n := refLen(pipeline[i:]); n > 0 {
-			i += n
-			out = append(out, [2]int{k, i})
-		}
-	}
 }
 
 // refLen is how long the range at the start of s is: a sheet's name,

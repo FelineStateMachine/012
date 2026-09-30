@@ -48,9 +48,11 @@ shown by `012 diff`, under the same trust rules as macros. Live mode is
 |---|---|---|
 | Live mode: `012 --listen` and `012 mcp --attach`; the agent's cursor and name in the grid, its changes arriving as a suggestion (marked cells, accepted or rejected whole or by cell) unless direct edits are allowed, its own undo, a scope (sheet, range, read-only), elicitation to ask the person | Coworking with an agent in the grid | M to L |
 
-## Later: other transports (shelved)
+## Shelved
 
-Explored, not scheduled: carrying the same shared sessions over iroh
+Explored, not scheduled; the fit is still open.
+
+Other transports: carrying the same shared sessions over iroh
 tickets (the Go transport in `FelineStateMachine/allons`
 `local/transport/iroh`, which needs cgo and a prebuilt iroh-ffi archive, so
 it would sit behind a build tag) and the web (`NimbleMarkets/go-booba`
@@ -58,6 +60,15 @@ serves Bubble Tea over WebSocket/WebTransport with ghostty-web; Bubble Tea
 v2 support unverified). They would reuse the rooms of `012 serve`, whose
 server orders every participant's operations, rather than a design of
 their own.
+
+SQL cells and connections: SQL as a second cell language beside nu, on
+an in-process SQLite (pure Go) over the workbook's tables, outputs and
+linked files by default, with saved connections to SQLite files,
+Postgres and MySQL whose secrets stay in the keychain. Results would be
+outputs like a nu cell's (grid, `G`, `$name`, stale), `@name`
+parameters bound from cells, and `012 query` and an MCP `query` tool
+for scripts and agents. DuckDB would only be an external kernel, as it
+needs cgo.
 
 ## Shipped
 

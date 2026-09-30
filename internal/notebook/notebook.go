@@ -54,41 +54,37 @@ type Cell struct {
 	Source string
 }
 
-// Name is the name the cell gives its output, from a source of the form
-// `name = pipeline`, or "".
-func (c Cell) Name() string {
+// Parse reads the cell's source; a note cell's has nothing to read.
+func (c Cell) Parse() Source {
 	if c.Kind != Code {
-		return ""
+		return Source{Text: c.Source}
 	}
-	name, _ := SplitName(c.Source)
-	return name
+	return Parse(c.Source)
 }
 
-// Pipeline is what runs: the source without its name.
-func (c Cell) Pipeline() string {
-	_, p := SplitName(c.Source)
-	return p
-}
+// Name is the name the cell gives its output: what its last statement
+// assigns (`name = pipeline`), or "".
+func (c Cell) Name() string { return c.Parse().Name() }
 
-// SplitName splits `name = pipeline` into the name and the pipeline; a
-// source that doesn't start so has no name. `==` isn't a name's `=`.
-func SplitName(src string) (name, pipeline string) {
-	head, rest, ok := strings.Cut(src, "=")
-	head = strings.TrimSpace(head)
-	if !ok || strings.HasPrefix(rest, "=") || ValidName(head) != nil {
-		return "", src
-	}
-	return head, strings.TrimLeft(rest, " \t")
-}
-
-// WithName is src given the name name, replacing any name it has; ""
-// takes its name away.
+// WithName is src given the name name, as the name its last statement
+// assigns, replacing any it has; "" takes its name away.
 func WithName(src, name string) string {
-	_, p := SplitName(src)
-	if name == "" {
-		return p
+	head := ""
+	if name != "" {
+		head = name + " = "
 	}
-	return name + " = " + p
+	p := Parse(src)
+	if len(p.Stmts) == 0 {
+		if strings.TrimSpace(src) == "" {
+			return head
+		}
+		return src + "\n" + head
+	}
+	last := p.Stmts[len(p.Stmts)-1]
+	if last.Name != "" {
+		return src[:last.From] + head + src[last.Body:]
+	}
+	return src[:last.From] + head + src[last.From:]
 }
 
 // Reserved are nushell's own variables and the notebook's: $selection
@@ -141,6 +137,10 @@ type Output struct {
 	// Seq identifies the output among the workbook's, for telling
 	// whether what a cell read has changed since.
 	Seq int
+	// Vars are the values, as NUON, of the variables the cell assigns
+	// other than its output, which later cells read by name. A file
+	// doesn't keep them: a cell reading one runs its cell first.
+	Vars map[string][]byte
 	// Took is how long the run took.
 	Took time.Duration
 	// Source is the cell's source when it ran.

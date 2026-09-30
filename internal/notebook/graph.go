@@ -7,17 +7,34 @@ import (
 )
 
 // The cells' dependency graph: a cell reading $sales depends on the cell
-// named sales. A name belongs to the first code cell giving it; a later
-// one giving the same name can't run until it's renamed. Cells run in
-// the order asked, each after the cells it reads among those running,
-// and a cell reading itself, directly or through others, doesn't run.
+// giving sales (Vars). A cell's name belongs to the first code cell
+// giving it; a later one giving the same name can't run until it's
+// renamed. Cells run in the order asked, each after the cells it reads
+// among those running, and a cell reading itself, directly or through
+// others, doesn't run.
 
-// Names maps each name to the index of the first code cell giving it.
+// Names maps each cell's name to the index of the first code cell
+// giving it.
 func Names(cells []Cell) map[string]int {
 	out := map[string]int{}
 	for i, c := range cells {
 		if n := c.Name(); n != "" {
 			if _, dup := out[n]; !dup {
+				out[n] = i
+			}
+		}
+	}
+	return out
+}
+
+// Vars maps each variable the cells give others to the index of the
+// cell giving it: a cell's name to that cell (Names), and any other
+// name a statement assigns to the first code cell assigning it.
+func Vars(cells []Cell) map[string]int {
+	out := Names(cells)
+	for i, c := range cells {
+		for _, n := range c.Parse().Assigned() {
+			if _, ok := out[n]; !ok {
 				out[n] = i
 			}
 		}
@@ -40,13 +57,33 @@ func Taken(cells []Cell, i int) string {
 	return ""
 }
 
+// ref is a variable a cell reads from another: its name, and the index
+// of the cell giving it.
+type ref struct {
+	name string
+	cell int
+}
+
+// refs are the variables cell i reads from other cells, in the order it
+// names them; vars is Vars(cells). A name only it assigns, read before
+// it does, is none.
+func refs(cells []Cell, vars map[string]int, i int) []ref {
+	var out []ref
+	for _, n := range cells[i].Parse().Refs() {
+		if j, ok := vars[n]; ok && j != i {
+			out = append(out, ref{n, j})
+		}
+	}
+	return out
+}
+
 // Reads returns the indices of the cells cell i reads, in the order it
-// names them.
-func Reads(cells []Cell, names map[string]int, i int) []int {
+// names them; vars is Vars(cells).
+func Reads(cells []Cell, vars map[string]int, i int) []int {
 	var out []int
-	for _, n := range Refs(cells[i].Pipeline()) {
-		if j, ok := names[n]; ok && j != i && !slices.Contains(out, j) {
-			out = append(out, j)
+	for _, r := range refs(cells, vars, i) {
+		if !slices.Contains(out, r.cell) {
+			out = append(out, r.cell)
 		}
 	}
 	return out
@@ -56,7 +93,7 @@ func Reads(cells []Cell, names map[string]int, i int) []int {
 // among them, in want's order otherwise, and the cells left out for
 // reading themselves, directly or through others.
 func Order(cells []Cell, want []int) (order, cycle []int) {
-	names := Names(cells)
+	vars := Vars(cells)
 	in := map[int]bool{}
 	for _, i := range want {
 		if cells[i].Kind == Code {
@@ -70,7 +107,7 @@ func Order(cells []Cell, want []int) (order, cycle []int) {
 			if !in[i] || done[i] {
 				continue
 			}
-			ready := !slices.ContainsFunc(Reads(cells, names, i), func(j int) bool { return in[j] && !done[j] })
+			ready := !slices.ContainsFunc(Reads(cells, vars, i), func(j int) bool { return in[j] && !done[j] })
 			if ready {
 				order, done[i], progress = append(order, i), true, true
 			}
@@ -90,12 +127,12 @@ func Order(cells []Cell, want []int) (order, cycle []int) {
 // Dependents returns the cells that read cell i, directly or through
 // others, in the notebook's order.
 func Dependents(cells []Cell, i int) []int {
-	names := Names(cells)
+	vars := Vars(cells)
 	want := map[int]bool{i: true}
 	for changed := true; changed; {
 		changed = false
 		for j := range cells {
-			if !want[j] && cells[j].Kind == Code && slices.ContainsFunc(Reads(cells, names, j), func(k int) bool { return want[k] }) {
+			if !want[j] && cells[j].Kind == Code && slices.ContainsFunc(Reads(cells, vars, j), func(k int) bool { return want[k] }) {
 				want[j], changed = true, true
 			}
 		}
@@ -109,21 +146,35 @@ func Dependents(cells []Cell, i int) []int {
 	return out
 }
 
+// Readable reports whether o, the output of cell c, holds the variable
+// name: c's output when c is named so, else a variable it assigns,
+// which a file doesn't keep.
+func Readable(c Cell, name string, o *Output) bool {
+	switch {
+	case o == nil || o.NUON == nil:
+		return false
+	case c.Name() == name:
+		return true
+	}
+	_, ok := o.Vars[name]
+	return ok
+}
+
 // Inputs returns the cells cell i reads, directly or through others,
-// that have no output, in the notebook's order: what has to run before
-// it can.
+// whose outputs don't hold what it reads (Readable), in the notebook's
+// order: what has to run before it can.
 func Inputs(cells []Cell, i int, output func(id int) *Output) []int {
-	names := Names(cells)
+	vars := Vars(cells)
 	need := map[int]bool{}
 	var visit func(j int)
 	visit = func(j int) {
-		for _, k := range Reads(cells, names, j) {
-			if need[k] || k == i {
+		for _, r := range refs(cells, vars, j) {
+			if need[r.cell] || r.cell == i {
 				continue
 			}
-			if o := output(cells[k].ID); o == nil || o.NUON == nil {
-				need[k] = true
-				visit(k)
+			if c := cells[r.cell]; !Readable(c, r.name, output(c.ID)) {
+				need[r.cell] = true
+				visit(r.cell)
 			}
 		}
 	}
@@ -141,7 +192,7 @@ func Inputs(cells []Cell, i int, output func(id int) *Output) []int {
 // them now would give: their source changed since, or an output they
 // read changed or is stale itself.
 func Stale(cells []Cell, output func(id int) *Output) map[int]bool {
-	names := Names(cells)
+	vars := Vars(cells)
 	all := make([]int, len(cells))
 	for i := range all {
 		all[i] = i
@@ -155,18 +206,17 @@ func Stale(cells []Cell, output func(id int) *Output) map[int]bool {
 			continue
 		}
 		s := o.Source != c.Source
-		for _, name := range Refs(c.Pipeline()) {
-			j, ok := names[name]
+		read := map[string]bool{}
+		for _, r := range refs(cells, vars, i) {
+			read[r.name] = true
 			seq := 0
-			if ok {
-				if d := output(cells[j].ID); d != nil {
-					seq = d.Seq
-				}
-				s = s || stale[cells[j].ID]
+			if d := output(cells[r.cell].ID); d != nil {
+				seq = d.Seq
 			}
-			if read, had := o.Reads[name]; had || ok {
-				s = s || read != seq
-			}
+			s = s || stale[cells[r.cell].ID] || o.Reads[r.name] != seq
+		}
+		for name := range o.Reads {
+			s = s || !read[name] // it read a cell it no longer does
 		}
 		if s {
 			stale[c.ID] = true
@@ -179,20 +229,17 @@ func Stale(cells []Cell, output func(id int) *Output) map[int]bool {
 // have left: made from the source as it is, having read the outputs as
 // they are, so none is stale until something changes.
 func Settle(cells []Cell, outputs map[int]*Output) {
-	names := Names(cells)
-	for _, c := range cells {
+	vars := Vars(cells)
+	for i, c := range cells {
 		o := outputs[c.ID]
 		if o == nil {
 			continue
 		}
 		o.Source, o.Reads = c.Source, map[string]int{}
-		for _, name := range Refs(c.Pipeline()) {
-			if j, ok := names[name]; ok {
-				if d := outputs[cells[j].ID]; d != nil {
-					o.Reads[name] = d.Seq
-				} else {
-					o.Reads[name] = 0
-				}
+		for _, r := range refs(cells, vars, i) {
+			o.Reads[r.name] = 0
+			if d := outputs[cells[r.cell].ID]; d != nil {
+				o.Reads[r.name] = d.Seq
 			}
 		}
 	}

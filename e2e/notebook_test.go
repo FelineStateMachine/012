@@ -46,6 +46,35 @@ func TestNotebookWithNu(t *testing.T) {
 	s.waitFor("[1]:")
 }
 
+// A cell of two statements, the second reading the variable the first
+// assigns, runs with the real nu: its output is the second's, and a
+// later cell reads the variable.
+func TestNotebookStatementsWithNu(t *testing.T) {
+	needNu(t)
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "big.txt"), []byte(strings.Repeat("x", 3000)), 0o644)
+	os.WriteFile(filepath.Join(dir, "small.txt"), []byte("x"), 0o644)
+	os.Mkdir(filepath.Join(dir, "sub"), 0o755)
+	s := startWith(t, options{dir: dir, startsOn: "EDIT"}, "nu")
+	s.keys("files = ls | where type == file # not sub", "<enter>", "$files | where size > 1kb | sort-by size --reverse", "<shift+enter>")
+	s.waitFor("Out[1]:")
+	s.waitFor("big.txt")
+	s.keys("<enter>", "$files | length", "<shift+enter>")
+	s.waitFor("Out[2]:")
+	scr := s.screen()
+	if strings.Contains(scr, "failed") || strings.Contains(scr, "small.txt") {
+		t.Errorf("screen:\n%s", scr)
+	}
+	s.eventually("the second cell reads 2 files", func() bool {
+		for _, l := range strings.Split(s.screen(), "\n") {
+			if strings.Contains(l, "Out[2]:") && strings.HasSuffix(strings.TrimSpace(l), " 2") {
+				return true
+			}
+		}
+		return false
+	})
+}
+
 func TestNotebookSendsToSheetWithNu(t *testing.T) {
 	needNu(t)
 	s := startWith(t, options{startsOn: "EDIT"}, "nu")
