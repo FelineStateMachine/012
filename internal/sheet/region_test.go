@@ -267,7 +267,8 @@ func TestOldNotebookConverted(t *testing.T) {
   {"name": "Shell 1", "notebook": true, "cells": {}, "regions": [
     {"name": "r1", "command": "ls", "at": "A1", "rows": 3, "cols": 2},
     {"name": "big", "command": "$r1 | where size > 1kb", "at": "A6", "reads": ["r1"]},
-    {"name": "sel", "command": "$in | math sum", "at": "A9", "input": "Data 1!A1:A4"}
+    {"name": "sel", "command": "$in | math sum", "at": "A9", "input": "Data 1!A1:A4"},
+    {"name": "two", "command": "let x = 1\n$x + 1", "at": "A12"}
   ]},
   {"name": "Data 1", "cells": {"B1": "=SUM(nu.big)"}}
 ]}`
@@ -280,7 +281,7 @@ func TestOldNotebookConverted(t *testing.T) {
 		t.Fatalf("notebook %v at %d", nb, w.Index(nb))
 	}
 	cells := nb.NotebookCells()
-	want := []string{"r1 = ls", "big = $r1 | where size > 1kb", "sel = $sheet.'Data 1'!A1:A4 | do {\n$in | math sum\n}"}
+	want := []string{"r1 = ls", "big = $r1 | where size > 1kb", "sel = $sheet.'Data 1'!A1:A4 | do {\n$in | math sum\n}", "two = do {\nlet x = 1\n$x + 1\n}"}
 	for i, c := range cells {
 		if c.Source != want[i] {
 			t.Errorf("cell %d: %q, want %q", i+1, c.Source, want[i])

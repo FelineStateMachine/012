@@ -9,8 +9,8 @@ package nushell
 
 import (
 	"bytes"
-	"encoding/base64"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"

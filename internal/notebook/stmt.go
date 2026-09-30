@@ -101,8 +101,9 @@ func skipSpaces(view []byte, i, to int, spaces string) int {
 
 func isSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\r' || c == '\n' }
 
-// Output is the name of the variable that holds a cell's output in the
-// record a run hands back when it also hands back variables.
+// OutputVar is the name of the variable that holds a cell's output in
+// the record a run hands back when it also hands back variables
+// (nushell.ExecVars).
 const OutputVar = "__out"
 
 // Command is what nu runs for the source: each statement but the last
@@ -113,6 +114,18 @@ const OutputVar = "__out"
 // last doesn't, those are exports, and the command ends in a record of
 // the output (as __out) and each of them.
 func (s Source) Command() (cmd string, exports []string, ranges []SheetRef) {
+	return s.command(true)
+}
+
+// StreamCommand is what nu runs for the source as a stream: Command
+// without the record, so the last statement's values stream as they
+// come, and the names the statements before it assign stay the run's.
+func (s Source) StreamCommand() string {
+	cmd, _, _ := s.command(false)
+	return cmd
+}
+
+func (s Source) command(record bool) (cmd string, exports []string, ranges []SheetRef) {
 	var edits []edit
 	for _, r := range s.Ranges {
 		ref := s.Text[r[0]+len(sheetVar) : r[1]]
@@ -138,6 +151,9 @@ func (s Source) Command() (cmd string, exports []string, ranges []SheetRef) {
 	}
 	if last.Name != "" {
 		edits = append(edits, edit{last.From, last.Body, ""})
+	}
+	if !record {
+		exports = nil
 	}
 	if len(exports) > 0 {
 		var rec strings.Builder

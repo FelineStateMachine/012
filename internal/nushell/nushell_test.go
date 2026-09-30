@@ -53,6 +53,42 @@ func TestExec(t *testing.T) {
 	}
 }
 
+// A run handing back variables prints a line for each after what the
+// pipeline printed itself.
+func TestExecVars(t *testing.T) {
+	job := Job{Command: "x", Vars: []string{"files"}}
+	f := &fake{out: "printed\n__out WzEsIDJd\nfiles WzNd\n"}
+	out, vars, err := ExecVars(context.Background(), f, job, time.Second, 0)
+	if err != nil || string(out) != "[1, 2]" || string(vars["files"]) != "[3]" || len(vars) != 1 {
+		t.Errorf("%q %q %v", out, vars, err)
+	}
+	if !strings.Contains(f.script, `items {|k, v|`) || strings.Contains(f.script, "| to nuon\n") {
+		t.Errorf("script %s", f.script)
+	}
+	if _, _, err := ExecVars(context.Background(), &fake{out: "[1, 2]"}, job, time.Second, 0); err == nil {
+		t.Error("no variables came back, and no error")
+	}
+	out, vars, err = ExecVars(context.Background(), &fake{out: "[1, 2]"}, Job{Command: "x"}, time.Second, 0)
+	if err != nil || string(out) != "[1, 2]" || vars != nil {
+		t.Errorf("without variables %q %v %v", out, vars, err)
+	}
+}
+
+// The real nu hands back a cell's variables beside its output.
+func TestNuVars(t *testing.T) {
+	if _, err := exec.LookPath("nu"); err != nil {
+		t.Skip("nu isn't installed")
+	}
+	job := Job{
+		Command: "let files = [[name, size]; [a, 2kb], [b, 10b]]\n{__out: ($files | where size > 1kb | get name), files: ($files | length)}",
+		Vars:    []string{"files"},
+	}
+	out, vars, err := ExecVars(context.Background(), Nu{}, job, 30*time.Second, 0)
+	if err != nil || string(out) != "[a]" || string(vars["files"]) != "2" {
+		t.Errorf("%q %q %v", out, vars, err)
+	}
+}
+
 func TestMessage(t *testing.T) {
 	stderr := "Error: nu::shell::column_not_found\n\n  × Cannot find column 'xyz'\n   ╭─[source:1:6]\n"
 	if got := Message(stderr, errors.New("exit status 1")); got != "Cannot find column 'xyz'" {

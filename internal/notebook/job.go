@@ -11,6 +11,8 @@ type Run struct {
 	// variables it hands back beside the output.
 	Command string
 	Exports []string
+	// Stream is what nu runs to stream the cell (Source.StreamCommand).
+	Stream string
 	// Tables are the other cells' outputs and variables it reads, by
 	// name, as NUON, and Reads the Seqs of the outputs they came from.
 	Tables map[string][]byte
@@ -30,7 +32,7 @@ type Run struct {
 func Prepare(cells []Cell, i int, output func(id int) *Output) (Run, error) {
 	src := cells[i].Parse()
 	cmd, exports, ranges := src.Command()
-	run := Run{Command: cmd, Exports: exports, Tables: map[string][]byte{}, Reads: map[string]int{}, Ranges: ranges, Selection: src.ReadsSelection()}
+	run := Run{Command: cmd, Exports: exports, Stream: src.StreamCommand(), Tables: map[string][]byte{}, Reads: map[string]int{}, Ranges: ranges, Selection: src.ReadsSelection()}
 	vars := Vars(cells)
 	for _, name := range src.Refs() {
 		j, ok := vars[name]

@@ -167,8 +167,11 @@ func (w *Workbook) convertOld(old []oldRegion) {
 	for _, o := range old {
 		fr := o.fr
 		src := fr.Command
-		if fr.Input != "" {
+		switch {
+		case fr.Input != "":
 			src = "$sheet." + quoteRef(fr.Input) + " | do {\n" + src + "\n}"
+		case len(notebook.Parse(src).Stmts) > 1: // one statement, so the name is its output's
+			src = "do {\n" + src + "\n}"
 		}
 		nb.regions.cells = append(nb.regions.cells, notebook.Cell{ID: w.NewCellID(), Source: fr.Name + " = " + src})
 		at, _ := ParseAddr(fr.At)

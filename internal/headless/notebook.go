@@ -140,7 +140,6 @@ func regionNUON(t *sheet.Sheet, r sheet.Region) ([]byte, error) {
 	return encodeNUON(snap)
 }
 
-
 // rangeRef is the sheet and range $sheet.ref reads: of the sheet it
 // names, or else of the sheet shown when the file was saved, or the
 // first sheet that isn't a notebook.
