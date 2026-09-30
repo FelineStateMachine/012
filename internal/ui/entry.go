@@ -51,6 +51,7 @@ func (m *Model) startEntry(md mode, text string) {
 	}
 	m.mode = md
 	m.entry.home = nil
+	m.share.entryFrom = m.roomLast()
 	m.line.Clear()
 	m.entry.hint, m.entry.assist = "", suggest.List{}
 	m.line.Insert(text)
@@ -241,6 +242,7 @@ func (m *Model) commit() bool {
 	m.cancelEntry()
 	m.clearSelection()
 	m.recordEntry(input, false)
+	m.overwrote()
 	if warn != "" {
 		m.warn = warn
 	}
@@ -267,6 +269,9 @@ func (m *Model) cancelEntry() {
 func (m *Model) handlePaste(content string) {
 	switch m.mode {
 	case modeReady:
+		if !m.mayEdit() {
+			return
+		}
 		if m.askProtected(pasteTextRange(m.cur, content), func(m *Model) tea.Cmd {
 			m.handlePaste(content)
 			return nil

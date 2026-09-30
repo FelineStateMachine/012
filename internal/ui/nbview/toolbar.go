@@ -142,6 +142,10 @@ func (v *View) status(k Kernel) string {
 	switch {
 	case k.Off != "":
 		s = th.Warning.Render("nu ⊘ off")
+	case k.Live > 0 && (k.Busy || k.Waiting > 0):
+		s = th.Hint.Render("nu ● busy, " + itoa(k.Live) + " live")
+	case k.Live > 0:
+		s = th.Hint.Render("nu ● " + itoa(k.Live) + " live")
 	case k.Busy && k.Waiting > 0:
 		s = th.Hint.Render("nu ● busy, " + itoa(k.Waiting) + " waiting")
 	case k.Busy || k.Waiting > 0:

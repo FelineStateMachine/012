@@ -83,12 +83,18 @@ func init() {
 }
 
 func (m *Model) undo() tea.Cmd {
+	if m.undoBlocked(false) {
+		return nil
+	}
 	c, ok := m.sheet.Undo()
 	m.afterHistory("Undid", "Nothing to undo", c, ok)
 	return nil
 }
 
 func (m *Model) redo() tea.Cmd {
+	if m.undoBlocked(true) {
+		return nil
+	}
 	c, ok := m.sheet.Redo()
 	m.afterHistory("Redid", "Nothing to redo", c, ok)
 	return nil

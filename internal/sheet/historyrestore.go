@@ -9,7 +9,7 @@ import "slices"
 // change taken back inside another's step (Try) restores its own.
 func (w *Workbook) restore(st *step) (inv *step, changed []loc) {
 	inv = newStep(st.label, st.sheet, st.focus)
-	inv.id = st.id
+	inv.id, inv.shifts = st.id, st.shifts
 	// The sheet list goes first, so cells land on attached sheets.
 	if st.sheets != nil {
 		inv.sheets = w.sheetList()

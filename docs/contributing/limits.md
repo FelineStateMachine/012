@@ -488,7 +488,8 @@ read-heavy recalculation.
 
 `BenchmarkSessions` (`internal/serve/stress_test.go`) opens N sessions,
 each over its own SSH connection on loopback at 120 x 40, optionally
-opening the same 1000 x 26 sheet of numbers in every one, then has every
+opening the same 1000 x 26 sheet of numbers in every one, a copy each
+(`--share off`) or shared in one room, then has every
 session press an arrow key at once, 200 times, timing each key from the
 client's write to the first bytes of its frame arriving. The clients
 run in the same process, so the heap and CPU figures include their side
@@ -501,6 +502,8 @@ for 120 frames a second, as the local app does (`-benchtime 200x`):
 | 10, 1000 x 26 numbers | 1.9 MiB | 3.9 / 8.3 / 10.8 ms | 0.79 ms |
 | 50, new sheet | 1.30 MiB | 5.0 / 8.7 / 17.8 ms | 0.53 ms |
 | 50, 1000 x 26 numbers | 1.9 MiB | 5.1 / 8.9 / 12.8 ms | 0.66 ms |
+| 10, 1000 x 26 numbers, shared | 1.5 MiB | 5.0 / 8.3 / 16.6 ms | 1.27 ms |
+| 50, 1000 x 26 numbers, shared | 1.5 MiB | 7.1 / 15.8 / 33.2 ms | 0.79 ms |
 
 Latency doesn't move from 10 to 50 sessions: it's Bubble Tea's frame
 pacing (at most one frame every 8.3 ms, so a key waits half a frame on
@@ -516,6 +519,17 @@ the frame); at 0.7 ms, 50 sessions typing continuously at 120 frames a
 second would keep about four cores busy: frames are drawn only when a
 session's screen changes, so the rate is the most keys can cause, not a
 cost of being connected.
+
+Sessions sharing a workbook hold it once, so each holds only its
+screen. They take turns on it: each key is handled under the room's
+lock, and moves a pointer every other session draws, so a key costs a
+frame in every session of the room (CPU per frame counts the pressing
+session's alone), and fifty sessions pressing keys in the same
+millisecond queue for the lock, the last waiting about two frames. A
+change reaching the others is quick next to the frame: from the end of
+one session's turn to another's frame showing it takes about 0.1 ms
+(`TestSharedEditWithinAFrame`), so it goes out with the other's next
+frame.
 
 ## Pivot tables
 

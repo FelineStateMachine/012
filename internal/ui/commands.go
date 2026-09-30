@@ -217,7 +217,7 @@ func (m *Model) runCommand(id string) tea.Cmd {
 			return nil
 		}
 	}
-	if c.edits != nil && m.refuseEdit(c.edits(m), c.keepsSpills) {
+	if c.edits != nil && m.refuseEdit(c.edits(m), c.keepsSpills) || edits(c) && !m.mayEdit() {
 		return nil
 	}
 	if m.askCommand(c) {

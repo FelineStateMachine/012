@@ -128,6 +128,7 @@ type Model struct {
 	term    terminal          // what the terminal supports: graphics.go
 	prefs   prefs             // the settings in effect and the theme chosen: prefs.go
 	session session           // what outlasts the file open: the : history, the keyboard: keyboard.go
+	share   shareState        // the room the workbook is shared in, in 012 serve: share.go
 
 	vim    vimState    // a vim key sequence in progress: vim.go
 	rec    *recorder   // a macro being recorded: macrorec.go
@@ -146,7 +147,7 @@ type Model struct {
 
 // New returns a model editing s. filename may be empty.
 func New(s *sheet.Sheet, filename string) *Model {
-	m := &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(os.Getenv), charts: chartState{last: -1},
+	m := &Model{grid: grid{sheet: s, width: 80, height: 24}, filename: filename, th: theme.New(true), term: newTerminal(os.Getenv), charts: chartState{last: -1}, nb: nbState{runs: &nbRuns{}},
 		spans: telemetry.NewTrace(telemetry.Parent{})}
 	s.Book().SetTrace(m.spans)
 	if filename != "" {
@@ -234,6 +235,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.handleTransfer(msg)
 	case followTickMsg, followMsg:
 		cmd = m.handleFollow(msg)
+	case roomMsg:
+		cmd = m.roomChanged()
+	case shareTickMsg:
+		m.share.ticking = false
 	case macroCallMsg:
 		cmd = m.serveMacro(msg)
 	case macroDoneMsg:
@@ -266,7 +271,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Any edit may have queued JEV questions.
 	// Chart images follow any change, see graphics.go.
 	// Linked regions may have come, gone or changed: follow.go.
-	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg), m.syncFollowers(), m.notebookSync())
+	return m, tea.Batch(cmd, m.jev.send(m.spans.Parent()), m.term.syncImages(m.sheet, m.displayCharts, &m.th, m.spans), m.syncSixel(msg), m.syncFollowers(), m.notebookSync(), m.shareTick())
 }
 
 // beginUpdate prepares for an input event and returns the sheet's state

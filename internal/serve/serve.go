@@ -18,6 +18,7 @@ import (
 
 	"github.com/FelineStateMachine/012/internal/confine"
 	"github.com/FelineStateMachine/012/internal/jev"
+	"github.com/FelineStateMachine/012/internal/room"
 	"github.com/FelineStateMachine/012/internal/sheet"
 	"github.com/FelineStateMachine/012/internal/telemetry"
 	"github.com/FelineStateMachine/012/internal/ui"
@@ -36,6 +37,7 @@ type Server struct {
 	hostPub gossh.PublicKey
 	slots   chan struct{} // one per running session
 	active  atomic.Int64
+	rooms   *room.Registry // the shared workbooks; nil with sharing off
 
 	// stop is closed when the server shuts down, ending every session,
 	// which keeps its unsaved work first; running counts the sessions
@@ -105,6 +107,12 @@ func New(o Options, d Deps) (*Server, error) {
 	}
 	s := &Server{opts: o, root: root, log: d.Log, jev: d.JEV, hostPub: signer.PublicKey(), slots: make(chan struct{}, o.MaxSessions),
 		stop: make(chan struct{})}
+	switch o.Share {
+	case "edit":
+		s.rooms = room.NewRegistry(room.Edit)
+	case "view":
+		s.rooms = room.NewRegistry(room.View)
+	}
 	s.ssh = &ssh.Server{
 		Addr:             o.Listen,
 		Handler:          s.session,
@@ -303,6 +311,9 @@ func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, nam
 	m.TraceUnder(parent)
 	env := append(sess.Environ(), "TERM="+pty.Term)
 	m.Serve(s.root, env)
+	if s.rooms != nil {
+		m.ShareRooms(s.rooms, sess.User())
+	}
 	m.OpenOnStart(name)
 	if s.jev != nil {
 		// Each session has its own cache: it queues that session's
@@ -311,12 +322,21 @@ func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, nam
 	}
 	in := newActivity(sess)
 	g := ui.Guard(m)
-	p := tea.NewProgram(g, append(bm.MakeOptions(sess), tea.WithInput(in), tea.WithFPS(ui.FrameRate))...)
+	var model tea.Model = g
+	var shared *ui.Shared
+	if s.rooms != nil {
+		shared = ui.InRooms(g)
+		model = shared
+	}
+	p := tea.NewProgram(model, append(bm.MakeOptions(sess), tea.WithInput(in), tea.WithFPS(ui.FrameRate))...)
 
 	// The connection's context ends when the client goes away; cancel
 	// stops the goroutines below when the program quits first.
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
+	if shared != nil {
+		shared.Attach(ctx, p)
+	}
 	go resize(ctx, p, winch)
 	go func() {
 		select {
@@ -344,7 +364,13 @@ func (s *Server) run(sess ssh.Session, pty ssh.Pty, winch <-chan ssh.Window, nam
 		// The report is the server's log: the operator's to read.
 		s.log.Error("session panic", "where", c.Where, "panic", fmt.Sprint(c.Value), "stack", string(c.Stack))
 	}
-	end.keep(g)
+	// A shared workbook stays with those still in its room; the last
+	// one out keeps its unsaved work.
+	_, end.others = g.Model().Others()
+	if g.Model().LeaveRoom() {
+		end.others = ""
+		end.keep(g)
+	}
 	return end
 }
 

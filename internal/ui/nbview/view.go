@@ -45,7 +45,11 @@ type Host interface {
 type State struct {
 	Waiting, Running bool
 	Started          time.Time // when it started running
-	Stale            bool      // what it read, or its source, changed since it ran
+	// Live is set while it runs as a stream, and Rows counts the rows
+	// the stream has printed.
+	Live  bool
+	Rows  int
+	Stale bool // what it read, or its source, changed since it ran
 	// Problem says why it can't run as it is: its name is taken.
 	Problem string
 }
@@ -55,6 +59,7 @@ type State struct {
 type Kernel struct {
 	Busy     bool   // a cell is running
 	Waiting  int    // cells waiting to run
+	Live     int    // cells running as streams
 	Off      string // why cells don't run here, or ""
 	Reactive bool   // cells reading a cell run again when it runs
 	Clip     int    // cells copied, for Paste

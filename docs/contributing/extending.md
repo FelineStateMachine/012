@@ -111,7 +111,8 @@ the same way.
 Every change to a workbook goes through `Batch(Change{...}, fn)` and the
 history `step`: snapshot what changes, apply, mark dirty, recalculate. Undo,
 telemetry, recalculation and the file's dirty flag hang off that one path,
-and so will anything later that needs to see every change (live sharing).
+and the rooms of `012 serve`, which order everyone's steps and tell each
+participant what the others changed ([Architecture](architecture.md#shared-workbooks)).
 New mutations use it; they never write cells around it. A change made over
 several calls, as a macro run makes one call per message, opens its step
 with `Workbook.Begin` and closes it when done, so it undoes as one; inside
