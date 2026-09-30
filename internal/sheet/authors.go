@@ -64,6 +64,22 @@ func (w *Workbook) Author() int { return w.author }
 // steps, from now on.
 func (w *Workbook) ShareHistory() { w.hist.shared = true }
 
+// Adopt makes the steps of nobody in particular (author 0), made while
+// one person edited alone, the author's: a session sharing its workbook
+// from then on keeps its person's earlier steps theirs to undo.
+func (w *Workbook) Adopt(author int) {
+	for _, st := range w.hist.undo {
+		if st.author == 0 {
+			st.author = author
+		}
+	}
+	for _, st := range w.hist.redo {
+		if st.author == 0 {
+			st.author = author
+		}
+	}
+}
+
 // Version changes whenever the workbook changes: a step made, undone or
 // redone, a recalculation, rows arriving at a region.
 func (w *Workbook) Version() uint64 { return w.gen + w.hist.seq }
