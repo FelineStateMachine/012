@@ -3,6 +3,8 @@ package ui
 import (
 	"strconv"
 
+	"github.com/charmbracelet/x/ansi"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FelineStateMachine/012/internal/cowork"
@@ -76,15 +78,18 @@ func (m *Model) answerAsk(q *cowork.Ask, ans cowork.Answer) {
 	}
 }
 
-// askHead is how a question starts on the context line.
-func askHead(q *cowork.Ask) string { return "◆ " + q.Agent + " asks: " + q.Message }
+// askHead is how a question starts on the context line, cut to leave
+// its choices room.
+func (m *Model) askHead(q *cowork.Ask, text string) string {
+	return ansi.Truncate("◆ "+q.Agent+" asks: "+text, max(m.width-44, 24), "…")
+}
 
 // askField asks field i of q, the answers so far in content; past the
 // last, the answer goes back.
 func (m *Model) askField(q *cowork.Ask, i int, content map[string]any) {
 	cancel := func(m *Model) tea.Cmd { m.answerAsk(q, cowork.Answer{Action: "cancel"}); return nil }
 	if len(q.Fields) == 0 {
-		m.ask(question{msg: askHead(q), choices: []choice{
+		m.ask(question{msg: m.askHead(q, q.Message), desc: q.Message, choices: []choice{
 			{key: "enter", label: "Yes", run: func(m *Model) tea.Cmd { m.answerAsk(q, cowork.Answer{Action: "accept"}); return nil }},
 			{key: "n", label: "No", run: func(m *Model) tea.Cmd { m.answerAsk(q, cowork.Answer{Action: "decline"}); return nil }},
 			{key: "esc", label: "Cancel", run: cancel},
@@ -96,9 +101,9 @@ func (m *Model) askField(q *cowork.Ask, i int, content map[string]any) {
 		return
 	}
 	f := q.Fields[i]
-	head := askHead(q) + " " + f.Label()
+	head := m.askHead(q, q.Message+" "+f.Label())
 	if i > 0 {
-		head = "◆ " + q.Agent + " asks: " + f.Label()
+		head = m.askHead(q, f.Label())
 	}
 	next := func(v any) func(m *Model) tea.Cmd {
 		return func(m *Model) tea.Cmd {
@@ -140,7 +145,7 @@ func (m *Model) askGrant(q *cowork.Ask) {
 	if q.Grant == "jev" {
 		desc = "JEV formulas send cells' values to TypeSafe's model with your API key"
 	}
-	m.ask(question{msg: "◆ " + q.Message + ".", warn: true, desc: desc, choices: []choice{
+	m.ask(question{msg: ansi.Truncate("◆ "+q.Message+".", max(m.width-64, 20), "…"), warn: true, desc: desc, choices: []choice{
 		{key: "enter", label: "Allow once", run: answer(cowork.Answer{Action: "accept"})},
 		{key: "a", label: "Allow for this session", run: answer(cowork.Answer{Action: "accept", Always: true})},
 		{key: "esc", label: "Deny", run: answer(cowork.Answer{Action: "decline"})},

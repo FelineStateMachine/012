@@ -84,10 +84,15 @@ func (m *Model) agentLine() string {
 	}
 	line := m.th.Suggested.Render("◇ ") + m.th.Peer[s.Color%theme.Peers].Render(" ◆ "+s.Agent+" ") +
 		m.th.Muted.Render(" suggests ") + m.th.Key.Render(what) + m.th.Muted.Render(", now "+shownInput(c.Was))
+	hint := "  " + m.th.KeyHints(keyLabel(keyFor("agent.review")), "review")
 	if s.Message != "" {
-		line += m.th.Muted.Render(": " + s.Message)
+		// The message gives way to the key, cut to what's left.
+		room := m.width - ansi.StringWidth(line) - ansi.StringWidth(hint) - 2
+		if room > 3 {
+			line += m.th.Muted.Render(ansi.Truncate(": "+s.Message, room, "…"))
+		}
 	}
-	return line + "  " + m.th.KeyHints(keyLabel(keyFor("agent.review")), "review")
+	return line + hint
 }
 
 // keyFor is the first key bound to a command.

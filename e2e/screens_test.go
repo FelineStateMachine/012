@@ -32,6 +32,9 @@ type screen struct {
 	user  string
 	peers []peer
 	args  []string // 012's command line, e.g. --pipe
+	// live starts 012 --listen on budget.012 and attaches an agent
+	// called claude (s.agent) before setup: live mode's screens.
+	live  bool
 	setup func(s *session)
 }
 
@@ -82,6 +85,9 @@ func startScreen(t *testing.T, sc screen) *session {
 	if sc.files != nil {
 		opts.dir = t.TempDir()
 		sc.files(t, opts.dir)
+	}
+	if sc.live {
+		return startLiveScreen(t, opts)
 	}
 	args := sc.args
 	if sc.ssh != nil {
