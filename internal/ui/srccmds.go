@@ -36,8 +36,7 @@ func init() {
 		enabled: func(m *Model) bool { return m.sheet.IsSource() },
 		run: func(m *Model) tea.Cmd {
 			info, _ := m.sheet.Source()
-			m.src.links = "" // linked again, so opened again
-			m.src.host.Link(nil)
+			m.src.host.Reload(info.Name)
 			m.note = "Reading " + filepath.Base(info.Source.Path) + " again"
 			return nil
 		}})

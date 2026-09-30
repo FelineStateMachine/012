@@ -48,23 +48,9 @@ func writeSource(t testing.TB, name string, n int) (sum float64) {
 // pumpSources runs what the sources have queued until nothing is.
 func pumpSources(t *testing.T, m *Model) {
 	t.Helper()
-	for range 50 {
-		run(m, m.syncSources())
-		if m.src.host == nil || !m.src.host.Pending() && m.src.running == 0 && !m.pagesPending() {
-			return
-		}
+	if !settleSources(m) {
+		t.Fatal("the sources never settled")
 	}
-	t.Fatal("the sources never settled")
-}
-
-// pagesPending reports whether a page is being read.
-func (m *Model) pagesPending() bool {
-	for _, p := range m.src.pages {
-		if p.Building() {
-			return true
-		}
-	}
-	return false
 }
 
 // linkSales writes sales.parquet with n rows here and links it.

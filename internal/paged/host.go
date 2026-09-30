@@ -127,6 +127,21 @@ func (h *Host) reopen(s *source) {
 	h.fresh = append(h.fresh, &Job{kind: jobOpen, name: s.name, spec: s.spec, gen: s.gen, open: h.Open})
 }
 
+// Reload reads the source named name again, as when its file changed:
+// what was worked out of it is worked out again.
+func (h *Host) Reload(name string) {
+	s := h.srcs[key(name)]
+	if s == nil || s.opening {
+		return
+	}
+	if s.h != nil {
+		s.h.Close()
+		s.h = nil
+	}
+	s.gen++
+	h.reopen(s)
+}
+
 // Close lets every source go.
 func (h *Host) Close() {
 	for _, s := range h.srcs {
@@ -305,12 +320,7 @@ func (h *Host) Poll() bool {
 		case now.Sub(s.seenAt) < h.Debounce:
 			continue
 		}
-		if s.h != nil {
-			s.h.Close() // jobs reading it fail, and their answers are dropped
-			s.h = nil
-		}
-		s.gen++
-		h.reopen(s)
+		h.Reload(s.name) // jobs reading it fail, and their answers are dropped
 		queued = true
 	}
 	return queued
