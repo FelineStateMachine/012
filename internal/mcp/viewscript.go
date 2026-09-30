@@ -1,12 +1,12 @@
 package mcp
 
 // viewScript is the view's side of both hosts' protocols. With
-// window.openai (the Apps SDK) it draws toolOutput.view, takes the
+// window.openai (the Apps SDK) it draws toolResponseMetadata's view, takes the
 // theme, maxHeight and displayMode from it and from openai:set_globals
 // events, and reports its height with notifyIntrinsicHeight. Otherwise
 // it speaks MCP Apps over postMessage: ui/initialize with its info and
 // display modes, then ui/notifications/initialized; it draws the
-// structuredContent.view of ui/notifications/tool-result, follows the
+// view in the _meta of ui/notifications/tool-result, follows the
 // hostContext's theme, containerDimensions and displayMode as they
 // change, answers ping and ui/resource-teardown, and sends
 // ui/notifications/size-changed as its content's size changes,
@@ -48,7 +48,7 @@ function show(v){
   var first=view.querySelector("td[data-a]");if(first&&window.o12point)window.o12point(first);
   fit();size();
 }
-function viewOf(r){return r&&r.structuredContent&&r.structuredContent.view}
+function viewOf(meta){return meta&&meta["o12/view"]}
 function context(hc){
   if(!hc)return;if(hc.theme)theme(hc.theme);
   var d=hc.containerDimensions;
@@ -60,14 +60,14 @@ function globals(g){
   if(!g)return;if(g.theme)theme(g.theme);
   if(typeof g.maxHeight==="number")room=g.maxHeight;
   if(g.displayMode)fill=g.displayMode==="fullscreen";
-  if(g.toolOutput)show(g.toolOutput.view);
+  if(g.toolResponseMetadata)show(viewOf(g.toolResponseMetadata));
   fit();size();
 }
 window.addEventListener("message",function(e){
   var m=e.data;if(!m||m.jsonrpc!=="2.0"||oai)return;
   if(m.id===1&&(m.result||m.error)){if(m.result)context(m.result.hostContext);send({method:"ui/notifications/initialized",params:{}});return}
   switch(m.method){
-  case "ui/notifications/tool-result":show(viewOf(m.params));break;
+  case "ui/notifications/tool-result":show(viewOf(m.params&&m.params._meta));break;
   case "ui/notifications/host-context-changed":context(m.params);break;
   case "ui/resource-teardown":case "ping":send({id:m.id,result:{}});break;
   }

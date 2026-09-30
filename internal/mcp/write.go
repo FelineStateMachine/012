@@ -70,7 +70,6 @@ type Changed struct {
 type chartOut struct {
 	Chart headless.ChartMade `json:"chart"`
 	Changed
-	View *View `json:"view,omitempty"`
 }
 
 type pivotOut struct {
@@ -133,6 +132,7 @@ func (s *Server) addWriteTools() {
 
 func (s *Server) createChart(ctx context.Context, req *sdk.CallToolRequest, in chartIn) (*sdk.CallToolResult, chartOut, error) {
 	var out chartOut
+	var view *View
 	b, err := s.open(ctx, req, in.Path)
 	if err != nil {
 		return nil, out, err
@@ -141,16 +141,14 @@ func (s *Server) createChart(ctx context.Context, req *sdk.CallToolRequest, in c
 		if out.Chart, err = headless.AddChart(w, in.ChartSpec); err != nil {
 			return err
 		}
-		out.View = chartView(b, w, out.Chart)
+		view = chartView(b, w, out.Chart)
 		return nil
 	})
 	if err != nil {
 		return nil, chartOut{}, err
 	}
 	out.Changed = changed
-	model := out
-	model.View = nil
-	return forModel(model), out, nil
+	return viewResult(view), out, nil
 }
 
 func (s *Server) runCell(ctx context.Context, req *sdk.CallToolRequest, in runCellIn) (*sdk.CallToolResult, headless.CellRun, error) {

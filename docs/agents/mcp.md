@@ -134,15 +134,17 @@ Two kinds of hosts do this, and the view works in both:
 | Host | Finds the page by | Its page | The page reads |
 |---|---|---|---|
 | [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) (Claude, and the extension's other hosts) | the tool's `_meta.ui.resourceUri` | `ui://012/view`, `text/html;profile=mcp-app` | the `ui/initialize` handshake's theme and room, then `ui/notifications/tool-result` |
-| The [OpenAI Apps SDK](https://developers.openai.com/apps-sdk) (ChatGPT, Codex) | the tool's `_meta["openai/outputTemplate"]` | `ui://012/view.skybridge`, `text/html+skybridge` | `window.openai`: `toolOutput`, `theme`, `maxHeight`, `displayMode`, and `openai:set_globals` events |
+| The [OpenAI Apps SDK](https://developers.openai.com/apps-sdk) (ChatGPT, Codex) | the tool's `_meta["openai/outputTemplate"]` | `ui://012/view.skybridge`, `text/html+skybridge` | `window.openai`: `toolResponseMetadata`, `theme`, `maxHeight`, `displayMode`, and `openai:set_globals` events |
 
-What the page draws is in the result's `structuredContent.view`, for
-every client, whether or not it declared the extension: the workbook's
-name, where the range or chart is, and its HTML, at most 200 rows of
-what `read_range` returned. The result's text, which models read, is
-the same result without the view; hosts of the Apps SDK also show the
-model `structuredContent`, view included. The page asks for nothing
-from the network and calls no tools.
+What the page draws is in the result's `_meta["o12/view"]`, for every
+client, whether or not it declared the extension: the workbook's name,
+where the range or chart is, and its HTML, at most 200 rows of what
+`read_range` returned. Both kinds of hosts hand a result's `_meta` to
+the page (the Apps SDK as `window.openai.toolResponseMetadata`) and
+keep it from the model, which reads the result itself,
+`structuredContent` and the same JSON as text, with no HTML: a few
+kilobytes for 60 rows. The page asks for nothing from the network and
+calls no tools.
 
 ## Resources
 

@@ -37,13 +37,6 @@ type readIn struct {
 // embedding it can have beside its own field Range.
 type RangeRead = headless.Range
 
-// rangeOut is what read_range returns: the range, and the view hosts
-// draw of it.
-type rangeOut struct {
-	RangeRead
-	View *View `json:"view,omitempty"`
-}
-
 type evaluateIn struct {
 	bookIn
 	Formula string `json:"formula" jsonschema:"the formula, with or without its =: =SUMIF(B:B, \"North\", C:C)"`
@@ -134,21 +127,22 @@ func (s *Server) describe(ctx context.Context, req *sdk.CallToolRequest, in desc
 	return nil, out, err
 }
 
-func (s *Server) readRange(ctx context.Context, req *sdk.CallToolRequest, in readIn) (*sdk.CallToolResult, rangeOut, error) {
-	var out rangeOut
+func (s *Server) readRange(ctx context.Context, req *sdk.CallToolRequest, in readIn) (*sdk.CallToolResult, RangeRead, error) {
+	var out RangeRead
+	var view *View
 	err := s.view(ctx, req, in.Path, func(b *book, w *sheet.Workbook) error {
 		t, err := headless.Resolve(w, in.Ref)
 		if err != nil {
 			return err
 		}
-		out.RangeRead = headless.ReadRange(t, headless.ReadOptions{MaxCells: in.Max, Text: in.Text})
-		out.View = rangeView(b, t, out.Rows)
+		out = headless.ReadRange(t, headless.ReadOptions{MaxCells: in.Max, Text: in.Text})
+		view = rangeView(b, t, out.Rows)
 		return nil
 	})
 	if err != nil {
-		return nil, rangeOut{}, err
+		return nil, RangeRead{}, err
 	}
-	return forModel(out.RangeRead), out, nil
+	return viewResult(view), out, nil
 }
 
 // view runs fn on the workbook path names, as it is.

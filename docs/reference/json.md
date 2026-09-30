@@ -129,8 +129,7 @@ are as without it.
 ## MCP tools
 
 The [MCP server](../agents/mcp.md)'s tools return these, as structured
-content with the same JSON as text beside it (the text without the
-`view`). `describe` with a path returns `path` and
+content with the same JSON as text beside it. `describe` with a path returns `path` and
 [describe's](#describe) schema, and so does `create_workbook`, of the
 workbook it made; without a path, `describe` returns the folders open
 to the server and the workbooks in them, `more` set when there were
@@ -163,15 +162,16 @@ more than it lists:
 `values` are typed as [`get`](#get) types one cell (blank is `null`, an
 error its text); `text` comes only when asked for; `truncated` is set
 when the range held more cells than `max_cells`, and `rows` says how
-many came back. The tool adds `view`, what
+many came back. The result's `_meta["o12/view"]` holds what
 [the view](../agents/mcp.md#views-in-the-chat) draws: `title` (the
-workbook's name), `where` and `html`; the range resources leave it out.
+workbook's name), `where` and `html`.
 
 Writes (`write_cells`, `apply_operations`, `sort`, `filter`) return
 `{"saved", "changes", "warnings"}` as [`set`](#set) does, `saved` false
 for a dry run or a change that changed nothing; `create_chart` adds
-`"chart": {"sheet", "number", "title"}` and its `view` (with `name`,
-the chart's data), and `create_pivot` `"sheet"`, the pivot's.
+`"chart": {"sheet", "number", "title"}`, its view in `_meta` as
+`read_range`'s (with `name`, the chart's data), and `create_pivot`
+`"sheet"`, the pivot's.
 
 | Tool | Returns |
 |---|---|

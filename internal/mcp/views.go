@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -23,29 +22,34 @@ import (
 //   - The OpenAI Apps SDK (ChatGPT, Codex): the tool's
 //     _meta["openai/outputTemplate"] names ui://012/view.skybridge, the
 //     same page as text/html+skybridge, which reads window.openai
-//     (toolOutput, theme, maxHeight, displayMode) instead.
+//     (toolResponseMetadata, theme, maxHeight, displayMode) instead.
 //
 // The page is the HTML export's with nothing in it yet (fonts,
-// palettes, the pointer's script). What it draws is the result's
-// structuredContent.view, for every client: its title, where it is and
-// the grid's or chart's HTML. The result's text, which models read in
-// hosts that keep structuredContent for the view, leaves the view out.
+// palettes, the pointer's script). What it draws is in the result's
+// _meta under viewKey, for every client, since both kinds of hosts hand
+// a result's _meta to the view and neither shows it to the model: its
+// title, where it is and the grid's or chart's HTML. structuredContent
+// stays the tool's result, what the model reads.
 const (
 	uiExtension   = "io.modelcontextprotocol/ui"
 	uiMIME        = "text/html;profile=mcp-app"
 	skybridgeMIME = "text/html+skybridge"
 	viewURI       = "ui://012/view"
+	viewKey       = "o12/view"
 	skybridgeURI  = "ui://012/view.skybridge"
 	// maxViewRows bounds the rows a range's view draws.
 	maxViewRows = 200
 )
 
-// View is what a view draws of a result.
+// View is what a view draws of a result, in its _meta under viewKey:
+// the workbook's name, what the name box shows before a cell is
+// pointed at (a chart's data), the range or the chart's kind, sheet and
+// data, and the grid or chart as the HTML export draws it.
 type View struct {
-	Title string `json:"title" jsonschema:"the workbook's name"`
-	Name  string `json:"name,omitempty" jsonschema:"what the name box shows before a cell is pointed at: a chart's data"`
-	Where string `json:"where" jsonschema:"the range, or the chart's kind, sheet and data"`
-	HTML  string `json:"html" jsonschema:"the grid or chart as 012's HTML export draws it, for the view"`
+	Title string `json:"title"`
+	Name  string `json:"name,omitempty"`
+	Where string `json:"where"`
+	HTML  string `json:"html"`
 }
 
 // viewResourceMeta says how hosts should frame the view, in both
@@ -83,14 +87,12 @@ func viewMeta(invoking, invoked string) sdk.Meta {
 		"openai/outputTemplate": skybridgeURI, "openai/toolInvocation/invoking": invoking, "openai/toolInvocation/invoked": invoked}
 }
 
-// forModel is a result whose text is v as JSON: the structured result
-// without its view.
-func forModel(v any) *sdk.CallToolResult {
-	data, err := json.Marshal(v)
-	if err != nil {
+// viewResult is a result carrying v in its _meta, nil without one.
+func viewResult(v *View) *sdk.CallToolResult {
+	if v == nil {
 		return nil
 	}
-	return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(data)}}}
+	return &sdk.CallToolResult{Meta: sdk.Meta{viewKey: v}}
 }
 
 // rangeView draws the rows read_range returned of t, at most

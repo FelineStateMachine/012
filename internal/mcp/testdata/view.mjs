@@ -2,8 +2,9 @@
 // what a person would see (see views_browser_test.go):
 //
 //   - openai: the OpenAI Apps SDK's way. window.openai is set before the
-//     page's scripts run, its toolOutput null at first and then set by an
-//     openai:set_globals event, as ChatGPT does when the result arrives;
+//     page's scripts run, toolOutput and toolResponseMetadata null at
+//     first and then set by an openai:set_globals event, as ChatGPT does
+//     when the result arrives;
 //     notifyIntrinsicHeight resizes the frame.
 //   - mcp-apps: the MCP Apps way. The host answers ui/initialize with its
 //     context, sends ui/notifications/tool-input and tool-result once the
@@ -77,10 +78,12 @@ async function run(mode, name, c, theme) {
   if (mode === "openai") {
     await frame.locator("#o12-view").waitFor({ state: "attached" });
     await page.waitForTimeout(100);
-    await frame.locator("body").evaluate((_, out) => {
-      window.openai.toolOutput = out;
-      window.dispatchEvent(new CustomEvent("openai:set_globals", { detail: { globals: { toolOutput: out } } }));
-    }, c.result.structuredContent);
+    await frame.locator("body").evaluate((_, r) => {
+      window.openai.toolOutput = r.structuredContent;
+      window.openai.toolResponseMetadata = r._meta;
+      const globals = { toolOutput: r.structuredContent, toolResponseMetadata: r._meta };
+      window.dispatchEvent(new CustomEvent("openai:set_globals", { detail: { globals } }));
+    }, c.result);
   }
   const what = `${mode} ${name}`;
   try {
@@ -91,7 +94,7 @@ async function run(mode, name, c, theme) {
     return;
   }
   await page.waitForTimeout(300);
-  const v = c.result.structuredContent.view;
+  const v = c.result._meta["o12/view"];
   const state = () => frame.locator("body").evaluate(() => {
     const sh = document.querySelector("#o12-view .sheet");
     return {
