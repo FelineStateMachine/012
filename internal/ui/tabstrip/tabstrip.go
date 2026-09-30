@@ -72,12 +72,22 @@ const addW, arrowW = 3, 2
 // the sheets' without color.
 const NotebookMark = "❯ "
 
+// SourceMark starts a linked source's tab's label; ! follows the name
+// when its file can't be read.
+const SourceMark = "▦ "
+
 // Label is a sheet's name as its tab shows it, a notebook's after its
 // mark, with the mark of its linked regions, if it has any.
 func Label(s *sheet.Sheet) string {
 	label := " " + ansi.Truncate(s.Name(), maxName, "…") + " "
 	if s.IsNotebook() {
 		label = " " + NotebookMark + ansi.Truncate(s.Name(), maxName, "…") + " "
+	}
+	if info, ok := s.Source(); ok {
+		label = " " + SourceMark + ansi.Truncate(s.Name(), maxName, "…") + " "
+		if info.Err != "" {
+			label += Mark(false, true) + " "
+		}
 	}
 	if s.HasLinked() {
 		label += liveMark(s) + " "

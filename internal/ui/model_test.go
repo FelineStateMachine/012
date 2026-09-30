@@ -85,6 +85,9 @@ func run(m *Model, cmd tea.Cmd) tea.Msg {
 	if _, ok := out.(followTickMsg); ok {
 		return nil // tests poll with pump
 	}
+	if _, ok := out.(sourceTickMsg); ok {
+		return nil // tests look at sources' files with pollSources
+	}
 	if _, ok := out.(autoscrollMsg); ok {
 		return nil
 	}

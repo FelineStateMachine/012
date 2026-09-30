@@ -1,0 +1,243 @@
+package ui
+
+import (
+	"context"
+	"strings"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/FelineStateMachine/012/internal/fileio"
+	"github.com/FelineStateMachine/012/internal/live"
+	"github.com/FelineStateMachine/012/internal/paged"
+	"github.com/FelineStateMachine/012/internal/sheet"
+	"github.com/FelineStateMachine/012/internal/ui/srcview"
+)
+
+// Linked sources (Data > Linked file > Link a source): a Parquet file
+// or a SQLite table or query read in place on a tab of its own. The
+// workbook's paged.Host answers what formulas and pivot tables ask of
+// the sources, its jobs run on goroutines of their own, a few at a
+// time, and their answers come back as messages that recalculate what
+// waited for them. The tab shown reads its rows a page at a time
+// (paged.Pages) as it scrolls. Which sources the host reads is
+// reconciled with the workbook after every update (syncSources), as
+// linked files are (follow.go), and their files are looked at every
+// live.Interval, a source read again once its file has changed.
+
+// sourceState is the linked sources' part of the model.
+type sourceState struct {
+	host    *paged.Host
+	links   string                         // the links given to the host, to notice a change
+	failed  map[string]string              // why a source can't be linked, as told to the workbook
+	pages   map[string]*paged.Pages        // the rows of each source's tab, by the source's name
+	views   map[*sheet.Sheet]*srcview.View // each source tab's view
+	queue   []*paged.Job                   // the host's jobs waiting for a turn
+	running int
+	ticking bool
+	dragBar bool // the scrollbar's thumb is being dragged
+}
+
+// sourceInterval is how often sources' files are looked at; tests lower
+// it.
+var sourceInterval = live.Interval
+
+// sourceParallel is how many of the host's jobs run at once: each may
+// read a whole source.
+const sourceParallel = 3
+
+type (
+	sourceJobMsg struct {
+		host *paged.Host
+		j    *paged.Job
+	}
+	sourcePageMsg struct {
+		p *paged.Pages
+		j *paged.PageJob
+	}
+	sourceTickMsg struct{ host *paged.Host }
+)
+
+// closeSources lets the workbook's sources go, as a new one is opened.
+func (m *Model) closeSources() {
+	if m.src.host != nil {
+		m.src.host.Close()
+	}
+	for _, p := range m.src.pages {
+		p.Close()
+	}
+}
+
+// syncSources gives the host the workbook's sources, keeps the pages of
+// the source shown, and runs what's queued.
+func (m *Model) syncSources() tea.Cmd {
+	w := m.book()
+	infos := w.Sources()
+	if len(infos) == 0 && m.src.host == nil {
+		return nil
+	}
+	if m.src.host == nil {
+		m.src.host = paged.NewHost(sheet.MaxCells())
+		w.SetSources(m.src.host)
+	}
+	m.linkSources(infos)
+	m.syncPages()
+	if v := m.srcView(); v != nil {
+		v.Prefetch()
+	}
+	cmds := []tea.Cmd{m.runSourceJobs(), m.runPageJobs()}
+	if !m.src.ticking && len(infos) > 0 {
+		m.src.ticking = true
+		h := m.src.host
+		cmds = append(cmds, tea.Tick(sourceInterval, func(time.Time) tea.Msg { return sourceTickMsg{h} }))
+	}
+	return tea.Batch(cmds...)
+}
+
+// linkSources gives the host the sources it may read, their files
+// resolved, and tells the workbook why the others can't be.
+func (m *Model) linkSources(infos []sheet.SourceInfo) {
+	var links []paged.Linked
+	var key strings.Builder
+	for _, info := range infos {
+		src := info.Source
+		path, why := m.sourcePath(src)
+		if why != "" {
+			if m.src.failed[info.Name] != why {
+				if m.src.failed == nil {
+					m.src.failed = map[string]string{}
+				}
+				m.src.failed[info.Name] = why
+				m.book().SetSourceShape(info.Name, sheet.SourceShape{}, why)
+			}
+			continue
+		}
+		delete(m.src.failed, info.Name)
+		spec := fileio.SourceSpec{Path: path, Format: src.Format, Table: src.Table, Query: src.Query}
+		links = append(links, paged.Linked{Name: info.Name, Spec: spec})
+		key.WriteString(info.Name + "\x00" + path + "\x00" + src.Format + "\x00" + src.Table + "\x00" + src.Query + "\x01")
+	}
+	if key.String() != m.src.links {
+		m.src.links = key.String()
+		m.src.host.Link(links)
+	}
+}
+
+// sourcePath is the file a source reads, or why it may not be read:
+// outside the served folder, or outside the workbook's from a workbook
+// made on another computer, until the user trusts it (follow.go).
+func (m *Model) sourcePath(src sheet.LinkSource) (string, string) {
+	if outside(src.Path) && !m.macroTrusted() {
+		m.askLinkTrust()
+		return "", "Not read: the spreadsheet was made on another computer"
+	}
+	path, err := m.root.Resolve(m.linkName(src.Path))
+	if err != nil {
+		return "", m.root.Scrub(err.Error())
+	}
+	return path, ""
+}
+
+// runSourceJobs starts the host's jobs, a few at a time.
+func (m *Model) runSourceJobs() tea.Cmd {
+	h := m.src.host
+	m.src.queue = append(m.src.queue, h.Jobs()...)
+	var cmds []tea.Cmd
+	for m.src.running < sourceParallel && len(m.src.queue) > 0 {
+		j := m.src.queue[0]
+		m.src.queue = m.src.queue[1:]
+		m.src.running++
+		parent := m.spans.Parent()
+		cmds = append(cmds, func() tea.Msg {
+			span := parent.Start("source " + j.String())
+			j.Run(context.Background())
+			span.End()
+			return sourceJobMsg{h, j}
+		})
+	}
+	return tea.Batch(cmds...)
+}
+
+// runPageJobs reads the pages the tab shown asked for.
+func (m *Model) runPageJobs() tea.Cmd {
+	var cmds []tea.Cmd
+	for _, p := range m.src.pages {
+		for _, j := range p.Jobs() {
+			cmds = append(cmds, func() tea.Msg {
+				j.Run(context.Background())
+				return sourcePageMsg{p, j}
+			})
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
+// handleSource takes what a job found, a page read, or a tick.
+func (m *Model) handleSource(msg tea.Msg) tea.Cmd {
+	switch msg := msg.(type) {
+	case sourceJobMsg:
+		if msg.host != m.src.host {
+			return nil // the workbook it was for is gone
+		}
+		m.src.running--
+		paged.Apply(m.book(), m.src.host.Store(msg.j))
+	case sourcePageMsg:
+		if m.src.pages[pagesName(m.src.pages, msg.p)] == msg.p {
+			msg.p.Store(msg.j)
+		}
+	case sourceTickMsg:
+		if msg.host != m.src.host {
+			return nil
+		}
+		m.src.ticking = false
+		m.src.host.Poll()
+	}
+	return nil
+}
+
+// pagesName is the name p is kept by, "" when it isn't kept.
+func pagesName(pages map[string]*paged.Pages, p *paged.Pages) string {
+	for name, q := range pages {
+		if q == p {
+			return name
+		}
+	}
+	return ""
+}
+
+// syncPages keeps the pages of the source tab shown in step with its
+// source: made once it's open, made again when it's read again or its
+// order changes; those of other tabs let go.
+func (m *Model) syncPages() {
+	info, ok := m.sheet.Source()
+	for name, p := range m.src.pages {
+		if !ok || !strings.EqualFold(name, info.Name) {
+			p.Close()
+			delete(m.src.pages, name)
+		}
+	}
+	if !ok {
+		return
+	}
+	h, gen, open := m.src.host.Source(info.Name)
+	p := m.src.pages[info.Name]
+	switch {
+	case !open:
+		if p != nil {
+			p.Close()
+			delete(m.src.pages, info.Name)
+		}
+	case p == nil || !p.Same(h, gen, info.Source.Order):
+		if p != nil {
+			p.Close()
+		}
+		if m.src.pages == nil {
+			m.src.pages = map[string]*paged.Pages{}
+		}
+		m.src.pages[info.Name] = paged.NewPages(h, gen, info.Source.Order)
+		if v := m.src.views[m.sheet]; v != nil {
+			v.Reset()
+			v.Refit()
+		}
+	}
+}
