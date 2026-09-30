@@ -76,6 +76,9 @@ func (s *Sheet) writeRegions() []loc {
 	for k, me := range s.regionMeta {
 		if s.regionIndex(k) < 0 {
 			changed = append(changed, s.clearOwned(me, noRect)...)
+			if t, ok := me.table(); ok {
+				changed = append(changed, s.regionMoved(t, noRect, true)...)
+			}
 			delete(s.regionMeta, k)
 			s.wakeAllRegions()
 			for u := range s.wb.nameUsers[nameKey(regionPrefix+k)] {
@@ -97,6 +100,9 @@ func (s *Sheet) writeRegions() []loc {
 // naming it read #REF! until then, so they're among the cells returned.
 func (s *Sheet) emptyRegion(r Region, me *regionMeta) []loc {
 	changed := s.clearOwned(me, noRect)
+	if t, ok := me.table(); ok {
+		changed = append(changed, s.regionMoved(t, noRect, true)...)
+	}
 	if me.has {
 		changed = s.regionReaders(r, changed)
 	}
@@ -115,6 +121,7 @@ func (s *Sheet) emptyRegion(r Region, me *regionMeta) []loc {
 func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []LiveRow, reset bool) []loc {
 	cols, nrows := tableSize(me, header, rows, reset)
 	was, had, shape := me.written, me.has, [2]int{me.rows, me.cols}
+	before, _ := me.table()
 	need := s.tableArea(r, cols, nrows)
 	changed := s.makeRoomAt(r)
 	whole := me.why != "" || me.placed // it may not hold every cell it wrote
@@ -159,6 +166,11 @@ func (s *Sheet) writeTable(r Region, me *regionMeta, header LiveRow, rows []Live
 	}
 	for _, c := range changed {
 		s.freedFor(c.a)
+	}
+	// Blocked, what's in its way may have gone but for arrays, which then
+	// find it (heldByArrays).
+	if after, _ := me.table(); !had || after != before || me.why != "" {
+		changed = append(changed, s.regionMoved(before, after, had)...)
 	}
 	if !had || was != me.written || shape != [2]int{me.rows, me.cols} { // moved, or its table changed shape
 		changed = s.regionReaders(r, changed)

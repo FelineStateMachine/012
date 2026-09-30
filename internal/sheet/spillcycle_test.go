@@ -64,3 +64,39 @@ func TestCycleGoneWithAnArray(t *testing.T) {
 		t.Errorf("C9 opened: %+v", sp)
 	}
 }
+
+// An array spilling into the inputs of another, blocked by a value but
+// only as wide as it is for the first's spill, and reading what the
+// other needs: counted as spilling, the blocked one closes the cycle,
+// so both are blocked whichever was typed first, as when opened.
+func TestCycleThroughABlockedArray(t *testing.T) {
+	cells := map[string]string{"C9": "1.5", "C13": "=SORT(D19:E20)", "D18": "=SORT(C9:E13)", "E19": "=SEQUENCE(3)"}
+	want := map[string]string{"C13": "#REF!", "D18": "#REF!", "D13": "", "E20": "2"}
+	for _, order := range [][]string{{"C9", "E19", "C13", "D18"}, {"C9", "D18", "C13", "E19"}, {"D18", "C13", "C9", "E19"}} {
+		wantSettled(t, "blocked", order, cells, want)
+	}
+}
+
+// A formula typed last closing a cycle through an array blocked by a
+// value has the arrays checked again, as when the file opens.
+func TestCycleClosedThroughABlockedArray(t *testing.T) {
+	cells := map[string]string{"D9": "=SORT(G15:H19)", "E9": "=COUNTIF(A9:A12,\">2\")", "B16": "=ABS($A$9)+1", "H19": "=SORT(B13:D16)", "H16": "=COUNTIF(H20,\">2\")"}
+	wantSettled(t, "closed", []string{"D9", "E9", "B16", "H19", "H16"}, cells, map[string]string{"D9": "#REF!", "H19": "#REF!"})
+}
+
+// A blocked array that goes, its formula computing one value, frees the
+// arrays whose cycle went through the cells it needed (spill.walked):
+// once Total is defined, B7 reads its own #REF! through G9.
+func TestCycleGoneWithABlockedArray(t *testing.T) {
+	cells := map[string]string{
+		"H9": "=VLOOKUP(G8,G14:G15,1,FALSE)", "E7": "=SORT(F10:G14)", "G9": "=SUM(Total)*2", "B7": "=SORT(G7:H11)",
+		"H5": "=SORT(C4:E8)", "B9": "=VLOOKUP(A13,C14:D18,1,FALSE)", "G18": "=ABS(C14)+1",
+	}
+	s := New()
+	for _, a := range []string{"H9", "E7", "G9", "B7", "H5", "B9"} {
+		s.Set(at(a), cells[a])
+	}
+	s.Book().DefineName("Total", s, NewRect(Addr{}, Addr{Col: 1, Row: 9}))
+	s.Set(at("G18"), cells["G18"])
+	wantShown(t, s, map[string]string{"B7": "#REF!", "H5": ""})
+}

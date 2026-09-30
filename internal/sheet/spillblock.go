@@ -19,7 +19,13 @@ import "slices"
 // (regionsGiveWay), so what reads it by name reads #REF! once the array
 // spills, whatever the array holds: the walk doesn't follow it, or the
 // array would be blocked or not by whether the region's rows arrived
-// before it spilled.
+// before it spilled. A formula reading the table's cells, though, leads
+// the walk from each of them, those outside area too: spilling empties
+// them, the anchor showing #REF!, which may make the array smaller and
+// free the region, spilling again once it's sent its rows, without
+// end. The table is the one shown or, blocked by arrays alone, the one
+// it needs, so the array is blocked either way (regionMoved has it
+// checked again).
 func (s *Sheet) spillsIntoItself(a Addr, area Rect) (string, []loc) {
 	if area.From == area.To {
 		return "", nil
@@ -30,13 +36,18 @@ func (s *Sheet) spillsIntoItself(a Addr, area Rect) (string, []loc) {
 	if w.cells(s, area, a, loc{}, true) {
 		return circular(w.origin), nil
 	}
+	for _, r := range s.regions.list {
+		if t, ok := s.heldByArrays(r); ok && overlaps(t, area) && w.cells(s, t, a, loc{}, true) {
+			return "Circular dependency: the array would spill over " + r.Name + "'s table, whose cells its formula reads", nil
+		}
+	}
 	for i := 0; i < len(w.queue); i++ {
 		u := w.queue[i]
 		w.origin, w.parent = w.nodes[i].from, i
 		// An array's cells first, so a cycle through them is found as
 		// one, and the array blocked with it, rather than through the
 		// anchor alone.
-		if sp := u.s.spills[u.a]; sp != nil && (sp.why == "" || sp.circular) {
+		if sp := u.s.spills[u.a]; sp != nil && sp.walked() {
 			w.cells(u.s, sp.area, u.a, u, false)
 		}
 		if !w.found {
@@ -95,6 +106,25 @@ func (w *Workbook) cycleMoved(circ bool, old *spill) bool {
 	case circ != was:
 		return true
 	case circ && !w.spillRechecked:
+		w.spillRechecked = true
+		return true
+	}
+	return false
+}
+
+// blockedMoved reports whether the arrays are to be checked again, an
+// array whose spill was old found blocked over area by something other
+// than a cycle: counted as spilling over the cells it needs (walked), it
+// may close or open a cycle through arrays that read them, when it's
+// blocked over other cells, or blocked still, the first time in the
+// recalculation: a formula on the way around a cycle through it may
+// have changed, which the others aren't computed again for, as in
+// cycleMoved.
+func (w *Workbook) blockedMoved(old *spill, area Rect) bool {
+	switch {
+	case old == nil || old.why == "" || old.area != area:
+		return true
+	case !w.spillRechecked:
 		w.spillRechecked = true
 		return true
 	}
@@ -230,13 +260,13 @@ func (w *Workbook) recheckCircular() []loc {
 }
 
 // forgetSpill drops the anchor at a's spill for good, its formula
-// computing one value or none, returning the cells that changed. When a
-// cycle blocked it, it counted as spilling over the cells it needed, so
+// computing one value or none, returning the cells that changed. When
+// blocked, it counted as spilling over the cells it needed (walked), so
 // the arrays blocked by a cycle are checked again.
 func (s *Sheet) forgetSpill(a Addr) []loc {
 	old := s.spills[a]
 	changed := s.dropSpill(a)
-	if old != nil && old.circular {
+	if old != nil && old.why != "" {
 		changed = append(changed, s.wb.recheckCircular()...)
 	}
 	return changed
@@ -259,4 +289,19 @@ func blockCircular(arrays []loc) []loc {
 		changed = append(changed, l)
 	}
 	return changed
+}
+
+// walked reports whether spillsIntoItself follows the cells of the
+// array: spilled, or blocked, over the cells it needs, what it would
+// spill over given room. A blocked array whose size follows what it
+// reads may be blocked or free by whether another spills into its
+// inputs, and that other by whether it spills: counted as spilling,
+// the two are blocked together, as when the cycle is found in one go,
+// rather than by the order they were computed in. The cells of an array
+// too big for max-cells aren't walked.
+func (sp *spill) walked() bool {
+	if sp.why == "" || sp.circular {
+		return true
+	}
+	return (sp.area.To.Row-sp.area.From.Row+1)*(sp.area.To.Col-sp.area.From.Col+1) <= MaxCells()
 }
