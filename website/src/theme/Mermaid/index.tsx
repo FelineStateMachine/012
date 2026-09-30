@@ -2,15 +2,15 @@
 // palette: Mermaid's base theme, its variables read from the colors
 // custom.css defines for the color mode shown, so the palette has one
 // home. Mermaid needs literal colors, not CSS variables, which is why
-// they are read from the page rather than passed through.
+// they are read from the page rather than passed through. It draws with
+// its own hook rather than Docusaurus's, which can leave a diagram's box
+// empty when the color mode changes quickly (see draw).
 
 import React, {useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import ErrorBoundary from '@docusaurus/ErrorBoundary';
 import {ErrorBoundaryErrorMessageFallback, useColorMode} from '@docusaurus/theme-common';
-import {
-  MermaidContainerClassName,
-  useMermaidRenderResult,
-} from '@docusaurus/theme-mermaid/client';
+import {MermaidContainerClassName} from '@docusaurus/theme-mermaid/client';
+import {loadMermaid} from '@docusaurus/theme-mermaid/lib/client/loadMermaid.js';
 import type {MermaidConfig, RenderResult} from 'mermaid';
 
 type Props = {value: string};
@@ -157,9 +157,61 @@ function MermaidRenderResult({renderResult}: {renderResult: RenderResult}): Reac
   );
 }
 
+// Mermaid is one object with one configuration, and it draws a diagram
+// through an element of the page named by the id it is given. So each
+// drawing gets its configuration set just before it and runs after the
+// one before has finished, and gets an id of its own: under the id of
+// the drawing shown, Mermaid would take that one off the page first, and
+// a drawing identical to the one React last put there (the color mode
+// switched twice quickly) would leave the box empty.
+let drawing: Promise<unknown> = Promise.resolve();
+let drawn = 0;
+
+function draw(text: string, config: MermaidConfig): Promise<RenderResult> {
+  const id = `mermaid-svg-${++drawn}`;
+  const result = drawing.then(async () => {
+    const mermaid = await loadMermaid();
+    mermaid.initialize(config);
+    try {
+      return await mermaid.render(id, text);
+    } catch (e) {
+      // On an error Mermaid leaves its error drawing on the page.
+      document.querySelector(`#d${id}`)?.remove();
+      throw e;
+    }
+  });
+  drawing = result.catch(() => undefined);
+  return result;
+}
+
+// The drawing for the latest configuration: one asked for before the
+// color mode changed again is dropped when it arrives. An error goes to
+// the error boundary, which shows it in place of the diagram.
+function useDrawing(text: string, config: MermaidConfig | undefined): RenderResult | null {
+  const [result, setResult] = useState<RenderResult | null>(null);
+  useEffect(() => {
+    if (config === undefined) {
+      return undefined;
+    }
+    let live = true;
+    draw(text, config).then(
+      (r) => live && setResult(r),
+      (e: unknown) =>
+        live &&
+        setResult(() => {
+          throw e;
+        }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [text, config]);
+  return result;
+}
+
 function MermaidRenderer({value}: Props): ReactNode {
   const config = useMermaidConfig();
-  const renderResult = useMermaidRenderResult({text: value, config});
+  const renderResult = useDrawing(value, config);
   if (renderResult === null) {
     return null;
   }
