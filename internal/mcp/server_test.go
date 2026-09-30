@@ -302,7 +302,7 @@ func TestResourcesAndPrompts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if text := res.Messages[0].Content.(*sdk.TextContent).Text; !strings.Contains(text, "Add a column to Sheet1!A1:C4 that computes revenue") {
+	if text := res.Messages[0].Content.(*sdk.TextContent).Text; !strings.Contains(text, "Add a column to Sheet1!A1:C4 in the workbook (describe without a path lists them) that computes revenue") {
 		t.Errorf("prompt: %s", text)
 	}
 }

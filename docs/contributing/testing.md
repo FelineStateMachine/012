@@ -49,6 +49,22 @@ The UI is tested by sending
 Bubble Tea messages (keys, mouse, paste, window size) to the model and
 reading what `View` renders, without a terminal.
 
+The MCP server is tested through the SDK's client over an in-memory
+transport. `TestViewInBrowser` (`internal/mcp`) draws its
+[view](../agents/mcp.md#views-in-the-chat) in Chromium with Playwright
+(`internal/mcp/testdata/view.mjs`), once with `window.openai` set as the
+OpenAI Apps SDK sets it and once behind a page speaking MCP Apps'
+messages, in both themes, and checks the grid, the pointer and formula
+bar, scrolling under sticky headers and the frame's height. It needs
+Node and the `playwright` package with its browser, and is skipped
+without them:
+
+```sh
+npm install --prefix ~/.cache/o12-playwright playwright && npx --prefix ~/.cache/o12-playwright playwright install chromium-headless-shell
+O12_PLAYWRIGHT=~/.cache/o12-playwright go test ./internal/mcp -run TestViewInBrowser
+O12_VIEW_SHOTS=/tmp/shots O12_PLAYWRIGHT=~/.cache/o12-playwright go test ./internal/mcp -run TestViewInBrowser   # and screenshots
+```
+
 ## End to end, through libghostty
 
 `e2e/` builds the real `012` binary, runs it on a pseudo-terminal and feeds
