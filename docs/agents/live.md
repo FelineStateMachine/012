@@ -23,6 +23,12 @@ the room takes them, each attributed to whoever made it, so undo takes
 back only your own and `012 diff` shows everyone's. The agent uses the
 [MCP server's](mcp.md) tools, on this one workbook.
 
+Claude, attached to a household budget, points at the bills and
+suggests March's figures; you review and accept them, answer its
+question, and accept the line it then suggests:
+
+![claude in the budget: its pointer on the bills, its suggestion marked on B4 and B5 and accepted from the review panel, its question on the context line answered yes, and the gym line it then suggests accepted](../media/live.gif)
+
 ## Starting
 
 Let agents in when you start, or from a session already running:
