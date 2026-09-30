@@ -15,11 +15,11 @@ It is one pure-Go binary.
 ## Install
 
 ```sh
-curl -fsSL https://f58b.n.zip/install.sh | sh              # macOS, Linux: into ~/.local/bin
+curl -fsSL https://012.dev.site/install.sh | sh              # macOS, Linux: into ~/.local/bin
 go install github.com/FelineStateMachine/012/cmd/012@latest  # or build it with Go 1.27
 ```
 
-On Windows, `irm https://f58b.n.zip/install.ps1 | iex` in PowerShell.
+On Windows, `irm https://012.dev.site/install.ps1 | iex` in PowerShell.
 
 Then run `012`, or `012 budget.012` to open a sheet. F1 shows every
 shortcut, F10 or Alt+letter opens the menus, and Ctrl+K searches every
@@ -107,7 +107,7 @@ Charts show as text here.
 
 - [Documentation](docs/README.md): every guide, for using 012 and for
   working on it, starting with [getting started](docs/getting-started/README.md);
-  also as a site at [f58b.n.zip](https://f58b.n.zip/)
+  also as a site at [012.dev.site](https://012.dev.site/)
 - [Roadmap](ROADMAP.md)
 - Working on 012: `make build`, then `make check` before a push; see
   [testing](docs/contributing/testing.md) and [CLAUDE.md](CLAUDE.md)

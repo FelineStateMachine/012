@@ -21,25 +21,40 @@ the lockfile pins, with install scripts off (no dependency needs one).
 To look at the built site as a static host serves it, run
 `npm run serve` in `website/` after `make site`. `SITE_URL` sets the
 address canonical links and the sitemap use (`SITE_URL=https://... make
-site`); the site sits at the root of its host.
+site`), [012.dev.site](#where-it-lives) unless set; the site sits at the
+root of its host.
 
 ## Where it lives
 
-The site is published at [f58b.n.zip](https://f58b.n.zip/), a public,
-permanent address on the owner's nzip server, which also serves the
-install scripts and the latest release's archives. To publish a new
-build to the same address:
+The site is published at [012.dev.site](https://012.dev.site/), which
+also serves the install scripts and the latest release's archives. It
+is a Cloudflare Worker with static assets and no code of its own,
+configured in `website/wrangler.jsonc`: the worker `012-site` serves
+`website/build`, `012.dev.site` is its custom domain (Cloudflare keeps
+the DNS record and the certificate), an address that names a page's
+directory without its trailing slash redirects to it, and an address
+with no file gets the site's 404 page. `website/static/_headers` gives
+the files whose extension names no type, `install.ps1` and
+`SHA256SUMS`, a text one. To publish a new build:
 
 ```sh
-SITE_URL=https://f58b.n.zip make site-release
-nzip site push website/build public:012
+make site-publish VERSION=v1.2.3
 ```
 
-`make site-release` is `make site` with the release added
-([Publishing](releasing.md#publishing)); a push of a plain `make site`
-build would take the install script and the archives off the site.
+`make site-publish` is `make site-release`, which is `make site` with
+the release added ([Publishing](releasing.md#publishing)), followed by
+`wrangler deploy` in `website/`, the version `website/package.json` pins.
+It needs Node 22 or later, which wrangler does, and wrangler logged in
+to the Cloudflare account that holds the `dev.site` zone
+(`npx wrangler login` in `website/`). Every deploy replaces the whole
+site, so a deploy of a plain `make site` build would take the install
+script and the archives off it. A file may be at most 25 MiB, which the
+release archives stay well under.
 
-The target keeps its policies (public, no expiry) between pushes.
+`f58b.n.zip`, on the owner's nzip server, keeps links to the site
+there working: each page's address serves a page that sends the browser
+on to the same page here, and its `install.sh` and `install.ps1` run
+this site's.
 
 ## The build is a docs check
 

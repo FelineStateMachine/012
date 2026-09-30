@@ -3,8 +3,8 @@
 # at the docs site's root with the release archives under /releases/;
 # see docs/getting-started/install.md.
 #
-#   curl -fsSL https://f58b.n.zip/install.sh | sh
-#   curl -fsSL https://f58b.n.zip/install.sh | sh -s -- --system
+#   curl -fsSL https://012.dev.site/install.sh | sh
+#   curl -fsSL https://012.dev.site/install.sh | sh -s -- --system
 #
 # It picks the archive for this OS and architecture, checks its SHA256
 # against the release's SHA256SUMS, and puts 012 in ~/.local/bin, in
@@ -14,10 +14,10 @@
 #
 #   --version v1.2.3   a release other than the latest (or O12_VERSION)
 #   --system           install into /usr/local/bin
-#   O12_BASE_URL       the site serving /releases/ (https://f58b.n.zip)
+#   O12_BASE_URL       the site serving /releases/ (https://012.dev.site)
 set -eu
 
-base=${O12_BASE_URL:-https://f58b.n.zip}
+base=${O12_BASE_URL:-https://012.dev.site}
 version=${O12_VERSION:-latest}
 system=0
 

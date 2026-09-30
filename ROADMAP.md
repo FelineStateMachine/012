@@ -133,7 +133,7 @@ needs cgo.
 
 - `make check` before every push; demo tapes (`make demos`); annotated version tags with release notes (v0.2.0 onward; v0.1.0 remains on the Go module proxy): [Testing](docs/contributing/testing.md)
 - A release checklist (XLSX output opened in Excel, LibreOffice and Google Sheets) and `make dist`, release archives cross-compiled locally with SHA256SUMS: [Releasing](docs/contributing/releasing.md)
-- Installing without Go: `curl -fsSL https://f58b.n.zip/install.sh | sh` (and `install.ps1` on Windows) with the release archives served from the docs site by `make site-release`: [Install and run](docs/getting-started/install.md), [Releasing](docs/contributing/releasing.md#publishing)
+- Installing without Go: `curl -fsSL https://012.dev.site/install.sh | sh` (and `install.ps1` on Windows) with the release archives served from the docs site by `make site-release`: [Install and run](docs/getting-started/install.md), [Releasing](docs/contributing/releasing.md#publishing)
 - `make stress-report` flags regressions against the last release's run, allowing for noise: [Observability](docs/contributing/observability.md#regressions-against-the-last-release)
 - Grafana: recent traces and a trace view of the nested spans: [Observability](docs/contributing/observability.md#the-stack)
 - Every overlay, prompts and formula suggestions behind narrow hosts, most in packages of their own with fake-host tests: [Architecture](docs/contributing/architecture.md#the-ui)

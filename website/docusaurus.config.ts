@@ -14,7 +14,7 @@ const docsDir = path.join(repoDir, 'docs');
 
 // The site is served at the root of its own host; SITE_URL names that
 // host for canonical links and the sitemap.
-const url = process.env.SITE_URL || 'https://n.zip';
+const url = process.env.SITE_URL || 'https://012.dev.site';
 
 const config: Config = {
   title: '012',

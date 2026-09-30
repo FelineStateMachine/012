@@ -60,9 +60,9 @@ fi
 	fi
 )
 
-# The scripts name https://f58b.n.zip; a site built for another SITE_URL
+# The scripts name https://012.dev.site; a site built for another SITE_URL
 # serves scripts that download from itself.
-url=${SITE_URL:-https://f58b.n.zip}
+url=${SITE_URL:-https://012.dev.site}
 url=${url%/}
 
 rm -rf "$site/releases"
@@ -78,6 +78,6 @@ for dir in "$version" latest; do
 	} >"$site/releases/$dir/index.html"
 done
 for f in install.sh install.ps1; do
-	sed "s|https://f58b\.n\.zip|$url|g" "scripts/install/$f" >"$site/$f"
+	sed "s|https://012\.dev\.site|$url|g" "scripts/install/$f" >"$site/$f"
 done
 echo "site-release: $version in website/build/releases/{$version,latest}, install.sh and install.ps1 at the root"

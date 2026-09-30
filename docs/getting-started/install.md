@@ -9,7 +9,7 @@ sidebar_position: 2
 release in `~/.local/bin`:
 
 ```sh
-curl -fsSL https://f58b.n.zip/install.sh | sh
+curl -fsSL https://012.dev.site/install.sh | sh
 ```
 
 It picks the archive for your OS and architecture, checks it against the
@@ -20,13 +20,13 @@ when that directory isn't writable; `sh -s -- --version v0.3.0` picks a
 release. On Windows, in PowerShell:
 
 ```powershell
-irm https://f58b.n.zip/install.ps1 | iex
+irm https://012.dev.site/install.ps1 | iex
 ```
 
 which installs `012.exe` into `%LOCALAPPDATA%\Programs\012\bin` and adds
 that folder to your PATH, without administrator rights. The archives and
 `SHA256SUMS` are also at
-[f58b.n.zip/releases/latest/](https://f58b.n.zip/releases/latest/) to
+[012.dev.site/releases/latest/](https://012.dev.site/releases/latest/) to
 download by hand.
 
 With Go 1.27 or later, build it from source instead:

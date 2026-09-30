@@ -2,7 +2,7 @@
 # docs site's root with the release archives under /releases/; see
 # docs/getting-started/install.md.
 #
-#   irm https://f58b.n.zip/install.ps1 | iex
+#   irm https://012.dev.site/install.ps1 | iex
 #
 # It picks the archive for this architecture, checks its SHA256 against
 # the release's SHA256SUMS, puts 012.exe in
@@ -11,13 +11,13 @@
 #
 #   $env:O12_VERSION      a release other than the latest, like v1.2.3
 #   $env:O12_INSTALL_DIR  another folder for 012.exe
-#   $env:O12_BASE_URL     the site serving /releases/ (https://f58b.n.zip)
+#   $env:O12_BASE_URL     the site serving /releases/ (https://012.dev.site)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 function Install-012 {
-    $base = if ($env:O12_BASE_URL) { $env:O12_BASE_URL } else { 'https://f58b.n.zip' }
+    $base = if ($env:O12_BASE_URL) { $env:O12_BASE_URL } else { 'https://012.dev.site' }
     $version = if ($env:O12_VERSION) { $env:O12_VERSION } else { 'latest' }
     if ($version -match '^[0-9]') { $version = "v$version" }
     $dir = if ($env:O12_INSTALL_DIR) { $env:O12_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'Programs\012\bin' }

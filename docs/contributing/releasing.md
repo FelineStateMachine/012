@@ -7,8 +7,9 @@ sidebar_position: 8
 
 A release is an annotated version tag whose message is the release
 notes, and archives of the binaries built from it on a maintainer's
-machine, served with the docs site on the owner's nzip server along
-with the install scripts that download them. The GitHub repository only
+machine, served with the docs site at
+[012.dev.site](site.md#where-it-lives) along with the install scripts
+that download them. The GitHub repository only
 hosts the code: nothing builds or publishes there.
 
 ## Checklist
@@ -27,9 +28,8 @@ flowchart TD
   tag -->|the module proxy| install[go install ...@v1.2.3]
   tag --> dist[make dist]
   dist --> archives[dist/: archives, SHA256SUMS]
-  archives --> site[make site-release]
-  site --> push[nzip site push website/build public:012]
-  push --> live[install.sh, /releases/v1.2.3/ and /releases/latest/ live]
+  archives --> publish[make site-publish]
+  publish --> live[install.sh, /releases/v1.2.3/ and /releases/latest/ live]
 ```
 
 1. **`make check`** passes on the commit to be tagged (see
@@ -64,13 +64,12 @@ flowchart TD
    ([Publishing](#publishing)):
 
    ```sh
-   SITE_URL=https://f58b.n.zip make site-release VERSION=v1.2.3
-   nzip site push website/build public:012
+   make site-publish VERSION=v1.2.3
    ```
 
    then check the live copy: `SHA256SUMS` at
-   `https://f58b.n.zip/releases/v1.2.3/` matches `dist/SHA256SUMS`, and
-   `curl -fsSL https://f58b.n.zip/install.sh | PREFIX=$(mktemp -d) sh`
+   `https://012.dev.site/releases/v1.2.3/` matches `dist/SHA256SUMS`, and
+   `curl -fsSL https://012.dev.site/install.sh | PREFIX=$(mktemp -d) sh`
    installs a `012` whose `012 version` prints v1.2.3.
 
 ## File fixtures
@@ -145,11 +144,12 @@ copying them. `SITE_URL` also goes into the copied install scripts, so a
 site built for another address serves scripts that download from it.
 
 The site serves one release, `VERSION`, under both addresses; earlier
-releases stay installable with `go install ...@v1.2.3`. Every push
-replaces the whole site, so the docs are always published with
-`make site-release` ([The docs site](site.md#where-it-lives)): a push
-of a plain `make site` build leaves the install script without its
-archives.
+releases stay installable with `go install ...@v1.2.3`.
+`make site-publish` deploys the result
+([The docs site](site.md#where-it-lives)). Every deploy replaces the
+whole site, so the docs are always published with the release: a
+deploy of a plain `make site` build leaves the install script without
+its archives.
 
 The install scripts live in `scripts/install/`. `install.sh` is POSIX
 sh (it runs under dash as well as sh) and needs curl or wget, tar, and
