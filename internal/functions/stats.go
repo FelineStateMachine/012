@@ -2,7 +2,6 @@ package functions
 
 import (
 	"math"
-	"slices"
 
 	"github.com/FelineStateMachine/012/internal/value"
 )
@@ -20,9 +19,9 @@ func init() {
 		&FuncDef{Name: "COUNTBLANK", Args: "range", Desc: "Count of empty cells, including empty text", Min: 1, Max: 1,
 			eval: countBlank},
 		&FuncDef{Name: "MEDIAN", Args: "value1, [value2, ...]", Desc: "Middle value of numbers", Min: 1, Max: -1,
-			eval: withNums(median), format: inherit},
+			eval: withSorted(true, medianOf), format: inherit},
 		&FuncDef{Name: "MODE", Args: "value1, [value2, ...]", Desc: "Most common number (the first, on a tie)", Min: 1, Max: -1,
-			eval: withNums(mode), format: inherit},
+			eval: withSorted(true, modeOf), format: inherit},
 		&FuncDef{Name: "STDEV", Args: "value1, [value2, ...]", Desc: "Standard deviation of a sample", Min: 1, Max: -1,
 			eval: withNums(func(x []float64) Value { return spread(x, 1, true) })},
 		&FuncDef{Name: "STDEVP", Args: "value1, [value2, ...]", Desc: "Standard deviation of a whole population", Min: 1, Max: -1,
@@ -32,53 +31,60 @@ func init() {
 		&FuncDef{Name: "VARP", Args: "value1, [value2, ...]", Desc: "Variance of a whole population", Min: 1, Max: -1,
 			eval: withNums(func(x []float64) Value { return spread(x, 0, false) })},
 		&FuncDef{Name: "LARGE", Args: "data, n", Desc: "The nth largest number", Min: 2, Max: 2,
-			eval: nth(func(a, b float64) int { return cmpFloat(b, a) }), format: inheritFrom(0)},
+			eval: withSorted(false, nthOf(true)), format: inheritFrom(0)},
 		&FuncDef{Name: "SMALL", Args: "data, n", Desc: "The nth smallest number", Min: 2, Max: 2,
-			eval: nth(cmpFloat), format: inheritFrom(0)},
+			eval: withSorted(false, nthOf(false)), format: inheritFrom(0)},
 		&FuncDef{Name: "RANK", Args: "value, data, [is_ascending]", Desc: "Rank of a number among others, largest first by default", Min: 2, Max: 3,
 			eval: rank},
+		&FuncDef{Name: "RANK.EQ", Args: "value, data, [is_ascending]", Desc: "Rank of a number among others, largest first by default (RANK)", Min: 2, Max: 3,
+			eval: rank},
+		&FuncDef{Name: "MODE.SNGL", Args: "value1, [value2, ...]", Desc: "Most common number, the first on a tie (MODE)", Min: 1, Max: -1,
+			eval: withSorted(true, modeOf), format: inherit},
+		&FuncDef{Name: "PERCENTILE", Args: "data, percentile", Desc: "The value at a percentile from 0 to 1, interpolated", Min: 2, Max: 2,
+			eval: withSorted(false, percentileOf(false, false)), format: inheritFrom(0)},
+		&FuncDef{Name: "PERCENTILE.INC", Args: "data, percentile", Desc: "The value at a percentile from 0 to 1, interpolated (PERCENTILE)", Min: 2, Max: 2,
+			eval: withSorted(false, percentileOf(false, false)), format: inheritFrom(0)},
+		&FuncDef{Name: "PERCENTILE.EXC", Args: "data, percentile", Desc: "The value at a percentile strictly between 0 and 1, interpolated", Min: 2, Max: 2,
+			eval: withSorted(false, percentileOf(true, false)), format: inheritFrom(0)},
+		&FuncDef{Name: "QUARTILE", Args: "data, quartile", Desc: "The minimum (0), a quartile (1 to 3) or the maximum (4)", Min: 2, Max: 2,
+			eval: withSorted(false, percentileOf(false, true)), format: inheritFrom(0)},
+		&FuncDef{Name: "QUARTILE.INC", Args: "data, quartile", Desc: "The minimum (0), a quartile (1 to 3) or the maximum (4) (QUARTILE)", Min: 2, Max: 2,
+			eval: withSorted(false, percentileOf(false, true)), format: inheritFrom(0)},
+		&FuncDef{Name: "QUARTILE.EXC", Args: "data, quartile", Desc: "A quartile from 1 to 3, between the numbers rather than at them", Min: 2, Max: 2,
+			eval: withSorted(false, percentileOf(true, true)), format: inheritFrom(0)},
 	)
 }
 
 // Evaluators for the table above, in its order.
 
-func median(x []float64) Value {
-	if len(x) == 0 {
-		return value.ErrNum
-	}
-	slices.Sort(x)
-	n := len(x)
-	if n%2 == 1 {
-		return num(x[n/2])
-	}
-	return num((x[n/2-1] + x[n/2]) / 2)
-}
-
-func mode(x []float64) Value {
-	best, bestN := 0.0, 1
-	for i, v := range x {
-		n := 0
-		for _, w := range x[i:] {
-			if w == v {
-				n++
-			}
-		}
-		if n > bestN {
-			best, bestN = v, n
-		}
-	}
-	if bestN < 2 {
-		return value.ErrNA
-	}
-	return num(best)
-}
-
+// rank counts the numbers of data above and below the value as it reads
+// them, holding none, so a linked source's column of any size streams.
 func rank(args []Node, get lookup) Value {
 	v, err := numArg(args[0], get)
 	if err != nil {
 		return *err
 	}
-	data, err := nums(args[1:2], get)
+	above, below, found := 0, 0, false
+	err = each(args[1:2], get, func(d Value, direct bool) *Value {
+		switch {
+		case d.Kind == value.Error:
+			return errOf(d)
+		case d.Kind == value.Empty, d.Kind != value.Number && !direct:
+			return nil
+		}
+		f, err := toNum(d)
+		switch {
+		case err != nil:
+			return err
+		case f == v:
+			found = true
+		case f > v:
+			above++
+		default:
+			below++
+		}
+		return nil
+	})
 	if err != nil {
 		return *err
 	}
@@ -86,19 +92,13 @@ func rank(args []Node, get lookup) Value {
 	if err != nil {
 		return *err
 	}
-	rank, found := 1, false
-	for _, d := range data {
-		switch {
-		case d == v:
-			found = true
-		case asc && d < v, !asc && d > v:
-			rank++
-		}
-	}
 	if !found {
 		return value.ErrNA
 	}
-	return num(float64(rank))
+	if asc {
+		return num(float64(below + 1))
+	}
+	return num(float64(above + 1))
 }
 
 // withNums passes the numbers of all arguments, with aggregate
@@ -134,26 +134,6 @@ func spread(x []float64, ddof int, root bool) Value {
 		v = math.Sqrt(v)
 	}
 	return num(v)
-}
-
-// nth builds LARGE and SMALL: the nth number of data in cmp order.
-func nth(cmp func(a, b float64) int) func([]Node, lookup) Value {
-	return func(args []Node, get lookup) Value {
-		x, err := nums(args[:1], get)
-		if err != nil {
-			return *err
-		}
-		n, err := numArg(args[1], get)
-		if err != nil {
-			return *err
-		}
-		k := int(math.Ceil(n))
-		if k < 1 || k > len(x) {
-			return value.ErrNum
-		}
-		slices.SortFunc(x, cmp)
-		return num(x[k-1])
-	}
 }
 
 func cmpFloat(a, b float64) int {

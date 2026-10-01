@@ -19,6 +19,8 @@ var xlfn = map[string]string{
 	"CHOOSECOLS": "_xlfn.", "CHOOSEROWS": "_xlfn.", "LET": "_xlfn.", "LAMBDA": "_xlfn.",
 	"MAP": "_xlfn.", "REDUCE": "_xlfn.", "SCAN": "_xlfn.", "BYROW": "_xlfn.", "BYCOL": "_xlfn.",
 	"MAKEARRAY": "_xlfn.", "REGEXREPLACE": "_xlfn.",
+	"PERCENTILE.INC": "_xlfn.", "PERCENTILE.EXC": "_xlfn.", "QUARTILE.INC": "_xlfn.", "QUARTILE.EXC": "_xlfn.",
+	"MODE.SNGL": "_xlfn.", "RANK.EQ": "_xlfn.",
 }
 
 // sheetsOnly lists 012's functions, from Sheets, that Excel has nothing

@@ -62,6 +62,10 @@ var formulas = []string{
 	`=MEDIAN(A1:A7)`, `=MEDIAN(C1:C5)`, `=MODE(G1:G4)`, `=MODE(C1:C5)`, `=STDEV(A1:A7)`, `=STDEVP(A1:A7)`,
 	`=VAR(A1:A7)`, `=VARP(A1:A7)`, `=STDEV(5)`, `=LARGE(A1:A7, 1)`, `=LARGE(A1:A7, 4)`, `=LARGE(A1:A7, 5)`,
 	`=SMALL(C1:C7, 2)`, `=RANK(20, A1:A7)`, `=RANK(20, A1:A7, 1)`, `=RANK(2, G1:G4)`, `=RANK(99, A1:A7)`,
+	`=RANK.EQ(20, A1:A7)`, `=MODE.SNGL(G1:G4)`, `=PERCENTILE(A1:A7, 0.25)`, `=PERCENTILE.INC(A1:A7, 0.9)`,
+	`=PERCENTILE(A1:A7, 1.5)`, `=PERCENTILE.EXC(C1:C5, 0.25)`, `=PERCENTILE.EXC(C1:C5, 0.5)`,
+	`=QUARTILE(C1:C5, 1)`, `=QUARTILE(A1:A7, 3)`, `=QUARTILE.INC(C1:C5, 4)`, `=QUARTILE.EXC(C1:C5, 3)`,
+	`=QUARTILE.EXC(C1:C5, 0)`,
 	// Text
 	`=CONCATENATE("a", 1, TRUE)`, `=CONCAT(A1, "x")`, `=TEXTJOIN(", ", TRUE, A3:A5)`, `=TEXTJOIN("-", FALSE, A3:A5)`,
 	`=LEFT("hello", 2)`, `=LEFT("hello")`, `=LEFT("hi", 10)`, `=LEFT("hi", -1)`, `=RIGHT("hello", 3)`,
@@ -117,6 +121,7 @@ var skipped = map[string]string{
 	`=CHOOSE(4, "a", "b", "c")`: "Sheets gives #NUM! for an index past the choices; Excel gives #VALUE!",
 
 	// excelize departs from Excel (and Sheets) here.
+	`=PERCENTILE(A1:A7, 1.5)`:                  "excelize gives #N/A for a percentile past 1; Excel and Sheets give #NUM!",
 	`=SUM(C1:C2, E6)`:                          "excelize counts TRUE in a referenced cell as 1; Excel and Sheets ignore it",
 	`=SUMIF(B1:B5, "n*", C1)`:                  "excelize doesn't stretch a smaller sum range from its corner as Excel does",
 	`=SUMPRODUCT(A1:A4, C1:C4)`:                "excelize gives #VALUE! for text; Excel and Sheets treat it as 0",

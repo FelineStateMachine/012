@@ -7,7 +7,7 @@ sidebar_position: 3
 
 <!-- Generated from the engine's function table by TestFunctionsDoc; do not edit. -->
 
-012 has 142 functions. They follow Google Sheets' names, arguments and
+012 has 150 functions. They follow Google Sheets' names, arguments and
 semantics; `[brackets]` mark optional arguments. Function names are
 case-insensitive, and 1-2-3's `@SUM(A1..A5)` spelling still works.
 
@@ -73,7 +73,15 @@ Aliases: `AVG` for `AVERAGE`.
 | `LARGE(data, n)` | The nth largest number |
 | `MEDIAN(value1, [value2, ...])` | Middle value of numbers |
 | `MODE(value1, [value2, ...])` | Most common number (the first, on a tie) |
+| `MODE.SNGL(value1, [value2, ...])` | Most common number, the first on a tie (MODE) |
+| `PERCENTILE(data, percentile)` | The value at a percentile from 0 to 1, interpolated |
+| `PERCENTILE.EXC(data, percentile)` | The value at a percentile strictly between 0 and 1, interpolated |
+| `PERCENTILE.INC(data, percentile)` | The value at a percentile from 0 to 1, interpolated (PERCENTILE) |
+| `QUARTILE(data, quartile)` | The minimum (0), a quartile (1 to 3) or the maximum (4) |
+| `QUARTILE.EXC(data, quartile)` | A quartile from 1 to 3, between the numbers rather than at them |
+| `QUARTILE.INC(data, quartile)` | The minimum (0), a quartile (1 to 3) or the maximum (4) (QUARTILE) |
 | `RANK(value, data, [is_ascending])` | Rank of a number among others, largest first by default |
+| `RANK.EQ(value, data, [is_ascending])` | Rank of a number among others, largest first by default (RANK) |
 | `SMALL(data, n)` | The nth smallest number |
 | `STDEV(value1, [value2, ...])` | Standard deviation of a sample |
 | `STDEVP(value1, [value2, ...])` | Standard deviation of a whole population |
