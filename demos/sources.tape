@@ -1,8 +1,9 @@
 # Linked sources: ten million rows of Parquet (made by gensales) linked
 # as a source (Data > Linked file > Link a source, here from the
 # palette), sorted by amount Z to A in the background, its rows
-# numbered past the grid's last, and read whole by a SUMIFS on
-# Sheet1.
+# numbered past the grid's last, and read whole by formulas on Sheet1:
+# a count grouped, an AVERAGEIFS, the last day as a date, and a MEDIAN of
+# every amount, sorted on disk in the background.
 Output out/sources.gif
 Source lib/setup.tape
 
@@ -39,10 +40,25 @@ Type@80ms "previous sheet"
 Sleep 400ms
 Enter
 Sleep 400ms
-Type "North"
+Type@8ms "Rows"
 Tab
-Type@40ms `=SUMIFS(sales[amount],sales[cat],"north")`
+Type@8ms "=ROWS(sales)"
 Enter
+Type@8ms "North"
+Tab
+Type@8ms `=AVERAGEIFS(sales[amount],sales[cat],"north")`
+Enter
+Type@8ms "Last day"
+Tab
+Type@8ms "=MAX(sales[day])"
+Enter
+Type@8ms "Median"
+Tab
+Type@8ms "=MEDIAN(sales[amount])"
+Enter
+Up
+Right
+Wait+Screen@60s /Median +[0-9]/
 Sleep 1.5s
 Screenshot out/stills/sources-formulas.png
 Sleep 1s
