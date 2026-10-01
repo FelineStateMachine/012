@@ -2,5 +2,9 @@
 # VHS starts ttyd by name. `make demos` puts this directory first on PATH
 # so the recorded xterm.js treats Option as Alt on macOS, as terminals
 # set up for it do; otherwise Alt+F types "f" instead of opening 012's
-# File menu. DEMOS_TTYD is the real ttyd.
+# File menu. DEMOS_TTYD is the real ttyd, and DEMOS_PAGE, when set, the
+# page it serves: its own with the recordings' font (demos/lib/font-page).
+if [ -n "${DEMOS_PAGE:-}" ]; then
+	set -- -I "$DEMOS_PAGE" "$@"
+fi
 exec "${DEMOS_TTYD:?set DEMOS_TTYD to the real ttyd}" -t macOptionIsMeta=true "$@"

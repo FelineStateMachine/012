@@ -6,6 +6,7 @@
 # every amount, sorted on disk in the background.
 Output out/sources.gif
 Source lib/setup.tape
+Set Theme "GruvboxDark"
 
 Hide
 Type "go run ./gensales out/sales.parquet && clear && ../bin/012" Enter

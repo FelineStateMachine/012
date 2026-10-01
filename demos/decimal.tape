@@ -3,6 +3,7 @@
 # arithmetic, here from the palette, makes this file's money math exact.
 Output out/decimal.gif
 Source lib/setup.tape
+Set Theme "GruvboxDark"
 
 Hide
 Type "../bin/012" Enter

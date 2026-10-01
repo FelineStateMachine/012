@@ -145,9 +145,10 @@ func userPalettes(dir string) []Palette {
 }
 
 // Lookup finds a scheme by name: a file in dir first (named exactly, or
-// with .json or .conf), then a built-in. Names match case-insensitively,
-// and then ignoring spaces, hyphens and underscores, so "tokyo-night"
-// finds "TokyoNight".
+// with .json or .conf), then a built-in. Names match exactly, then
+// case-insensitively, then ignoring spaces, hyphens and underscores, so
+// "tokyo-night" finds "TokyoNight" and "tokyonight" the scheme of that
+// name.
 func Lookup(name, dir string) (Palette, error) {
 	if dir != "" && !strings.ContainsAny(name, `/\`) && name != "." && name != ".." {
 		for _, file := range []string{name, name + ".json", name + ".conf"} {
@@ -159,7 +160,8 @@ func Lookup(name, dir string) (Palette, error) {
 		}
 	}
 	all := append(userPalettes(dir), Builtins()...)
-	for _, match := range []func(string) string{strings.ToLower, squash} {
+	same := func(s string) string { return s }
+	for _, match := range []func(string) string{same, strings.ToLower, squash} {
 		for _, p := range all {
 			if match(p.Name) == match(name) {
 				return p, nil

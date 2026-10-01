@@ -6,6 +6,7 @@
 # data/requests.jsonl written a line at a time. Needs nu on the PATH.
 Output out/follow-log.gif
 Source lib/setup.tape
+Set Theme "tokyonight"
 
 Hide
 Type "rm -f out/app.jsonl; head -n 6 data/requests.jsonl > out/app.jsonl" Enter

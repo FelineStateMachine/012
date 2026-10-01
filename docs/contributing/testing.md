@@ -213,7 +213,9 @@ service one question of each kind, using `TYPESAFE_API_KEY`.
 recordings and stills the README and the docs show. `make demos` renders
 all of them (or `make demos DEMOS=jev` for one) into `demos/out/`: full
 GIFs, PNG stills of key moments in `demos/out/stills/`, and smaller GIFs
-in `demos/out/media/`. It needs vhs 0.12+, ttyd and ffmpeg. The JEV tape
+in `demos/out/media/`. It needs vhs 0.12+, ttyd and ffmpeg, and installs
+the pictures' font if it's missing; each tape's color scheme follows the
+pages that show it ([Font and colors](site.md#font-and-colors)). The JEV tape
 talks to `demos/fakejev`, a local stand-in the target starts on
 127.0.0.1, never the real service. On macOS, `demos/lib/ttyd` wraps ttyd
 so Alt+letter reaches the app. VHS has no mouse commands, so the tapes
@@ -221,9 +223,8 @@ use the keyboard, and they reach commands through the palette (Ctrl+K)
 rather than counting menu items, so a new menu item doesn't break them.
 Tapes that change settings set them for the run (`O12_KEYMAP=vim`)
 rather than writing the config file the other tapes share. VHS's ttyd
-has sixel on, so 012 draws charts as sixel images, but VHS records only
-xterm.js's text layer: the recordings show the text chart each image
-covers ([Charts](../sheets/charts.md)).
+has sixel on, so 012 draws charts as sixel images and the recordings
+show them ([Charts](../sheets/charts.md)).
 The nushell tapes need `nu`: `demos/lib/nu.tape` starts a session
 without your config files, with a fixed prompt and 012 on the PATH, and
 their data is in `demos/data`, so each recording comes out the same.

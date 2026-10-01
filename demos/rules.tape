@@ -6,6 +6,7 @@
 # with Sheets' words, and Format > Conditional formatting lists the rules.
 Output out/rules.gif
 Source lib/setup.tape
+Set Theme "rose-pine-dawn"
 
 Hide
 Type "../bin/012 data/tasks.012" Enter

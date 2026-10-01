@@ -52,8 +52,7 @@ on, such as VS Code with `terminal.integrated.enableImages`), the plot is
 a sixel image in the terminal's palette, in as many colors as it has
 color registers. A sixel image is drawn over the finished screen, on top
 of the text chart, which it covers whole: a terminal that lists sixel but
-doesn't show the image, or a recording of the text alone (VHS records
-xterm.js's text layer, not its image layer), shows the text chart. The
+doesn't show the image shows the text chart. The
 image shows only where its whole plot area does: a chart scrolled partly
 out of the grid, or under another chart, a menu or a dialog, is text
 until it shows whole again, and the image is drawn again after

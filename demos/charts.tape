@@ -1,9 +1,10 @@
 # Charts: Insert > Chart (here from the palette) charts the table
 # around the active cell; the editor bar switches the type with
-# Left/Right, and the chart redraws as its data changes. Terminals with kitty graphics or sixel get a real
-# image; VHS records only the text layer, so this shows the text chart under it.
+# Left/Right, and the chart redraws as its data changes. VHS's terminal
+# has sixel on, so the chart is the sixel image 012 draws there.
 Output out/charts.gif
 Source lib/setup.tape
+Set Theme "Github"
 
 Hide
 Type "../bin/012 data/spending.csv" Enter

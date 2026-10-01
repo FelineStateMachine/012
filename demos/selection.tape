@@ -4,6 +4,7 @@
 # dragging and Shift+click select the same way.)
 Output out/selection.gif
 Source lib/setup.tape
+Set Theme "Github"
 
 Hide
 Type "../bin/012 data/inventory.csv" Enter

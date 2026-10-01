@@ -16,9 +16,11 @@ type Cell = {
   to: string;
 };
 
+// The control panel at rest: the pointer on A1, holding a label, written
+// with the apostrophe 012 shows before text.
 const home: Cell = {
   addr: 'A1',
-  entry: "'012",
+  entry: "'Start here",
   hint: 'Hover a cell, or Tab through them. F1 opens the guides.',
   title: '',
   body: '',
@@ -76,14 +78,17 @@ const cells: Cell[] = [
   },
 ];
 
+// The menu bar lists the navbar's sections, in its order: on this page
+// it stands in for them (custom.css hides the navbar's at widths where
+// both would show).
 const menu: {label: string; to: string}[] = [
-  {label: 'Docs', to: '/docs/'},
-  {label: 'Install', to: '/docs/getting-started/install/'},
-  {label: 'Formulas', to: '/docs/formulas/'},
+  {label: 'Getting started', to: '/docs/getting-started/'},
   {label: 'Sheets', to: '/docs/sheets/'},
+  {label: 'Formulas', to: '/docs/formulas/'},
   {label: 'Files', to: '/docs/files/'},
-  {label: 'Terminal', to: '/docs/terminal/'},
   {label: 'Nushell', to: '/docs/nushell/'},
+  {label: 'Agents', to: '/docs/agents/'},
+  {label: 'Terminal', to: '/docs/terminal/'},
   {label: 'Reference', to: '/docs/reference/'},
 ];
 
@@ -120,18 +125,25 @@ function ControlPanel({cell, pointing}: {cell: Cell; pointing: boolean}) {
 function Hero() {
   return (
     <section className={styles.hero}>
+      <figure className={styles.frame}>
+        <figcaption className={styles.frameTitle}>first-steps.tape</figcaption>
+        <img
+          src={firstSteps}
+          alt="Typing a small budget, pointing at cells in a formula, and watching totals recalculate"
+          width={1000}
+          height={600}
+        />
+        <span className={styles.frameCount}>Catppuccin Mocha</span>
+      </figure>
       <div className={styles.heroText}>
-        <h1 className={styles.title}>
-          012<span className={styles.titleCursor} aria-hidden="true" />
-        </h1>
-        <p className={styles.lede}>A spreadsheet for the terminal.</p>
+        <h1 className={styles.srOnly}>012</h1>
         <p className={styles.sub}>
           The control panel, the mode indicator and the character grid of Lotus 1-2-3. Inside the grid, Google
           Sheets: typing replaces a cell, <code>=</code> starts a formula, Enter and Tab move you on, and Sheets'
           shortcuts do what you expect. One pure-Go binary.
         </p>
         <pre className={styles.install} aria-label="Install">
-          <span className={styles.prompt}>$ </span>go install github.com/FelineStateMachine/012/cmd/012@latest
+          <span className={styles.prompt}>$ </span>curl -fsSL https://012.dev.site/install.sh | sh
         </pre>
         <div className={styles.actions}>
           <Link className={clsx(styles.action, styles.actionPrimary)} to="/docs/getting-started/">
@@ -145,16 +157,6 @@ function Hero() {
           </span>
         </div>
       </div>
-      <figure className={styles.frame}>
-        <figcaption className={styles.frameTitle}>first-steps.tape</figcaption>
-        <img
-          src={firstSteps}
-          alt="Typing a small budget, pointing at cells in a formula, and watching totals recalculate"
-          width={1000}
-          height={600}
-        />
-        <span className={styles.frameCount}>Catppuccin Mocha</span>
-      </figure>
     </section>
   );
 }
@@ -226,7 +228,6 @@ export default function Home(): ReactNode {
   const [cell, setCell] = useState<Cell | null>(null);
   return (
     <Layout
-      title="A spreadsheet for the terminal"
       description="012 is a terminal spreadsheet with the look of Lotus 1-2-3 and the behavior of Google Sheets.">
       <main className={styles.page}>
         <ControlPanel cell={cell ?? home} pointing={cell !== null} />

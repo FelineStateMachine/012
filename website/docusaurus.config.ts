@@ -12,6 +12,17 @@ const repo = 'https://github.com/FelineStateMachine/012';
 const repoDir = path.resolve(__dirname, '..');
 const docsDir = path.join(repoDir, 'docs');
 
+// The navbar's sections: a label and the docs folder it opens.
+const sections: [string, string][] = [
+  ['Getting started', 'getting-started'],
+  ['Sheets', 'sheets'],
+  ['Formulas', 'formulas'],
+  ['Files', 'files'],
+  ['Nushell', 'nushell'],
+  ['Agents', 'agents'],
+  ['Terminal', 'terminal'],
+];
+
 // The site is served at the root of its own host; SITE_URL names that
 // host for canonical links and the sitemap.
 const url = process.env.SITE_URL || 'https://012.dev.site';
@@ -89,11 +100,21 @@ const config: Config = {
     navbar: {
       // The logomark alone: it already reads 012, so no title beside it.
       logo: {alt: '012', src: 'img/logo.svg'},
+      // The docs' sections, each opening its own sidebar (sidebars.ts);
+      // the landing page's control panel lists the same sections.
       items: [
-        {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
-        {to: '/docs/reference/keys/', label: 'Keys', position: 'left'},
-        {to: '/docs/reference/functions/', label: 'Functions', position: 'left'},
-        {href: `${repo}/blob/main/ROADMAP.md`, label: 'Roadmap', position: 'right'},
+        ...sections.map(([label, dir]) => ({
+          type: 'docSidebar' as const,
+          sidebarId: dir,
+          label,
+          position: 'left' as const,
+        })),
+        {
+          type: 'docSidebar',
+          sidebarId: 'reference',
+          label: 'Reference',
+          position: 'left',
+        },
         {href: repo, label: 'GitHub', position: 'right'},
         // The mode indicator, as at the right end of 012's first line.
         {type: 'html', position: 'right', value: '<span class="mode-chip" aria-hidden="true">READY</span>'},

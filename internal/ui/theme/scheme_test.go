@@ -29,6 +29,9 @@ func TestBuiltins(t *testing.T) {
 	if err != nil || p.Name != "TokyoNight" {
 		t.Errorf("loose match: %q %v", p.Name, err)
 	}
+	if p, err := Lookup("tokyonight", ""); err != nil || p.Name != "tokyonight" {
+		t.Errorf("exact name: %q %v", p.Name, err)
+	}
 	if _, err := Lookup("No Such Theme", ""); err == nil || !strings.Contains(err.Error(), "012 config themes") {
 		t.Errorf("unknown: %v", err)
 	}

@@ -6,6 +6,8 @@ import (
 	"image/color"
 	"image/draw"
 	"math"
+	"os"
+	"path/filepath"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gomono"
@@ -17,11 +19,12 @@ import (
 	"golang.org/x/image/vector"
 )
 
-// Drawing a screen's cells as a picture of a terminal: text in Go Mono
-// (bundled with golang.org/x/image, so every machine draws the same
-// letters), and box drawing, blocks, braille and the symbols 012 draws
-// its chrome with drawn as shapes, as terminals draw them, so lines join
-// across cells.
+// Drawing a screen's cells as a picture of a terminal: text in
+// JetBrains Mono, the font of the recordings and the site (testdata/fonts,
+// so every machine draws the same letters), with Go Mono for the few
+// characters it has none of, and box drawing, blocks, braille and the
+// symbols 012 draws its chrome with drawn as shapes, as terminals draw
+// them, so lines join across cells.
 
 const (
 	stillFontSize = 26 // pixels; stills are drawn at twice the size they show
@@ -29,46 +32,63 @@ const (
 	stillRadius   = 18 // the window's corners
 )
 
-// stillFaces are Go Mono's four styles at the still's size.
+// stillFaces are the font's four styles at the still's size, regular,
+// bold, italic and bold italic, and Go Mono's for what the font lacks.
 type stillFaces struct {
-	regular, bold, italic, boldItalic font.Face
-	cw, ch, ascent                    int
+	faces, fallback [4]font.Face
+	cw, ch, ascent  int
 }
+
+// fontFiles are the styles' files in testdata/fonts.
+var fontFiles = [4]string{"JetBrainsMono-Regular.ttf", "JetBrainsMono-Bold.ttf", "JetBrainsMono-Italic.ttf", "JetBrainsMono-BoldItalic.ttf"}
 
 func loadFaces() (*stillFaces, error) {
 	var fs stillFaces
-	for _, f := range []struct {
-		ttf []byte
-		dst *font.Face
-	}{{gomono.TTF, &fs.regular}, {gomonobold.TTF, &fs.bold}, {gomonoitalic.TTF, &fs.italic}, {gomonobolditalic.TTF, &fs.boldItalic}} {
-		parsed, err := opentype.Parse(f.ttf)
+	goMono := [4][]byte{gomono.TTF, gomonobold.TTF, gomonoitalic.TTF, gomonobolditalic.TTF}
+	for i, name := range fontFiles {
+		ttf, err := os.ReadFile(filepath.Join("testdata", "fonts", name))
 		if err != nil {
 			return nil, err
 		}
-		face, err := opentype.NewFace(parsed, &opentype.FaceOptions{Size: stillFontSize, DPI: 72, Hinting: font.HintingNone})
-		if err != nil {
+		if fs.faces[i], err = newFace(ttf); err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		if fs.fallback[i], err = newFace(goMono[i]); err != nil {
 			return nil, err
 		}
-		*f.dst = face
 	}
-	adv, _ := fs.regular.GlyphAdvance('0')
-	m := fs.regular.Metrics()
+	adv, _ := fs.faces[0].GlyphAdvance('0')
+	m := fs.faces[0].Metrics()
 	fs.cw = adv.Round()
 	fs.ch = int(math.Round(stillFontSize * 1.3))
 	fs.ascent = (fs.ch-(m.Ascent+m.Descent).Round())/2 + m.Ascent.Round()
 	return &fs, nil
 }
 
-func (fs *stillFaces) face(c stillCell) font.Face {
-	switch {
-	case c.bold && c.italic:
-		return fs.boldItalic
-	case c.bold:
-		return fs.bold
-	case c.italic:
-		return fs.italic
+func newFace(ttf []byte) (font.Face, error) {
+	parsed, err := opentype.Parse(ttf)
+	if err != nil {
+		return nil, err
 	}
-	return fs.regular
+	return opentype.NewFace(parsed, &opentype.FaceOptions{Size: stillFontSize, DPI: 72, Hinting: font.HintingNone})
+}
+
+// face is the face c's rune is drawn in: its style in the font, or in Go
+// Mono when the font has no glyph for it; nil when neither has.
+func (fs *stillFaces) face(c stillCell) font.Face {
+	i := 0
+	if c.bold {
+		i++
+	}
+	if c.italic {
+		i += 2
+	}
+	for _, f := range []font.Face{fs.faces[i], fs.fallback[i]} {
+		if _, ok := f.GlyphAdvance(c.r); ok {
+			return f
+		}
+	}
+	return nil
 }
 
 // drawStill draws grid as a terminal window in palette p. It returns the
@@ -112,19 +132,15 @@ func drawCell(img *image.NRGBA, row []stillCell, x int, origin image.Point, p st
 	if c.r == 0 && c.filled {
 		return true // the second half of a wide character, drawn with the first
 	}
-	bg := p.color(c.bg, inkBg)
+	fg, bg := p.inks(c)
 	if c.bg.kind != inkNone {
 		draw.Draw(img, image.Rect(origin.X, origin.Y, origin.X+fs.cw, origin.Y+fs.ch), image.NewUniform(bg), image.Point{}, draw.Src)
-	}
-	fg := p.color(c.fg, inkFg)
-	if c.faint {
-		fg = blend(bg, fg, 0.6)
 	}
 	ok := true
 	if c.r != 0 && c.r != ' ' && c.r != ' ' {
 		ok = drawGlyph(img, c, r, fg, fs)
 	}
-	lines(img, c, r, fg, p, fs)
+	lines(img, c, r, fg, bg, p, fs)
 	return ok
 }
 
@@ -135,7 +151,7 @@ func drawGlyph(img *image.NRGBA, c stillCell, r image.Rectangle, fg color.RGBA, 
 		return true
 	}
 	face := fs.face(c)
-	if _, ok := face.GlyphAdvance(c.r); !ok {
+	if face == nil {
 		return false
 	}
 	adv, _ := face.GlyphAdvance(c.r)
@@ -147,7 +163,7 @@ func drawGlyph(img *image.NRGBA, c stillCell, r image.Rectangle, fg color.RGBA, 
 }
 
 // lines draws c's underline and strikethrough.
-func lines(img *image.NRGBA, c stillCell, r image.Rectangle, fg color.RGBA, p stillPalette, fs *stillFaces) {
+func lines(img *image.NRGBA, c stillCell, r image.Rectangle, fg, bg color.RGBA, p stillPalette, fs *stillFaces) {
 	t := lineWidth(fs.cw)
 	if c.strike {
 		y := r.Min.Y + fs.ascent - stillFontSize*3/10
@@ -159,6 +175,9 @@ func lines(img *image.NRGBA, c stillCell, r image.Rectangle, fg color.RGBA, p st
 	col := fg
 	if c.ulInk.kind != inkNone {
 		col = p.color(c.ulInk, inkFg)
+		if c.ulInk.kind == inkPalette {
+			col = readable(col, bg, rgba(p.fg), 3)
+		}
 	}
 	y := r.Min.Y + fs.ascent + t*2
 	switch c.underline {

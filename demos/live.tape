@@ -6,6 +6,7 @@
 # line, and accepts the line it then suggests.
 Output out/live.gif
 Source lib/setup.tape
+Set Theme "nord"
 
 Hide
 Type "export XDG_RUNTIME_DIR=$(mktemp -d) && go build -o ../bin/liveagent ./liveagent && ../bin/liveagent -write out/budget.012 && (../bin/liveagent >/dev/null 2>&1 &) && clear && ../bin/012 --listen out/budget.012" Enter

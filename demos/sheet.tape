@@ -5,6 +5,7 @@
 # nu on the PATH.
 Output out/sheet.gif
 Source lib/setup.tape
+Set Theme "tokyonight"
 Source lib/nu.tape
 
 # The module goes next to the binary, out of the recording.

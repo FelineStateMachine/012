@@ -5,6 +5,7 @@
 # undo step.
 Output out/macros.gif
 Source lib/setup.tape
+Set Theme "Github"
 
 Hide
 Type "../bin/012 data/spending.csv" Enter

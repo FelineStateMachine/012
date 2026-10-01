@@ -1,0 +1,40 @@
+#!/bin/sh
+# font-page OUT FONTDIR: writes ttyd's own page to OUT with JetBrains
+# Mono added as a web font from FONTDIR's TTFs (e2e/testdata/fonts), for
+# demos/lib/ttyd to serve with ttyd -I. VHS's browser draws with the
+# fonts the system or the page gives it, so with the font in the page
+# the recordings are drawn in it whether or not it is installed. The
+# page comes from the ttyd in DEMOS_TTYD, so it always matches it.
+set -eu
+out=$1 fonts=$2
+log=$(mktemp)
+"${DEMOS_TTYD:?set DEMOS_TTYD to the real ttyd}" -p 0 -i 127.0.0.1 true 2>"$log" &
+pid=$!
+trap 'kill $pid 2>/dev/null || true; rm -f "$log"' EXIT
+port=
+for _ in $(seq 50); do
+	port=$(sed -n 's/.*Listening on port: \([0-9]*\).*/\1/p' "$log")
+	[ -n "$port" ] && break
+	sleep 0.1
+done
+[ -n "$port" ] || { echo "font-page: ttyd didn't start"; cat "$log"; exit 1; }
+page=$(curl -sf "http://127.0.0.1:$port/")
+case $page in *"</head>"*) ;; *) echo "font-page: no </head> in ttyd's page"; exit 1 ;; esac
+
+face() { # weight style file
+	printf '@font-face{font-family:"JetBrains Mono";font-weight:%s;font-style:%s;src:url(data:font/ttf;base64,' "$1" "$2"
+	base64 <"$fonts/$3" | tr -d '\n'
+	printf ') format("truetype")}'
+}
+{
+	printf '%s' "${page%%</head>*}"
+	printf '<style>'
+	face 400 normal JetBrainsMono-Regular.ttf
+	face 700 normal JetBrainsMono-Bold.ttf
+	face 400 italic JetBrainsMono-Italic.ttf
+	face 700 italic JetBrainsMono-BoldItalic.ttf
+	printf '</style>'
+	# Load every style now, before VHS measures the font.
+	printf '<script>["16px","bold 16px","italic 16px","italic bold 16px"].forEach(function(f){document.fonts.load(f+" \\"JetBrains Mono\\"")})</script>'
+	printf '</head>%s' "${page#*</head>}"
+} >"$out"

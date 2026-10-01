@@ -123,8 +123,12 @@ oracle:
 # frame held). Needs vhs 0.12+ (go install
 # github.com/charmbracelet/vhs@latest), ttyd and ffmpeg. The JEV demo
 # talks to demos/fakejev, started here, never the real service.
-# Charts are drawn as text, as the tapes and README describe; VHS
-# records text, not images. DEMOS=jev renders just one.
+# VHS's ttyd has sixel on, so charts are recorded as the sixel images
+# 012 draws. DEMOS=jev renders just one. Each tape runs
+# 012 with its theme set to the tape's Set Theme (setup.tape's unless it
+# sets one), and in JetBrains Mono, served to VHS's browser in ttyd's
+# page from e2e/testdata/fonts, so it needn't be installed
+# (docs/contributing/site.md#font-and-colors).
 DEMOS ?= $(basename $(notdir $(wildcard demos/*.tape)))
 FAKEJEV_ADDR := 127.0.0.1:8799
 
@@ -133,9 +137,11 @@ demos: build
 	CGO_ENABLED=0 go build -o bin/fakejev ./demos/fakejev
 	mkdir -p demos/out/stills
 	bin/fakejev -addr $(FAKEJEV_ADDR) & pid=$$!; trap "kill $$pid" EXIT; \
-	export DEMOS_TTYD="$$(command -v ttyd)" PATH="$(CURDIR)/demos/lib:$$PATH"; \
-	export XDG_CONFIG_HOME="$$(mktemp -d)" O12_JEV_CREDENTIAL_STORE=false O12_THEME= O12_LOCALE=en-US; \
-	cd demos && for d in $(DEMOS); do echo "vhs $$d.tape"; vhs -q $$d.tape || exit 1; done
+	export DEMOS_TTYD="$$(command -v ttyd)" PATH="$(CURDIR)/demos/lib:$$PATH" DEMOS_PAGE="$(CURDIR)/demos/out/ttyd.html"; \
+	demos/lib/font-page "$$DEMOS_PAGE" e2e/testdata/fonts || exit 1; \
+	export XDG_CONFIG_HOME="$$(mktemp -d)" O12_JEV_CREDENTIAL_STORE=false O12_LOCALE=en-US; \
+	cd demos && for d in $(DEMOS); do theme="$$(grep -h '^Set Theme' lib/setup.tape $$d.tape | tail -1 | cut -d'"' -f2)"; \
+		echo "vhs $$d.tape ($$theme)"; O12_THEME="$$theme" vhs -q $$d.tape || exit 1; done
 	mkdir -p demos/out/media
 	for d in $(DEMOS); do ffmpeg -v error -y -i demos/out/$$d.gif -filter_complex \
 		"fps=12,tpad=stop_mode=clone:stop_duration=2,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" \

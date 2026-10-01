@@ -4,6 +4,7 @@
 # currency as if typed.
 Output out/import.gif
 Source lib/setup.tape
+Set Theme "GruvboxDark"
 
 Hide
 Type "cd data && ../../bin/012" Enter

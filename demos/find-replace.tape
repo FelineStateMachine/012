@@ -3,6 +3,7 @@
 # replacement on the same bar, and Alt+A replaces every match.
 Output out/find-replace.gif
 Source lib/setup.tape
+Set Theme "Github"
 
 Hide
 Type "../bin/012 data/inventory.csv" Enter
