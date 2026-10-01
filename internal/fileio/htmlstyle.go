@@ -16,7 +16,7 @@ import (
 // reference palettes the golden screens use (e2e/palette_test.go),
 // mapped to the roles the terminal theme gives them
 // (internal/ui/theme), dark or light as the reader's system prefers,
-// in IBM Plex Mono, the docs site's font, embedded so the page needs
+// in JetBrains Mono, the docs site's font, embedded so the page needs
 // nothing else. One cell is htmlCellW by htmlCellH pixels, the size of
 // a cell of an SVG chart, so charts sit on the grid as on the screen.
 
@@ -103,12 +103,12 @@ func luminance(c uint32) float64 {
 var htmlCSS = sync.OnceValue(func() string {
 	var b strings.Builder
 	for _, f := range []struct{ file, weight, style string }{
-		{"ibm-plex-mono-latin-400-normal.woff2", "400", "normal"},
-		{"ibm-plex-mono-latin-600-normal.woff2", "600", "normal"},
-		{"ibm-plex-mono-latin-400-italic.woff2", "400", "italic"},
+		{"jetbrains-mono-latin-400-normal.woff2", "400", "normal"},
+		{"jetbrains-mono-latin-600-normal.woff2", "600", "normal"},
+		{"jetbrains-mono-latin-400-italic.woff2", "400", "italic"},
 	} {
 		data, _ := fonts.ReadFile("fonts/" + f.file)
-		fmt.Fprintf(&b, "@font-face{font-family:'IBM Plex Mono';font-weight:%s;font-style:%s;src:url(data:font/woff2;base64,%s) format('woff2')}\n",
+		fmt.Fprintf(&b, "@font-face{font-family:'JetBrains Mono';font-weight:%s;font-style:%s;src:url(data:font/woff2;base64,%s) format('woff2')}\n",
 			f.weight, f.style, base64.StdEncoding.EncodeToString(data))
 	}
 	dark, light := htmlPalettes[0].vars(), htmlPalettes[1].vars()
@@ -125,7 +125,7 @@ func HTMLStyle() string { return htmlCSS() }
 // htmlRules are the page's rules, after its fonts and palettes.
 const htmlRules = `*{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--fg)}
-body{font:15px/21px 'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-variant-ligatures:none}
+body{font:15px/21px 'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-variant-ligatures:none}
 .o12{min-width:100%;width:max-content}
 .panel{position:sticky;left:0;top:0;z-index:3;background:var(--bg);white-space:pre;width:100vw;max-width:100%}
 .panel>div{height:21px;display:flex;gap:9px;overflow:hidden}
@@ -160,7 +160,7 @@ figure.chart{position:absolute;margin:0;border:1px solid var(--axis);background:
 figure.chart figcaption{position:absolute;top:-11px;left:9px;background:var(--bg);padding:0 9px;font-weight:600;white-space:pre}
 figure.chart .range{position:absolute;bottom:-11px;right:9px;background:var(--bg);padding:0 9px;color:var(--muted);white-space:pre}
 figure.solo{position:relative;display:inline-block;margin:21px 18px}
-svg.chart{display:block;overflow:visible;font:15px 'IBM Plex Mono',ui-monospace,monospace}
+svg.chart{display:block;overflow:visible;font:15px 'JetBrains Mono',ui-monospace,monospace}
 .ct-ax{fill:var(--axis);color:var(--axis)}.ct-lb{fill:var(--muted);color:var(--muted)}.ct-mu{fill:var(--muted);color:var(--muted)}
 .cs-box{stroke:currentColor;stroke-width:1}.cs-gl{stroke:var(--grid);stroke-width:1}.cs-gap{stroke:var(--bg);stroke-width:1.5}
 .ct-s0,.cf-0{fill:var(--s0)}.ct-s1,.cf-1{fill:var(--s1)}.ct-s2,.cf-2{fill:var(--s2)}.ct-s3,.cf-3{fill:var(--s3)}.ct-s4,.cf-4{fill:var(--s4)}.ct-s5,.cf-5{fill:var(--s5)}

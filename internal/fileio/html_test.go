@@ -63,7 +63,7 @@ func TestHTMLPage(t *testing.T) {
 	}
 	page := string(data)
 	for _, want := range []string{
-		"<title>Sales</title>", "@font-face{font-family:'IBM Plex Mono'", "data:font/woff2;base64,",
+		"<title>Sales</title>", "@font-face{font-family:'JetBrains Mono'", "data:font/woff2;base64,",
 		`<th data-c="A">A</th>`, `data-a="B1" class="b">Sales<`, `data-a="A2" class="clip">Jan<`, `data-a="B2" class="r">$1,200<`,
 		`data-f="=SUM(B2:B3)">$2,100<`, `class="clip note" title="adds up"`, `colspan="2" rowspan="1"`, "&lt;b&gt;not markup&lt;/b&gt;",
 		`<figure class="chart"`, "<svg", "<figcaption>Sales by month</figcaption>", `class="range">A1:B3<`,

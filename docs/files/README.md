@@ -71,7 +71,7 @@ own 8,192 by 256. See [Bounds of support](../contributing/limits.md#imports) for
 ## Web pages
 
 A web page download is one `.html` file that needs nothing else: its
-fonts (IBM Plex Mono), styles, charts and a few lines of script are in
+fonts (JetBrains Mono), styles, charts and a few lines of script are in
 it, so it opens offline and can be mailed or put on any web server. It
 draws the sheet as 012 does: column letters and row numbers, each cell's
 text as the grid shows it at its column's width, with its bold, italic,
