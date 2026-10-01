@@ -10,6 +10,7 @@ import (
 // The trip plan's layout draws as a table, the notes wrapped over their
 // rows, and comes back from its file as it was.
 func TestLayoutDrawsAndSurvivesSave(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	tripPlan(s)
@@ -41,6 +42,7 @@ func TestLayoutDrawsAndSurvivesSave(t *testing.T) {
 // through; the total's middle alignment and the blue outline survive a
 // save.
 func TestMergeEntryAndAlignment(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	coloredPlan(s)
@@ -74,6 +76,7 @@ func TestMergeEntryAndAlignment(t *testing.T) {
 // Dragging a row number's corner makes the row taller; double-clicking
 // it fits the row again.
 func TestDragRowHeight(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("Tall", "<enter>")
 	s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonUnknown, 5, gridRow1, 0)

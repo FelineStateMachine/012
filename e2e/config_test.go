@@ -11,6 +11,7 @@ import (
 // Problems in the config file show on the context line; 012 starts
 // anyway, with defaults for what's wrong.
 func TestConfigWarnings(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{config: "theme = Dracula\nbogus = 1\nchart-images = maybe\n"})
 	s.waitFor(`Config: config:2: unknown key "bogus" (and 1 more; run 012 config)`)
 	if !strings.Contains(s.html(), "background:#1e1f29") {
@@ -29,6 +30,7 @@ func openTheme(s *session) {
 // The theme picker previews the highlighted theme, Esc restores the one
 // there was, and Enter keeps and saves it, so the next start has it.
 func TestThemePicker(t *testing.T) {
+	t.Parallel()
 	cfg := t.TempDir()
 	s := startWith(t, options{configDir: cfg})
 	openTheme(s)
@@ -55,6 +57,7 @@ func TestThemePicker(t *testing.T) {
 // A .env with the key next to the sheet is never read: JEV stays off,
 // and the context line says how to store the key instead.
 func TestDotEnvNotRead(t *testing.T) {
+	t.Parallel()
 	srv, requests := fakeTypeSafe(t)
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, ".env"), []byte("TYPESAFE_API_KEY=test-key\nTYPESAFE_BASE_URL="+srv.URL+"\n"), 0o600)
@@ -70,6 +73,7 @@ func TestDotEnvNotRead(t *testing.T) {
 // 012 config set-key stores the key (here in the tests' stand-in for the
 // credential store); the next start finds it there and JEV works.
 func TestSetKeyThenJEV(t *testing.T) {
+	t.Parallel()
 	srv, requests := fakeTypeSafe(t)
 	cfg := t.TempDir()
 	cmd := exec.Command(binPath, "config", "set-key")
@@ -90,6 +94,7 @@ func TestSetKeyThenJEV(t *testing.T) {
 // File > Settings > JEV API key takes the key masked, stores it and turns
 // JEV on at once, after one test call with it.
 func TestAPIKeyPrompt(t *testing.T) {
+	t.Parallel()
 	srv, _ := fakeTypeSafe(t)
 	cfg := t.TempDir()
 	s := startWith(t, options{configDir: cfg, env: []string{"TYPESAFE_BASE_URL=" + srv.URL}})

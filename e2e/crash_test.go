@@ -15,6 +15,7 @@ import (
 // binary is built with -tags crashtest, where F12 panics where
 // O12_CRASH_TEST says (internal/ui/crashtest.go).
 func TestPanicKeepsWork(t *testing.T) {
+	t.Parallel()
 	for _, where := range []string{"update", "command", "view"} {
 		t.Run(where, func(t *testing.T) {
 			dir := t.TempDir()

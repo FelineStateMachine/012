@@ -13,6 +13,7 @@ import (
 // own change, the first to quit leaves without being asked, and the one
 // left saves the file.
 func TestServeSharesAFile(t *testing.T) {
+	t.Parallel()
 	top := t.TempDir()
 	served := filepath.Join(top, "served")
 	os.Mkdir(served, 0o755)

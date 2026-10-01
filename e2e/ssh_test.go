@@ -80,6 +80,7 @@ func serveSSH(t *testing.T, top, served string, flags ...string) (string, []stri
 // screen, typing, resizing, saving inside the served directory, a
 // refused escape, and quitting closing the connection.
 func TestServeOverSSH(t *testing.T) {
+	t.Parallel()
 	top := t.TempDir()
 	served := filepath.Join(top, "served")
 	os.Mkdir(served, 0o755)
@@ -112,6 +113,7 @@ func TestServeOverSSH(t *testing.T) {
 // ssh -t host book.012 opens the file from the served directory; a name
 // outside it is refused before 012 starts.
 func TestServeOpensFileFromCommandLine(t *testing.T) {
+	t.Parallel()
 	top := t.TempDir()
 	served := filepath.Join(top, "served")
 	os.Mkdir(served, 0o755)

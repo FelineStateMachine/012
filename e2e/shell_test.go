@@ -13,6 +13,7 @@ import (
 // and the context-line confirmations.
 
 func TestAltFOpensFileMenuAndSaves(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	s.keys("42", "<enter>", "<alt+f>")
@@ -30,6 +31,7 @@ func TestAltFOpensFileMenuAndSaves(t *testing.T) {
 }
 
 func TestMenuSetsColumnWidth(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("<alt+o>", "c", "<enter>", "20", "<enter>")
 	s.waitFor("READY")
@@ -37,6 +39,7 @@ func TestMenuSetsColumnWidth(t *testing.T) {
 }
 
 func TestPaletteSearchAndRun(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("<ctrl+k>")
 	s.waitFor("Search the menus")
@@ -49,6 +52,7 @@ func TestPaletteSearchAndRun(t *testing.T) {
 }
 
 func TestRightClickColumnMenu(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	// Right-click column C's header: it selects the column and opens the
 	// column menu under the mouse.
@@ -71,6 +75,7 @@ func TestRightClickColumnMenu(t *testing.T) {
 }
 
 func TestQuitAsksAboutUnsavedChanges(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("1", "<enter>", "<ctrl+q>")
 	s.waitFor("You have unsaved changes.")

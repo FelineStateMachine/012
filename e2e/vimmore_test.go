@@ -11,6 +11,7 @@ import (
 // jump back, cc clears a row to retype, Up on the : line recalls a line,
 // and :w! writes over a file changed on disk.
 func TestVimRepeatRegistersMarks(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	vimOn(s)

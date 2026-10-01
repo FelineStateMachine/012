@@ -25,6 +25,7 @@ func germanBudget(s *session) {
 // formulas typed the German way, saves them as en-US writes them, and
 // undoes back to en-US.
 func TestLocaleSwitch(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	germanBudget(s)
@@ -62,6 +63,7 @@ func TestLocaleSwitch(t *testing.T) {
 // The config's locale, here from LANG, is the default of new sheets;
 // a file saved without a locale of its own opens in the reader's.
 func TestLocaleFromLANG(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := startWith(t, options{dir: dir, env: []string{"LANG=de_DE.UTF-8"}})
 	s.keys("1,5", "<enter>", "=A1*2", "<enter>")
@@ -82,6 +84,7 @@ func TestLocaleFromLANG(t *testing.T) {
 // with German names, and a formula that doesn't parse names German's
 // separator.
 func TestLocaleNamesAndErrors(t *testing.T) {
+	t.Parallel()
 	s := start(t, t.TempDir())
 	germanBudget(s)
 	s.keys("<ctrl+g>", "D1", "<enter>", "3. Okt. 2026", "<enter>")

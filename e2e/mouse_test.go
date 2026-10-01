@@ -39,6 +39,7 @@ func (s *session) wheel(col, row, clicks int) {
 func colX(c int) int { return 6 + c*10 + 2 }
 
 func TestMouseClickDragAndShiftClick(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.leftClick(colX(1), gridRow1+2, 0)
 	s.waitForName("B3")
@@ -57,6 +58,7 @@ func TestMouseClickDragAndShiftClick(t *testing.T) {
 }
 
 func TestMouseClickWhileTypingAndFormulaReference(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("40", "<enter>", "2", "<enter>", "=")
 	s.leftClick(colX(0), gridRow1, 0)
@@ -75,6 +77,7 @@ func TestMouseClickWhileTypingAndFormulaReference(t *testing.T) {
 }
 
 func TestMouseResizeAndWheel(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	border := 6 + 10 - 1
 	s.drag([2]int{border, 3}, [2]int{border + 4, 3}, [2]int{border + 8, 3})
@@ -90,6 +93,7 @@ func TestMouseResizeAndWheel(t *testing.T) {
 }
 
 func TestMouseDoubleClickEdits(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("hello", "<enter>")
 	s.leftClick(colX(0), gridRow1, 0)

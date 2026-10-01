@@ -6,6 +6,7 @@ import (
 )
 
 func TestFindAndReplace(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("Rent", "<tab>", "1450", "<enter>", "rental car", "<enter>", "Total rent", "<enter>", "<ctrl+home>")
 	s.keys("<ctrl+f>", "rent")

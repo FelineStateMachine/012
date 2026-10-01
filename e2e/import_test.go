@@ -55,6 +55,7 @@ func writeText(t *testing.T, name, text string) {
 }
 
 func TestOpenXLSXFromCommandLine(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeXLSX(t, filepath.Join(dir, "q3.xlsx"))
 	s := start(t, dir, "q3.xlsx")
@@ -87,6 +88,7 @@ func TestOpenXLSXFromCommandLine(t *testing.T) {
 }
 
 func TestOpenCSVFromCommandLine(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeText(t, filepath.Join(dir, "prices.csv"), "\xEF\xBB\xBFItem;Price;Date\nTea;$3.50;9/26/2026\nCake;4;2026-09-27\n")
 	s := start(t, dir, "prices.csv")
@@ -108,6 +110,7 @@ func TestOpenCSVFromCommandLine(t *testing.T) {
 }
 
 func TestOpenMissingImport(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	out, err := runBinary(dir, "nope.xlsx")
 	if err == nil || !strings.Contains(out, "nope.xlsx: no such file") {
@@ -129,6 +132,7 @@ func importDir(t *testing.T, dir string) {
 }
 
 func TestImportPickerLists(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	importDir(t, dir)
 	s := start(t, dir)
@@ -181,6 +185,7 @@ func runBinary(dir string, args ...string) (string, error) {
 }
 
 func TestImportProgressAndCancel(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	slowCSV(s)
 	s.waitFor("WAIT")
@@ -194,6 +199,7 @@ func TestImportProgressAndCancel(t *testing.T) {
 // file goes: new sheets after the one shown (every sheet of an .xlsx),
 // undone as one step, or in place of the sheet shown.
 func TestImportLocation(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	importDir(t, dir)
 	s := start(t, dir)

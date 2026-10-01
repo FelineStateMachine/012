@@ -73,6 +73,7 @@ func (s *session) linkSource(name string) {
 }
 
 func TestLinkedSource(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTrips(t, dir, tripRows)
 	s := start(t, dir)

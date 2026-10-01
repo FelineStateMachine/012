@@ -45,19 +45,20 @@ func TestScreens(t *testing.T) {
 	}
 	for _, sc := range screens {
 		t.Run(sc.name, func(t *testing.T) {
+			t.Parallel()
 			s := startScreen(t, sc)
 			sc.setup(s)
-			got := s.stableHTML()
 			path := filepath.Join(dir, sc.name+".html")
+			want, err := os.ReadFile(path)
+			if err != nil && !*update {
+				t.Fatalf("missing golden (run make screens): %v", err)
+			}
+			got := s.settledHTML(string(want))
 			if *update {
 				if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
 					t.Fatal(err)
 				}
 				return
-			}
-			want, err := os.ReadFile(path)
-			if err != nil {
-				t.Fatalf("missing golden (run make screens): %v", err)
 			}
 			if got != string(want) {
 				actual := filepath.Join(t.TempDir(), sc.name+".html")
@@ -151,6 +152,21 @@ func (s *session) stableHTML() string {
 	}
 	s.t.Fatal("screen never settled")
 	return ""
+}
+
+// settledHTML is the screen once it has settled: stable, and showing
+// want (the golden) if it comes to within waitTimeout. Some of a screen
+// arrives after it first holds still, such as nu's highlighting, which
+// a busy machine delays past a capture or two; a screen that differs
+// from its golden for good fails, or is rewritten under -update, once
+// the wait is over.
+func (s *session) settledHTML(want string) string {
+	s.t.Helper()
+	got := s.stableHTML()
+	for deadline := time.Now().Add(waitTimeout); got != want && time.Now().Before(deadline); {
+		got = s.stableHTML()
+	}
+	return got
 }
 
 // writeGallery renders all goldens into gallery.html (git-ignored), once

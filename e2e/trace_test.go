@@ -9,6 +9,7 @@ import (
 // to one from a list, and Evaluate formula steps into a reference and
 // back out.
 func TestTraceAndEvaluate(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("<ctrl+g>", "C1", "<enter>")
 	s.keys("2", "<enter>", "=C1*3", "<enter>", "=C2+C1", "<enter>")

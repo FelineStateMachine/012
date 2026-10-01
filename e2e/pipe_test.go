@@ -72,6 +72,7 @@ const lsNUON = "[[name, size, modified]; [CLAUDE.md, 1646b, 2026-09-27T11:27:31-
 // an edit is made, and quitting sends it on standard output, which gets
 // nothing else.
 func TestPipeEditAndSend(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{piped: true, stdin: lsNUON, env: []string{"TZ=America/Denver"}}, "--pipe")
 	s.waitFor("Read 4 rows of NUON from standard input")
 	s.waitFor("4.2 kB")
@@ -92,6 +93,7 @@ func TestPipeEditAndSend(t *testing.T) {
 // TestPipeSendSelectionAsCSV sends a selection, in the format --to
 // asks for.
 func TestPipeSendSelectionAsCSV(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{piped: true, stdin: lsNUON}, "--pipe", "--to", "csv")
 	s.waitFor("4.2 kB")
 	s.keys("<shift+down>", "<shift+down>", "<shift+right>")
@@ -108,6 +110,7 @@ func TestPipeSendSelectionAsCSV(t *testing.T) {
 // TestPipeSendSelectionWithoutAsking: --send selection makes Ctrl+Q
 // send the selection at once.
 func TestPipeSendSelectionWithoutAsking(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{piped: true, stdin: lsNUON}, "--pipe", "--send", "selection", "--to", "csv")
 	s.waitFor("Ctrl+Q  send the sheet as CSV")
 	s.keys("<shift+down>", "<shift+right>")
@@ -123,6 +126,7 @@ func TestPipeSendSelectionWithoutAsking(t *testing.T) {
 // whole sheet, whatever is selected; File > Quit without sending still
 // sends nothing.
 func TestPipeSendSheetWithoutAsking(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{piped: true, stdin: "a,b\n1,2\n3,4\n"}, "--pipe", "--send", "sheet")
 	s.waitFor("Read 3 rows of CSV from standard input")
 	s.keys("<shift+down>")
@@ -146,6 +150,7 @@ func TestPipeSendSheetWithoutAsking(t *testing.T) {
 
 // TestPipeQuitWithoutSending exits with status 1 and writes nothing.
 func TestPipeQuitWithoutSending(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{piped: true, stdin: "a,b\n1,2\n"}, "--pipe")
 	s.waitFor("Read 2 rows of CSV from standard input")
 	s.keys("<ctrl+q>", "d")
@@ -158,6 +163,7 @@ func TestPipeQuitWithoutSending(t *testing.T) {
 // TestStdinOnly: 012 - reads standard input and writes nothing to
 // standard output.
 func TestStdinOnly(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{piped: true, stdin: `[{"a": 1, "b": "x"}]`}, "-")
 	s.waitFor("Read 2 rows of JSON from standard input")
 	s.keys("<ctrl+q>")

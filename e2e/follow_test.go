@@ -31,6 +31,7 @@ func (s *session) linkTable(name string) {
 }
 
 func TestFollowFileAsItGrows(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	log := filepath.Join(dir, "app.csv")
 	writeText(t, log, "level,ms\ninfo,12\n")

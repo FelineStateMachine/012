@@ -18,6 +18,7 @@ func vimOn(s *session) {
 // Vim keys through a real terminal: letters move and act, counts size
 // operators, : goes to cells and writes the file, and :q quits.
 func TestVimKeys(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	vimOn(s)

@@ -18,6 +18,7 @@ func money(s *session) {
 // Decimal arithmetic from the palette recalculates at once, shows on the
 // status line, and is saved with the file.
 func TestDecimalArithmeticSetting(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	money(s)

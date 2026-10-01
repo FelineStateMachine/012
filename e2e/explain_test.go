@@ -9,6 +9,7 @@ import (
 // too long for the context line ends in … with an F1 chip, that F1
 // shows all of it in a box, and that a key closes the box.
 func TestLongErrorOnF1(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{cols: 60, rows: 16})
 	s.keys("='Quarterly results by region 26'!A1+1", "<enter>", "<up>")
 	s.waitFor("#REF!")

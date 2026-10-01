@@ -12,6 +12,7 @@ import (
 // written: its rows reach the output and the sheet it was sent to as
 // lines are appended, and Stop ends it, keeping them.
 func TestNotebookStreamWithNu(t *testing.T) {
+	t.Parallel()
 	needNu(t)
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "app.log")

@@ -9,6 +9,7 @@ import (
 // they come from, a cell in the way makes it #REF! until cleared, and the
 // file keeps only the formula, which spills again when it opens.
 func TestArraySpill(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	s.keys("pear", "<enter>", "apple", "<enter>", "fig", "<enter>")

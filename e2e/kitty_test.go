@@ -12,6 +12,7 @@ import (
 // terminal without it sends Shift+Enter as Enter and Ctrl+I as Tab, and
 // 012 does what those do.
 func TestKittyKeyboard(t *testing.T) {
+	t.Parallel()
 	t.Run("on", func(t *testing.T) {
 		s := start(t, "")
 		s.eventually("key events on", func() bool {
@@ -47,6 +48,7 @@ func TestKittyKeyboard(t *testing.T) {
 // let go; without key events Space deselects the chart and starts an
 // entry, as it always has.
 func TestHoldSpaceOnChart(t *testing.T) {
+	t.Parallel()
 	t.Run("on", func(t *testing.T) {
 		s := start(t, "")
 		spending(s)
@@ -82,6 +84,7 @@ func TestHoldSpaceOnChart(t *testing.T) {
 // the highlighted theme, until it's let go; with a search typed, or
 // without key events, Space is typed.
 func TestHoldSpaceInThemePicker(t *testing.T) {
+	t.Parallel()
 	t.Run("on", func(t *testing.T) {
 		s := start(t, "")
 		openTheme(s)

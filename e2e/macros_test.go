@@ -28,6 +28,7 @@ func recordTotals(s *session) {
 }
 
 func TestMacroRecordAndReplay(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir, "book.012")
 	recordTotals(s)
@@ -73,6 +74,7 @@ func TestMacroRecordAndReplay(t *testing.T) {
 }
 
 func TestMacroFromAnotherComputerAsks(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir, "book.012")
 	recordTotals(s)
@@ -102,6 +104,7 @@ func TestMacroFromAnotherComputerAsks(t *testing.T) {
 // TestMacroRecordsTheSortBar records the choices made in a dialog and
 // replays them.
 func TestMacroRecordsTheSortBar(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir, "book.012")
 	s.keys("Month", "<tab>", "Sales", "<enter>", "Jan", "<tab>", "10", "<enter>", "Feb", "<tab>", "30", "<enter>", "Mar", "<tab>", "20", "<enter>")

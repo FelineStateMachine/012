@@ -7,6 +7,7 @@ import (
 // Typing =su shows matching functions under the formula bar; Tab inserts
 // one, and the context line then shows its signature.
 func TestAutocompleteAndSignature(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("2", "<enter>", "3", "<enter>", "=sum")
 	s.waitFor("│ SUM ")
@@ -21,6 +22,7 @@ func TestAutocompleteAndSignature(t *testing.T) {
 // A named range is defined from the selection, used in a formula, found
 // by Go to, and follows inserted rows.
 func TestNamedRanges(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("10", "<enter>", "20", "<enter>", "=SUM(Pair)", "<enter>")
 	s.waitFor("#NAME?")
@@ -41,6 +43,7 @@ func TestNamedRanges(t *testing.T) {
 
 // Alt+, jumps to what a formula reads; Esc comes back.
 func TestTracePrecedents(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("1", "<enter>", "2", "<enter>", "=A1+A2", "<enter>", "<up>")
 	s.keys("<alt+,>")

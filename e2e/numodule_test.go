@@ -41,6 +41,7 @@ const sizesNu = "[[name size]; [a 2kb] [b 10b] [c 5mb]]"
 // A table goes through sheet: a selection is sent back, and nu gets it
 // with its types, file sizes as file sizes.
 func TestSheetSendsSelection(t *testing.T) {
+	t.Parallel()
 	s := startSheet(t, "5.0 MB", "let t = "+sizesNu+" | sheet; print ($t | get size | describe); $t | to nuon")
 	s.keys("<shift+down>", "<shift+down>", "<shift+right>")
 	s.waitFor("send A1:B3 as NUON")
@@ -56,6 +57,7 @@ func TestSheetSendsSelection(t *testing.T) {
 // sheet --send sheet gives back all of ls's table on Ctrl+Q, whatever
 // is selected.
 func TestSheetSendSheet(t *testing.T) {
+	t.Parallel()
 	s := startSheet(t, "b.txt", "cd (mktemp -d); 'x' | save a.txt; 'yyy' | save b.txt; "+
 		"let t = ls | sheet --send sheet; print ($t | columns | to nuon); "+
 		"print (($t | select name type size) == (ls | select name type size)); print ($t | length)")
@@ -70,6 +72,7 @@ func TestSheetSendSheet(t *testing.T) {
 
 // Quitting without sending raises sheet's error, with 012's reason.
 func TestSheetNotSent(t *testing.T) {
+	t.Parallel()
 	s := startSheet(t, "5.0 MB", "try { "+sizesNu+" | sheet } catch {|e| print $'caught: ($e.msg)' }")
 	s.keys("<ctrl+q>", "d")
 	out, code := s.finish()
@@ -80,6 +83,7 @@ func TestSheetNotSent(t *testing.T) {
 
 // sheet view shows the table and returns nothing.
 func TestSheetView(t *testing.T) {
+	t.Parallel()
 	s := startSheet(t, "5.0 MB", sizesNu+" | sheet view | describe")
 	s.keys("<ctrl+q>")
 	s.waitFor("You have unsaved changes.")

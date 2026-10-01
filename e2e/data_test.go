@@ -24,6 +24,7 @@ func writeTable(t *testing.T, dir, name string, n int) {
 }
 
 func TestFreezeFilterAndSort(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTable(t, dir, "data.012", 60)
 	s := start(t, dir, "data.012")
@@ -63,6 +64,7 @@ func TestFreezeFilterAndSort(t *testing.T) {
 }
 
 func TestSortBarAndFillHandle(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("Month", "<tab>", "Sales", "<enter>", "Jan", "<tab>", "30", "<enter>", "Feb", "<tab>", "10", "<enter>")
 	s.keys("<up>")

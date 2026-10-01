@@ -6,6 +6,7 @@ import (
 )
 
 func TestTypeDateAndApplyCurrency(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("9/26/2026", "<enter>", "2026-09-27", "<enter>", "14:30", "<enter>")
 	s.waitForLine(gridRow1, numRow(1, "9/26/2026"))
@@ -30,6 +31,7 @@ func TestTypeDateAndApplyCurrency(t *testing.T) {
 }
 
 func TestFormatsSurviveSaveAndReopen(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	s.keys("1450", "<enter>", "<up>", "<ctrl+shift+1>", "<ctrl+i>")
@@ -49,6 +51,7 @@ func TestFormatsSurviveSaveAndReopen(t *testing.T) {
 // A column's format travels when the column is copied, and formulas
 // reading its blanks take it at once.
 func TestColumnFormatTravelsWithCopy(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("5", "<enter>", "7", "<enter>", "<ctrl+home>", "<right>", "=C9*2", "<enter>")
 	s.waitForLine(gridRow1, numRow(1, "5", "0"))

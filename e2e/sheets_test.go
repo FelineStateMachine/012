@@ -41,6 +41,7 @@ func tabX(t *testing.T, s *session, name string) int {
 }
 
 func TestSheets(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir, "book.012")
 	summary(s)
@@ -102,6 +103,7 @@ func TestSheets(t *testing.T) {
 // Hiding a sheet takes it out of the tabs and the file keeps it hidden;
 // View > Hidden sheets shows it again, and undo hides it once more.
 func TestHideSheets(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir, "book.012")
 	hideSummary(s)
@@ -137,6 +139,7 @@ func TestHideSheets(t *testing.T) {
 // Typing a sheet's name in a formula offers it; after it, arrows point
 // into that sheet.
 func TestSheetNameSuggestions(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	summary(s)
 	s.keys("<ctrl+pgup>", "<f5>", "D1", "<enter>")

@@ -14,6 +14,7 @@ import (
 // rejects, a conditional format added from the panel, and all of it
 // saved and opened again.
 func TestRules(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	tasksFile(t, dir)
 	s := start(t, dir, "tasks.012")
@@ -74,6 +75,7 @@ func TestRules(t *testing.T) {
 // data bar added from the panel, and cells cut to another sheet taking
 // their rules along.
 func TestBarsIconsAndChips(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	scoresFile(t, dir)
 	s := start(t, dir, "scores.012")

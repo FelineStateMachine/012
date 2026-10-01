@@ -8,6 +8,7 @@ import (
 )
 
 func TestNotes(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	s.keys("Rent", "<tab>", "1450", "<enter>", "<up>", "<right>")
@@ -38,6 +39,7 @@ func TestNotes(t *testing.T) {
 }
 
 func TestProtectedRange(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("Price", "<enter>", "10", "<enter>", "<up>", "<shift+up>")
 	s.waitForName("A1:A2")

@@ -9,6 +9,7 @@ import (
 // grows as rows are typed below it, renames its column in formulas when
 // its header changes, and is saved with the file.
 func TestTables(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTable(t, dir, "stock.012", 4) // Item, Qty over A1:B5; Qty 1 2 3 0
 	s := start(t, dir, "stock.012")

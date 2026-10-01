@@ -33,6 +33,7 @@ func pivotByCategory(s *session) {
 }
 
 func TestPivotTable(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	pivotByCategory(s)
@@ -80,6 +81,7 @@ func TestPivotTable(t *testing.T) {
 }
 
 func TestFrequencyTable(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	inventory(s)
 	s.keys("<right>", "<down>", "<alt+shift+f>")
@@ -100,6 +102,7 @@ func TestFrequencyTable(t *testing.T) {
 }
 
 func TestPivotRenameAndColumnSubtotals(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	pivotByCategory(s)
 	// R renames the value on the context line.

@@ -24,6 +24,7 @@ func needNu(t *testing.T) {
 }
 
 func TestNotebookWithNu(t *testing.T) {
+	t.Parallel()
 	needNu(t)
 	dir := t.TempDir()
 	s := startWith(t, options{dir: dir, startsOn: "EDIT"}, "nu", "book.012")
@@ -53,6 +54,7 @@ func TestNotebookWithNu(t *testing.T) {
 // assigns, runs with the real nu: its output is the second's, and a
 // later cell reads the variable.
 func TestNotebookStatementsWithNu(t *testing.T) {
+	t.Parallel()
 	needNu(t)
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "big.txt"), []byte(strings.Repeat("x", 3000)), 0o644)
@@ -79,6 +81,7 @@ func TestNotebookStatementsWithNu(t *testing.T) {
 }
 
 func TestNotebookSendsToSheetWithNu(t *testing.T) {
+	t.Parallel()
 	needNu(t)
 	s := startWith(t, options{startsOn: "EDIT"}, "nu")
 	s.keys("n = [[k]; [1] [2] [3]]", "<ctrl+enter>")
@@ -96,6 +99,7 @@ func TestNotebookSendsToSheetWithNu(t *testing.T) {
 // With the real nu, a cell being written is highlighted by nu's shapes
 // once typing pauses, and Tab completes what only nu knows: a flag.
 func TestNotebookHighlightsAndCompletesWithNu(t *testing.T) {
+	t.Parallel()
 	needNu(t)
 	s := startWith(t, options{startsOn: "EDIT"}, "nu")
 	s.keys("ls | where size > 1kb | sort-by size")
@@ -109,6 +113,7 @@ func TestNotebookHighlightsAndCompletesWithNu(t *testing.T) {
 // command's help, with its page in nushell's docs as a link. On a
 // cell's $name, the line says the cell and its output's shape.
 func TestNotebookHoverWithNu(t *testing.T) {
+	t.Parallel()
 	needNu(t)
 	s := startWith(t, options{cols: 120, rows: 30, startsOn: "EDIT"}, "nu")
 	s.keys("n = [[k v]; [1 a] [2 b] [3 c]]", "<shift+enter>")
@@ -133,6 +138,7 @@ func TestNotebookHoverWithNu(t *testing.T) {
 // Data > Shell from a workbook makes a Notebook tab; $selection is
 // the range selected on the sheet shown before it.
 func TestNotebookReadsSelection(t *testing.T) {
+	t.Parallel()
 	needNu(t)
 	s := start(t, "")
 	s.keys("n", "<enter>", "3", "<enter>", "4", "<enter>", "<up>", "<up>", "<up>", "<shift+down>", "<shift+down>", "<shift+down>")
@@ -150,6 +156,7 @@ func TestNotebookReadsSelection(t *testing.T) {
 // A 200-character pipeline at 80 columns is on the screen whole, wrapped
 // before its pipes, while it's edited and once it isn't.
 func TestNotebookLongPipeline(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{cols: 80, rows: 24, startsOn: "EDIT", env: fakeNu}, "nu")
 	var b strings.Builder
 	b.WriteString("ls")

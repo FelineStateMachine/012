@@ -6,6 +6,7 @@ import "testing"
 // to the last row and three-letter columns, with row numbers widening to
 // fit.
 func TestMillionRows(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("5", "<enter>", "7", "<enter>", "<right>", "<up>", "<up>", "=SUM(A:A)", "<enter>")
 	s.waitFor("12")

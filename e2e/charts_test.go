@@ -28,6 +28,7 @@ func insertChart(s *session) {
 }
 
 func TestInsertEditMoveDeleteChart(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	spending(s)
@@ -76,6 +77,7 @@ func TestInsertEditMoveDeleteChart(t *testing.T) {
 }
 
 func TestDragChart(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	spending(s)
 	insertChart(s)
@@ -93,6 +95,7 @@ func TestDragChart(t *testing.T) {
 }
 
 func TestKittyImages(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{graphics: true})
 	spending(s)
 	insertChart(s)
@@ -142,6 +145,7 @@ func TestKittyImages(t *testing.T) {
 }
 
 func TestLinksAndErrorMarks(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("https://example.com/docs", "<enter>", `=HYPERLINK("example.org", "Example")`, "<enter>", "=1/0", "<enter>", "<up>")
 	s.waitFor("#DIV/0!  Division by zero in 1/0")
@@ -174,6 +178,7 @@ func TestLinksAndErrorMarks(t *testing.T) {
 // its legend, saves and reopens it, and turns it into a scatter with a
 // trend line.
 func TestChartOptions(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	spending(s)

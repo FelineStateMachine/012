@@ -53,6 +53,7 @@ func (s *session) codes() []string {
 // Ctrl+C copies, the palette's sort sorts it, a click moves the active
 // cell, Enter shows it full-screen and Esc goes back a level at a time.
 func TestNotebookOutputGrid(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{cols: 100, rows: 40, startsOn: "EDIT", env: fakeNu}, "nu")
 	clip := s.watchClipboard()
 	s.keys("files = ls", "<ctrl+enter>")
@@ -83,6 +84,7 @@ func TestNotebookOutputGrid(t *testing.T) {
 }
 
 func TestNotebookMouseAndKeys(t *testing.T) {
+	t.Parallel()
 	s := startWith(t, options{cols: 100, rows: 40, startsOn: "EDIT", env: fakeNu}, "nu")
 	s.keys("files = ls", "<esc>")
 	s.waitFor("NOTEBOOK")

@@ -59,6 +59,7 @@ func fakeTypeSafe(t *testing.T) (*httptest.Server, *atomic.Int32) {
 }
 
 func TestJEVFunctionsAgainstFakeService(t *testing.T) {
+	t.Parallel()
 	srv, requests := fakeTypeSafe(t)
 	s := startWith(t, options{env: []string{"TYPESAFE_API_KEY=test-key", "TYPESAFE_BASE_URL=" + srv.URL}})
 	s.keys("The box arrived crushed", "<enter>")
@@ -79,6 +80,7 @@ func TestJEVFunctionsAgainstFakeService(t *testing.T) {
 }
 
 func TestJEVOffWithoutKey(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys(`=JEV.TEST("x", "Q")`, "<enter>", "<up>")
 	s.waitFor("JEV functions need an API key")

@@ -61,6 +61,7 @@ func numRow(row int, nums ...string) string {
 }
 
 func TestFormulaRecalc(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("10", "<enter>", "20", "<enter>", "=SUM(A1:A2)", "<enter>")
 	s.keys("<up>")
@@ -73,6 +74,7 @@ func TestFormulaRecalc(t *testing.T) {
 }
 
 func TestPointModeBuildsFormula(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("4", "<tab>", "6", "<tab>", "=", "<left>", "<left>")
 	s.waitFor("POINT")
@@ -85,6 +87,7 @@ func TestPointModeBuildsFormula(t *testing.T) {
 }
 
 func TestShiftSelectionShowsStats(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("1", "<enter>", "2", "<enter>", "3", "<enter>", "<ctrl+home>")
 	s.keys("<shift+down>", "<shift+down>")
@@ -97,6 +100,7 @@ func TestShiftSelectionShowsStats(t *testing.T) {
 }
 
 func TestTextOverflow(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("Quarterly revenue", "<enter>", "$1,200", "<enter>", "TRUE", "<enter>")
 	s.waitForLine(gridRow1, "    1  Quarterly revenue")
@@ -105,6 +109,7 @@ func TestTextOverflow(t *testing.T) {
 }
 
 func TestInvalidFormulaCursor(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("=SUM(A1", "<enter>")
 	s.waitFor("EDIT")
@@ -117,6 +122,7 @@ func TestInvalidFormulaCursor(t *testing.T) {
 }
 
 func TestSaveQuitReopen(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	s := start(t, dir)
 	s.keys("Budget", "<enter>", "1200", "<enter>", "=A2*12", "<enter>")
@@ -141,6 +147,7 @@ func TestSaveQuitReopen(t *testing.T) {
 }
 
 func TestResizeShowsMoreColumns(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.waitFor(" I")
 	if strings.Contains(s.line(3), " N") {
@@ -151,6 +158,7 @@ func TestResizeShowsMoreColumns(t *testing.T) {
 }
 
 func TestCopyPasteAdjustsReferences(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	clip := s.watchClipboard()
 	s.keys("2", "<tab>", "=A1*10", "<enter>", "3", "<enter>", "<ctrl+home>", "<right>", "<ctrl+c>")
@@ -174,6 +182,7 @@ func TestCopyPasteAdjustsReferences(t *testing.T) {
 }
 
 func TestUndoRedo(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("10", "<enter>", "=A1+1", "<enter>", "<up>", "<up>", "<shift+down>", "<delete>")
 	s.waitForLine(gridRow1, "    1")
@@ -188,6 +197,7 @@ func TestUndoRedo(t *testing.T) {
 }
 
 func TestInsertRowRewritesFormulas(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("1", "<enter>", "2", "<enter>", "=SUM(A1:A2)", "<enter>")
 	s.keys("<up>", "<up>", "<shift+space>", "<ctrl+alt+=>")
@@ -202,6 +212,7 @@ func TestInsertRowRewritesFormulas(t *testing.T) {
 }
 
 func TestPasteTSVFillsCells(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.paste("Item\tCost\nRent\t1450\nFood\t=B2/2\n")
 	s.waitFor("Pasted 6 cells at A1:B3")
@@ -209,6 +220,7 @@ func TestPasteTSVFillsCells(t *testing.T) {
 }
 
 func TestFillAndAbsoluteReferences(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.keys("2", "<enter>", "3", "<enter>", "4", "<enter>", "<ctrl+home>", "<right>")
 	s.keys("=A1*A1", "<left>", "<left>", "<f4>")
@@ -222,6 +234,7 @@ func TestFillAndAbsoluteReferences(t *testing.T) {
 // Click handling is covered by the unit tests; this checks the program
 // actually turned on mouse reporting in the terminal.
 func TestMouseTrackingEnabled(t *testing.T) {
+	t.Parallel()
 	s := start(t, "")
 	s.eventually("mouse tracking enabled", func() bool {
 		s.mu.Lock()

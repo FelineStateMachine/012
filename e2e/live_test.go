@@ -143,6 +143,7 @@ func startLive(t *testing.T, o options) (*session, *agent) {
 }
 
 func TestLiveAgentSuggestsAndThePersonAccepts(t *testing.T) {
+	t.Parallel()
 	s, a := startLive(t, options{})
 	read := a.tool("read_range", map[string]any{"ref": "A1:A3"})
 	if got := fmt.Sprint(read["values"]); got != "[[40] [2] [42]]" {
@@ -173,6 +174,7 @@ func TestLiveAgentSuggestsAndThePersonAccepts(t *testing.T) {
 }
 
 func TestLiveAgentAsksThePerson(t *testing.T) {
+	t.Parallel()
 	s, a := startLive(t, options{})
 	answer := make(chan map[string]any, 1)
 	go func() { answer <- a.tool("ask", map[string]any{"message": "Overwrite A1:A2?"}) }()
