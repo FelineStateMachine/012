@@ -115,13 +115,15 @@
   padding: 3.5rem 0 3.5rem;
 }
 
-.title {
-  font-family: var(--font-mono);
-  font-size: clamp(2.2rem, 4.4vw, 3.4rem);
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  margin: 0 0 1.2rem;
+/* The page's heading, for screen readers and outlines: the logomark
+   already names 012 on screen. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .sub {

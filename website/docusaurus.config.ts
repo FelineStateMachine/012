@@ -100,29 +100,20 @@ const config: Config = {
     navbar: {
       // The logomark alone: it already reads 012, so no title beside it.
       logo: {alt: '012', src: 'img/logo.svg'},
-      // The docs' sections, as their folders are, and the reference as a
-      // menu; the landing page's control panel lists the same sections.
+      // The docs' sections, each opening its own sidebar (sidebars.ts);
+      // the landing page's control panel lists the same sections.
       items: [
         ...sections.map(([label, dir]) => ({
-          to: `/docs/${dir}/`,
-          activeBasePath: `/docs/${dir}/`,
+          type: 'docSidebar' as const,
+          sidebarId: dir,
           label,
           position: 'left' as const,
         })),
         {
-          type: 'dropdown',
+          type: 'docSidebar',
+          sidebarId: 'reference',
           label: 'Reference',
           position: 'left',
-          to: '/docs/reference/',
-          activeBasePath: '/docs/reference/',
-          items: [
-            {to: '/docs/reference/keys/', label: 'Keys'},
-            {to: '/docs/reference/functions/', label: 'Functions'},
-            {to: '/docs/reference/config/', label: 'Configuration'},
-            {to: '/docs/reference/command-line/', label: 'Command line'},
-            {to: '/docs/reference/json/', label: 'JSON'},
-            {to: '/docs/reference/macro-api/', label: 'Macro API'},
-          ],
         },
         {href: repo, label: 'GitHub', position: 'right'},
         // The mode indicator, as at the right end of 012's first line.

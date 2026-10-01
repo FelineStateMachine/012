@@ -88,8 +88,9 @@ the site's first commit for every page there has been.
   `.md` files are CommonMark, so `<`, `{` and HTML comments are text and
   markup rather than MDX. A page that needs components would be `.mdx`.
 - Each folder's `README.md` is its category's page (`/docs/sheets/`),
-  and the sidebar is generated from the tree: `_category_.json` for
-  folders, `title` and `sidebar_position` for pages
+  and each section (top-level folder) has a sidebar of its own
+  (`website/sidebars.ts`), generated from its folder: `_category_.json`
+  for folders, `title` and `sidebar_position` for pages
   ([Docs](testing.md#docs) has the rules the tree follows).
 - Images in `docs/media/` are bundled from the pages that show them;
   an image marked `#gh-dark-mode-only` or `#gh-light-mode-only` shows in
@@ -114,8 +115,9 @@ The landing page (`website/src/pages/index.tsx`) is drawn as a 012
 screen: a control panel with the mode indicator, the recording in an
 overlay frame, the features as cells of a sheet (the one under the
 pointer shows its entry in the control panel), and a status line. The
-navbar lists the docs' sections by folder, with the reference pages in
-a menu (`website/docusaurus.config.ts`); the control panel's menu bar
+navbar lists the docs' sections by folder, each opening its section's
+sidebar, so the sidebar lists that section's pages rather than the
+sections again (`website/docusaurus.config.ts`); the control panel's menu bar
 lists the same sections, so on the landing page the navbar leaves them
 to it. The
 colors in `website/src/css/custom.css` are the reference palettes of the
