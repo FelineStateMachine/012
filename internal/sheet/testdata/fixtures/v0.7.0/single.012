@@ -1,0 +1,21 @@
+{
+  "version": 3,
+  "name": "Haushalt",
+  "widths": {"A": 16},
+  "names": {"Miete": "B2"},
+  "arithmetic": "decimal",
+  "locale": "de-DE",
+  "freeze": {"cols":1},
+  "filter": {"range":"A1:B4","columns":{"A":{"condition":"not_empty"}}},
+  "cells": {
+    "A1": "Posten",
+    "B1": "Betrag",
+    "A2": "Miete",
+    "B2": {"input":"1450.10","format":"currency","decimals":2},
+    "A3": "Strom",
+    "B3": {"input":"0.1","format":"currency","decimals":2},
+    "A4": "Summe",
+    "B4": "=SUM(B2:B3)+0.2",
+    "C4": "=B4=1450.4"
+  }
+}
