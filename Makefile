@@ -7,7 +7,7 @@ GHOSTTY_SRC    := $(DEPS)/ghostty-src
 GHOSTTY_OUT    := $(DEPS)/ghostty
 GHOSTTY_STAMP  := $(GHOSTTY_OUT)/.built-$(GHOSTTY_COMMIT)
 
-.PHONY: check lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e speed speed-update dist site site-release site-publish site-serve site-deps
+.PHONY: check quick lint build run test fuzz e2e screens oracle demos libghostty clean stress stress-data stress-report obs-up obs-down obs-status stress-load stress-e2e speed speed-update dist site site-release site-publish site-serve site-deps
 
 build:
 	CGO_ENABLED=0 go build -o bin/012 ./cmd/012
@@ -27,9 +27,13 @@ test:
 
 # Everything that must pass before a push: lint, unit tests, the excelize
 # oracle and the end-to-end tests in libghostty at once, then the speed
-# gate and timed tests alone (scripts/check.sh).
+# gate and timed tests alone (scripts/check.sh). make quick checks only
+# what changed, for iterating.
 check: $(GHOSTTY_STAMP)
 	@scripts/check.sh
+
+quick:
+	@PKGS="$(PKGS)" TIMED='^($(TIMED_UI)|$(TIMED_NBVIEW))$$' scripts/quick.sh
 
 # gofmt, vet (with the stress benchmarks), staticcheck, shape limits and
 # the docs checks, at once.
