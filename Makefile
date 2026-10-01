@@ -117,8 +117,8 @@ oracle:
 # frame held). Needs vhs 0.12+ (go install
 # github.com/charmbracelet/vhs@latest), ttyd and ffmpeg. The JEV demo
 # talks to demos/fakejev, started here, never the real service.
-# Charts are drawn as text, as the tapes and README describe; VHS
-# records text, not images. DEMOS=jev renders just one. Each tape runs
+# VHS's ttyd has sixel on, so charts are recorded as the sixel images
+# 012 draws. DEMOS=jev renders just one. Each tape runs
 # 012 with its theme set to the tape's Set Theme (setup.tape's unless it
 # sets one), and in JetBrains Mono, served to VHS's browser in ttyd's
 # page from e2e/testdata/fonts, so it needn't be installed
