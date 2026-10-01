@@ -143,6 +143,17 @@ func (rd *reader) pagedFold(t *Sheet, reg Region, r Rect, s functions.Agg) (func
 	return s, nil
 }
 
+// sourceFormat is the format the cell at a of t, the tab of the source
+// reg, shows in: its column's, as the source's type says, below the
+// header.
+func (t *Sheet) sourceFormat(reg Region, a Addr) Format {
+	tbl, shape, ok := t.sourceTable(reg)
+	if !ok || a.Row == 0 || !tbl.Contains(a) || a.Col >= len(shape.Formats) {
+		return Format{}
+	}
+	return shape.Formats[a.Col]
+}
+
 // pagedBounds is Bounds over a source's tab: the part of r its table
 // holds.
 func (t *Sheet) pagedBounds(reg Region, r Rect) (Rect, bool) {

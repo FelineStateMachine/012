@@ -33,8 +33,12 @@ func IsVolatile(n Node) bool {
 // InferFormat picks the format Sheets shows a formula's result in when
 // the cell is Automatic: dates from date functions, and otherwise the
 // format of the first formatted input, so =B2+B3 of currency shows
-// currency and a date plus days shows a date.
-func InferFormat(n Node, at func(string, Addr) Format) Format {
+// currency and a date plus days shows a date. at is the format a cell
+// shows in, a linked source's column the one its type says; paged
+// reports whether a sheet is a linked source's tab, whose counts show as
+// whole numbers with thousands separators.
+func InferFormat(n Node, at func(string, Addr) Format, paged func(string) bool) Format {
+	infer := func(n Node) Format { return InferFormat(n, at, paged) }
 	switch n := n.(type) {
 	case formula.Ref:
 		return at(n.Sheet, n.Addr)
@@ -42,10 +46,10 @@ func InferFormat(n Node, at func(string, Addr) Format) Format {
 		return at(n.Sheet, n.Rect.From)
 	case formula.Unary:
 		if n.Op == "-" || n.Op == "+" {
-			return InferFormat(n.X, at)
+			return infer(n.X)
 		}
 	case formula.Binary:
-		l, r := InferFormat(n.L, at), InferFormat(n.R, at)
+		l, r := infer(n.L), infer(n.R)
 		switch n.Op {
 		case "+", "-":
 			if n.Op == "-" && l.Kind.IsTime() && r.Kind.IsTime() {
@@ -59,13 +63,44 @@ func InferFormat(n Node, at func(string, Addr) Format) Format {
 			return firstFormat(l, r)
 		}
 	case formula.Call:
-		if funcOf(n).format != nil {
-			return funcOf(n).format(n.Args, func(n Node) Format { return InferFormat(n, at) })
+		f := funcOf(n)
+		if counting[f.Name] && paged != nil && countsPaged(n.Args, paged) {
+			return wholeNumber
+		}
+		if f.format != nil {
+			return f.format(n.Args, infer)
 		}
 	case formula.Array:
-		return InferFormat(n.Rows[0][0], at)
+		return infer(n.Rows[0][0])
 	}
 	return Format{}
+}
+
+// counting are the functions that count cells or rows.
+var counting = map[string]bool{"COUNT": true, "COUNTA": true, "COUNTIF": true, "COUNTIFS": true,
+	"COUNTBLANK": true, "ROWS": true, "COLUMNS": true}
+
+// wholeNumber is a count's format over a linked source: the locale's
+// thousands separators and no decimals, so two million rows read
+// 2,000,000.
+var wholeNumber = Format{Kind: value.FmtNumber}
+
+// countsPaged reports whether a count's arguments name a range of a
+// linked source.
+func countsPaged(args []Node, paged func(string) bool) bool {
+	for _, a := range args {
+		sheet := ""
+		switch r := a.(type) {
+		case formula.Range:
+			sheet = r.Sheet
+		case formula.Ref:
+			sheet = r.Sheet
+		}
+		if sheet != "" && paged(sheet) {
+			return true
+		}
+	}
+	return false
 }
 
 func firstFormat(fs ...Format) Format {

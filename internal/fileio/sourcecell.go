@@ -1,6 +1,7 @@
 package fileio
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"strings"
@@ -130,7 +131,12 @@ func parquetValue(v parquet.Value, c parquetColumn) (sheet.LiveCell, bool) {
 		return liveNum(d.Hours()/24, sheet.Format{Kind: sheet.FmtTime}), true
 	case *format.DecimalType:
 		if x, ok := decimal(v, lt.Scale); ok {
-			return liveNum(x, sheet.Format{}), true
+			return liveNum(x, decimalFormat(lt)), true
+		}
+	}
+	if c.interval {
+		if d, ok := interval(v); ok {
+			return liveNum(d, sheet.Format{Kind: sheet.FmtDuration}), true
 		}
 	}
 	switch c.kind {
@@ -165,7 +171,10 @@ func parquetFormat(c parquetColumn) (sheet.Format, bool) {
 	case *format.TimeType:
 		return sheet.Format{Kind: sheet.FmtTime}, true
 	case *format.DecimalType:
-		return sheet.Format{}, true
+		return decimalFormat(c.logical.(*format.DecimalType)), true
+	}
+	if c.interval {
+		return sheet.Format{Kind: sheet.FmtDuration}, true
 	}
 	switch c.kind {
 	case parquet.Int32, parquet.Int64, parquet.Float, parquet.Double:
@@ -174,6 +183,22 @@ func parquetFormat(c parquetColumn) (sheet.Format, bool) {
 		return sheet.Format{Kind: sheet.FmtDateTime}, true
 	}
 	return sheet.Format{}, false
+}
+
+// decimalFormat is a DECIMAL's: a number with its scale's decimals.
+func decimalFormat(t *format.DecimalType) sheet.Format {
+	return sheet.Format{Kind: sheet.FmtNumber, Decimals: min(max(int(t.Scale), 0), sheet.MaxDecimals)}
+}
+
+// interval is an INTERVAL's length in days: its months as 30 days each,
+// its days, and its milliseconds.
+func interval(v parquet.Value) (float64, bool) {
+	b := v.ByteArray()
+	if len(b) != 12 {
+		return 0, false
+	}
+	months, days, ms := binary.LittleEndian.Uint32(b), binary.LittleEndian.Uint32(b[4:]), binary.LittleEndian.Uint32(b[8:])
+	return 30*float64(months) + float64(days) + float64(ms)/86_400_000, true
 }
 
 // sqliteCell is a database value as a cell, reporting whether it was

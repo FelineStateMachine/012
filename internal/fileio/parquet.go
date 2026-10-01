@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/parquet-go/parquet-go"
+	"github.com/parquet-go/parquet-go/deprecated"
 	"github.com/parquet-go/parquet-go/format"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -23,6 +24,21 @@ type parquetColumn struct {
 	// repeated is set on a list's column, whose rows hold several
 	// values; sources read it a row at a time (sourceparquet.go).
 	repeated bool
+	// interval is set on a column of the INTERVAL converted type: 12
+	// bytes of months, days and milliseconds.
+	interval bool
+}
+
+// parquetColumnOf is how a column of type t becomes cells.
+func parquetColumnOf(t parquet.Type) parquetColumn {
+	c := parquetColumn{kind: t.Kind()}
+	if lt := t.LogicalType(); lt != nil {
+		c.logical = lt.Value
+	}
+	if ct := t.ConvertedType(); ct != nil && *ct == deprecated.Interval {
+		c.interval = true
+	}
+	return c
 }
 
 // importParquet reads every leaf column, named by its path, into a
@@ -79,11 +95,7 @@ func parquetHeader(b *builder, schema *parquet.Schema) []parquetColumn {
 	for i, path := range paths {
 		b.text(sheet.Addr{Col: i}, strings.Join(path, "."), sheet.Format{}, header)
 		if leaf, ok := schema.Lookup(path...); ok && leaf.Node != nil {
-			t := leaf.Node.Type()
-			cols[i].kind = t.Kind()
-			if lt := t.LogicalType(); lt != nil {
-				cols[i].logical = lt.Value
-			}
+			cols[i] = parquetColumnOf(leaf.Node.Type())
 		}
 	}
 	return cols

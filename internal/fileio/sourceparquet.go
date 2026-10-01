@@ -54,12 +54,8 @@ func openParquetSource(spec SourceSpec) (*parquetSource, error) {
 	for _, path := range schema.Columns() {
 		var c parquetColumn
 		if leaf, ok := schema.Lookup(path...); ok && leaf.Node != nil {
-			t := leaf.Node.Type()
-			c.kind = t.Kind()
+			c = parquetColumnOf(leaf.Node.Type())
 			c.repeated = leaf.MaxRepetitionLevel > 0
-			if lt := t.LogicalType(); lt != nil {
-				c.logical = lt.Value
-			}
 		}
 		f, num := parquetFormat(c)
 		s.cols = append(s.cols, c)

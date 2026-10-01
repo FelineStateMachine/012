@@ -355,12 +355,17 @@ func (w *Workbook) values(s *Sheet) *reader {
 	return w.lookupOn(s, func(t *Sheet, a Addr) Value { return t.Value(a) })
 }
 
-// formatFrom reads display formats for formulas on s, across sheets.
+// formatFrom reads display formats for formulas on s, across sheets: on
+// a linked source's tab, the format its column's type shows in.
 func (w *Workbook) formatFrom(s *Sheet) func(string, Addr) Format {
 	return func(sheet string, a Addr) Format {
-		if t := w.resolve(s, sheet); t != nil {
-			return t.DisplayFormat(a)
+		t := w.resolve(s, sheet)
+		if t == nil {
+			return Format{}
 		}
-		return Format{}
+		if r, ok := t.pagedRegion(); ok {
+			return t.sourceFormat(r, a)
+		}
+		return t.DisplayFormat(a)
 	}
 }

@@ -146,15 +146,10 @@ func (s *sqliteSource) columns(ctx context.Context) error {
 	for i, t := range types {
 		c := SourceColumn{Name: t.Name()}
 		decl := strings.ToUpper(t.DatabaseTypeName())
-		switch {
-		case decl == "":
+		if decl == "" {
 			untyped = append(untyped, i)
-		case strings.Contains(decl, "DATETIME"), strings.Contains(decl, "TIMESTAMP"):
-			c.Format, c.Numeric = sheet.Format{Kind: sheet.FmtDateTime}, true
-		case strings.Contains(decl, "DATE"):
-			c.Format, c.Numeric = sheet.Format{Kind: sheet.FmtDate}, true
-		default:
-			c.Numeric = numericAffinity(decl)
+		} else {
+			c.Format, c.Numeric = declaredFormat(decl)
 		}
 		s.names = append(s.names, t.Name())
 		s.meta = append(s.meta, c)
@@ -163,6 +158,42 @@ func (s *sqliteSource) columns(ctx context.Context) error {
 		return s.sample(ctx, untyped)
 	}
 	return nil
+}
+
+// declaredFormat is the format a declared type shows its column's
+// values in, and whether it holds numbers: dates and times, the
+// decimals of a DECIMAL(10,2) or NUMERIC(10,2), and money as currency.
+func declaredFormat(decl string) (sheet.Format, bool) {
+	switch {
+	case strings.Contains(decl, "DATETIME"), strings.Contains(decl, "TIMESTAMP"):
+		return sheet.Format{Kind: sheet.FmtDateTime}, true
+	case strings.Contains(decl, "DATE"):
+		return sheet.Format{Kind: sheet.FmtDate}, true
+	case strings.Contains(decl, "TIME"):
+		return sheet.Format{Kind: sheet.FmtTime}, true
+	case strings.Contains(decl, "MONEY"), strings.Contains(decl, "CURRENCY"):
+		return sheet.Format{Kind: sheet.FmtCurrency, Decimals: 2}, true
+	case strings.HasPrefix(decl, "DECIMAL"), strings.HasPrefix(decl, "NUMERIC"):
+		if scale, ok := declaredScale(decl); ok {
+			return sheet.Format{Kind: sheet.FmtNumber, Decimals: scale}, true
+		}
+	}
+	return sheet.Format{}, numericAffinity(decl)
+}
+
+// declaredScale reads the scale of a type declared as DECIMAL(10,2).
+func declaredScale(decl string) (int, bool) {
+	_, args, found := strings.Cut(decl, "(")
+	args, _, closed := strings.Cut(args, ")")
+	_, scale, two := strings.Cut(args, ",")
+	if !found || !closed || !two {
+		return 0, false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(scale))
+	if err != nil || n < 0 || n > sheet.MaxDecimals {
+		return 0, false
+	}
+	return n, true
 }
 
 // numericAffinity reports whether a declared type gives a column

@@ -143,7 +143,7 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 		w.noteSpill(s, a, c, arr)
 	}
 	w.evaluating = outer
-	c.auto = functions.InferFormat(expr, s.calcFmt)
+	c.auto = functions.InferFormat(expr, s.calcFmt, s.calcGet.Paged)
 	w.depth--
 }
 

@@ -132,6 +132,17 @@ compute:
 | Criteria | COUNTIF, COUNTIFS, SUMIF, SUMIFS, AVERAGEIF, AVERAGEIFS, COUNTBLANK, SUMPRODUCT |
 | Lookups | MATCH, XLOOKUP, VLOOKUP, HLOOKUP, INDEX, ROWS, COLUMNS |
 
+A result keeps what its column means, as a formula over a sheet takes
+its inputs' format: SUM, AVERAGE, MIN, MAX and the lookups show in the
+format the column's type gives it. In Parquet that's a DECIMAL with
+its scale's decimals, a DATE as a date, a TIMESTAMP as a date and
+time, a TIME as a time and an INTERVAL as a duration; in SQLite the
+declared type: DATE, DATETIME or TIMESTAMP, TIME, DECIMAL(10,2) or
+NUMERIC(10,2) with its decimals, and MONEY as currency. A count over a
+source (COUNT, COUNTA, COUNTIF, COUNTIFS, COUNTBLANK, ROWS, COLUMNS)
+shows as a whole number with the locale's thousands separators:
+`2,000,000`. A format given to the cell wins over either.
+
 Any other function (MEDIAN, SORT, FILTER, UNIQUE, TEXTJOIN) holds what
 it reads, and is given a source's range as long as that holds no more
 than `max-cells` cells ([Configuration](../reference/config.md#max-cells));
