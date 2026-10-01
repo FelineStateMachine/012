@@ -1,8 +1,10 @@
 package paged
 
 import (
+	"cmp"
 	"fmt"
 
+	"github.com/FelineStateMachine/012/internal/fileio"
 	"github.com/FelineStateMachine/012/internal/functions"
 	"github.com/FelineStateMachine/012/internal/sheet"
 )
@@ -38,6 +40,73 @@ func (b *book) rangeValues(name string, r sheet.Rect, budget int) sheet.SourceAn
 		from = after(part, addrs[n-1])
 	}
 	return sheet.SourceAnswer{A: a}
+}
+
+// SortedNums sorts the numbers of r on disk (functions.Sorter),
+// streaming the source's rows: what isn't a number is skipped, as SUM
+// skips it in a range, and the first error is the answer.
+func (b *book) SortedNums(name string, r sheet.Rect) (functions.Sorted, *sheet.Value) {
+	s, ok := b.src(name)
+	if !ok {
+		return nil, refErr()
+	}
+	ns := fileio.NewNumberSort(s.dir)
+	part, ok := s.clip(r)
+	if ok && part.From.Row == 0 { // the header: names, not numbers
+		part.From.Row = 1
+	}
+	if ok && part.From.Row <= part.To.Row {
+		if e := b.sortRows(s, part, ns); e != nil {
+			ns.Close()
+			return nil, e
+		}
+	}
+	sorted, err := ns.Sorted()
+	if err != nil {
+		b.fail(err)
+		return nil, refErr()
+	}
+	return sorted, nil
+}
+
+// sortRows adds the numbers of the rows of part to ns, numbered in the
+// order they're read, returning the first error among them, or #REF!
+// when reading or spilling failed.
+func (b *book) sortRows(s snapshot, part sheet.Rect, ns *fileio.NumberSort) *sheet.Value {
+	cols := make([]int, 0, part.To.Col-part.From.Col+1)
+	for c := part.From.Col; c <= part.To.Col; c++ {
+		cols = append(cols, c)
+	}
+	last := int64(part.To.Row - 1)
+	var e *sheet.Value
+	var pos int64
+	var failed error
+	err := s.h.Scan(b.ctx, int64(part.From.Row-1), cols, func(row int64, vals []sheet.LiveCell) bool {
+		for _, v := range vals {
+			switch v.V.Kind {
+			case sheet.Error:
+				e = &v.V
+				return false
+			case sheet.Number:
+				if failed = ns.Add(v.V.Num, pos); failed != nil {
+					return false
+				}
+			}
+			pos++
+		}
+		return row < last
+	})
+	if err = cmp.Or(err, failed); err != nil {
+		b.fail(err)
+		return refErr()
+	}
+	return e
+}
+
+// refErr is a #REF! of its own, for an answer to point at.
+func refErr() *sheet.Value {
+	v := sheet.ErrRef
+	return &v
 }
 
 // after is the cell after a in r, row by row.

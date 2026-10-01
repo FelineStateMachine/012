@@ -192,7 +192,7 @@ func (h *Host) Answer(q sheet.SourceQuestion) (sheet.SourceAnswer, bool) {
 		case s.h == nil:
 			return sheet.SourceAnswer{}, false // opening: asked again once it's open
 		}
-		j.srcs[key(name)] = snapshot{name: s.name, h: s.h, shape: s.shape, gen: s.gen}
+		j.srcs[key(name)] = snapshot{name: s.name, h: s.h, shape: s.shape, gen: s.gen, dir: s.spec.TempDir}
 	}
 	h.asked[k] = true
 	h.fresh = append(h.fresh, j)

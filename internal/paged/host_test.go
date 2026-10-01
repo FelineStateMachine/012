@@ -172,14 +172,14 @@ func TestPastTheBudget(t *testing.T) {
 	w, h := linked(t, name, 100)
 	s := w.Sheet(0)
 	med, sum := sheet.Addr{Col: 10}, sheet.Addr{Col: 10, Row: 1}
-	s.Set(med, "=MEDIAN(sales[amount])")
+	s.Set(med, "=STDEV(sales[amount])")
 	s.Set(sum, "=SUM(sales[amount])")
 	h.Settle(context.Background(), w, Links(w, same, ""))
 	if v := s.Value(med); v != sheet.ErrValue {
-		t.Errorf("MEDIAN past the budget: %v, want #VALUE!", v)
+		t.Errorf("STDEV past the budget: %v, want #VALUE!", v)
 	}
 	if why := s.ExplainError(med); !strings.Contains(why, "max-cells") {
-		t.Errorf("MEDIAN past the budget explained as %q", why)
+		t.Errorf("STDEV past the budget explained as %q", why)
 	}
 	if v := s.Value(sum); v.Kind != sheet.Number {
 		t.Errorf("SUM streams past the budget: %v", v)

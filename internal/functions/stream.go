@@ -18,9 +18,11 @@ import (
 // Until it is known the cell shows Loading…, as a JEV question does.
 //
 // The functions in streaming read any size in one pass and hold only
-// what they compute; any other reads what its ranges hold, so it is
-// given a source range only while that holds no more cells than the
-// budget (max-cells), and past it answers #VALUE! saying why.
+// what they compute, and an order statistic of one range (MEDIAN,
+// PERCENTILE; order.go) has the Book sort its numbers on disk; any other
+// reads what its ranges hold, so it is given a source range only while
+// that holds no more cells than the budget (max-cells), and past it
+// answers #VALUE! saying why.
 
 // StreamCall is a call of a function some of whose arguments are ranges
 // of paged sheets. It isn't comparable: Key identifies it by content.
@@ -67,24 +69,27 @@ func (c StreamCall) Key() string {
 
 // streaming are the functions that read a source range of any size in
 // one pass, holding only what they compute: aggregates, criteria
-// functions and lookups.
+// functions, RANK and lookups.
 var streaming = map[string]bool{
 	"SUM": true, "AVERAGE": true, "COUNT": true, "COUNTA": true, "MIN": true, "MAX": true, "PRODUCT": true,
 	"COUNTIF": true, "COUNTIFS": true, "SUMIF": true, "SUMIFS": true, "AVERAGEIF": true, "AVERAGEIFS": true,
-	"COUNTBLANK": true, "SUMPRODUCT": true,
+	"COUNTBLANK": true, "SUMPRODUCT": true, "RANK": true, "RANK.EQ": true,
 	"MATCH": true, "XLOOKUP": true, "VLOOKUP": true, "HLOOKUP": true, "INDEX": true, "ROWS": true, "COLUMNS": true,
 }
 
 // Streams reports whether the function named name reads a source of
-// any size (see streaming).
-func Streams(name string) bool { return streaming[name] }
+// any size (see streaming), or one range of it (orderFuncs).
+func Streams(name string) bool {
+	_, sorts := orderFuncs[name]
+	return streaming[name] || sorts
+}
 
 // StreamingFuncs lists the functions that read a source of any size, in
 // alphabetical order, for the docs and messages.
 func StreamingFuncs() []string {
 	var out []string
 	for _, f := range Funcs() {
-		if streaming[f.Name] {
+		if Streams(f.Name) {
 			out = append(out, f.Name)
 		}
 	}
@@ -170,7 +175,7 @@ func EvalStream(c StreamCall, book Book, budget int) StreamAnswer {
 // overBudget says why c can't be computed, when it names a function
 // that doesn't stream over more cells of its sources than budget.
 func overBudget(c StreamCall, book Book, budget int) string {
-	if streaming[c.Fn] {
+	if streaming[c.Fn] || sortsSource(c) {
 		return ""
 	}
 	cells, most := 0, 0
@@ -191,7 +196,7 @@ func overBudget(c StreamCall, book Book, budget int) string {
 	if cells <= budget {
 		return ""
 	}
-	return fmt.Sprintf("Raise max-cells to %s to %s %s. It is %s, and %s holds what it reads; SUMIFS, MEDIAN, XLOOKUP and the like stream a source of any size.",
+	return fmt.Sprintf("Raise max-cells to %s for %s over %s. It is %s, and %s holds what it reads; SUMIFS, MEDIAN, XLOOKUP and the like stream a source of any size.",
 		grouped(cells), c.Fn, biggest, grouped(budget), c.Fn)
 }
 

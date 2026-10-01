@@ -47,6 +47,7 @@ type snapshot struct {
 	h     fileio.Source
 	shape sheet.SourceShape
 	gen   int
+	dir   string // where sorting spills, "" for the system's temporary files
 }
 
 // String says what the job does, for telemetry.

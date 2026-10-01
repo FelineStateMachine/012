@@ -28,7 +28,12 @@ var bigFormulas = []struct{ name, formula string }{
 	{"SUMPRODUCT", "=SUMPRODUCT(sales[amount],sales[id])"},
 	{"XLOOKUP-last", "=XLOOKUP(9999999,sales[id],sales[amount])"},
 	{"MATCH-middle", "=MATCH(5000000,sales[id],0)"},
-	{"MEDIAN-held", "=MEDIAN(sales[amount])"},
+	{"MEDIAN", "=MEDIAN(sales[amount])"},
+	{"PERCENTILE", "=PERCENTILE(sales[amount],0.9)"},
+	{"MODE", "=MODE(sales[amount])"},
+	{"LARGE", "=LARGE(sales[amount],1000)"},
+	{"RANK", "=RANK(5000,sales[amount])"},
+	{"STDEV-held", "=STDEV(sales[amount])"},
 }
 
 func BenchmarkSourceFormulas(b *testing.B) {

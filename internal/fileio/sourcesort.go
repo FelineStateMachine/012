@@ -3,13 +3,11 @@ package fileio
 import (
 	"bufio"
 	"cmp"
-	"container/heap"
 	"encoding/binary"
 	"errors"
 	"io"
 	"math"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/FelineStateMachine/012/internal/sheet"
@@ -18,12 +16,9 @@ import (
 // A Parquet view's rows are a file of row numbers in the view's order,
 // 8 bytes each, which a page reads with ReadAt: a filter writes the rows
 // it lets through as it streams them, and a sort is an external merge
-// sort, runs of at most sortRunBytes sorted in memory and spilled to
-// files, then merged. Memory stays bounded whatever the row count; the
-// disk holds the runs and the order, about 8 bytes a row plus the keys.
-
-// sortRunBytes bounds the keys a sort holds in memory at once.
-var sortRunBytes = 64 << 20
+// sort (extsort.go) of each row's number and keys. Memory stays bounded
+// whatever the row count; the disk holds the runs and the order, about
+// 8 bytes a row plus the keys.
 
 // sortVal is one key of a row as a sort compares it: its kind's rank
 // (numbers, text, booleans, errors, then blanks), and its number or its
@@ -97,118 +92,42 @@ func compareRecs(a, b *sortRec, desc []bool) int {
 	return cmp.Compare(a.row, b.row)
 }
 
-// extSorter sorts rows by their keys in bounded memory.
-type extSorter struct {
-	dir   string
-	desc  []bool
-	recs  []sortRec
-	bytes int
-	runs  []string
-	limit int
-}
+// extSorter sorts a view's rows by their keys in bounded memory.
+type extSorter struct{ *extSort[sortRec] }
 
 func newExtSorter(dir string, desc []bool) *extSorter {
-	return &extSorter{dir: dir, desc: desc, limit: sortRunBytes}
+	keys := len(desc)
+	return &extSorter{newExtSort(dir, recCodec[sortRec]{
+		cmp:  func(a, b sortRec) int { return compareRecs(&a, &b, desc) },
+		size: (*sortRec).size,
+		put:  writeRec,
+		get:  func(r *bufio.Reader, rec *sortRec) error { return readRec(r, rec, keys) },
+	})}
 }
 
-// add takes a row's keys, spilling a run when memory is full.
+// add takes a row's keys.
 func (s *extSorter) add(row int64, keys []sheet.LiveCell) error {
 	r := sortRec{row: row, keys: make([]sortVal, len(keys))}
 	for i, k := range keys {
 		r.keys[i] = sortValOf(k.V)
 	}
-	s.recs = append(s.recs, r)
-	s.bytes += r.size()
-	if s.bytes >= s.limit {
-		return s.spill()
-	}
-	return nil
-}
-
-func (s *extSorter) sort() {
-	slices.SortFunc(s.recs, func(a, b sortRec) int { return compareRecs(&a, &b, s.desc) })
-}
-
-// spill sorts the rows in memory and writes them as a run.
-func (s *extSorter) spill() error {
-	s.sort()
-	f, err := os.CreateTemp(s.dir, "012-sort-*.run")
-	if err != nil {
-		return err
-	}
-	s.runs = append(s.runs, f.Name())
-	w := bufio.NewWriterSize(f, 1<<20)
-	for i := range s.recs {
-		writeRec(w, &s.recs[i])
-	}
-	err = errors.Join(w.Flush(), f.Close())
-	clear(s.recs)
-	s.recs, s.bytes = s.recs[:0], 0
-	return err
+	return s.extSort.add(r)
 }
 
 // finish writes the sorted rows' numbers to out and removes the runs.
 func (s *extSorter) finish(out io.Writer) (n int64, err error) {
-	defer s.remove()
-	if len(s.runs) == 0 {
-		s.sort()
-		for i := range s.recs {
-			if err := writeRow(out, s.recs[i].row); err != nil {
-				return n, err
-			}
-			n++
-		}
-		return n, nil
+	o, err := s.sorted()
+	if err != nil {
+		return 0, err
 	}
-	if len(s.recs) > 0 {
-		if err := s.spill(); err != nil {
-			return 0, err
-		}
-	}
-	return s.merge(out)
-}
-
-// remove deletes the runs.
-func (s *extSorter) remove() {
-	for _, name := range s.runs {
-		os.Remove(name)
-	}
-	s.runs = nil
-}
-
-// merge merges the runs into out.
-func (s *extSorter) merge(out io.Writer) (int64, error) {
-	h := &runHeap{desc: s.desc}
-	for _, name := range s.runs {
-		f, err := os.Open(name)
-		if err != nil {
-			h.close()
-			return 0, err
-		}
-		r := &runReader{f: f, r: bufio.NewReaderSize(f, 256<<10), keys: len(s.desc)}
-		if r.next() {
-			h.runs = append(h.runs, r)
-		} else {
-			f.Close()
-		}
-	}
-	defer h.close()
-	heap.Init(h)
-	var n int64
-	for h.Len() > 0 {
-		r := h.runs[0]
-		if err := writeRow(out, r.rec.row); err != nil {
+	defer o.close()
+	for r := o.next(); r != nil; r = o.next() {
+		if err := writeRow(out, r.row); err != nil {
 			return n, err
 		}
 		n++
-		if r.next() {
-			heap.Fix(h, 0)
-		} else {
-			r.f.Close()
-			heap.Pop(h)
-		}
 	}
-	return n, h.err()
+	return n, o.err()
 }
 
 func writeRow(w io.Writer, row int64) error {
@@ -236,39 +155,29 @@ func writeRec(w *bufio.Writer, r *sortRec) {
 	}
 }
 
-// runReader reads a run's records in order.
-type runReader struct {
-	f    *os.File
-	r    *bufio.Reader
-	keys int
-	rec  sortRec
-	fail error
-}
-
-// next reads the next record, false at the end or on an error.
-func (r *runReader) next() bool {
-	row, err := binary.ReadUvarint(r.r)
+// readRec reads a record of keys keys from a run, io.EOF at its end.
+func readRec(r *bufio.Reader, rec *sortRec, keys int) error {
+	row, err := binary.ReadUvarint(r)
 	if err != nil {
-		if !errors.Is(err, io.EOF) {
-			r.fail = err
-		}
-		return false
+		return err
 	}
-	r.rec.row = int64(row)
-	r.rec.keys = r.rec.keys[:0]
-	for range r.keys {
-		k, err := r.key()
+	rec.row = int64(row)
+	rec.keys = rec.keys[:0]
+	for range keys {
+		k, err := readKey(r)
 		if err != nil {
-			r.fail = err
-			return false
+			if errors.Is(err, io.EOF) {
+				err = io.ErrUnexpectedEOF
+			}
+			return err
 		}
-		r.rec.keys = append(r.rec.keys, k)
+		rec.keys = append(rec.keys, k)
 	}
-	return true
+	return nil
 }
 
-func (r *runReader) key() (sortVal, error) {
-	rank, err := r.r.ReadByte()
+func readKey(r *bufio.Reader) (sortVal, error) {
+	rank, err := r.ReadByte()
 	if err != nil {
 		return sortVal{}, err
 	}
@@ -276,58 +185,22 @@ func (r *runReader) key() (sortVal, error) {
 	switch rank {
 	case 0, 2:
 		var b [8]byte
-		if _, err := io.ReadFull(r.r, b[:]); err != nil {
+		if _, err := io.ReadFull(r, b[:]); err != nil {
 			return k, err
 		}
 		k.num = math.Float64frombits(binary.LittleEndian.Uint64(b[:]))
 	case 1, 3:
-		n, err := binary.ReadUvarint(r.r)
+		n, err := binary.ReadUvarint(r)
 		if err != nil {
 			return k, err
 		}
 		b := make([]byte, n)
-		if _, err := io.ReadFull(r.r, b); err != nil {
+		if _, err := io.ReadFull(r, b); err != nil {
 			return k, err
 		}
 		k.str = string(b)
 	}
 	return k, nil
-}
-
-// runHeap merges runs by their next record.
-type runHeap struct {
-	runs []*runReader
-	desc []bool
-	done []*runReader
-}
-
-func (h *runHeap) Len() int { return len(h.runs) }
-func (h *runHeap) Less(i, j int) bool {
-	return compareRecs(&h.runs[i].rec, &h.runs[j].rec, h.desc) < 0
-}
-func (h *runHeap) Swap(i, j int) { h.runs[i], h.runs[j] = h.runs[j], h.runs[i] }
-func (h *runHeap) Push(x any)    { h.runs = append(h.runs, x.(*runReader)) }
-func (h *runHeap) Pop() any {
-	r := h.runs[len(h.runs)-1]
-	h.runs = h.runs[:len(h.runs)-1]
-	h.done = append(h.done, r)
-	return r
-}
-
-// err is the first error a run met.
-func (h *runHeap) err() error {
-	for _, r := range append(h.done, h.runs...) {
-		if r.fail != nil {
-			return r.fail
-		}
-	}
-	return nil
-}
-
-func (h *runHeap) close() {
-	for _, r := range h.runs {
-		r.f.Close()
-	}
 }
 
 // rowFile is a view's rows as a file of row numbers in its order.

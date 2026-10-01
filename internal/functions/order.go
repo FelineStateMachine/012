@@ -37,6 +37,31 @@ type Sorter interface {
 	SortedNums(sheet string, r Rect) (Sorted, *Value)
 }
 
+// orderFuncs are the functions that read their numbers in order: from
+// every argument (true: MEDIAN, MODE) or from the first, the rest being
+// what to pick.
+var orderFuncs = map[string]bool{
+	"MEDIAN": true, "MODE": true, "MODE.SNGL": true, "LARGE": false, "SMALL": false,
+	"PERCENTILE": false, "PERCENTILE.INC": false, "PERCENTILE.EXC": false,
+	"QUARTILE": false, "QUARTILE.INC": false, "QUARTILE.EXC": false,
+}
+
+// sortsSource reports whether c is an order statistic of one range of a
+// source, its other arguments single values: the Book sorts that range
+// on disk, so it streams.
+func sortsSource(c StreamCall) bool {
+	all, ok := orderFuncs[c.Fn]
+	if !ok || len(c.Args) == 0 || c.Args[0].Sheet == "" || all && len(c.Args) > 1 {
+		return false
+	}
+	for _, a := range c.Args[1:] {
+		if a.Sheet != "" {
+			return false
+		}
+	}
+	return true
+}
+
 // held is numbers held in memory, sorted.
 type held struct {
 	x []posNum
