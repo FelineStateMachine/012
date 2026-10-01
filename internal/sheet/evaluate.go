@@ -61,7 +61,7 @@ func (w *Workbook) evaluate() {
 		s.version++
 		s.hidden.valid = false // values may have changed what the filter hides
 		s.calcGet = w.recalcReader(s, e, memo)
-		s.calcFmt = w.formatFrom(s)
+		s.calcFmt, s.calcPaged = w.formatFrom(s), s.calcGet.Paged
 	}
 	for _, s := range w.sheets {
 		for !e.sweep(s) {
@@ -71,7 +71,7 @@ func (w *Workbook) evaluate() {
 	for _, s := range w.sheets {
 		s.calcGet.read, s.calcGet.memo = nil, nil
 		s.calcGet.lib.Forget()
-		s.calc, s.calcGet, s.calcFmt = nil, nil, nil
+		s.calc, s.calcGet, s.calcFmt, s.calcPaged = nil, nil, nil, nil
 	}
 }
 
@@ -143,7 +143,7 @@ func (e *evaluator) formula(s *Sheet, a Addr, c *Cell) {
 		w.noteSpill(s, a, c, arr)
 	}
 	w.evaluating = outer
-	c.auto = functions.InferFormat(expr, s.calcFmt, s.calcGet.Paged)
+	c.auto = functions.InferFormat(expr, s.calcFmt, s.calcPaged)
 	w.depth--
 }
 

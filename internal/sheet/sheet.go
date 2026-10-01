@@ -99,6 +99,9 @@ type Sheet struct {
 	calc    map[Addr]int
 	calcGet *reader
 	calcFmt func(string, Addr) Format
+	// calcPaged reports whether a sheet is a linked source's tab, whose
+	// counts show as whole numbers.
+	calcPaged func(string) bool
 	// recalcs is calcGet kept between recalculations, so the buffers the
 	// function library reads ranges through are made once.
 	recalcs *reader

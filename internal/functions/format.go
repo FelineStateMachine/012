@@ -38,7 +38,6 @@ func IsVolatile(n Node) bool {
 // reports whether a sheet is a linked source's tab, whose counts show as
 // whole numbers with thousands separators.
 func InferFormat(n Node, at func(string, Addr) Format, paged func(string) bool) Format {
-	infer := func(n Node) Format { return InferFormat(n, at, paged) }
 	switch n := n.(type) {
 	case formula.Ref:
 		return at(n.Sheet, n.Addr)
@@ -46,10 +45,10 @@ func InferFormat(n Node, at func(string, Addr) Format, paged func(string) bool) 
 		return at(n.Sheet, n.Rect.From)
 	case formula.Unary:
 		if n.Op == "-" || n.Op == "+" {
-			return infer(n.X)
+			return InferFormat(n.X, at, paged)
 		}
 	case formula.Binary:
-		l, r := infer(n.L), infer(n.R)
+		l, r := InferFormat(n.L, at, paged), InferFormat(n.R, at, paged)
 		switch n.Op {
 		case "+", "-":
 			if n.Op == "-" && l.Kind.IsTime() && r.Kind.IsTime() {
@@ -68,10 +67,10 @@ func InferFormat(n Node, at func(string, Addr) Format, paged func(string) bool) 
 			return wholeNumber
 		}
 		if f.format != nil {
-			return f.format(n.Args, infer)
+			return f.format(n.Args, func(n Node) Format { return InferFormat(n, at, paged) })
 		}
 	case formula.Array:
-		return infer(n.Rows[0][0])
+		return InferFormat(n.Rows[0][0], at, paged)
 	}
 	return Format{}
 }
