@@ -21,29 +21,34 @@ run: build
 dist:
 	VERSION=$(VERSION) scripts/dist.sh
 
+# Unit tests, all but the timed ones, which run alone in make speed.
 test:
-	STRESS_DIR=$(DEPS)/stress go test ./...
+	STRESS_DIR=$(DEPS)/stress go test -skip '^($(TIMED_UI)|$(TIMED_NBVIEW))$$' ./...
 
-# Everything that must pass before a push: lint, unit tests, the speed gate, the
-# excelize oracle and the end-to-end tests in libghostty.
-check:
-	$(MAKE) lint
-	STRESS_DIR=$(DEPS)/stress go test ./...
-	$(MAKE) speed
-	$(MAKE) oracle
-	$(MAKE) e2e
+# Everything that must pass before a push: lint, unit tests, the excelize
+# oracle and the end-to-end tests in libghostty at once, then the speed
+# gate and timed tests alone (scripts/check.sh).
+check: $(GHOSTTY_STAMP)
+	@scripts/check.sh
 
 # gofmt, vet (with the stress benchmarks), staticcheck, shape limits and
 # the docs checks, at once.
 lint:
 	scripts/lint.sh
 
+# Tests that time frames against fixed bounds: make test skips them and
+# make speed runs them alone, as the speed gate.
+TIMED_UI     := TestSpeed|TestSharedEditWithinAFrame|TestStreamGridAtFrameSpeed
+TIMED_NBVIEW := TestScrollsAtFrameSpeed
+
 # The speed gate: frames and recalculation on mid-sized sheets against
-# internal/ui/testdata/speed.json, in about two seconds, alone so that
-# no other package's tests share the CPU. speed-update rewrites the
-# baseline. See docs/contributing/limits.md#the-speed-gate.
+# internal/ui/testdata/speed.json, in about two seconds, and the tests
+# that time frames, alone so that no other tests share the CPU.
+# speed-update rewrites the baseline. See
+# docs/contributing/limits.md#the-speed-gate.
 speed:
-	go test ./internal/ui -run '^TestSpeed$$' -count=1 -speed
+	go test ./internal/ui -run '^($(TIMED_UI))$$' -count=1 -speed
+	go test ./internal/ui/nbview -run '^($(TIMED_NBVIEW))$$' -count=1
 
 speed-update:
 	go test ./internal/ui -run '^TestSpeed$$' -count=1 -speed-update -v
