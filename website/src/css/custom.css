@@ -287,6 +287,42 @@ html:has([data-control-panel]) .navbar .mode-chip {
   display: none;
 }
 
+/* The sections fit beside the search box down to the width the navbar
+   collapses at: links a little tighter, and the indicator only where
+   there's room for it too. */
+.navbar__items .navbar__item {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 1279px) {
+  .navbar .mode-chip {
+    display: none;
+  }
+
+  .navbar__items .navbar__item {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+
+  .navbar__link {
+    font-size: 0.82rem;
+  }
+
+  .navbar__search-input {
+    width: 10rem;
+  }
+}
+
+/* The landing page's control panel lists the sections in its menu bar,
+   so the navbar leaves them to it wherever both would show. */
+@media (min-width: 997px) {
+  html:has([data-control-panel]) .navbar__items:not(.navbar__items--right) > .navbar__item {
+    display: none;
+  }
+}
+
 .mode-chip {
   font-family: var(--font-mono);
   font-weight: 600;

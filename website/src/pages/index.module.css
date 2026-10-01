@@ -117,28 +117,11 @@
 
 .title {
   font-family: var(--font-mono);
-  font-size: clamp(4.5rem, 11vw, 8.5rem);
+  font-size: clamp(2.2rem, 4.4vw, 3.4rem);
   font-weight: 600;
-  line-height: 0.9;
-  letter-spacing: -0.04em;
-  margin: 0 0 1.4rem;
-}
-
-.titleCursor {
-  display: inline-block;
-  width: 0.4em;
-  height: 0.7em;
-  margin-left: 0.08em;
-  background: var(--role-accent-bg);
-  animation: blink 1.1s steps(1) infinite;
-}
-
-.lede {
-  font-family: var(--font-mono);
-  font-size: 1.5rem;
-  font-weight: 500;
-  line-height: 1.3;
-  margin: 0 0 1rem;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0 0 1.2rem;
 }
 
 .sub {
@@ -431,8 +414,7 @@
     animation: none;
   }
 
-  .cursor,
-  .titleCursor {
+  .cursor {
     animation: none;
   }
 }

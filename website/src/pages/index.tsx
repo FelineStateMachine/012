@@ -16,9 +16,11 @@ type Cell = {
   to: string;
 };
 
+// The control panel at rest: the pointer on A1, whose entry is a link to
+// the guides, as a cell in 012 holds one.
 const home: Cell = {
   addr: 'A1',
-  entry: "'012",
+  entry: '=HYPERLINK("/docs/getting-started/", "Get started")',
   hint: 'Hover a cell, or Tab through them. F1 opens the guides.',
   title: '',
   body: '',
@@ -76,14 +78,17 @@ const cells: Cell[] = [
   },
 ];
 
+// The menu bar lists the navbar's sections, in its order: on this page
+// it stands in for them (custom.css hides the navbar's at widths where
+// both would show).
 const menu: {label: string; to: string}[] = [
-  {label: 'Docs', to: '/docs/'},
-  {label: 'Install', to: '/docs/getting-started/install/'},
-  {label: 'Formulas', to: '/docs/formulas/'},
+  {label: 'Getting started', to: '/docs/getting-started/'},
   {label: 'Sheets', to: '/docs/sheets/'},
+  {label: 'Formulas', to: '/docs/formulas/'},
   {label: 'Files', to: '/docs/files/'},
-  {label: 'Terminal', to: '/docs/terminal/'},
   {label: 'Nushell', to: '/docs/nushell/'},
+  {label: 'Agents', to: '/docs/agents/'},
+  {label: 'Terminal', to: '/docs/terminal/'},
   {label: 'Reference', to: '/docs/reference/'},
 ];
 
@@ -121,10 +126,7 @@ function Hero() {
   return (
     <section className={styles.hero}>
       <div className={styles.heroText}>
-        <h1 className={styles.title}>
-          012<span className={styles.titleCursor} aria-hidden="true" />
-        </h1>
-        <p className={styles.lede}>A spreadsheet for the terminal.</p>
+        <h1 className={styles.title}>A spreadsheet for the terminal.</h1>
         <p className={styles.sub}>
           The control panel, the mode indicator and the character grid of Lotus 1-2-3. Inside the grid, Google
           Sheets: typing replaces a cell, <code>=</code> starts a formula, Enter and Tab move you on, and Sheets'

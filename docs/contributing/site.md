@@ -114,6 +114,10 @@ The landing page (`website/src/pages/index.tsx`) is drawn as a 012
 screen: a control panel with the mode indicator, the recording in an
 overlay frame, the features as cells of a sheet (the one under the
 pointer shows its entry in the control panel), and a status line. The
+navbar lists the docs' sections by folder, with the reference pages in
+a menu (`website/docusaurus.config.ts`); the control panel's menu bar
+lists the same sections, so on the landing page the navbar leaves them
+to it. The
 colors in `website/src/css/custom.css` are the reference palettes of the
 golden screens, given the roles the app gives them: cyan where you are,
 bright black header bands, blue links and selection. Code, headings and
