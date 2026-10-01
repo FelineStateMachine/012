@@ -129,8 +129,8 @@ const errorBoxWidth = 48
 
 func (b *errorBox) Indicator() string { return "HELP" }
 
-// Layout places the box as a note's: right of the cell, or left of it
-// when there's no room, wrapped to its width.
+// Layout wraps the explanation to the box's width and places the box
+// as a note's (besideCell), or at the grid's top left on a source's tab.
 func (b *errorBox) Layout() []overlay.Box {
 	m := b.m
 	inner := min(errorBoxWidth, m.width-2)
@@ -143,13 +143,7 @@ func (b *errorBox) Layout() []overlay.Box {
 	if !b.beside {
 		return []overlay.Box{{ID: errorBoxID, X: 0, Y: gridTop, Lines: framed}}
 	}
-	x, y := m.cellPos(b.at)
-	x += m.sheet.ColWidth(b.at.Col)
-	if x+inner+2 > m.width {
-		x = max(x-m.sheet.ColWidth(b.at.Col)-inner-2, 0)
-	}
-	x, y = m.clampBox(x, y, inner+2, len(framed)+1) // above the status line
-	return []overlay.Box{{ID: errorBoxID, X: x, Y: max(y, gridTop), Lines: framed}}
+	return []overlay.Box{m.besideCell(errorBoxID, b.at, framed)}
 }
 
 // Key closes the box, and a key that moves or runs a command does so

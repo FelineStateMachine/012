@@ -126,14 +126,22 @@ func (m *Model) noteBox() (overlay.Box, bool) {
 	for i, line := range wrapped {
 		rows[i] = m.th.MenuBar.Render(theme.PadRight(" "+strings.TrimRight(line, " "), inner))
 	}
-	lines := m.th.Frame(inner, "Note", "", rows)
-	x, y := m.cellPos(h.addr)
-	x += m.sheet.ColWidth(h.addr.Col)
-	if x+inner+2 > m.width { // no room on the right: the left side
-		x = max(x-m.sheet.ColWidth(h.addr.Col)-inner-2, 0)
+	return m.besideCell(noteBoxID, h.addr, m.th.Frame(inner, "Note", "", rows)), true
+}
+
+// besideCell places a framed box beside the cell at a, its top on the
+// cell's row: right of the cell, or left of it when there's no room,
+// moved up as far as it must to stay above the status line, and never
+// over the column headers.
+func (m *Model) besideCell(id string, a sheet.Addr, lines []string) overlay.Box {
+	w := ansi.StringWidth(lines[0])
+	x, y := m.cellPos(a)
+	x += m.sheet.ColWidth(a.Col)
+	if x+w > m.width { // no room on the right: the left side
+		x = max(x-m.sheet.ColWidth(a.Col)-w, 0)
 	}
-	x, y = m.clampBox(x, y, inner+2, len(lines))
-	return overlay.Box{ID: noteBoxID, X: x, Y: max(y, gridTop), Lines: lines}, true
+	x, y = m.clampBox(x, y, w, len(lines)+1) // the status line's row stays clear
+	return overlay.Box{ID: id, X: x, Y: max(y, gridTop), Lines: lines}
 }
 
 const noteBoxID = "note"

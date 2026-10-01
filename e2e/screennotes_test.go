@@ -43,6 +43,17 @@ var noteScreens = []screen{
 		s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonUnknown, 6+10+4, gridRow1+2, 0)
 		s.waitFor("┌─ Note ─")
 	}},
+	{name: "note-hover-bottom", opts: options{cols: 60, rows: 16}, setup: func(s *session) {
+		// A note on the last row shown: the box moves up, clear of the
+		// status line.
+		s.keys("<f5>", "B11", "<enter>", "<shift+f2>")
+		s.waitFor("Note on B11:")
+		s.keys("Checked against", "<alt+enter>", "the bank statement", "<alt+enter>", "on the 3rd", "<enter>")
+		s.waitFor("Note  Checked against")
+		s.keys("<ctrl+home>")
+		s.mouse(ghostty.MouseActionMotion, ghostty.MouseButtonUnknown, 6+10+4, gridRow1+10, 0)
+		s.waitFor("┌─ Note ─")
+	}},
 	{name: "protect-warning", setup: func(s *session) {
 		protectedBudget(s)
 		s.keys("<esc>", "<down>", "100")
@@ -61,7 +72,7 @@ var noteScreens = []screen{
 }
 
 func init() {
-	light := map[string]bool{"note": true, "note-hover": true, "protect-warning": true}
+	light := map[string]bool{"note": true, "note-hover": true, "note-hover-bottom": true, "protect-warning": true}
 	for _, sc := range noteScreens {
 		screens = append(screens, sc)
 		if light[sc.name] {
