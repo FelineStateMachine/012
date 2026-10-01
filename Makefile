@@ -24,21 +24,18 @@ dist:
 test:
 	STRESS_DIR=$(DEPS)/stress go test ./...
 
-# Everything that must pass before a push: formatting, vet (also with the
-# stress benchmarks), shape limits, unit tests, the speed gate, the
+# Everything that must pass before a push: lint, unit tests, the speed gate, the
 # excelize oracle and the end-to-end tests in libghostty.
 check:
-	@test -z "$$(gofmt -l cmd internal demos e2e oracle)" || { gofmt -l cmd internal demos e2e oracle; echo "gofmt: files above need formatting"; exit 1; }
-	go vet -tags stress ./...
 	$(MAKE) lint
 	STRESS_DIR=$(DEPS)/stress go test ./...
 	$(MAKE) speed
 	$(MAKE) oracle
 	$(MAKE) e2e
 
-# Code shape limits: cognitive complexity and file length.
+# gofmt, vet (with the stress benchmarks), staticcheck, shape limits and
+# the docs checks, at once.
 lint:
-	go vet ./...
 	scripts/lint.sh
 
 # The speed gate: frames and recalculation on mid-sized sheets against
