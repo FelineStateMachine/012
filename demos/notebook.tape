@@ -6,6 +6,7 @@
 # cells run with Esc then r. Needs nu on the PATH.
 Output out/notebook.gif
 Source lib/setup.tape
+Set Theme "tokyonight"
 
 Hide
 Type "../bin/012 nu" Enter

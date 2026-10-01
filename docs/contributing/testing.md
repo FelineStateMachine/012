@@ -213,7 +213,9 @@ service one question of each kind, using `TYPESAFE_API_KEY`.
 recordings and stills the README and the docs show. `make demos` renders
 all of them (or `make demos DEMOS=jev` for one) into `demos/out/`: full
 GIFs, PNG stills of key moments in `demos/out/stills/`, and smaller GIFs
-in `demos/out/media/`. It needs vhs 0.12+, ttyd and ffmpeg. The JEV tape
+in `demos/out/media/`. It needs vhs 0.12+, ttyd and ffmpeg, and installs
+the pictures' font if it's missing; each tape's color scheme follows the
+pages that show it ([Font and colors](site.md#font-and-colors)). The JEV tape
 talks to `demos/fakejev`, a local stand-in the target starts on
 127.0.0.1, never the real service. On macOS, `demos/lib/ttyd` wraps ttyd
 so Alt+letter reaches the app. VHS has no mouse commands, so the tapes

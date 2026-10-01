@@ -3,6 +3,7 @@
 # presets, and a SUM of currency is currency too.
 Output out/formats.gif
 Source lib/setup.tape
+Set Theme "rose-pine-dawn"
 
 Hide
 Type "../bin/012 data/spending.csv" Enter

@@ -5,6 +5,7 @@
 # on the PATH.
 Output out/pipeline.gif
 Source lib/setup.tape
+Set Theme "tokyonight"
 Source lib/nu.tape
 Hide
 Type "^012 nu --install-module ../bin/012.nu" Enter

@@ -4,6 +4,7 @@
 # service that `make demos` starts; no real key is involved.
 Output out/jev.gif
 Source lib/setup.tape
+Set Theme "GruvboxDark"
 
 Hide
 Type "export TYPESAFE_API_KEY=demo TYPESAFE_BASE_URL=http://127.0.0.1:8799" Enter

@@ -4,6 +4,7 @@
 # terminal (ttyd) sends Shift+Enter as Enter. Needs nu on the PATH.
 Output out/nu-recipe.gif
 Source lib/setup.tape
+Set Theme "tokyonight"
 
 Hide
 Type "../bin/012 nu" Enter

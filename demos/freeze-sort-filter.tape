@@ -3,6 +3,7 @@
 # values; the status line counts the hidden rows.
 Output out/freeze-sort-filter.gif
 Source lib/setup.tape
+Set Theme "Github"
 
 Hide
 Type "../bin/012 data/inventory.csv" Enter

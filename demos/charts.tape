@@ -4,6 +4,7 @@
 # image; VHS records only the text layer, so this shows the text chart under it.
 Output out/charts.gif
 Source lib/setup.tape
+Set Theme "Github"
 
 Hide
 Type "../bin/012 data/spending.csv" Enter

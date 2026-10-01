@@ -12,6 +12,9 @@
 //     screen (e2e/stills_test.go), and no GIF is over maxGIF;
 //   - every tape in demos/ records something a doc shows, and every
 //     still is shown, its dark and light pictures together;
+//   - every page showing a picture is in one of the pictures' color
+//     families, and the stills and recordings it shows are in that
+//     family's schemes (families.go);
 //   - every docs page the site has published is still a page, or has a
 //     redirect from its address in website/redirects.json (redirects.go).
 //
@@ -232,6 +235,7 @@ func checkMedia(docs map[string]*doc) []string {
 	madeBy := map[string]string{} // media file name -> the tape or stills list
 	out := tapeMedia(shown, madeBy)
 	out = append(out, stillMedia(shown, madeBy)...)
+	out = append(out, checkFamilies(shown)...)
 	media, _ := filepath.Glob("docs/media/*")
 	for _, m := range media {
 		m = filepath.ToSlash(m)

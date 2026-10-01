@@ -116,8 +116,9 @@ overlay frame, the features as cells of a sheet (the one under the
 pointer shows its entry in the control panel), and a status line. The
 colors in `website/src/css/custom.css` are the reference palettes of the
 golden screens, given the roles the app gives them: cyan where you are,
-bright black header bands, blue links and selection. Headings and chrome
-are IBM Plex Mono, body text IBM Plex Sans, both bundled with the site.
+bright black header bands, blue links and selection. Code, headings and
+chrome are JetBrains Mono, bundled with the site, the font of every
+[picture of 012](#font-and-colors); body text is the system's own sans.
 
 ## Diagrams
 
@@ -157,17 +158,19 @@ grid's column headers).
 
 A still is a [golden screen](testing.md#golden-screens) drawn as a PNG.
 Each is an entry of `docScreens` in `e2e/stills_test.go`: its name,
-the screen whose setup it records, and a terminal size that reads on a
-page (80 columns, unless the state needs more). `make screens` records
-it on a dark and a light terminal and draws both into `docs/media`:
+the screen whose setup it records, a terminal size that reads on a
+page (80 columns, unless the state needs more) and the
+[family](#font-and-colors) of the pages that show it. `make screens`
+records it on a dark and a light terminal and draws both into
+`docs/media`, in the family's dark and light schemes:
 
 ```go
-{name: "evaluate", from: "evaluate", cols: 80, rows: 12},
+{name: "evaluate", from: "evaluate", cols: 80, rows: 12, family: "Catppuccin"},
 // docs/media/evaluate-dark.png and docs/media/evaluate-light.png
 ```
 
-The drawing is Go (`e2e/stilldraw_test.go`): the golden's cells in the
-[reference palettes](testing.md#golden-screens), text in Go Mono, and
+The drawing is Go (`e2e/stilldraw_test.go`): the golden's cells in its
+page's [color schemes](#font-and-colors), text in JetBrains Mono, and
 box drawing, blocks, braille and the chrome's symbols drawn as a
 terminal draws them, so frames join and every machine draws the same
 picture. Each PNG records which golden it was drawn from, and
@@ -192,3 +195,54 @@ one color mode; `custom.css` shows the site's the same way:
   ([Demo recordings](testing.md#demo-recordings)).
 - `scripts/doccheck` fails on a still no page shows, or one shown
   without its other color mode.
+
+## Font and colors
+
+Every picture of 012 is set in one font, JetBrains Mono: the
+recordings, the stills, and the site's code and terminal frames. It is
+VHS's and Ghostty's default, so the pictures look like the terminals
+people use; it reads well small, its italic isn't cursive, and the SIL
+Open Font License lets it be bundled. The site's comes from
+`@fontsource/jetbrains-mono`, and the stills and recordings use the
+TTFs in `e2e/testdata/fonts` (licence in `NOTICE`). VHS's browser draws
+with the fonts the system or the page gives it, so `make demos` serves
+ttyd's own page with the font added (`demos/lib/font-page`) and the
+recordings need nothing installed. Box drawing and blocks are drawn as
+shapes in both, by xterm.js in the recordings and by the stills'
+drawing, so frames join whatever the font.
+
+The pictures' colors are a few terminal color schemes people know, in
+families of a dark and a light scheme, so the docs don't all look alike
+while each picture stays plainly 012. Each page is in one family:
+
+| Family | Dark | Light | Pages |
+|---|---|---|---|
+| Catppuccin | `Catppuccin Mocha` | `Catppuccin Latte` | `getting-started/`, `contributing/`, `reference/`, `formulas/tracing.md` |
+| Tokyo Night | `tokyonight` | `tokyonight-day` | `nushell/` |
+| Rosé Pine | `rose-pine` | `rose-pine-dawn` | `sheets/rules.md`, `sheets/formatting.md`, `sheets/tables.md` |
+| GitHub | `GitHub Dark` | `Github` | `sheets/` |
+| Gruvbox | `GruvboxDark` | `Gruvbox Light` | `files/`, `formulas/` |
+| Nord | `nord` | `nord-light` | `agents/`, `terminal/` |
+
+- A page is in the family that names it, or else the one naming its
+  deepest folder. Its stills are drawn in the family's dark and light
+  schemes, and its recordings use either one (`Set Theme` in the tape,
+  or `demos/lib/setup.tape`'s). The README and the landing page, a tour
+  of every topic, show each recording as its own page does.
+- `scripts/doccheck` fails on a page showing a picture in no family,
+  and on a still or a tape in a family other than its pages'.
+- A family is a restrained, widely used scheme with both a dark and a
+  light variant: no neon or high-saturation schemes. Its schemes are
+  named as in 012's built-in list (`internal/ui/theme/themes.json`,
+  VHS's own list, so `Set Theme` takes the same names), and
+  `TestPictureSchemes` (`internal/ui/theme`) holds each to readable
+  contrast: its text on its background at least 4.5:1, and 012's roles
+  drawn in it (header bands, the selection, the pointer, muted text)
+  at their minimums.
+- The recordings run 012 with its theme set to the tape's scheme
+  (`make demos` sets `O12_THEME` from `Set Theme`), so 012's roles get
+  the scheme's colors with their contrast held, as for anyone who picks
+  that scheme. A still draws its golden's palette colors in the scheme
+  and holds each cell to the same minimums (4.5:1 for text, 3:1 for
+  lines and muted text, 2:1 for faint text), moving the text toward the
+  scheme's text color as 012 does, so it stays drawn from the golden.

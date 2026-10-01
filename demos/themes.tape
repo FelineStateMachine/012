@@ -4,6 +4,7 @@
 # would keep it in the config file).
 Output out/themes.gif
 Source lib/setup.tape
+Set Theme "nord"
 
 Hide
 Type "../bin/012 data/spending.csv" Enter

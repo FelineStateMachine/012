@@ -4,6 +4,7 @@
 # formulas. The values don't change; the file stores the same thing.
 Output out/locale.gif
 Source lib/setup.tape
+Set Theme "Github"
 
 Hide
 Type "../bin/012" Enter

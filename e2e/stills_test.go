@@ -18,39 +18,42 @@ import (
 // Stills are pictures of 012 for the docs, drawn from golden screens:
 // each docScreen is recorded again from another screen's setup, on a
 // terminal the size a page shows well, dark and light, and drawn in its
-// reference palette to docs/media/<name>-dark.png and <name>-light.png.
-// `make screens` records and draws them; `make e2e` fails when a
-// still wasn't drawn from its golden as it is.
+// family's dark and light schemes (stillthemes_test.go) to
+// docs/media/<name>-dark.png and <name>-light.png. The family is the one
+// the pages showing it are in (scripts/doccheck checks it). `make
+// screens` records and draws them; `make e2e` fails when a still wasn't
+// drawn from its golden as it is.
 type docScreen struct {
 	name, from string // docs/media/<name>-*.png; the screen whose setup it records
 	cols, rows uint16
+	family     string // a row of the families table in docs/contributing/site.md
 }
 
 var docScreens = []docScreen{
-	{name: "trace-view", from: "trace-view", cols: 80, rows: 14},
-	{name: "evaluate", from: "evaluate", cols: 80, rows: 12},
-	{name: "rules-bars", from: "rules-bars", cols: 80, rows: 12},
-	{name: "rules-panel", from: "rules-panel", cols: 100, rows: 12},
-	{name: "table", from: "table", cols: 80, rows: 13},
-	{name: "layout", from: "layout", cols: 80, rows: 28},
-	{name: "palette", from: "palette", cols: 80, rows: 18},
-	{name: "notebook-cells", from: "notebook-cells", cols: 80, rows: 26},
-	{name: "notebook-nu-error", from: "notebook-nu-error", cols: 80, rows: 16},
-	{name: "notebook-nu-hover", from: "notebook-nu-hover", cols: 100, rows: 16},
-	{name: "notebook-nu-help", from: "notebook-nu-help", cols: 100, rows: 24},
-	{name: "notebook-grid", from: "notebook-grid", cols: 80, rows: 24},
-	{name: "share-presence", from: "share-presence", cols: 80, rows: 13},
-	{name: "live-suggestion", from: "live-suggestion", cols: 80, rows: 12},
-	{name: "live-review", from: "live-review", cols: 100, rows: 12},
-	{name: "live-ask", from: "live-ask", cols: 80, rows: 10},
-	{name: "source-tab", from: "source-tab", cols: 80, rows: 20},
-	{name: "source-formulas", from: "source-formulas", cols: 80, rows: 14},
-	{name: "source-formulas-why", from: "source-formulas-why", cols: 80, rows: 19},
+	{name: "trace-view", from: "trace-view", cols: 80, rows: 14, family: "Catppuccin"},
+	{name: "evaluate", from: "evaluate", cols: 80, rows: 12, family: "Catppuccin"},
+	{name: "rules-bars", from: "rules-bars", cols: 80, rows: 12, family: "Rosé Pine"},
+	{name: "rules-panel", from: "rules-panel", cols: 100, rows: 12, family: "Rosé Pine"},
+	{name: "table", from: "table", cols: 80, rows: 13, family: "Rosé Pine"},
+	{name: "layout", from: "layout", cols: 80, rows: 28, family: "Rosé Pine"},
+	{name: "palette", from: "palette", cols: 80, rows: 18, family: "Catppuccin"},
+	{name: "notebook-cells", from: "notebook-cells", cols: 80, rows: 26, family: "Tokyo Night"},
+	{name: "notebook-nu-error", from: "notebook-nu-error", cols: 80, rows: 16, family: "Tokyo Night"},
+	{name: "notebook-nu-hover", from: "notebook-nu-hover", cols: 100, rows: 16, family: "Tokyo Night"},
+	{name: "notebook-nu-help", from: "notebook-nu-help", cols: 100, rows: 24, family: "Tokyo Night"},
+	{name: "notebook-grid", from: "notebook-grid", cols: 80, rows: 24, family: "Tokyo Night"},
+	{name: "share-presence", from: "share-presence", cols: 80, rows: 13, family: "Nord"},
+	{name: "live-suggestion", from: "live-suggestion", cols: 80, rows: 12, family: "Nord"},
+	{name: "live-review", from: "live-review", cols: 100, rows: 12, family: "Nord"},
+	{name: "live-ask", from: "live-ask", cols: 80, rows: 10, family: "Nord"},
+	{name: "source-tab", from: "source-tab", cols: 80, rows: 20, family: "Gruvbox"},
+	{name: "source-formulas", from: "source-formulas", cols: 80, rows: 14, family: "Gruvbox"},
+	{name: "source-formulas-why", from: "source-formulas-why", cols: 80, rows: 19, family: "Gruvbox"},
 }
 
 // stillsVersion changes when the drawing does, so every still is
 // drawn again.
-const stillsVersion = "1"
+const stillsVersion = "2"
 
 // addDocScreens adds the docs' screens, docs-<name> and
 // docs-<name>-light, to the golden screens once every screen they're
@@ -79,18 +82,33 @@ func TestStills(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fams, err := pictureFamilies()
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemes, err := loadSchemes()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, d := range docScreens {
-		for _, v := range []struct {
-			suffix string
-			p      stillPalette
-		}{{"dark", darkStill}, {"light", lightStill}} {
+		fam, ok := fams[d.family]
+		if !ok {
+			t.Errorf("still %s: no family %q in %s", d.name, d.family, familiesDoc)
+			continue
+		}
+		for _, v := range []struct{ suffix, scheme string }{{"dark", fam.dark}, {"light", fam.light}} {
+			p, ok := schemes[v.scheme]
+			if !ok {
+				t.Errorf("family %s: no scheme %q in %s", d.family, v.scheme, schemesFile)
+				continue
+			}
 			screen := "docs-" + d.name
 			if v.suffix == "light" {
 				screen += "-light"
 			}
 			t.Run(d.name+"-"+v.suffix, func(t *testing.T) {
 				path := filepath.Join("..", "docs", "media", d.name+"-"+v.suffix+".png")
-				checkStill(t, screen, int(d.cols), int(d.rows), v.p, faces, path)
+				checkStill(t, screen, int(d.cols), int(d.rows), p, faces, path)
 			})
 		}
 	}

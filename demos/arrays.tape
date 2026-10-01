@@ -4,6 +4,7 @@
 # spilled value comes from.
 Output out/arrays.gif
 Source lib/setup.tape
+Set Theme "GruvboxDark"
 
 Hide
 Type "../bin/012 data/sales.csv" Enter

@@ -4,6 +4,7 @@
 # (Ctrl+G) selects the ranges.
 Output out/layout.gif
 Source lib/setup.tape
+Set Theme "rose-pine-dawn"
 
 Hide
 Type "../bin/012 data/trip.012" Enter

@@ -6,6 +6,7 @@
 # back only his own change. Needs tmux, ssh and ssh-keygen.
 Output out/share.gif
 Source lib/setup.tape
+Set Theme "nord"
 Set Width 1300
 Set Height 900
 
