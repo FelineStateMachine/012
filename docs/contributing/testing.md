@@ -6,17 +6,38 @@ sidebar_position: 5
 # Testing
 
 ```sh
-make check    # all of the below that must pass before a push: gofmt, vet, lint, test, speed, oracle, e2e
-make lint     # go vet, staticcheck, cognitive complexity at most 25, Go files at most 500 lines, doclint and doccheck (see Docs below)
-make test     # engine, file formats and UI unit tests
+make check    # all of the below that must pass before a push: lint, test, oracle, e2e, then speed
+make quick    # lint and tests of what changed, for iterating (see Checking a change below)
+make lint     # gofmt, go vet, staticcheck, cognitive complexity at most 25, Go files at most 500 lines, doclint and doccheck (see Docs below)
+make test     # engine, file formats and UI unit tests, but for the timed ones
 make fuzz     # fuzz the formula parser, random edits, and the .012, CSV, .wk1, XLSX and NUON readers
-make speed    # frames and recalculation against a checked-in baseline (see limits.md)
+make speed    # frames and recalculation against a checked-in baseline, and the tests that time frames (see limits.md)
 make oracle   # compare formulas and number formats with excelize
 make e2e      # run the real binary in a terminal emulator (needs Zig and pkg-config)
 make screens  # rewrite the golden screens and build the review gallery
 make stress   # benchmarks on synthetic and real data (see limits.md)
 make site     # build the docs site, failing on broken links (needs Node; see site.md)
 ```
+
+## Checking a change
+
+`make quick` is for iterating. It runs `make lint`'s Go checks and the
+unit tests of the packages changed since the branch left main,
+committed or not (`PKGS='./internal/sheet ./internal/ui/...'` names
+others), the oracle when it changed, and the e2e tests and golden
+screens defined in the e2e files that changed: all of e2e when the
+harness changed, or with `E2E=1`. It can't tell which e2e tests a change
+to `internal/` reaches; `make check` runs them all.
+
+`make check` is what must pass before a push. Run it once, at the end,
+not after every edit while iterating. It runs `make lint`, `make test`,
+`make oracle` and `make e2e` at once, each into a log of its own that
+it prints whole with the time it ended, then `make speed` on its own:
+the speed gate and the tests that time frames against fixed bounds
+(`TestSharedEditWithinAFrame`, `TestStreamGridAtFrameSpeed`,
+`TestScrollsAtFrameSpeed`), which `make test` leaves out so that no
+other tests share the CPU while they time. It takes about half a
+minute on an M5 Pro, most of it the e2e tests.
 
 ## Unit tests
 
@@ -120,6 +141,14 @@ agent reads, suggests and asks, and the person accepts in the grid;
 live mode's screens attach it first (`screen.live`). Live mode's unit
 tests (`internal/cowork`) attach the SDK's client over the socket.
 
+Each test and each golden screen calls `t.Parallel`, so `make e2e` runs
+as many sessions at once as Go runs tests (`GOMAXPROCS`): every session
+is its own process and pseudo-terminal, in its own temporary directory
+with its own config and fake services. A test that shares something
+with others, or times keys (`TestStressKeyLatency`), leaves it out. On a
+machine this busy a frame can come late, so a test waits for what it
+checks (`waitFor`, `eventually`) and never sleeps for it.
+
 `make e2e` builds libghostty-vt from source with Zig into `.deps/` on first
 use. It is its own Go module so cgo never reaches the main binary.
 
@@ -129,7 +158,10 @@ use. It is its own Go module so cgo never reaches the main binary.
 cell grid (colors as palette variables, so one golden serves every theme),
 with light-terminal variants. The states are listed in
 `e2e/screenlist_test.go`, with the fixtures they share in
-`e2e/screensetup_test.go`. `make screens` rewrites them and builds
+`e2e/screensetup_test.go`. A screen is captured once it holds still
+and shows its golden, or once it has held still for five seconds without
+showing it: part of a screen can come after it first holds still, such
+as nu's highlighting on a busy machine. `make screens` rewrites them and builds
 `e2e/testdata/screens/gallery.html` with dark and light reference palettes.
 Every visual change is reviewed there before it's committed. It also
 draws the docs' stills, the screens `docScreens` lists, into
@@ -272,6 +304,7 @@ fail when they're stale.
 
 ## No broken windows
 
-`make check` must pass before a push, and warnings are fixed or turned
-off with a written reason rather than left standing. The rules are in
+`make check` must pass before a push ([Checking a change](#checking-a-change)),
+and warnings are fixed or turned off with a written reason rather than
+left standing. The rules are in
 [CLAUDE.md](../../CLAUDE.md).

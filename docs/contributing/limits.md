@@ -733,7 +733,9 @@ too, well inside the margin; the margins are for regressions of a
 multiple, and finer ones are what `make stress-report` is for.
 
 The gate runs alone (`go test ./...` skips `TestSpeed` without
-`-speed`), and while it times it holds `/tmp/012-bench.lock`, the lock
+`-speed`), after the rest of `make check`, with the tests that time
+frames against fixed bounds, which `make test` leaves to it
+([Checking a change](testing.md#checking-a-change)). While it times it holds `/tmp/012-bench.lock`, the lock
 other timed runs on the machine take: with flock(2) when the path is a
 file (`flock /tmp/012-bench.lock make stress` where the `flock` command
 exists), and otherwise as a directory it makes and removes, which needs

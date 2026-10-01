@@ -12,6 +12,8 @@ Noise that stays becomes invisible, and then real problems hide in it.
   (staticcheck in every module, doclint, doccheck, cognitive complexity
   at most 25, Go files at most 500 lines), unit tests, the excelize oracle and the
   libghostty e2e tests. A red check is fixed first, not worked around.
+  Run it once, at the end, not repeatedly while iterating: `make quick`
+  checks just what changed ([testing](docs/contributing/testing.md#checking-a-change)).
 - A warning is fixed where it points, or turned off in its tool's config
   with the reason written next to it (`staticcheck.conf`). Nothing is left
   standing because "it's always been there".
