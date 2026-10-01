@@ -125,6 +125,16 @@ function ControlPanel({cell, pointing}: {cell: Cell; pointing: boolean}) {
 function Hero() {
   return (
     <section className={styles.hero}>
+      <figure className={styles.frame}>
+        <figcaption className={styles.frameTitle}>first-steps.tape</figcaption>
+        <img
+          src={firstSteps}
+          alt="Typing a small budget, pointing at cells in a formula, and watching totals recalculate"
+          width={1000}
+          height={600}
+        />
+        <span className={styles.frameCount}>Catppuccin Mocha</span>
+      </figure>
       <div className={styles.heroText}>
         <h1 className={styles.srOnly}>012</h1>
         <p className={styles.sub}>
@@ -147,16 +157,6 @@ function Hero() {
           </span>
         </div>
       </div>
-      <figure className={styles.frame}>
-        <figcaption className={styles.frameTitle}>first-steps.tape</figcaption>
-        <img
-          src={firstSteps}
-          alt="Typing a small budget, pointing at cells in a formula, and watching totals recalculate"
-          width={1000}
-          height={600}
-        />
-        <span className={styles.frameCount}>Catppuccin Mocha</span>
-      </figure>
     </section>
   );
 }
