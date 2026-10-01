@@ -126,7 +126,7 @@ keeping its cells.
 | F10, Alt+F, Alt+E, Alt+V, Alt+I, Alt+O, Alt+D, Alt+H | Open a menu; arrows move, Enter runs, Esc closes |
 | Ctrl+K, Alt+/, Ctrl+Shift+P | Search the menus: find and run any command |
 | Shift+F10, right-click | The cell, column or row menu |
-| F1, Ctrl+/ | Keyboard shortcuts |
+| F1, Ctrl+/ | Keyboard shortcuts; F1 on a cell showing an error, or on a linked source's tab that can't be read, explains it in full ([Values and errors](../formulas/README.md#values-and-errors)) |
 
 In a workbook shared over `012 serve`, **File > Who's here** (or `who` in the
 palette) lists the others and goes to one's cell, and **File > Hand over

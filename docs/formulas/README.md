@@ -69,7 +69,10 @@ give the first error in the range. Errors use Sheets' codes:
 Error cells are red with a curly underline, and the context line explains the
 active cell's error and where it came from, e.g.
 `#DIV/0!  From B3: division by zero in B5/0`, or names the chain of a
-circular reference.
+circular reference. An explanation longer than the line stops at the last
+sentence that fits, with `…` and an F1 chip at the right: F1 shows the
+whole of it in a box beside the cell, and any key closes it. F1 on a
+cell without an error shows the keyboard shortcuts.
 
 ## Regular expressions
 

@@ -59,14 +59,3 @@ func (m *Model) spillLine() string {
 	}
 	return ""
 }
-
-// errorLine explains the active cell's error on the context line, e.g.
-// "#DIV/0!  Division by zero in B3/0".
-func (m *Model) errorLine() string {
-	v := m.sheet.Value(m.cur)
-	why := m.sheet.ExplainError(m.cur)
-	if v.Kind != sheet.Error || why == "" {
-		return ""
-	}
-	return m.th.ErrorCell.Render(v.Str) + "  " + m.th.Muted.Render(why)
-}

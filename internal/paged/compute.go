@@ -22,8 +22,8 @@ func (b *book) rangeValues(name string, r sheet.Rect, budget int) sheet.SourceAn
 	rows, cols := part.To.Row-part.From.Row+1, part.To.Col-part.From.Col+1
 	if rows > budget/cols {
 		return sheet.SourceAnswer{V: sheet.ErrValue, Why: fmt.Sprintf(
-			"Reading %s whole takes %s cells, more than max-cells (%s): SUM, COUNTIFS, XLOOKUP and the like read a source of any size",
-			s.name, grouped(rows*cols), grouped(budget))}
+			"Raise max-cells to %s to read %s whole. It is %s; SUM, COUNTIFS, XLOOKUP and the like read a source of any size.",
+			grouped(rows*cols), s.name, grouped(budget))}
 	}
 	a := functions.NewArray(rows, cols)
 	addrs, vals := make([]sheet.Addr, 1024), make([]sheet.Value, 1024)

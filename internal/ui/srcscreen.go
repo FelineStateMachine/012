@@ -138,21 +138,48 @@ func (m *Model) sourceBar(v *srcview.View) string {
 }
 
 // sourceContext is the context line on a source tab: what it is, how
-// many rows it has, and how they're ordered.
+// many rows it has, and how they're ordered, or why it can't be read.
 func (m *Model) sourceContext() (string, string) {
 	info, _ := m.sheet.Source()
+	name := sourceLabel(info)
+	switch {
+	case info.Err != "":
+		return m.explainLine("", "! "+name+": "+info.Err, m.th.Warning)
+	case !info.Known:
+		return m.th.Muted.Render(sourceMark+" Opening ") + m.th.Key.Render(name) + m.th.Muted.Render("…"), ""
+	}
+	head := m.th.Muted.Render(sourceMark+" ") + m.th.Key.Render(name) + m.th.Muted.Render("  ")
+	counts, hints := m.sourceCounts(info), m.th.KeyHints("Ctrl+↓", "last row", "Alt+D", "sort, filter")
+	if ansi.StringWidth(head)+ansi.StringWidth(counts)+ansi.StringWidth(hints)+3 <= m.width {
+		return head + m.th.Muted.Render(counts), hints
+	}
+	return m.explainLine(head, counts, m.th.Muted)
+}
+
+// sourceTrouble is what F1 shows on a source's tab: why it can't be
+// read, or its line when the context line cuts it; "" for nothing.
+func (m *Model) sourceTrouble() (title, why string) {
+	info, _ := m.sheet.Source()
+	name := sourceLabel(info)
+	switch {
+	case info.Err != "":
+		return name, "! " + name + ": " + info.Err
+	case !info.Known:
+		return "", ""
+	}
+	if _, chip := m.sourceContext(); chip == m.th.KeyHints("F1", "more") {
+		return name, m.sourceCounts(info)
+	}
+	return "", ""
+}
+
+// sourceLabel names a source's file, and its table when it has one.
+func sourceLabel(info sheet.SourceInfo) string {
 	name := filepath.Base(info.Source.Path)
 	if info.Source.Table != "" {
 		name += " " + info.Source.Table
 	}
-	switch {
-	case info.Err != "":
-		return m.th.Warning.Render("! " + name + ": " + info.Err), ""
-	case !info.Known:
-		return m.th.Muted.Render(sourceMark+" Opening ") + m.th.Key.Render(name) + m.th.Muted.Render("…"), ""
-	}
-	left := m.th.Muted.Render(sourceMark+" ") + m.th.Key.Render(name) + m.th.Muted.Render("  "+m.sourceCounts(info))
-	return left, m.th.KeyHints("Ctrl+↓", "last row", "Alt+D", "sort, filter")
+	return name
 }
 
 // sourceMark is the glyph a source's tab shows beside its name and on

@@ -158,7 +158,7 @@ How new sheets and files without a locale of their own are typed and shown: deci
 
 #### `max-cells`
 
-The most cells an import keeps, and a paste or fill writes at once. Numbers and text take 20 to 60 bytes a cell and formulas about 750, so the default of ten million cells of data is 200 to 600 MB. Imports keep whole rows up to the budget and say how many they left out; larger pastes and fills are refused. A function that holds what it reads (MEDIAN, SORT) is given no more of a linked source. The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is.
+The most cells an import keeps, and a paste or fill writes at once. Numbers and text take 20 to 60 bytes a cell and formulas about 750, so the default of ten million cells of data is 200 to 600 MB. Imports keep whole rows up to the budget and say how many they left out; larger pastes and fills are refused. A function that holds what it reads (SORT, TEXTJOIN) is given no more of a linked source. The grid itself is 1,048,576 rows by 16,384 columns (A to XFD) whatever this is.
 
 | | |
 |---|---|

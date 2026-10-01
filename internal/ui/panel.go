@@ -305,23 +305,18 @@ func (m *Model) readyContext() (left, right string) {
 	if m.tview != nil {
 		return m.traceLine()
 	}
-	for _, f := range []func() string{func() string { return m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur)) },
-		m.errorLine, m.shareLine, m.validationLine, m.noteLine, m.spillLine, m.regionLine, m.tableLine, m.recordingLine} {
+	if left = m.jev.line(&m.th, m.sheet.RemoteCalls(m.cur)); left != "" {
+		return left, ""
+	}
+	if left, right = m.errorLine(); left != "" {
+		return left, right
+	}
+	for _, f := range []func() string{m.shareLine, m.validationLine, m.noteLine, m.spillLine, m.regionLine, m.tableLine, m.recordingLine} {
 		if left = f(); left != "" {
 			return left, ""
 		}
 	}
 	return "", ""
-}
-
-// spread puts right at the right edge after left, dropping it if there
-// isn't room for both.
-func (m *Model) spread(left, right string) string {
-	gap := m.width - ansi.StringWidth(left) - ansi.StringWidth(right)
-	if right == "" || gap < 3 {
-		return left
-	}
-	return left + strings.Repeat(" ", gap) + right
 }
 
 // cursorPos returns where the terminal cursor goes: in the formula bar

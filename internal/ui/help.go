@@ -35,7 +35,6 @@ func init() {
 			return nil
 		}},
 	)
-	keymap["f1"] = "help"
 	keymap["ctrl+/"] = "help"
 }
 

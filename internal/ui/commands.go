@@ -116,7 +116,6 @@ func register(cmds ...*command) {
 // keymap binds READY-mode keys to command IDs, following Google Sheets
 // where it has a shortcut. Movement and typing are handled separately.
 var keymap = map[string]string{
-	"f1":          "help",
 	"ctrl+/":      "help",
 	"enter":       "edit",
 	"f2":          "edit",
