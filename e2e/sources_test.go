@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +15,7 @@ import (
 type trip struct {
 	Trip    int64   `parquet:"trip"`
 	Payment string  `parquet:"payment,dict"`
-	Fare    float64 `parquet:"fare"`
+	Fare    int64   `parquet:"fare,decimal(2:12)"`
 	Miles   float64 `parquet:"miles"`
 	Day     int32   `parquet:"day,date"`
 }
@@ -28,7 +27,7 @@ var payments = []string{"card", "cash", "card", "app", "card", "cash", "voucher"
 func tripAt(i int) trip {
 	day := int32(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).Unix()/86400) + int32(i%270)
 	return trip{Trip: int64(i + 1), Payment: payments[i%len(payments)],
-		Fare: float64((i*7919)%9000)/100 + 3, Miles: float64((i*104729)%400) / 10, Day: day}
+		Fare: int64(i*7919%9000 + 300), Miles: float64((i*104729)%400) / 10, Day: day}
 }
 
 // writeTrips writes rows trips to trips.parquet in dir.
@@ -95,7 +94,7 @@ func TestLinkedSource(t *testing.T) {
 	s.keys("<ctrl+pgup>")
 	s.waitFor("Sheet1")
 	s.keys("=COUNTIF(trips[payment],\"voucher\")", "<enter>")
-	s.waitFor(fmt.Sprint(tripRows / 7))
+	s.waitFor("285,714") // tripRows / 7, a count grouped
 
 	// Saved, the workbook keeps the link, and reads the source again.
 	s.keys("<ctrl+s>")
@@ -109,5 +108,5 @@ func TestLinkedSource(t *testing.T) {
 	s.keys("<ctrl+q>")
 	s.waitExit()
 	s = start(t, dir, "rides.012")
-	s.waitFor(fmt.Sprint(tripRows / 7))
+	s.waitFor("285,714") // tripRows / 7, a count grouped
 }

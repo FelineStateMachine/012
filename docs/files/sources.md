@@ -115,22 +115,32 @@ ASCII are compared by case.
 
 ## Formulas over a source
 
-![Formulas on Sheet1 over two million trips, and a MEDIAN past max-cells saying why on the context line](../media/source-formulas-dark.png#gh-dark-mode-only)
-![Formulas on Sheet1 over two million trips, and a MEDIAN past max-cells saying why on the context line](../media/source-formulas-light.png#gh-light-mode-only)
+![Formulas on Sheet1 over two million trips: a count with thousands separators, sums of fares with their two decimals, the last day as a date, and the median fare, the pointer on it](../media/source-formulas-dark.png#gh-dark-mode-only)
+![Formulas on Sheet1 over two million trips: a count with thousands separators, sums of fares with their two decimals, the last day as a date, and the median fare, the pointer on it](../media/source-formulas-light.png#gh-light-mode-only)
 
 A function given a source's range is worked out in the background, by
 reading the source; its cell shows `Loading…` until then. The answer
 is kept until the file changes, so another formula asking the same, or
 the same formula recalculating, costs nothing.
 
-These read a source of any size in one pass, holding only what they
-compute:
+These read a source of any size, holding only what they compute:
 
 | Kind | Functions |
 |---|---|
 | Aggregates | SUM, AVERAGE, COUNT, COUNTA, MIN, MAX, PRODUCT |
 | Criteria | COUNTIF, COUNTIFS, SUMIF, SUMIFS, AVERAGEIF, AVERAGEIFS, COUNTBLANK, SUMPRODUCT |
 | Lookups | MATCH, XLOOKUP, VLOOKUP, HLOOKUP, INDEX, ROWS, COLUMNS |
+| Ranks | RANK, RANK.EQ |
+| Order statistics of one range | MEDIAN, PERCENTILE, PERCENTILE.INC, PERCENTILE.EXC, QUARTILE, QUARTILE.INC, QUARTILE.EXC, LARGE, SMALL, MODE, MODE.SNGL |
+
+The first four read the source once. An order statistic sorts the
+range's numbers on disk, beside the system's temporary files, and
+reads them back in order once: a MEDIAN of ten million rows takes
+about two seconds, 50 MB of memory and 160 MB of disk while it runs
+([Bounds of support](../contributing/limits.md#linked-sources)). Its
+range is one argument, its others single values:
+`MEDIAN(sales[amount])` and `PERCENTILE(sales[amount],0.9)` stream,
+where `MEDIAN(sales[amount],sales[tax])` holds what it reads.
 
 A result keeps what its column means, as a formula over a sheet takes
 its inputs' format: SUM, AVERAGE, MIN, MAX and the lookups show in the
@@ -143,15 +153,19 @@ source (COUNT, COUNTA, COUNTIF, COUNTIFS, COUNTBLANK, ROWS, COLUMNS)
 shows as a whole number with the locale's thousands separators:
 `2,000,000`. A format given to the cell wins over either.
 
-Any other function (MEDIAN, SORT, FILTER, UNIQUE, TEXTJOIN) holds what
+Any other function (STDEV, SORT, FILTER, UNIQUE, TEXTJOIN) holds what
 it reads, and is given a source's range as long as that holds no more
 than `max-cells` cells ([Configuration](../reference/config.md#max-cells));
-past it the formula shows `#VALUE!`, and the context line says what it
-would have read. So does an operator over a source's range
-(`=SUM(sales[amount]*2)`) and a function whose other arguments are
-ranges of a sheet or arrays: `SUMPRODUCT((sales[cat]="north")*sales[amount])`
-computes an array as long as the source, where
-`SUMIFS(sales[amount],sales[cat],"north")` streams.
+past it the formula shows `#VALUE!`. So does an operator over a
+source's range (`=SUM(sales[amount]*2)`) and a function whose other
+arguments are ranges of a sheet or arrays:
+`SUMPRODUCT((sales[cat]="north")*sales[amount])` computes an array as
+long as the source, where `SUMIFS(sales[amount],sales[cat],"north")`
+streams. The context line says how far to raise `max-cells` for it,
+and F1 the rest ([Values and errors](../formulas/README.md#values-and-errors)):
+
+![The fares' STDEV past max-cells: F1 shows its whole explanation in a box beside the cell, to raise max-cells to 2,000,000 or use a function that streams](../media/source-formulas-why-dark.png#gh-dark-mode-only)
+![The fares' STDEV past max-cells: F1 shows its whole explanation in a box beside the cell, to raise max-cells to 2,000,000 or use a function that streams](../media/source-formulas-why-light.png#gh-light-mode-only)
 
 ## Pivot tables
 

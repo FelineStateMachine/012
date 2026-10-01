@@ -148,7 +148,7 @@ func (b *errorBox) Layout() []overlay.Box {
 	if x+inner+2 > m.width {
 		x = max(x-m.sheet.ColWidth(b.at.Col)-inner-2, 0)
 	}
-	x, y = m.clampBox(x, y, inner+2, len(framed))
+	x, y = m.clampBox(x, y, inner+2, len(framed)+1) // above the status line
 	return []overlay.Box{{ID: errorBoxID, X: x, Y: max(y, gridTop), Lines: framed}}
 }
 
@@ -172,5 +172,5 @@ func (b *errorBox) Mouse(e overlay.MouseEvent) tea.Cmd {
 }
 
 func (b *errorBox) Status() (string, string) {
-	return b.title, b.m.th.KeyHints("Esc", "close")
+	return "The whole explanation; any key closes it", b.m.th.KeyHints("Esc", "close")
 }

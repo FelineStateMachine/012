@@ -45,6 +45,7 @@ var docScreens = []docScreen{
 	{name: "live-ask", from: "live-ask", cols: 80, rows: 10},
 	{name: "source-tab", from: "source-tab", cols: 80, rows: 20},
 	{name: "source-formulas", from: "source-formulas", cols: 80, rows: 14},
+	{name: "source-formulas-why", from: "source-formulas-why", cols: 80, rows: 19},
 }
 
 // stillsVersion changes when the drawing does, so every still is

@@ -10,10 +10,11 @@ import (
 
 // Golden screens for linked sources: two million trips on a tab of
 // their own, sorted by fare and scrolled halfway down by the scrollbar;
-// formulas over them on a sheet, one past max-cells saying why; the
-// condition a source's column is filtered by; and a source whose file
-// isn't there. Each on a light terminal too, the tab in the high-contrast
-// theme as well.
+// formulas over them on a sheet in their columns' formats, and one past
+// max-cells saying why at 80 columns, the rest on F1; the condition a
+// source's column is filtered by; and a source whose file isn't there.
+// Each on a light terminal too, the tab and the explanation in the
+// high-contrast theme as well.
 
 func tripsFile(t *testing.T, dir string) { writeTrips(t, dir, tripRows) }
 
@@ -35,9 +36,10 @@ func sortedTrips(s *session) {
 	})
 }
 
-// tripFormulas reads the trips from a sheet: counts, sums, a lookup,
-// and a MEDIAN past max-cells (a million, in the screen's config),
-// the pointer on it.
+// tripFormulas reads the trips from a sheet, max-cells a million in the
+// screen's config: counts, sums, a lookup, the last day, a MEDIAN and a
+// percentile, each in its column's format, and a STDEV past max-cells;
+// column B widened for the fares, the pointer on the median.
 func tripFormulas(s *session) {
 	s.linkSource("trips.parquet")
 	s.keys("<ctrl+pgup>")
@@ -48,20 +50,48 @@ func tripFormulas(s *session) {
 		{"By card", `=SUMIFS(trips[fare],trips[payment],"card")`},
 		{"Vouchers", `=COUNTIF(trips[payment],"voucher")`},
 		{"Longest", "=MAX(trips[miles])"},
+		{"Last day", "=MAX(trips[day])"},
 		{"Trip 1M", "=XLOOKUP(1000000,trips[trip],trips[fare])"},
 		{"Median", "=MEDIAN(trips[fare])"},
+		{"90th pct", "=PERCENTILE(trips[fare],0.9)"},
+		{"Spread", "=STDEV(trips[fare])"},
 	} {
 		s.keys(row[0], "<tab>", row[1], "<enter>")
 	}
-	s.waitFor("285714")
-	s.waitFor("#VALUE!")
-	s.keys("<up>", "<right>")
-	s.waitFor("MEDIAN would hold")
+	s.keys("<ctrl+home>", "<right>", "<ctrl+k>", "Column width", "<enter>")
+	s.waitFor("Column width (1-240)")
+	s.keys("14", "<enter>")
+	s.waitFor("285,714")
+	s.waitFor("95,990,000.00")
+	s.eventually("every answer", func() bool { return !strings.Contains(s.screen(), "Loading") })
+	for range 7 {
+		s.keys("<down>")
+	}
+	s.waitFor("=MEDIAN(trips[fare])")
+}
+
+// tripWhy is tripFormulas with the pointer on the STDEV past max-cells
+// and F1 pressed: its whole explanation in a box beside it.
+func tripWhy(s *session) {
+	tripCut(s)
+	s.keys("<f1>")
+	s.waitFor("#VALUE! in B10")
+}
+
+// tripCut is tripFormulas with the pointer on the STDEV past max-cells:
+// the context line says the first of why, with F1 for the rest.
+func tripCut(s *session) {
+	tripFormulas(s)
+	s.keys("<down>", "<down>")
+	s.waitFor("Raise max-cells to 2,000,000")
+	s.waitFor("F1")
 }
 
 var sourceScreens = []screen{
 	{name: "source-tab", files: tripsFile, setup: sortedTrips},
 	{name: "source-formulas", opts: options{config: "max-cells = 1000000\n"}, files: tripsFile, setup: tripFormulas},
+	{name: "source-formulas-cut", opts: options{cols: 80, rows: 24, config: "max-cells = 1000000\n"}, files: tripsFile, setup: tripCut},
+	{name: "source-formulas-why", opts: options{config: "max-cells = 1000000\n"}, files: tripsFile, setup: tripWhy},
 	{name: "source-filter", files: tripsFile, setup: func(s *session) {
 		s.linkSource("trips.parquet")
 		s.waitFor("card")
@@ -92,10 +122,10 @@ func init() {
 		light.name += "-light"
 		light.opts.light = true
 		screens = append(screens, sc, light)
-		if sc.name == "source-tab" {
+		if sc.name == "source-tab" || sc.name == "source-formulas-why" {
 			hc := sc
 			hc.name += "-high-contrast"
-			hc.opts.config = highContrastConfig
+			hc.opts.config = sc.opts.config + highContrastConfig
 			screens = append(screens, hc)
 		}
 	}
