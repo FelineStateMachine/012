@@ -1,0 +1,9 @@
+#!/bin/sh
+# CI for src.rest. `forge attest` runs this in a clean worktree of each
+# commit, on your machine, and signs the result. It is make check, the gate
+# before a push. Build deps (libghostty, stress data) live in a cache outside
+# the worktree, so runs don't rebuild them from source.
+set -eu
+deps=${XDG_CACHE_HOME:-$HOME/.cache}/012/deps
+mkdir -p "$deps"
+exec make check DEPS="$deps"
