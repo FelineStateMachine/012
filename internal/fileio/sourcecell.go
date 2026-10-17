@@ -11,7 +11,7 @@ import (
 	"github.com/parquet-go/parquet-go"
 	"github.com/parquet-go/parquet-go/format"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // How Parquet and SQLite values become cells, shared by imports (which

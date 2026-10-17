@@ -13,8 +13,8 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/stress"
 )
 
 // bigRows is the rows of the generated sources (stress.SalesParquet).

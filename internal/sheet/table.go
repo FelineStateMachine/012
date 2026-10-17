@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Tables, as Sheets' Format > Convert to table and Excel's tables: a

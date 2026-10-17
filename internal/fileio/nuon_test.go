@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/nuon"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/nuon"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // inZone shows dates in loc for the test.

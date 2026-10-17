@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // --notebooks runs a cell of several statements as the screen does: its

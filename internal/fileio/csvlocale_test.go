@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/sheet"
 )
 
 func mustLocale(t *testing.T, tag string) *locale.Locale {

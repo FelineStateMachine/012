@@ -7,8 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
 )
 
 const filesNUON = "[[name, size]; [a, 1646b], [b, 2kb]]"

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 // readWhole reads a file the way encoding/json reads it whole, into

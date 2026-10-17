@@ -8,7 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/stress"
 )
 
 // BenchmarkSourceScroll scrolls a linked source of ten million rows

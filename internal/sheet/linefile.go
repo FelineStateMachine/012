@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Column and row formats in the file: a "lines" field after the widths,

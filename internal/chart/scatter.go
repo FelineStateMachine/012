@@ -8,7 +8,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // scatterPlan lays out a scatter chart as Sheets does: the first series

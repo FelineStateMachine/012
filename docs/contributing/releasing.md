@@ -58,7 +58,7 @@ flowchart TD
    ```
 
    The Go module proxy picks the tag up, so `go install
-   github.com/FelineStateMachine/012/cmd/012@v1.2.3` works from then on.
+   src.rest/cat/012/cmd/012@v1.2.3` works from then on.
 6. **Binaries**: `make dist VERSION=v1.2.3` on the tagged commit.
 7. **Publish** the site with the release
    ([Publishing](#publishing)):

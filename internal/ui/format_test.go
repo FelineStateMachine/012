@@ -7,8 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/shortcuts"
 )
 
 // cells returns the text of the first n columns of grid row r (1-based),

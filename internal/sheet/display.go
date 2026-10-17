@@ -4,8 +4,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/numfmt"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/numfmt"
 )
 
 // Display renders v under format f for a cell width columns wide, as the

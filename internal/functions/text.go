@@ -8,8 +8,8 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/value"
 )
 
 // maxText is the longest text a function may build, as in Sheets.

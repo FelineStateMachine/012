@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Draw draws the view's lines: the column letters, the header row of

@@ -7,11 +7,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
-	"github.com/FelineStateMachine/012/internal/ui/lineedit"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/telemetry"
+	"src.rest/cat/012/internal/ui/lineedit"
+	"src.rest/cat/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // fakeHost is a workbook with an active cell and a record of what the

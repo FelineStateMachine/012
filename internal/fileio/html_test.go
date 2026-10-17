@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // htmlBook is a sheet with a header, numbers, a formula, a style, a

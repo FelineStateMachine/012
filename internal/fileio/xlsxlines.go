@@ -6,7 +6,7 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Column and row styles: Excel keeps a style for whole columns (in

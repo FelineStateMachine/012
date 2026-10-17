@@ -4,8 +4,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/value"
 )
 
 var (

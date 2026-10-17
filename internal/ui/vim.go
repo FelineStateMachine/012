@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Vim keys (File > Settings > Vim keys), in the spirit of sc-im and

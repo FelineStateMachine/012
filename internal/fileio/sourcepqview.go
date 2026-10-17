@@ -7,7 +7,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Views of a Parquet file stream: building one reads the columns it

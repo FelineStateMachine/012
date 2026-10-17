@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // The encoder's bytes for a small image: a register per color in the

@@ -8,9 +8,9 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // create_workbook makes a new .012 file in a folder open to the server:

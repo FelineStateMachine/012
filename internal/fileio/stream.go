@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/telemetry"
+	"src.rest/cat/012/internal/telemetry"
 )
 
 // Streams: 012 - reads a table from standard input, and 012 --pipe

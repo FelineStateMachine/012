@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 func at(s string) Addr {

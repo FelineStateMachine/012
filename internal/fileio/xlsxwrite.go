@@ -9,9 +9,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // excelMaxText is the most characters an Excel cell holds; longer text

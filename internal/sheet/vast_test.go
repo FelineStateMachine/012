@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // A filter over whole columns tests the rows with data and treats the

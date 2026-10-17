@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/FelineStateMachine/012/internal/nuon"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/nuon"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // TableSpec is a table to write: rows of records, each field a Value,

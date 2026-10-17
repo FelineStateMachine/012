@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Tracing, as Excel's Trace Precedents and Trace Dependents: which cells

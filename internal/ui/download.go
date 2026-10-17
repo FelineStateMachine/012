@@ -9,9 +9,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/telemetry"
 )
 
 // File > Download: the workbook, or for formats with tables the selection,

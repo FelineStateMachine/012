@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Cell notes travel as Excel's notes (legacy comments, which Sheets

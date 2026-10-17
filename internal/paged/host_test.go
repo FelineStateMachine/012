@@ -10,8 +10,8 @@ import (
 
 	"github.com/parquet-go/parquet-go"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // sale is a row of the Parquet files the tests link.

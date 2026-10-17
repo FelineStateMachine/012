@@ -1,6 +1,6 @@
 package theme
 
-import "github.com/FelineStateMachine/012/internal/sheet"
+import "src.rest/cat/012/internal/sheet"
 
 // Cell borders are drawn with box-drawing characters, so lines of
 // different weights meet in the joints a terminal font draws for them.

@@ -16,7 +16,7 @@ It is one pure-Go binary.
 
 ```sh
 curl -fsSL https://012.dev.site/install.sh | sh              # macOS, Linux: into ~/.local/bin
-go install github.com/FelineStateMachine/012/cmd/012@latest  # or build it with Go 1.27
+go install src.rest/cat/012/cmd/012@latest  # or build it with Go 1.27
 ```
 
 On Windows, `irm https://012.dev.site/install.ps1 | iex` in PowerShell.

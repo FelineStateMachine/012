@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 // fakeBook is one sheet of values, "", for testing the Reader alone. It

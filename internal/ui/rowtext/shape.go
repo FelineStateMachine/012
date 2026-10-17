@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Wrap breaks text into lines at most w columns wide, as Sheets wraps a

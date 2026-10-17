@@ -3,7 +3,7 @@ package functions
 import (
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Parts of a formula evaluated where they stand, for stepping through it

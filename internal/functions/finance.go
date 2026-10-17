@@ -3,7 +3,7 @@ package functions
 import (
 	"math"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 // Finance functions follow the usual cash-flow sign convention: money

@@ -8,8 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/ui/lineedit"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/ui/lineedit"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Edit mode: the selected cell's source in a multi-line editor

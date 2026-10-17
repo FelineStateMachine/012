@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // View state that belongs to the worksheet rather than to a cell: frozen

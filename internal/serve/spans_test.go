@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/telemetry"
+	"src.rest/cat/012/internal/telemetry"
 )
 
 // Each session's commands nest under its own span, in a trace of its

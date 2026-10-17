@@ -6,12 +6,12 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nuon"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nuon"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Outputs as they show under a code cell. What a cell printed, NUON, is

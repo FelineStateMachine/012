@@ -3,7 +3,7 @@ package paged
 import (
 	"context"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // A cursor streams a range's rows for the book's Scan, a chunk at a

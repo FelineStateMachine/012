@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // FilterColumn is one column's criteria for Filter: a condition (as

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // Random edits check invariants that hold between features rather than

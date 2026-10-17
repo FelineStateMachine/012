@@ -5,8 +5,8 @@ package sheet_test
 import (
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/stress"
 )
 
 // BenchmarkPivot is a pivot over a full 8192-row table recomputing after

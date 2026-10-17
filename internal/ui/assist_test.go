@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/ui/suggest"
+	"src.rest/cat/012/internal/ui/suggest"
 )
 
 func TestAutocompleteFunctions(t *testing.T) {

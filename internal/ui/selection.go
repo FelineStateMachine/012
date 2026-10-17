@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Selection follows Google Sheets: the active cell (cur) stays put while

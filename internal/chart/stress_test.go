@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // stressData is n categories of three series of wavy values.

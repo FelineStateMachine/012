@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Sheet names in formula suggestions: typing =Su offers Summary! with the

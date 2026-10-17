@@ -15,9 +15,9 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Options say where the server's workbooks are and what it may do

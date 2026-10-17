@@ -12,9 +12,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/keyring"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/keyring"
 )
 
 // fakeTypeSafe stands in for the TypeSafe API on this machine: it

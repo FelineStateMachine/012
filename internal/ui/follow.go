@@ -10,9 +10,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/live"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/live"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Following linked regions (Data > Linked file, File > Import's Follow

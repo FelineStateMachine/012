@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 func mustLocale(t *testing.T, tag string) *locale.Locale {

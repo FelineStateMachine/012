@@ -3,7 +3,7 @@ package functions
 import (
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 // Sorting and comparing the rows of arrays, for SORT, SORTN and UNIQUE

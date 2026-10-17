@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Wrapping, borders, row heights and merged cells in XLSX, both ways.

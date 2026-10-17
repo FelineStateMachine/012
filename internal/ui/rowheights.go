@@ -5,8 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/macro"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/macro"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Row heights, in lines: typed on the context line with a live preview,

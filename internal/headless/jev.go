@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // jevParallel is how many questions are asked at once, as on the

@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/lineedit"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/lineedit"
 )
 
 // Pointing after a sheet's name: once a suggestion (package suggest) or

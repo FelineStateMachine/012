@@ -11,8 +11,8 @@
 package functions
 
 import (
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/value"
 )
 
 // The library works in the formula and value packages' terms; these

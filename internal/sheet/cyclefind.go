@@ -3,7 +3,7 @@ package sheet
 import (
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Cycles are found from the formulas as written, as Sheets and Excel

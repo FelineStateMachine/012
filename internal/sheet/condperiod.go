@@ -3,8 +3,8 @@ package sheet
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/value"
 )
 
 // Date rules ("Date is", "is before", "is after") take a date or a

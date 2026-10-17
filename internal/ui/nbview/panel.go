@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // What the notebook puts on the control panel: the context line's

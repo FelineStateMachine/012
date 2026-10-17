@@ -15,8 +15,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/nushell"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/nushell"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // testdata/nu holds what nu 0.116 said (the .json and .jsonl files)

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/macro"
+	"src.rest/cat/012/internal/macro"
 )
 
 // docs/reference/macro-api.md documents the scripting API and names command ids; these

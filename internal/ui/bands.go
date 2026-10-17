@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/rowtext"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/rowtext"
 )
 
 // Rows on screen. Each row shown is a band of screen lines: a rule line

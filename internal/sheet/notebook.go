@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // Notebook tabs: a sheet of the workbook that holds a notebook's cells

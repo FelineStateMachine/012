@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 // Functions over aligned ranges (SUMIF, COUNTIFS, SUMPRODUCT...) visit

@@ -5,8 +5,8 @@ import (
 	"context"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/functions"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/functions"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // book is the functions.Book a job computes a call through: the sources

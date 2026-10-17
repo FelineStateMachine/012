@@ -6,8 +6,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/stress"
 )
 
 // The shapes and the fake terminal below are shared by the stress

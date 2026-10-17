@@ -3,7 +3,7 @@ package value
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 // Entries are stored as typed in en-US, the canonical locale, so a sheet

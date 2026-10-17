@@ -8,8 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/nushell"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/nushell"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 type fakeHost struct {

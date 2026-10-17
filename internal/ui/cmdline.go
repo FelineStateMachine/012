@@ -8,9 +8,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/cmdline"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/cmdline"
 )
 
 // The command line (: with vim keys, or from the palette) takes vim's

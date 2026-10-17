@@ -1,6 +1,6 @@
 package sheet
 
-import "github.com/FelineStateMachine/012/internal/formula"
+import "src.rest/cat/012/internal/formula"
 
 // Moving cells, as cut and paste does: formulas that read the moved cells
 // follow them.

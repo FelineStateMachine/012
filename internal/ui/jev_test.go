@@ -9,8 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	typesafe "github.com/FelineStateMachine/typesafe-go"
 
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // fakeJEV answers every question the same way and counts requests.

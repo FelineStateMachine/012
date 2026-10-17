@@ -7,7 +7,7 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/functions"
+	"src.rest/cat/012/internal/functions"
 )
 
 // Spills, as Sheets' array results: a formula computing an array (its

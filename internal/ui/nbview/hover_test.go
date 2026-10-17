@@ -8,7 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // nu's hover, as testdata/nu records it: a command's signature and

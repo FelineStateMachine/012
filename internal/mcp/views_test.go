@@ -10,7 +10,7 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // connectApps is connect with a client that declares the MCP Apps

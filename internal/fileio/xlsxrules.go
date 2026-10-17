@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // A sheet's rules go out as Excel's conditional formatting (single-color

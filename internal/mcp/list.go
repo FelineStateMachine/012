@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/fileio"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/fileio"
 )
 
 // describe without a path lists the workbooks open to the server: the

@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"github.com/FelineStateMachine/012/internal/config"
+	"src.rest/cat/012/internal/config"
 )
 
 // The theme picker is package themepicker; the model draws, keeps and

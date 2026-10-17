@@ -10,9 +10,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/picker"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Host is what the theme picker needs of the UI: a picker's host, and

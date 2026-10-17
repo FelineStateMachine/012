@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/diff"
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nuon"
+	"src.rest/cat/012/internal/diff"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nuon"
 )
 
 // 012 get, set and recalc: workbook files read and changed without the

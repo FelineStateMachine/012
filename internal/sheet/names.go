@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Named ranges, as in Sheets' Data > Named ranges: a name such as Sales

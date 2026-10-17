@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // withRegion adds a sheet after the one shown holding, at B2, the

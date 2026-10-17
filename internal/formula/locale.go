@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 // Formulas are stored and parsed in en-US's syntax: 1.5 for a number, ,

@@ -3,9 +3,9 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/formula"
-	"github.com/FelineStateMachine/012/internal/ui/suggest"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/formula"
+	"src.rest/cat/012/internal/ui/suggest"
 )
 
 // Formula suggestions and signatures are package suggest; here is what

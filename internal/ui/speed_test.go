@@ -8,8 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/stress"
 )
 
 // The speed gate (make speed, part of make check): frames and

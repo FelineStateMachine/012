@@ -1,9 +1,9 @@
-module github.com/FelineStateMachine/012/oracle
+module src.rest/cat/012/oracle
 
 go 1.27.1
 
 require (
-	github.com/FelineStateMachine/012 v0.0.0-00010101000000-000000000000
+	src.rest/cat/012 v0.0.0-00010101000000-000000000000
 	github.com/xuri/excelize/v2 v2.11.0
 )
 
@@ -42,4 +42,4 @@ require (
 	modernc.org/sqlite v1.59.0 // indirect
 )
 
-replace github.com/FelineStateMachine/012 => ../
+replace src.rest/cat/012 => ../

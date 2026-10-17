@@ -7,7 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/overlay"
 )
 
 // The find bar as the context line draws it, and its mouse targets: the

@@ -11,9 +11,9 @@ import (
 
 	"charm.land/ssh"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui"
 )
 
 // Opening a file named on the ssh command line, and keeping a session's

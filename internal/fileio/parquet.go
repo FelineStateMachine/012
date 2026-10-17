@@ -14,7 +14,7 @@ import (
 	"github.com/parquet-go/parquet-go/deprecated"
 	"github.com/parquet-go/parquet-go/format"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // parquetColumn is how a leaf column's values become cells.

@@ -1,4 +1,4 @@
-module github.com/FelineStateMachine/012/e2e
+module src.rest/cat/012/e2e
 
 go 1.27.1
 

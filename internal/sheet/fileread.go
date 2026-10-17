@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 // The reader streams the file (see scanner): cells go straight into

@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Registry is the rooms a server holds, by key: a file's path, or @name

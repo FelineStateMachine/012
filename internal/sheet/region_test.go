@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // sent adds a notebook cell named name to a new notebook tab and sends

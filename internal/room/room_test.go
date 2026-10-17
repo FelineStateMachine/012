@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // who is a participant counting the times it was told the room changed.

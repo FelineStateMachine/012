@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/cowork"
+	"src.rest/cat/012/internal/cowork"
 )
 
 // The agent's questions (the ask tool) and requests (to run notebook

@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/numfmt"
+	"src.rest/cat/012/internal/numfmt"
 )
 
 // Kind is the type of a computed cell value.

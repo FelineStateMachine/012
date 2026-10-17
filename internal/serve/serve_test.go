@@ -21,7 +21,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // newKey makes a client key.

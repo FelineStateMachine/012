@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
+	"src.rest/cat/012/internal/fileio"
 )
 
 // File follows a file with the standard library's stat alone (no

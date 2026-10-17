@@ -14,10 +14,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
-	"github.com/FelineStateMachine/012/internal/ui/lineedit"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/telemetry"
+	"src.rest/cat/012/internal/ui/lineedit"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Host is what the find bar needs of the UI.

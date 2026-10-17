@@ -9,8 +9,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/diff"
-	"github.com/FelineStateMachine/012/internal/headless"
+	"src.rest/cat/012/internal/diff"
+	"src.rest/cat/012/internal/headless"
 )
 
 // 012 diff and 012 merge-driver: workbooks compared and merged cell by

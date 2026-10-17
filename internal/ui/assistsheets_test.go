@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/ui/suggest"
+	"src.rest/cat/012/internal/ui/suggest"
 )
 
 // sheetsModel has Sheet1 (shown), Summary with 7 in B3, and Q3 plan with

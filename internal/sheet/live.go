@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 // The change stream: rows reach a region as LiveOps, each applied at

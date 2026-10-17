@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/picker"
 )
 
 // importInto runs File > Import on name and picks place in the location

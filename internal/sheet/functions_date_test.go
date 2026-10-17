@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 func TestDateFunctions(t *testing.T) {

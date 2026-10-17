@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // literalValue is what recalculation computes for an entry that isn't a

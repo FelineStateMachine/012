@@ -3,9 +3,9 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/nbview"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/nbview"
+	"src.rest/cat/012/internal/ui/overlay"
 )
 
 // Working in an output's grid (nbgrid.go). Enter on a table or record

@@ -8,9 +8,9 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/nbview"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/nbview"
 )
 
 // A notebook cell's table or record output is drawn and worked as 012's

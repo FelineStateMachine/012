@@ -7,7 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/ui/findbar"
+	"src.rest/cat/012/internal/ui/findbar"
 )
 
 // findModel has a small sheet to search.

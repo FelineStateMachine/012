@@ -8,7 +8,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // at is the body line holding text and the column it starts at.

@@ -3,7 +3,7 @@ package sheet
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Conditional formats and validation move with cut and paste, as in

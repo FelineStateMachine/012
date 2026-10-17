@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/macro"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/macro"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // replayActions is a recording of n actions as a user makes them: entries

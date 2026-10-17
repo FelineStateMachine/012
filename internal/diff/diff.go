@@ -17,8 +17,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/FelineStateMachine/012/internal/nuon"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/nuon"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Book is a workbook read for comparing: its file's fields and the

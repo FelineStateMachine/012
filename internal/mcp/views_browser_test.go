@@ -12,7 +12,7 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // TestViewInBrowser draws the view as the OpenAI Apps SDK's hosts and

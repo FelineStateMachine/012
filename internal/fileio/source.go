@@ -8,7 +8,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Sources: a Parquet file, or a SQLite table or query, read in place a

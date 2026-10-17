@@ -7,10 +7,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
-	"github.com/FelineStateMachine/012/internal/ui/sortbar"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/picker"
+	"src.rest/cat/012/internal/ui/sortbar"
 )
 
 // What the pivot editor's keys do to the pivot, and how its fields read.

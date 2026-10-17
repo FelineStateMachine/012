@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // Regions are blocks of cells whose values come from outside the

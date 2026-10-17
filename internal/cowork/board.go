@@ -6,8 +6,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/room"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/room"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // BoardKey is the room value (room.Seat.Value) holding its Board.

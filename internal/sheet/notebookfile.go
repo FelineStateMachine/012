@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // A notebook tab in the file: a sheet marked "tab": "notebook", its

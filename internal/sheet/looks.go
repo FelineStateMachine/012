@@ -6,9 +6,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/functions"
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/functions"
+	"src.rest/cat/012/internal/locale"
 )
 
 // Look is how a sheet's rules draw a cell: a conditional format's style

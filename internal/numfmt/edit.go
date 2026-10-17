@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 // AdjustDecimals adds (delta > 0) or removes zeros after the decimal

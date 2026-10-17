@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // A Parquet view's rows are a file of row numbers in the view's order,

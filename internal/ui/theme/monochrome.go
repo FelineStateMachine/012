@@ -5,7 +5,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Monochrome returns t with every color of every role replaced by one

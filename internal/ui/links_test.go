@@ -10,7 +10,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 func TestLinksRenderAsHyperlinks(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/nushell/module"
+	"src.rest/cat/012/internal/nushell/module"
 )
 
 // 012 nu --module and 012 nu --install-module: the nushell module that

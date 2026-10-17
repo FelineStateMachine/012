@@ -7,8 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/filterpick"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/filterpick"
 )
 
 // handleX is the screen x of the fill handle in column c (scrolled to A).

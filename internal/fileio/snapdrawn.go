@@ -1,6 +1,6 @@
 package fileio
 
-import "github.com/FelineStateMachine/012/internal/sheet"
+import "src.rest/cat/012/internal/sheet"
 
 // SnapChart is a chart with the values it draws, read when the
 // snapshot is taken.

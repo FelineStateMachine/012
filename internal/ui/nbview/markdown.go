@@ -6,7 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Note cells are Markdown, drawn as terminal text: headings bold (the

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Conflict is a part of a workbook both sides changed differently. The

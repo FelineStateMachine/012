@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/paged"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/paged"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // ReadSources answers what the workbook's formulas and pivot tables ask

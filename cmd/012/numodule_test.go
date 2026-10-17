@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/nushell/module"
+	"src.rest/cat/012/internal/nushell/module"
 )
 
 func TestNuModulePrints(t *testing.T) {

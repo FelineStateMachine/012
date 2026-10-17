@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 // liveRow makes a row of entries, as a CSV line's fields.

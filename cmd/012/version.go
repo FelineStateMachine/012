@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	"github.com/FelineStateMachine/012/internal/headless"
+	"src.rest/cat/012/internal/headless"
 )
 
 // version is the release this binary was built as, set by make dist

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/nushell"
+	"src.rest/cat/012/internal/nushell"
 )
 
 // streamPolls are the stream polls commands returned in tests, which

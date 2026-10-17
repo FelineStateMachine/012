@@ -12,10 +12,10 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/chart"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/chart"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/telemetry"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // terminal is what 012 knows about the terminal it runs in, learned from

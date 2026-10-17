@@ -6,8 +6,8 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/diff"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/diff"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Live mode (docs/agents/live.md): the server runs inside a 012 session

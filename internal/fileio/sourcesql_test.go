@@ -9,7 +9,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // writeSalesDB writes a database whose table sales has n rows (fewer,

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Row layout: what makes a row of the grid more than one line of text.

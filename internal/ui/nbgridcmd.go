@@ -7,9 +7,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/nbview"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/nbview"
+	"src.rest/cat/012/internal/ui/overlay"
 )
 
 // Commands on an output's grid, and what the control panel says of it.

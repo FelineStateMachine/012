@@ -5,9 +5,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/macro"
+	"src.rest/cat/012/internal/macro"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // The fill handle, as in Sheets: the bottom-right corner of the selection

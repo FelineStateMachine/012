@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // imageCases are the images TestImageHashes pins: every type, and the

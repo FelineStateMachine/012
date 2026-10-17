@@ -8,8 +8,8 @@ import (
 
 	"github.com/parquet-go/parquet-go"
 
-	"github.com/FelineStateMachine/012/internal/room"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/room"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // srcRow is a row of the Parquet files the tests link.

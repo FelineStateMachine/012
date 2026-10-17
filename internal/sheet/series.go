@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/numfmt"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/numfmt"
 )
 
 // Fill series: dragging the fill handle in Sheets continues what the

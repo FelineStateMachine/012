@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 // Fraction patterns: "# ?/?" shows 1.75 as 1 3/4, "# ??/??" allows

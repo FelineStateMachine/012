@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/functions"
-	"github.com/FelineStateMachine/012/internal/nuon"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/functions"
+	"src.rest/cat/012/internal/nuon"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // cellParts are the parts of a cell that change separately: what was

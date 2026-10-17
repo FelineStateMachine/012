@@ -9,7 +9,7 @@ import (
 
 	"go.starlark.net/starlark"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // The functions scripts call. Each checks its arguments, then makes one

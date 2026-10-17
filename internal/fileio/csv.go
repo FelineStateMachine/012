@@ -14,8 +14,8 @@ import (
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/unicode"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // sniffSize is how much of a file the dialect sniffer looks at.

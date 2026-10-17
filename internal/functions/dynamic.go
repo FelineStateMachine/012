@@ -3,7 +3,7 @@ package functions
 import (
 	"strconv"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 // Functions that compute arrays, which spill from the cell into the

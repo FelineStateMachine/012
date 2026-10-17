@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/live"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/live"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // BenchmarkFollow follows a CSV log while another goroutine appends

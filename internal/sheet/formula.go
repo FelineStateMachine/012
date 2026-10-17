@@ -1,8 +1,8 @@
 package sheet
 
 import (
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/functions"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/functions"
 )
 
 // The formula language lives in internal/formula. The engine's API keeps

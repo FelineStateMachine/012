@@ -7,10 +7,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/lineedit"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/lineedit"
+	"src.rest/cat/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // fakeHost is an entry being typed on Sheet1 of a book that also has

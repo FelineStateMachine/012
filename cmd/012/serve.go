@@ -15,8 +15,8 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/serve"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/serve"
 )
 
 const serveUsage = "usage: 012 serve [--listen addr] [--authorized-keys file] [--host-key file] [--idle-timeout 30m] [--max-sessions 8] [--share edit|view|off] [dir]"

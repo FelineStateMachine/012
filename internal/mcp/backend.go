@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/FelineStateMachine/012/internal/diff"
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/diff"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Backend is where the tools' workbook lives. The tools only read it,

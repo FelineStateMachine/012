@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/functions"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/functions"
 )
 
 // Data validation follows Sheets' Data > Data validation: a rule on

@@ -12,13 +12,13 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/suggest"
-	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/telemetry"
+	"src.rest/cat/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/suggest"
+	"src.rest/cat/012/internal/ui/tabstrip"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // The control panel is three lines: the menu bar with the mode indicator,

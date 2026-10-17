@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/stress"
 )
 
 func main() {

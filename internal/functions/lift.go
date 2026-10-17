@@ -1,8 +1,8 @@
 package functions
 
 import (
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/value"
 )
 
 // In an array context (ARRAYFORMULA, or an argument that takes ranges) a

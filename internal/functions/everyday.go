@@ -4,9 +4,9 @@ import (
 	"math"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/value"
 )
 
 // FuncDef describes a spreadsheet function. The table drives parsing

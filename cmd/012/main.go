@@ -11,13 +11,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/keyring"
-	"github.com/FelineStateMachine/012/internal/nushell"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/keyring"
+	"src.rest/cat/012/internal/nushell"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui"
 )
 
 func main() {

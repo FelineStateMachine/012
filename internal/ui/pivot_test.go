@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/filterpick"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/filterpick"
 )
 
 // salesTable types a table of sales and leaves A1 active.

@@ -10,10 +10,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nushell"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/nbview"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nushell"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/nbview"
 )
 
 // Running cells. One runs at a time, in the background, so the screen

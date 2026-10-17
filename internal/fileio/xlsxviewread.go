@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Reading frozen panes and filters; see xlsxview.go for how they are

@@ -8,7 +8,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // SVG charts are the text chart and the image in one vector drawing,

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/serve"
+	"src.rest/cat/012/internal/serve"
 )
 
 func TestServeFlags(t *testing.T) {

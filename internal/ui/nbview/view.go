@@ -16,9 +16,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Host is what the notebook needs of the UI.

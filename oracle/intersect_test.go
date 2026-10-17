@@ -5,7 +5,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // intersections are formulas that use a range where one value is wanted,

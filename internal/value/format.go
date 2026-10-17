@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/numfmt"
+	"src.rest/cat/012/internal/numfmt"
 )
 
 // FormatKind is a number format from Sheets' Format > Number menu.

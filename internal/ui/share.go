@@ -7,9 +7,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/cowork"
-	"github.com/FelineStateMachine/012/internal/room"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/cowork"
+	"src.rest/cat/012/internal/room"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Sharing a workbook between the sessions of 012 serve: every session

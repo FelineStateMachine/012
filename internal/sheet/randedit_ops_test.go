@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // The edits TestRandomEdits draws from, each one undo step (or none,

@@ -5,7 +5,7 @@ import (
 	"html"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // htmlCell is what a td says about its cell: classes, inline styles,

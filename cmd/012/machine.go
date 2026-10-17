@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/config"
+	"src.rest/cat/012/internal/config"
 )
 
 // machineID identifies this computer to macros: files record the id of

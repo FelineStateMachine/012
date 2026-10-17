@@ -1,8 +1,8 @@
 package functions
 
 import (
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/value"
 )
 
 // Eval computes a formula where one value is wanted, reading the cells

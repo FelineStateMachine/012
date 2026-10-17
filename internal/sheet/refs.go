@@ -1,6 +1,6 @@
 package sheet
 
-import "github.com/FelineStateMachine/012/internal/formula"
+import "src.rest/cat/012/internal/formula"
 
 // References in a stored formula are rewritten (see formula.Rewrite) by
 // building a new cell: stored cells are never changed in place.

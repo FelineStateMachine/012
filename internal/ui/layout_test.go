@@ -6,8 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/choicebar"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/choicebar"
 )
 
 // rect parses a range for tests.

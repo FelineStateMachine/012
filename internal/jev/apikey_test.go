@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/keyring"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/keyring"
+	"src.rest/cat/012/internal/sheet"
 )
 
 func env(vals map[string]string) func(string) string {

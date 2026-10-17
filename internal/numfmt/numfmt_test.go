@@ -3,7 +3,7 @@ package numfmt
 import (
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 func TestFormat(t *testing.T) {

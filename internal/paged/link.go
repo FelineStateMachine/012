@@ -3,8 +3,8 @@ package paged
 import (
 	"context"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Links are the workbook's linked sources as the host reads them: each

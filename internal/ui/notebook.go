@@ -7,11 +7,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/nbview"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/nbview"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Notebooks: a notebook tab holds code cells (nushell pipelines) and

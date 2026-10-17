@@ -1,8 +1,8 @@
 package sheet
 
 import (
-	"github.com/FelineStateMachine/012/internal/functions"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/functions"
+	"src.rest/cat/012/internal/value"
 )
 
 // Values, formats and the parsing of typed entries live in

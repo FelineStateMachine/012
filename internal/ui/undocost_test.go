@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/choicebar"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/choicebar"
 )
 
 // A change whose undo step would pass the ceiling asks first: Esc backs

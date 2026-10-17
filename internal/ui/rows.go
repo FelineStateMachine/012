@@ -3,7 +3,7 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Whole-row commands, as vim's line operators: copy rows (yy), cut them

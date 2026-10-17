@@ -23,7 +23,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/nuon"
+	"src.rest/cat/012/internal/nuon"
 )
 
 // Job is a pipeline to run.

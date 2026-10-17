@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Merged cells, as Sheets' Format > Merge cells: a merge joins a range

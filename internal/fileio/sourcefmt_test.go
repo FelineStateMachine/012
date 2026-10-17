@@ -9,7 +9,7 @@ import (
 
 	"github.com/parquet-go/parquet-go"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // TestSQLiteDeclaredFormats checks the formats a SQLite source's

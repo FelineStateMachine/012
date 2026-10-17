@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // XLSX files are read by xlsximport.go (on xlsxpkg.go, xlsxbook.go,

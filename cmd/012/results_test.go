@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/headless"
+	"src.rest/cat/012/internal/headless"
 )
 
 // TestSetDryRun prints the change as 012 diff would and leaves the

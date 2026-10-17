@@ -8,8 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/ui"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/ui"
 )
 
 // 012 - and 012 --pipe (see docs/nushell/pipelines.md): standard input

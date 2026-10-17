@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/macro"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/macro"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // scriptHost is what a running macro acts on: the model, through the

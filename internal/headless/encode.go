@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/FelineStateMachine/012/internal/nuon"
+	"src.rest/cat/012/internal/nuon"
 )
 
 // Encode writes v, a value of this package's result types, as JSON

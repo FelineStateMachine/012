@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/csv"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/value"
 )
 
 // Delimited files are read and written in the importing workbook's

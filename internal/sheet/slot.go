@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // A slot is how cellStore keeps one cell: 16 bytes in its column's

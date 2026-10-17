@@ -10,16 +10,16 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
-	"github.com/FelineStateMachine/012/internal/ui/findbar"
-	"github.com/FelineStateMachine/012/internal/ui/lineedit"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/rowtext"
-	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
-	"github.com/FelineStateMachine/012/internal/ui/transfer"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/telemetry"
+	"src.rest/cat/012/internal/ui/findbar"
+	"src.rest/cat/012/internal/ui/lineedit"
+	"src.rest/cat/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/rowtext"
+	"src.rest/cat/012/internal/ui/tabstrip"
+	"src.rest/cat/012/internal/ui/theme"
+	"src.rest/cat/012/internal/ui/transfer"
 )
 
 // mode is the state shown in the mode indicator.

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // xlsxStyles is what 012 reads of the styles part: custom number

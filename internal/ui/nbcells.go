@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // Changing a notebook's cells, as Jupyter does, on the cells selected:

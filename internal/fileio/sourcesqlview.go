@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // SQLite views push their sort and filter down to SQL: building one is

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/value"
 )
 
 // Calls over paged sources. A linked source (the engine's paged sheets:

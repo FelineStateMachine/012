@@ -6,10 +6,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/picker"
 )
 
 // Sending a cell's output to a sheet: the output becomes a region of the

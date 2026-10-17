@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // ScopeKind is how much of the workbook the agent may change.

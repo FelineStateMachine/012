@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/FelineStateMachine/012/internal/diff"
-	"github.com/FelineStateMachine/012/internal/nuon"
+	"src.rest/cat/012/internal/diff"
+	"src.rest/cat/012/internal/nuon"
 )
 
 // The results commands write with --format json or nuon, and the MCP

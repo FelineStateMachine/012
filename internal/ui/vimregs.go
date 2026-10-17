@@ -3,7 +3,7 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Vim registers. The unnamed register is the clipboard Ctrl+V pastes, so

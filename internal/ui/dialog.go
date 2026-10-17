@@ -3,7 +3,7 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/ui/choicebar"
+	"src.rest/cat/012/internal/ui/choicebar"
 )
 
 // question is a choice bar (package choicebar) as the model asks it:

@@ -6,7 +6,7 @@ import (
 	"html"
 	"io"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // HTML exports are static pages in 012's look (see htmlstyle.go): the

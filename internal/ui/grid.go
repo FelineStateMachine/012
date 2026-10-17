@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/rowtext"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/rowtext"
 )
 
 // grid is the sheet as the window shows it: which sheet, the active cell,

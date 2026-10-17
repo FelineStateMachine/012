@@ -1,6 +1,6 @@
 package sheet
 
-import "github.com/FelineStateMachine/012/internal/functions"
+import "src.rest/cat/012/internal/functions"
 
 // How the engine's reader reads a linked source's tab (source.go),
 // which holds no cells: its header row from what the host found, and

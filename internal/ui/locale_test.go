@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // File > Settings > Locale picks German (Germany): the sheet shows

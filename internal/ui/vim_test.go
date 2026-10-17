@@ -8,7 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
+	"src.rest/cat/012/internal/ui/shortcuts"
 )
 
 // vimModel is a model with vim keys on and a small table: A1:C6 filled

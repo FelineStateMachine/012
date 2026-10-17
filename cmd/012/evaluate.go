@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/nushell"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/nushell"
 )
 
 // jevTimeout bounds each JEV question, as on the screen.

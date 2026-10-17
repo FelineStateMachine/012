@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Lotus formulas are stored as reverse Polish bytecode. lotusFormula

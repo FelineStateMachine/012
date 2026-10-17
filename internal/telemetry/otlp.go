@@ -106,7 +106,7 @@ func newExporter(c OTLPConfig, version string) *exporter {
 		timeout:  timeout,
 		client:   &http.Client{Timeout: timeout},
 		resource: resource{Attributes: attrs},
-		scope:    scope{Name: "github.com/FelineStateMachine/012/internal/telemetry", Version: version},
+		scope:    scope{Name: "src.rest/cat/012/internal/telemetry", Version: version},
 		started:  time.Now(),
 		ops:      map[string]*durationHist{},
 		wake:     make(chan struct{}, 1),

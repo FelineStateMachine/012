@@ -16,7 +16,7 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/confine"
+	"src.rest/cat/012/internal/confine"
 )
 
 // roots are the folders workbooks may be in for the client of ss: its

@@ -12,7 +12,7 @@ import (
 
 	_ "modernc.org/sqlite" // registers the "sqlite" driver
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // TableInfo describes a table or view in a SQLite database, for the

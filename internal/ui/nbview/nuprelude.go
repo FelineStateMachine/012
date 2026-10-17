@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nushell"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nushell"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // What nu is asked about a cell, and how its answers map back to the

@@ -8,9 +8,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
-	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/picker"
+	"src.rest/cat/012/internal/ui/shortcuts"
 )
 
 func init() {

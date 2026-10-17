@@ -10,8 +10,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/macro"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/macro"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Charts in macros. A chart inserted is recorded as

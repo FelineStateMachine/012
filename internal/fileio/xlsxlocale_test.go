@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // TestXLSXLocaleFormats checks a workbook in de-DE is downloaded with

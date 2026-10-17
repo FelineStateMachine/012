@@ -8,8 +8,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/ui/lineedit"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/ui/lineedit"
 )
 
 // Drawing a cell's block line by line (layout.go says where).

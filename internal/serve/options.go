@@ -9,7 +9,7 @@
 package serve
 
 import (
-	"github.com/FelineStateMachine/012/internal/config"
+	"src.rest/cat/012/internal/config"
 
 	"errors"
 	"fmt"

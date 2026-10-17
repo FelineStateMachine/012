@@ -4,8 +4,8 @@ import (
 	"iter"
 	"strconv"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Snapshot is a copy of the part of a sheet being exported, taken on the

@@ -3,8 +3,8 @@ package functions
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/value"
 )
 
 // JEV functions ask TypeSafe's hosted model (jev) typed questions about a

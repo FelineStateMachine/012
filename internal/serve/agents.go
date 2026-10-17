@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/cowork"
+	"src.rest/cat/012/internal/cowork"
 )
 
 // ListenForAgents lets agents on the server's machine, run by the

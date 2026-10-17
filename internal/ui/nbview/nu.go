@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/nushell"
+	"src.rest/cat/012/internal/nushell"
 )
 
 // NuSession is what a session's questions to nu share: whether nu may

@@ -5,9 +5,9 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/formula"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/formula"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Tables in formula suggestions: typing =Sa offers the table Sales with

@@ -14,8 +14,8 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/room"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/room"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // socketDir is a short folder for sockets: their paths are limited to

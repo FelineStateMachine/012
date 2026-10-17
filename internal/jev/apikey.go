@@ -15,8 +15,8 @@ import (
 
 	typesafe "github.com/FelineStateMachine/typesafe-go"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/keyring"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/keyring"
 )
 
 // The API key is never in the config file or on a command line. It comes

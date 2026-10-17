@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Vim marks: m{a-z} marks the active cell, `{a-z} goes back to it (on

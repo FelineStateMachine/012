@@ -4,7 +4,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 // sizeUnits are the units of the Size format, a thousand times apart,

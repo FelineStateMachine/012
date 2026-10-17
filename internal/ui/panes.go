@@ -3,7 +3,7 @@ package ui
 import (
 	"strconv"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // The viewport: frozen rows and columns stay on screen at the top and

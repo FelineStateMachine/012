@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/locale"
 )
 
 // Errors returned by operations that would lose data or don't fit.

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // importXLSX reads every sheet of a workbook, with its named

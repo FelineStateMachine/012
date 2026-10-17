@@ -9,11 +9,11 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/mcp"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/room"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/mcp"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/room"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // person is a participant standing for a session.

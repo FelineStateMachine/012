@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nushell"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nushell"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // groceries are rows of every type, as a model writes them, in records

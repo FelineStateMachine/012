@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"src.rest/cat/012/internal/ui/picker"
 )
 
 // hiddenBook is a model of three sheets, Sheet1 reading Data, showing

@@ -9,9 +9,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nushell"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nushell"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // fakeNu answers pipelines from a table of outputs, failing those it

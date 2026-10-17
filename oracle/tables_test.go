@@ -7,7 +7,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
+	"src.rest/cat/012/internal/fileio"
 )
 
 // tableFormulas read the table Sales (A1:C5: Region, Units, Amount) by

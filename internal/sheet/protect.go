@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Protected ranges and sheets follow Sheets' Data > Protect sheets and

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/stress"
 )
 
 // Linked sources for the speed gate (speed_test.go) and the stress

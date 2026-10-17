@@ -10,10 +10,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nushell"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nushell"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // What a cell's run reads: the outputs of the cells it names ($sales),

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 func merge(t *testing.T, base, ours, theirs []byte) (*sheet.Workbook, []string) {

@@ -6,9 +6,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/macro"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/tabstrip"
+	"src.rest/cat/012/internal/macro"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/tabstrip"
 )
 
 // The sheet tabs (package tabstrip) as the model shows them and what

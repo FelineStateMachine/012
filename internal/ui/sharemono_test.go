@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/room"
+	"src.rest/cat/012/internal/room"
 )
 
 // Others read without color: their pointer's cell double-underlined,

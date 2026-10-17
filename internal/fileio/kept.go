@@ -3,8 +3,8 @@ package fileio
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // NUON has no currency or percentage, so a cell showing $3.50 reaches

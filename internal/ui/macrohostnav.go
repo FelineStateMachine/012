@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/choicebar"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/choicebar"
+	"src.rest/cat/012/internal/ui/picker"
 )
 
 // What scripts do to the selection, the sheets and through commands; the

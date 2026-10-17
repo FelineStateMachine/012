@@ -5,11 +5,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/picker"
 )
 
 // File > Settings > Locale: how the workbook's entries are typed and its

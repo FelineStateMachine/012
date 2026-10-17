@@ -3,8 +3,8 @@ package sheet
 import (
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/functions"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/functions"
 )
 
 // Steps is a formula evaluated one part at a time, as Excel's Evaluate

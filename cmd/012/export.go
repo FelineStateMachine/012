@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/sheet"
 )
 
 const exportUsage = "usage: 012 export file.012 out.csv|tsv|xlsx|json|nuon|sqlite|html [ref] [--format kind] [--table name] [--chart n|title] [--report json|nuon] [--notebooks] [--jev] [--trust]"

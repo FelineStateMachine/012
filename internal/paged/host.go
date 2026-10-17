@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Linked is a source as the workbook links it, its file resolved.

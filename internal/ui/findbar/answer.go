@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // answerJSON is a replacement as a macro answers Find and replace:

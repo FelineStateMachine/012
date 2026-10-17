@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/telemetry"
 )
 
 // logSpans turns telemetry on into a JSON log with the engine's hooks

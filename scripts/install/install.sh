@@ -63,14 +63,14 @@ Linux) os=linux ;;
 MINGW* | MSYS* | CYGWIN* | Windows*)
 	die "on Windows, run in PowerShell: irm $base/install.ps1 | iex"
 	;;
-*) die "no release for $os; build from source: go install github.com/FelineStateMachine/012/cmd/012@latest" ;;
+*) die "no release for $os; build from source: go install src.rest/cat/012/cmd/012@latest" ;;
 esac
 
 arch=$(uname -m)
 case $arch in
 x86_64 | amd64) arch=amd64 ;;
 arm64 | aarch64) arch=arm64 ;;
-*) die "no release for $arch; build from source: go install github.com/FelineStateMachine/012/cmd/012@latest" ;;
+*) die "no release for $arch; build from source: go install src.rest/cat/012/cmd/012@latest" ;;
 esac
 # A shell under Rosetta reports x86_64 on an Apple silicon Mac.
 if [ "$os/$arch" = darwin/amd64 ] && [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = 1 ]; then

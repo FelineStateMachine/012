@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/config"
+	"src.rest/cat/012/internal/config"
 )
 
 // Where sessions listen: a folder of the user's own (0700), the runtime

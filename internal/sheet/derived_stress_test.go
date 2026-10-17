@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/stress"
 )
 
 // BenchmarkMemoryDerived is the heap a derived cell holds: the cells a

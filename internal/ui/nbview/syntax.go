@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // What the code editor asks of the language, behind small interfaces so

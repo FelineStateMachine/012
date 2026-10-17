@@ -3,7 +3,7 @@ package fileio
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // 012 reads Sheets' formula syntax and some of 1-2-3's (@SUM, A1..B3,

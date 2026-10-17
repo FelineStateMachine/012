@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/confine"
+	"src.rest/cat/012/internal/confine"
 )
 
 // servedModel is a model served from a fresh directory, which it

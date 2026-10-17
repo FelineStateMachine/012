@@ -10,7 +10,7 @@ import (
 
 	"github.com/parquet-go/parquet-go"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // priced is a row of a Parquet file whose types carry formats: a price

@@ -4,10 +4,10 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/value"
 )
 
 // A workbook's locale is how its entries are typed and its numbers,

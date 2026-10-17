@@ -8,8 +8,8 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // pump polls every region's source once, as the ticks would, and

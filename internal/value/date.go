@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/numfmt"
+	"src.rest/cat/012/internal/numfmt"
 )
 
 // Now is the clock used by TODAY() and NOW(), and for the year of dates

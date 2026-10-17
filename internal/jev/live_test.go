@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // TestLive asks the real service one question of each kind. It only runs

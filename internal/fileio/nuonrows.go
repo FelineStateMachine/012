@@ -7,8 +7,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/nuon"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/nuon"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // NUONRows reads NUON, a notebook cell's output, as a region's rows: a

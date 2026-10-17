@@ -11,8 +11,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/filterpick"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/filterpick"
 )
 
 // Filters follow Sheets' Data > Create a filter: the headers of the

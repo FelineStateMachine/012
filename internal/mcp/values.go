@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/jsonschema-go/jsonschema"
 
-	"github.com/FelineStateMachine/012/internal/headless"
+	"src.rest/cat/012/internal/headless"
 )
 
 // The schema of a cell's value (headless.Value), which the tools that

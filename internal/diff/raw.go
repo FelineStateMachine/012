@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // A .012 file is JSON whose sheets hold their cells as a map by address

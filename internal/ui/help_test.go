@@ -6,8 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/ui/shortcuts"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/ui/shortcuts"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 func TestShortcutsListEveryBoundCommand(t *testing.T) {

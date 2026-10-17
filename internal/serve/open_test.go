@@ -14,9 +14,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui"
 )
 
 // openExec starts a session with a terminal and an exec request for

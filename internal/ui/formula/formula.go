@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // CycleRef finds the reference (or range) at or just before pos in a

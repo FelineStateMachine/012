@@ -12,9 +12,9 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Workbooks are named by path in every tool. A path is confined to the

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/FelineStateMachine/012/internal/chart"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/chart"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // HTML pages are drawn in 012's look: the 16 ANSI colors of the

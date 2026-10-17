@@ -3,7 +3,7 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/ui/evalview"
+	"src.rest/cat/012/internal/ui/evalview"
 )
 
 // Data > Evaluate formula: the active cell's formula stepped through one

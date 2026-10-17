@@ -14,7 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/chart"
+	"src.rest/cat/012/internal/chart"
 )
 
 // Sixel chart images, for terminals without kitty graphics. A sixel

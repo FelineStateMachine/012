@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/functions"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/functions"
 )
 
 // How Steps shows the formula: as written, with the parts computed so

@@ -4,7 +4,7 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Column and row formats, as in Sheets: formatting whole columns or rows

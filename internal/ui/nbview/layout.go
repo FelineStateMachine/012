@@ -3,8 +3,8 @@ package nbview
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/ui/lineedit"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/ui/lineedit"
 )
 
 // Where things go across the body, as in Jupyter: a bar marking the

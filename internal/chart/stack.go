@@ -3,7 +3,7 @@ package chart
 import (
 	"math"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // A span is a piece of a bar, or of an area at one point, from lo to hi

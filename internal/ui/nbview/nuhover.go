@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nushell"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nushell"
 )
 
 // Hover implements Hoverer: for a command, its signature and help from

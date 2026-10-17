@@ -9,9 +9,9 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Resources are workbooks' data by address, for hosts that let people

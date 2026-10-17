@@ -7,8 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // bigTable is an output of n rows of four columns, as nu prints it.

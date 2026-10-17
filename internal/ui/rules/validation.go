@@ -4,9 +4,9 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 var errRange = errors.New("Enter the range the rule applies to, e.g. B2:B100")

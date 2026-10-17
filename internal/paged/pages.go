@@ -4,8 +4,8 @@ import (
 	"context"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Pages are the rows a source's tab shows, in its view's order (a sort

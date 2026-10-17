@@ -3,8 +3,8 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/picker"
 )
 
 // Hidden sheets, as in Sheets: the tab menu's Hide sheet takes a sheet

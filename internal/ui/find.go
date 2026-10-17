@@ -5,8 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/findbar"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/findbar"
 )
 
 // Find and replace is a bar on the context line (package findbar); here

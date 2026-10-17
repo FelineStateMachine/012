@@ -3,8 +3,8 @@ package nbview
 import (
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // An output's window: at most window of its rows (a grid's rows under

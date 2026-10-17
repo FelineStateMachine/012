@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // sqliteSource is a SQLite table, view or query read in place, through

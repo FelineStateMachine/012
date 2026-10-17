@@ -5,8 +5,8 @@ import (
 	"math"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/value"
 )
 
 // Order statistics: MEDIAN, MODE, PERCENTILE, QUARTILE, LARGE and SMALL

@@ -8,9 +8,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/rowtext"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/rowtext"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // active is the cell drawn as the cell pointer: the pointer while

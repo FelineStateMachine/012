@@ -11,8 +11,8 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/headless"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/headless"
 )
 
 // folder makes a folder of workbooks: book.012 and sub/data.csv, a

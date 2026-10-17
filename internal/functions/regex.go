@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 // Splitting text and regular expressions. Sheets' regular expressions

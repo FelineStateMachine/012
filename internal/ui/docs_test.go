@@ -9,8 +9,8 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/FelineStateMachine/012/internal/ui/nbview"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/ui/nbview"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // The docs name menus, commands and keys; these tests keep what they name

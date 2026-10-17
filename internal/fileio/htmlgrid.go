@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/chart"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/chart"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // maxHTMLCells bounds the cells a page draws, blank ones included: a

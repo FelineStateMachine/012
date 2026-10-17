@@ -11,7 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 // Number format patterns: "#,##0.00", "0.0%", "0.00E+00",

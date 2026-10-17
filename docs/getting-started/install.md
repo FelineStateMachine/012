@@ -32,7 +32,7 @@ download by hand.
 With Go 1.27 or later, build it from source instead:
 
 ```sh
-go install github.com/FelineStateMachine/012/cmd/012@latest
+go install src.rest/cat/012/cmd/012@latest
 ```
 
 From a clone, `make build` puts it in `bin/012`.

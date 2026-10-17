@@ -19,10 +19,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	typesafe "github.com/FelineStateMachine/typesafe-go"
 
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/stress"
-	"github.com/FelineStateMachine/012/internal/telemetry"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/stress"
+	"src.rest/cat/012/internal/telemetry"
 )
 
 var termSizes = []struct{ w, h int }{{80, 24}, {200, 60}, {400, 120}}

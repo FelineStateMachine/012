@@ -1,6 +1,6 @@
 package functions
 
-import "github.com/FelineStateMachine/012/internal/value"
+import "src.rest/cat/012/internal/value"
 
 // Functions over aligned ranges computing a StreamCall (stream.go). On
 // a sheet they gather the positions of the cells their ranges hold and

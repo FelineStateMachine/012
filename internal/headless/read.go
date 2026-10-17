@@ -1,7 +1,7 @@
 package headless
 
 import (
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Range is a range's values as a grid, for agents: what ReadRange

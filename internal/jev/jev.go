@@ -11,8 +11,8 @@ import (
 
 	typesafe "github.com/FelineStateMachine/typesafe-go"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Config is how to reach the service. The key comes from ResolveKey;

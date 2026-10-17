@@ -3,7 +3,7 @@ package locale_test
 import (
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/locale"
+	"src.rest/cat/012/internal/locale"
 )
 
 func TestLookup(t *testing.T) {

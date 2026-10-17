@@ -5,9 +5,9 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/value"
 )
 
 // Decimal arithmetic is an opt-in, per-workbook calculation setting for

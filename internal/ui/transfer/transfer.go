@@ -17,9 +17,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/telemetry"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/telemetry"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Place is where an import goes.

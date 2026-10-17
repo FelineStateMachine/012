@@ -1,7 +1,7 @@
 package functions
 
 import (
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 func init() {

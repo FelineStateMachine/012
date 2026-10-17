@@ -1,6 +1,6 @@
 package sheet
 
-import "github.com/FelineStateMachine/012/internal/functions"
+import "src.rest/cat/012/internal/functions"
 
 // Decimal arithmetic is a per-workbook calculation setting; what it
 // computes in decimal is the function library's (functions/decimal.go).

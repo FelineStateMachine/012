@@ -8,8 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/ui/choicebar"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/ui/choicebar"
 )
 
 // Save as onto another file that exists asks first: Enter replaces it,

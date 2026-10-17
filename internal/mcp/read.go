@@ -8,8 +8,8 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // The tools that read a workbook, or compute on a copy thrown away.

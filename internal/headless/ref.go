@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Target is what a reference names: a range of one sheet, or the whole

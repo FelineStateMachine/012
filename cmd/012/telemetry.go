@@ -5,9 +5,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/telemetry"
 )
 
 // telemetryConfig is where telemetry goes: the log file, level and OTLP

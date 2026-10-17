@@ -6,10 +6,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/macro"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/choicebar"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"src.rest/cat/012/internal/macro"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/choicebar"
+	"src.rest/cat/012/internal/ui/picker"
 )
 
 // Recording a macro, as Sheets' Extensions > Macros > Record macro: while

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // CellRun is what running a notebook cell gave: its state, its output

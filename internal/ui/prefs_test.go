@@ -12,9 +12,9 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/keyring"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/keyring"
 )
 
 // configured returns a model with settings from a config file in a

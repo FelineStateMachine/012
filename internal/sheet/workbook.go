@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // A Workbook is an ordered list of sheets, as a Google Sheets

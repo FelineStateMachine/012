@@ -3,8 +3,8 @@ package sheet
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/functions"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/functions"
 )
 
 // Evaluation is lazy and recursive: a formula reading a dirty cell

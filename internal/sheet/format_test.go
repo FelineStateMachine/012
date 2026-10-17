@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/value"
 )
 
 // fixedNow pins TODAY() and entries without a year to 2026-09-26 14:30.

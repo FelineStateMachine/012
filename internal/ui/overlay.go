@@ -6,7 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/overlay"
 )
 
 // openOverlay shows o, replacing any open overlay.

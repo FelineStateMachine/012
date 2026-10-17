@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/stress"
 )
 
 // stressDir is where scripts/stress-data.sh puts the datasets.

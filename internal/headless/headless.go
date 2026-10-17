@@ -16,7 +16,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // File is a workbook opened from a .012 file.

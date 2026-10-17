@@ -7,11 +7,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/live"
-	"github.com/FelineStateMachine/012/internal/paged"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/srcview"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/live"
+	"src.rest/cat/012/internal/paged"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/srcview"
 )
 
 // Linked sources (Data > Linked file > Link a source): a Parquet file

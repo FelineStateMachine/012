@@ -1,6 +1,6 @@
 package functions
 
-import "github.com/FelineStateMachine/012/internal/value"
+import "src.rest/cat/012/internal/value"
 
 // Some functions (JEV.*) are answered by a hosted model. The library
 // never talks to the network: it describes each question as a RemoteCall

@@ -6,8 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/ui/picker"
 )
 
 // The commands that change a notebook's cells and how their outputs

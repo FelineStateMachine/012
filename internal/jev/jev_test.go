@@ -9,7 +9,7 @@ import (
 
 	typesafe "github.com/FelineStateMachine/typesafe-go"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 func TestCacheQueuesOnce(t *testing.T) {

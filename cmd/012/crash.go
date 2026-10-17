@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/ui"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/ui"
 )
 
 // When the UI stops on an internal error (a panic, which ui.Guard

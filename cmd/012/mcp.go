@@ -11,12 +11,12 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/cowork"
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/mcp"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/cowork"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/mcp"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // 012 mcp: a Model Context Protocol server over standard input and

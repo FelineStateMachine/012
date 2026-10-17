@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // Rules are what a sheet says about ranges of its cells beyond their own

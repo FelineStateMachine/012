@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/FelineStateMachine/012/internal/headless"
+	"src.rest/cat/012/internal/headless"
 )
 
 // 012 describe: what a workbook holds, for agents and people deciding

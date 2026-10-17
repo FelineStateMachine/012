@@ -8,11 +8,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/cowork"
-	"github.com/FelineStateMachine/012/internal/room"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/picker"
-	"github.com/FelineStateMachine/012/internal/ui/review"
+	"src.rest/cat/012/internal/cowork"
+	"src.rest/cat/012/internal/room"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/picker"
+	"src.rest/cat/012/internal/ui/review"
 )
 
 // Live mode (docs/agents/live.md): the agent works in this session as a

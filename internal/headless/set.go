@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Entry is one cell to set: a reference to one cell, and what to type

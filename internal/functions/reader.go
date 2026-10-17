@@ -1,6 +1,6 @@
 package functions
 
-import "github.com/FelineStateMachine/012/internal/value"
+import "src.rest/cat/012/internal/value"
 
 // Book is how formulas reach the workbook: the engine implements it, once
 // for each sheet whose formulas it evaluates. Sheets are named as

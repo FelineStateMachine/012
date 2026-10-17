@@ -1,8 +1,8 @@
 package fileio
 
 import (
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Array formulas in XLSX. Excel 365 keeps a formula that spills (a

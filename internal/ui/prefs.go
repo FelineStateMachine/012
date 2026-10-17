@@ -10,13 +10,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/keyring"
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
-	"github.com/FelineStateMachine/012/internal/ui/themepicker"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/keyring"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/theme"
+	"src.rest/cat/012/internal/ui/themepicker"
 )
 
 // Settings are what the app takes from outside the workbook: the config

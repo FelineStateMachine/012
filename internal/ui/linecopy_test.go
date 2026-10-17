@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Vim's yy and dd copy whole rows, so p and P carry their row formats,

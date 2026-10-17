@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // Every state reads without color (docs/contributing/ux.md#visual-rules):

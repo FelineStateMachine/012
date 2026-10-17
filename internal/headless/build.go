@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // ChartSpec is a chart to add, as Insert > Chart makes one: over Data,

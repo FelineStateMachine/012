@@ -6,9 +6,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/cmdhelp"
-	"github.com/FelineStateMachine/012/internal/ui/nbview"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/cmdhelp"
+	"src.rest/cat/012/internal/ui/nbview"
 )
 
 // What the code editor knows of nushell: nu itself, asked about the

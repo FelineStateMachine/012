@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/functions"
+	"src.rest/cat/012/internal/functions"
 )
 
 // What formulas and pivot tables ask of linked sources (source.go). The

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // bigNotebook is 50 code cells, each with a 10,000-row output of four

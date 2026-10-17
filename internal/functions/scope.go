@@ -3,8 +3,8 @@ package functions
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/formula"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/formula"
+	"src.rest/cat/012/internal/value"
 )
 
 // Names LET and LAMBDA bind (Local nodes), and calling a LAMBDA: the

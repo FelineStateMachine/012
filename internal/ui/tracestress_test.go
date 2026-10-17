@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/stress"
 )
 
 // BenchmarkTrace is an arrow key through to its frame on sheets of a

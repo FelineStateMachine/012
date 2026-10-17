@@ -1,8 +1,8 @@
 package headless
 
 import (
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Description is what a workbook holds, for 012 describe and the MCP

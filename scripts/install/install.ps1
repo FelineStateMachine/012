@@ -26,7 +26,7 @@ function Install-012 {
     switch ($arch) {
         'AMD64' { $arch = 'amd64' }
         'ARM64' { $arch = 'arm64' }
-        default { throw "012 install: no release for $arch; build from source: go install github.com/FelineStateMachine/012/cmd/012@latest" }
+        default { throw "012 install: no release for $arch; build from source: go install src.rest/cat/012/cmd/012@latest" }
     }
 
     $tmp = Join-Path ([IO.Path]::GetTempPath()) ("012-install-" + [Guid]::NewGuid())

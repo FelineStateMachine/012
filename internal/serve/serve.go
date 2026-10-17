@@ -16,12 +16,12 @@ import (
 	bm "charm.land/wish/v2/bubbletea"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/jev"
-	"github.com/FelineStateMachine/012/internal/room"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/telemetry"
-	"github.com/FelineStateMachine/012/internal/ui"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/jev"
+	"src.rest/cat/012/internal/room"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/telemetry"
+	"src.rest/cat/012/internal/ui"
 )
 
 // handshakeTimeout bounds the time from connecting to logging in.

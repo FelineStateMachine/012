@@ -3,7 +3,7 @@ package chart
 import (
 	"image"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // A plan is a chart laid out in w by h cells: the layout Draw and Image

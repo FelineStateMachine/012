@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/headless"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/headless"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // With O12_AS_MAIN set, the test binary is 012 itself, so git can run

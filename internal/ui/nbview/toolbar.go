@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
+	"src.rest/cat/012/internal/notebook"
 )
 
 // The toolbar over the cells, as Jupyter's: run, stop, restart, run

@@ -3,9 +3,9 @@ package nbview
 import (
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nuon"
-	"github.com/FelineStateMachine/012/internal/ui/theme"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nuon"
+	"src.rest/cat/012/internal/ui/theme"
 )
 
 // A table (a list of records) or a record is drawn by the UI as its own

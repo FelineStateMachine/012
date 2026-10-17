@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/FelineStateMachine/012/internal/formula"
+	"src.rest/cat/012/internal/formula"
 )
 
 // cellStore holds a sheet's cells: those with contents or formatting, by

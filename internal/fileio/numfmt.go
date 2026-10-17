@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/FelineStateMachine/012/internal/locale"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/locale"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Number formats in files are Excel format codes. 012's formats map to

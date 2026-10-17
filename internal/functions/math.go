@@ -4,8 +4,8 @@ import (
 	"math"
 	"math/rand/v2"
 
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/value"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/value"
 )
 
 func init() {

@@ -5,7 +5,7 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/FelineStateMachine/012/internal/nuon"
+	"src.rest/cat/012/internal/nuon"
 )
 
 // quietKeys are the workbook's fields that change without the workbook

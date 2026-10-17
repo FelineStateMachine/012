@@ -8,7 +8,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // lines are rules as the file writes them, for comparing.

@@ -6,10 +6,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/macro"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/overlay"
-	"github.com/FelineStateMachine/012/internal/ui/suggest"
+	"src.rest/cat/012/internal/macro"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/overlay"
+	"src.rest/cat/012/internal/ui/suggest"
 )
 
 // Entry follows Google Sheets: typing replaces the cell (ENTER), Enter or

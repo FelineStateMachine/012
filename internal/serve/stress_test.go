@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/stress"
+	"src.rest/cat/012/internal/stress"
 )
 
 func BenchmarkSessions(b *testing.B) {

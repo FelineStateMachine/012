@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // wk1 encodes a worksheet for tests: 1-2-3 files don't ship with 012.

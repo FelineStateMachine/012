@@ -9,9 +9,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/live"
-	"github.com/FelineStateMachine/012/internal/notebook"
-	"github.com/FelineStateMachine/012/internal/nushell"
+	"src.rest/cat/012/internal/live"
+	"src.rest/cat/012/internal/notebook"
+	"src.rest/cat/012/internal/nushell"
 )
 
 // Cells run as streams (Run as stream): the pipeline runs until it ends

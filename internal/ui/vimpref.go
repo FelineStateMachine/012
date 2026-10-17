@@ -3,7 +3,7 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/config"
+	"src.rest/cat/012/internal/config"
 )
 
 // SetVimKeys turns vim keys on or off, as the setting does, for callers

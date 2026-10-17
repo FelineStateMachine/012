@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/numfmt"
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/numfmt"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // ruleSkips counts the rules an import left out, by why.

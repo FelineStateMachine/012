@@ -3,7 +3,7 @@ package chart
 import (
 	"math"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // newAxis fits dlo..dhi onto a value axis of length cells as newScale

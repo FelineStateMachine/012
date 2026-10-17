@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // sheetsOnlyNote marks a corpus row whose formula 012's exporter saves as

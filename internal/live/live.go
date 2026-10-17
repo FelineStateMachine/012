@@ -13,7 +13,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // A Source yields a table's rows as they change.

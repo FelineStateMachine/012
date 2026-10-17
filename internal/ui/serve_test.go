@@ -10,11 +10,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/confine"
-	"github.com/FelineStateMachine/012/internal/fileio"
-	"github.com/FelineStateMachine/012/internal/sheet"
-	"github.com/FelineStateMachine/012/internal/ui/choicebar"
-	"github.com/FelineStateMachine/012/internal/ui/transfer"
+	"src.rest/cat/012/internal/confine"
+	"src.rest/cat/012/internal/fileio"
+	"src.rest/cat/012/internal/sheet"
+	"src.rest/cat/012/internal/ui/choicebar"
+	"src.rest/cat/012/internal/ui/transfer"
 )
 
 // writeSheet saves a one-cell sheet at path.

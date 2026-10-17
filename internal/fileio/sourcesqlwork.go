@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // A SQLite source's work database: a file of its own in the temporary

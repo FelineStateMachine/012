@@ -8,7 +8,7 @@ package sheet_test
 import (
 	"testing"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 var parseInputs = []string{

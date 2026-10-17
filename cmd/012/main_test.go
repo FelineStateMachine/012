@@ -10,8 +10,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/FelineStateMachine/012/internal/config"
-	"github.com/FelineStateMachine/012/internal/keyring"
+	"src.rest/cat/012/internal/config"
+	"src.rest/cat/012/internal/keyring"
 )
 
 // testEnv points the config at a temporary directory and the credential

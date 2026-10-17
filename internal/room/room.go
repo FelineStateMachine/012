@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // Participant is one who takes part in a room. The room asks only this

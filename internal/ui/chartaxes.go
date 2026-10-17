@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FelineStateMachine/012/internal/sheet"
+	"src.rest/cat/012/internal/sheet"
 )
 
 // The chart editor's axis bar: the ends of the value axis, typed on the
