@@ -17,7 +17,7 @@ set -eu
 cd "$(dirname "$0")/.."
 
 GOCOGNIT=github.com/uudashr/gocognit/cmd/gocognit@v1.2.1
-STATICCHECK=honnef.co/go/tools/cmd/staticcheck@2026.2.1
+STATICCHECK=honnef.co/go/tools/cmd/staticcheck@2026.2.2
 MAX_COGNIT=25
 MAX_LINES=500
 : "${PKG_CONFIG_PATH:=$(pwd)/.deps/ghostty/share/pkgconfig}"
