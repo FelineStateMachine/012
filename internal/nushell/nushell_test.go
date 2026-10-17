@@ -94,6 +94,13 @@ func TestMessage(t *testing.T) {
 	if got := Message(stderr, errors.New("exit status 1")); got != "Cannot find column 'xyz'" {
 		t.Errorf("message %q", got)
 	}
+	ascii := "Error: nu::shell::column_not_found\n\n  x Cannot find column 'xyz'\n   ,-[source:1:6]\n"
+	if got := Message(ascii, errors.New("exit status 1")); got != "Cannot find column 'xyz'" {
+		t.Errorf("ascii message %q", got)
+	}
+	if got := Message("x is not a command\n", errors.New("exit status 1")); got != "x is not a command" {
+		t.Errorf("unmarked message %q", got)
+	}
 	if got := Message("", errors.New("exit status 1")); got != "exit status 1" {
 		t.Errorf("message %q", got)
 	}

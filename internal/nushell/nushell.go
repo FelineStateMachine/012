@@ -251,12 +251,16 @@ func nuArgs(job Job, script, dir string) ([]string, error) {
 }
 
 // Message is the line of nu's standard error that says what went wrong:
-// the one marked ×, or the first, or how the process ended.
+// the one marked × (an ASCII x when nu doesn't draw in Unicode, as when
+// its output isn't a terminal), or the first, or how the process ended.
 func Message(stderr string, err error) string {
 	first := ""
 	for line := range strings.SplitSeq(stderr, "\n") {
 		line = strings.TrimSpace(line)
 		if rest, ok := strings.CutPrefix(line, "×"); ok {
+			return strings.TrimSpace(rest)
+		}
+		if rest, ok := strings.CutPrefix(line, "x "); ok && strings.HasPrefix(first, "Error:") {
 			return strings.TrimSpace(rest)
 		}
 		if first == "" && line != "" {
