@@ -24,15 +24,17 @@ const sections: [string, string][] = [
 ];
 
 // The site is served at the root of its own host; SITE_URL names that
-// host for canonical links and the sitemap.
-const url = process.env.SITE_URL || 'https://012.dev.site';
+// host for canonical links and the sitemap. `forge site deploy` serves it
+// under a path instead and says where with FORGE_SITE_URL and FORGE_SITE_BASE.
+const forgeSite = process.env.FORGE_SITE_URL ? new URL(process.env.FORGE_SITE_URL) : null;
+const url = forgeSite?.origin || process.env.SITE_URL || 'https://012.dev.site';
 
 const config: Config = {
   title: '012',
   tagline: 'A spreadsheet for the terminal: the look of Lotus 1-2-3, the behavior of Google Sheets.',
   favicon: 'img/favicon.svg',
   url,
-  baseUrl: '/',
+  baseUrl: process.env.FORGE_SITE_BASE || '/',
   // Every page is a directory with an index.html, so plain static hosting
   // resolves each address.
   trailingSlash: true,

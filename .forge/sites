@@ -1,0 +1,2 @@
+# name  output         build command
+docs    website/build  cd website && npm ci && npm run build
